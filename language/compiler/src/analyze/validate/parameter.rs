@@ -1,48 +1,51 @@
 use crate::analyze::common::TypeContext;
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
-    BindingKind, BindingModifier, Declaration, FunctionMode, LocalNodeId, Member, Mutability,
-    NodeTree, NodeType, Parameter, Property, SymbolSpace,
+    Declaration, FunctionMode, LocalNodeId, Member, NodeTree, NodeType, Parameter, Property,
 };
 
 #[allow(clippy::collapsible_match, clippy::too_many_arguments)]
 impl Compiler {
-    /// Return true when variance is allowed for this parameter.
-    fn is_parameter_variable(&self, tree: &NodeTree, parameter_id: LocalNodeId<Parameter>) -> bool {
-        let Some(parent) = tree.get_parent(parameter_id.id) else {
-            return false;
-        };
-
-        // declaration parameters
-        if parent.ty == NodeType::Declaration {
-            let declaration = tree.get(parent.into_typed::<Declaration>());
-            return matches!(
-                declaration,
-                Declaration::Class { .. }
-                    | Declaration::Interface { .. }
-                    | Declaration::Type { .. }
-                    | Declaration::Function { .. }
-            );
+    /// Return whether one parameter is a parameter property.
+    fn parameter_is_property(&self, parameter: &Parameter) -> bool {
+        match parameter {
+            Parameter::Named {
+                visibility,
+                is_readonly,
+                ..
+            }
+            | Parameter::VariadicNamed {
+                visibility,
+                is_readonly,
+                ..
+            } => visibility.is_some() || *is_readonly,
+            Parameter::Pattern { .. }
+            | Parameter::VariadicPattern { .. }
+            | Parameter::Error { .. } => false,
         }
-
-        // method parameters
-        if parent.ty == NodeType::Member {
-            let member = tree.get(parent.into_typed::<Member>());
-            return matches!(member, Member::Method { .. });
-        }
-
-        // object method parameters
-        if parent.ty == NodeType::Property {
-            let property = tree.get(parent.into_typed::<Property>());
-            return matches!(property, Property::Method { .. });
-        }
-
-        false
     }
 
-    /// Check whether a binding modifier indicates a parameter property.
-    fn is_parameter_property(&self, modifiers: &BindingModifier) -> bool {
-        modifiers.visibility.is_some() || modifiers.mutability == Some(Mutability::Immutable)
+    /// Return whether one parameter has an authored type annotation.
+    fn parameter_has_declared_type(&self, parameter: &Parameter) -> bool {
+        match parameter {
+            Parameter::Named { declared_type, .. }
+            | Parameter::Pattern { declared_type, .. }
+            | Parameter::VariadicNamed { declared_type, .. }
+            | Parameter::VariadicPattern { declared_type, .. } => declared_type.is_some(),
+            Parameter::Error { .. } => false,
+        }
+    }
+
+    /// Return whether one parameter is optional in syntax.
+    fn parameter_is_optional(&self, parameter: &Parameter) -> bool {
+        match parameter {
+            Parameter::Named { is_optional, .. } | Parameter::Pattern { is_optional, .. } => {
+                *is_optional
+            }
+            Parameter::VariadicNamed { .. }
+            | Parameter::VariadicPattern { .. }
+            | Parameter::Error { .. } => false,
+        }
     }
 
     /// Check whether a parameter belongs to a constructor.
@@ -74,8 +77,8 @@ impl Compiler {
                 let declaration = tree.get(LocalNodeId::<Declaration>::new(parent.id));
                 matches!(
                     declaration,
-                    Declaration::Function { signature, .. }
-                        if signature.mode == Some(FunctionMode::Constructor)
+                    Declaration::Function(declaration)
+                        if declaration.signature.mode == Some(FunctionMode::Constructor)
                 )
             }
             _ => false,
@@ -90,15 +93,10 @@ impl Compiler {
         parameter: &Parameter,
     ) {
         // normalize parameter property state
-        let modifiers = parameter.modifiers();
-        let is_parameter_property =
-            modifiers.is_some_and(|modifiers| self.is_parameter_property(modifiers));
+        let is_parameter_property = self.parameter_is_property(parameter);
 
         // classify explicit type annotations on parameters
-        let has_declared_type = ctx
-            .types
-            .get_declared_type_id(id.into_global_any(ctx.module.id))
-            .is_some();
+        let has_declared_type = self.parameter_has_declared_type(parameter);
 
         // reject parameter properties in javascript modules
         if is_parameter_property && ctx.module.language_type.is_javascript() {
@@ -117,9 +115,7 @@ impl Compiler {
         }
 
         // reject optional parameters in javascript modules
-        if ctx.module.language_type.is_javascript()
-            && modifiers.is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe))
-        {
+        if ctx.module.language_type.is_javascript() && self.parameter_is_optional(parameter) {
             let node = id
                 .into_global_any(ctx.module.id)
                 .into_anchored(Some(ctx.profile));
@@ -157,10 +153,9 @@ impl Compiler {
                 .into_anchored(Some(ctx.profile));
             self.error(AnalyzeError::InvalidParameterProperty { node });
         }
+
         // optional pattern or rest parameters are not valid
-        let is_optional =
-            modifiers.is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe));
-        if is_optional {
+        if self.parameter_is_optional(parameter) {
             let node = id
                 .into_global_any(ctx.module.id)
                 .into_anchored(Some(ctx.profile));
@@ -189,31 +184,6 @@ impl Compiler {
         // variadic destructuring bindings must contain assignment targets
         else if let Parameter::VariadicPattern { pattern, .. } = parameter {
             self.validate_for_each_assignment_pattern(&mut ctx.reborrow(), *pattern, true);
-        }
-
-        // variance modifiers are restricted
-        if let Some(modifiers) = modifiers
-            && (modifiers.variance.is_some() || modifiers.visibility.is_some())
-        {
-            let symbol = ctx.symbols.get_symbol(parameter.symbol());
-            let is_type_parameter = symbol.space == SymbolSpace::Type;
-
-            if modifiers.visibility.is_some() && is_type_parameter {
-                let node = id
-                    .into_global_any(ctx.module.id)
-                    .into_anchored(Some(ctx.profile));
-                self.error(AnalyzeError::InvalidTypeParameterModifier { node });
-            }
-
-            if modifiers.variance.is_some() {
-                let is_allowed = is_type_parameter && self.is_parameter_variable(ctx.tree, id);
-                if !is_allowed {
-                    let node = id
-                        .into_global_any(ctx.module.id)
-                        .into_anchored(Some(ctx.profile));
-                    self.error(AnalyzeError::InvalidTypeParameterModifier { node });
-                }
-            }
         }
     }
 }

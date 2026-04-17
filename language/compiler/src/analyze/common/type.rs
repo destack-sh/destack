@@ -5,8 +5,8 @@ use destack_dir::{
     Block, Expression, Freshness, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId,
     NodeTree, NodeType, PrimitiveType, RuntimeCheckKind, ScalarLiteral, StaticArgument,
     StaticExpression, StaticKey, StaticParameterKind, SymbolType, Type, TypeLiteral, TypeTable,
-    TypeUnaryOperator, TypeVisitor, TypeVisitorOptions, are_types_equal, walk_static_argument,
-    walk_static_expression, walk_type,
+    TypeVisitor, TypeVisitorOptions, are_types_equal, walk_static_argument, walk_static_expression,
+    walk_type,
 };
 use destack_source::ModuleId;
 use destack_workspace::Module;
@@ -636,10 +636,7 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                         return;
                     }
                 }
-                Type::Unary {
-                    operator: TypeUnaryOperator::Keyof,
-                    ..
-                } => {
+                Type::KeyOf { .. } => {
                     return;
                 }
                 Type::Reference { symbol, .. } => {
@@ -1114,7 +1111,7 @@ impl Compiler {
 
         // update any expression wrappers for the block
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
-            let Expression::Block { block } = tree.get(expression_id) else {
+            let Expression::Block(block) = tree.get(expression_id) else {
                 continue;
             };
             if *block != block_id {
@@ -1390,11 +1387,7 @@ impl Compiler {
         types: &TypeTable,
     ) -> LocalTypeId {
         let mut unwrapped_type_id = types.unwrap_value_type_id(type_id);
-        while let Type::Unary {
-            operator: TypeUnaryOperator::AsComptime,
-            right,
-        } = types.get_type(unwrapped_type_id)
-        {
+        while let Type::AsComptime { target_type: right } = types.get_type(unwrapped_type_id) {
             unwrapped_type_id = *right;
         }
         unwrapped_type_id
@@ -2174,6 +2167,7 @@ impl Compiler {
         primitive: PrimitiveType,
     ) -> bool {
         match literal {
+            ScalarLiteral::Null => false,
             // these literal families do not need module specific widening rules
             ScalarLiteral::Boolean(_) => primitive == PrimitiveType::Boolean,
             ScalarLiteral::Bigint(_) => primitive == PrimitiveType::Bigint,

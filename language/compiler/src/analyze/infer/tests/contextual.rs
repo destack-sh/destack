@@ -140,7 +140,7 @@ const add: (this: Counter, delta: number) => number = function(this, delta) {
     let declarator_id = declarators.first().unwrap();
     let declarator = view.tree().get(*declarator_id);
     let value_id = declarator.value.expect("expected function value");
-    let Expression::Declaration { declaration } = view.tree().get(value_id) else {
+    let Expression::Declaration(declaration) = view.tree().get(value_id) else {
         panic!("expected function declaration expression");
     };
 
@@ -295,7 +295,7 @@ fn test_analyze_type_mapped_parameter_scope() {
 
     assert_type!(view.types(), map_instance_id, Type::Mapped { parameter, value, .. } => {
         assert_string!(test.program, parameter.name, "K");
-        assert_type!(view.types(), parameter.constraint, Type::Unary { operator: TypeUnaryOperator::Keyof, right } => {
+        assert_type!(view.types(), parameter.constraint, Type::KeyOf { target_type: right } => {
             assert_type!(view.types(), *right, Type::Reference { symbol, static_arguments } => {
                 assert!(static_arguments.is_none());
                 let symbol = view.symbols().get_symbol(symbol.into_local());

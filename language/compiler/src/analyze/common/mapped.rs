@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_dir::{
-    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, PrimitiveType, ScalarLiteral,
-    StaticKey, SymbolKey, SymbolType, Type, TypeField, TypeIndexSignature, TypeLiteral,
-    TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypeTable, TypeUnaryOperator,
+    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, MappedTypeModifier, MappedTypeModifiers,
+    MappedTypeParameter, NormalizationMode, PrimitiveType, ScalarLiteral, StaticKey, SymbolKey,
+    SymbolType, Type, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
 };
 
 use super::key::KeySet;
@@ -95,9 +95,8 @@ impl Compiler {
             {
                 return keyof_type_id;
             }
-            let normalized = Type::Unary {
-                operator: TypeUnaryOperator::Keyof,
-                right: normalized_right,
+            let normalized = Type::KeyOf {
+                target_type: normalized_right,
             };
             return ctx.types.insert_type_from_any(normalized, source_id);
         }
@@ -1581,8 +1580,8 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
-        parameter: TypeMappedParameter,
-        modifiers: TypeMappedModifiers,
+        parameter: MappedTypeParameter,
+        modifiers: MappedTypeModifiers,
         value: LocalTypeId,
         mode: NormalizationMode,
         _relation_mode: RelationMode,
@@ -1591,7 +1590,7 @@ impl Compiler {
         // mapped key queries should use type operations semantics
         let relation_mode = RelationMode::OBJECT_SHAPE;
 
-        let TypeMappedParameter {
+        let MappedTypeParameter {
             name,
             symbol,
             constraint,
@@ -1632,7 +1631,7 @@ impl Compiler {
         {
             let normalized_value =
                 self.normalize_type_inner(&mut ctx.reborrow(), value, mode, relation_mode, visited);
-            let parameter = TypeMappedParameter {
+            let parameter = MappedTypeParameter {
                 name,
                 symbol,
                 constraint,
@@ -1690,6 +1689,7 @@ impl Compiler {
             // expand each mapped key into fields or index signatures
             let mut fields: Vec<TypeField> = Vec::new();
             let mut index_values: HashMap<MappedIndexKind, Vec<LocalTypeId>> = HashMap::new();
+            let mut index_optional: HashMap<MappedIndexKind, bool> = HashMap::new();
             let mut index_readonly: HashMap<MappedIndexKind, bool> = HashMap::new();
 
             // precompute normalized value and remap when the parameter is unused
@@ -1843,8 +1843,13 @@ impl Compiler {
                         }
                         MappedKey::Index { kind, .. } => {
                             index_values.entry(kind).or_default().push(normalized_value);
-                            let (_, is_readonly) =
+                            let (is_optional, is_readonly) =
                                 self.apply_mapped_modifiers(modifiers, false, index_base_readonly);
+                            if let Some(existing) = index_optional.get_mut(&kind) {
+                                *existing = *existing && is_optional;
+                            } else {
+                                index_optional.insert(kind, is_optional);
+                            }
                             if let Some(existing) = index_readonly.get_mut(&kind) {
                                 *existing = *existing && is_readonly;
                             } else {
@@ -1860,11 +1865,13 @@ impl Compiler {
             for (kind, values) in index_values {
                 let value_type_id = self.union_type_ids_from_list(values, source_id, ctx.types);
                 let key_type_id = self.key_type_id_for_index_kind(kind, source_id, ctx.types);
+                let is_optional = index_optional.get(&kind).copied().unwrap_or(false);
                 let is_readonly = index_readonly.get(&kind).copied().unwrap_or(false);
                 index_signatures.push(TypeIndexSignature {
                     name,
                     key_type: key_type_id,
                     value_type: value_type_id,
+                    is_optional,
                     is_readonly,
                 });
             }
@@ -1889,11 +1896,7 @@ impl Compiler {
         types: &TypeTable,
     ) -> Option<LocalTypeId> {
         // prefer `keyof T` constraints
-        if let Type::Unary {
-            operator: TypeUnaryOperator::Keyof,
-            right,
-        } = types.get_type(constraint)
-        {
+        if let Type::KeyOf { target_type: right } = types.get_type(constraint) {
             return Some(*right);
         }
 
@@ -2031,10 +2034,7 @@ impl Compiler {
                     }
                 }
             }
-            Type::Unary {
-                operator: TypeUnaryOperator::Keyof,
-                right,
-            } => {
+            Type::KeyOf { target_type: right } => {
                 let mut normalize_visited = Vec::new();
                 let normalized = self.normalize_keyof_type(
                     &mut ctx.reborrow(),
@@ -2191,21 +2191,24 @@ impl Compiler {
     /// Apply mapped type modifiers to base modifiers. Returns (is_optional, is_readonly).
     fn apply_mapped_modifiers(
         &self,
-        modifiers: TypeMappedModifiers,
+        modifiers: MappedTypeModifiers,
         base_optional: bool,
         base_readonly: bool,
     ) -> (bool, bool) {
         // resolve optional modifiers
         let is_optional = match modifiers.optional {
-            TypeModifier::Add => true,
-            TypeModifier::Remove => false,
-            TypeModifier::None => base_optional,
+            MappedTypeModifier::Present => true,
+            MappedTypeModifier::Add => true,
+            MappedTypeModifier::Remove => false,
+            MappedTypeModifier::None => base_optional,
         };
+
         // resolve readonly modifiers
         let is_readonly = match modifiers.readonly {
-            TypeModifier::Add => true,
-            TypeModifier::Remove => false,
-            TypeModifier::None => base_readonly,
+            MappedTypeModifier::Present => true,
+            MappedTypeModifier::Add => true,
+            MappedTypeModifier::Remove => false,
+            MappedTypeModifier::None => base_readonly,
         };
 
         (is_optional, is_readonly)

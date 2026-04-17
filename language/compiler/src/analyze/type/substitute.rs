@@ -1,4 +1,5 @@
 use super::*;
+use destack_dir::MappedTypeParameter;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -68,34 +69,110 @@ impl Compiler {
                     )
                 }
             }
-            Type::Unary { operator, right } => {
+            Type::Readonly { target_type: right } => {
                 let mapped_right = self.substitute_this_type(right, this_ty_id, types, cache);
                 if mapped_right == right {
                     ty_id
                 } else {
                     types.insert_type_from_type(
-                        Type::Unary {
-                            operator,
-                            right: mapped_right,
+                        Type::Readonly {
+                            target_type: mapped_right,
                         },
                         ty_id,
                     )
                 }
             }
-            Type::Binary {
-                left,
-                operator,
-                right,
-            } => {
+            Type::KeyOf { target_type: right } => {
+                let mapped_right = self.substitute_this_type(right, this_ty_id, types, cache);
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::KeyOf {
+                            target_type: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Must { target_type: right } => {
+                let mapped_right = self.substitute_this_type(right, this_ty_id, types, cache);
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Must {
+                            target_type: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::AsComptime { target_type: right } => {
+                let mapped_right = self.substitute_this_type(right, this_ty_id, types, cache);
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::AsComptime {
+                            target_type: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Not { target_type: right } => {
+                let mapped_right = self.substitute_this_type(right, this_ty_id, types, cache);
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Not {
+                            target_type: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::In { left, right } => {
                 let mapped_left = self.substitute_this_type(left, this_ty_id, types, cache);
                 let mapped_right = self.substitute_this_type(right, this_ty_id, types, cache);
                 if mapped_left == left && mapped_right == right {
                     ty_id
                 } else {
                     types.insert_type_from_type(
-                        Type::Binary {
+                        Type::In {
                             left: mapped_left,
-                            operator,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Extends { left, right } => {
+                let mapped_left = self.substitute_this_type(left, this_ty_id, types, cache);
+                let mapped_right = self.substitute_this_type(right, this_ty_id, types, cache);
+                if mapped_left == left && mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Extends {
+                            left: mapped_left,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Implements { left, right } => {
+                let mapped_left = self.substitute_this_type(left, this_ty_id, types, cache);
+                let mapped_right = self.substitute_this_type(right, this_ty_id, types, cache);
+                if mapped_left == left && mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Implements {
+                            left: mapped_left,
                             right: mapped_right,
                         },
                         ty_id,
@@ -149,7 +226,7 @@ impl Compiler {
                 {
                     ty_id
                 } else {
-                    let parameter = TypeMappedParameter {
+                    let parameter = MappedTypeParameter {
                         name: parameter.name,
                         symbol: parameter.symbol,
                         constraint: mapped_constraint,
@@ -651,28 +728,16 @@ impl Compiler {
     ) -> StaticProperty {
         match property {
             StaticProperty::Unevaluated { .. } => property.clone(),
-            StaticProperty::Field {
-                modifiers,
-                key,
-                value,
-                default,
-                symbol,
-            } => {
+            StaticProperty::Field { key, value, symbol } => {
                 let mapped_value =
                     self.substitute_this_static_expression(value, this_ty_id, types, cache);
-                let mapped_default = default.as_ref().map(|default| {
-                    self.substitute_this_static_expression(default, this_ty_id, types, cache)
-                });
                 StaticProperty::Field {
-                    modifiers: *modifiers,
                     key: *key,
                     value: mapped_value,
-                    default: mapped_default,
                     symbol: *symbol,
                 }
             }
             StaticProperty::Method {
-                modifiers,
                 key,
                 signature,
                 body,
@@ -681,10 +746,17 @@ impl Compiler {
                 let mapped_body =
                     self.substitute_this_static_expression(body, this_ty_id, types, cache);
                 StaticProperty::Method {
-                    modifiers: *modifiers,
                     key: *key,
                     signature: signature.clone(),
                     body: mapped_body,
+                    symbol: *symbol,
+                }
+            }
+            StaticProperty::Spread { value, symbol } => {
+                let mapped_value =
+                    self.substitute_this_static_expression(value, this_ty_id, types, cache);
+                StaticProperty::Spread {
+                    value: mapped_value,
                     symbol: *symbol,
                 }
             }

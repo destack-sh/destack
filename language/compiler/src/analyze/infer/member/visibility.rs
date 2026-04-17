@@ -116,20 +116,17 @@ impl Compiler {
         let member_id = member_local.into_typed::<Member>();
         let member = ctx.tree.get(member_id);
 
-        // extract visibility from modifiers
-        let modifiers = match member {
-            Member::Type { modifiers, .. }
-            | Member::ComptimeConst { modifiers, .. }
-            | Member::Field { modifiers, .. }
-            | Member::Method { modifiers, .. }
-            | Member::Embed { modifiers, .. }
-            | Member::StaticBlock { modifiers, .. }
-            | Member::ComptimeBlock { modifiers, .. } => modifiers.as_ref(),
-            Member::Error { .. } => None,
+        // extract visibility from the current member shape
+        let visibility = match member {
+            Member::AssociatedType { visibility, .. }
+            | Member::AssociatedConst { visibility, .. }
+            | Member::Field { visibility, .. }
+            | Member::Method { visibility, .. }
+            | Member::Embed { visibility, .. } => visibility.unwrap_or(Visibility::Public),
+            Member::StaticBlock { .. } | Member::ComptimeBlock { .. } | Member::Error { .. } => {
+                Visibility::Public
+            }
         };
-        let visibility = modifiers
-            .and_then(|modifier| modifier.visibility)
-            .unwrap_or(Visibility::Public);
 
         Some(MemberVisibilityContext {
             visibility,
@@ -279,7 +276,7 @@ impl Compiler {
                         for member_id in members {
                             let Member::Method {
                                 signature,
-                                modifiers,
+                                is_static,
                                 ..
                             } = view.tree.get(*member_id)
                             else {
@@ -288,16 +285,17 @@ impl Compiler {
                             if signature.mode != Some(FunctionMode::Constructor) {
                                 continue;
                             }
-                            if modifiers.as_ref().is_some_and(|modifier| {
-                                modifier.anchor == Some(BindingAnchor::Static)
-                            }) {
+                            if *is_static {
                                 continue;
                             }
 
-                            for parameter_id in &signature.dynamic_parameters {
+                            for parameter_id in &signature.parameters {
                                 let parameter = view.tree.get(*parameter_id);
                                 let Parameter::Named {
-                                    name, modifiers, ..
+                                    name,
+                                    visibility,
+                                    is_readonly,
+                                    ..
                                 } = parameter
                                 else {
                                     continue;
@@ -306,19 +304,13 @@ impl Compiler {
                                     continue;
                                 }
 
-                                let Some(modifiers) = modifiers.as_ref() else {
+                                let Some(visibility) = *visibility else {
                                     continue;
                                 };
-                                let is_parameter_property = modifiers.visibility.is_some()
-                                    || modifiers.mutability == Some(Mutability::Immutable);
-                                if !is_parameter_property {
-                                    continue;
-                                }
 
                                 return Some(ParameterPropertyMemberContext {
-                                    visibility: modifiers.visibility.unwrap_or(Visibility::Public),
-                                    is_readonly: modifiers.mutability
-                                        == Some(Mutability::Immutable),
+                                    visibility,
+                                    is_readonly: *is_readonly,
                                     owner_symbol,
                                 });
                             }

@@ -1,25 +1,23 @@
 use crate::analyze::common::TypeContext;
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
-    Annotation, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions, walk_expression,
+    Decorator, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions, walk_expression,
 };
 
 impl Compiler {
-    /// Validate a single annotation node.
+    /// Validate a single decorator node.
     pub(super) fn validate_annotation(
         &self,
         ctx: &TypeContext<'_>,
-        annotation_id: LocalNodeId<Annotation>,
-        annotation: &Annotation,
+        annotation_id: LocalNodeId<Decorator>,
+        annotation: &Decorator,
     ) {
-        let Annotation::Decorator { expression, .. } = annotation;
-
         // destack decorators allow static arguments
         if ctx.module.language_type.is_destack() {
             return;
         }
 
-        if self.decorator_expression_has_static_arguments(ctx.tree, *expression) {
+        if self.decorator_expression_has_static_arguments(ctx.tree, annotation.expression) {
             let node = annotation_id
                 .into_global_any(ctx.module.id)
                 .into_anchored(Some(ctx.profile));
@@ -50,36 +48,33 @@ impl DecoratorStaticArgumentScanner {
     /// Return true when the expression carries static arguments.
     fn expression_has_static_arguments(expression: &Expression) -> bool {
         match expression {
-            Expression::Instantiation { .. } => true,
+            Expression::Instantiation {
+                generic_arguments, ..
+            } => !generic_arguments.is_empty(),
             Expression::Call {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::New {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::Member {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::PrivateMember {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::UnresolvedPath {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::LocalReference {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::ModuleReference {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::GlobalReference {
-                static_arguments, ..
-            }
-            | Expression::TypeImport {
-                static_arguments, ..
-            } => static_arguments
-                .as_ref()
-                .is_some_and(|args| !args.is_empty()),
+                generic_arguments, ..
+            } => !generic_arguments.is_empty(),
             _ => false,
         }
     }

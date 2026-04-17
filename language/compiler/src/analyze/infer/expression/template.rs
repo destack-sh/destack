@@ -95,17 +95,17 @@ impl Compiler {
         let callee_symbol = self.reference_symbol_for_expression(ctx.tree_symbol_view(), tag_id);
         let static_arguments = match ctx.tree.get(tag_id) {
             Expression::LocalReference {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::ModuleReference {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::GlobalReference {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::Member {
-                static_arguments, ..
-            } => static_arguments.as_deref(),
+                generic_arguments, ..
+            } => Some(generic_arguments.as_slice()),
             _ => None,
         };
 
@@ -121,7 +121,7 @@ impl Compiler {
                     super::call::CallSignatureResolutionContext {
                         expression_id,
                         callee_symbol,
-                        static_arguments,
+                        generic_arguments: static_arguments,
                         prefilled_static_arguments: None,
                         bound_substitutions: None,
                         dynamic_arguments: None,
@@ -182,7 +182,7 @@ impl Compiler {
                 super::call::CallSignatureResolutionContext {
                     expression_id,
                     callee_symbol,
-                    static_arguments,
+                    generic_arguments: static_arguments,
                     prefilled_static_arguments: None,
                     bound_substitutions: None,
                     dynamic_arguments: None,

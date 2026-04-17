@@ -3,9 +3,9 @@ use std::collections::HashSet;
 use destack_artifact::WellKnownSymbols;
 use destack_core::StringId;
 use destack_dir::{
-    DynamicKey, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeTree, NodeType,
-    PrimitiveType, ScalarLiteral, StaticKey, SymbolKey, SymbolTable, Type, TypeLiteral, TypeTable,
-    WellKnownSymbol,
+    Expression, GlobalSymbolId, Key, LocalNodeId, LocalTypeId, Name, NodeTree, NodeType,
+    PrimitiveType, ScalarLiteral, StaticKey, SymbolKey, SymbolTable, Type, TypeExpression,
+    TypeLiteral, TypeTable, WellKnownSymbol,
 };
 use destack_workspace::{ProfileId, Revision};
 
@@ -96,24 +96,24 @@ impl Compiler {
         self.repository.strings.intern(&full)
     }
 
-    /// Resolve a static key from a dynamic key when possible.
-    pub(crate) fn static_key_from_dynamic_key(
+    /// Resolve a static key from a key when possible.
+    pub(crate) fn static_key_from_key(
         &self,
         revision: Revision,
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
-        key: DynamicKey,
+        key: Key,
     ) -> Option<StaticKey> {
         match key {
-            DynamicKey::Name(name) => Some(StaticKey::Name(name)),
-            DynamicKey::Private(name) => {
+            Key::Name(Name::Identifier(name) | Name::String(name)) => Some(StaticKey::Name(name)),
+            Key::Name(Name::Number(name)) => Some(StaticKey::Number(name)),
+            Key::Private(name) => {
                 let private_name = self.private_key_string_id(name);
                 Some(StaticKey::Name(private_name))
             }
-            DynamicKey::Number(name) => Some(StaticKey::Number(name)),
-            DynamicKey::Expression(expression_id) => self.static_key_from_expression(
+            Key::Expression(expression_id) => self.static_key_from_expression(
                 revision,
                 profile,
                 tree,
@@ -121,7 +121,6 @@ impl Compiler {
                 types,
                 expression_id,
             ),
-            DynamicKey::NamedExpression { .. } => None,
         }
     }
 
@@ -246,7 +245,7 @@ impl Compiler {
                     } => true,
                     Type::Unevaluated(expression_id) => matches!(
                         tree.get(*expression_id),
-                        Expression::TypeLiteral {
+                        TypeExpression::Literal {
                             value: TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
                         }
                     ),

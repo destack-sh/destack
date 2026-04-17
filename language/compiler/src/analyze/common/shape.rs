@@ -4,8 +4,8 @@ use crate::analyze::common::TypeContext;
 use crate::analyze::module::GlobalMergeCategory;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
 use destack_dir::{
-    Asynchrony, Declaration, Expression, FunctionCardinality, GlobalSymbolId, LocalNodeId,
-    LocalNodeIdAny, LocalSymbolId, LocalTypeId, Symbol, SymbolType, Type, TypeField,
+    Asynchrony, Declaration, FunctionCardinality, GlobalSymbolId, LocalNodeId, LocalNodeIdAny,
+    LocalSymbolId, LocalTypeId, Symbol, SymbolType, Type, TypeExpression, TypeField,
     TypeIndexSignature, TypeTable, are_types_equal,
 };
 
@@ -586,7 +586,7 @@ impl Compiler {
     pub(crate) fn embed_member_shape(
         &self,
         ctx: &mut TypeContext<'_>,
-        value: LocalNodeId<Expression>,
+        value: LocalNodeId<TypeExpression>,
     ) -> AnalyzeResult<ObjectShape> {
         // resolve the embed target type
         let embed_ty_id =

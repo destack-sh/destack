@@ -363,17 +363,28 @@ impl Compiler {
         if ctx
             .tree
             .get(receiver_id)
-            .static_arguments()
+            .generic_arguments()
             .is_none_or(|arguments| arguments.is_empty())
         {
             return false;
         }
 
+        // only treat direct type-space references as projection receivers
+        let receiver_type_id = match ctx.tree.get(receiver_id) {
+            Expression::Type { value, .. } => *value,
+            _ => return false,
+        };
+
         let symbol = self
-            .resolve_direct_receiver_symbol_for_expression(&*ctx, receiver_id)
+            .resolve_direct_receiver_symbol_for_type_expression(&*ctx, receiver_type_id)
             .or_else(|| {
                 let receiver_type_id = self
-                    .resolve_declared_type_expression(&mut ctx.reborrow(), receiver_id, true, true)
+                    .resolve_declared_type_expression(
+                        &mut ctx.reborrow(),
+                        receiver_type_id,
+                        true,
+                        true,
+                    )
                     .ok()?;
                 self.query_type_like_receiver_symbol_for_type_id(receiver_type_id, ctx.types)
             });

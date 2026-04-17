@@ -68,18 +68,18 @@ impl Compiler {
 
             // infer enum backing types when declaration validation is enabled
             for root_id in roots.iter() {
-                let Expression::Declaration { declaration } = ctx.tree.get(*root_id) else {
+                let Expression::Declaration(declaration) = ctx.tree.get(*root_id) else {
                     continue;
                 };
-                let Declaration::Enum {
-                    descriptor, fields, ..
-                } = ctx.tree.get(*declaration)
-                else {
+                let Declaration::Enum(declaration) = ctx.tree.get(*declaration) else {
                     continue;
                 };
-                let enum_symbol = descriptor.symbol.into_global(ctx.module.id);
-                let backing_type =
-                    self.infer_enum_field_values(&mut ctx.reborrow(), enum_symbol, fields)?;
+                let enum_symbol = declaration.symbol.into_global(ctx.module.id);
+                let backing_type = self.infer_enum_field_values(
+                    &mut ctx.reborrow(),
+                    enum_symbol,
+                    &declaration.fields,
+                )?;
                 ctx.types.set_enum_backing_type(enum_symbol, backing_type);
             }
 

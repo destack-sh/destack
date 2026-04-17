@@ -3,7 +3,7 @@ use crate::AnalyzeResult;
 use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::TypeContext;
 use crate::analyze::declare::StaticConstantResolutionMode;
-use destack_dir::{Expression, LocalNodeId, are_types_equal};
+use destack_dir::{LocalNodeId, TypeExpression, are_types_equal};
 use destack_source::ModuleId;
 
 #[allow(clippy::too_many_arguments)]
@@ -376,7 +376,7 @@ impl Compiler {
         &self,
         ctx: &mut AssignContext<'_>,
         count_ty_id: LocalTypeId,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
     ) -> AnalyzeResult<Option<i64>> {
         let node_id = expression_id.into_global_any(ctx.module.id);
 
@@ -390,25 +390,16 @@ impl Compiler {
             }
         }
 
-        // otherwise evaluate the local static expression directly
+        // otherwise resolve the local type expression directly
         if !ctx.tree.has_node_id(expression_id.id) {
             return Ok(None);
         }
-        let Some(static_value) = self.evaluate_static_expression_value(
+        let value_type_id = self.resolve_declared_type_expression(
             &mut ctx.type_context_reborrow(),
             expression_id,
-            None,
-        )?
-        else {
-            return Ok(None);
-        };
-        let Some(value_type_id) = self.static_expression_type_id_for_substitution(
-            expression_id.into_any(),
-            &static_value,
-            ctx.types,
-        ) else {
-            return Ok(None);
-        };
+            true,
+            true,
+        )?;
         let value_type_id =
             self.unwrapped_value_without_as_comptime_type_id(value_type_id, ctx.types);
         if value_type_id == count_ty_id {
@@ -500,41 +491,6 @@ impl Compiler {
         let instantiated =
             self.unwrapped_value_without_as_comptime_type_id(instantiated, ctx.types);
 
-        // evaluate instantiated unevaluated aliases once before recurring
-        if let Type::Unevaluated(expression_id) = ctx.types.get_type(instantiated).clone()
-            && !substitutions.is_empty()
-            && ctx.tree.has_node_id(expression_id.id)
-            && let Some(static_value) = self.evaluate_static_expression_value_with_substitutions(
-                &mut ctx.type_context_reborrow(),
-                expression_id,
-                None,
-                &substitutions,
-            )?
-            && let Some(value_type_id) =
-                self.static_expression_type_id_for_substitution(source_id, &static_value, ctx.types)
-        {
-            let mut value_type_id =
-                self.unwrapped_value_without_as_comptime_type_id(value_type_id, ctx.types);
-            let mut substitution_cache = HashMap::new();
-            value_type_id = self.substitute_static_parameters(
-                value_type_id,
-                &substitutions,
-                ctx.types,
-                &mut substitution_cache,
-            );
-            let mut materialize_cache = HashMap::new();
-            value_type_id = self.materialize_static_arguments_in_type(
-                &mut ctx.type_context_reborrow(),
-                value_type_id,
-                &mut materialize_cache,
-            );
-            let value_type_id =
-                self.unwrapped_value_without_as_comptime_type_id(value_type_id, ctx.types);
-            if value_type_id != instantiated {
-                return self
-                    .query_array_sized_count_literal_value(&mut ctx.reborrow(), value_type_id);
-            }
-        }
         if instantiated == count_ty_id {
             return Ok(None);
         }

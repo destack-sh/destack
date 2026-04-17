@@ -2,7 +2,8 @@ use crate::analyze::common::{CanonicalSymbolMode, InferContext, RelationMode};
 use crate::{AnalyzeOptions, AnalyzeResult, Compiler, WellKnownSymbol};
 use destack_dir::{
     Declaration, Expression, LocalNodeId, LocalTypeId, Member, NodeTree, NormalizationMode,
-    PrimitiveType, Property, ScalarLiteral, StaticKey, SymbolType, Type, TypeLiteral, TypeTable,
+    PrimitiveType, Property, ScalarLiteral, StaticKey, SymbolType, Type, TypeExpression,
+    TypeLiteral, TypeTable,
 };
 
 /// Contextual function signature derived from an expected type.
@@ -164,13 +165,7 @@ impl Compiler {
             let Property::Field { key, value, .. } = property else {
                 continue;
             };
-            let Some(key) = key else {
-                continue;
-            };
-            let Some(value_id) = value else {
-                continue;
-            };
-            let Some(static_key) = self.static_key_from_dynamic_key(
+            let Some(static_key) = self.static_key_from_key(
                 ctx.compiler_context.revision(),
                 ctx.profile,
                 ctx.tree,
@@ -180,7 +175,8 @@ impl Compiler {
             ) else {
                 continue;
             };
-            let Expression::ScalarLiteral { value } = ctx.tree.get(*value_id) else {
+            let value_id = *value;
+            let Expression::ScalarLiteral { value } = ctx.tree.get(value_id) else {
                 continue;
             };
 
@@ -280,7 +276,7 @@ impl Compiler {
         // ensure the declaration is a struct or class
         if !matches!(
             declaration,
-            Declaration::Struct { .. } | Declaration::Class { .. }
+            Declaration::Struct(..) | Declaration::Class(..)
         ) {
             return Ok(Some(expected_object_ty_id));
         }
@@ -293,8 +289,8 @@ impl Compiler {
         for member_id in member_ids {
             let member = ctx.tree.get(*member_id);
             match member {
-                Member::Field { key: Some(key), .. } => {
-                    if let Some(static_key) = self.static_key_from_dynamic_key(
+                Member::Field { key, .. } => {
+                    if let Some(static_key) = self.static_key_from_key(
                         ctx.compiler_context.revision(),
                         ctx.profile,
                         ctx.tree,
@@ -354,7 +350,7 @@ impl Compiler {
     /// Requires the tag expression to detect explicit static arguments.
     pub(crate) fn expected_tag_reference_type_from_context(
         &self,
-        tag_expression_id: LocalNodeId<Expression>,
+        tag_expression_id: LocalNodeId<TypeExpression>,
         expected_ty_id: Option<LocalTypeId>,
         tag_ty_id: LocalTypeId,
         tree: &NodeTree,
@@ -365,19 +361,26 @@ impl Compiler {
             return tag_ty_id;
         };
 
-        // keep explicit static arguments on the tag
+        // keep explicit generic arguments on the tag
         let has_explicit_arguments = match tree.get(tag_expression_id) {
-            Expression::LocalReference {
-                static_arguments, ..
+            TypeExpression::Reference {
+                generic_arguments, ..
             }
-            | Expression::ModuleReference {
-                static_arguments, ..
+            | TypeExpression::LocalReference {
+                generic_arguments, ..
             }
-            | Expression::GlobalReference {
-                static_arguments, ..
-            } => static_arguments
-                .as_ref()
-                .is_some_and(|arguments| !arguments.is_empty()),
+            | TypeExpression::ModuleReference {
+                generic_arguments, ..
+            }
+            | TypeExpression::GlobalReference {
+                generic_arguments, ..
+            }
+            | TypeExpression::Member {
+                generic_arguments, ..
+            }
+            | TypeExpression::Import {
+                generic_arguments, ..
+            } => !generic_arguments.is_empty(),
             _ => false,
         };
         if has_explicit_arguments {

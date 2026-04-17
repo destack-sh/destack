@@ -42,20 +42,12 @@ impl Compiler {
             Ok(declaration_id) => declaration_id,
             Err(_) => return Ok(type_id),
         };
-        let Declaration::Type {
-            static_parameters,
-            value,
-            ..
-        } = ctx.tree.get(declaration_id)
-        else {
+        let Declaration::Type(declaration) = ctx.tree.get(declaration_id) else {
             return Ok(type_id);
         };
 
         // avoid eager evaluation for generic aliases
-        if static_parameters
-            .as_ref()
-            .is_some_and(|parameters| !parameters.is_empty())
-        {
+        if !declaration.generic_parameters.is_empty() {
             return Ok(type_id);
         }
 
@@ -68,8 +60,12 @@ impl Compiler {
         }
 
         // evaluate the alias value into an instance type
-        let instance_type_id =
-            self.resolve_declared_type_expression(&mut ctx.reborrow(), *value, true, true)?;
+        let instance_type_id = self.resolve_declared_type_expression(
+            &mut ctx.reborrow(),
+            declaration.value,
+            true,
+            true,
+        )?;
         ctx.types.set_instance_type(symbol, instance_type_id);
 
         Ok(instance_type_id)
@@ -276,7 +272,11 @@ impl Compiler {
                 }
                 Ok(())
             }
-            Type::Unary { right, .. }
+            Type::Readonly { target_type: right }
+            | Type::KeyOf { target_type: right }
+            | Type::Must { target_type: right }
+            | Type::AsComptime { target_type: right }
+            | Type::Not { target_type: right }
             | Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. } => self.ensure_reference_instance_types_for_type_inner(
@@ -286,7 +286,9 @@ impl Compiler {
                 preparation_scope,
                 visited,
             ),
-            Type::Binary { left, right, .. } => {
+            Type::In { left, right }
+            | Type::Extends { left, right }
+            | Type::Implements { left, right } => {
                 self.ensure_reference_instance_types_for_type_inner(
                     &mut ctx.reborrow(),
                     node_id,

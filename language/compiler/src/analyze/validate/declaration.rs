@@ -5,11 +5,10 @@ use crate::{AnalyzeError, Compiler};
 use destack_ast::Keyword;
 use destack_core::StringId;
 use destack_dir::{
-    Asynchrony, BindingAnchor, BindingModifier, BindingOperator, Declaration,
-    DeclarationAbstraction, DeclarationDescriptor, DeclarationKind, DependencyKind, DependencyMode,
-    DynamicKey, Expression, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
-    ImportAliasTarget, LocalNodeId, LocalNodeIdAny, Member, Name, NodeTree, NodeType, Parameter,
-    Path, ScalarLiteral, StaticKey,
+    Asynchrony, Declaration, DependencyKind, ExportMode, Expression, FunctionCardinality,
+    FunctionKind, FunctionMode, FunctionSignature, ImportAliasTarget, Key, LocalNodeId,
+    LocalNodeIdAny, LocalSymbolId, Member, Name, NodeTree, NodeType, Parameter, Path,
+    ScalarLiteral, StaticKey,
 };
 
 const RESERVED_TYPE_NAMES: [&str; 19] = [
@@ -58,7 +57,7 @@ impl Compiler {
         if ctx.module.language_type.is_javascript()
             && matches!(
                 declaration,
-                Declaration::Interface { .. } | Declaration::Type { .. } | Declaration::Enum { .. }
+                Declaration::Interface(_) | Declaration::Type(_) | Declaration::Enum(_)
             )
         {
             let node = id
@@ -69,30 +68,21 @@ impl Compiler {
 
         // validate by declaration kind
         match declaration {
-            Declaration::Interface {
-                descriptor,
-                heritage,
-                ..
-            } => {
+            Declaration::Interface(declaration) => {
                 // resolve the interface node for diagnostics
                 let node = id
                     .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile));
 
-                // interfaces cannot be abstract
-                if descriptor.abstraction == DeclarationAbstraction::Abstract {
-                    self.error(AnalyzeError::InvalidInterface { node });
-                }
-
                 // default export interfaces must be named
-                if descriptor.export == Some(DependencyMode::Default) && descriptor.name.is_none() {
+                if declaration.export == Some(ExportMode::Default) && declaration.name.is_none() {
                     self.error(AnalyzeError::InvalidInterface { node });
                 }
 
                 // reject intrinsic type names as interface identifiers in typescript and destack
                 if (ctx.module.language_type.is_typescript()
                     || ctx.module.language_type.is_destack())
-                    && let Some(name) = descriptor.name
+                    && let Some(name) = declaration.name
                     && self.is_reserved_type_name(name)
                 {
                     self.error(AnalyzeError::ReservedIdentifier {
@@ -100,28 +90,9 @@ impl Compiler {
                         name: name.string(),
                     });
                 }
-
-                // reject empty extends clauses
-                let has_empty_extends = heritage
-                    .extends_types
-                    .as_ref()
-                    .is_some_and(|e| e.is_empty());
-                if has_empty_extends {
-                    self.error(AnalyzeError::InvalidLineage {
-                        node,
-                        extends_symbols: Vec::new(),
-                        implements_symbols: Vec::new(),
-                        embedded_symbols: Vec::new(),
-                    });
-                }
             }
 
-            Declaration::Function {
-                descriptor,
-                signature,
-                body,
-                ..
-            } => {
+            Declaration::Function(declaration) => {
                 // resolve the function node for diagnostics
                 let node = id
                     .into_global_any(ctx.module.id)
@@ -132,53 +103,55 @@ impl Compiler {
                 self.validate_inner_only_declaration_reserved_name(
                     &mut ctx.reborrow(),
                     id,
-                    descriptor,
+                    declaration.name,
+                    declaration.symbol,
                 );
 
                 // declare functions cannot have a body
-                let is_declare = descriptor.kind == DeclarationKind::Declaration
+                let is_declare = declaration.ambient.is_ambient()
                     || self.is_in_declare_namespace(ctx.tree, id.into_any());
-                if is_declare && body.is_some() {
+                if is_declare && declaration.body.is_some() {
                     self.error(AnalyzeError::InvalidFunction { node });
                 }
 
                 // arrow function values cannot declare explicit this parameters
-                if signature.kind == FunctionKind::Lambda
-                    && body.is_some()
-                    && signature.this_parameter.is_some()
+                if declaration.signature.kind == FunctionKind::Lambda
+                    && declaration.body.is_some()
+                    && declaration.signature.this_parameter.is_some()
                 {
                     self.error(AnalyzeError::InvalidFunction { node });
                 }
 
                 // declare functions cannot be async
-                if !is_destack && is_declare && signature.asynchrony == Asynchrony::Async {
+                if !is_destack
+                    && is_declare
+                    && declaration.signature.asynchrony == Asynchrony::Async
+                {
                     self.error(AnalyzeError::InvalidFunction { node });
                 }
 
                 // declare functions cannot be generators
                 if !is_destack
                     && is_declare
-                    && signature.cardinality == FunctionCardinality::Generator
+                    && declaration.signature.cardinality == FunctionCardinality::Generator
                 {
                     self.error(AnalyzeError::InvalidFunction { node });
                 }
 
                 // strict directive prologues require simple parameter lists in JS/TS modes
                 if !is_destack
-                    && let Some(body) = body
-                    && self
-                        .has_non_simple_dynamic_parameters(ctx.tree, &signature.dynamic_parameters)
-                    && self.body_declares_use_strict_directive(ctx.tree, *body)
+                    && let Some(body) = declaration.body
+                    && self.has_non_simple_dynamic_parameters(
+                        ctx.tree,
+                        &declaration.signature.parameters,
+                    )
+                    && self.body_declares_use_strict_directive(ctx.tree, body)
                 {
                     self.error(AnalyzeError::InvalidFunction { node });
                 }
             }
 
-            Declaration::Type {
-                descriptor,
-                static_parameters,
-                ..
-            } => {
+            Declaration::Type(declaration) => {
                 // resolve the type alias node for diagnostics
                 let node = id
                     .into_global_any(ctx.module.id)
@@ -187,7 +160,7 @@ impl Compiler {
                 // reject intrinsic type names as type alias identifiers in typescript and destack
                 if (ctx.module.language_type.is_typescript()
                     || ctx.module.language_type.is_destack())
-                    && let Some(name) = descriptor.name
+                    && let Some(name) = Some(declaration.name)
                     && self.is_reserved_type_name(name)
                 {
                     self.error(AnalyzeError::ReservedIdentifier {
@@ -195,64 +168,21 @@ impl Compiler {
                         name: name.string(),
                     });
                 }
-
-                // reject invalid type parameter modifiers in type aliases
-                if let Some(static_parameters) = static_parameters {
-                    for parameter_id in static_parameters {
-                        let parameter = ctx.tree.get(*parameter_id);
-                        let modifiers = parameter.modifiers();
-                        let has_const_modifier = modifiers.is_some_and(|modifiers| {
-                            modifiers.operator == Some(BindingOperator::AsConst)
-                        });
-                        if has_const_modifier {
-                            let node = parameter_id
-                                .into_global_any(ctx.module.id)
-                                .into_anchored(Some(ctx.profile));
-                            self.error(AnalyzeError::InvalidTypeParameterModifier { node });
-                        }
-                    }
-                }
             }
 
-            Declaration::Struct {
-                heritage, members, ..
-            } => {
-                // resolve the struct node for diagnostics
-                let node = id
-                    .into_global_any(ctx.module.id)
-                    .into_anchored(Some(ctx.profile));
-
-                // structs cannot use extends
-                let has_extends = heritage
-                    .extends_types
-                    .as_ref()
-                    .is_some_and(|e| !e.is_empty());
-                if has_extends {
-                    let extends_symbols = ctx
-                        .types
-                        .get_lineage_for_symbol(declaration.symbol().into_global(ctx.module.id))
-                        .and_then(|lineage| lineage.extends)
-                        .into_iter()
-                        .collect();
-                    self.error(AnalyzeError::InvalidLineage {
-                        node,
-                        extends_symbols,
-                        implements_symbols: Vec::new(),
-                        embedded_symbols: Vec::new(),
-                    });
-                }
-
+            Declaration::Struct(declaration) => {
                 // report duplicate field names introduced through embedding
-                if let Err(error) =
-                    self.validate_duplicate_embedded_struct_fields(&mut ctx.reborrow(), members)
-                {
+                if let Err(error) = self.validate_duplicate_embedded_struct_fields(
+                    &mut ctx.reborrow(),
+                    &declaration.members,
+                ) {
                     self.error(error);
                 }
             }
 
-            Declaration::ImportAlias { kind, target, .. } => {
+            Declaration::ImportAlias(declaration) => {
                 // import aliases cannot use import type
-                if *kind == DependencyKind::Type {
+                if declaration.kind == DependencyKind::Type {
                     let node = id
                         .into_global_any(ctx.module.id)
                         .into_anchored(Some(ctx.profile));
@@ -260,12 +190,10 @@ impl Compiler {
                 }
 
                 // import alias targets must be qualified identifier paths
-                self.validate_import_alias_target(&mut ctx.reborrow(), target);
+                self.validate_import_alias_target(&mut ctx.reborrow(), &declaration.target);
             }
 
-            Declaration::Class {
-                heritage, members, ..
-            } => {
+            Declaration::Class(declaration) => {
                 // resolve the class node for diagnostics
                 let node = id
                     .into_global_any(ctx.module.id)
@@ -275,14 +203,14 @@ impl Compiler {
                 self.validate_inner_only_declaration_reserved_name(
                     &mut ctx.reborrow(),
                     id,
-                    declaration.descriptor(),
+                    declaration.name,
+                    declaration.symbol,
                 );
 
                 // reject typescript only class syntax in javascript modules
                 if ctx.module.language_type.is_javascript() {
-                    let has_abstract =
-                        declaration.descriptor().abstraction == DeclarationAbstraction::Abstract;
-                    let has_implements = heritage.implements_types.is_some();
+                    let has_abstract = declaration.is_abstract;
+                    let has_implements = !declaration.implements_types.is_empty();
                     if has_abstract || has_implements {
                         self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
                     }
@@ -291,7 +219,7 @@ impl Compiler {
                 // reject intrinsic type names as class identifiers in typescript and destack
                 if (ctx.module.language_type.is_typescript()
                     || ctx.module.language_type.is_destack())
-                    && let Some(name) = declaration.descriptor().name
+                    && let Some(name) = declaration.name
                     && self.is_reserved_type_name(name)
                 {
                     self.error(AnalyzeError::ReservedIdentifier {
@@ -300,54 +228,13 @@ impl Compiler {
                     });
                 }
 
-                // classes can only extend one class
-                let has_multiple_extends =
-                    heritage.extends_types.as_ref().is_some_and(|e| e.len() > 1);
-                if has_multiple_extends {
-                    let lineage = ctx
-                        .types
-                        .get_lineage_for_symbol(declaration.symbol().into_global(ctx.module.id));
-                    let extends_symbols = lineage.and_then(|l| l.extends).into_iter().collect();
-                    let implements_symbols =
-                        lineage.map(|l| l.implements.clone()).unwrap_or_default();
-                    let embedded_symbols = lineage.map(|l| l.embedded.clone()).unwrap_or_default();
-                    self.error(AnalyzeError::InvalidLineage {
-                        node,
-                        extends_symbols,
-                        implements_symbols,
-                        embedded_symbols,
-                    });
-                }
-
-                // reject empty extends or implements clauses
-                let has_empty_extends = heritage
-                    .extends_types
-                    .as_ref()
-                    .is_some_and(|e| e.is_empty());
-                let has_empty_implements = heritage
-                    .implements_types
-                    .as_ref()
-                    .is_some_and(|i| i.is_empty());
-                if has_empty_extends || has_empty_implements {
-                    self.error(AnalyzeError::InvalidLineage {
-                        node,
-                        extends_symbols: Vec::new(),
-                        implements_symbols: Vec::new(),
-                        embedded_symbols: Vec::new(),
-                    });
-                }
-
                 // class bodies can contain at most one constructor definition
-                self.validate_class_constructor_members(&mut ctx.reborrow(), members);
+                self.validate_class_constructor_members(&mut ctx.reborrow(), &declaration.members);
             }
 
-            Declaration::Enum { .. } => {}
+            Declaration::Enum(_) => {}
 
-            Declaration::Extension {
-                heritage: _,
-                members: _,
-                ..
-            } => {}
+            Declaration::Extension(_) => {}
 
             _ => {}
         }
@@ -365,7 +252,7 @@ impl Compiler {
         // scan class members in source order
         for member_id in members {
             let Member::Method {
-                modifiers,
+                is_static,
                 key,
                 signature,
                 body,
@@ -376,11 +263,7 @@ impl Compiler {
             };
 
             // skip members that are not constructor definitions
-            if !self.class_member_is_constructor_definition(
-                modifiers.as_ref(),
-                key.as_ref(),
-                signature,
-            ) {
+            if !self.class_member_is_constructor_definition(*is_static, key.as_ref(), signature) {
                 continue;
             }
 
@@ -413,16 +296,14 @@ impl Compiler {
         for member_id in members {
             match ctx.tree.get(*member_id) {
                 Member::Field { key, .. } => {
-                    let Some(key) = key.and_then(|key| {
-                        self.static_key_from_dynamic_key(
-                            ctx.compiler_context.revision(),
-                            ctx.profile,
-                            ctx.tree,
-                            ctx.symbols,
-                            ctx.types,
-                            key,
-                        )
-                    }) else {
+                    let Some(key) = self.static_key_from_key(
+                        ctx.compiler_context.revision(),
+                        ctx.profile,
+                        ctx.tree,
+                        ctx.symbols,
+                        ctx.types,
+                        *key,
+                    ) else {
                         continue;
                     };
 
@@ -475,13 +356,11 @@ impl Compiler {
     /// Return true when a class method is a constructor definition.
     fn class_member_is_constructor_definition(
         &self,
-        modifiers: Option<&BindingModifier>,
-        key: Option<&DynamicKey>,
+        is_static: bool,
+        key: Option<&Key>,
         signature: &FunctionSignature,
     ) -> bool {
         // static methods are never constructors
-        let is_static =
-            modifiers.is_some_and(|modifiers| modifiers.anchor == Some(BindingAnchor::Static));
         if is_static {
             return false;
         }
@@ -500,11 +379,11 @@ impl Compiler {
         }
 
         // named methods with the key `constructor` also define constructors
-        let Some(DynamicKey::Name(name)) = key else {
+        let Some(Key::Name(name)) = key else {
             return false;
         };
 
-        self.repository.strings.get(*name) == "constructor"
+        self.repository.strings.get(name.string()) == "constructor"
     }
 
     /// Check whether a name is reserved as an intrinsic type identifier.
@@ -518,7 +397,8 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
-        descriptor: &DeclarationDescriptor,
+        name: Option<Name>,
+        symbol: LocalSymbolId,
     ) {
         // only user code can trigger this diagnostic
         if !ctx.module.is_user() {
@@ -526,12 +406,12 @@ impl Compiler {
         }
 
         // only named declarations can be reserved identifier violations
-        let Some(name) = descriptor.name else {
+        let Some(name) = name else {
             return;
         };
 
         // regular declaration symbols are handled by scope-wide binding checks
-        let symbol = ctx.symbols.get_symbol(descriptor.symbol);
+        let symbol = ctx.symbols.get_symbol(symbol);
         if symbol.name().is_some() {
             return;
         }
@@ -551,57 +431,17 @@ impl Compiler {
     /// Validate an import alias target.
     fn validate_import_alias_target(&self, ctx: &mut TypeContext<'_>, target: &ImportAliasTarget) {
         // require targets are always valid
-        let ImportAliasTarget::Path { value } = target else {
+        let ImportAliasTarget::Path { path } = target else {
             return;
         };
 
         // validate qualified identifier paths
-        if !self.is_valid_import_alias_expression(ctx.tree, *value) {
-            let node = value
-                .into_global_any(ctx.module.id)
+        if !self.is_valid_import_alias_path(path) {
+            let node = ctx
+                .anchor_node()
+                .into_global(ctx.module.id)
                 .into_anchored(Some(ctx.profile));
             self.error(AnalyzeError::InvalidImportAliasTarget { node });
-        }
-    }
-
-    /// Check whether an import alias target expression is valid.
-    fn is_valid_import_alias_expression(
-        &self,
-        tree: &NodeTree,
-        value: LocalNodeId<Expression>,
-    ) -> bool {
-        // match on allowed import alias expression shapes
-        match tree.get(value) {
-            Expression::UnresolvedPath {
-                path,
-                static_arguments,
-                ..
-            }
-            | Expression::LocalReference {
-                path,
-                static_arguments,
-                ..
-            }
-            | Expression::ModuleReference {
-                path,
-                static_arguments,
-                ..
-            }
-            | Expression::GlobalReference {
-                path,
-                static_arguments,
-                ..
-            } => static_arguments.is_none() && self.is_valid_import_alias_path(path),
-            Expression::Member {
-                left,
-                name,
-                static_arguments,
-            } => {
-                static_arguments.is_none()
-                    && self.is_valid_import_alias_expression(tree, *left)
-                    && name.is_some_and(|name| self.is_valid_import_alias_segment(name))
-            }
-            _ => false,
         }
     }
 
@@ -648,7 +488,7 @@ impl Compiler {
         let use_strict = self.repository.strings.intern("use strict");
 
         // only block bodies can contain directive prologues
-        let Expression::Block { block } = tree.get(body_id) else {
+        let Expression::Block(block) = tree.get(body_id) else {
             return false;
         };
         let block = tree.get(*block);
@@ -715,10 +555,10 @@ impl Compiler {
         while let Some(parent) = current {
             if parent.ty == NodeType::Declaration {
                 let declaration = tree.get(parent.into_typed::<Declaration>());
-                if let Declaration::Namespace { descriptor, .. } = declaration
-                    && descriptor.kind == DeclarationKind::Declaration
+                if let Declaration::Namespace(declaration) = declaration
+                    && declaration.ambient.is_ambient()
                 {
-                    if matches!(descriptor.name, Some(Name::String(_))) {
+                    if matches!(declaration.name, Name::String(_)) {
                         return DeclareNamespaceContext::Module;
                     }
                     saw_namespace = true;

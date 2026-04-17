@@ -23,8 +23,7 @@ pub(crate) use associated::{
     StaticMemberSymbolKind,
 };
 pub(crate) use common::{
-    TreeSymbolView, TypeView, evaluate_binary_scalar, evaluate_numeric_literal,
-    evaluate_unary_scalar,
+    TreeSymbolView, evaluate_binary_scalar, evaluate_numeric_literal, evaluate_unary_scalar,
 };
 pub use error::*;
 pub use infer::*;

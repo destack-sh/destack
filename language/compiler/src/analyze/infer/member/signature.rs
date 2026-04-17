@@ -1,7 +1,7 @@
 use super::super::expression::call::SignatureStaticResolutionContext;
 use super::*;
 use crate::analyze::common::InferContext;
-use destack_dir::ResolvedSignature;
+use destack_dir::{GenericArgument, ResolvedSignature};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -14,7 +14,7 @@ impl Compiler {
         receiver_symbol: Option<GlobalSymbolId>,
         receiver_arguments: &[StaticArgument],
         member_ty_id: LocalTypeId,
-        static_arguments: Option<&[LocalNodeId<Argument>]>,
+        generic_arguments: Option<&[LocalNodeId<GenericArgument>]>,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
     ) -> AnalyzeResult<ResolvedMemberAccessType> {
         // apply receiver and extension substitutions
@@ -48,7 +48,7 @@ impl Compiler {
 
         // instantiate member static arguments when present
         let (resolved_member_ty_id, resolved_static_arguments, resolved_static_parameter_symbols) =
-            if let Some(static_argument_ids) = static_arguments {
+            if let Some(generic_argument_ids) = generic_arguments {
                 let (
                     resolved_member_ty_id,
                     resolved_static_arguments,
@@ -58,7 +58,7 @@ impl Compiler {
                     expression_id,
                     member_symbol,
                     member_ty_id,
-                    static_argument_ids,
+                    generic_argument_ids,
                     substitutions,
                 )?;
                 (
@@ -84,7 +84,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         member_symbol: Option<GlobalSymbolId>,
         member_ty_id: LocalTypeId,
-        static_argument_ids: &[LocalNodeId<Argument>],
+        generic_argument_ids: &[LocalNodeId<GenericArgument>],
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
     ) -> AnalyzeResult<(LocalTypeId, Vec<StaticArgument>, Vec<GlobalSymbolId>)> {
         match ctx.types.get_type(member_ty_id).clone() {
@@ -94,7 +94,7 @@ impl Compiler {
                     expression_id,
                     member_symbol,
                     member_ty_id,
-                    static_argument_ids,
+                    generic_argument_ids,
                     substitutions,
                 )?;
                 Ok((
@@ -120,7 +120,7 @@ impl Compiler {
                         expression_id,
                         member_symbol,
                         signature_id,
-                        static_argument_ids,
+                        generic_argument_ids,
                         substitutions,
                     )?;
                     if resolved_static_arguments.is_empty() {
@@ -169,7 +169,7 @@ impl Compiler {
                         expression_id,
                         member_symbol,
                         element_id,
-                        static_argument_ids,
+                        generic_argument_ids,
                         substitutions,
                     )?;
 
@@ -205,7 +205,7 @@ impl Compiler {
                         expression_id,
                         member_symbol,
                         element_id,
-                        static_argument_ids,
+                        generic_argument_ids,
                         substitutions,
                     )?;
 
@@ -240,7 +240,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         member_symbol: Option<GlobalSymbolId>,
         signature_ty_id: LocalTypeId,
-        static_argument_ids: &[LocalNodeId<Argument>],
+        generic_argument_ids: &[LocalNodeId<GenericArgument>],
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
     ) -> AnalyzeResult<InstantiatedMemberSignature> {
         let Type::Function {
@@ -284,7 +284,7 @@ impl Compiler {
                 SignatureStaticResolutionContext {
                     node_id: expression_id.into_any(),
                     owner_symbol: member_symbol,
-                    static_argument_ids: Some(static_argument_ids),
+                    generic_argument_ids: Some(generic_argument_ids),
                     prefilled_static_arguments: None,
                     bound_substitutions: (!substitutions.is_empty()).then_some(substitutions),
                     dynamic_argument_ids: None,

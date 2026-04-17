@@ -1,6 +1,6 @@
 use super::*;
 use crate::analyze::common::{CanonicalSymbolMode, InferContext};
-use destack_dir::{FunctionKind, Property};
+use destack_dir::{FunctionKind, GenericArgument, Property};
 use destack_source::SourcePartKey;
 
 #[allow(clippy::too_many_arguments)]
@@ -12,7 +12,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         member_name: StringId,
-        static_arguments: Option<&[LocalNodeId<Argument>]>,
+        static_arguments: Option<&[LocalNodeId<GenericArgument>]>,
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_MEMBER);
@@ -92,11 +92,11 @@ impl Compiler {
         match function_id.ty {
             NodeType::Declaration => {
                 let declaration = tree.get(function_id.into_typed::<Declaration>());
-                let Declaration::Function { signature, .. } = declaration else {
+                let Declaration::Function(declaration) = declaration else {
                     return false;
                 };
 
-                signature.kind == FunctionKind::Lambda
+                declaration.signature.kind == FunctionKind::Lambda
             }
             NodeType::Member => {
                 let member = tree.get(function_id.into_typed::<Member>());
@@ -200,23 +200,23 @@ impl Compiler {
         let receiver_ty_id = match receiver_expression {
             Expression::LocalReference {
                 target_symbol,
-                static_arguments,
+                generic_arguments,
                 ..
             }
             | Expression::ModuleReference {
                 target_symbol,
-                static_arguments,
+                generic_arguments,
                 ..
             }
             | Expression::GlobalReference {
                 target_symbol,
-                static_arguments,
+                generic_arguments,
                 ..
             } => Some(self.infer_reference_expression(
                 &mut ctx.reborrow(),
                 receiver_id,
                 *target_symbol,
-                static_arguments.as_deref(),
+                Some(generic_arguments.as_slice()),
                 state,
             )?),
 
@@ -278,9 +278,18 @@ impl Compiler {
                 let is_projection_receiver =
                     self.is_projection_receiver_expression(&mut ctx.reborrow(), left_id);
                 let receiver_ty_id = if is_projection_receiver {
+                    let Expression::Type {
+                        value: left_type, ..
+                    } = ctx.tree.get(left_id)
+                    else {
+                        return Ok(MemberAccessReceiverQuery::EarlyType(
+                            self.infer_expression(&mut ctx.reborrow(), left_id, state)?,
+                        ));
+                    };
+
                     self.resolve_declared_type_expression(
                         &mut ctx.type_context_reborrow(),
-                        left_id,
+                        *left_type,
                         true,
                         true,
                     )?
@@ -794,7 +803,7 @@ impl Compiler {
         &self,
         ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        static_arguments: Option<&[LocalNodeId<Argument>]>,
+        static_arguments: Option<&[LocalNodeId<GenericArgument>]>,
         receiver: &MemberAccessReceiver,
         lookup: &MemberAccessLookup,
         state: &mut InferState,

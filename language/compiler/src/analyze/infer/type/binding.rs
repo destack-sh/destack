@@ -227,20 +227,6 @@ impl Compiler {
                 };
                 (*symbol, static_arguments.clone())
             }
-            Type::Unary {
-                operator: TypeUnaryOperator::Type,
-                right,
-            } => {
-                let right_ty = types.get_type(*right);
-                let Type::Reference {
-                    symbol,
-                    static_arguments,
-                } = right_ty
-                else {
-                    return None;
-                };
-                (*symbol, static_arguments.clone())
-            }
             _ => return None,
         };
 

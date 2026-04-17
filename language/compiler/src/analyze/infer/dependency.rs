@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use destack_builtin::BuiltinLibraryKind;
-use destack_dir::{DependencyKind, DependencySource, Expression, ScalarLiteral};
+use destack_dir::{DependencyKind, Expression, ImportSource, ScalarLiteral, TypeExpression};
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId, Revision};
 
@@ -58,13 +58,14 @@ impl Compiler {
         let mut required = HashSet::new();
 
         // collect direct target modules and qualified projection owners
-        for (expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
-            let Expression::TypeImport {
+        for (type_expression_id, expression) in tree.iter_nodes_of_type::<TypeExpression>() {
+            let TypeExpression::Import {
                 target, qualifier, ..
             } = expression
             else {
                 continue;
             };
+
             let Expression::ScalarLiteral {
                 value: ScalarLiteral::String(target_string),
             } = tree.get(*target)
@@ -73,14 +74,14 @@ impl Compiler {
             };
 
             // resolve the direct type-import target
-            let source_node_id = expression_id.into_global_any(module.id);
+            let source_node_id = type_expression_id.into_global_any(module.id);
             let target_module = match self.resolve_import_from_resolved_artifact(
                 revision,
                 module,
                 dir.as_ref(),
                 profile,
                 source_node_id,
-                DependencySource::ImportStatement,
+                ImportSource::ImportStatement,
                 *target_string,
                 DependencyKind::Type,
             ) {
@@ -132,7 +133,7 @@ impl Compiler {
                 revision,
                 module,
                 profile,
-                expression_id.into_any(),
+                type_expression_id.into_any(),
                 *target_string,
                 qualifier.as_ref(),
             );

@@ -4,9 +4,9 @@ use rustc_hash::FxHasher;
 
 use crate::Compiler;
 use destack_dir::{
-    Expression, FloatType, GlobalNodeIdAny, GlobalSymbolId, IntType, IntrinsicType, LocalNodeId,
-    LocalTypeId, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, SymbolType, Type,
-    TypeLiteral, TypeTable,
+    FloatType, GlobalNodeIdAny, GlobalSymbolId, IntType, IntrinsicType, LocalNodeId, LocalTypeId,
+    PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, SymbolType, Type,
+    TypeExpression, TypeLiteral, TypeTable,
 };
 use destack_source::ModuleId;
 
@@ -102,11 +102,11 @@ impl Compiler {
         }
     }
 
-    /// Cache an expression type id and optional value for a cache context (if possible).
+    /// Cache a type-expression type id and optional value for a cache context.
     pub(crate) fn cache_expression_type_maybe(
         &self,
         module_id: ModuleId,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         cache_context: DeclaredTypeResolutionContext,
         cache_type_id: Option<LocalTypeId>,
         ty: Option<&Type>,
@@ -252,32 +252,35 @@ impl Compiler {
         hasher: &mut FxHasher,
     ) {
         match value {
-            ScalarLiteral::Boolean(value) => {
+            ScalarLiteral::Null => {
                 0u8.hash(hasher);
-                value.hash(hasher);
             }
-            ScalarLiteral::Integer(value) => {
+            ScalarLiteral::Boolean(value) => {
                 1u8.hash(hasher);
                 value.hash(hasher);
             }
-            ScalarLiteral::Bigint(value) => {
+            ScalarLiteral::Integer(value) => {
                 2u8.hash(hasher);
                 value.hash(hasher);
             }
-            ScalarLiteral::Float(value) => {
+            ScalarLiteral::Bigint(value) => {
                 3u8.hash(hasher);
+                value.hash(hasher);
+            }
+            ScalarLiteral::Float(value) => {
+                4u8.hash(hasher);
                 value.to_bits().hash(hasher);
             }
             ScalarLiteral::Character(value) => {
-                4u8.hash(hasher);
-                value.hash(hasher);
-            }
-            ScalarLiteral::String(value) => {
                 5u8.hash(hasher);
                 value.hash(hasher);
             }
-            ScalarLiteral::RegexString { content, flags } => {
+            ScalarLiteral::String(value) => {
                 6u8.hash(hasher);
+                value.hash(hasher);
+            }
+            ScalarLiteral::RegexString { content, flags } => {
+                7u8.hash(hasher);
                 content.hash(hasher);
                 flags.hash(hasher);
             }

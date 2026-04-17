@@ -3,9 +3,9 @@ use std::collections::{HashMap, HashSet};
 use crate::analyze::common::TypeContext;
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
-    DynamicKey, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, MatchCase, MatchSelector,
-    NodeTree, NormalizationMode, Pattern, PatternField, PrimitiveType, ScalarLiteral, StaticKey,
-    StringId, SymbolType, Type, TypeField, TypeLiteral, TypeTable,
+    Expression, GlobalSymbolId, Key, LocalNodeId, LocalTypeId, MatchCase, MatchSelector, NodeTree,
+    NormalizationMode, Pattern, PatternField, PrimitiveType, ScalarLiteral, StaticKey, StringId,
+    SymbolType, Type, TypeExpression, TypeField, TypeLiteral, TypeTable,
 };
 
 /// Coverage summary for a match pattern.
@@ -444,7 +444,7 @@ impl Compiler {
                 value_type_id,
                 visited,
             ),
-            Pattern::Must(_) | Pattern::Expression { .. } => false,
+            Pattern::Must(_) | Pattern::Expression { .. } | Pattern::TypeExpression { .. } => false,
         };
 
         // clear the path marker after finishing this branch
@@ -641,7 +641,8 @@ impl Compiler {
             | Pattern::Object { .. }
             | Pattern::TaggedObject { .. }
             | Pattern::Must(_)
-            | Pattern::Expression { .. } => false,
+            | Pattern::Expression { .. }
+            | Pattern::TypeExpression { .. } => false,
         }
     }
 
@@ -649,12 +650,13 @@ impl Compiler {
     fn is_irrefutable_tagged_tuple_pattern(
         &self,
         ctx: &mut TypeContext<'_>,
-        ty: LocalNodeId<Expression>,
+        ty: LocalNodeId<TypeExpression>,
         fields: &[LocalNodeId<PatternField>],
         value_type_id: LocalTypeId,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
-        let Some(tag_symbol) = self.reference_symbol_for_expression(ctx.tree_symbol_view(), ty)
+        let Some(tag_symbol) =
+            self.reference_symbol_for_type_expression(ctx.tree_symbol_view(), ty)
         else {
             return false;
         };
@@ -726,12 +728,13 @@ impl Compiler {
     fn is_irrefutable_tagged_object_pattern(
         &self,
         ctx: &mut TypeContext<'_>,
-        ty: LocalNodeId<Expression>,
+        ty: LocalNodeId<TypeExpression>,
         fields: &[LocalNodeId<PatternField>],
         value_type_id: LocalTypeId,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
-        let Some(tag_symbol) = self.reference_symbol_for_expression(ctx.tree_symbol_view(), ty)
+        let Some(tag_symbol) =
+            self.reference_symbol_for_type_expression(ctx.tree_symbol_view(), ty)
         else {
             return false;
         };
@@ -795,13 +798,13 @@ impl Compiler {
                     }
                 }
                 PatternField::Computed { key, pattern, .. } => {
-                    let Some(key) = self.static_key_from_dynamic_key(
+                    let Some(key) = self.static_key_from_key(
                         ctx.compiler_context.revision(),
                         ctx.profile,
                         ctx.tree,
                         ctx.symbols,
                         ctx.types,
-                        DynamicKey::Expression(*key),
+                        Key::Expression(*key),
                     ) else {
                         return false;
                     };
@@ -1388,7 +1391,7 @@ impl Compiler {
                 ))
             }
             Pattern::TaggedTuple { ty, .. } | Pattern::TaggedObject { ty, .. } => {
-                let field_symbol = self.enum_field_symbol_for_pattern_value(
+                let field_symbol = self.enum_field_symbol_for_pattern_type(
                     &mut ctx.reborrow(),
                     enum_symbol,
                     *ty,
@@ -1493,7 +1496,7 @@ impl Compiler {
 
                 // fall back to the discriminant value on the tag type
                 let tag_symbol =
-                    self.reference_symbol_for_expression(ctx.tree_symbol_view(), *ty)?;
+                    self.reference_symbol_for_type_expression(ctx.tree_symbol_view(), *ty)?;
                 let tag_type_id = ctx.types.get_instance_type_id(tag_symbol)?;
                 let discriminants = self.discriminant_fields_for_type(ctx.types, tag_type_id)?;
                 let literal = *discriminants.get(&key)?;
@@ -1600,13 +1603,13 @@ impl Compiler {
                 PatternField::Named { name, .. } | PatternField::Alias { name, .. } => {
                     Some(StaticKey::Name(*name))
                 }
-                PatternField::Computed { key: field_key, .. } => self.static_key_from_dynamic_key(
+                PatternField::Computed { key: field_key, .. } => self.static_key_from_key(
                     ctx.compiler_context.revision(),
                     ctx.profile,
                     ctx.tree,
                     ctx.symbols,
                     ctx.types,
-                    DynamicKey::Expression(*field_key),
+                    Key::Expression(*field_key),
                 ),
                 _ => None,
             };
@@ -1687,6 +1690,7 @@ impl Compiler {
     /// Extract a literal value from a scalar literal.
     fn match_literal_from_scalar(&self, literal: &ScalarLiteral) -> Option<MatchLiteral> {
         match literal {
+            ScalarLiteral::Null => Some(MatchLiteral::Null),
             ScalarLiteral::Boolean(value) => Some(MatchLiteral::Boolean(*value)),
             ScalarLiteral::Integer(value) => Some(MatchLiteral::Integer(*value)),
             ScalarLiteral::Bigint(value) => Some(MatchLiteral::Bigint(*value)),
@@ -1726,6 +1730,47 @@ impl Compiler {
             Expression::LocalReference { target_symbol, .. }
             | Expression::ModuleReference { target_symbol, .. }
             | Expression::GlobalReference { target_symbol, .. } => {
+                if enum_fields.contains(target_symbol) {
+                    Some(*target_symbol)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// Resolve enum field symbols from tagged pattern type expressions.
+    fn enum_field_symbol_for_pattern_type(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        enum_symbol: GlobalSymbolId,
+        type_expression_id: LocalNodeId<TypeExpression>,
+        enum_fields: &HashSet<GlobalSymbolId>,
+    ) -> Option<GlobalSymbolId> {
+        let type_expression_id =
+            self.unwrap_parenthesized_type_expression(type_expression_id, ctx.tree);
+
+        match ctx.tree.get(type_expression_id) {
+            TypeExpression::Member { left, name, .. } => {
+                let left_id = self.unwrap_parenthesized_type_expression(*left, ctx.tree);
+                let left_symbol =
+                    self.reference_symbol_for_type_expression(ctx.tree_symbol_view(), left_id)?;
+                if left_symbol != enum_symbol {
+                    return None;
+                }
+
+                let field_symbol =
+                    self.query_enum_field_symbol_for_name(ctx.type_view(), enum_symbol, *name)?;
+                if enum_fields.contains(&field_symbol) {
+                    Some(field_symbol)
+                } else {
+                    None
+                }
+            }
+            TypeExpression::LocalReference { target_symbol, .. }
+            | TypeExpression::ModuleReference { target_symbol, .. }
+            | TypeExpression::GlobalReference { target_symbol, .. } => {
                 if enum_fields.contains(target_symbol) {
                     Some(*target_symbol)
                 } else {
@@ -1842,7 +1887,9 @@ impl Compiler {
             Pattern::Union { patterns } => patterns
                 .iter()
                 .any(|inner| self.pattern_has_definite_assignment(tree, *inner)),
-            Pattern::Wildcard | Pattern::Expression { .. } => false,
+            Pattern::Wildcard | Pattern::Expression { .. } | Pattern::TypeExpression { .. } => {
+                false
+            }
         }
     }
 

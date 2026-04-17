@@ -1180,6 +1180,7 @@ fn test_analyze_assignability_object_index_signatures() {
         name: strings.intern("k"),
         key_type: string_ty,
         value_type: number_ty,
+        is_optional: false,
         is_readonly: false,
     };
     let matching_field = TypeField {
@@ -1337,12 +1338,14 @@ fn test_analyze_assignability_object_index_signatures_string_source() {
         name: strings.intern("k"),
         key_type: number_ty,
         value_type: number_ty,
+        is_optional: false,
         is_readonly: false,
     };
     let string_index = TypeIndexSignature {
         name: strings.intern("k"),
         key_type: string_ty,
         value_type: number_ty,
+        is_optional: false,
         is_readonly: false,
     };
 
@@ -1530,6 +1533,7 @@ fn test_analyze_assignability_object_index_signature_optional_field() {
         name: strings.intern("k"),
         key_type: string_ty,
         value_type: number_ty,
+        is_optional: false,
         is_readonly: false,
     };
     let optional_number_field = TypeField {

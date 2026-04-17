@@ -85,13 +85,13 @@ impl Compiler {
                     } => (None, Some(*value)),
                     _ => (None, None),
                 };
-                let static_key = self.static_key_from_dynamic_key(
+                let static_key = self.static_key_from_key(
                     ctx.compiler_context.revision(),
                     ctx.profile,
                     ctx.tree,
                     ctx.symbols,
                     ctx.types,
-                    DynamicKey::Expression(index_id),
+                    Key::Expression(index_id),
                 );
                 (
                     Some(index_ty_id),
@@ -108,13 +108,13 @@ impl Compiler {
             && matches!(ctx.module.source, ModuleSource::User)
             && let Some(index_id) = index_id
         {
-            let static_key = self.static_key_from_dynamic_key(
+            let static_key = self.static_key_from_key(
                 ctx.compiler_context.revision(),
                 ctx.profile,
                 ctx.tree,
                 ctx.symbols,
                 ctx.types,
-                DynamicKey::Expression(index_id),
+                Key::Expression(index_id),
             );
             if static_key.is_none() {
                 self.error(AnalyzeError::ComputedPropertyAccessDisabled {
@@ -333,13 +333,13 @@ impl Compiler {
                     } => (None, Some(*value)),
                     _ => (None, None),
                 };
-                let static_key = self.static_key_from_dynamic_key(
+                let static_key = self.static_key_from_key(
                     ctx.compiler_context.revision(),
                     ctx.profile,
                     ctx.tree,
                     ctx.symbols,
                     ctx.types,
-                    DynamicKey::Expression(*index_id),
+                    Key::Expression(*index_id),
                 );
                 (
                     Some(index_ty_id),
@@ -375,13 +375,13 @@ impl Compiler {
             && matches!(ctx.module.source, ModuleSource::User)
             && let Some(index_id) = *index_id
         {
-            let static_key = self.static_key_from_dynamic_key(
+            let static_key = self.static_key_from_key(
                 ctx.compiler_context.revision(),
                 ctx.profile,
                 ctx.tree,
                 ctx.symbols,
                 ctx.types,
-                DynamicKey::Expression(index_id),
+                Key::Expression(index_id),
             );
             if static_key.is_none() {
                 self.error(AnalyzeError::ComputedPropertyAccessDisabled {

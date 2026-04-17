@@ -1,6 +1,6 @@
 use super::*;
 use crate::analyze::StaticMemberSymbolKind;
-use destack_dir::Resolution;
+use destack_dir::{Name, Resolution};
 
 /// Shared assignment target metadata used by assignment inference paths.
 #[derive(Clone, Copy, Debug)]
@@ -257,7 +257,7 @@ impl Compiler {
         if let Expression::Member {
             left: receiver_id,
             name,
-            static_arguments,
+            generic_arguments,
         } = ctx.tree.get(left_id)
         {
             let receiver_ty_id = self.infer_member_assignment_receiver_type(
@@ -274,16 +274,16 @@ impl Compiler {
             }
 
             // reject writes to readonly members when the key is known
-            if static_arguments.is_none()
+            if generic_arguments.is_empty()
                 && let Some(name) = *name
             {
-                let member_key = self.static_key_from_dynamic_key(
+                let member_key = self.static_key_from_key(
                     ctx.compiler_context.revision(),
                     ctx.profile,
                     ctx.tree,
                     ctx.symbols,
                     ctx.types,
-                    DynamicKey::Name(name),
+                    Key::Name(Name::Identifier(name)),
                 );
                 if let Some(member_key) = member_key {
                     let is_field_readonly = self
@@ -344,12 +344,12 @@ impl Compiler {
         let is_projection_receiver =
             self.is_projection_receiver_expression(&mut ctx.reborrow(), receiver_id);
         if is_projection_receiver {
-            return self.resolve_declared_type_expression(
-                &mut ctx.type_context_reborrow(),
-                receiver_id,
-                true,
-                true,
-            );
+            if let Some(type_id) = ctx
+                .types
+                .get_declared_or_inferred_type_id(receiver_id.into_global_any(ctx.module.id))
+            {
+                return Ok(type_id);
+            }
         }
 
         self.infer_expression(&mut ctx.reborrow(), receiver_id, state)

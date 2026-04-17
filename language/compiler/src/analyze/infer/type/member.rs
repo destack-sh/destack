@@ -203,7 +203,11 @@ impl Compiler {
             }
 
             // unary wrappers: unwrap before resolving members
-            Type::Unary { right, .. }
+            Type::Readonly { target_type: right }
+            | Type::KeyOf { target_type: right }
+            | Type::Must { target_type: right }
+            | Type::AsComptime { target_type: right }
+            | Type::Not { target_type: right }
             | Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. } => {
@@ -588,7 +592,11 @@ impl Compiler {
                 member_key,
                 visited,
             ),
-            Type::Unary { right, .. }
+            Type::Readonly { target_type: right }
+            | Type::KeyOf { target_type: right }
+            | Type::Must { target_type: right }
+            | Type::AsComptime { target_type: right }
+            | Type::Not { target_type: right }
             | Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. } => {

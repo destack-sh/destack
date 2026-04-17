@@ -231,14 +231,18 @@ impl Compiler {
             let Ok(declaration_id) = declaration_id.try_into_local_typed::<Declaration>() else {
                 continue;
             };
-            let Declaration::Enum { fields, .. } = ctx.tree.get(declaration_id) else {
+            let Declaration::Enum(declaration) = ctx.tree.get(declaration_id) else {
                 continue;
             };
-            for field_id in fields {
+            for field_id in &declaration.fields {
                 let field = ctx.tree.get(*field_id);
-                let field_key = StaticKey::Name(field.name);
+                let field_key = StaticKey::Name(field.name.string());
                 if field_key.matches(member_key) {
-                    return Some(field.symbol.into_global(enum_symbol.module_id));
+                    return self.enum_field_symbol_for_name_in_tree(
+                        ctx,
+                        enum_symbol,
+                        field.name.string(),
+                    );
                 }
             }
         }

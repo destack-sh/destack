@@ -12,10 +12,10 @@ use crate::{
 };
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    AssignOperator, BinaryOperator, Constraint, DynamicKey, Expression, GlobalSymbolId,
-    LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree,
-    NormalizationMode, PrimitiveType, ResolvedSignature, ScalarLiteral, StaticKey, SymbolTable,
-    SymbolType, Type, TypeLiteral, TypeTable, UnaryOperator,
+    AssignOperator, BinaryOperator, Constraint, Expression, GlobalSymbolId, Key, LocalInstanceId,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, NormalizationMode,
+    PrimitiveType, ResolvedSignature, ScalarLiteral, StaticKey, SymbolTable, SymbolType, Type,
+    TypeLiteral, TypeTable, UnaryOperator,
 };
 use destack_workspace::{Module, ModuleSource};
 use std::collections::HashMap;

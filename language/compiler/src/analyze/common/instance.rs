@@ -80,22 +80,6 @@ impl Compiler {
         }
     }
 
-    /// Return whether two optional static expressions are equivalent for instance-key matching.
-    fn static_expression_option_eq_for_instance_key(
-        &self,
-        left: &Option<StaticExpression>,
-        right: &Option<StaticExpression>,
-        types: &TypeTable,
-    ) -> bool {
-        match (left, right) {
-            (None, None) => true,
-            (Some(left), Some(right)) => {
-                self.static_expression_eq_for_instance_key(left, right, types)
-            }
-            _ => false,
-        }
-    }
-
     /// Return whether two static properties are equivalent for instance-key matching.
     fn static_property_equal_for_instance_key(
         &self,
@@ -110,51 +94,51 @@ impl Compiler {
             ) => left == right,
             (
                 StaticProperty::Field {
-                    modifiers: left_modifiers,
                     key: left_key,
                     value: left_value,
-                    default: left_default,
                     symbol: left_symbol,
                 },
                 StaticProperty::Field {
-                    modifiers: right_modifiers,
                     key: right_key,
                     value: right_value,
-                    default: right_default,
                     symbol: right_symbol,
                 },
             ) => {
-                left_modifiers == right_modifiers
-                    && left_key == right_key
+                left_key == right_key
                     && left_symbol == right_symbol
                     && self.static_expression_eq_for_instance_key(left_value, right_value, types)
-                    && self.static_expression_option_eq_for_instance_key(
-                        left_default,
-                        right_default,
-                        types,
-                    )
             }
             (
                 StaticProperty::Method {
-                    modifiers: left_modifiers,
                     key: left_key,
                     signature: left_signature,
                     body: left_body,
                     symbol: left_symbol,
                 },
                 StaticProperty::Method {
-                    modifiers: right_modifiers,
                     key: right_key,
                     signature: right_signature,
                     body: right_body,
                     symbol: right_symbol,
                 },
             ) => {
-                left_modifiers == right_modifiers
-                    && left_key == right_key
+                left_key == right_key
                     && left_signature == right_signature
                     && left_symbol == right_symbol
                     && self.static_expression_eq_for_instance_key(left_body, right_body, types)
+            }
+            (
+                StaticProperty::Spread {
+                    value: left_value,
+                    symbol: left_symbol,
+                },
+                StaticProperty::Spread {
+                    value: right_value,
+                    symbol: right_symbol,
+                },
+            ) => {
+                left_symbol == right_symbol
+                    && self.static_expression_eq_for_instance_key(left_value, right_value, types)
             }
             _ => false,
         }

@@ -1,4 +1,5 @@
 use super::*;
+use destack_dir::TypeExpression;
 
 /// Failure categories used to route binary operator diagnostics.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -20,6 +21,92 @@ enum BinaryOperatorFailureDiagnostic {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Infer one `value is Type` expression.
+    pub(crate) fn infer_is_expression(
+        &self,
+        ctx: &mut InferContext<'_>,
+        expression_id: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
+        target_type_id: LocalNodeId<TypeExpression>,
+        state: &mut InferState,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // resolve the value type first
+        let value_type_id = self.infer_expression(&mut ctx.reborrow(), value_id, state)?;
+        let value_type_id = self.unwrap_type_value(value_type_id, ctx.types);
+
+        // resolve the target type from the declared type syntax
+        let target_type_id = self.resolve_declared_type_expression(
+            &mut ctx.type_context_reborrow(),
+            target_type_id,
+            true,
+            true,
+        )?;
+        let target_type_id = self.unwrap_type_value(target_type_id, ctx.types);
+
+        // record the runtime check strategy for flow and lowering
+        let runtime_check_kind = self.runtime_check_kind_for_relation(
+            &mut ctx.type_context_reborrow(),
+            value_type_id,
+            target_type_id,
+        );
+        if let Some(kind) = runtime_check_kind {
+            ctx.types
+                .set_runtime_check_kind(expression_id.into_global_any(ctx.module.id), kind);
+        }
+
+        let ty = Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+        };
+        Ok(ctx.types.insert_type_from(ty, expression_id))
+    }
+
+    /// Infer one `value instanceof Target` expression.
+    pub(crate) fn infer_instanceof_expression(
+        &self,
+        ctx: &mut InferContext<'_>,
+        expression_id: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
+        target_id: LocalNodeId<Expression>,
+        state: &mut InferState,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // resolve the value and target expression types
+        let value_type_id = self.infer_expression(&mut ctx.reborrow(), value_id, state)?;
+        let target_type_id = self.infer_expression(&mut ctx.reborrow(), target_id, state)?;
+        let value_type_id = self.unwrap_type_value(value_type_id, ctx.types);
+        let target_type_id = self.unwrap_type_value(target_type_id, ctx.types);
+
+        // enforce class-only targets in user code
+        if matches!(ctx.module.source, ModuleSource::User) {
+            let target_symbol =
+                self.reference_symbol_for_expression(ctx.tree_symbol_view(), target_id);
+            let is_class_target =
+                target_symbol.is_some_and(|symbol| symbol.local_id.ty == SymbolType::Class);
+            if !is_class_target {
+                self.error(AnalyzeError::InvalidInstanceOfTarget {
+                    node: expression_id
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile)),
+                });
+            }
+        }
+
+        // record the runtime check strategy for flow and lowering
+        let runtime_check_kind = self.runtime_check_kind_for_relation(
+            &mut ctx.type_context_reborrow(),
+            value_type_id,
+            target_type_id,
+        );
+        if let Some(kind) = runtime_check_kind {
+            ctx.types
+                .set_runtime_check_kind(expression_id.into_global_any(ctx.module.id), kind);
+        }
+
+        let ty = Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+        };
+        Ok(ctx.types.insert_type_from(ty, expression_id))
+    }
+
     pub(crate) fn infer_binary_expression(
         &self,
         ctx: &mut InferContext<'_>,
@@ -56,45 +143,6 @@ impl Compiler {
         );
         let left_operator_ty = ctx.types.get_type(left_operator_ty_id).clone();
         let right_operator_ty = ctx.types.get_type(right_operator_ty_id).clone();
-
-        // enforce class-only instanceof targets
-        if matches!(operator, BinaryOperator::InstanceOf)
-            && matches!(ctx.module.source, ModuleSource::User)
-        {
-            let target_symbol =
-                self.reference_symbol_for_expression(ctx.tree_symbol_view(), right_id);
-            let is_class_target =
-                target_symbol.is_some_and(|symbol| symbol.local_id.ty == SymbolType::Class);
-            if !is_class_target {
-                self.error(AnalyzeError::InvalidInstanceOfTarget {
-                    node: expression_id
-                        .into_global_any(ctx.module.id)
-                        .into_anchored(Some(ctx.profile)),
-                });
-            }
-        }
-
-        // cache runtime check kind for instanceof guards
-        if matches!(operator, BinaryOperator::InstanceOf) {
-            let target_type_id = self.resolve_declared_type_expression(
-                &mut ctx.type_context_reborrow(),
-                right_id,
-                true,
-                true,
-            );
-            if let Ok(target_type_id) = target_type_id {
-                let target_type_id = self.unwrap_type_value(target_type_id, ctx.types);
-                let runtime_check_kind = self.runtime_check_kind_for_relation(
-                    &mut ctx.type_context_reborrow(),
-                    left_ty_id,
-                    target_type_id,
-                );
-                if let Some(kind) = runtime_check_kind {
-                    ctx.types
-                        .set_runtime_check_kind(expression_id.into_global_any(ctx.module.id), kind);
-                }
-            }
-        }
 
         // track referential equality violations to avoid follow-up overload errors
         let mut referential_equality_violation = false;
@@ -541,8 +589,7 @@ impl Compiler {
             BinaryOperator::And
             | BinaryOperator::Or
             | BinaryOperator::Coalesce
-            | BinaryOperator::In
-            | BinaryOperator::InstanceOf => true,
+            | BinaryOperator::In => true,
         }
     }
 

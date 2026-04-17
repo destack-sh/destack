@@ -10,7 +10,7 @@ use destack_core::StringId;
 use destack_dir::{
     Declaration, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalNodeIdAny,
     LocalTypeId, Member, NodeTree, NodeType, StaticArgument, StaticExpression, StaticKey,
-    SymbolTable, SymbolType, Type, TypeRewriter, TypeRewriterOptions, TypeTable,
+    SymbolTable, SymbolType, Type, TypeExpression, TypeRewriter, TypeRewriterOptions, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -376,6 +376,40 @@ pub(crate) enum MissingMemberDiagnosticBlocker {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Collect parent type expressions for one nominal declaration.
+    fn associated_parent_types(
+        &self,
+        declaration: &Declaration,
+    ) -> Vec<LocalNodeId<TypeExpression>> {
+        let mut parent_types = Vec::new();
+
+        // class: implements only
+        if let Declaration::Class(declaration) = declaration {
+            parent_types.extend(declaration.implements_types.iter().copied());
+
+            return parent_types;
+        }
+
+        // struct and enum: implements only
+        if let Declaration::Struct(declaration) = declaration {
+            parent_types.extend(declaration.implements_types.iter().copied());
+
+            return parent_types;
+        }
+        if let Declaration::Enum(declaration) = declaration {
+            parent_types.extend(declaration.implements_types.iter().copied());
+
+            return parent_types;
+        }
+
+        // interface: extends only
+        if let Declaration::Interface(declaration) = declaration {
+            parent_types.extend(declaration.extends_types.iter().copied());
+        }
+
+        parent_types
+    }
+
     /// Normalize one projection receiver reference to the owner-facing nominal receiver.
     pub(crate) fn normalize_projection_receiver_reference(
         &self,
@@ -567,7 +601,7 @@ impl Compiler {
     pub(crate) fn report_missing_member_diagnostic(
         &self,
         ctx: TypeView<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeIdAny,
         receiver_ty_id: LocalTypeId,
         member_key: StaticKey,
         allow_associated_contract_blocker: bool,
@@ -583,7 +617,7 @@ impl Compiler {
 
         let error = AnalyzeError::MissingMember {
             node: expression_id
-                .into_global_any(ctx.module.id)
+                .into_global(ctx.module.id)
                 .into_anchored(Some(ctx.profile)),
             receiver_ty: receiver_ty_id.into_global(ctx.module.id),
             member_key,
@@ -662,25 +696,16 @@ impl Compiler {
                     }
 
                     let declaration_id = primary_declaration.local_id.into_typed::<Declaration>();
-                    let (members, heritage) = match view.tree.get(declaration_id) {
-                        Declaration::Interface {
-                            members, heritage, ..
-                        }
-                        | Declaration::Class {
-                            members, heritage, ..
-                        }
-                        | Declaration::Struct {
-                            members, heritage, ..
-                        } => (members, heritage),
-                        _ => return (requirements, parents),
+                    let declaration = view.tree.get(declaration_id);
+                    let Some(members) = declaration.member_ids() else {
+                        return (requirements, parents);
                     };
-
                     // collect local associated requirements
                     for member_id in members {
-                        let Member::Type {
+                        let Member::AssociatedType {
                             name,
-                            static_parameters,
-                            ty,
+                            generic_parameters,
+                            constraint,
                             value,
                             symbol,
                             ..
@@ -689,38 +714,28 @@ impl Compiler {
                             continue;
                         };
 
-                        let parameter_symbols = static_parameters
-                            .as_ref()
-                            .map(|parameters| {
-                                parameters
-                                    .iter()
-                                    .map(|parameter_id| {
-                                        view.tree
-                                            .get(*parameter_id)
-                                            .symbol()
-                                            .into_global(view.module.id)
-                                    })
-                                    .collect::<Vec<_>>()
+                        let parameter_symbols = generic_parameters
+                            .iter()
+                            .map(|parameter_id| {
+                                view.tree
+                                    .get(*parameter_id)
+                                    .symbol()
+                                    .into_global(view.module.id)
                             })
-                            .unwrap_or_default();
+                            .collect::<Vec<_>>();
 
                         requirements.push(AssociatedTypeRequirement {
                             name: *name,
                             symbol: symbol.into_global(view.module.id),
                             parameter_symbols,
-                            bound_node: ty.map(|ty| ty.into_global_any(view.module.id)),
+                            bound_node: constraint
+                                .map(|constraint| constraint.into_global_any(view.module.id)),
                             requires_implementation: value.is_none(),
                         });
                     }
 
                     // collect parent contracts from extends and implements
-                    let mut parent_types = Vec::new();
-                    if let Some(extends_types) = heritage.extends_types.as_ref() {
-                        parent_types.extend(extends_types.iter().copied());
-                    }
-                    if let Some(implements_types) = heritage.implements_types.as_ref() {
-                        parent_types.extend(implements_types.iter().copied());
-                    }
+                    let parent_types = self.associated_parent_types(declaration);
                     for parent_type_id in parent_types {
                         let Some(parent_symbol) = view.tree.get(parent_type_id).target_symbol()
                         else {
@@ -834,24 +849,15 @@ impl Compiler {
                     }
 
                     let declaration_id = primary_declaration.local_id.into_typed::<Declaration>();
-                    let (members, heritage) = match view.tree.get(declaration_id) {
-                        Declaration::Interface {
-                            members, heritage, ..
-                        }
-                        | Declaration::Class {
-                            members, heritage, ..
-                        }
-                        | Declaration::Struct {
-                            members, heritage, ..
-                        } => (members, heritage),
-                        _ => return (requirements, parents),
+                    let declaration = view.tree.get(declaration_id);
+                    let Some(members) = declaration.member_ids() else {
+                        return (requirements, parents);
                     };
-
                     // collect local associated requirements
                     for member_id in members {
-                        let Member::ComptimeConst {
+                        let Member::AssociatedConst {
                             name,
-                            ty,
+                            declared_type,
                             value,
                             symbol,
                             ..
@@ -863,19 +869,14 @@ impl Compiler {
                         requirements.push(AssociatedComptimeRequirement {
                             name: *name,
                             symbol: symbol.into_global(view.module.id),
-                            type_node: ty.map(|ty| ty.into_global_any(view.module.id)),
+                            type_node: declared_type
+                                .map(|declared_type| declared_type.into_global_any(view.module.id)),
                             requires_implementation: value.is_none(),
                         });
                     }
 
                     // collect parent contracts from extends and implements
-                    let mut parent_types = Vec::new();
-                    if let Some(extends_types) = heritage.extends_types.as_ref() {
-                        parent_types.extend(extends_types.iter().copied());
-                    }
-                    if let Some(implements_types) = heritage.implements_types.as_ref() {
-                        parent_types.extend(implements_types.iter().copied());
-                    }
+                    let parent_types = self.associated_parent_types(declaration);
                     for parent_type_id in parent_types {
                         let Some(parent_symbol) = view.tree.get(parent_type_id).target_symbol()
                         else {
@@ -929,6 +930,136 @@ impl Compiler {
         left: LocalNodeId<Expression>,
         member_key: StaticKey,
         preferred_kind: Option<StaticMemberSymbolKind>,
+        _validate_static_argument_bounds: bool,
+        _enforce_implicit_managed: bool,
+    ) -> AnalyzeResult<Option<AssociatedProjectionSelection>> {
+        // evaluate the receiver to a reference-like type
+        let left_ty_id = ctx
+            .types
+            .get_declared_or_inferred_type_id(left.into_global_any(ctx.module.id))
+            .ok_or_else(|| AnalyzeError::MissingType {
+                node: left
+                    .into_global_any(ctx.module.id)
+                    .into_anchored(Some(ctx.profile)),
+            })?;
+        let left_ty = ctx.types.get_type(left_ty_id).clone();
+        let receiver_reference = self
+            .unwrap_type_symbol(ctx.types, left_ty_id)
+            .map(|(symbol, static_arguments, _)| (symbol, static_arguments.unwrap_or_default()))
+            .or_else(|| match left_ty {
+                Type::Intersection { elements } | Type::Union { elements } => {
+                    elements.iter().find_map(|element_id| {
+                        self.unwrap_type_symbol(ctx.types, *element_id).map(
+                            |(symbol, static_arguments, _)| {
+                                (symbol, static_arguments.unwrap_or_default())
+                            },
+                        )
+                    })
+                }
+                Type::This => self.owner_symbol_for_this_expression(ctx.tree_symbol_view(), left),
+                _ => None,
+            });
+        // prefer the explicit syntax receiver when it exists:
+        // namespace imports and other projected receivers can carry more precise
+        // symbol information than the inferred left type
+        let syntax_receiver =
+            self.associated_projection_receiver_from_expression(&mut ctx.reborrow(), left)?;
+        let receiver_reference = match (syntax_receiver, receiver_reference) {
+            (
+                Some((syntax_symbol, syntax_arguments)),
+                Some((fallback_symbol, fallback_arguments)),
+            ) if syntax_symbol == fallback_symbol => {
+                let syntax_requires_deferral = self.receiver_projection_arguments_require_deferral(
+                    ctx.type_view(),
+                    &syntax_arguments,
+                );
+                let fallback_requires_deferral = self
+                    .receiver_projection_arguments_require_deferral(
+                        ctx.type_view(),
+                        &fallback_arguments,
+                    );
+                let should_use_fallback_arguments = (syntax_requires_deferral
+                    && !fallback_requires_deferral)
+                    || (syntax_arguments.is_empty() && !fallback_arguments.is_empty());
+                let chosen_arguments = if should_use_fallback_arguments {
+                    fallback_arguments
+                } else {
+                    syntax_arguments
+                };
+
+                Some((syntax_symbol, chosen_arguments))
+            }
+            (Some(syntax_receiver), _) => Some(syntax_receiver),
+            (None, fallback_receiver) => fallback_receiver,
+        };
+
+        let Some((receiver_symbol, receiver_arguments)) = receiver_reference else {
+            return Ok(None);
+        };
+        let (projection_receiver_symbol, projection_receiver_arguments) = self
+            .normalize_projection_receiver_reference(
+                &mut ctx.reborrow(),
+                expression_id.into_any(),
+                receiver_symbol,
+                &receiver_arguments,
+            )?;
+
+        let lookup_symbol = projection_receiver_symbol;
+
+        // resolve the projected member symbol on the normalized receiver symbol
+        let projected_symbol = self
+            .with_module_tree_symbol_view_or_local_for_artifact(
+                ctx.compiler_context,
+                ctx.module,
+                ctx.profile,
+                lookup_symbol.module_id,
+                ctx.tree,
+                ctx.symbols,
+                destack_artifact::ArtifactKey::dir_interface,
+                |view| {
+                    self.query_static_member_symbol(
+                        ctx.compiler_context.revision(),
+                        view.module,
+                        ctx.profile,
+                        lookup_symbol,
+                        member_key,
+                        view.tree,
+                        view.symbols,
+                    )
+                },
+            )
+            .map_err(AnalyzeError::from)?;
+        let Some(mut projected_symbol) = projected_symbol else {
+            return Ok(None);
+        };
+
+        // prefer one member-kind class when the owner has ambiguous same-name members
+        if let Some(preferred_kind) = preferred_kind
+            && let Some(preferred_symbol) = self.query_direct_member_symbol_for_key_and_kind(
+                &*ctx,
+                lookup_symbol,
+                member_key,
+                preferred_kind,
+            )?
+        {
+            projected_symbol = preferred_symbol;
+        }
+
+        Ok(Some(AssociatedProjectionSelection {
+            target_symbol: projected_symbol,
+            receiver_symbol: projection_receiver_symbol,
+            receiver_arguments: projection_receiver_arguments,
+        }))
+    }
+
+    /// Select a projected static member symbol from a nominal type receiver.
+    pub(crate) fn select_associated_projection_type_member_symbol(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        expression_id: LocalNodeId<TypeExpression>,
+        left: LocalNodeId<TypeExpression>,
+        member_key: StaticKey,
+        preferred_kind: Option<StaticMemberSymbolKind>,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<Option<AssociatedProjectionSelection>> {
@@ -953,14 +1084,17 @@ impl Compiler {
                         )
                     })
                 }
-                Type::This => self.owner_symbol_for_this_expression(ctx.tree_symbol_view(), left),
+                Type::This => {
+                    self.owner_symbol_for_this_type_expression(ctx.tree_symbol_view(), left)
+                }
                 _ => None,
             });
+
         // prefer the explicit syntax receiver when it exists:
         // namespace imports and other projected receivers can carry more precise
         // symbol information than the inferred left type
         let syntax_receiver =
-            self.associated_projection_receiver_from_expression(&mut ctx.reborrow(), left)?;
+            self.associated_projection_receiver_from_type_expression(&mut ctx.reborrow(), left)?;
         let receiver_reference = match (syntax_receiver, receiver_reference) {
             (
                 Some((syntax_symbol, syntax_arguments)),
@@ -1123,9 +1257,50 @@ impl Compiler {
         };
 
         // preserve and resolve explicit static arguments from syntax
-        let static_argument_nodes = expression.static_arguments();
+        let generic_argument_nodes = expression.generic_arguments();
         let static_arguments =
-            self.evaluate_static_arguments(&mut ctx.reborrow(), static_argument_nodes)?;
+            self.evaluate_generic_arguments(&mut ctx.reborrow(), generic_argument_nodes)?;
+        let static_arguments = self.resolve_type_reference_static_arguments(
+            &mut ctx.reborrow(),
+            expression_id.into_any(),
+            target_symbol,
+            static_arguments.as_deref(),
+            false,
+        )?;
+        let static_arguments = static_arguments.unwrap_or_default();
+
+        let mut target_symbol = self.canonical_symbol_id(
+            ctx.module_symbol_view(),
+            target_symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        target_symbol = self.resolve_type_reference_symbol(ctx, target_symbol);
+        target_symbol = self
+            .declaration_symbol_id(ctx.module_symbol_view(), target_symbol)
+            .unwrap_or(target_symbol);
+
+        Ok(Some((target_symbol, static_arguments)))
+    }
+
+    /// Build a projection receiver from one type expression when type evaluation is unavailable.
+    pub(crate) fn associated_projection_receiver_from_type_expression(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        expression_id: LocalNodeId<TypeExpression>,
+    ) -> AnalyzeResult<Option<(GlobalSymbolId, Vec<StaticArgument>)>> {
+        // use the same receiver resolution path as ordinary member lookup
+        let expression_id = self.unwrap_parenthesized_type_expression(expression_id, ctx.tree);
+        let expression = ctx.tree.get(expression_id);
+        let target_symbol =
+            self.resolve_direct_receiver_symbol_for_type_expression(ctx, expression_id);
+        let Some(target_symbol) = target_symbol else {
+            return Ok(None);
+        };
+
+        // preserve and resolve explicit static arguments from syntax
+        let generic_argument_nodes = expression.generic_arguments();
+        let static_arguments =
+            self.evaluate_generic_arguments(&mut ctx.reborrow(), generic_argument_nodes)?;
         let static_arguments = self.resolve_type_reference_static_arguments(
             &mut ctx.reborrow(),
             expression_id.into_any(),
@@ -1214,24 +1389,19 @@ impl Compiler {
             }
             let declaration_id = declaration_id.local_id.into_typed::<Declaration>();
             let declaration = view.tree.get(declaration_id);
-            let members = match declaration {
-                Declaration::Class { members, .. }
-                | Declaration::Struct { members, .. }
-                | Declaration::Interface { members, .. }
-                | Declaration::Enum { members, .. }
-                | Declaration::Extension { members, .. } => members.as_slice(),
-                _ => continue,
+            let Some(members) = declaration.member_ids() else {
+                continue;
             };
 
             for member_id in members {
                 let member = view.tree.get(*member_id);
                 let (name, symbol, kind) = match member {
-                    Member::Type { name, symbol, .. } => (
+                    Member::AssociatedType { name, symbol, .. } => (
                         *name,
                         self.typed_global_symbol_id(view.module.id, view.symbols, *symbol),
                         StaticMemberSymbolKind::AssociatedType,
                     ),
-                    Member::ComptimeConst { name, symbol, .. } => (
+                    Member::AssociatedConst { name, symbol, .. } => (
                         *name,
                         self.typed_global_symbol_id(view.module.id, view.symbols, *symbol),
                         StaticMemberSymbolKind::AssociatedComptimeConst,
@@ -1412,13 +1582,59 @@ impl Compiler {
             if parent.ty == NodeType::Declaration {
                 let declaration_id = parent.into_typed::<Declaration>();
                 let owner_symbol = match ctx.tree.get(declaration_id) {
-                    Declaration::Class { descriptor, .. }
-                    | Declaration::Struct { descriptor, .. }
-                    | Declaration::Interface { descriptor, .. }
-                    | Declaration::Enum { descriptor, .. } => {
-                        Some(descriptor.symbol.into_global(ctx.module.id))
+                    Declaration::Class(declaration) => {
+                        Some(declaration.symbol.into_global(ctx.module.id))
                     }
-                    Declaration::Extension { target_symbol, .. } => *target_symbol,
+                    Declaration::Struct(declaration) => {
+                        Some(declaration.symbol.into_global(ctx.module.id))
+                    }
+                    Declaration::Interface(declaration) => {
+                        Some(declaration.symbol.into_global(ctx.module.id))
+                    }
+                    Declaration::Enum(declaration) => {
+                        Some(declaration.symbol.into_global(ctx.module.id))
+                    }
+                    Declaration::Extension(declaration) => declaration.target_symbol,
+                    _ => None,
+                }?;
+
+                let owner_symbol = self
+                    .declaration_symbol_id(ctx.module_symbol_view(), owner_symbol)
+                    .unwrap_or(owner_symbol);
+                return Some((owner_symbol, Vec::new()));
+            }
+
+            current_id = parent.id;
+        }
+
+        None
+    }
+
+    /// Resolve a declaration owner symbol for one `this` receiver type expression.
+    pub(crate) fn owner_symbol_for_this_type_expression(
+        &self,
+        ctx: TreeSymbolView<'_>,
+        expression_id: LocalNodeId<TypeExpression>,
+    ) -> Option<(GlobalSymbolId, Vec<StaticArgument>)> {
+        // walk parent nodes until we find a declaration owner
+        let mut current_id = expression_id.id;
+        while let Some(parent) = ctx.tree.get_parent(current_id) {
+            if parent.ty == NodeType::Declaration {
+                let declaration_id = parent.into_typed::<Declaration>();
+                let owner_symbol = match ctx.tree.get(declaration_id) {
+                    Declaration::Class(declaration) => {
+                        Some(declaration.symbol.into_global(ctx.module.id))
+                    }
+                    Declaration::Struct(declaration) => {
+                        Some(declaration.symbol.into_global(ctx.module.id))
+                    }
+                    Declaration::Interface(declaration) => {
+                        Some(declaration.symbol.into_global(ctx.module.id))
+                    }
+                    Declaration::Enum(declaration) => {
+                        Some(declaration.symbol.into_global(ctx.module.id))
+                    }
+                    Declaration::Extension(declaration) => declaration.target_symbol,
                     _ => None,
                 }?;
 
@@ -1544,8 +1760,8 @@ impl Compiler {
                     NodeType::Member => {
                         let member_id = primary_declaration.local_id.into_typed::<Member>();
                         let member_kind = match view.tree.get(member_id) {
-                            Member::Type { .. } => StaticMemberSymbolKind::AssociatedType,
-                            Member::ComptimeConst { .. } => {
+                            Member::AssociatedType { .. } => StaticMemberSymbolKind::AssociatedType,
+                            Member::AssociatedConst { .. } => {
                                 StaticMemberSymbolKind::AssociatedComptimeConst
                             }
                             _ => StaticMemberSymbolKind::Other,
@@ -1582,8 +1798,10 @@ impl Compiler {
                             }
 
                             let kind = match member {
-                                Member::Type { .. } => StaticMemberSymbolKind::AssociatedType,
-                                Member::ComptimeConst { .. } => {
+                                Member::AssociatedType { .. } => {
+                                    StaticMemberSymbolKind::AssociatedType
+                                }
+                                Member::AssociatedConst { .. } => {
                                     StaticMemberSymbolKind::AssociatedComptimeConst
                                 }
                                 _ => StaticMemberSymbolKind::Other,

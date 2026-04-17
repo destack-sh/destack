@@ -775,6 +775,7 @@ impl Compiler {
     fn scalar_literal_matches_string(&self, scalar: &ScalarLiteral, value: &str) -> bool {
         // match the scalar literal kind
         match scalar {
+            ScalarLiteral::Null => value == "null",
             ScalarLiteral::String(string_id) => {
                 self.repository.strings.get(*string_id).as_ref() == value
             }
@@ -1312,6 +1313,7 @@ impl Compiler {
                 value: TypeLiteral::ScalarLiteral(literal),
             } => {
                 let value = match literal {
+                    ScalarLiteral::Null => "null".to_string(),
                     ScalarLiteral::String(name) => self.repository.strings.get(name).to_string(),
                     ScalarLiteral::Integer(value) => value.to_string(),
                     ScalarLiteral::Bigint(value) => value.to_string(),

@@ -2,7 +2,7 @@ use crate::analyze::common::{ModuleTypeView, TypeContext};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, Member, NodeTree, NodeVisitor, NodeVisitorOptions,
-    walk_expression,
+    TypeMember, walk_expression,
 };
 /// Walk one expression subtree and record whether projection dependency forms appear.
 #[derive(Debug)]
@@ -37,9 +37,7 @@ impl NodeVisitor for ProjectionDependencyExpressionVisitor {
         // projection forms can trigger deferred static cycle diagnostics
         if matches!(
             expression,
-            Expression::Member { .. }
-                | Expression::PrivateMember { .. }
-                | Expression::TypeIndex { .. }
+            Expression::Member { .. } | Expression::PrivateMember { .. }
         ) {
             self.has_projection_dependency = true;
             return;
@@ -63,7 +61,35 @@ impl Compiler {
         members: &[LocalNodeId<Member>],
     ) {
         for member_id in members {
-            let Member::ComptimeConst {
+            let Member::AssociatedConst {
+                value: Some(value_id),
+                ..
+            } = ctx.tree.get(*member_id)
+            else {
+                continue;
+            };
+
+            if !self.expression_has_projection_dependency(ctx.tree, *value_id) {
+                continue;
+            }
+
+            let member_symbol = ctx.tree.get(*member_id).symbol().into_global(ctx.module.id);
+            let member_symbol = self
+                .declaration_symbol_id(ctx.module_symbol_view(), member_symbol)
+                .unwrap_or(member_symbol);
+            ctx.types
+                .mark_symbol_with_associated_comptime_projection_dependencies(member_symbol);
+        }
+    }
+
+    /// Collect projection dependencies for type-surface associated comptime members.
+    pub(crate) fn collect_type_member_projection_dependencies(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        members: &[LocalNodeId<TypeMember>],
+    ) {
+        for member_id in members {
+            let TypeMember::AssociatedConst {
                 value: Some(value_id),
                 ..
             } = ctx.tree.get(*member_id)

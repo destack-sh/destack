@@ -9,9 +9,9 @@ use crate::analyze::common::{
 use crate::timing::tags;
 use crate::{AnalyzeResult, Compiler, CompilerContext};
 use destack_dir::{
-    Argument, Expression, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument,
-    StaticExpression, StaticKey, StaticParameterKind, StaticProperty, SymbolTable, SymbolType,
-    Type, TypeElement, TypeField, TypeMappedParameter, TypeRewriter, TypeRewriterOptions,
+    Argument, Expression, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, MappedTypeParameter,
+    NodeTree, StaticArgument, StaticExpression, StaticKey, StaticParameterKind, StaticProperty,
+    SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeRewriter, TypeRewriterOptions,
     TypeTable, rewrite_type,
 };
 use destack_workspace::{Module, ProfileId};
@@ -337,26 +337,77 @@ impl Compiler {
                     )
                 }
             }
-            Type::Unary { operator, right } => {
+            Type::Readonly { target_type: right } => {
                 let mapped_right =
                     self.substitute_static_parameters(right, substitutions, types, cache);
                 if mapped_right == right {
                     ty_id
                 } else {
                     types.insert_type_from_type(
-                        Type::Unary {
-                            operator,
-                            right: mapped_right,
+                        Type::Readonly {
+                            target_type: mapped_right,
                         },
                         ty_id,
                     )
                 }
             }
-            Type::Binary {
-                left,
-                operator,
-                right,
-            } => {
+            Type::KeyOf { target_type: right } => {
+                let mapped_right =
+                    self.substitute_static_parameters(right, substitutions, types, cache);
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::KeyOf {
+                            target_type: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Must { target_type: right } => {
+                let mapped_right =
+                    self.substitute_static_parameters(right, substitutions, types, cache);
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Must {
+                            target_type: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::AsComptime { target_type: right } => {
+                let mapped_right =
+                    self.substitute_static_parameters(right, substitutions, types, cache);
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::AsComptime {
+                            target_type: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Not { target_type: right } => {
+                let mapped_right =
+                    self.substitute_static_parameters(right, substitutions, types, cache);
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Not {
+                            target_type: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::In { left, right } => {
                 let mapped_left =
                     self.substitute_static_parameters(left, substitutions, types, cache);
                 let mapped_right =
@@ -365,9 +416,42 @@ impl Compiler {
                     ty_id
                 } else {
                     types.insert_type_from_type(
-                        Type::Binary {
+                        Type::In {
                             left: mapped_left,
-                            operator,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Extends { left, right } => {
+                let mapped_left =
+                    self.substitute_static_parameters(left, substitutions, types, cache);
+                let mapped_right =
+                    self.substitute_static_parameters(right, substitutions, types, cache);
+                if mapped_left == left && mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Extends {
+                            left: mapped_left,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Implements { left, right } => {
+                let mapped_left =
+                    self.substitute_static_parameters(left, substitutions, types, cache);
+                let mapped_right =
+                    self.substitute_static_parameters(right, substitutions, types, cache);
+                if mapped_left == left && mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Implements {
+                            left: mapped_left,
                             right: mapped_right,
                         },
                         ty_id,
@@ -524,9 +608,9 @@ impl Compiler {
                 {
                     ty_id
                 } else {
-                    let parameter = TypeMappedParameter {
+                    let parameter = MappedTypeParameter {
                         name: parameter.name,
-                        symbol: parameter.symbol,
+                        symbol: parameter.symbol.into(),
                         constraint: mapped_constraint,
                         key_remap: mapped_key_remap,
                     };
@@ -1050,7 +1134,7 @@ impl Compiler {
         match ctx.tree.get(receiver_expression_id) {
             Expression::Instantiation {
                 left,
-                static_arguments,
+                generic_arguments,
             } => {
                 let receiver_expression_id = self.unwrap_parenthesized_expression(*left, ctx.tree);
                 let receiver_symbol = self
@@ -1061,9 +1145,9 @@ impl Compiler {
                 };
 
                 let receiver_arguments = self
-                    .evaluate_static_arguments(
+                    .evaluate_generic_arguments(
                         &mut ctx.reborrow(),
-                        Some(static_arguments.as_slice()),
+                        Some(generic_arguments.as_slice()),
                     )?
                     .unwrap_or_default();
                 Ok(Some((receiver_symbol, receiver_arguments)))
@@ -1449,7 +1533,7 @@ impl Compiler {
                     let _ = self.with_static_argument_owner(&mut ctx, *node, |ctx, argument_id| {
                         let argument_node = ctx.tree.get(argument_id);
                         name = match argument_node {
-                            Argument::Named { name, .. } => Some(*name),
+                            Argument::Named { name, .. } => Some(name.string()),
                             _ => None,
                         };
                         Ok(())
@@ -1483,7 +1567,7 @@ impl Compiler {
             let _ = self.with_static_argument_owner(&mut ctx, argument_node, |ctx, argument_id| {
                 let argument = ctx.tree.get(argument_id);
                 evaluated_name = match argument {
-                    Argument::Named { name, .. } => Some(*name),
+                    Argument::Named { name, .. } => Some(name.string()),
                     _ => None,
                 };
                 let expression_id = argument.value();
@@ -1501,12 +1585,14 @@ impl Compiler {
                                 .types
                                 .insert_type_from_any(reference_ty, expression_id.into_any());
                             Some(StaticExpression::Type { ty: ty_id })
-                        } else if let Ok(ty_id) = self.resolve_declared_type_expression(
-                            &mut ctx.reborrow(),
-                            expression_id,
-                            false,
-                            true,
-                        ) && !matches!(ctx.types.get_type(ty_id), Type::Unevaluated(_))
+                        } else if let Expression::Type { value, .. } = ctx.tree.get(expression_id)
+                            && let Ok(ty_id) = self.resolve_declared_type_expression(
+                                &mut ctx.reborrow(),
+                                *value,
+                                false,
+                                true,
+                            )
+                            && !matches!(ctx.types.get_type(ty_id), Type::Unevaluated(_))
                         {
                             Some(StaticExpression::Type { ty: ty_id })
                         } else {
@@ -1641,28 +1727,16 @@ impl Compiler {
     ) -> StaticProperty {
         match property {
             StaticProperty::Unevaluated { .. } => property.clone(),
-            StaticProperty::Field {
-                modifiers,
-                key,
-                value,
-                default,
-                symbol,
-            } => {
+            StaticProperty::Field { key, value, symbol } => {
                 let mapped_value =
                     self.substitute_static_expression(value, substitutions, types, cache);
-                let mapped_default = default.as_ref().map(|default| {
-                    self.substitute_static_expression(default, substitutions, types, cache)
-                });
                 StaticProperty::Field {
-                    modifiers: *modifiers,
                     key: *key,
                     value: mapped_value,
-                    default: mapped_default,
                     symbol: *symbol,
                 }
             }
             StaticProperty::Method {
-                modifiers,
                 key,
                 signature,
                 body,
@@ -1671,10 +1745,17 @@ impl Compiler {
                 let mapped_body =
                     self.substitute_static_expression(body, substitutions, types, cache);
                 StaticProperty::Method {
-                    modifiers: *modifiers,
                     key: *key,
                     signature: signature.clone(),
                     body: mapped_body,
+                    symbol: *symbol,
+                }
+            }
+            StaticProperty::Spread { value, symbol } => {
+                let mapped_value =
+                    self.substitute_static_expression(value, substitutions, types, cache);
+                StaticProperty::Spread {
+                    value: mapped_value,
                     symbol: *symbol,
                 }
             }

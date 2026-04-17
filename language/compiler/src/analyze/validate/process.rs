@@ -3,8 +3,8 @@ use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler, CompilerContext, RequirementError};
 use destack_artifact::ArtifactKey;
 use destack_dir::{
-    Annotation, Declaration, Expression, LocalNodeIdAny, Member, NodeTree, Parameter, Pattern,
-    SymbolTable, TypeTable,
+    Declaration, Decorator, Expression, LocalNodeIdAny, Member, NodeTree, Parameter, Pattern,
+    SymbolTable, TypeExpression, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{ModuleSource, ProfileId};
@@ -122,17 +122,17 @@ impl Compiler {
             }
 
             // validate type-index access resolution with one shared type context
-            for (id, expression) in ctx.tree.iter_nodes_of_type::<Expression>() {
+            for (id, expression) in ctx.tree.iter_nodes_of_type::<TypeExpression>() {
                 if !self.is_node_active(ctx.tree, ctx.symbols, id.into_any()) {
                     continue;
                 }
-                if matches!(expression, Expression::TypeIndex { .. }) {
+                if matches!(expression, TypeExpression::Index { .. }) {
                     self.validate_type_index_access(&mut ctx.reborrow(), id);
                 }
             }
 
-            // validate annotations
-            for (id, annotation) in ctx.tree.iter_nodes_of_type::<Annotation>() {
+            // validate decorators
+            for (id, annotation) in ctx.tree.iter_nodes_of_type::<Decorator>() {
                 if let Some(parent) = ctx.tree.get_parent(id.id)
                     && !self.is_node_active(ctx.tree, ctx.symbols, parent)
                 {

@@ -2,11 +2,12 @@ use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, StaticParameterKind, SymbolSpace,
+    TypeExpression,
 };
 use std::collections::HashMap;
 
 impl Compiler {
-    pub(crate) fn static_parameter_reference(
+    pub(crate) fn static_parameter_expression_reference(
         &self,
         ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,
@@ -16,8 +17,11 @@ impl Compiler {
             return Ok(None);
         }
 
-        // unwrap explicit comptime wrappers to reach the reference
-        let (expression_id, _) = self.unwrap_as_comptime_expression(expression_id, ctx.tree);
+        // unwrap one embedded type expression when the value is spelled in type space
+        let expression_id = self.unwrap_parenthesized_expression(expression_id, ctx.tree);
+        if let Expression::Type { value, .. } = ctx.tree.get(expression_id) {
+            return self.static_parameter_type_reference(&mut ctx.reborrow(), *value);
+        }
 
         // resolve the referenced symbol first
         let (Expression::LocalReference { target_symbol, .. }
@@ -55,14 +59,64 @@ impl Compiler {
         .map_err(AnalyzeError::from)
     }
 
-    /// Resolve the static parameter kind for a reference expression.
-    pub(crate) fn static_parameter_reference_kind(
+    /// Resolve the static parameter symbol and kind for a reference type expression.
+    pub(crate) fn static_parameter_type_reference(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
+    ) -> AnalyzeResult<Option<(GlobalSymbolId, StaticParameterKind)>> {
+        // only treat references as static parameters in Destack modules
+        if !ctx.module.language_type.is_destack() {
+            return Ok(None);
+        }
+
+        // unwrap explicit comptime wrappers to reach the reference
+        let (expression_id, _) = self.unwrap_as_comptime_type_expression(expression_id, ctx.tree);
+
+        // resolve the referenced symbol first
+        let (TypeExpression::LocalReference { target_symbol, .. }
+        | TypeExpression::ModuleReference { target_symbol, .. }
+        | TypeExpression::GlobalReference { target_symbol, .. }) = ctx.tree.get(expression_id)
+        else {
+            return Ok(None);
+        };
+
+        self.with_module_tree_symbol_view_or_local_for_artifact(
+            ctx.compiler_context,
+            ctx.module,
+            ctx.profile,
+            target_symbol.module_id,
+            ctx.tree,
+            ctx.symbols,
+            destack_artifact::ArtifactKey::dir_declared,
+            |view| {
+                let owner_options = ctx
+                    .compiler_context
+                    .analyze_context_options_for_module(view.module.id);
+                let mut ctx = TypeContext::new(
+                    ctx.compiler_context,
+                    view.module,
+                    ctx.profile,
+                    &owner_options,
+                    view.tree,
+                    view.symbols,
+                    ctx.types,
+                    AnalyzeIndex::default(),
+                );
+                self.static_parameter_reference_in_symbols(&mut ctx.reborrow(), *target_symbol)
+            },
+        )
+        .map_err(AnalyzeError::from)
+    }
+
+    /// Resolve the static parameter kind for a reference type expression.
+    pub(crate) fn static_parameter_type_reference_kind(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        expression_id: LocalNodeId<TypeExpression>,
     ) -> AnalyzeResult<Option<StaticParameterKind>> {
         Ok(self
-            .static_parameter_reference(&mut ctx.reborrow(), expression_id)?
+            .static_parameter_type_reference(&mut ctx.reborrow(), expression_id)?
             .map(|(_, kind)| kind))
     }
 

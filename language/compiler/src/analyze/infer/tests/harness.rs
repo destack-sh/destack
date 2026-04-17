@@ -15,12 +15,11 @@ pub(super) use crate::{
 };
 pub(super) use destack_core::StringId;
 pub(super) use destack_dir::{
-    Argument, BinaryOperator, Declaration, Declarator, DynamicKey, EnumFieldValue, Expression,
-    ExtensionKind, FlowEdgeKind, FlowGraphBuilder, GlobalNodeIdAny, GlobalSymbolId, IfCondition,
-    IfKind, IntType, LocalNodeId, LocalScopeMark, LocalTypeId, MatchCase, MatchSelector, Member,
-    NodeTree, Pattern, PatternField, PrimitiveType, ScalarLiteral, StaticArgument,
-    StaticExpression, StaticKey, SymbolKind, SymbolTable, SymbolType, Type, TypeField, TypeLiteral,
-    TypeTable, TypeUnaryOperator,
+    Argument, BinaryOperator, Declaration, Declarator, EnumFieldValue, Expression, ExtensionKind,
+    FlowEdgeKind, FlowGraphBuilder, GlobalNodeIdAny, GlobalSymbolId, IfCondition, IfKind, IntType,
+    Key, LocalNodeId, LocalScopeMark, LocalTypeId, MatchCase, MatchSelector, Member, NodeTree,
+    Pattern, PatternField, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression,
+    StaticKey, SymbolKind, SymbolTable, SymbolType, Type, TypeField, TypeLiteral, TypeTable,
 };
 pub(super) use destack_source::ModuleId;
 pub(super) use destack_workspace::{CompilerOptions, Module, ProfileId};
@@ -272,13 +271,25 @@ impl<'a> TestModuleView<'a> {
     pub(crate) fn expect_enum_field_symbol(&self, name: StringId) -> GlobalSymbolId {
         // scan enum declarations for the field
         for declaration_id in self.tree.iter_node_ids_of_type::<Declaration>() {
-            let Declaration::Enum { fields, .. } = self.tree.get(declaration_id) else {
+            let Declaration::Enum(declaration) = self.tree.get(declaration_id) else {
                 continue;
             };
-            for field_id in fields {
+
+            // resolve the enum member scope once
+            let enum_scope = self.symbols.get_scope_by_symbol(declaration.symbol);
+
+            for field_id in &declaration.fields {
                 let field = self.tree.get(*field_id);
-                if field.name == name {
-                    return field.symbol.into_global(self.module_id);
+                if field.name.string() == name {
+                    let field_key = StaticKey::Name(field.name.string());
+                    let field_symbol = self
+                        .symbols
+                        .find_active_symbol(enum_scope, field_key)
+                        .unwrap_or_else(|| {
+                            panic!("expected active enum field symbol for {name:?}")
+                        });
+
+                    return field_symbol.into_global(self.module_id);
                 }
             }
         }
@@ -294,28 +305,23 @@ impl<'a> TestModuleView<'a> {
     ) -> GlobalSymbolId {
         // scan struct declarations for the requested field
         for declaration_id in self.tree.iter_node_ids_of_type::<Declaration>() {
-            let Declaration::Struct {
-                descriptor,
-                members,
-                ..
-            } = self.tree.get(declaration_id)
-            else {
+            let Declaration::Struct(declaration) = self.tree.get(declaration_id) else {
                 continue;
             };
-            if descriptor.name.map(|name| name.string()) != Some(struct_name) {
+            if declaration.name.string() != struct_name {
                 continue;
             }
 
-            for member_id in members {
+            for member_id in &declaration.members {
                 let Member::Field {
-                    key: Some(DynamicKey::Name(name)),
+                    key: Key::Name(name),
                     symbol,
                     ..
                 } = self.tree.get(*member_id)
                 else {
                     continue;
                 };
-                if *name == field_name {
+                if name.string() == field_name {
                     return symbol.into_global(self.module_id);
                 }
             }
@@ -327,12 +333,24 @@ impl<'a> TestModuleView<'a> {
     /// Resolve one declaration symbol by simple name from this exact view.
     pub(crate) fn expect_declaration_symbol(&self, name: StringId) -> GlobalSymbolId {
         for declaration_id in self.tree.iter_node_ids_of_type::<Declaration>() {
-            let descriptor = self.tree.get(declaration_id).descriptor();
-            if descriptor.name.map(|value| value.string()) != Some(name) {
+            let declaration = self.tree.get(declaration_id);
+            let declaration_name = match declaration {
+                Declaration::Global(_) => None,
+                Declaration::Namespace(declaration) => Some(declaration.name.string()),
+                Declaration::Type(declaration) => Some(declaration.name.string()),
+                Declaration::ImportAlias(declaration) => Some(declaration.name.string()),
+                Declaration::Struct(declaration) => Some(declaration.name.string()),
+                Declaration::Class(declaration) => declaration.name.map(|value| value.string()),
+                Declaration::Enum(declaration) => declaration.name.map(|value| value.string()),
+                Declaration::Interface(declaration) => declaration.name.map(|value| value.string()),
+                Declaration::Extension(declaration) => declaration.name.map(|value| value.string()),
+                Declaration::Function(declaration) => declaration.name.map(|value| value.string()),
+            };
+            if declaration_name != Some(name) {
                 continue;
             }
 
-            return descriptor.symbol.into_global(self.module_id);
+            return declaration.symbol().into_global(self.module_id);
         }
 
         panic!("expected declaration symbol for {name:?}");

@@ -1,9 +1,9 @@
 use crate::analyze::common::{TreeSymbolView, TypeContext, TypeView};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Declaration, FunctionSignature, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Member, NodeType,
-    Parameter, StaticArgument, StaticExpression, StaticParameter, StaticParameterKind,
-    StaticProperty, Timing, Type, TypeLiteral, TypeTable, VarianceModifier,
+    Declaration, FunctionSignature, GenericParameter, GlobalSymbolId, LocalNodeIdAny, LocalTypeId,
+    Member, NodeType, StaticArgument, StaticExpression, StaticParameter, StaticParameterKind,
+    StaticProperty, Type, TypeLiteral, TypeTable, VarianceModifier,
 };
 use std::collections::HashSet;
 
@@ -86,14 +86,15 @@ impl Compiler {
         let Some(primary) = symbol_entry.primary_declaration else {
             return (StaticParameterKind::Type, None);
         };
-        let Ok(parameter_id) = primary.local_id.try_into_typed::<Parameter>() else {
+        let Ok(parameter_id) = primary.local_id.try_into_typed::<GenericParameter>() else {
             return (StaticParameterKind::Type, None);
         };
         let parameter = ctx.tree.get(parameter_id);
-        let kind = self.static_parameter_kind_for_parameter(parameter);
-        let variance = parameter
-            .modifiers()
-            .and_then(|modifiers| modifiers.variance);
+        let kind = self.static_parameter_kind_for_generic_parameter(parameter);
+        let variance = match parameter {
+            GenericParameter::Type { variance, .. } => *variance,
+            GenericParameter::Value { .. } | GenericParameter::Error { .. } => None,
+        };
 
         (kind, variance)
     }
@@ -263,13 +264,16 @@ impl Compiler {
         Ok(())
     }
 
-    /// Resolve the static parameter kind from a parameter node.
-    fn static_parameter_kind_for_parameter(&self, parameter: &Parameter) -> StaticParameterKind {
-        let timing = parameter.modifiers().and_then(|modifiers| modifiers.timing);
-        if matches!(timing, Some(Timing::Comptime)) {
-            StaticParameterKind::Value
-        } else {
-            StaticParameterKind::Type
+    /// Resolve the static parameter kind from one generic parameter node.
+    fn static_parameter_kind_for_generic_parameter(
+        &self,
+        parameter: &GenericParameter,
+    ) -> StaticParameterKind {
+        match parameter {
+            GenericParameter::Type { .. } | GenericParameter::Error { .. } => {
+                StaticParameterKind::Type
+            }
+            GenericParameter::Value { .. } => StaticParameterKind::Value,
         }
     }
 
@@ -279,19 +283,14 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         signature: &FunctionSignature,
     ) -> Vec<LocalTypeId> {
-        // stop when the signature has no generics
-        let Some(generics) = signature.generics.as_ref() else {
+        // stop when the signature has no generic parameters
+        if signature.generic_parameters.is_empty() {
             return Vec::new();
-        };
-
-        // stop when the generics have no static parameters
-        let Some(parameters) = generics.static_parameters.as_ref() else {
-            return Vec::new();
-        };
+        }
 
         // map static parameters to reference placeholders
-        let mut placeholders = Vec::with_capacity(parameters.len());
-        for parameter_id in parameters {
+        let mut placeholders = Vec::with_capacity(signature.generic_parameters.len());
+        for parameter_id in &signature.generic_parameters {
             let symbol = ctx
                 .tree
                 .get(*parameter_id)
@@ -418,18 +417,23 @@ impl Compiler {
                 let declaration_id = primary_declaration.local_id.into_typed::<Declaration>();
                 let declaration = ctx.tree.get(declaration_id);
                 match declaration {
-                    Declaration::Type {
-                        static_parameters, ..
-                    } => static_parameters.as_ref(),
-                    Declaration::Struct { generics, .. }
-                    | Declaration::Class { generics, .. }
-                    | Declaration::Enum { generics, .. }
-                    | Declaration::Interface { generics, .. }
-                    | Declaration::Extension { generics, .. }
-                    | Declaration::Namespace { generics, .. } => {
-                        generics.static_parameters.as_ref()
+                    Declaration::Namespace(declaration) => {
+                        declaration.generic_parameters.as_slice()
                     }
-                    _ => None,
+                    Declaration::Type(declaration) => declaration.generic_parameters.as_slice(),
+                    Declaration::Struct(declaration) => declaration.generic_parameters.as_slice(),
+                    Declaration::Class(declaration) => declaration.generic_parameters.as_slice(),
+                    Declaration::Enum(declaration) => declaration.generic_parameters.as_slice(),
+                    Declaration::Interface(declaration) => {
+                        declaration.generic_parameters.as_slice()
+                    }
+                    Declaration::Extension(declaration) => {
+                        declaration.generic_parameters.as_slice()
+                    }
+                    Declaration::Function(declaration) => {
+                        declaration.signature.generic_parameters.as_slice()
+                    }
+                    Declaration::Global(_) | Declaration::ImportAlias(_) => return None,
                 }
             }
             // associated type static parameters
@@ -437,28 +441,22 @@ impl Compiler {
                 let member_id = primary_declaration.local_id.into_typed::<Member>();
                 let member = ctx.tree.get(member_id);
                 match member {
-                    Member::Type {
-                        static_parameters, ..
-                    } => static_parameters.as_ref(),
-                    Member::Method { signature, .. } => signature
-                        .generics
-                        .as_ref()
-                        .and_then(|generics| generics.static_parameters.as_ref()),
-                    _ => None,
+                    Member::AssociatedType {
+                        generic_parameters, ..
+                    } => generic_parameters.as_slice(),
+                    Member::Method { signature, .. } => signature.generic_parameters.as_slice(),
+                    _ => return None,
                 }
             }
             _ => return None,
-        };
-
-        let Some(parameters) = parameters else {
-            return Some(Vec::new());
         };
 
         // map parameter nodes to global symbols
         let symbols = parameters
             .iter()
             .map(|parameter_id| {
-                let symbol_id = ctx.tree.get(*parameter_id).symbol();
+                let parameter: &GenericParameter = ctx.tree.get(*parameter_id);
+                let symbol_id = parameter.symbol();
                 let symbol_entry = ctx.symbols.get_symbol(symbol_id);
                 GlobalSymbolId::new(ctx.module.id, symbol_id.with_type(symbol_entry.ty))
             })
@@ -704,7 +702,7 @@ impl Compiler {
         let symbol = ctx.symbols.get_symbol(symbol_id.local_id);
         let primary_declaration = symbol.primary_declaration?;
         let parameter_id = primary_declaration
-            .try_into_local_typed::<Parameter>()
+            .try_into_local_typed::<GenericParameter>()
             .ok()?;
         let parameter = ctx.tree.get(parameter_id);
 
@@ -761,29 +759,23 @@ impl Compiler {
             }
         };
 
-        // resolve the static parameter kind from the parameter modifiers
-        let kind = self.static_parameter_kind_for_parameter(parameter);
+        // resolve the static parameter kind from the generic parameter
+        let kind = self.static_parameter_kind_for_generic_parameter(parameter);
 
         // derive the parameter name for mapping
         let name = match parameter {
-            Parameter::Named { name, .. } => Some(*name),
-            Parameter::VariadicNamed { name, .. } => Some(*name),
-            Parameter::Pattern { .. }
-            | Parameter::VariadicPattern { .. }
-            | Parameter::Error { .. } => None,
+            GenericParameter::Type { name, .. } | GenericParameter::Value { name, .. } => {
+                Some(*name)
+            }
+            GenericParameter::Error { .. } => None,
         };
 
-        // resolve the default expression for the parameter
+        // resolve the default expression for value parameters
         let default_expression = match parameter {
-            Parameter::Named { default, .. } => {
+            GenericParameter::Value { default, .. } => {
                 default.map(|expression_id| expression_id.into_global(ctx.module.id))
             }
-            Parameter::Pattern { default, .. } => {
-                default.map(|expression_id| expression_id.into_global(ctx.module.id))
-            }
-            Parameter::VariadicNamed { .. }
-            | Parameter::VariadicPattern { .. }
-            | Parameter::Error { .. } => None,
+            GenericParameter::Type { .. } | GenericParameter::Error { .. } => None,
         };
 
         Some(StaticParameter {
@@ -825,10 +817,16 @@ impl Compiler {
                 }
             }
             Type::Unevaluated(_) => {}
-            Type::Unary { right, .. } => {
-                self.collect_type_reference_symbols(*right, types, symbols, visited);
+            Type::Readonly { target_type }
+            | Type::KeyOf { target_type }
+            | Type::Must { target_type }
+            | Type::AsComptime { target_type }
+            | Type::Not { target_type } => {
+                self.collect_type_reference_symbols(*target_type, types, symbols, visited);
             }
-            Type::Binary { left, right, .. } => {
+            Type::In { left, right }
+            | Type::Extends { left, right }
+            | Type::Implements { left, right } => {
                 self.collect_type_reference_symbols(*left, types, symbols, visited);
                 self.collect_type_reference_symbols(*right, types, symbols, visited);
             }
@@ -1017,19 +1015,19 @@ impl Compiler {
     ) {
         match property {
             StaticProperty::Unevaluated { .. } => {}
-            StaticProperty::Field { value, default, .. } => {
+            StaticProperty::Field { value, .. } => {
                 self.collect_type_reference_symbols_from_static_expression(
                     value, types, symbols, visited,
                 );
-                if let Some(default) = default {
-                    self.collect_type_reference_symbols_from_static_expression(
-                        default, types, symbols, visited,
-                    );
-                }
             }
             StaticProperty::Method { body, .. } => {
                 self.collect_type_reference_symbols_from_static_expression(
                     body, types, symbols, visited,
+                );
+            }
+            StaticProperty::Spread { value, .. } => {
+                self.collect_type_reference_symbols_from_static_expression(
+                    value, types, symbols, visited,
                 );
             }
         }
