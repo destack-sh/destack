@@ -2,7 +2,6 @@
 export newtype interface Copy {}
 
 /// Clone the value into a new owned value.
-/// Clone the value.
 export interface Clone {}
 
 /// Mark a type as safe to send across threads.
@@ -10,3 +9,15 @@ export newtype interface Send {}
 
 /// Mark a type as safe to share across threads.
 export newtype interface Sync {}
+
+/// Borrowed value of `T`.
+export newtype interface Borrowed<T> {}
+
+/// Owned value of `T`.
+export newtype interface Owned<T> {}
+
+/// Located value `T` in space `S`.
+export newtype interface Space<S, T> {}
+
+/// Shared value `T` (located in the shared space).
+export type Shared<T> = Space<"shared", T>;

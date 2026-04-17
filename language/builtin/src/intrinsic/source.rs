@@ -57,6 +57,7 @@ macro_rules! builtin_source {
 // intrinsic root
 builtin_source!(INTRINSIC_ROOT_INDEX, "index.ds");
 builtin_source!(INTRINSIC_PRELUDE, "prelude.ds");
+builtin_source!(INTRINSIC_OWNERSHIP, "ownership.ds");
 
 // memory
 builtin_source!(MEMORY_INDEX, "memory", "index.ds");
@@ -138,6 +139,7 @@ pub const INTRINSIC_SOURCES: &[BuiltinSource] = &[
     REFLECT_TYPE,
     REFLECT_INDEX,
     // intrinsic root
+    INTRINSIC_OWNERSHIP,
     INTRINSIC_ROOT_INDEX,
     INTRINSIC_PRELUDE,
 ];
@@ -191,8 +193,13 @@ mod tests {
                 continue;
             }
 
-            let index = category_index(source.path)
-                .unwrap_or_else(|| panic!("missing category index for {}", source.virtual_path()));
+            let index = if source.path.is_empty() {
+                &INTRINSIC_ROOT_INDEX
+            } else {
+                category_index(source.path).unwrap_or_else(|| {
+                    panic!("missing category index for {}", source.virtual_path())
+                })
+            };
             let expected_reexport = format!("\"./{}\"", source.name);
 
             assert!(

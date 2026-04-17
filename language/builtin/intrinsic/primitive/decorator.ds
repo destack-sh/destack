@@ -347,19 +347,19 @@ export newtype tag = (string,) | ();
 /// parameters is a compile error.
 export newtype lifetime = string;
 
-/// Address space annotation for a reference type.
+/// Space annotation for a reference type.
 ///
-/// `addrspace` specifies the memory region that a reference points into.
+/// `space` specifies the memory region that a reference points into.
 /// Supported names include `generic`, `stack`, `global`, `heap`, `shared`,
 /// `local`, and `constant`, or a target-specific integer id.
 ///
 /// Non-generic address spaces are only valid for borrowed and raw references.
 /// `constant` references are always immutable.
-/// Address space changes are explicit and use `addrspace.cast`.
+/// Space changes are explicit and use `space.cast`.
 ///
 /// ```
-/// let p: @addrspace("shared") &Point = ...;
-/// let q: @addrspace(7) &i32 = ...;
-/// let r: @addrspace("constant") &Color = ...;
+/// let p: @space("shared") &Point = ...;
+/// let q: @space(7) &i32 = ...;
+/// let r: @space("constant") &Color = ...;
 /// ```
-export newtype addrspace = (string,) | (int,);
+export newtype space = (string,) | (int,);

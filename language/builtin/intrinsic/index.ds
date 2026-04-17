@@ -1,4 +1,5 @@
 export * from "./intrinsic/index.ds";
+export * from "./ownership.ds";
 export * from "./memory/index.ds";
 export * from "./operator/index.ds";
 export * from "./reflect/index.ds";
