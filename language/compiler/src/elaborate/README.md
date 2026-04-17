@@ -300,7 +300,7 @@ Ownership insertion happens before implicit cast insertion.
 
 ### Insert explicit and implicit casts
 
-Reify imputes type-cast expressions with `Expression::Cast`, with explicit casts becoming `CastSource::Explicit` and inserted casts introducing `CastSource::Implicit`.
+Reify resolves `Expression::As` nodes, with source casts marked as `CastSource::Explicit` and inserted casts marked as `CastSource::Implicit`.
 
 Implicit casts are inserted at "type boundaries", i.e. in places where values move.
 Null and undefined literals are reified the same way when a nullable or union target type is expected.

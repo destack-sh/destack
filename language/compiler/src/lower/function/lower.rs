@@ -398,24 +398,16 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             dir::Expression::As {
+                operator,
+                source: _,
                 expression,
                 target_type: _,
             } => {
-                // use the analyzed cast result type, which should already be prelowered
-                let (value, _) = self.lower_value_expression(*expression)?;
-                let target_type_id = self.type_for_expression_or_error(expression_id)?;
-                let target_type_id = self.unwrap_value_type_id(target_type_id);
-                let target_type = self
-                    .context
-                    .type_lowerer
-                    .cached_type(target_type_id)
-                    .ok_or_else(|| {
-                        self.missing_type_error_for_node(
-                            expression_id.into_global_any(self.context.module_id),
-                        )
-                    })?;
+                let Some(operator) = operator else {
+                    return Err(self.error(expression_id, "unresolved cast operator"));
+                };
 
-                Ok((self.state.builder.bitcast(value, target_type), target_type))
+                self.lower_cast_expression(expression_id, *operator, *expression)
             }
 
             dir::Expression::Satisfies { expression, .. } => {

@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use destack_dir as dir;
 use dir::{
     Argument, CastOperator, Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId,
@@ -14,7 +16,7 @@ impl Compiler {
         &self,
         state: &mut ElaborateState<'_>,
         expression_id: LocalNodeId<Expression>,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
     ) -> ElaborateResult<Option<Vec<Option<LocalTypeId>>>> {
         // resolve the call resolution
         let Some(resolution_id) = state
@@ -40,16 +42,15 @@ impl Compiler {
         }
 
         // map positional arguments to parameter types when uniform across candidates
-        let mut expected_types = Vec::with_capacity(dynamic_arguments.len());
-        for (index, argument_id) in dynamic_arguments.iter().enumerate() {
+        let mut expected_types = Vec::with_capacity(arguments.len());
+        for (index, argument_id) in arguments.iter().enumerate() {
             let argument = state.tree.get(*argument_id);
             let expected_type_id = match argument {
                 Argument::Positional { .. } => {
                     let mut expected = None;
                     let mut is_uniform = true;
                     for signature in &signatures {
-                        let Some(param_ty_id) = signature.dynamic_parameters.get(index).copied()
-                        else {
+                        let Some(param_ty_id) = signature.parameters.get(index).copied() else {
                             is_uniform = false;
                             break;
                         };
@@ -89,14 +90,10 @@ impl Compiler {
                 let declaration = state.tree.get(declaration_id);
 
                 // return the declared function return type
-                if let Declaration::Function {
-                    descriptor,
-                    signature,
-                    ..
-                } = declaration
-                    && signature.return_type.is_some()
+                if let Declaration::Function(declaration) = declaration
+                    && declaration.signature.return_type.is_some()
                 {
-                    let symbol = descriptor.symbol.into_global(state.ctx.module_id);
+                    let symbol = declaration.symbol.into_global(state.ctx.module_id);
                     return self.return_type_for_symbol(state, symbol);
                 }
             }

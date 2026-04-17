@@ -1,6 +1,6 @@
 use crate::tests::{TestProgram, root_expression_id};
 use destack_dir as dir;
-use dir::Expression;
+use dir::{Expression, TypeExpression};
 
 /// Reify scalar constructor calls into tagged scalar expressions.
 #[test]
@@ -152,24 +152,24 @@ let value = Box<int32>(1);
 
             let ty_expression = tree.get(*ty);
             let arguments = match ty_expression {
-                Expression::LocalReference {
-                    static_arguments: Some(arguments),
+                TypeExpression::LocalReference {
+                    generic_arguments: arguments,
                     ..
                 }
-                | Expression::ModuleReference {
-                    static_arguments: Some(arguments),
+                | TypeExpression::ModuleReference {
+                    generic_arguments: arguments,
                     ..
                 }
-                | Expression::GlobalReference {
-                    static_arguments: Some(arguments),
+                | TypeExpression::GlobalReference {
+                    generic_arguments: arguments,
                     ..
                 }
-                | Expression::Member {
-                    static_arguments: Some(arguments),
+                | TypeExpression::Member {
+                    generic_arguments: arguments,
                     ..
                 } => arguments,
                 _ => {
-                    panic!("expected tag reference with static arguments, got {ty_expression:?}");
+                    panic!("expected tag reference with generic arguments, got {ty_expression:?}");
                 }
             };
 

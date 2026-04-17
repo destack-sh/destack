@@ -2,7 +2,7 @@ use destack_dir as dir;
 use dir::{
     BinaryOperator, Block, Expression, IfCondition, IfKind, LocalNodeId, LocalSymbolId,
     LocalTypeId, MatchCase, MatchKind, MatchSelector, MatchSource, Mutability, NodeType, Pattern,
-    PatternField, ScalarLiteral, StringId,
+    PatternField, ScalarLiteral, StringId, TypeExpression,
 };
 
 use crate::analyze::common::{AnalyzeIndex, TypeContext};
@@ -174,7 +174,7 @@ impl Compiler {
                 );
                 let block_expr: LocalNodeId<Expression> = state
                     .tree
-                    .insert_as_owner(block_expr_id, Expression::Block { block: *body });
+                    .insert_as_owner(block_expr_id, Expression::Block(*body));
                 let block_type_id = state
                     .types
                     .get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id))
@@ -556,7 +556,7 @@ impl Compiler {
         match_id: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
-        ty: LocalNodeId<Expression>,
+        ty: LocalNodeId<TypeExpression>,
         fields: &[LocalNodeId<PatternField>],
         guard: Option<LocalNodeId<Expression>>,
         cases: &[LocalNodeId<MatchCase>],
@@ -565,7 +565,7 @@ impl Compiler {
         match_type_id: LocalTypeId,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         // start with the type check for the tag
-        let mut condition = self.build_type_check(state, match_id, value, ty, scope)?;
+        let mut condition = self.build_type_guard(state, match_id, value, ty, scope)?;
 
         // extend the condition with field checks
         for (index, field_id) in fields.iter().enumerate() {
@@ -674,7 +674,7 @@ impl Compiler {
         match_id: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
-        ty: LocalNodeId<Expression>,
+        ty: LocalNodeId<TypeExpression>,
         fields: &[LocalNodeId<PatternField>],
         guard: Option<LocalNodeId<Expression>>,
         cases: &[LocalNodeId<MatchCase>],
@@ -683,7 +683,7 @@ impl Compiler {
         match_type_id: LocalTypeId,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         // start with the type check for the tag
-        let mut condition = self.build_type_check(state, match_id, value, ty, scope)?;
+        let mut condition = self.build_type_guard(state, match_id, value, ty, scope)?;
 
         // extend the condition with field checks
         for field_id in fields.iter() {
@@ -1036,9 +1036,14 @@ impl Compiler {
                 value: pattern_value,
             } => self.build_equality_check(state, match_id, value, pattern_value, scope),
 
+            // type-space patterns lower to runtime type checks
+            Pattern::TypeExpression { value: target_type } => {
+                self.build_type_guard(state, match_id, value, target_type, scope)
+            }
+
             // tagged tuple: type check plus constrained slot checks
             Pattern::TaggedTuple { ty, fields } => {
-                let type_check = self.build_type_check(state, match_id, value, ty, scope)?;
+                let type_check = self.build_type_guard(state, match_id, value, ty, scope)?;
                 self.extend_sequence_pattern_check(
                     state,
                     match_id,
@@ -1051,7 +1056,7 @@ impl Compiler {
 
             // tagged object: type check plus constrained field checks
             Pattern::TaggedObject { ty, fields } => {
-                let type_check = self.build_type_check(state, match_id, value, ty, scope)?;
+                let type_check = self.build_type_guard(state, match_id, value, ty, scope)?;
                 self.extend_object_pattern_check(
                     state,
                     match_id,
@@ -1235,13 +1240,13 @@ impl Compiler {
         Ok(expression_id)
     }
 
-    /// Build type check expression: `value is Type`.
-    fn build_type_check(
+    /// Build one runtime type guard: `value is Type`.
+    fn build_type_guard(
         &self,
         state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
-        ty: LocalNodeId<Expression>,
+        ty: LocalNodeId<TypeExpression>,
         scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // build `value is ty`
@@ -1260,19 +1265,13 @@ impl Compiler {
         };
 
         // resolve the target type for runtime checks
-        let target_type_id = match state.tree.get(ty) {
-            Expression::Type { value } => *value,
-            _ => {
-                let Some(type_id) = state
-                    .types
-                    .get_declared_or_inferred_type_id(ty.into_global_any(state.tree.module_id))
-                else {
-                    return Err(ElaborateError::UnsupportedConstruct {
-                        node: ty.into_global_any(state.tree.module_id).into_anchored(None),
-                    });
-                };
-                state.types.unwrap_value_type_id(type_id)
-            }
+        let Some(target_type_id) = state
+            .types
+            .get_declared_or_inferred_type_id(ty.into_global_any(state.tree.module_id))
+        else {
+            return Err(ElaborateError::UnsupportedConstruct {
+                node: ty.into_global_any(state.tree.module_id).into_anchored(None),
+            });
         };
 
         // derive and record the runtime check kind
@@ -1434,7 +1433,7 @@ impl Compiler {
             Expression::Member {
                 left: value,
                 name: Some(name),
-                static_arguments: None,
+                generic_arguments: Vec::new(),
             },
         );
 
@@ -1682,6 +1681,8 @@ impl Compiler {
         let block: LocalNodeId<Block> = state.tree.insert_as_owner(
             block_id,
             Block {
+                context: dir::BlockContext::Expression,
+                format: dir::BlockFormat::Explicit,
                 scope: scope.0,
                 leading_expressions,
                 tail_expression: Some(body),
@@ -1698,7 +1699,7 @@ impl Compiler {
         );
         let expr_id = state
             .tree
-            .insert_as_owner(block_expr_id, Expression::Block { block });
+            .insert_as_owner(block_expr_id, Expression::Block(block));
         let body_type_id = state
             .types
             .get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id))
@@ -1725,7 +1726,7 @@ impl Compiler {
         scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // don't double wrap if already a block
-        if let Expression::Block { block } = state.tree.get(body) {
+        if let Expression::Block(block) = state.tree.get(body) {
             let body_type_id = state
                 .types
                 .get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id));
@@ -1757,6 +1758,8 @@ impl Compiler {
         let block: LocalNodeId<Block> = state.tree.insert_as_owner(
             block_id,
             Block {
+                context: dir::BlockContext::Expression,
+                format: dir::BlockFormat::Explicit,
                 scope: scope.0,
                 leading_expressions: Vec::new(),
                 tail_expression: Some(body),
@@ -1773,7 +1776,7 @@ impl Compiler {
         );
         let expr_id = state
             .tree
-            .insert_as_owner(block_expr_id, Expression::Block { block });
+            .insert_as_owner(block_expr_id, Expression::Block(block));
         let body_type_id = state
             .types
             .get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id))

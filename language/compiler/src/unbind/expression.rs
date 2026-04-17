@@ -355,6 +355,8 @@ impl Compiler {
                 }
 
                 dir::Expression::As {
+                    operator: _,
+                    source: _,
                     expression,
                     target_type,
                 } => {
@@ -414,24 +416,6 @@ impl Compiler {
                         expression,
                         target_type: type_annotation,
                     }
-                }
-
-                dir::Expression::OwnershipCast {
-                    operator: _,
-                    source: _,
-                    value,
-                } => {
-                    // ownership casts are internal, preserve the underlying expression
-                    return self.unbind_expression(
-                        module,
-                        *value,
-                        tree,
-                        symbols,
-                        types,
-                        ast_tree,
-                        ast_strings,
-                        context,
-                    );
                 }
 
                 dir::Expression::Unary { operator, right } => {

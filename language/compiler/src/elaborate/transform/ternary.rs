@@ -101,7 +101,7 @@ impl Compiler {
             } => true,
 
             // not simple
-            Expression::Block { .. }
+            Expression::Block(..)
             | Expression::If {
                 kind: IfKind::If, ..
             }

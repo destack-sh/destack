@@ -213,6 +213,8 @@ impl Compiler {
         let block: LocalNodeId<Block> = state.tree.insert_as_owner(
             block_id,
             Block {
+                context: dir::BlockContext::Expression,
+                format: dir::BlockFormat::Explicit,
                 scope: scope.0,
                 leading_expressions: Vec::new(),
                 tail_expression: None,
@@ -229,7 +231,7 @@ impl Compiler {
         );
         let block_expr_id = state
             .tree
-            .insert_as_owner(block_expr_id, Expression::Block { block });
+            .insert_as_owner(block_expr_id, Expression::Block(block));
 
         // record void types for the synthesized block
         let void_type = Type::TypeLiteral {

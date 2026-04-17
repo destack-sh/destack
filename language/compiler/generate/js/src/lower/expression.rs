@@ -921,6 +921,8 @@ impl ModuleLowerer<'_> {
                 self.lower_expression(*value)?
             }
             dir::Expression::As {
+                operator: _,
+                source: _,
                 expression,
                 target_type,
             } => {
@@ -957,30 +959,6 @@ impl ModuleLowerer<'_> {
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
-            }
-            dir::Expression::OwnershipCast { value, .. } => {
-                // js output erases ownership casts
-                let lowered_id = self.lower_expression(*value)?;
-                match lowered_id.ty {
-                    js::NodeType::Expression => {
-                        let alias: js::LocalNodeId<js::Expression> = lowered_id.try_into().unwrap();
-                        self.tree.alias_from(expression_id.id, alias);
-                    }
-                    js::NodeType::Statement => {
-                        let alias: js::LocalNodeId<js::Statement> = lowered_id.try_into().unwrap();
-                        self.tree.alias_from(expression_id.id, alias);
-                    }
-                    js::NodeType::Block => {
-                        let alias: js::LocalNodeId<js::Block> = lowered_id.try_into().unwrap();
-                        self.tree.alias_from(expression_id.id, alias);
-                    }
-                    js::NodeType::Type => {
-                        let alias: js::LocalNodeId<js::Type> = lowered_id.try_into().unwrap();
-                        self.tree.alias_from(expression_id.id, alias);
-                    }
-                    _ => {}
-                }
-                lowered_id
             }
 
             dir::Expression::TypeLiteral { value } => {

@@ -82,7 +82,7 @@ impl Compiler {
         state: &ElaborateState<'_>,
         expr_id: LocalNodeId<Expression>,
     ) -> LocalNodeId<Expression> {
-        let Expression::Block { block } = state.tree.get(expr_id) else {
+        let Expression::Block(block) = state.tree.get(expr_id) else {
             return expr_id;
         };
 

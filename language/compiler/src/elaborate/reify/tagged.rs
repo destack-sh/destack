@@ -4,7 +4,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use dir::{
     Argument, Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeTree,
-    SymbolTable, Type, TypeKind, TypeTable,
+    NodeType, SymbolTable, Type, TypeExpression, TypeTable,
 };
 
 use crate::analyze::TreeSymbolView;
@@ -43,12 +43,16 @@ impl Compiler {
         state: &mut ElaborateState<'_>,
         expression_id: LocalNodeId<Expression>,
         callee: LocalNodeId<Expression>,
-        static_arguments: &Option<Vec<LocalNodeId<Argument>>>,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        generic_arguments: &[LocalNodeId<dir::GenericArgument>],
+        arguments: &[LocalNodeId<Argument>],
     ) -> ElaborateResult<bool> {
         // resolve the callee symbol for nominal constructor calls
-        let callee_id = self.unwrap_parenthesized_expression(callee, state.tree);
-        let Some(callee_symbol) = self.reference_symbol_for_expression(
+        let Some(callee_id) =
+            self.insert_constructor_callee_type_expression(state, callee, generic_arguments)
+        else {
+            return Ok(false);
+        };
+        let Some(callee_symbol) = self.reference_symbol_for_type_expression(
             TreeSymbolView::new(
                 state.ctx.compiler_context,
                 state.ctx.module,
@@ -74,21 +78,14 @@ impl Compiler {
         }
 
         // scalar constructors require exactly one argument
-        if constructor_kind == ConstructorKind::Scalar && dynamic_arguments.len() != 1 {
+        if constructor_kind == ConstructorKind::Scalar && arguments.len() != 1 {
             return Ok(false);
-        }
-
-        // move static arguments onto the callee reference when present
-        if let Some(static_arguments) = static_arguments.as_ref()
-            && !static_arguments.is_empty()
-        {
-            self.apply_static_arguments_to_callee(state, callee_id, static_arguments);
         }
 
         // replace the call with the tagged constructor expression
         match constructor_kind {
             ConstructorKind::Scalar => {
-                let argument_id = dynamic_arguments[0];
+                let argument_id = arguments[0];
                 let value_id = state.tree.get(argument_id).value();
                 state.tree.replace(
                     expression_id,
@@ -103,7 +100,7 @@ impl Compiler {
                     expression_id,
                     Expression::TaggedTupleExpression {
                         ty: callee_id,
-                        elements: dynamic_arguments.to_vec(),
+                        elements: arguments.to_vec(),
                     },
                 );
             }
@@ -164,25 +161,23 @@ impl Compiler {
         let declaration = view.tree.get(declaration_id);
 
         // only newtype aliases use constructor call tagging
-        let Declaration::Type {
-            kind: TypeKind::Nominal,
-            value,
-            ..
-        } = declaration
-        else {
+        let Declaration::Type(declaration) = declaration else {
             return None;
         };
+        if !declaration.is_nominal {
+            return None;
+        }
 
         // derive the constructor kind from the evaluated alias type
         let declared_type_id = view
             .types
-            .get_declared_type_id(value.into_global_any(view.module_id))?;
+            .get_declared_type_id(declaration.value.into_global_any(view.module_id))?;
         let constructor_kind = match view.types.get_type(declared_type_id) {
             Type::Unevaluated(expression_id) => match view.tree.get(*expression_id) {
-                Expression::TupleExpression { .. } | Expression::ArrayExpression { .. } => {
+                TypeExpression::Tuple { .. } | TypeExpression::Array { .. } => {
                     ConstructorKind::Tuple
                 }
-                Expression::ObjectExpression { .. } => ConstructorKind::Object,
+                TypeExpression::Object { .. } => ConstructorKind::Object,
                 _ => ConstructorKind::Scalar,
             },
             _ => {
@@ -221,69 +216,127 @@ impl Compiler {
         }
     }
 
-    /// Apply call static arguments to a callee expression.
-    fn apply_static_arguments_to_callee(
+    /// Insert a type expression for one constructor callee.
+    fn insert_constructor_callee_type_expression(
         &self,
         state: &mut ElaborateState<'_>,
         callee_id: LocalNodeId<Expression>,
-        static_arguments: &[LocalNodeId<Argument>],
-    ) {
-        // update reference expressions to carry static arguments
-        let expression = state.tree.get(callee_id).clone();
-        match expression {
+        generic_arguments: &[LocalNodeId<dir::GenericArgument>],
+    ) -> Option<LocalNodeId<TypeExpression>> {
+        let callee_id = self.unwrap_parenthesized_expression(callee_id, state.tree);
+        let callee = state.tree.get(callee_id).clone();
+        let scope = state.tree.get_scope(callee_id);
+        let parent_id = state.tree.get_parent(callee_id.id);
+        let generic_arguments = generic_arguments.to_vec();
+
+        match callee {
             Expression::LocalReference {
                 path,
                 target_symbol,
-                ..
+                generic_arguments: callee_generic_arguments,
             } => {
-                state.tree.replace(
-                    callee_id,
-                    Expression::LocalReference {
-                        path,
-                        target_symbol,
-                        static_arguments: Some(static_arguments.to_vec()),
-                    },
+                let type_expression_id = state.tree.reserve_from(
+                    NodeType::TypeExpression,
+                    callee_id.into_any(),
+                    scope,
+                    parent_id,
+                    Some(dir::ProvenanceReason::Elaborated),
                 );
+
+                Some(state.tree.insert(
+                    type_expression_id,
+                    TypeExpression::LocalReference {
+                        path,
+                        generic_arguments: if generic_arguments.is_empty() {
+                            callee_generic_arguments
+                        } else {
+                            generic_arguments
+                        },
+                        target_symbol,
+                    },
+                ))
             }
             Expression::ModuleReference {
                 path,
                 target_symbol,
-                ..
+                generic_arguments: callee_generic_arguments,
             } => {
-                state.tree.replace(
-                    callee_id,
-                    Expression::ModuleReference {
-                        path,
-                        target_symbol,
-                        static_arguments: Some(static_arguments.to_vec()),
-                    },
+                let type_expression_id = state.tree.reserve_from(
+                    NodeType::TypeExpression,
+                    callee_id.into_any(),
+                    scope,
+                    parent_id,
+                    Some(dir::ProvenanceReason::Elaborated),
                 );
+
+                Some(state.tree.insert(
+                    type_expression_id,
+                    TypeExpression::ModuleReference {
+                        path,
+                        generic_arguments: if generic_arguments.is_empty() {
+                            callee_generic_arguments
+                        } else {
+                            generic_arguments
+                        },
+                        target_symbol,
+                    },
+                ))
             }
             Expression::GlobalReference {
                 path,
                 target_symbol,
-                ..
+                generic_arguments: callee_generic_arguments,
             } => {
-                state.tree.replace(
-                    callee_id,
-                    Expression::GlobalReference {
-                        path,
-                        target_symbol,
-                        static_arguments: Some(static_arguments.to_vec()),
-                    },
+                let type_expression_id = state.tree.reserve_from(
+                    NodeType::TypeExpression,
+                    callee_id.into_any(),
+                    scope,
+                    parent_id,
+                    Some(dir::ProvenanceReason::Elaborated),
                 );
+
+                Some(state.tree.insert(
+                    type_expression_id,
+                    TypeExpression::GlobalReference {
+                        path,
+                        generic_arguments: if generic_arguments.is_empty() {
+                            callee_generic_arguments
+                        } else {
+                            generic_arguments
+                        },
+                        target_symbol,
+                    },
+                ))
             }
-            Expression::Member { left, name, .. } => {
-                state.tree.replace(
-                    callee_id,
-                    Expression::Member {
+            Expression::Member {
+                left,
+                name,
+                generic_arguments: callee_generic_arguments,
+            } => {
+                let name = name?;
+                let left = self.insert_constructor_callee_type_expression(state, left, &[])?;
+                let type_expression_id = state.tree.reserve_from(
+                    NodeType::TypeExpression,
+                    callee_id.into_any(),
+                    scope,
+                    parent_id,
+                    Some(dir::ProvenanceReason::Elaborated),
+                );
+
+                Some(state.tree.insert(
+                    type_expression_id,
+                    TypeExpression::Member {
                         left,
                         name,
-                        static_arguments: Some(static_arguments.to_vec()),
+                        generic_arguments: if generic_arguments.is_empty() {
+                            callee_generic_arguments
+                        } else {
+                            generic_arguments
+                        },
                     },
-                );
+                ))
             }
-            _ => {}
+            _ => None,
         }
     }
 }

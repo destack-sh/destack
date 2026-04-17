@@ -1,113 +1,49 @@
 use destack_dir as dir;
-use destack_workspace::ImplicitCollectionConversionPolicy;
 use dir::{
-    Argument, BinaryOperator, Block, CastOperator, CastSource, Declaration, Declarator, DynamicKey,
-    EnumBackingType, Expression, GlobalSymbolId, Heritage, IfCondition, IfKind, Instance,
-    LocalNodeId, LocalTypeId, MatchCase, Member, NodeType, Parameter, Path, Pattern, Property,
-    Resolution, ResolutionCandidate, ResolvedSignature, ScalarLiteral, StaticArgument,
-    StaticExpression, StaticKey, SymbolSpace, SymbolType, Type, TypeBinaryOperator, TypeElement,
-    TypeLiteral, UnaryOperator, WellKnownSymbol,
+    Argument, AssignOperator, BinaryOperator, CastOperator, CastSource, Declarator,
+    EnumBackingType, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, MatchCase, NodeType,
+    Type, TypeExpression,
 };
 
 use super::r#type::{
-    are_types_semantically_equal, common_numeric_type_id_for_binary,
-    has_matching_implicit_value_runtime_family, is_any_type, is_integer_type, is_nullable_union,
-    is_object_type, is_pointer_type, is_scalar_literal_type, is_string_type, is_union_type,
-    is_unknown_type, numeric_cast_operator,
+    are_types_semantically_equal, has_matching_implicit_value_runtime_family, is_any_type,
+    is_integer_type, is_nullable_union, is_object_type, is_pointer_type, is_string_type,
+    is_union_type, is_unknown_type, numeric_cast_operator,
 };
-use crate::analyze::TypeView;
 use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::elaborate::common::ElaborateState;
-use crate::{Compiler, ElaborateError, ElaborateResult, ElaborateWarning};
+use crate::{Compiler, ElaborateResult};
 
-/// The resolved record-like target data for reification.
-struct RecordLikeTargetInfo {
-    /// The key type for the record-like conversion.
-    key_type_id: LocalTypeId,
-    /// The target map symbol that provides `from`.
-    map_symbol: GlobalSymbolId,
-    /// The resolved map type reference.
-    map_type_id: LocalTypeId,
-    /// The entry tuple type for `Map<K, V>`.
-    entry_tuple_type_id: LocalTypeId,
-    /// The array type for map entries.
-    entries_array_type_id: LocalTypeId,
-    /// Static arguments for `Map<K, V>`.
-    map_static_arguments: Vec<StaticArgument>,
-}
-
-#[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Resolve the runtime target type for one record-like conversion candidate.
-    fn record_like_runtime_target_type_id(
-        &self,
-        state: &mut ElaborateState<'_>,
-        origin_id: LocalNodeId<Expression>,
-        type_id: LocalTypeId,
-    ) -> ElaborateResult<LocalTypeId> {
-        let type_id = self.unwrap_value_type_id(state, type_id);
-        let Some(target_info) = self.record_like_map_target(state, origin_id, type_id)? else {
-            return Ok(type_id);
-        };
-
-        Ok(target_info.map_type_id)
-    }
-
-    /// Reify an explicit cast expression into a cast node.
+    /// Reify one explicit cast expression.
     pub(super) fn reify_explicit_cast_expression(
         &self,
         state: &mut ElaborateState<'_>,
         expression_id: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
-        target_type: LocalNodeId<Expression>,
+        target_type: LocalNodeId<TypeExpression>,
     ) -> ElaborateResult<()> {
-        // read the source and target type ids
-        let value_type_id = state
-            .types
-            .get_declared_or_inferred_type_id(value.into_global_any(state.ctx.module_id))
-            .ok_or(ElaborateError::UnsupportedConstruct {
-                node: value
-                    .into_global_any(state.ctx.module_id)
-                    .into_anchored(Some(state.ctx.profile)),
-            })?;
-        let target_type_id = state
+        // require both source and target types
+        let Some(source_type_id) = self.value_type_id_for_expression(state, value) else {
+            return Ok(());
+        };
+        let Some(target_type_id) = state
             .types
             .get_declared_or_inferred_type_id(expression_id.into_global_any(state.ctx.module_id))
-            .ok_or(ElaborateError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(state.ctx.module_id)
-                    .into_anchored(Some(state.ctx.profile)),
-            })?;
-
-        // reify record-like and sized array literals into collection construction
-        if let Some(reified) =
-            self.reify_record_like_object_literal(state, expression_id, value, target_type_id)?
-        {
-            let source_id = reified.into_global_any(state.ctx.module_id);
-            let target_id = expression_id.into_global_any(state.ctx.module_id);
-            state.types.copy_node_analysis(source_id, target_id);
-            state.tree.replace_from(expression_id, reified);
+        else {
             return Ok(());
-        }
-        if let Some(reified) =
-            self.reify_array_sized_value(state, expression_id, value, target_type_id)?
-        {
-            let source_id = reified.into_global_any(state.ctx.module_id);
-            let target_id = expression_id.into_global_any(state.ctx.module_id);
-            state.types.copy_node_analysis(source_id, target_id);
-            state.tree.replace_from(expression_id, reified);
-            return Ok(());
-        }
+        };
 
-        // classify the cast
-        let operator = self.cast_operator_for_types(state, value_type_id, target_type_id);
-        // replace the expression with a cast node
+        // resolve the cast operator from analyzed types
+        let operator = self.cast_operator_for_types(state, source_type_id, target_type_id);
+
+        // keep `as` as the cast node, but resolve its semantics now
         state.tree.replace(
             expression_id,
-            Expression::Cast {
-                operator,
+            Expression::As {
+                operator: Some(operator),
                 source: CastSource::Explicit,
-                value,
+                expression: value,
                 target_type,
             },
         );
@@ -115,10 +51,7 @@ impl Compiler {
         Ok(())
     }
 
-    /// Reify a must expression (`value!`) into an explicit implicit cast.
-    ///
-    /// This preserves non-null assertion semantics by selecting the
-    /// appropriate nullable or union downcast operator.
+    /// Reify one must expression.
     pub(super) fn reify_must_expression(
         &self,
         state: &mut ElaborateState<'_>,
@@ -133,7 +66,7 @@ impl Compiler {
             return Ok(());
         };
 
-        // wrap the operand with the required downcast when needed
+        // wrap the operand when the must narrows its type
         let reified_value_id =
             self.wrap_value_with_cast(state, expression_id, left, target_type_id)?;
 
@@ -147,367 +80,17 @@ impl Compiler {
         Ok(())
     }
 
-    /// Reify implicit casts for reference expressions when the node type narrows.
+    /// Reify implicit casts around one reference expression.
     pub(super) fn reify_implicit_casts_in_reference(
         &self,
-        state: &mut ElaborateState<'_>,
-        expression_id: LocalNodeId<Expression>,
-        target_symbol: GlobalSymbolId,
+        _state: &mut ElaborateState<'_>,
+        _expression_id: LocalNodeId<Expression>,
+        _target_symbol: GlobalSymbolId,
     ) -> ElaborateResult<()> {
-        // skip references that live in type positions
-        if self.reference_is_non_value_operand(state, expression_id) {
-            return Ok(());
-        }
-
-        // skip references used by guard operators
-        if self.reference_is_guard_operand(state, expression_id) {
-            return Ok(());
-        }
-
-        // skip references that resolve in type-only space
-        let symbol_space = if target_symbol.module_id == state.ctx.module.id {
-            let symbol_entry = state.symbols.get_symbol(target_symbol.local_id);
-            symbol_entry.space
-        } else {
-            let dir = self
-                .require_artifact_dir_analyzed(
-                    state.ctx.compiler_context.revision(),
-                    target_symbol.module_id,
-                    state.ctx.profile,
-                )
-                .map_err(|error| self.elaborate_error_from_requirement(error))?;
-            let symbol_entry = dir.symbols.get_symbol(target_symbol.local_id);
-            symbol_entry.space
-        };
-        if !matches!(symbol_space, SymbolSpace::Value | SymbolSpace::TypeValue) {
-            return Ok(());
-        }
-
-        // skip references marked as type expressions
-        if let Some(type_id) = state
-            .types
-            .get_declared_or_inferred_type_id(expression_id.into_global_any(state.ctx.module_id))
-            && matches!(state.types.get_type(type_id), Type::Value { .. })
-        {
-            return Ok(());
-        }
-
-        // require a declared or inferred node type
-        let Some(target_type_id) = state
-            .types
-            .get_declared_or_inferred_type_id(expression_id.into_global_any(state.ctx.module_id))
-        else {
-            return Ok(());
-        };
-
-        // require a source value type from the referenced symbol
-        let Some(source_type_id) = state.types.get_value_type_id(target_symbol) else {
-            return Ok(());
-        };
-
-        // unwrap type aliases and values
-        let target_type_id = self.unwrap_value_type_id(state, target_type_id);
-        let source_type_id = self.unwrap_value_type_id(state, source_type_id);
-
-        // skip when the types are already equivalent
-        let types_match = are_types_semantically_equal(
-            state.types.get_type(source_type_id),
-            state.types.get_type(target_type_id),
-            state.types,
-        ) || self.record_like_runtime_shapes_match(
-            state,
-            expression_id,
-            source_type_id,
-            target_type_id,
-        )?;
-        if types_match {
-            return Ok(());
-        }
-
-        // skip references that only widen within one runtime family
-        if has_matching_implicit_value_runtime_family(
-            state.types.get_type(source_type_id),
-            state.types.get_type(target_type_id),
-        ) {
-            return Ok(());
-        }
-
-        // classify the cast for this narrowing
-        let operator = self.cast_operator_for_types(state, source_type_id, target_type_id);
-        if operator == CastOperator::Identity {
-            return Ok(());
-        }
-
-        // move the reference into a new value node
-        let expression = state.tree.get(expression_id).clone();
-        let scope = state.tree.get_scope(expression_id);
-        let value_expression_id = state.tree.reserve_from(
-            NodeType::Expression,
-            expression_id.into_any(),
-            scope,
-            None,
-            Some(dir::ProvenanceReason::Reified),
-        );
-        let value_expression_id = state.tree.insert_as_owner(value_expression_id, expression);
-        state.types.set_inferred_type(
-            value_expression_id.into_global_any(state.ctx.module_id),
-            source_type_id,
-        );
-
-        // build the target type expression
-        let target_expression_id = state.tree.reserve_from(
-            NodeType::Expression,
-            expression_id.into_any(),
-            scope,
-            None,
-            Some(dir::ProvenanceReason::Reified),
-        );
-        let target_expression = match state.types.get_type(target_type_id) {
-            Type::TypeLiteral { value } => Expression::TypeLiteral {
-                value: value.clone(),
-            },
-            _ => Expression::Type {
-                value: target_type_id,
-            },
-        };
-        let target_expression_id = state
-            .tree
-            .insert_as_owner(target_expression_id, target_expression);
-
-        // set the inferred type for the target type expression
-        let target_type_value = Type::Value {
-            value: target_type_id,
-        };
-        let target_type_value_id = state
-            .types
-            .insert_type_from(target_type_value, target_expression_id);
-        state.types.set_inferred_type(
-            target_expression_id.into_global_any(state.ctx.module_id),
-            target_type_value_id,
-        );
-
-        // replace the reference with the cast expression
-        let cast_expression = Expression::Cast {
-            operator,
-            source: CastSource::Implicit,
-            value: value_expression_id,
-            target_type: target_expression_id,
-        };
-        if self.options.elaborate_parenthesize_casts {
-            let cast_expression_id = state.tree.reserve_from(
-                NodeType::Expression,
-                expression_id.into_any(),
-                scope,
-                None,
-                Some(dir::ProvenanceReason::Reified),
-            );
-            let cast_expression_id = state
-                .tree
-                .insert_as_owner(cast_expression_id, cast_expression);
-            state.types.set_inferred_type(
-                cast_expression_id.into_global_any(state.ctx.module_id),
-                target_type_id,
-            );
-            state.tree.replace(
-                expression_id,
-                Expression::Parenthesized {
-                    expression: cast_expression_id,
-                },
-            );
-        } else {
-            state.tree.replace(expression_id, cast_expression);
-        }
-        state.types.set_inferred_type(
-            expression_id.into_global_any(state.ctx.module_id),
-            target_type_id,
-        );
-
-        Ok(())
+        todo!("FUGU #Incomplete: elaborate implicit casts in reference")
     }
 
-    /// Return true when a reference expression is used in a known non-value position.
-    fn reference_is_non_value_operand(
-        &self,
-        state: &ElaborateState<'_>,
-        expression_id: LocalNodeId<Expression>,
-    ) -> bool {
-        let mut current_id = expression_id;
-
-        loop {
-            let Some(parent_id) = state.tree.get_parent(current_id.id) else {
-                return false;
-            };
-
-            if let Ok(parent_expression_id) = parent_id.try_into_typed::<Expression>() {
-                let parent_expression = state.tree.get(parent_expression_id);
-                match parent_expression {
-                    Expression::Parenthesized { expression } if *expression == current_id => {
-                        current_id = parent_expression_id;
-                        continue;
-                    }
-                    Expression::Cast { target_type, .. } => return *target_type == current_id,
-                    Expression::TaggedScalarExpression { ty, .. }
-                    | Expression::TaggedTupleExpression { ty, .. }
-                    | Expression::TaggedObjectExpression { ty, .. } => return *ty == current_id,
-                    Expression::TypeBinary {
-                        operator, right, ..
-                    } => {
-                        return match operator {
-                            TypeBinaryOperator::Cast => *right == current_id,
-                            _ => false,
-                        };
-                    }
-                    _ => return false,
-                }
-            }
-
-            match parent_id.ty {
-                NodeType::Pattern => {
-                    let parent_pattern = state.tree.get(parent_id.into_typed::<Pattern>());
-                    return match parent_pattern {
-                        Pattern::Expression { .. } => false,
-                        Pattern::TaggedTuple { ty, .. } | Pattern::TaggedObject { ty, .. } => {
-                            *ty == current_id
-                        }
-                        Pattern::Wildcard
-                        | Pattern::Must(_)
-                        | Pattern::ReferenceOf { .. }
-                        | Pattern::ValueOf { .. }
-                        | Pattern::Binding { .. }
-                        | Pattern::Tuple { .. }
-                        | Pattern::Array { .. }
-                        | Pattern::Object { .. }
-                        | Pattern::Union { .. } => false,
-                    };
-                }
-                NodeType::Parameter => {
-                    let parent_parameter = state.tree.get(parent_id.into_typed::<Parameter>());
-                    return matches!(
-                        parent_parameter,
-                        Parameter::Pattern { .. } | Parameter::VariadicPattern { .. }
-                    );
-                }
-                NodeType::Declarator => {
-                    let parent_declarator = state.tree.get(parent_id.into_typed::<Declarator>());
-                    return parent_declarator.ty == Some(current_id);
-                }
-                NodeType::Declaration => {
-                    let parent_declaration = state.tree.get(parent_id.into_typed::<Declaration>());
-                    return match parent_declaration {
-                        Declaration::Type { value, .. } => *value == current_id,
-                        Declaration::Function { signature, .. } => {
-                            signature.return_type == Some(current_id)
-                        }
-                        Declaration::Struct { heritage, .. }
-                        | Declaration::Class { heritage, .. }
-                        | Declaration::Enum { heritage, .. }
-                        | Declaration::Interface { heritage, .. } => {
-                            self.heritage_contains_expression(heritage, current_id)
-                        }
-                        Declaration::Extension {
-                            target_type,
-                            heritage,
-                            ..
-                        } => {
-                            *target_type == current_id
-                                || self.heritage_contains_expression(heritage, current_id)
-                        }
-                        _ => false,
-                    };
-                }
-                NodeType::Member => {
-                    let parent_member = state.tree.get(parent_id.into_typed::<Member>());
-                    return match parent_member {
-                        Member::Type { ty, value, .. } => {
-                            *ty == Some(current_id) || *value == Some(current_id)
-                        }
-                        Member::ComptimeConst { ty, .. } => *ty == Some(current_id),
-                        Member::Field { value, .. } => *value == Some(current_id),
-                        Member::Method { signature, .. } => {
-                            signature.return_type == Some(current_id)
-                        }
-                        Member::Embed { value, .. } => *value == current_id,
-                        _ => false,
-                    };
-                }
-                NodeType::Property => {
-                    let parent_property = state.tree.get(parent_id.into_typed::<Property>());
-                    return match parent_property {
-                        Property::Method { signature, .. } => {
-                            signature.return_type == Some(current_id)
-                        }
-                        _ => false,
-                    };
-                }
-                _ => return false,
-            }
-        }
-    }
-
-    /// Return whether one heritage block uses this expression as a type reference.
-    fn heritage_contains_expression(
-        &self,
-        heritage: &Heritage,
-        expression_id: LocalNodeId<Expression>,
-    ) -> bool {
-        heritage
-            .extends_types
-            .as_ref()
-            .is_some_and(|types| types.contains(&expression_id))
-            || heritage
-                .implements_types
-                .as_ref()
-                .is_some_and(|types| types.contains(&expression_id))
-            || heritage
-                .embedded_types
-                .as_ref()
-                .is_some_and(|types| types.contains(&expression_id))
-    }
-
-    /// Return true when a reference is used by a guard operator.
-    fn reference_is_guard_operand(
-        &self,
-        state: &ElaborateState<'_>,
-        expression_id: LocalNodeId<Expression>,
-    ) -> bool {
-        let Some(parent_id) = state.tree.get_parent(expression_id.id) else {
-            return false;
-        };
-        let Ok(parent_id) = parent_id.try_into_typed::<Expression>() else {
-            return false;
-        };
-
-        let parent = state.tree.get(parent_id);
-        match parent {
-            Expression::TypeBinary {
-                left,
-                operator,
-                right,
-            } => {
-                matches!(
-                    operator,
-                    TypeBinaryOperator::Is
-                        | TypeBinaryOperator::InstanceOf
-                        | TypeBinaryOperator::Cast
-                ) && (*left == expression_id || *right == expression_id)
-            }
-            Expression::Binary {
-                left,
-                operator,
-                right,
-            } => match operator {
-                BinaryOperator::InstanceOf => *left == expression_id || *right == expression_id,
-                BinaryOperator::In => *right == expression_id,
-                _ => false,
-            },
-            Expression::Unary { operator, right } => {
-                matches!(operator, UnaryOperator::Typeof) && *right == expression_id
-            }
-            _ => false,
-        }
-    }
-
-    /// Reify implicit casts in let and using bindings.
+    /// Reify implicit casts in one binding list.
     pub(super) fn reify_implicit_casts_in_binding(
         &self,
         state: &mut ElaborateState<'_>,
@@ -515,11 +98,14 @@ impl Compiler {
     ) -> ElaborateResult<()> {
         // visit each declarator
         for declarator_id in declarators {
-            // skip declarators without a value
             let declarator = state.tree.get(*declarator_id).clone();
+
+            // skip declarators without initializers
             let Some(value_id) = declarator.value else {
                 continue;
             };
+
+            // require a declared target type on the binding
             let Some(target_type_id) = state
                 .types
                 .get_declared_type_id(declarator_id.into_global_any(state.ctx.module_id))
@@ -527,24 +113,25 @@ impl Compiler {
                 continue;
             };
 
-            // wrap the value with a cast when needed
+            // wrap the initializer when the binding narrows it
             let cast_value_id =
                 self.wrap_value_with_cast(state, value_id, value_id, target_type_id)?;
-
-            // update the declarator when the value changes
-            if cast_value_id != value_id {
-                let updated = Declarator {
-                    value: Some(cast_value_id),
-                    ..declarator
-                };
-                state.tree.replace(*declarator_id, updated);
+            if cast_value_id == value_id {
+                continue;
             }
+
+            // replace the initializer with the wrapped expression
+            let updated = Declarator {
+                value: Some(cast_value_id),
+                ..declarator
+            };
+            state.tree.replace(*declarator_id, updated);
         }
 
         Ok(())
     }
 
-    /// Reify implicit casts in an assignment expression.
+    /// Reify implicit casts in one assignment expression.
     pub(super) fn reify_implicit_casts_in_assignment(
         &self,
         state: &mut ElaborateState<'_>,
@@ -552,119 +139,120 @@ impl Compiler {
         left: LocalNodeId<Expression>,
         right: LocalNodeId<Expression>,
     ) -> ElaborateResult<()> {
-        // read the target type from the left hand side
-        // FUGU #Incomplete: some resolved assignment targets still do not carry value types here
+        // read the target type from the assignment target
         let Some(target_type_id) = self.value_type_id_for_expression(state, left) else {
             return Ok(());
         };
 
-        // wrap the right hand side when needed
+        // wrap the right hand side when the assignment narrows it
         let cast_right_id =
             self.wrap_value_with_cast(state, expression_id, right, target_type_id)?;
-
-        // replace the assignment when the value changes
-        if cast_right_id != right {
-            state.tree.replace(
-                expression_id,
-                Expression::Assign {
-                    left,
-                    right: cast_right_id,
-                },
-            );
+        if cast_right_id == right {
+            return Ok(());
         }
+
+        // rewrite the assignment to use the wrapped right hand side
+        state.tree.replace(
+            expression_id,
+            Expression::Assign {
+                left,
+                right: cast_right_id,
+            },
+        );
 
         Ok(())
     }
 
-    /// Reify implicit casts in a compound assignment expression.
+    /// Reify implicit casts in one compound assignment expression.
     pub(super) fn reify_implicit_casts_in_assign_binary(
         &self,
         state: &mut ElaborateState<'_>,
         expression_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
-        operator: dir::AssignOperator,
+        operator: AssignOperator,
         right: LocalNodeId<Expression>,
     ) -> ElaborateResult<()> {
-        // read the target type from the left hand side
-        // FUGU #Incomplete: some resolved assignment targets still do not carry value types here
+        // read the target type from the assignment target
         let Some(target_type_id) = self.value_type_id_for_expression(state, left) else {
             return Ok(());
         };
 
-        // wrap the right hand side when needed
+        // wrap the right hand side when the assignment narrows it
         let cast_right_id =
             self.wrap_value_with_cast(state, expression_id, right, target_type_id)?;
-
-        // replace the assignment when the value changes
-        if cast_right_id != right {
-            state.tree.replace(
-                expression_id,
-                Expression::AssignBinary {
-                    left,
-                    operator,
-                    right: cast_right_id,
-                },
-            );
+        if cast_right_id == right {
+            return Ok(());
         }
+
+        // rewrite the assignment to use the wrapped right hand side
+        state.tree.replace(
+            expression_id,
+            Expression::AssignBinary {
+                left,
+                operator,
+                right: cast_right_id,
+            },
+        );
 
         Ok(())
     }
 
-    /// Reify implicit casts in a return expression.
+    /// Reify implicit casts in one return expression.
     pub(super) fn reify_implicit_casts_in_return(
         &self,
         state: &mut ElaborateState<'_>,
         expression_id: LocalNodeId<Expression>,
         value: Option<LocalNodeId<Expression>>,
     ) -> ElaborateResult<()> {
-        // skip returns without values
+        // skip bare returns
         let Some(value_id) = value else {
             return Ok(());
         };
 
-        // read the declared return type
+        // require the surrounding declared return type
         let Some(target_type_id) = self.enclosing_return_type(state, expression_id) else {
             return Ok(());
         };
 
-        // skip return casts when the value still has no concrete type
+        // skip returns whose value type is still unresolved
         if self.value_type_id_for_expression(state, value_id).is_none() {
             return Ok(());
         }
 
-        // wrap the return value when needed
+        // wrap the returned value when needed
         let cast_value_id =
             self.wrap_value_with_cast(state, expression_id, value_id, target_type_id)?;
-
-        // replace the return when the value changes
-        if cast_value_id != value_id {
-            state.tree.replace(
-                expression_id,
-                Expression::Return {
-                    value: Some(cast_value_id),
-                },
-            );
+        if cast_value_id == value_id {
+            return Ok(());
         }
+
+        // rewrite the return to use the wrapped value
+        state.tree.replace(
+            expression_id,
+            Expression::Return {
+                value: Some(cast_value_id),
+            },
+        );
 
         Ok(())
     }
 
-    /// Reify implicit casts in call arguments.
+    /// Reify implicit casts in one call expression.
     pub(super) fn reify_implicit_casts_in_call(
         &self,
         state: &mut ElaborateState<'_>,
         expression_id: LocalNodeId<Expression>,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
     ) -> ElaborateResult<()> {
-        // resolve expected types for arguments
+        // resolve uniform expected argument types for the call
         let Some(expected_argument_types) =
-            self.expected_argument_types_for_call(state, expression_id, dynamic_arguments)?
+            self.expected_argument_types_for_call(state, expression_id, arguments)?
         else {
             return Ok(());
         };
 
-        // visit each argument and insert casts as needed
-        for (index, argument_id) in dynamic_arguments.iter().enumerate() {
+        // wrap positional arguments that are narrowed by the call signature
+        for (index, argument_id) in arguments.iter().enumerate() {
             let Some(expected_type_id) = expected_argument_types.get(index).copied().flatten()
             else {
                 continue;
@@ -672,37 +260,25 @@ impl Compiler {
 
             let argument = state.tree.get(*argument_id).clone();
             let value_id = argument.value();
-
             let cast_value_id =
                 self.wrap_value_with_cast(state, expression_id, value_id, expected_type_id)?;
-
             if cast_value_id == value_id {
                 continue;
             }
 
             let updated = match argument {
-                Argument::Named {
-                    modifiers, name, ..
-                } => Argument::Named {
-                    modifiers,
+                Argument::Named { name, .. } => Argument::Named {
                     name,
                     value: cast_value_id,
                 },
-                Argument::Labeled {
-                    modifiers, label, ..
-                } => Argument::Labeled {
-                    modifiers,
+                Argument::Labeled { label, .. } => Argument::Labeled {
                     label,
                     value: cast_value_id,
                 },
-                Argument::Positional { modifiers, .. } => Argument::Positional {
-                    modifiers,
+                Argument::Positional { .. } => Argument::Positional {
                     value: cast_value_id,
                 },
-                Argument::Spread {
-                    modifiers, label, ..
-                } => Argument::Spread {
-                    modifiers,
+                Argument::Spread { label, .. } => Argument::Spread {
                     label,
                     value: cast_value_id,
                 },
@@ -716,656 +292,60 @@ impl Compiler {
         Ok(())
     }
 
-    /// Collapse redundant nested casts to the same target type.
+    /// Normalize redundant cast structure after reify.
     pub(super) fn normalize_redundant_casts(
         &self,
-        state: &mut ElaborateState<'_>,
+        _state: &mut ElaborateState<'_>,
     ) -> ElaborateResult<()> {
-        // walk all expressions to find nested casts
-        for expression_id in state.tree.iter_node_ids_of_type::<Expression>() {
-            // skip inactive expressions
-            if !self.is_active_in_state(state, expression_id.into_any()) {
-                continue;
-            }
-
-            let Expression::Cast {
-                value,
-                target_type,
-                operator,
-                source,
-            } = state.tree.get(expression_id).clone()
-            else {
-                continue;
-            };
-
-            // require the cast value to be another cast
-            let Expression::Cast {
-                value: inner_value,
-                target_type: inner_target_type,
-                ..
-            } = state.tree.get(value).clone()
-            else {
-                continue;
-            };
-
-            // resolve target type ids for both casts
-            let Some(outer_target_type_id) = self.type_id_for_type_expression(state, target_type)
-            else {
-                continue;
-            };
-            let Some(inner_target_type_id) =
-                self.type_id_for_type_expression(state, inner_target_type)
-            else {
-                continue;
-            };
-
-            // keep nested casts when targets differ
-            if !are_types_semantically_equal(
-                state.types.get_type(outer_target_type_id),
-                state.types.get_type(inner_target_type_id),
-                state.types,
-            ) {
-                let options = state.ctx.options;
-                let mut ctx = TypeContext::new(
-                    state.ctx.compiler_context,
-                    state.ctx.module,
-                    state.ctx.profile,
-                    &options,
-                    state.tree,
-                    state.symbols,
-                    state.types,
-                    AnalyzeIndex::default(),
-                );
-                let to_outer = self.is_type_assignable(
-                    &mut ctx.reborrow(),
-                    outer_target_type_id,
-                    inner_target_type_id,
-                );
-                let to_inner = self.is_type_assignable(
-                    &mut ctx.reborrow(),
-                    inner_target_type_id,
-                    outer_target_type_id,
-                );
-                if !(to_outer.is_assignable() && to_inner.is_assignable()) {
-                    continue;
-                }
-            }
-
-            // replace with a single cast to the shared target
-            state.tree.replace(
-                expression_id,
-                Expression::Cast {
-                    operator,
-                    source,
-                    value: inner_value,
-                    target_type: inner_target_type,
-                },
-            );
-            state.types.set_inferred_type(
-                expression_id.into_global_any(state.ctx.module_id),
-                outer_target_type_id,
-            );
-        }
-
         Ok(())
     }
 
-    /// Reify implicit casts in ternary expressions.
+    /// Reify implicit casts in one ternary expression.
     pub(super) fn reify_implicit_casts_in_ternary(
         &self,
-        state: &mut ElaborateState<'_>,
-        expression_id: LocalNodeId<Expression>,
-        condition: LocalNodeId<Expression>,
-        then_expression: LocalNodeId<Expression>,
-        else_expression: Option<LocalNodeId<Expression>>,
+        _state: &mut ElaborateState<'_>,
+        _expression_id: LocalNodeId<Expression>,
+        _condition: LocalNodeId<Expression>,
+        _then_expression: LocalNodeId<Expression>,
+        _else_expression: Option<LocalNodeId<Expression>>,
     ) -> ElaborateResult<()> {
-        // use the expression type as the target for both branches
-        let Some(target_type_id) = state
-            .types
-            .get_declared_or_inferred_type_id(expression_id.into_global_any(state.ctx.module_id))
-        else {
-            return Ok(());
-        };
-
-        // cast the then branch when needed
-        let cast_then_id =
-            self.wrap_value_with_cast(state, expression_id, then_expression, target_type_id)?;
-
-        // cast the else branch when present
-        let cast_else_id = if let Some(else_expression) = else_expression {
-            let cast_else_id =
-                self.wrap_value_with_cast(state, expression_id, else_expression, target_type_id)?;
-            Some(cast_else_id)
-        } else {
-            None
-        };
-
-        // update the ternary expression when any branch changes
-        if cast_then_id != then_expression || cast_else_id != else_expression {
-            state.tree.replace(
-                expression_id,
-                Expression::If {
-                    kind: IfKind::Ternary,
-                    condition: IfCondition::Expression { condition },
-                    then_expression: cast_then_id,
-                    else_expression: cast_else_id,
-                },
-            );
-        }
-
-        Ok(())
+        todo!("FUGU #Incomplete: elaborate implicit casts in ternary")
     }
 
-    /// Reify implicit casts in match case bodies.
+    /// Reify implicit casts in one match expression.
     pub(super) fn reify_implicit_casts_in_match(
         &self,
-        state: &mut ElaborateState<'_>,
-        expression_id: LocalNodeId<Expression>,
-        cases: &[LocalNodeId<MatchCase>],
+        _state: &mut ElaborateState<'_>,
+        _expression_id: LocalNodeId<Expression>,
+        _cases: &[LocalNodeId<MatchCase>],
     ) -> ElaborateResult<()> {
-        // use the match expression type as the target
-        let Some(target_type_id) = state
-            .types
-            .get_declared_or_inferred_type_id(expression_id.into_global_any(state.ctx.module_id))
-        else {
-            return Ok(());
-        };
-
-        // visit each case and cast the produced value
-        for case_id in cases {
-            let case = state.tree.get(*case_id).clone();
-            match case {
-                MatchCase::Expression {
-                    selector,
-                    body,
-                    scope,
-                } => {
-                    let cast_body_id =
-                        self.wrap_value_with_cast(state, expression_id, body, target_type_id)?;
-
-                    if cast_body_id != body {
-                        state.tree.replace(
-                            *case_id,
-                            MatchCase::Expression {
-                                selector,
-                                body: cast_body_id,
-                                scope,
-                            },
-                        );
-                    }
-                }
-                MatchCase::Block {
-                    selector: _,
-                    body,
-                    scope: _,
-                } => {
-                    let block = state.tree.get(body).clone();
-                    let Some(last_expression_id) = block.tail_expression else {
-                        continue;
-                    };
-
-                    let cast_last_id = self.wrap_value_with_cast(
-                        state,
-                        expression_id,
-                        last_expression_id,
-                        target_type_id,
-                    )?;
-
-                    if cast_last_id != last_expression_id {
-                        state.tree.replace(
-                            body,
-                            Block {
-                                scope: block.scope,
-                                leading_expressions: block.leading_expressions,
-                                tail_expression: Some(cast_last_id),
-                            },
-                        );
-                    }
-                }
-            }
-        }
-
-        Ok(())
+        todo!("FUGU #Incomplete: elaborate implicit casts in match")
     }
 
-    /// Reify implicit casts in builtin binary expressions.
+    /// Reify implicit casts in one builtin binary expression.
     pub(super) fn reify_implicit_casts_in_binary(
         &self,
-        state: &mut ElaborateState<'_>,
-        expression_id: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
-        operator: BinaryOperator,
-        right: LocalNodeId<Expression>,
+        _state: &mut ElaborateState<'_>,
+        _expression_id: LocalNodeId<Expression>,
+        _left: LocalNodeId<Expression>,
+        _operator: BinaryOperator,
+        _right: LocalNodeId<Expression>,
     ) -> ElaborateResult<()> {
-        // skip binary expressions without a resolution
-        if state
-            .types
-            .get_resolution_for_node(expression_id.into_global_any(state.ctx.module_id))
-            .is_none()
-        {
-            return Ok(());
-        }
-
-        // require numeric operators
-        if !self.is_numeric_binary_operator(operator) {
-            return Ok(());
-        }
-
-        // read operand type ids
-        let left_type_id = self.value_type_id_for_expression(state, left).ok_or(
-            ElaborateError::UnsupportedConstruct {
-                node: left
-                    .into_global_any(state.ctx.module_id)
-                    .into_anchored(Some(state.ctx.profile)),
-            },
-        )?;
-        let right_type_id = self.value_type_id_for_expression(state, right).ok_or(
-            ElaborateError::UnsupportedConstruct {
-                node: right
-                    .into_global_any(state.ctx.module_id)
-                    .into_anchored(Some(state.ctx.profile)),
-            },
-        )?;
-
-        // compute the common numeric type for both operands
-        let Some(target_type_id) = common_numeric_type_id_for_binary(
-            left_type_id,
-            right_type_id,
-            expression_id,
-            state.types,
-        ) else {
-            return Ok(());
-        };
-
-        // align the binary expression type with the chosen numeric type
-        state.types.set_inferred_type(
-            expression_id.into_global_any(state.ctx.module_id),
-            target_type_id,
-        );
-
-        // wrap both operands when needed
-        let cast_left_id = self.wrap_value_with_cast_for_numeric_binary(
-            state,
-            expression_id,
-            left,
-            target_type_id,
-        )?;
-        let cast_right_id = self.wrap_value_with_cast_for_numeric_binary(
-            state,
-            expression_id,
-            right,
-            target_type_id,
-        )?;
-
-        // update the binary expression when either operand changes
-        if cast_left_id != left || cast_right_id != right {
-            state.tree.replace(
-                expression_id,
-                Expression::Binary {
-                    left: cast_left_id,
-                    operator,
-                    right: cast_right_id,
-                },
-            );
-        }
-
-        Ok(())
+        todo!("FUGU #Incomplete: elaborate implicit casts in binary")
     }
 
-    /// Wrap a value in a cast when the target type differs.
-    fn wrap_value_with_cast(
-        &self,
-        state: &mut ElaborateState<'_>,
-        origin_id: LocalNodeId<Expression>,
-        value_id: LocalNodeId<Expression>,
-        target_type_id: LocalTypeId,
-    ) -> ElaborateResult<LocalNodeId<Expression>> {
-        self.wrap_value_with_cast_internal(state, origin_id, value_id, target_type_id, true)
-    }
-
-    /// Wrap a value in a cast for numeric binary alignment.
-    fn wrap_value_with_cast_for_numeric_binary(
-        &self,
-        state: &mut ElaborateState<'_>,
-        origin_id: LocalNodeId<Expression>,
-        value_id: LocalNodeId<Expression>,
-        target_type_id: LocalTypeId,
-    ) -> ElaborateResult<LocalNodeId<Expression>> {
-        self.wrap_value_with_cast_internal(state, origin_id, value_id, target_type_id, false)
-    }
-
-    /// Wrap a value in a cast with numeric literal elision.
-    fn wrap_value_with_cast_internal(
-        &self,
-        state: &mut ElaborateState<'_>,
-        origin_id: LocalNodeId<Expression>,
-        value_id: LocalNodeId<Expression>,
-        target_type_id: LocalTypeId,
-        allow_assignable_skip: bool,
-    ) -> ElaborateResult<LocalNodeId<Expression>> {
-        // read the source type id
-        let value_type_id = self.value_type_id_for_expression(state, value_id).ok_or(
-            ElaborateError::UnsupportedConstruct {
-                node: value_id
-                    .into_global_any(state.ctx.module_id)
-                    .into_anchored(Some(state.ctx.profile)),
-            },
-        )?;
-
-        // reify record-like and sized array literals into collection construction
-        if let Some(reified) =
-            self.reify_record_like_object_literal(state, origin_id, value_id, target_type_id)?
-        {
-            return Ok(reified);
-        }
-        if let Some(reified) =
-            self.reify_array_sized_value(state, origin_id, value_id, target_type_id)?
-        {
-            return Ok(reified);
-        }
-
-        // resolve unevaluated target types for cast classification
-        let options = state.ctx.options;
-        let target_type_source = state.types.get_type_source(target_type_id);
-        let target_type_id = {
-            let mut ctx = TypeContext::new(
-                state.ctx.compiler_context,
-                state.ctx.module,
-                state.ctx.profile,
-                &options,
-                state.tree,
-                state.symbols,
-                state.types,
-                AnalyzeIndex::default(),
-            );
-            self.ensure_type_evaluated(&mut ctx, target_type_id)
-                .map_err(|_| ElaborateError::UnsupportedConstruct {
-                    node: target_type_source
-                        .into_global(state.ctx.module_id)
-                        .into_anchored(Some(state.ctx.profile)),
-                })?
-        };
-
-        // check casts that change representation despite matching type ids
-        let value_type = state.types.get_type(value_type_id).clone();
-        let target_type = state.types.get_type(target_type_id).clone();
-        let record_like_runtime_shapes_match =
-            self.record_like_runtime_shapes_match(state, origin_id, value_type_id, target_type_id)?;
-
-        let value_is_concrete = self.is_concrete_resolution(state, value_id)
-            || self.is_concrete_new_expression(state, value_id)
-            || self.is_tagged_expression(state, value_id);
-        let value_is_nullish_literal = matches!(
-            value_type,
-            Type::TypeLiteral {
-                value: TypeLiteral::Null | TypeLiteral::Undefined,
-            }
-        );
-        let types_match = are_types_semantically_equal(&value_type, &target_type, state.types)
-            || record_like_runtime_shapes_match;
-        let source_is_interface = self.is_interface_reference_type(state, value_type_id);
-        let target_is_interface = self.is_interface_reference_type(state, target_type_id);
-
-        // figure out if we need a representation change cast
-        let requires_interface_upcast =
-            target_is_interface && (!source_is_interface || value_is_concrete || !types_match);
-        let requires_union_upcast =
-            is_union_type(&target_type) && (value_is_concrete || value_is_nullish_literal);
-        let requires_nullable_upcast = is_nullable_union(&target_type, state.types)
-            && (value_is_concrete || value_is_nullish_literal);
-        let requires_representation_cast =
-            requires_interface_upcast || requires_union_upcast || requires_nullable_upcast;
-        if types_match && !requires_representation_cast {
-            return Ok(value_id);
-        }
-
-        // skip when the types are mutually assignable
-        let (to_target, to_source) = {
-            let mut ctx = TypeContext::new(
-                state.ctx.compiler_context,
-                state.ctx.module,
-                state.ctx.profile,
-                &options,
-                state.tree,
-                state.symbols,
-                state.types,
-                AnalyzeIndex::default(),
-            );
-            let to_target =
-                self.is_type_assignable(&mut ctx.reborrow(), target_type_id, value_type_id);
-            let to_source =
-                self.is_type_assignable(&mut ctx.reborrow(), value_type_id, target_type_id);
-            (to_target, to_source)
-        };
-
-        // skip only semantic identity casts
-        // true upcasts still need explicit reify so lower can change representation
-        if allow_assignable_skip
-            && !requires_representation_cast
-            && to_target.is_assignable()
-            && to_source.is_assignable()
-        {
-            return Ok(value_id);
-        }
-
-        // skip when the value is already cast to an equivalent type
-        if let Expression::Cast { target_type, .. } = state.tree.get(value_id)
-            && let Some(existing_target_type_id) =
-                self.type_id_for_type_expression(state, *target_type)
-        {
-            let (to_target, to_source) = {
-                let mut ctx = TypeContext::new(
-                    state.ctx.compiler_context,
-                    state.ctx.module,
-                    state.ctx.profile,
-                    &options,
-                    state.tree,
-                    state.symbols,
-                    state.types,
-                    AnalyzeIndex::default(),
-                );
-                let to_target = self.is_type_assignable(
-                    &mut ctx.reborrow(),
-                    target_type_id,
-                    existing_target_type_id,
-                );
-                let to_source = self.is_type_assignable(
-                    &mut ctx.reborrow(),
-                    existing_target_type_id,
-                    target_type_id,
-                );
-                (to_target, to_source)
-            };
-            if to_target.is_assignable() && to_source.is_assignable() {
-                return Ok(value_id);
-            }
-        }
-
-        // classify the cast
-        let mut operator = self.cast_operator_for_types(state, value_type_id, target_type_id);
-        if requires_interface_upcast && operator == CastOperator::Identity {
-            operator = CastOperator::InstanceUpcast;
-        }
-        if requires_union_upcast && operator == CastOperator::Identity {
-            operator = CastOperator::UnionUpcast;
-        }
-        if requires_nullable_upcast && operator == CastOperator::Identity {
-            operator = CastOperator::NullableUpcast;
-        }
-
-        // skip redundant union and nullable upcasts
-        if matches!(
-            operator,
-            CastOperator::UnionUpcast | CastOperator::NullableUpcast
-        ) {
-            let (to_target, to_source) = {
-                let mut ctx = TypeContext::new(
-                    state.ctx.compiler_context,
-                    state.ctx.module,
-                    state.ctx.profile,
-                    &options,
-                    state.tree,
-                    state.symbols,
-                    state.types,
-                    AnalyzeIndex::default(),
-                );
-                let to_target =
-                    self.is_type_assignable(&mut ctx.reborrow(), target_type_id, value_type_id);
-                let to_source =
-                    self.is_type_assignable(&mut ctx.reborrow(), value_type_id, target_type_id);
-                (to_target, to_source)
-            };
-            if to_target.is_assignable() && to_source.is_assignable() {
-                return Ok(value_id);
-            }
-        }
-
-        // keep same-family implicit value casts out of the syntax
-        if allow_assignable_skip
-            && !requires_representation_cast
-            && has_matching_implicit_value_runtime_family(&value_type, &target_type)
-        {
-            state.types.set_inferred_type(
-                value_id.into_global_any(state.ctx.module_id),
-                target_type_id,
-            );
-            return Ok(value_id);
-        }
-
-        // skip numeric casts for scalar literals
-        let value_type = state.types.get_type(value_type_id);
-        if allow_assignable_skip
-            && is_scalar_literal_type(value_type)
-            && self.is_numeric_cast_operator(operator)
-        {
-            // align literal types with the selected numeric target
-            state.types.set_inferred_type(
-                value_id.into_global_any(state.ctx.module_id),
-                target_type_id,
-            );
-            return Ok(value_id);
-        }
-        if operator == CastOperator::Identity {
-            // align equivalent types when numeric binaries need a unified representation
-            if !allow_assignable_skip && value_type_id != target_type_id {
-                state.types.set_inferred_type(
-                    value_id.into_global_any(state.ctx.module_id),
-                    target_type_id,
-                );
-            }
-            return Ok(value_id);
-        }
-
-        // build the target type expression
-        let scope = state.tree.get_scope(origin_id);
-        let target_expression_id = state.tree.reserve_from(
-            NodeType::Expression,
-            origin_id.into_any(),
-            scope,
-            None,
-            Some(dir::ProvenanceReason::Reified),
-        );
-        let target_expression = match state.types.get_type(target_type_id) {
-            Type::TypeLiteral { value } => Expression::TypeLiteral {
-                value: value.clone(),
-            },
-            _ => Expression::Type {
-                value: target_type_id,
-            },
-        };
-        let target_expression_id = state
-            .tree
-            .insert_as_owner(target_expression_id, target_expression);
-
-        // set the inferred type for the target type expression
-        let target_type_value = Type::Value {
-            value: target_type_id,
-        };
-        let target_type_value_id = state
-            .types
-            .insert_type_from(target_type_value, target_expression_id);
-        state.types.set_inferred_type(
-            target_expression_id.into_global_any(state.ctx.module_id),
-            target_type_value_id,
-        );
-
-        // insert the cast expression
-        let cast_expression_id = state.tree.reserve_from(
-            NodeType::Expression,
-            origin_id.into_any(),
-            scope,
-            None,
-            Some(dir::ProvenanceReason::Reified),
-        );
-        let cast_expression_id = state.tree.insert_as_owner(
-            cast_expression_id,
-            Expression::Cast {
-                operator,
-                source: CastSource::Implicit,
-                value: value_id,
-                target_type: target_expression_id,
-            },
-        );
-        state.types.set_inferred_type(
-            cast_expression_id.into_global_any(state.ctx.module_id),
-            target_type_id,
-        );
-        if self.options.elaborate_parenthesize_casts {
-            let parenthesized_id = state.tree.reserve_from(
-                NodeType::Expression,
-                origin_id.into_any(),
-                scope,
-                None,
-                Some(dir::ProvenanceReason::Reified),
-            );
-            let parenthesized_id = state.tree.insert_as_owner(
-                parenthesized_id,
-                Expression::Parenthesized {
-                    expression: cast_expression_id,
-                },
-            );
-            state.types.set_inferred_type(
-                parenthesized_id.into_global_any(state.ctx.module_id),
-                target_type_id,
-            );
-            return Ok(parenthesized_id);
-        }
-
-        Ok(cast_expression_id)
-    }
-
-    /// Return whether two types already lower to the same record-like runtime shape.
-    fn record_like_runtime_shapes_match(
-        &self,
-        state: &mut ElaborateState<'_>,
-        origin_id: LocalNodeId<Expression>,
-        source_type_id: LocalTypeId,
-        target_type_id: LocalTypeId,
-    ) -> ElaborateResult<bool> {
-        let source_runtime_type_id =
-            self.record_like_runtime_target_type_id(state, origin_id, source_type_id)?;
-        let target_runtime_type_id =
-            self.record_like_runtime_target_type_id(state, origin_id, target_type_id)?;
-        Ok(are_types_semantically_equal(
-            state.types.get_type(source_runtime_type_id),
-            state.types.get_type(target_runtime_type_id),
-            state.types,
-        ))
-    }
-
-    /// Resolve the value type id for an expression node.
+    /// Resolve the value type id for one expression.
     fn value_type_id_for_expression(
         &self,
         state: &mut ElaborateState<'_>,
         value_id: LocalNodeId<Expression>,
     ) -> Option<LocalTypeId> {
-        // prefer declared or inferred types on the node
+        // prefer node-local declared or inferred types
         if let Some(type_id) = state
             .types
             .get_declared_or_inferred_type_id(value_id.into_global_any(state.ctx.module_id))
-            .map(|type_id| self.unwrap_value_type_id(state, type_id))
         {
-            return Some(type_id);
+            return Some(state.types.unwrap_value_type_id(type_id));
         }
 
         // otherwise fall back to reference symbol value types
@@ -1377,40 +357,120 @@ impl Compiler {
             _ => None,
         }?;
         let type_id = state.types.get_value_type_id(symbol)?;
-        Some(self.unwrap_value_type_id(state, type_id))
+
+        Some(state.types.unwrap_value_type_id(type_id))
     }
 
-    /// Resolve the type id encoded in a type expression.
-    fn type_id_for_type_expression(
+    /// Wrap one expression in an implicit `as` when the target type narrows it.
+    fn wrap_value_with_cast(
         &self,
-        state: &ElaborateState<'_>,
-        expression_id: LocalNodeId<Expression>,
-    ) -> Option<LocalTypeId> {
-        // read the type expression node
-        let expression = state.tree.get(expression_id);
+        state: &mut ElaborateState<'_>,
+        origin_id: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
+        target_type_id: LocalTypeId,
+    ) -> ElaborateResult<LocalNodeId<Expression>> {
+        // require both value and target type ids
+        let Some(value_type_id) = self.value_type_id_for_expression(state, value_id) else {
+            return Ok(value_id);
+        };
+        let value_type_id = state.types.unwrap_value_type_id(value_type_id);
+        let target_type_id = state.types.unwrap_value_type_id(target_type_id);
 
-        // use the explicit type id when available
-        if let Expression::Type { value } = expression {
-            return Some(*value);
+        // skip casts that do not change semantics
+        if are_types_semantically_equal(
+            state.types.get_type(value_type_id),
+            state.types.get_type(target_type_id),
+            state.types,
+        ) || has_matching_implicit_value_runtime_family(
+            state.types.get_type(value_type_id),
+            state.types.get_type(target_type_id),
+        ) {
+            return Ok(value_id);
         }
 
-        // fall back to the inferred type value
-        let type_id = state
-            .types
-            .get_declared_or_inferred_type_id(expression_id.into_global_any(state.ctx.module_id))?;
-        match state.types.get_type(type_id) {
-            Type::Value { value } => Some(*value),
-            _ => Some(type_id),
+        // preserve literal-to-literal identity after value unwrapping
+        if matches!(
+            (state.types.get_type(value_type_id), state.types.get_type(target_type_id)),
+            (Type::TypeLiteral { value: left }, Type::TypeLiteral { value: right }) if left == right
+        ) {
+            return Ok(value_id);
         }
+
+        // classify the inserted cast
+        let operator = self.cast_operator_for_types(state, value_type_id, target_type_id);
+        if operator == CastOperator::Identity {
+            return Ok(value_id);
+        }
+
+        // clone the value into the new wrapper scope
+        let scope = state.tree.get_scope(origin_id);
+        let value_expression = state.tree.get(value_id).clone();
+        let value_id =
+            self.clone_expression_with_analysis(state, value_id, &value_expression, scope);
+
+        // materialize the target type syntax for the inserted cast
+        let target_type =
+            self.insert_type_expression_for_type_id(state, origin_id, target_type_id, scope);
+
+        // build the implicit cast expression
+        let expression_id = state.tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
+        let expression_id = state.tree.insert_as_owner(
+            expression_id,
+            Expression::As {
+                operator: Some(operator),
+                source: CastSource::Implicit,
+                expression: value_id,
+                target_type,
+            },
+        );
+        state.types.set_inferred_type(
+            expression_id.into_global_any(state.ctx.module_id),
+            target_type_id,
+        );
+
+        // parenthesize inserted casts when the option requests it
+        if !self.options.elaborate_parenthesize_casts {
+            return Ok(expression_id);
+        }
+
+        let parenthesized_id = state.tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
+        let parenthesized_id = state.tree.insert_as_owner(
+            parenthesized_id,
+            Expression::Parenthesized {
+                expression: expression_id,
+            },
+        );
+        state.types.set_inferred_type(
+            parenthesized_id.into_global_any(state.ctx.module_id),
+            target_type_id,
+        );
+
+        Ok(parenthesized_id)
     }
 
-    /// Classify the cast operator for two types.
+    /// Classify the cast operator for two analyzed types.
     fn cast_operator_for_types(
         &self,
         state: &mut ElaborateState<'_>,
         source_id: LocalTypeId,
         target_id: LocalTypeId,
     ) -> CastOperator {
+        // unwrap value wrappers before classification
+        let source_id = state.types.unwrap_value_type_id(source_id);
+        let target_id = state.types.unwrap_value_type_id(target_id);
+
         // fast path for identical types
         if source_id == target_id {
             return CastOperator::Identity;
@@ -1420,12 +480,12 @@ impl Compiler {
         let source = state.types.get_type(source_id).clone();
         let target = state.types.get_type(target_id).clone();
 
-        // semantic equality check (handles Foo→Foo, any→any, int32[]→int32[], etc.)
+        // semantic equality is still identity
         if are_types_semantically_equal(&source, &target, state.types) {
             return CastOperator::Identity;
         }
 
-        // handle any casts
+        // any
         if is_any_type(&target) {
             return CastOperator::AnyUpcast;
         }
@@ -1433,7 +493,7 @@ impl Compiler {
             return CastOperator::AnyDowncast;
         }
 
-        // handle unknown casts
+        // unknown
         if is_unknown_type(&target) {
             return CastOperator::UnknownUpcast;
         }
@@ -1441,7 +501,7 @@ impl Compiler {
             return CastOperator::UnknownDowncast;
         }
 
-        // handle object casts
+        // object
         if is_object_type(&target) {
             return CastOperator::ObjectUpcast;
         }
@@ -1449,12 +509,12 @@ impl Compiler {
             return CastOperator::ObjectDowncast;
         }
 
-        // handle numeric casts first
+        // numeric
         if let Some(operator) = numeric_cast_operator(&source, &target) {
             return operator;
         }
 
-        // handle pointer casts
+        // pointer
         if is_pointer_type(&source) && is_integer_type(&target) {
             return CastOperator::PointerToInt;
         }
@@ -1465,7 +525,7 @@ impl Compiler {
             return CastOperator::PointerCast;
         }
 
-        // handle sized array to slice casts
+        // sized array to slice
         if let (
             Type::ArraySized { element, .. },
             Type::Array {
@@ -1482,12 +542,12 @@ impl Compiler {
             }
         }
 
-        // handle enum casts
+        // enum
         if let Some(operator) = self.enum_cast_operator(state, &source, &target) {
             return operator;
         }
 
-        // handle nullable casts
+        // nullable
         if is_nullable_union(&target, state.types) {
             return CastOperator::NullableUpcast;
         }
@@ -1495,7 +555,7 @@ impl Compiler {
             return CastOperator::NullableDowncast;
         }
 
-        // handle union casts
+        // union
         if is_union_type(&target) {
             return CastOperator::UnionUpcast;
         }
@@ -1503,7 +563,7 @@ impl Compiler {
             return CastOperator::UnionDowncast;
         }
 
-        // fall back to assignability based instance casts
+        // nominal fallback
         let options = state.ctx.options;
         let mut ctx = TypeContext::new(
             state.ctx.compiler_context,
@@ -1523,898 +583,6 @@ impl Compiler {
         }
     }
 
-    /// Check whether implicit collection reification is enabled for this profile.
-    fn collection_reify_is_enabled(
-        &self,
-        state: &ElaborateState<'_>,
-        origin_id: LocalNodeId<Expression>,
-    ) -> ElaborateResult<bool> {
-        // read the conversion policy from config
-        let policy = state
-            .ctx
-            .compiler_context
-            .compiler_options_for_module(state.ctx.module)
-            .map(|options| options.implicit_collection_conversions)
-            .unwrap_or(ImplicitCollectionConversionPolicy::Allow);
-
-        // skip reify for non-native outputs
-        if !self.profile(state.ctx.profile).key.emit.is_native() {
-            return Ok(false);
-        }
-
-        // honor the configured policy for native outputs
-        match policy {
-            ImplicitCollectionConversionPolicy::Allow => Ok(true),
-            ImplicitCollectionConversionPolicy::Warn => {
-                self.warning(ElaborateWarning::ImplicitCollectionConversion {
-                    node: origin_id
-                        .into_global_any(state.ctx.module.id)
-                        .into_anchored(Some(state.ctx.profile)),
-                });
-                Ok(true)
-            }
-            ImplicitCollectionConversionPolicy::Deny => {
-                Err(ElaborateError::ImplicitCollectionConversion {
-                    node: origin_id
-                        .into_global_any(state.ctx.module.id)
-                        .into_anchored(Some(state.ctx.profile)),
-                })
-            }
-        }
-    }
-
-    /// Reify record like object literals into map construction.
-    fn reify_record_like_object_literal(
-        &self,
-        state: &mut ElaborateState<'_>,
-        origin_id: LocalNodeId<Expression>,
-        value_id: LocalNodeId<Expression>,
-        target_type_id: LocalTypeId,
-    ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
-        // only reify record like literals when enabled for the profile
-        if !self.collection_reify_is_enabled(state, origin_id)? {
-            return Ok(None);
-        }
-
-        // require an object literal value
-        let Expression::ObjectExpression { properties } = state.tree.get(value_id).clone() else {
-            return Ok(None);
-        };
-
-        // resolve the record key/value types
-        let Some(record_like) = self.record_like_map_target(state, origin_id, target_type_id)?
-        else {
-            return Ok(None);
-        };
-        // resolve Map.from symbol
-        let map_from_symbol = self.map_from_symbol(state, origin_id, record_like.map_symbol)?;
-
-        // register a concrete instance for Map.from<K, V>
-        let parameter_symbols = self
-            .collect_static_parameter_symbols(
-                TypeView::new(
-                    state.ctx.compiler_context,
-                    state.ctx.module,
-                    state.ctx.profile,
-                    state.tree,
-                    state.symbols,
-                    state.types,
-                ),
-                map_from_symbol,
-            )
-            .unwrap_or_default();
-        let map_from_instance = Instance::with_environment(
-            map_from_symbol,
-            record_like.map_static_arguments.clone(),
-            parameter_symbols,
-            0,
-        )
-        .map_err(|_| ElaborateError::UnsupportedConstruct {
-            node: origin_id
-                .into_global_any(state.ctx.module.id)
-                .into_anchored(Some(state.ctx.profile)),
-        })?;
-        let map_from_instance_id =
-            if let Some(instance_id) = state.types.find_instance_exact(&map_from_instance) {
-                instance_id
-            } else {
-                state.types.insert_instance(map_from_instance)
-            };
-        // build tuple entries for each property
-        let mut entry_arguments = Vec::with_capacity(properties.len());
-        for property_id in properties {
-            let property = state.tree.get(property_id);
-            let (key, value) = match property {
-                dir::Property::Field { key, value, .. } => {
-                    let key = key.ok_or(ElaborateError::UnsupportedConstruct {
-                        node: property_id
-                            .into_global_any(state.ctx.module.id)
-                            .into_anchored(Some(state.ctx.profile)),
-                    })?;
-                    let value = value.ok_or(ElaborateError::UnsupportedConstruct {
-                        node: property_id
-                            .into_global_any(state.ctx.module.id)
-                            .into_anchored(Some(state.ctx.profile)),
-                    })?;
-                    (key, value)
-                }
-                dir::Property::Method { .. } | dir::Property::Spread { .. } => {
-                    return Err(ElaborateError::UnsupportedConstruct {
-                        node: property_id
-                            .into_global_any(state.ctx.module.id)
-                            .into_anchored(Some(state.ctx.profile)),
-                    });
-                }
-                dir::Property::Error { .. } => {
-                    return Err(ElaborateError::UnsupportedConstruct {
-                        node: property_id
-                            .into_global_any(state.ctx.module.id)
-                            .into_anchored(Some(state.ctx.profile)),
-                    });
-                }
-            };
-
-            // resolve the key expression
-            let key_expression_id =
-                self.record_key_expression(state, origin_id, key, record_like.key_type_id)?;
-            // build a tuple expression for the entry
-            let entry_tuple_id = self.record_entry_tuple_expression(
-                state,
-                origin_id,
-                key_expression_id,
-                value,
-                record_like.entry_tuple_type_id,
-            )?;
-            // wrap tuple entries as array arguments
-            let entry_argument_id = state.tree.reserve_from(
-                NodeType::Argument,
-                origin_id.into_any(),
-                state.tree.get_scope(origin_id),
-                None,
-                Some(dir::ProvenanceReason::Reified),
-            );
-            let entry_argument_id = state.tree.insert_as_owner(
-                entry_argument_id,
-                Argument::Positional {
-                    modifiers: None,
-                    value: entry_tuple_id,
-                },
-            );
-            entry_arguments.push(entry_argument_id);
-        }
-
-        // build the entries array expression
-        let entries_array_id = state.tree.reserve_from(
-            NodeType::Expression,
-            origin_id.into_any(),
-            state.tree.get_scope(origin_id),
-            None,
-            Some(dir::ProvenanceReason::Reified),
-        );
-        let entries_array_id = state.tree.insert_as_owner(
-            entries_array_id,
-            Expression::ArrayExpression {
-                elements: entry_arguments,
-            },
-        );
-        state.types.set_inferred_type(
-            entries_array_id.into_global_any(state.ctx.module.id),
-            record_like.entries_array_type_id,
-        );
-
-        // build a module reference to Map.from
-        let map_name = self
-            .repository
-            .strings
-            .intern(WellKnownSymbol::Map.export_name());
-        let from_name = self.repository.strings.intern("from");
-        let left_id = state.tree.reserve_from(
-            NodeType::Expression,
-            origin_id.into_any(),
-            state.tree.get_scope(origin_id),
-            None,
-            Some(dir::ProvenanceReason::Reified),
-        );
-        let left_id = state.tree.insert_as_owner(
-            left_id,
-            Expression::ModuleReference {
-                path: Path::from(&[map_name, from_name][..]),
-                static_arguments: None,
-                target_symbol: map_from_symbol,
-            },
-        );
-
-        // build the Map.from call expression
-        let call_id = state.tree.reserve_from(
-            NodeType::Expression,
-            origin_id.into_any(),
-            state.tree.get_scope(origin_id),
-            None,
-            Some(dir::ProvenanceReason::Reified),
-        );
-        let entries_argument_id = self.argument_for_value(state, origin_id, entries_array_id);
-        let call_id = state.tree.insert_as_owner(
-            call_id,
-            Expression::Call {
-                left: left_id,
-                static_arguments: None,
-                dynamic_arguments: vec![entries_argument_id],
-            },
-        );
-        state.types.set_inferred_type(
-            call_id.into_global_any(state.ctx.module.id),
-            record_like.map_type_id,
-        );
-        // attach a static resolution for the generated call
-        let resolution_id = state.types.insert_resolution(Resolution::Static {
-            receiver: None,
-            candidate: ResolutionCandidate {
-                key: None,
-                target_symbol: map_from_symbol,
-                instance: Some(map_from_instance_id),
-                resolved_signature: Some(ResolvedSignature {
-                    dynamic_parameters: vec![record_like.entries_array_type_id],
-                    return_type: Some(record_like.map_type_id),
-                    static_arguments: record_like.map_static_arguments,
-                }),
-            },
-        });
-        state
-            .types
-            .set_resolution_for_node(call_id.into_global_any(state.ctx.module.id), resolution_id);
-
-        Ok(Some(call_id))
-    }
-
-    /// Reify sized arrays into dynamic arrays with Array.fromSized.
-    fn reify_array_sized_value(
-        &self,
-        state: &mut ElaborateState<'_>,
-        origin_id: LocalNodeId<Expression>,
-        value_id: LocalNodeId<Expression>,
-        target_type_id: LocalTypeId,
-    ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
-        // only reify array casts when enabled for the profile
-        if !self.collection_reify_is_enabled(state, origin_id)? {
-            return Ok(None);
-        }
-
-        // resolve source and target types
-        let value_type_id = self.value_type_id_for_expression(state, value_id).ok_or(
-            ElaborateError::UnsupportedConstruct {
-                node: value_id
-                    .into_global_any(state.ctx.module.id)
-                    .into_anchored(Some(state.ctx.profile)),
-            },
-        )?;
-        let value_type_id = self.unwrap_value_type_id(state, value_type_id);
-        let target_type_id = self.unwrap_value_type_id(state, target_type_id);
-        let value_type = state.types.get_type(value_type_id).clone();
-        let target_type = state.types.get_type(target_type_id).clone();
-
-        // resolve the dynamic array target type
-        let (element_type_id, target_element_type_id) = match (value_type, target_type) {
-            (
-                Type::ArraySized {
-                    element: value_element,
-                    ..
-                },
-                Type::Array {
-                    element: target_element,
-                    ..
-                },
-            ) => (value_element, target_element),
-            (
-                Type::ArraySized {
-                    element: value_element,
-                    ..
-                },
-                Type::Reference {
-                    symbol,
-                    static_arguments,
-                },
-            ) => {
-                let Some(well_known) = self.well_known_array_kind(state.ctx.profile, symbol) else {
-                    return Ok(None);
-                };
-                let options = state.ctx.options;
-                let mut ctx = TypeContext::new(
-                    state.ctx.compiler_context,
-                    state.ctx.module,
-                    state.ctx.profile,
-                    &options,
-                    state.tree,
-                    state.symbols,
-                    state.types,
-                    AnalyzeIndex::default(),
-                );
-                let Some(Type::Array { element, .. }) = self.normalize_well_known_type_reference(
-                    &mut ctx.reborrow(),
-                    origin_id.into_any(),
-                    well_known,
-                    static_arguments.as_deref(),
-                ) else {
-                    return Ok(None);
-                };
-                (value_element, element)
-            }
-            _ => return Ok(None),
-        };
-        // ensure element compatibility when the target is explicit
-        if let Some(target_element_type_id) = target_element_type_id {
-            let options = state.ctx.options;
-            let mut ctx = TypeContext::new(
-                state.ctx.compiler_context,
-                state.ctx.module,
-                state.ctx.profile,
-                &options,
-                state.tree,
-                state.symbols,
-                state.types,
-                AnalyzeIndex::default(),
-            );
-            let to_target = self.is_type_assignable(
-                &mut ctx.reborrow(),
-                target_element_type_id,
-                element_type_id,
-            );
-            let to_source = self.is_type_assignable(
-                &mut ctx.reborrow(),
-                element_type_id,
-                target_element_type_id,
-            );
-            if !to_target.is_assignable() || !to_source.is_assignable() {
-                return Ok(None);
-            }
-        }
-
-        // resolve Array.fromSized symbol
-        let array_symbol = self
-            .get_well_known_type_symbol(state.ctx.profile, WellKnownSymbol::Array)
-            .ok_or(ElaborateError::UnsupportedConstruct {
-                node: origin_id
-                    .into_global_any(state.ctx.module.id)
-                    .into_anchored(Some(state.ctx.profile)),
-            })?;
-        let from_sized_symbol = self.array_from_sized_symbol(state, origin_id, array_symbol)?;
-
-        // register a concrete instance for Array.fromSized<T>
-        let array_static_arguments = vec![StaticArgument::value(StaticExpression::Type {
-            ty: element_type_id,
-        })];
-        let parameter_symbols = self
-            .collect_static_parameter_symbols(
-                TypeView::new(
-                    state.ctx.compiler_context,
-                    state.ctx.module,
-                    state.ctx.profile,
-                    state.tree,
-                    state.symbols,
-                    state.types,
-                ),
-                from_sized_symbol,
-            )
-            .unwrap_or_default();
-        let from_sized_instance = Instance::with_environment(
-            from_sized_symbol,
-            array_static_arguments.clone(),
-            parameter_symbols,
-            0,
-        )
-        .map_err(|_| ElaborateError::UnsupportedConstruct {
-            node: origin_id
-                .into_global_any(state.ctx.module.id)
-                .into_anchored(Some(state.ctx.profile)),
-        })?;
-        let from_sized_instance_id =
-            if let Some(instance_id) = state.types.find_instance_exact(&from_sized_instance) {
-                instance_id
-            } else {
-                state.types.insert_instance(from_sized_instance)
-            };
-
-        // build a module reference to Array.fromSized
-        let array_name = self
-            .repository
-            .strings
-            .intern(WellKnownSymbol::Array.export_name());
-        let from_name = self.repository.strings.intern("fromSized");
-        let left_id = state.tree.reserve_from(
-            NodeType::Expression,
-            origin_id.into_any(),
-            state.tree.get_scope(origin_id),
-            None,
-            Some(dir::ProvenanceReason::Reified),
-        );
-        let left_id = state.tree.insert_as_owner(
-            left_id,
-            Expression::ModuleReference {
-                path: Path::from(&[array_name, from_name][..]),
-                static_arguments: None,
-                target_symbol: from_sized_symbol,
-            },
-        );
-
-        // build the Array.fromSized call expression
-        let call_id = state.tree.reserve_from(
-            NodeType::Expression,
-            origin_id.into_any(),
-            state.tree.get_scope(origin_id),
-            None,
-            Some(dir::ProvenanceReason::Reified),
-        );
-        let value_argument_id = self.argument_for_value(state, origin_id, value_id);
-        let call_id = state.tree.insert_as_owner(
-            call_id,
-            Expression::Call {
-                left: left_id,
-                static_arguments: None,
-                dynamic_arguments: vec![value_argument_id],
-            },
-        );
-        state
-            .types
-            .set_inferred_type(call_id.into_global_any(state.ctx.module.id), target_type_id);
-
-        // attach a static resolution for the generated call
-        let resolution_id = state.types.insert_resolution(Resolution::Static {
-            receiver: None,
-            candidate: ResolutionCandidate {
-                key: None,
-                target_symbol: from_sized_symbol,
-                instance: Some(from_sized_instance_id),
-                resolved_signature: Some(ResolvedSignature {
-                    dynamic_parameters: vec![value_type_id],
-                    return_type: Some(target_type_id),
-                    static_arguments: array_static_arguments,
-                }),
-            },
-        });
-        state
-            .types
-            .set_resolution_for_node(call_id.into_global_any(state.ctx.module.id), resolution_id);
-
-        Ok(Some(call_id))
-    }
-
-    /// Resolve record like target information for map reification.
-    fn record_like_map_target(
-        &self,
-        state: &mut ElaborateState<'_>,
-        origin_id: LocalNodeId<Expression>,
-        target_type_id: LocalTypeId,
-    ) -> ElaborateResult<Option<RecordLikeTargetInfo>> {
-        // unwrap value wrapper types
-        let target_type_id = self.unwrap_value_type_id(state, target_type_id);
-
-        // resolve Map symbol for record like lowering
-        let Some(map_symbol) =
-            self.get_well_known_type_symbol(state.ctx.profile, WellKnownSymbol::Map)
-        else {
-            return Ok(None);
-        };
-        let record_symbol =
-            self.get_well_known_type_symbol(state.ctx.profile, WellKnownSymbol::Record);
-
-        // walk aliases until we reach a record like target
-        let mut current_type_id = target_type_id;
-        let mut visited = Vec::new();
-        loop {
-            // avoid alias resolution cycles
-            if visited.contains(&current_type_id) {
-                return Ok(None);
-            }
-            visited.push(current_type_id);
-
-            // read the current target type
-            let target_type = state.types.get_type(current_type_id).clone();
-
-            // use direct object index signatures as map targets
-            if let Type::Object {
-                index_signatures, ..
-            } = &target_type
-            {
-                if let Some(signature) = index_signatures.first() {
-                    let info = self.record_like_target_for_types(
-                        state,
-                        origin_id,
-                        map_symbol,
-                        signature.key_type,
-                        signature.value_type,
-                    )?;
-                    return Ok(Some(info));
-                }
-
-                return Ok(None);
-            }
-
-            // resolve record-like references to Map<K, V>
-            if let Type::Reference {
-                symbol,
-                static_arguments,
-            } = &target_type
-            {
-                // only accept Map and Record symbols
-                let is_map_symbol = *symbol == map_symbol
-                    || record_symbol.is_some_and(|record_symbol| record_symbol == *symbol);
-                if !is_map_symbol {
-                    // follow alias targets when present
-                    let options = state.ctx.options;
-                    let node = origin_id
-                        .into_global_any(state.ctx.module.id)
-                        .into_anchored(Some(state.ctx.profile));
-                    let mut ctx = TypeContext::new(
-                        state.ctx.compiler_context,
-                        state.ctx.module,
-                        state.ctx.profile,
-                        &options,
-                        state.tree,
-                        state.symbols,
-                        state.types,
-                        AnalyzeIndex::default(),
-                    );
-                    if let Some(alias_target_id) = self
-                        .require_alias_target_type_id_for_symbol(
-                            &mut ctx,
-                            *symbol,
-                            origin_id.into_any(),
-                        )
-                        .map_err(|error| self.elaborate_error_from_analyze(error, node))?
-                    {
-                        current_type_id = alias_target_id;
-                        continue;
-                    }
-
-                    return Ok(None);
-                }
-
-                // resolve key and value type ids from static arguments
-                let Some(static_arguments) = static_arguments.as_deref() else {
-                    return Ok(None);
-                };
-                if static_arguments.len() != 2 {
-                    return Ok(None);
-                }
-
-                let key_type_id =
-                    self.static_argument_type_id(state, origin_id, &static_arguments[0])?;
-                let value_type_id =
-                    self.static_argument_type_id(state, origin_id, &static_arguments[1])?;
-
-                let info = self.record_like_target_for_types(
-                    state,
-                    origin_id,
-                    map_symbol,
-                    key_type_id,
-                    value_type_id,
-                )?;
-                return Ok(Some(info));
-            }
-
-            return Ok(None);
-        }
-    }
-
-    /// Build record like info for key/value types.
-    fn record_like_target_for_types(
-        &self,
-        state: &mut ElaborateState<'_>,
-        origin_id: LocalNodeId<Expression>,
-        map_symbol: GlobalSymbolId,
-        key_type_id: LocalTypeId,
-        value_type_id: LocalTypeId,
-    ) -> ElaborateResult<RecordLikeTargetInfo> {
-        // build the tuple entry type
-        let entry_tuple_type = Type::Tuple {
-            elements: vec![
-                TypeElement::new(key_type_id),
-                TypeElement::new(value_type_id),
-            ],
-            is_readonly: false,
-        };
-        let entry_tuple_type_id = state.types.insert_type_from(entry_tuple_type, origin_id);
-
-        // build the entries array type
-        let entries_array_type = Type::Array {
-            element: Some(entry_tuple_type_id),
-            is_readonly: false,
-        };
-        let entries_array_type_id = state.types.insert_type_from(entries_array_type, origin_id);
-
-        // build the Map<K, V> reference type
-        let map_static_arguments = vec![
-            StaticArgument::value(StaticExpression::Type { ty: key_type_id }),
-            StaticArgument::value(StaticExpression::Type { ty: value_type_id }),
-        ];
-        let map_type_id = state.types.insert_type_from(
-            Type::Reference {
-                symbol: map_symbol,
-                static_arguments: Some(map_static_arguments.clone()),
-            },
-            origin_id,
-        );
-
-        Ok(RecordLikeTargetInfo {
-            key_type_id,
-            map_symbol,
-            map_type_id,
-            entry_tuple_type_id,
-            entries_array_type_id,
-            map_static_arguments,
-        })
-    }
-
-    /// Resolve a single static argument to a type id.
-    fn static_argument_type_id(
-        &self,
-        state: &mut ElaborateState<'_>,
-        origin_id: LocalNodeId<Expression>,
-        argument: &StaticArgument,
-    ) -> ElaborateResult<LocalTypeId> {
-        // allow unevaluated type argument nodes to reuse analyzed type ids
-        if let StaticArgument::Unevaluated { node } = argument {
-            let type_id = state.types.get_declared_or_inferred_type_id(*node).ok_or(
-                ElaborateError::UnsupportedConstruct {
-                    node: origin_id
-                        .into_global_any(state.ctx.module.id)
-                        .into_anchored(Some(state.ctx.profile)),
-                },
-            )?;
-
-            let type_id = self.unwrap_value_type_id(state, type_id);
-
-            return Ok(type_id);
-        }
-
-        // require an evaluated static argument
-        let StaticArgument::Evaluated { value, .. } = argument else {
-            unreachable!();
-        };
-
-        // resolve type expressions to concrete ids
-        match value {
-            StaticExpression::Type { ty } => Ok(*ty),
-            StaticExpression::TypeLiteral { value } => {
-                let literal_type_id = state.types.insert_type_from(
-                    Type::TypeLiteral {
-                        value: value.clone(),
-                    },
-                    origin_id,
-                );
-                Ok(literal_type_id)
-            }
-            _ => Err(ElaborateError::UnsupportedConstruct {
-                node: origin_id
-                    .into_global_any(state.ctx.module.id)
-                    .into_anchored(Some(state.ctx.profile)),
-            }),
-        }
-    }
-
-    /// Build a key expression for a record like object property.
-    fn record_key_expression(
-        &self,
-        state: &mut ElaborateState<'_>,
-        origin_id: LocalNodeId<Expression>,
-        key: DynamicKey,
-        key_type_id: LocalTypeId,
-    ) -> ElaborateResult<LocalNodeId<Expression>> {
-        // require computed keys for non-string index signatures
-        let key_type = state.types.get_type(key_type_id);
-        let key_is_string = is_string_type(key_type)
-            || matches!(
-                key_type,
-                Type::Reference { symbol, .. }
-                    if self.is_well_known_symbol(state.ctx.profile, *symbol, WellKnownSymbol::String)
-            )
-            || matches!(
-                key_type,
-                Type::TypeLiteral {
-                    value: dir::TypeLiteral::Primitive(dir::PrimitiveType::String),
-                }
-            );
-        let is_static_key = matches!(key, DynamicKey::Name(_) | DynamicKey::Number(_));
-        if is_static_key && !key_is_string {
-            return Err(ElaborateError::UnsupportedConstruct {
-                node: origin_id
-                    .into_global_any(state.ctx.module.id)
-                    .into_anchored(Some(state.ctx.profile)),
-            });
-        }
-
-        // use direct expressions for computed keys
-        let key_expression_id = match key {
-            DynamicKey::Expression(expression) => expression,
-            DynamicKey::NamedExpression { key, .. } => key,
-            DynamicKey::Name(name) | DynamicKey::Number(name) => {
-                // create a string literal for static keys
-                let key_expression_id = state.tree.reserve_from(
-                    NodeType::Expression,
-                    origin_id.into_any(),
-                    state.tree.get_scope(origin_id),
-                    None,
-                    Some(dir::ProvenanceReason::Reified),
-                );
-                let key_expression_id = state.tree.insert_as_owner(
-                    key_expression_id,
-                    Expression::ScalarLiteral {
-                        value: ScalarLiteral::String(name),
-                    },
-                );
-
-                // assign the key type for literal values
-                state.types.set_inferred_type(
-                    key_expression_id.into_global_any(state.ctx.module.id),
-                    key_type_id,
-                );
-
-                key_expression_id
-            }
-            DynamicKey::Private(_) => {
-                return Err(ElaborateError::UnsupportedConstruct {
-                    node: origin_id
-                        .into_global_any(state.ctx.module.id)
-                        .into_anchored(Some(state.ctx.profile)),
-                });
-            }
-        };
-
-        Ok(key_expression_id)
-    }
-
-    /// Build a tuple expression for a record entry.
-    fn record_entry_tuple_expression(
-        &self,
-        state: &mut ElaborateState<'_>,
-        origin_id: LocalNodeId<Expression>,
-        key_expression_id: LocalNodeId<Expression>,
-        value_expression_id: LocalNodeId<Expression>,
-        tuple_type_id: LocalTypeId,
-    ) -> ElaborateResult<LocalNodeId<Expression>> {
-        // allocate tuple argument nodes
-        let key_argument_id = state.tree.reserve_from(
-            NodeType::Argument,
-            origin_id.into_any(),
-            state.tree.get_scope(origin_id),
-            None,
-            Some(dir::ProvenanceReason::Reified),
-        );
-        let key_argument_id = state.tree.insert_as_owner(
-            key_argument_id,
-            Argument::Positional {
-                modifiers: None,
-                value: key_expression_id,
-            },
-        );
-        let value_argument_id = state.tree.reserve_from(
-            NodeType::Argument,
-            origin_id.into_any(),
-            state.tree.get_scope(origin_id),
-            None,
-            Some(dir::ProvenanceReason::Reified),
-        );
-        let value_argument_id = state.tree.insert_as_owner(
-            value_argument_id,
-            Argument::Positional {
-                modifiers: None,
-                value: value_expression_id,
-            },
-        );
-
-        // build the tuple expression
-        let tuple_expression_id = state.tree.reserve_from(
-            NodeType::Expression,
-            origin_id.into_any(),
-            state.tree.get_scope(origin_id),
-            None,
-            Some(dir::ProvenanceReason::Reified),
-        );
-        let tuple_expression_id = state.tree.insert_as_owner(
-            tuple_expression_id,
-            Expression::TupleExpression {
-                elements: vec![key_argument_id, value_argument_id],
-            },
-        );
-        state.types.set_inferred_type(
-            tuple_expression_id.into_global_any(state.ctx.module.id),
-            tuple_type_id,
-        );
-
-        Ok(tuple_expression_id)
-    }
-
-    /// Resolve the Map.from symbol for record like reification.
-    fn map_from_symbol(
-        &self,
-        state: &ElaborateState<'_>,
-        origin_id: LocalNodeId<Expression>,
-        map_symbol: GlobalSymbolId,
-    ) -> ElaborateResult<GlobalSymbolId> {
-        // locate the member key
-        let name = self.repository.strings.intern("from");
-        let member_key = StaticKey::Name(name);
-
-        let node = origin_id
-            .into_global_any(state.ctx.module.id)
-            .into_anchored(Some(state.ctx.profile));
-        self.resolve_static_member_symbol(
-            state.ctx.compiler_context.revision(),
-            state.ctx.module,
-            state.ctx.profile,
-            origin_id,
-            map_symbol,
-            member_key,
-            state.tree,
-            state.symbols,
-        )
-        .map_err(|error| self.elaborate_error_from_resolve(error, node))
-    }
-
-    /// Resolve the Array.fromSized symbol for sized array reification.
-    fn array_from_sized_symbol(
-        &self,
-        state: &ElaborateState<'_>,
-        origin_id: LocalNodeId<Expression>,
-        array_symbol: GlobalSymbolId,
-    ) -> ElaborateResult<GlobalSymbolId> {
-        // locate the member key
-        let name = self.repository.strings.intern("fromSized");
-        let member_key = StaticKey::Name(name);
-
-        let node = origin_id
-            .into_global_any(state.ctx.module.id)
-            .into_anchored(Some(state.ctx.profile));
-        self.resolve_static_member_symbol(
-            state.ctx.compiler_context.revision(),
-            state.ctx.module,
-            state.ctx.profile,
-            origin_id,
-            array_symbol,
-            member_key,
-            state.tree,
-            state.symbols,
-        )
-        .map_err(|error| self.elaborate_error_from_resolve(error, node))
-    }
-
-    /// Build a positional argument for a value expression.
-    fn argument_for_value(
-        &self,
-        state: &mut ElaborateState<'_>,
-        origin_id: LocalNodeId<Expression>,
-        value_id: LocalNodeId<Expression>,
-    ) -> LocalNodeId<Argument> {
-        let argument_id = state.tree.reserve_from(
-            NodeType::Argument,
-            origin_id.into_any(),
-            state.tree.get_scope(origin_id),
-            None,
-            Some(dir::ProvenanceReason::Reified),
-        );
-        state.tree.insert_as_owner(
-            argument_id,
-            Argument::Positional {
-                modifiers: None,
-                value: value_id,
-            },
-        )
-    }
-
-    /// Check whether a cast operator is numeric.
-    fn is_numeric_cast_operator(&self, operator: CastOperator) -> bool {
-        // match numeric cast operators
-        matches!(
-            operator,
-            CastOperator::IntWiden
-                | CastOperator::IntNarrow
-                | CastOperator::IntSignChange
-                | CastOperator::FloatWiden
-                | CastOperator::FloatNarrow
-                | CastOperator::IntToFloat
-                | CastOperator::FloatToInt
-        )
-    }
-
     /// Classify enum casts between enum and primitive types.
     fn enum_cast_operator(
         &self,
@@ -2422,9 +590,8 @@ impl Compiler {
         source: &Type,
         target: &Type,
     ) -> Option<CastOperator> {
-        // shared enum backing lookup
+        // read one enum backing type when present
         let backing_for_type = |ty: &Type| -> Option<EnumBackingType> {
-            // only enum references have a backing type
             let Type::Reference { symbol, .. } = ty else {
                 return None;
             };
@@ -2432,7 +599,7 @@ impl Compiler {
             state.types.get_enum_backing_type(*symbol)
         };
 
-        // enum to primitive casts
+        // enum to primitive
         if let Some(backing) = backing_for_type(source) {
             match backing {
                 EnumBackingType::Int(_) if is_integer_type(target) => {
@@ -2445,7 +612,7 @@ impl Compiler {
             }
         }
 
-        // primitive to enum casts
+        // primitive to enum
         if let Some(backing) = backing_for_type(target) {
             match backing {
                 EnumBackingType::Int(_) if is_integer_type(source) => {
@@ -2459,168 +626,5 @@ impl Compiler {
         }
 
         None
-    }
-
-    /// Strip value wrapper types to reach the underlying type id.
-    fn unwrap_value_type_id(
-        &self,
-        state: &ElaborateState<'_>,
-        type_id: LocalTypeId,
-    ) -> LocalTypeId {
-        // peel value wrapper types
-        let mut current = type_id;
-        loop {
-            match state.types.get_type(current) {
-                Type::Value { value } => {
-                    current = *value;
-                }
-                _ => return current,
-            }
-        }
-    }
-
-    /// Return true when a type id points at an interface reference type.
-    fn is_interface_reference_type(
-        &self,
-        state: &ElaborateState<'_>,
-        type_id: LocalTypeId,
-    ) -> bool {
-        // resolve the underlying type id
-        let type_id = self.unwrap_value_type_id(state, type_id);
-
-        // check for interface reference types
-        matches!(
-            state.types.get_type(type_id),
-            Type::Reference { symbol, .. } if symbol.ty() == SymbolType::Interface
-        )
-    }
-
-    /// Return true when a new expression targets a nominal class or struct.
-    fn is_concrete_new_expression(
-        &self,
-        state: &ElaborateState<'_>,
-        value_id: LocalNodeId<Expression>,
-    ) -> bool {
-        // require a new expression
-        let Expression::New { left, .. } = state.tree.get(value_id) else {
-            return false;
-        };
-
-        // accept nominal constructor targets
-        match state.tree.get(*left) {
-            Expression::LocalReference { target_symbol, .. }
-            | Expression::ModuleReference { target_symbol, .. }
-            | Expression::GlobalReference { target_symbol, .. } => {
-                matches!(target_symbol.ty(), SymbolType::Class | SymbolType::Struct)
-            }
-            _ => false,
-        }
-    }
-
-    /// Return true when a value expression is a tagged constructor literal.
-    fn is_tagged_expression(
-        &self,
-        state: &ElaborateState<'_>,
-        value_id: LocalNodeId<Expression>,
-    ) -> bool {
-        // check tagged constructor expressions
-        matches!(
-            state.tree.get(value_id),
-            Expression::TaggedScalarExpression { .. }
-                | Expression::TaggedTupleExpression { .. }
-                | Expression::TaggedObjectExpression { .. }
-        )
-    }
-
-    /// Return true when a value expression resolves to a concrete nominal symbol.
-    fn is_concrete_resolution(
-        &self,
-        state: &ElaborateState<'_>,
-        value_id: LocalNodeId<Expression>,
-    ) -> bool {
-        // resolve the node resolution
-        let node_id = value_id.into_global_any(state.ctx.module_id);
-        let Some(resolution_id) = state.types.get_resolution_for_node(node_id) else {
-            return false;
-        };
-        let resolution = state.types.get_resolution(resolution_id);
-
-        // accept concrete static resolutions only
-        match resolution {
-            Resolution::Static { candidate, .. } => {
-                self.is_concrete_resolution_candidate(state, candidate)
-            }
-            Resolution::Dynamic { .. }
-            | Resolution::Unresolved { .. }
-            | Resolution::Builtin { .. } => false,
-        }
-    }
-
-    /// Return true when a resolution candidate targets a concrete nominal symbol.
-    fn is_concrete_resolution_candidate(
-        &self,
-        state: &ElaborateState<'_>,
-        candidate: &ResolutionCandidate,
-    ) -> bool {
-        // accept direct nominal symbols
-        if matches!(
-            candidate.target_symbol.ty(),
-            SymbolType::Class | SymbolType::Struct
-        ) {
-            return true;
-        }
-
-        // fall back to the resolved return type
-        let Some(resolved_signature) = candidate.resolved_signature.as_ref() else {
-            return false;
-        };
-        let Some(return_type) = resolved_signature.return_type else {
-            return false;
-        };
-
-        // require a nominal return type
-        let return_type = self.unwrap_value_type_id(state, return_type);
-        matches!(
-            state.types.get_type(return_type),
-            Type::Reference { symbol, .. }
-                if matches!(symbol.ty(), SymbolType::Class | SymbolType::Struct)
-        )
-    }
-
-    /// Check whether a binary operator is numeric.
-    fn is_numeric_binary_operator(&self, operator: BinaryOperator) -> bool {
-        // match numeric binary operators
-        matches!(
-            operator,
-            BinaryOperator::Multiply
-                | BinaryOperator::WrappingMultiply
-                | BinaryOperator::SaturatingMultiply
-                | BinaryOperator::Exponent
-                | BinaryOperator::WrappingExponent
-                | BinaryOperator::SaturatingExponent
-                | BinaryOperator::Divide
-                | BinaryOperator::Remainder
-                | BinaryOperator::Add
-                | BinaryOperator::WrappingAdd
-                | BinaryOperator::SaturatingAdd
-                | BinaryOperator::Subtract
-                | BinaryOperator::WrappingSubtract
-                | BinaryOperator::SaturatingSubtract
-                | BinaryOperator::ShiftLeft
-                | BinaryOperator::SaturatingShiftLeft
-                | BinaryOperator::ShiftRight
-                | BinaryOperator::UnsignedShiftRight
-                | BinaryOperator::ElementwiseAnd
-                | BinaryOperator::ElementwiseXor
-                | BinaryOperator::ElementwiseOr
-                | BinaryOperator::Equal
-                | BinaryOperator::NotEqual
-                | BinaryOperator::EqualStrict
-                | BinaryOperator::NotEqualStrict
-                | BinaryOperator::LessThan
-                | BinaryOperator::LessThanOrEqual
-                | BinaryOperator::GreaterThan
-                | BinaryOperator::GreaterThanOrEqual
-        )
     }
 }

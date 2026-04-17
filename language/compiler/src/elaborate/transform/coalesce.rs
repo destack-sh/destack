@@ -203,12 +203,13 @@ impl Compiler {
             }
 
             // eager multi-child forms
-            Expression::Cast {
-                value, target_type, ..
+            Expression::As {
+                expression: value, ..
+            }
+            | Expression::Satisfies {
+                expression: value, ..
             } => {
                 modified |= self.normalize_nested_coalesce_in_expression(state, scope, value)?;
-                modified |=
-                    self.normalize_nested_coalesce_in_expression(state, scope, target_type)?;
             }
             Expression::Assign { left, right } => {
                 modified |= self.normalize_nested_coalesce_in_expression(state, scope, left)?;
@@ -225,17 +226,13 @@ impl Compiler {
                 modified |= self.normalize_nested_coalesce_in_expression(state, scope, left)?;
             }
             Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
+                left, arguments, ..
             }
             | Expression::New {
-                left,
-                dynamic_arguments,
-                ..
+                left, arguments, ..
             } => {
                 modified |= self.normalize_nested_coalesce_in_expression(state, scope, left)?;
-                for argument_id in dynamic_arguments {
+                for argument_id in arguments {
                     modified |=
                         self.normalize_nested_coalesce_in_argument(state, scope, argument_id)?;
                 }
@@ -248,15 +245,14 @@ impl Compiler {
                         self.normalize_nested_coalesce_in_argument(state, scope, argument_id)?;
                 }
             }
-            Expression::ObjectExpression { properties }
+            Expression::ObjectExpression { properties, .. }
             | Expression::TaggedObjectExpression { properties, .. } => {
                 for property_id in properties {
                     modified |=
                         self.normalize_nested_coalesce_in_property(state, scope, property_id)?;
                 }
             }
-            Expression::TaggedScalarExpression { ty, value } => {
-                modified |= self.normalize_nested_coalesce_in_expression(state, scope, ty)?;
+            Expression::TaggedScalarExpression { ty: _, value } => {
                 modified |= self.normalize_nested_coalesce_in_expression(state, scope, value)?;
             }
             Expression::SequenceExpression { expressions } => {
@@ -280,11 +276,6 @@ impl Compiler {
                     }
                 }
             }
-            Expression::TypeBinary { left, right, .. } => {
-                modified |= self.normalize_nested_coalesce_in_expression(state, scope, left)?;
-                modified |= self.normalize_nested_coalesce_in_expression(state, scope, right)?;
-            }
-
             // conditional forms
             Expression::If {
                 condition,
@@ -361,15 +352,8 @@ impl Compiler {
         let mut modified = false;
 
         match property {
-            Property::Field { value, default, .. } => {
-                if let Some(value) = value {
-                    modified |=
-                        self.normalize_nested_coalesce_in_expression(state, scope, value)?;
-                }
-                if let Some(default) = default {
-                    modified |=
-                        self.normalize_nested_coalesce_in_expression(state, scope, default)?;
-                }
+            Property::Field { value, .. } => {
+                modified |= self.normalize_nested_coalesce_in_expression(state, scope, value)?;
             }
             Property::Method { body, .. } => {
                 if let Some(body) = body {
@@ -453,6 +437,8 @@ impl Compiler {
         let block_id = state.tree.insert_as_owner(
             block_id,
             dir::Block {
+                context: dir::BlockContext::Expression,
+                format: dir::BlockFormat::Explicit,
                 scope: block_scope_id,
                 leading_expressions: vec![binding.left_temp_let],
                 tail_expression: Some(if_id),
@@ -462,7 +448,7 @@ impl Compiler {
         // replace the original coalesce with one local block value expression
         state
             .tree
-            .replace(expression_id, Expression::Block { block: block_id });
+            .replace(expression_id, Expression::Block(block_id));
 
         // restore result type metadata on rewritten nodes
         if let Some(result_type_id) = result_type_id {

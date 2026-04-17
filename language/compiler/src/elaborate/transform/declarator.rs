@@ -1,7 +1,5 @@
 use destack_dir as dir;
-use dir::{
-    Asynchrony, Block, DeclarationDescriptor, Expression, LocalNodeId, Mutability, NodeType,
-};
+use dir::{Asynchrony, Block, Expression, LocalNodeId, Mutability, NodeType};
 
 use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateResult};
@@ -22,9 +20,7 @@ impl Compiler {
         &self,
         state: &mut ElaborateState<'_>,
     ) -> ElaborateResult<()> {
-        // collect all blocks that need transformation
         let block_ids: Vec<_> = state.tree.iter_node_ids_of_type::<Block>();
-
         for block_id in block_ids {
             if !self.is_active_in_state(state, block_id.into_any()) {
                 continue;
@@ -60,18 +56,30 @@ impl Compiler {
                 }
             };
 
-            let (descriptor, binding_kind, declarators) =
+            let (export, ambient, binding_kind, declarators) =
                 match state.tree.get(binding_expression_id).clone() {
                     Expression::Let {
-                        descriptor,
+                        export,
+                        ambient,
                         mutability,
                         declarators,
-                    } => (descriptor, BindingKind::Let { mutability }, declarators),
+                    } => (
+                        export,
+                        ambient,
+                        BindingKind::Let { mutability },
+                        declarators,
+                    ),
                     Expression::Using {
                         asynchrony,
-                        descriptor,
+                        export,
+                        ambient,
                         declarators,
-                    } => (descriptor, BindingKind::Using { asynchrony }, declarators),
+                    } => (
+                        export,
+                        ambient,
+                        BindingKind::Using { asynchrony },
+                        declarators,
+                    ),
                     _ => {
                         new_leading_expressions.push(expression_id);
                         continue;
@@ -100,23 +108,17 @@ impl Compiler {
                     Some(dir::ProvenanceReason::Elaborated),
                 );
 
-                // create a new descriptor for this binding using the declarator symbol
-                let declarator = state.tree.get(declarator_id);
-                let pattern = state.tree.get(declarator.pattern);
-                let new_symbol = pattern.symbol().unwrap_or(descriptor.symbol);
-                let new_descriptor = DeclarationDescriptor {
-                    symbol: new_symbol,
-                    ..descriptor.clone()
-                };
                 let new_binding = match binding_kind {
                     BindingKind::Let { mutability } => Expression::Let {
-                        descriptor: new_descriptor,
+                        export,
+                        ambient,
                         mutability,
                         declarators: vec![declarator_id],
                     },
                     BindingKind::Using { asynchrony } => Expression::Using {
                         asynchrony,
-                        descriptor: new_descriptor,
+                        export,
+                        ambient,
                         declarators: vec![declarator_id],
                     },
                 };

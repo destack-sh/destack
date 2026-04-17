@@ -58,8 +58,7 @@ impl Compiler {
         match tree.get(expression_id) {
             Expression::ValueOf { .. }
             | Expression::ReferenceOf { .. }
-            | Expression::PointerOf { .. }
-            | Expression::OwnershipCast { .. } => true,
+            | Expression::PointerOf { .. } => true,
             Expression::Parenthesized { expression } => {
                 self.expression_has_explicit_ownership(tree, *expression)
             }

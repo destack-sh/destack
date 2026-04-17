@@ -4,8 +4,7 @@ use destack_workspace::ProfileId;
 
 use crate::timing::tags;
 use crate::{
-    AnalyzeError, Compiler, CompilerContext, ElaborateError, ElaborateResult, RequirementError,
-    ResolveError,
+    Compiler, CompilerContext, ElaborateError, ElaborateResult, RequirementError, ResolveError,
 };
 use destack_dir::AnchoredGlobalNodeId;
 
@@ -35,22 +34,6 @@ impl Compiler {
                 ElaborateError::UnsatisfiedRequirement { requirement }
             }
             ResolveError::Skipped => ElaborateError::Skipped,
-            _ => ElaborateError::UnsupportedConstruct { node },
-        }
-    }
-
-    /// Map one analyze error into an elaborate error at one origin node.
-    pub(crate) fn elaborate_error_from_analyze(
-        &self,
-        error: AnalyzeError,
-        node: AnchoredGlobalNodeId,
-    ) -> ElaborateError {
-        match error {
-            AnalyzeError::Yield { requirement } => ElaborateError::Yield { requirement },
-            AnalyzeError::UnsatisfiedRequirement { requirement } => {
-                ElaborateError::UnsatisfiedRequirement { requirement }
-            }
-            AnalyzeError::Skipped => ElaborateError::Skipped,
             _ => ElaborateError::UnsupportedConstruct { node },
         }
     }

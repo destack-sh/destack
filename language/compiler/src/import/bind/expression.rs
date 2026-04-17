@@ -2,11 +2,11 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    Ambientness, BindingCategory, Declarator, ExportMode, Expression, ForEachBinding, ForEachKind,
-    IfCondition, IfKind, ImportSource, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
-    LoopKind, MatchKind, MatchSource, ModuleBinding, Mutability, NodeTree, NodeType, Path,
-    ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
-    SymbolType, Type, TypeTable, YieldCardinality,
+    Ambientness, BindingCategory, CastSource, Declarator, ExportMode, Expression, ForEachBinding,
+    ForEachKind, IfCondition, IfKind, ImportSource, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, LoopKind, MatchKind, MatchSource, ModuleBinding, Mutability, NodeTree,
+    NodeType, Path, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder,
+    SymbolTable, SymbolType, Type, TypeTable, YieldCardinality,
 };
 use destack_workspace::Module;
 use smallvec::smallvec;
@@ -587,6 +587,8 @@ impl Compiler {
                 );
 
                 Expression::As {
+                    operator: None,
+                    source: CastSource::Explicit,
                     expression,
                     target_type,
                 }
