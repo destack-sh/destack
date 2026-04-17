@@ -466,8 +466,6 @@ impl_dump_display! {
     MatchSource,
     Mutability,
     ReferenceType,
-    OwnershipCastOperator,
-    OwnershipCastSource,
     UnaryOperator,
     TypeKind,
     VarianceModifier,
@@ -967,6 +965,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::As {
+                operator: _,
+                source: _,
                 expression: _,
                 target_type: _,
             } => {
@@ -989,16 +989,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 target: _,
             } => {
                 self.node("Expression::InstanceOf", id.id).end();
-            }
-            Expression::OwnershipCast {
-                operator,
-                source,
-                value: _,
-            } => {
-                self.node("Expression::OwnershipCast", id.id)
-                    .field("operator", operator)
-                    .field("source", source)
-                    .end();
             }
             Expression::Unary { operator, right: _ } => {
                 self.node("Expression::Unary", id.id)

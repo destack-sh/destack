@@ -1648,17 +1648,14 @@ impl<'tree> FlowGraphBuilder<'tree> {
             }
             Expression::PointerOf { right, .. } => self.build_expression(*right, current_block_id),
             Expression::As {
+                operator: _,
+                source: _,
                 expression: value,
                 target_type: _,
             }
             | Expression::Satisfies {
                 expression: value,
                 target_type: _,
-            }
-            | Expression::OwnershipCast {
-                operator: _,
-                source: _,
-                value,
             } => self.build_expression(*value, current_block_id),
             Expression::Unary { right, .. }
             | Expression::ValueOf { right, .. }

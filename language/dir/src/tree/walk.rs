@@ -642,6 +642,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 }
             }
             Expression::As {
+                operator: _,
+                source: _,
                 expression,
                 target_type,
             } => {
@@ -672,14 +674,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
                 let target_expression = tree.get(*target);
                 visitor.visit_expression(tree, *target, target_expression);
-            }
-            Expression::OwnershipCast {
-                operator: _,
-                source: _,
-                value,
-            } => {
-                let value_expression = tree.get(*value);
-                visitor.visit_expression(tree, *value, value_expression);
             }
             Expression::Unary { operator: _, right }
             | Expression::ValueOf {

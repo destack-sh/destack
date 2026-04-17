@@ -3,11 +3,11 @@ use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Ambientness, Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
-    Declarator, DependencyItem, DependencyKind, ExportMode, GenericArgument, GlobalSymbolId,
-    ImportAttributeClause, ImportSource, ImportTarget, LocalNodeId, LocalScopeId, LocalSymbolId,
-    LocalTypeId, MatchCase, MatchKind, MatchSource, ModuleTarget, Mutability, Node, NodeTree,
-    NodeType, OwnershipCastOperator, OwnershipCastSource, Path, Pattern, Property, ScalarLiteral,
+    Ambientness, Argument, AssignOperator, Asynchrony, BinaryOperator, Block, CastOperator,
+    CastSource, Declaration, Declarator, DependencyItem, DependencyKind, ExportMode,
+    GenericArgument, GlobalSymbolId, ImportAttributeClause, ImportSource, ImportTarget,
+    LocalNodeId, LocalScopeId, LocalSymbolId, LocalTypeId, MatchCase, MatchKind, MatchSource,
+    ModuleTarget, Mutability, Node, NodeTree, NodeType, Path, Pattern, Property, ScalarLiteral,
     StaticArgument, StaticProperty, SymbolSpaceOrder, TemplateLiteral, TypeExpression, TypeLiteral,
     UnaryOperator, VarianceBound,
 };
@@ -89,6 +89,10 @@ pub enum Expression {
 
     /// TypeScript-style `as` assertion.
     As {
+        /// The resolved cast operator after elaborate.
+        operator: Option<CastOperator>,
+        /// Whether the cast was written in source or inserted during reify.
+        source: CastSource,
         /// The source expression.
         expression: LocalNodeId<Expression>,
         /// The target type.
@@ -113,16 +117,6 @@ pub enum Expression {
     InstanceOf {
         value: LocalNodeId<Expression>,
         target: LocalNodeId<Expression>,
-    },
-
-    /// Cast a value expression to a target ownership form.
-    OwnershipCast {
-        /// The ownership cast operator to apply.
-        operator: OwnershipCastOperator,
-        /// The origin of the ownership cast in source.
-        source: OwnershipCastSource,
-        /// The value to cast.
-        value: LocalNodeId<Expression>,
     },
 
     /// Unary operation (except reference/dereference, e.g., `-x`).
@@ -448,7 +442,6 @@ impl Expression {
             Expression::Satisfies { .. } => "satisfies",
             Expression::Is { .. } => "is",
             Expression::InstanceOf { .. } => "instanceof",
-            Expression::OwnershipCast { .. } => "ownership cast",
             Expression::Unary { .. } => "unary",
             Expression::ValueOf { .. } => "value of",
             Expression::ReferenceOf { .. } => "reference of",
