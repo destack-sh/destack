@@ -72,10 +72,10 @@ impl Node for Parameter {
 /// A generic argument in static argument position.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum GenericArgument {
-    /// Positional generic argument.
-    Positional { value: LocalNodeId<Expression> },
-    /// Spread generic argument.
-    Spread { value: LocalNodeId<Expression> },
+    /// Type generic argument.
+    Type { value: LocalNodeId<TypeExpression> },
+    /// Value generic argument.
+    Value { value: LocalNodeId<Expression> },
     /// Malformed generic argument slot.
     Error,
 }
