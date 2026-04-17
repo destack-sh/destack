@@ -11,16 +11,13 @@ use crate::format::declaration::{
     expression_needs_statement_terminator, statement_trailing_comment_anchor_end,
     write_statement_terminator, write_statement_terminator_with_following_start,
 };
-use crate::format::directive::{
+use crate::format::expression::format_expression;
+use crate::format::file::{
     ignore_range_for_node, ignore_ranges_for_nodes, node_has_ignore_directive, write_ignored_span,
 };
-use crate::format::expression::{
-    expression_has_type_cast_comment_head, expression_type_cast_comment_head_start,
-    format_expression,
-};
 use destack_ast::{
-    AnnotationPosition, Block, BlockContext, Declaration, Expression, FunctionKind, FunctionMode,
-    IfCondition, IfKind, LocalNodeId, Member, NodeType, Property, TokenSpan,
+    Block, BlockContext, Declaration, DecoratorPosition, Expression, FunctionKind, FunctionMode,
+    IfCondition, IfKind, LocalNodeId, Member, NodeType, Property, TokenSpan, TypeExpression,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::{format_with, *};
@@ -92,12 +89,6 @@ fn expression_prefix_start(
 ) -> u32 {
     let mut start = default_start;
 
-    if let Some(type_cast_comment_start) =
-        expression_type_cast_comment_head_start(context, expression_id)
-    {
-        start = start.min(type_cast_comment_start);
-    }
-
     for comment in raw_prefix_comment_nodes(context, expression_id) {
         start = start.min(comment.span.start);
     }
@@ -111,8 +102,8 @@ fn expression_prefix_start(
 
         for annotation_id in context.annotation_ids(*declaration_id).iter().copied() {
             if matches!(
-                context.annotation(annotation_id).position(),
-                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+                context.annotation(annotation_id).position,
+                DecoratorPosition::BlockPrefix | DecoratorPosition::LinePrefix
             ) {
                 start = start.min(context.annotation_span(annotation_id).start);
             }
@@ -121,14 +112,32 @@ fn expression_prefix_start(
 
     for annotation_id in context.annotation_ids(expression_id).iter().copied() {
         if matches!(
-            context.annotation(annotation_id).position(),
-            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+            context.annotation(annotation_id).position,
+            DecoratorPosition::BlockPrefix | DecoratorPosition::LinePrefix
         ) {
             start = start.min(context.annotation_span(annotation_id).start);
         }
     }
 
-    start
+    let semantic_head_start = match context.tree.get(expression_id) {
+        Expression::Parenthesized { expression } => {
+            let inner_expression_span = context.span(*expression);
+            expression_prefix_start(context, *expression, inner_expression_span.start)
+        }
+        Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
+        | Expression::Index { left, .. }
+        | Expression::Instantiation { left, .. }
+        | Expression::Call { left, .. }
+        | Expression::Maybe { left, .. }
+        | Expression::Must { left, .. } => {
+            let expression_span = context.span(*left);
+            expression_prefix_start(context, *left, expression_span.start)
+        }
+        _ => default_start,
+    };
+
+    start.min(semantic_head_start)
 }
 
 /// Return the latest end offset for trailing raw comments on an expression.
@@ -228,8 +237,8 @@ fn expression_is_lambda_declaration(tree: &destack_ast::NodeTree, expression: &E
         Expression::Declaration(declaration_id)
             if matches!(
                 tree.get(*declaration_id),
-                Declaration::Function { signature, .. }
-                    if signature.kind == FunctionKind::Lambda
+                Declaration::Function(function)
+                    if function.signature.kind == FunctionKind::Lambda
             )
     )
 }
@@ -245,16 +254,12 @@ fn write_statement_sequence_expression_prefix<'ast>(
         let mut prefix_items = Vec::new();
 
         for annotation_id in f.context().annotation_ids(expression_id).iter().copied() {
-            if f.context().annotation(annotation_id).position() == AnnotationPosition::BlockPrefix {
+            if f.context().annotation(annotation_id).position == DecoratorPosition::BlockPrefix {
                 prefix_items.push(annotation_id);
             }
         }
 
         return write_annotation_sequence(f, &prefix_items);
-    }
-
-    if expression_has_type_cast_comment_head(f.context(), expression_id) {
-        return Ok(());
     }
 
     if let Some(start_offset) = start_offset {
@@ -390,7 +395,7 @@ pub(crate) fn format_block_body_wide<'ast>(
     let trailing_comment_nodes = block_trailing_comment_nodes(f.context(), block_id);
 
     if !block.is_empty() && (!trailing_comment_nodes.is_empty() || has_infix_annotation) {
-        write!(f, [line_suffix_boundary(), hard_line_break()])?;
+        write!(f, [hard_line_break()])?;
     }
 
     if !trailing_comment_nodes.is_empty() {
@@ -415,10 +420,10 @@ pub(crate) fn format_block_body_wide<'ast>(
         ))]
     )?;
 
-    write!(f, [line_suffix_boundary(), hard_line_break(), token("}")])
+    write!(f, [hard_line_break(), token("}")])
 }
 
-/// Collect ignore ranges for block expressions without materializing a temporary list.
+/// Collect ignore ranges for block expressions without building another list.
 fn ignore_ranges_for_block_expressions(
     ctx: &DestackFormatContext<'_>,
     block: &Block,
@@ -508,7 +513,7 @@ pub(crate) fn format_block_statement_sequence<'ast>(
             };
             if !has_ignore_range {
                 if !source_has_blank_line_between {
-                    write!(f, [line_suffix_boundary(), hard_line_break()])?;
+                    write!(f, [hard_line_break()])?;
                 }
 
                 // determine if we need an extra blank line
@@ -519,7 +524,7 @@ pub(crate) fn format_block_statement_sequence<'ast>(
                 };
 
                 if needs_blank {
-                    write!(f, [line_suffix_boundary(), empty_line()])?;
+                    write!(f, [empty_line()])?;
                 }
             }
         }
@@ -660,7 +665,7 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
             };
             if !has_ignore_range {
                 if !source_has_blank_line_between {
-                    write!(f, [line_suffix_boundary(), hard_line_break()])?;
+                    write!(f, [hard_line_break()])?;
                 }
 
                 // determine if we need an extra blank line
@@ -671,7 +676,7 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
                 };
 
                 if needs_blank {
-                    write!(f, [line_suffix_boundary(), empty_line()])?;
+                    write!(f, [empty_line()])?;
                 }
             }
         }
@@ -848,7 +853,7 @@ fn format_program_statement_sequence<'ast>(
                 )
             };
             if !has_ignore_range {
-                write!(f, [line_suffix_boundary(), hard_line_break()])?;
+                write!(f, [hard_line_break()])?;
 
                 // import section spacing and explicit source blank lines
                 let needs_blank = if f.context().options.organize_imports.is_enabled()
@@ -872,7 +877,7 @@ fn format_program_statement_sequence<'ast>(
                 };
 
                 if needs_blank {
-                    write!(f, [line_suffix_boundary(), empty_line()])?;
+                    write!(f, [empty_line()])?;
                 }
             }
         }
@@ -1105,19 +1110,16 @@ fn expression_is_in_statement_position_inside_parent_declaration(
     let parent_declaration = context.tree.get(parent_declaration_id);
 
     match parent_declaration {
-        Declaration::Function {
-            body, signature, ..
-        } => body.as_ref().is_some_and(|body_expression_id| {
+        Declaration::Function(function) => function.body.is_some_and(|body_expression_id| {
             if body_expression_id.id != expression_id.id {
                 return false;
             }
 
-            function_body_is_statement_position(signature.mode)
-                && !function_has_self_return_type(context, signature.return_type)
+            function_body_is_statement_position(function.signature.mode)
+                && !function_has_self_return_type(context, function.signature.return_type)
         }),
-        Declaration::Global { expressions, .. } | Declaration::Namespace { expressions, .. } => {
-            expressions.contains(&expression_id)
-        }
+        Declaration::Global(global) => global.expressions.contains(&expression_id),
+        Declaration::Namespace(namespace) => namespace.expressions.contains(&expression_id),
         _ => false,
     }
 }
@@ -1169,27 +1171,26 @@ fn function_body_is_statement_position(mode: Option<FunctionMode>) -> bool {
 /// Return true when one function return type is exactly `Self`.
 fn function_has_self_return_type(
     context: &DestackFormatContext<'_>,
-    return_type: Option<LocalNodeId<Expression>>,
+    return_type: Option<LocalNodeId<TypeExpression>>,
 ) -> bool {
     let Some(return_type_id) = return_type else {
         return false;
     };
 
-    expression_is_self_type_path(context, return_type_id)
+    type_expression_is_self_type_path(context, return_type_id)
 }
 
-/// Return true when one expression is a simple `Self` type path.
-fn expression_is_self_type_path(
+/// Return true when one type expression is a simple `Self` type path.
+fn type_expression_is_self_type_path(
     context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
+    expression_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     match context.tree.get(expression_id) {
-        Expression::Identifier { name } => context.strings.get(*name) == "Self",
-        Expression::QualifiedReference { path, .. } => {
+        TypeExpression::Reference { path, .. } => {
             path.segments.len() == 1 && context.strings.get(path.segments[0]) == "Self"
         }
-        Expression::Parenthesized { expression } => {
-            expression_is_self_type_path(context, *expression)
+        TypeExpression::Parenthesized { expression } => {
+            type_expression_is_self_type_path(context, *expression)
         }
         _ => false,
     }

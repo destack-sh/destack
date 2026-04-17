@@ -4,8 +4,8 @@ use crate::format::chain::transparent_inner_expression;
 use crate::format::tree::tree_argument_is_wrapped_in_braces;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Comment, Expression, IfCondition, IfKind, LocalNodeId, NodeTree, NodeType, TokenSpan,
-    TokenType, TypeLiteral,
+    Argument, Comment, Expression, IfCondition, IfKind, LocalNodeId, NodeTree, NodeType,
+    TypeExpression, TypeLiteral,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
@@ -120,33 +120,12 @@ fn expression_has_line_comment(
         .any(|comment| context.comment_is_line(comment))
 }
 
-/// Return boundary comments between two ternary parts.
-fn ternary_boundary_comments(
+/// Return separator-owned comments before one ternary branch.
+fn ternary_separator_comments(
     context: &DestackFormatContext<'_>,
-    left_expression: LocalNodeId<Expression>,
-    right_expression: LocalNodeId<Expression>,
-) -> Vec<Comment> {
-    let left_span = context.span(left_expression);
-    let right_span = context.span(right_expression);
-
-    let comments = context.comments();
-
-    comments
-        .comments_in_range(left_span.end, right_span.start)
-        .to_vec()
-}
-
-/// Return the colon token between the then and alternate ternary branches.
-fn ternary_colon_token(
-    context: &DestackFormatContext<'_>,
-    then_expression: LocalNodeId<Expression>,
-    else_expression: LocalNodeId<Expression>,
-) -> Option<TokenSpan> {
-    let then_span = context.span(then_expression);
-    let else_span = context.span(else_expression);
-    let token = context.first_non_trivia_token_between(then_span.end, else_span.start)?;
-
-    (token.token.ty == TokenType::Colon).then_some(token)
+    expression_id: LocalNodeId<Expression>,
+) -> Vec<destack_ast::Comment> {
+    context.raw_comments_after_previous_non_trivia_token_for(expression_id)
 }
 
 /// Return comments that stay on the then branch side of the ternary boundary.
@@ -154,40 +133,42 @@ fn ternary_then_boundary_comments(
     context: &DestackFormatContext<'_>,
     then_expression: LocalNodeId<Expression>,
     else_expression: LocalNodeId<Expression>,
-) -> Vec<Comment> {
+) -> Vec<destack_ast::Comment> {
     let then_span = context.span(then_expression);
-    let else_span = context.span(else_expression);
-    let Some(colon_token) = ternary_colon_token(context, then_expression, else_expression) else {
-        return context
-            .comments()
-            .comments_in_range(then_span.end, else_span.start)
-            .to_vec();
-    };
+    let separator_start = context
+        .previous_non_trivia_token_before_span(context.span(else_expression))
+        .map_or(context.span(else_expression).start, |token| {
+            token.span.start
+        });
 
-    let mut comments = context
-        .comments()
-        .comments_in_range(then_span.end, colon_token.span.start)
-        .to_vec();
-
-    comments.extend(
-        context
-            .comments()
-            .comments_in_range(colon_token.span.end, else_span.start)
-            .iter()
-            .copied()
+    let mut boundary_comments =
+        context.raw_boundary_comments_in_range(then_span.end, separator_start);
+    boundary_comments.extend(
+        ternary_separator_comments(context, else_expression)
+            .into_iter()
             .filter(|comment| comment.is_line()),
     );
+    boundary_comments
+}
 
-    comments
+/// Return comments that stay on the else branch side of the ternary boundary.
+fn ternary_else_boundary_comments(
+    context: &DestackFormatContext<'_>,
+    else_expression: LocalNodeId<Expression>,
+) -> Vec<destack_ast::Comment> {
+    ternary_separator_comments(context, else_expression)
+        .into_iter()
+        .filter(|comment| comment.is_block())
+        .collect()
 }
 
 /// Return whether the boundary between two ternary parts has a line comment.
 fn ternary_boundary_has_line_comment(
     context: &DestackFormatContext<'_>,
-    left_expression: LocalNodeId<Expression>,
+    _left_expression: LocalNodeId<Expression>,
     right_expression: LocalNodeId<Expression>,
 ) -> bool {
-    ternary_boundary_comments(context, left_expression, right_expression)
+    ternary_separator_comments(context, right_expression)
         .iter()
         .any(|comment| comment.is_line())
 }
@@ -316,7 +297,14 @@ fn expression_is_nullish_literal(
     let expression_id = transparent_inner_expression(context, expression_id);
     matches!(
         context.tree.get(expression_id),
-        Expression::TypeLiteral(TypeLiteral::Null | TypeLiteral::Undefined)
+        Expression::Type {
+            value
+        } if matches!(
+            context.tree.get(*value),
+            TypeExpression::Literal {
+                value: TypeLiteral::Null | TypeLiteral::Undefined
+            }
+        )
     )
 }
 
@@ -453,19 +441,27 @@ fn write_standard_ternary_tail<'ast>(
     then_expression: LocalNodeId<Expression>,
     else_expression: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
-    let then_boundary_comment_nodes = else_expression
+    let then_leading_comment_nodes = ternary_separator_comments(f.context(), then_expression);
+    let then_trailing_comment_nodes = else_expression
         .map(|else_expression| {
             ternary_then_boundary_comments(f.context(), then_expression, else_expression)
         })
         .unwrap_or_default();
+    let else_leading_comment_nodes = else_expression
+        .map(|else_expression| ternary_else_boundary_comments(f.context(), else_expression))
+        .unwrap_or_default();
 
     let format_then_expression = format_with(|f| {
+        if !then_leading_comment_nodes.is_empty() {
+            write_raw_leading_comments(f, &then_leading_comment_nodes)?;
+        }
+
         write!(f, [then_expression])?;
 
-        if !then_boundary_comment_nodes.is_empty() {
+        if !then_trailing_comment_nodes.is_empty() {
             write!(
                 f,
-                [format_trailing_comment_slice(&then_boundary_comment_nodes)]
+                [format_trailing_comment_slice(&then_trailing_comment_nodes)]
             )?;
         }
 
@@ -474,6 +470,10 @@ fn write_standard_ternary_tail<'ast>(
 
     let format_else_expression = format_with(|f| {
         if let Some(else_expression) = else_expression {
+            if !else_leading_comment_nodes.is_empty() {
+                write_raw_leading_comments(f, &else_leading_comment_nodes)?;
+            }
+
             write!(f, [else_expression])?;
         }
         Ok(())
@@ -536,14 +536,6 @@ fn format_standard_ternary<'ast>(
     )?;
 
     Ok(())
-}
-
-/// Format one ternary expression in its inline single-line form.
-pub(crate) fn format_inline_ternary_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    format_standard_ternary(f, node_id, true, false)
 }
 
 /// Format one ternary expression in its expanded multiline form.
@@ -690,7 +682,7 @@ fn template_interpolation_has_boundary_newline(
     context.span_has_newline_before_next_non_whitespace_token(context.span(node_id))
 }
 
-/// Format a ternary expression with Prettier-style breaking.
+/// Format a ternary expression with OXC-shaped breaking.
 /// Nested ternaries get progressive indentation when they break.
 pub(crate) fn format_ternary(
     f: &mut DestackFormatter<'_, '_>,

@@ -7,7 +7,7 @@ use destack_ast::Expression;
 use destack_parser::ParserOptions;
 use destack_source::FileType;
 
-/// Member chains should split after the base head like OXC.
+/// Member chains should split after the base head.
 #[test]
 fn test_format_member_chain_splits_after_base_head() {
     assert_format_program_reference_widths(
@@ -26,9 +26,9 @@ fn test_format_member_chain_splits_after_base_head() {
     );
 }
 
-/// Long generic member chains should keep the head split that OXC chooses.
+/// Long generic member chains should keep the chosen split head shape.
 #[test]
-fn test_format_typescript_member_chain_with_generic_call_arguments() {
+fn test_format_member_chain_with_generic_call_arguments() {
     assert_format_program_reference_widths(
         r#"const defaultColorDecoratorsEnablement = accessor.get(IConfigurationService).getValue<"auto" | "always" | "never">("longlonglonglonglonglonglonglonglong")
 "#,
@@ -83,7 +83,7 @@ fn test_format_member_chain_preserves_blank_lines() {
     );
 }
 
-/// Short declarator heads keep short instantiation chains inline at fixture width.
+/// Short declarator heads keep short instantiation chains inline at the reference width.
 #[test]
 fn test_format_member_instantiation_chain_stays_inline() {
     assert_format_program_roundtrip_with_file_type(
@@ -115,7 +115,7 @@ fn test_member_instantiation_chain_tail_group_shape() {
     assert_eq!(tail_group_count, 1);
 }
 
-/// Short statement-position heads should merge the first chain group like OXC.
+/// Short statement-position heads should merge the first chain group.
 #[test]
 fn test_format_member_chain_merges_short_statement_head() {
     assert_format_program_roundtrip_with_file_type(

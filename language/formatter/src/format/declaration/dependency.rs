@@ -2,13 +2,13 @@ use crate::format::annotation::{
     block_infix_annotations, format_raw_comment, infix_or_postfix_annotations, prefix_annotations,
     raw_prefix_comment_nodes,
 };
-use crate::format::collection::{TrailingSeparator, separated_entries};
+use crate::format::collection::TrailingSeparator;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AnnotationPosition, Argument, DeclarationDescriptor, Declarator, DependencyAttributeClause,
-    DependencyAttributeClauseKind, DependencyItem, DependencyKind, DependencyMode, Expression,
-    ImportSource, ImportTarget, Keyword, LocalNodeId, Name, NodeTree, Pattern, ScalarLiteral,
-    TokenSpan, TokenType,
+    Argument, DecoratorPosition, DependencyItem, DependencyKind, DependencyMode, Expression,
+    ImportAttribute, ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue,
+    ImportSource, ImportTarget, Keyword, LocalNodeId, Name, NodeTree, ScalarLiteral, TokenSpan,
+    TokenType,
 };
 use destack_core::{ImmutableStringPool, StringId};
 use destack_fir::format::{FormatError, FormatResult};
@@ -129,92 +129,6 @@ pub(crate) fn import_expression(
 /// Check if an expression is an import (unwrapping Statement if needed).
 pub(crate) fn is_import(expr_id: LocalNodeId<Expression>, tree: &NodeTree) -> bool {
     import_expression(expr_id, tree).is_some()
-}
-
-/// Format `export import ... = require(...)` when modeled as an export let.
-pub(crate) fn format_export_import_equals_statement(
-    f: &mut DestackFormatter<'_, '_>,
-    tree: &NodeTree,
-    descriptor: &DeclarationDescriptor,
-    declarators: &[LocalNodeId<Declarator>],
-) -> FormatResult<bool> {
-    // descriptor.export is only set for export forms
-    let Some(export) = descriptor.export else {
-        return Ok(false);
-    };
-
-    // expect single declarator: const Alias = importEquals
-    if declarators.len() != 1 {
-        return Ok(false);
-    }
-
-    let Declarator {
-        pattern,
-        ty: None,
-        value: Some(value),
-    } = tree.get(declarators[0])
-    else {
-        return Ok(false);
-    };
-
-    if !matches!(tree.get(*pattern), Pattern::Binding { .. }) {
-        return Ok(false);
-    }
-
-    let Expression::Import {
-        source,
-        kind,
-        target,
-        items,
-        ..
-    } = tree.get(*value)
-    else {
-        return Ok(false);
-    };
-
-    if *source != ImportSource::ImportEquals {
-        return Ok(false);
-    }
-
-    let target = match target {
-        ImportTarget::String(target) => *target,
-        ImportTarget::Expression { .. } => return Ok(false),
-    };
-
-    let items = items.as_deref().ok_or(FormatError::SyntaxError {
-        message: "import equals requires dependency items",
-    })?;
-    let alias = items
-        .first()
-        .and_then(|item| match tree.get(*item) {
-            DependencyItem::Item { alias, .. } => *alias,
-            DependencyItem::Error => None,
-        })
-        .ok_or(FormatError::SyntaxError {
-            message: "import equals requires an alias",
-        })?;
-
-    write!(f, [export, space(), Keyword::Import, space()])?;
-    if *kind == DependencyKind::Type {
-        write!(f, [Keyword::Type, space()])?;
-    }
-    write!(
-        f,
-        [
-            alias,
-            space(),
-            token("="),
-            space(),
-            token("require"),
-            token("("),
-            token("\""),
-            target,
-            token("\""),
-            token(")")
-        ]
-    )?;
-
-    Ok(true)
 }
 
 /// Format one `export as namespace` statement.
@@ -371,24 +285,6 @@ pub(crate) fn should_insert_blank_between(
     false
 }
 
-/// Return whether call arguments span multiple lines in source.
-fn call_arguments_are_multiline_span(
-    context: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    let (Some(first), Some(last)) = (dynamic_arguments.first(), dynamic_arguments.last()) else {
-        return false;
-    };
-
-    let first_span = context.span(*first);
-    let last_span = context.span(*last);
-    if first_span.file != last_span.file || first_span.start >= last_span.end {
-        return false;
-    }
-
-    context.has_newline(Span::new(first_span.file, first_span.start, last_span.end))
-}
-
 /// Return one dependency item's mode when it is valid.
 fn dependency_item_mode(item: &DependencyItem) -> Option<DependencyMode> {
     match item {
@@ -426,8 +322,8 @@ fn dependency_item_prefix_start(
 
     for annotation_id in context.annotation_ids(item_id).iter().copied() {
         if matches!(
-            context.annotation(annotation_id).position(),
-            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+            context.annotation(annotation_id).position,
+            DecoratorPosition::BlockPrefix | DecoratorPosition::LinePrefix
         ) {
             start = start.min(context.annotation_span(annotation_id).start);
         }
@@ -566,35 +462,105 @@ fn write_dependency_item_alias_clause<'ast>(
     write!(f, [alias])
 }
 
+/// Write one import attribute value.
+fn write_import_attribute_value<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    value: &ImportAttributeValue,
+) -> FormatResult<()> {
+    // scalar literal
+    if let ImportAttributeValue::ScalarLiteral(value) = value {
+        let span = Span::empty(f.context().file.id);
+        return format_scalar_literal(value, span, f);
+    }
+
+    // array
+    if let ImportAttributeValue::Array(values) = value {
+        write!(f, [token("[")])?;
+
+        for (index, value) in values.iter().enumerate() {
+            // separator
+            if index > 0 {
+                write!(f, [token(","), space()])?;
+            }
+
+            // value
+            write_import_attribute_value(f, value)?;
+        }
+
+        write!(f, [token("]")])?;
+        return Ok(());
+    }
+
+    // object
+    if let ImportAttributeValue::Object(attributes) = value {
+        write!(f, [token("{")])?;
+
+        if f.context().options.bracket_spacing && !attributes.is_empty() {
+            write!(f, [space()])?;
+        }
+
+        for (index, attribute) in attributes.iter().enumerate() {
+            // separator
+            if index > 0 {
+                write!(f, [token(","), space()])?;
+            }
+
+            // attribute
+            format_import_attribute(f, attribute)?;
+        }
+
+        if f.context().options.bracket_spacing && !attributes.is_empty() {
+            write!(f, [space()])?;
+        }
+
+        write!(f, [token("}")])?;
+        return Ok(());
+    }
+
+    Ok(())
+}
+
+/// Write one import attribute entry.
+fn format_import_attribute<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    attribute: &ImportAttribute,
+) -> FormatResult<()> {
+    // key
+    format_dependency_item_name(f, attribute.key)?;
+
+    // value
+    write!(f, [token(":"), space()])?;
+    write_import_attribute_value(f, &attribute.value)
+}
+
 /// Format `with { ... }` arguments for import and export statements.
 fn format_dependency_with_arguments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    clause_kind: DependencyAttributeClauseKind,
-    arguments: &[LocalNodeId<Argument>],
+    clause_kind: ImportAttributeClauseKind,
+    attributes: &[ImportAttribute],
 ) -> FormatResult<()> {
+    // annotations
     let has_attribute_head_annotation = f.context().has_infix_annotation(node_id);
     if has_attribute_head_annotation {
         write!(f, [block_infix_annotations(f.context(), node_id)])?;
     }
 
-    let should_expand_attribute_arguments =
-        call_arguments_are_multiline_span(f.context(), arguments);
-    let trailing_separator = match f.context().options.trailing_comma {
-        destack_workspace::TrailingComma::None => TrailingSeparator::Omit,
-        destack_workspace::TrailingComma::Es5 | destack_workspace::TrailingComma::All => {
-            TrailingSeparator::Allowed
-        }
-    };
+    // body
     let format_arguments = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         if f.context().options.bracket_spacing {
             write!(f, [if_group_fits_on_line(&space())])?;
         }
 
-        write!(
-            f,
-            [separated_entries(",", arguments, trailing_separator, None)]
-        )?;
+        for (index, attribute) in attributes.iter().enumerate() {
+            // separator
+            if index > 0 {
+                write!(f, [token(","), space()])?;
+            }
+
+            // entry
+            format_import_attribute(f, attribute)?;
+        }
 
         if f.context().options.bracket_spacing {
             write!(f, [if_group_fits_on_line(&space())])?;
@@ -608,11 +574,11 @@ fn format_dependency_with_arguments<'ast>(
             [token("{"), soft_block_indent(&format_arguments), token("}")]
         )
     });
-    let with_arguments = group(&with_arguments).should_expand(should_expand_attribute_arguments);
+    let with_arguments = group(&with_arguments);
 
     let clause_keyword = match clause_kind {
-        DependencyAttributeClauseKind::With => Keyword::With,
-        DependencyAttributeClauseKind::Assert => Keyword::Assert,
+        ImportAttributeClauseKind::With => Keyword::With,
+        ImportAttributeClauseKind::Assert => Keyword::Assert,
     };
 
     if has_attribute_head_annotation {
@@ -1056,13 +1022,13 @@ fn write_dependency_direct_target_clause<'ast>(
 fn write_dependency_attribute_clause<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    attributes: Option<&DependencyAttributeClause>,
+    attributes: Option<&ImportAttributeClause>,
 ) -> FormatResult<()> {
     let Some(attributes) = attributes else {
         return Ok(());
     };
 
-    format_dependency_with_arguments(f, node_id, attributes.kind, &attributes.arguments)
+    format_dependency_with_arguments(f, node_id, attributes.kind, &attributes.attributes)
 }
 
 /// Write one namespace import clause.
@@ -1401,7 +1367,7 @@ fn write_import_declaration_expression<'ast>(
     target: StringId,
     items: &[LocalNodeId<DependencyItem>],
     has_item_shell: bool,
-    attributes: Option<&DependencyAttributeClause>,
+    attributes: Option<&ImportAttributeClause>,
 ) -> FormatResult<()> {
     let has_item_annotations = dependency_items_have_annotations(f.context(), items);
     let organize_imports = f.context().options.organize_imports.is_enabled();
@@ -1442,7 +1408,7 @@ pub(crate) fn format_import_expression<'ast>(
     kind: DependencyKind,
     target: &ImportTarget,
     items: Option<&[LocalNodeId<DependencyItem>]>,
-    attributes: Option<&DependencyAttributeClause>,
+    attributes: Option<&ImportAttributeClause>,
     arguments: Option<&[LocalNodeId<Argument>]>,
 ) -> FormatResult<()> {
     let has_item_shell = items.is_some();
@@ -1475,7 +1441,7 @@ fn write_export_declaration_expression<'ast>(
     kind: DependencyKind,
     target: Option<destack_core::StringId>,
     items: &[LocalNodeId<DependencyItem>],
-    attributes: Option<&DependencyAttributeClause>,
+    attributes: Option<&ImportAttributeClause>,
 ) -> FormatResult<()> {
     let has_item_annotations = dependency_items_have_annotations(f.context(), items);
     let organize_imports = f.context().options.organize_imports.is_enabled();
@@ -1517,7 +1483,7 @@ pub(crate) fn format_export_expression<'ast>(
     kind: DependencyKind,
     target: Option<destack_core::StringId>,
     items: &[LocalNodeId<DependencyItem>],
-    attributes: Option<&DependencyAttributeClause>,
+    attributes: Option<&ImportAttributeClause>,
 ) -> FormatResult<()> {
     write_export_declaration_expression(f, node_id, kind, target, items, attributes)
 }

@@ -3,7 +3,7 @@ use destack_source::FileType;
 
 /// Block callbacks with short cast tails should follow the grouped-last layout.
 #[test]
-fn test_format_typescript_grouped_last_argument_layout_with_short_cast_tail() {
+fn test_format_grouped_last_argument_layout_with_short_cast_tail() {
     assert_format_program_reference_widths(
         r#"const x = [].reduce(() => {
   return "y";
@@ -29,7 +29,7 @@ fn test_format_typescript_grouped_last_argument_layout_with_short_cast_tail() {
     );
 }
 
-/// Call-only layout probes must not leak into `new` argument formatting.
+/// Call-only layout checks must not leak into `new` argument formatting.
 #[test]
 fn test_format_new_expression_does_not_use_test_call_layout() {
     assert_format_program!(
@@ -50,7 +50,7 @@ fn test_format_new_expression_does_not_use_test_call_layout() {
 
 /// Mixed argument families should use the expected grouped-last layout.
 #[test]
-fn test_format_typescript_grouped_last_argument_layout() {
+fn test_format_grouped_last_argument_layout() {
     assert_format_program_reference_widths(
         r#"// Don't group when both arguments are objects
 call({ a: 1 }, { b: 2 });
@@ -190,7 +190,7 @@ call({ a: 1, b: 2, c: 3 }, () => {
 
 /// Named function callback arguments should follow the parameter layout.
 #[test]
-fn test_format_typescript_named_function_argument_layout() {
+fn test_format_named_function_argument_layout() {
     assert_format_program_reference_widths(
         r#"useStableCallback(function useShowToast(
     ...args: Parameters<typeof toastService.addToastItem>
@@ -258,7 +258,7 @@ fn test_format_preserves_blank_lines_between_call_arguments() {
 
 /// Grouped first-argument layouts should treat simple generic and array cast tails like the formatter expects.
 #[test]
-fn test_format_typescript_grouped_first_argument_simple_cast_types() {
+fn test_format_grouped_first_argument_simple_cast_types() {
     assert_format_program_reference_widths(
         r#"const genericTail = call((
   alpha: AlphaType,

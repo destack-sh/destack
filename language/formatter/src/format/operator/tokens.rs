@@ -1,7 +1,5 @@
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
-    AssignOperator, BinaryOperator, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
-};
+use destack_ast::{AssignOperator, BinaryOperator, UnaryOperator};
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::token;
 use destack_fir::write;
@@ -24,25 +22,6 @@ impl<'ast> Format<DestackFormatContext<'ast>> for UnaryOperator {
             UnaryOperator::Void => token("void"),
             UnaryOperator::Dereference => token("*"),
             UnaryOperator::Spread => token("..."),
-        };
-        write!(f, [token])
-    }
-}
-
-/// Format type unary operators as source tokens.
-impl<'ast> Format<DestackFormatContext<'ast>> for TypeUnaryOperator {
-    /// Write the token form of the type unary operator.
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-        let token = match self {
-            TypeUnaryOperator::Not => token("!"),
-            TypeUnaryOperator::Must => token("!"),
-            TypeUnaryOperator::Newtype => token("newtype"),
-            TypeUnaryOperator::Type => token("type"),
-            TypeUnaryOperator::Readonly => token("readonly"),
-            TypeUnaryOperator::Typeof => token("typeof"),
-            TypeUnaryOperator::Keyof => token("keyof"),
-            TypeUnaryOperator::AsComptime => token("as comptime"),
-            TypeUnaryOperator::AsConst => token("as const"),
         };
         write!(f, [token])
     }
@@ -86,24 +65,6 @@ impl<'ast> Format<DestackFormatContext<'ast>> for BinaryOperator {
             BinaryOperator::Or => token("||"),
             BinaryOperator::Coalesce => token("??"),
             BinaryOperator::In => token("in"),
-            BinaryOperator::InstanceOf => token("instanceof"),
-        };
-        write!(f, [token])
-    }
-}
-
-/// Format type binary operators as source tokens.
-impl<'ast> Format<DestackFormatContext<'ast>> for TypeBinaryOperator {
-    /// Write the token form of the type binary operator.
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-        let token = match self {
-            TypeBinaryOperator::Cast => token("as"),
-            TypeBinaryOperator::In => token("in"),
-            TypeBinaryOperator::Is => token("is"),
-            TypeBinaryOperator::InstanceOf => token("instanceof"),
-            TypeBinaryOperator::Satisfies => token("satisfies"),
-            TypeBinaryOperator::Extends => token("extends"),
-            TypeBinaryOperator::Implements => token("implements"),
         };
         write!(f, [token])
     }

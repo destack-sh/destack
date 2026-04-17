@@ -1,23 +1,21 @@
-use super::property::{format_field_like, format_method_like, format_node_with_directive};
+use super::property::{
+    format_field_like, format_method_like, format_node_with_directive, key_requires_quote_group,
+};
 use crate::format::annotation::{
     decorator_prefix_annotations, infix_or_postfix_annotations,
     prefix_annotations_without_decorators,
 };
-use crate::format::collection::{
-    TrailingSeparator, format_block_nodes_with_ignore_ranges, separated_entries,
-};
+use crate::format::collection::format_block_nodes_with_ignore_ranges;
 use crate::format::declaration::signature::{
-    default_static_parameter_trailing_separator, format_binding_modifiers_postfix_maybe,
-    format_binding_modifiers_prefix, format_binding_modifiers_prefix_maybe,
-    write_static_parameter_list,
+    default_generic_parameter_trailing_separator, format_where_clause_with_break,
+    write_generic_parameter_list,
 };
 use crate::format::declaration::write_statement_terminator_after_anchor;
-use crate::format::directive::{node_has_ignore_directive, write_ignored_node};
-use crate::format::operator::{
-    write_colon_prefixed_type_annotation, write_type_expression_with_inline_prefix_annotations,
-};
+use crate::format::file::{node_has_ignore_directive, write_ignored_node};
 use crate::{DestackFormatter, FormatNode};
-use destack_ast::{Declaration, Keyword, LocalNodeId, Member};
+use destack_ast::{
+    Ambientness, Declaration, Keyword, LocalNodeId, Member, TypeExpression, Visibility,
+};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{space, token};
 use destack_fir::write;
@@ -52,11 +50,102 @@ fn class_member_should_force_quote_keys<'ast>(
     }
 
     let parent_id = LocalNodeId::<Declaration>::new(parent_id);
-    matches!(f.context().tree.get(parent_id), Declaration::Class { .. })
+    let Declaration::Class(class) = f.context().tree.get(parent_id) else {
+        return false;
+    };
+
+    class.members.iter().copied().any(|member_id| {
+        let key = f.context().tree.get(member_id).key().copied();
+
+        key.is_some_and(|key| key_requires_quote_group(f.context(), key))
+    })
 }
 
-/// Write a class field terminator and any same-line trailing comments.
-fn write_field_terminator<'ast>(
+/// Write one visibility prefix.
+fn write_visibility_prefix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    visibility: Option<Visibility>,
+) -> FormatResult<()> {
+    // visibility
+    if let Some(visibility) = visibility {
+        let keyword = match visibility {
+            Visibility::Public => Keyword::Public,
+            Visibility::Protected => Keyword::Protected,
+            Visibility::Private => Keyword::Private,
+        };
+        write!(f, [keyword, space()])?;
+    }
+
+    Ok(())
+}
+
+/// Write one ambient prefix.
+fn write_ambient_prefix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    ambient: Ambientness,
+) -> FormatResult<()> {
+    // ambient
+    if ambient.is_ambient() {
+        write!(f, [Keyword::Declare, space()])?;
+    }
+
+    Ok(())
+}
+
+/// Write one static prefix.
+fn write_static_prefix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    is_static: bool,
+) -> FormatResult<()> {
+    // static
+    if is_static {
+        write!(f, [Keyword::Static, space()])?;
+    }
+
+    Ok(())
+}
+
+/// Write one abstract prefix.
+fn write_abstract_prefix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    is_abstract: bool,
+) -> FormatResult<()> {
+    // abstract
+    if is_abstract {
+        write!(f, [Keyword::Abstract, space()])?;
+    }
+
+    Ok(())
+}
+
+/// Write one override prefix.
+fn write_override_prefix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    is_override: bool,
+) -> FormatResult<()> {
+    // override
+    if is_override {
+        write!(f, [Keyword::Override, space()])?;
+    }
+
+    Ok(())
+}
+
+/// Write one type annotation.
+fn write_declared_type<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    declared_type: Option<LocalNodeId<TypeExpression>>,
+) -> FormatResult<()> {
+    // declared type
+    if let Some(declared_type) = declared_type {
+        write!(f, [token(":"), space(), declared_type])?;
+    }
+
+    Ok(())
+}
+
+/// Write a class-like member terminator and any same-line trailing comments.
+fn write_member_terminator<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Member>,
 ) -> FormatResult<()> {
@@ -70,24 +159,35 @@ impl<'ast> FormatNode<'ast, Member> for Member {
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         if let Member::Method {
-            modifiers,
             key,
             signature,
             body,
+            visibility,
+            ambient,
+            is_static,
+            is_accessor,
+            is_comptime,
+            ..
         } = self
         {
             return format_node_with_directive(f, node_id, true, |f| {
                 let force_quote_keys = class_member_should_force_quote_keys(f, node_id);
+
                 format_method_like(
                     f,
                     node_id,
-                    *modifiers,
+                    *visibility,
+                    *ambient,
+                    *is_static,
+                    *is_accessor,
+                    *is_comptime,
                     *key,
                     signature,
                     *body,
                     force_quote_keys,
                 )?;
 
+                // abstract and signature-only methods own their terminator
                 if body.is_none() {
                     write!(f, [token(";")])?;
                 }
@@ -106,9 +206,15 @@ impl<'ast> FormatNode<'ast, Member> for Member {
             write_ignored_node(f, node_id)?;
             write!(f, [infix_or_postfix_annotations(f.context(), node_id)])?;
 
-            // ignored class fields still get one formatter-owned terminator
-            if matches!(self, Member::Field { .. }) {
-                write_field_terminator(f, node_id)?;
+            // ignored declaration-like members still own one terminator
+            if matches!(
+                self,
+                Member::AssociatedType { .. }
+                    | Member::AssociatedConst { .. }
+                    | Member::Field { .. }
+                    | Member::Embed { .. }
+            ) {
+                write_member_terminator(f, node_id)?;
             }
 
             return Ok(());
@@ -116,131 +222,139 @@ impl<'ast> FormatNode<'ast, Member> for Member {
 
         format_node_with_directive(f, node_id, false, |f| {
             match self {
-                Member::Type {
-                    modifiers,
+                Member::AssociatedType {
                     name,
-                    static_parameters,
+                    generic_parameters,
                     where_clauses,
-                    ty,
+                    constraint,
                     value,
+                    visibility,
+                    ambient,
+                    is_abstract,
+                    is_override,
+                    is_static,
                 } => {
-                    // modifiers
-                    format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                    // prefixes
+                    write_ambient_prefix(f, *ambient)?;
+                    write_visibility_prefix(f, *visibility)?;
+                    write_static_prefix(f, *is_static)?;
+                    write_abstract_prefix(f, *is_abstract)?;
+                    write_override_prefix(f, *is_override)?;
 
-                    // keyword
-                    write!(f, [Keyword::Type, space()])?;
+                    // head
+                    write!(f, [Keyword::Type, space(), *name])?;
 
-                    // name
-                    write!(f, [name])?;
-
-                    // static parameters
-                    if let Some(static_parameters) = static_parameters
-                        && !static_parameters.is_empty()
-                    {
-                        write_static_parameter_list(
+                    // generic parameters
+                    if !generic_parameters.is_empty() {
+                        write_generic_parameter_list(
                             f,
-                            static_parameters,
-                            default_static_parameter_trailing_separator(f),
+                            generic_parameters,
+                            default_generic_parameter_trailing_separator(f),
                         )?;
                     }
 
                     // where clauses
-                    if let Some(where_clauses) = where_clauses
-                        && !where_clauses.is_empty()
-                    {
-                        write!(f, [space(), Keyword::Where, space()])?;
-                        write!(
-                            f,
-                            [separated_entries(
-                                ",",
-                                where_clauses,
-                                TrailingSeparator::Omit,
-                                None,
-                            )]
-                        )?;
+                    if !where_clauses.is_empty() {
+                        format_where_clause_with_break(f, where_clauses)?;
                     }
 
                     // type bound
-                    if let Some(ty) = ty {
-                        write_colon_prefixed_type_annotation(f, *ty)?;
-                    }
+                    write_declared_type(f, *constraint)?;
 
                     // value
                     if let Some(value) = value {
-                        write!(f, [space(), token("="), space()])?;
-                        write_type_expression_with_inline_prefix_annotations(f, *value)?;
+                        write!(f, [space(), token("="), space(), *value])?;
                     }
                 }
-                Member::ComptimeConst {
-                    modifiers,
+                Member::AssociatedConst {
                     name,
-                    ty,
+                    declared_type,
                     value,
+                    visibility,
+                    ambient,
+                    is_static,
                 } => {
-                    // keep non comptime modifiers before the associated keyword pair
-                    if let Some(mut modifiers) = *modifiers {
-                        modifiers.timing = None;
-                        modifiers.operator = None;
-                        format_binding_modifiers_prefix(f, modifiers)?;
-                    }
+                    // prefixes
+                    write_ambient_prefix(f, *ambient)?;
+                    write_visibility_prefix(f, *visibility)?;
+                    write_static_prefix(f, *is_static)?;
 
-                    // associated comptime constants are always emitted in canonical order
+                    // keyword pair
                     write!(
                         f,
-                        [Keyword::Comptime, space(), Keyword::Const, space(), name]
+                        [Keyword::Comptime, space(), Keyword::Const, space(), *name]
                     )?;
 
-                    // optional type annotation
-                    if let Some(ty) = ty {
-                        write_colon_prefixed_type_annotation(f, *ty)?;
-                    }
-
-                    // optional initializer
+                    // type and value
+                    write_declared_type(f, *declared_type)?;
                     if let Some(value) = value {
-                        write!(f, [space(), token("="), space(), value])?;
+                        write!(f, [space(), token("="), space(), *value])?;
                     }
                 }
                 Member::Field {
-                    modifiers,
                     key,
-                    value,
+                    declared_type,
                     default,
+                    is_optional,
+                    is_readonly,
+                    mutability,
+                    visibility,
+                    ambient,
+                    is_abstract,
+                    is_override,
+                    is_static,
+                    is_const_asserted,
+                    is_accessor,
+                    ..
                 } => {
                     let force_quote_keys = class_member_should_force_quote_keys(f, node_id);
-                    format_field_like(f, *modifiers, *key, *value, *default, force_quote_keys)?;
+
+                    format_field_like(
+                        f,
+                        node_id,
+                        *key,
+                        *declared_type,
+                        *visibility,
+                        *ambient,
+                        *is_static,
+                        *is_abstract,
+                        *is_override,
+                        *is_readonly,
+                        *mutability,
+                        *is_accessor,
+                        *is_optional,
+                        *is_const_asserted,
+                        *default,
+                        force_quote_keys,
+                    )?;
                 }
-                Member::Embed { modifiers, value } => {
-                    // modifiers
-                    format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                Member::Embed {
+                    value,
+                    visibility,
+                    ambient,
+                    is_static,
+                } => {
+                    // prefixes
+                    write_ambient_prefix(f, *ambient)?;
+                    write_visibility_prefix(f, *visibility)?;
+                    write_static_prefix(f, *is_static)?;
 
-                    // keyword
-                    write!(f, [token("...")])?;
-
-                    // value
-                    write!(f, [value])?;
-
-                    // modifiers
-                    format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                    // embedded type
+                    write!(f, [token("..."), *value])?;
                 }
-                Member::StaticBlock { body, .. } => {
+                Member::StaticBlock { body } => {
                     // keyword
                     write!(f, [Keyword::Static, space()])?;
 
                     // body
-                    write!(f, [body])?;
+                    write!(f, [*body])?;
                 }
-                Member::ComptimeBlock { modifiers, body } => {
-                    // modifiers prefix
-                    if let Some(mut modifiers) = *modifiers {
-                        modifiers.timing = None;
-                        format_binding_modifiers_prefix(f, modifiers)?;
-                    }
-
+                Member::ComptimeBlock { body } => {
                     // keyword
                     write!(f, [Keyword::Comptime, space()])?;
 
                     // body
-                    write!(f, [body])?;
+                    write!(f, [*body])?;
                 }
                 Member::Method { .. } => {}
                 Member::Error => {
@@ -248,9 +362,15 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 }
             }
 
-            let needs_semicolon = matches!(self, Member::Field { .. });
-            if needs_semicolon {
-                write_field_terminator(f, node_id)?;
+            // declaration-like members own one trailing terminator
+            if matches!(
+                self,
+                Member::AssociatedType { .. }
+                    | Member::AssociatedConst { .. }
+                    | Member::Field { .. }
+                    | Member::Embed { .. }
+            ) {
+                write_member_terminator(f, node_id)?;
             }
 
             Ok(())

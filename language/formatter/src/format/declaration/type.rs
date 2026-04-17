@@ -1,35 +1,26 @@
-use crate::format::annotation::{
-    block_infix_annotations, infix_or_postfix_annotations, line_suffix_boundary_annotations,
-    postfix_annotations_without_line_suffix_boundary, prefix_annotations,
-    write_annotation_sequence,
-};
+use crate::format::annotation::{infix_or_postfix_annotations, prefix_annotations};
 use crate::format::collection::member::format_block_of_members;
-use crate::format::collection::{TrailingSeparator, separated_entries};
 use crate::format::declaration::declaration::{
     format_declaration_export_modifier, format_super_type_clause,
     format_super_type_clause_with_expand,
 };
 use crate::format::declaration::signature::{
-    default_static_parameter_trailing_separator, format_where_clause_with_break,
-    write_static_parameter_list,
+    default_generic_parameter_trailing_separator, format_where_clause_with_break,
+    write_generic_parameter_list,
 };
-use crate::format::expression::{
-    expression_has_prefix_comment_or_doc_annotation_in_left_spine,
-    expression_has_static_type_arguments,
-};
-use crate::format::operator::write_type_expression_with_inline_prefix_annotations;
+use crate::format::expression::{format_block_of_type_members, format_expression};
 use crate::{
-    Annotation, DestackFormatContext, DestackFormatter, FormatNode,
+    Decorator, DestackFormatContext, DestackFormatter, FormatNode,
     empty_block_with_infix_annotations,
 };
 use destack_ast::{
-    AnnotationPosition, Declaration, DeclarationAbstraction, DeclarationDescriptor,
-    DeclarationKind, Declarator, EnumField, EnumKind, Expression, FunctionKind, Generics, Heritage,
-    Keyword, LocalNodeId, Member, NodeType, TypeKind, WhereClause,
+    ClassDeclaration, Declaration, EnumDeclaration, EnumField, EnumKind, Expression,
+    InterfaceDeclaration, Keyword, LocalNodeId, LocalNodeIdAny, Member, StructDeclaration,
+    TypeMember,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
-use destack_fir::{format_args, write};
+use destack_fir::write;
 
 /// Return whether a declaration expression is a decorated class declaration.
 pub(crate) fn expression_is_decorated_class_declaration(
@@ -39,653 +30,348 @@ pub(crate) fn expression_is_decorated_class_declaration(
     let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
         return false;
     };
-    let Declaration::Class { .. } = context.tree.get(*declaration_id) else {
+    let Declaration::Class(_) = context.tree.get(*declaration_id) else {
         return false;
     };
 
-    let expression_has_decorator =
-        context
-            .annotation_ids(expression_id)
-            .iter()
-            .any(|annotation_id| {
-                matches!(
-                    context.annotation(*annotation_id),
-                    Annotation::Decorator { .. }
-                )
-            });
-    if expression_has_decorator {
+    // expression decorators
+    if context
+        .annotation_ids(expression_id)
+        .iter()
+        .any(|annotation_id| matches!(context.annotation(*annotation_id), Decorator { .. }))
+    {
         return true;
     }
 
+    // declaration decorators
     context
         .annotation_ids(*declaration_id)
         .iter()
-        .any(|annotation_id| {
-            matches!(
-                context.annotation(*annotation_id),
-                Annotation::Decorator { .. }
-            )
-        })
+        .any(|annotation_id| matches!(context.annotation(*annotation_id), Decorator { .. }))
 }
 
-/// Return whether a parenthesized expression wraps a decorated class in `extends`.
-pub(crate) fn parenthesized_wraps_decorated_class_extends_head(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    inner_expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Declaration {
-        return false;
-    }
-
-    let declaration_id = LocalNodeId::<Declaration>::new(parent_id);
-    let extends_types = match context.tree.get(declaration_id) {
-        Declaration::Class { heritage, .. } => heritage.extends_types.as_deref(),
-        _ => None,
-    };
-    let Some(extends_types) = extends_types else {
-        return false;
-    };
-
-    extends_types.contains(&node_id)
-        && expression_is_decorated_class_declaration(context, inner_expression_id)
-}
-
-/// Return whether a parenthesized extends head carries prefix comment or doc annotations.
-pub(crate) fn parenthesized_wraps_prefix_annotated_class_extends_head(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    inner_expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Declaration {
-        return false;
-    }
-
-    let declaration_id = LocalNodeId::<Declaration>::new(parent_id);
-    let extends_types = match context.tree.get(declaration_id) {
-        Declaration::Class { heritage, .. } => heritage.extends_types.as_deref(),
-        _ => None,
-    };
-    let Some(extends_types) = extends_types else {
-        return false;
-    };
-    if !extends_types.contains(&node_id) {
-        return false;
-    }
-
-    expression_has_prefix_comment_or_doc_annotation_in_left_spine(context, inner_expression_id)
-}
-
-/// Return whether one super-type list has a line-postfix-boundary comment.
-fn super_type_clause_has_line_suffix_boundary_annotation(
-    f: &DestackFormatter<'_, '_>,
-    types: &[LocalNodeId<Expression>],
-) -> bool {
-    types.iter().copied().any(|expression_id| {
-        !f.context()
-            .end_of_line_raw_doc_comments_after(f.context().span(expression_id).end)
-            .is_empty()
-    })
-}
-
-/// Return whether one declaration head has a line-postfix-boundary comment before heritage.
-fn declaration_heritage_head_has_line_suffix_boundary_annotation(
-    f: &DestackFormatter<'_, '_>,
-    node_id: LocalNodeId<Declaration>,
-) -> bool {
-    !f.context()
-        .end_of_line_raw_doc_comments_after(f.context().span(node_id).end)
-        .is_empty()
-}
-
-/// Return whether one extends type is a parenthesized class declaration expression.
-fn is_parenthesized_class_extends_type(
-    f: &DestackFormatter<'_, '_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let Expression::Parenthesized { expression } = f.context().tree.get(expression_id) else {
-        return false;
-    };
-
-    let Expression::Declaration(declaration_id) = f.context().tree.get(*expression) else {
-        return false;
-    };
-
-    matches!(
-        f.context().tree.get(*declaration_id),
-        Declaration::Class { .. }
-    )
-}
-
-/// Return whether one class extends head requires explicit parenthesized grouping.
-fn class_extends_expression_requires_parentheses(
-    f: &DestackFormatter<'_, '_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    // unparenthesized lambdas are not valid in class heritage heads
-    if matches!(
-        f.context().tree.get(expression_id),
-        Expression::Declaration(declaration_id)
-            if matches!(
-                f.context().tree.get(*declaration_id),
-                Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
-            )
-    ) {
-        return true;
-    }
-
-    // these forms require explicit parentheses in class heritage expressions
-    matches!(
-        f.context().tree.get(expression_id),
-        Expression::ObjectExpression { .. }
-            | Expression::Unary { .. }
-            | Expression::Binary { .. }
-            | Expression::TypeBinary { .. }
-            | Expression::TypeConditional { .. }
-            | Expression::If { .. }
-            | Expression::Assign { .. }
-            | Expression::SequenceExpression { .. }
-    )
-}
-
-/// Format one class extends expression, adding wrappers for invalid unparenthesized heads.
-fn format_class_extends_expression<'ast>(
+/// Write one declaration generic parameter list.
+fn write_declaration_generic_parameters<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    expression_id: LocalNodeId<Expression>,
+    generic_parameters: &[LocalNodeId<destack_ast::GenericParameter>],
 ) -> FormatResult<()> {
-    if class_extends_expression_requires_parentheses(f, expression_id) {
-        write!(f, [token("(")])?;
-        write_type_expression_with_inline_prefix_annotations(f, expression_id)?;
-        write!(f, [token(")")])?;
-    } else {
-        write_type_expression_with_inline_prefix_annotations(f, expression_id)?;
-    }
-
-    Ok(())
-}
-
-/// Format an expanded implements clause with one type per line.
-fn format_expanded_implements_clause<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    implements_types: &[LocalNodeId<Expression>],
-    start_on_new_line: bool,
-) -> FormatResult<()> {
-    write!(
-        f,
-        [group(&indent(&format_args![
-            format_with(|f| {
-                if start_on_new_line {
-                    write!(f, [hard_line_break()])?;
-                } else {
-                    write!(f, [soft_line_break_or_space()])?;
-                }
-                Ok(())
-            }),
-            Keyword::Implements,
-            indent(&format_args![
-                hard_line_break(),
-                format_with(|f| {
-                    f.join_with(&format_args![&token(","), hard_line_break()])
-                        .entries(implements_types)
-                        .finish()
-                })
-            ])
-        ]))]
-    )
-}
-
-/// Format shared export and declaration modifiers for declarations.
-fn format_declaration_header_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Declaration>,
-    descriptor: &DeclarationDescriptor,
-) -> FormatResult<()> {
-    format_declaration_export_modifier(f, node_id, descriptor)?;
-
-    if descriptor.kind == DeclarationKind::Declaration {
-        write!(f, [Keyword::Declare, space()])?;
-    }
-
-    Ok(())
-}
-
-/// Format declaration static parameters when present.
-fn format_declaration_static_parameters<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    generics: &Generics,
-) -> FormatResult<()> {
-    if let Some(static_parameters) = generics.static_parameters.as_ref()
-        && !static_parameters.is_empty()
-    {
-        write_static_parameter_list(
+    // generic parameters
+    if !generic_parameters.is_empty() {
+        write_generic_parameter_list(
             f,
-            static_parameters,
-            default_static_parameter_trailing_separator(f),
+            generic_parameters,
+            default_generic_parameter_trailing_separator(f),
         )?;
     }
 
     Ok(())
 }
 
-/// Format declaration where clauses when present.
-fn format_declaration_where_clauses<'ast>(
+/// Write one declaration where clause list.
+fn write_declaration_where_clauses<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    where_clauses: Option<&[LocalNodeId<WhereClause>]>,
+    where_clauses: &[LocalNodeId<destack_ast::WhereClause>],
 ) -> FormatResult<()> {
-    if let Some(where_clauses) = where_clauses
-        && !where_clauses.is_empty()
-    {
+    // where clauses
+    if !where_clauses.is_empty() {
         format_where_clause_with_break(f, where_clauses)?;
     }
 
     Ok(())
 }
 
-/// Write the separator between one declaration head and its body.
-fn write_declaration_body_separator<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    has_head_boundary: bool,
-    has_body_head_comment: bool,
-) -> FormatResult<()> {
-    if has_head_boundary {
-        write!(f, [hard_line_break()])?;
-    } else if !has_body_head_comment {
-        write!(f, [space()])?;
-    } else {
-        // body-head annotations emit their own boundary separator
-    }
-
-    Ok(())
-}
-
-/// Write one member-backed declaration body, including infix and postfix annotations.
-fn write_member_declaration_body_or_empty<'ast>(
+/// Write one declaration member body.
+fn write_member_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     members: &[LocalNodeId<Member>],
-) -> FormatResult<bool> {
+    break_before_body: bool,
+) -> FormatResult<()> {
+    // empty body
     if members.is_empty() {
-        write!(f, [empty_block_with_infix_annotations(node_id)])?;
-        write!(
-            f,
-            [postfix_annotations_without_line_suffix_boundary(
-                f.context(),
-                node_id
-            )]
-        )?;
-        return Ok(true);
+        if break_before_body {
+            write!(
+                f,
+                [
+                    hard_line_break(),
+                    empty_block_with_infix_annotations(node_id)
+                ]
+            )?;
+        } else {
+            write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;
+        }
+
+        return Ok(());
     }
 
-    write!(f, [token("{"), hard_line_break()])?;
+    // member body
+    if break_before_body {
+        write!(f, [hard_line_break(), token("{"), hard_line_break()])?;
+    } else {
+        write!(f, [space(), token("{"), hard_line_break()])?;
+    }
+
     write!(
         f,
-        [group(&format_args![block_indent(&format_with(|f| {
+        [group(&block_indent(&format_with(move |f| {
             format_block_of_members(f, members)
-        })),])]
+        })))]
     )?;
-    write!(f, [block_infix_annotations(f.context(), node_id)])?;
-    write!(f, [hard_line_break(), token("}")])?;
-
-    Ok(false)
+    write!(f, [hard_line_break(), token("}")])
 }
 
-/// Write one enum declaration body, including field and member sections.
-fn write_enum_declaration_body_or_empty<'ast>(
+/// Write one declaration type-member body.
+fn write_type_member_body<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+    members: &[LocalNodeId<TypeMember>],
+    break_before_body: bool,
+) -> FormatResult<()> {
+    // empty body
+    if members.is_empty() {
+        if break_before_body {
+            write!(
+                f,
+                [
+                    hard_line_break(),
+                    empty_block_with_infix_annotations(node_id)
+                ]
+            )?;
+        } else {
+            write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;
+        }
+
+        return Ok(());
+    }
+
+    // member body
+    if break_before_body {
+        write!(f, [hard_line_break(), token("{"), hard_line_break()])?;
+    } else {
+        write!(f, [space(), token("{"), hard_line_break()])?;
+    }
+
+    write!(
+        f,
+        [group(&block_indent(&format_with(move |f| {
+            format_block_of_type_members(f, members)
+        })))]
+    )?;
+    write!(f, [hard_line_break(), token("}")])
+}
+
+/// Return whether an anonymous class expression should start heritage on the next line.
+fn class_heritage_starts_on_new_line(
+    declaration_expression_id: Option<LocalNodeId<Expression>>,
+    declaration: &ClassDeclaration,
+) -> bool {
+    declaration.name.is_none()
+        && declaration_expression_id.is_some()
+        && (declaration.extends_expression.is_some() || !declaration.implements_types.is_empty())
+}
+
+/// Format one struct declaration.
+pub(crate) fn format_struct_declaration<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+    declaration: &StructDeclaration,
+) -> FormatResult<()> {
+    // prefixes
+    format_declaration_export_modifier(f, node_id, declaration.export)?;
+    if declaration.ambient.is_ambient() {
+        write!(f, [Keyword::Declare, space()])?;
+    }
+
+    // head
+    write!(f, [Keyword::Struct, space(), declaration.name])?;
+    write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
+
+    // heritage
+    format_super_type_clause(f, Keyword::Extends, &declaration.embedded_types)?;
+    format_super_type_clause(f, Keyword::Implements, &declaration.implements_types)?;
+
+    // where clauses
+    write_declaration_where_clauses(f, &declaration.where_clauses)?;
+
+    // body
+    write_member_body(f, node_id, &declaration.members, false)
+}
+
+/// Format one class declaration.
+pub(crate) fn format_class_declaration<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+    declaration_expression_id: Option<LocalNodeId<Expression>>,
+    declaration: &ClassDeclaration,
+) -> FormatResult<()> {
+    let starts_heritage_on_new_line =
+        class_heritage_starts_on_new_line(declaration_expression_id, declaration);
+
+    // prefixes
+    format_declaration_export_modifier(f, node_id, declaration.export)?;
+    if declaration.ambient.is_ambient() {
+        write!(f, [Keyword::Declare, space()])?;
+    }
+
+    if declaration.is_abstract {
+        write!(f, [Keyword::Abstract, space()])?;
+    }
+
+    // head
+    write!(f, [Keyword::Class])?;
+    if let Some(name) = declaration.name {
+        write!(f, [space(), name])?;
+    }
+
+    write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
+
+    // heritage
+    if let Some(extends_expression) = declaration.extends_expression {
+        if starts_heritage_on_new_line {
+            write!(f, [soft_line_break_or_space()])?;
+        } else {
+            write!(f, [space()])?;
+        }
+
+        write!(f, [Keyword::Extends, space()])?;
+
+        let extends_expression_node = f.context().tree.get(extends_expression);
+        format_expression(f, extends_expression, extends_expression_node, false)?;
+    }
+
+    format_super_type_clause_with_expand(
+        f,
+        Keyword::Implements,
+        &declaration.implements_types,
+        false,
+        starts_heritage_on_new_line && declaration.extends_expression.is_none(),
+    )?;
+
+    // where clauses
+    write_declaration_where_clauses(f, &declaration.where_clauses)?;
+
+    // body
+    write_member_body(
+        f,
+        node_id,
+        &declaration.members,
+        starts_heritage_on_new_line,
+    )
+}
+
+/// Return the ordered enum body nodes.
+fn ordered_enum_body_nodes(
+    context: &DestackFormatContext<'_>,
+    fields: &[LocalNodeId<EnumField>],
+    members: &[LocalNodeId<Member>],
+) -> Vec<LocalNodeIdAny> {
+    let mut nodes = Vec::with_capacity(fields.len() + members.len());
+
+    // field nodes
+    for field_id in fields {
+        nodes.push((*field_id).into_any());
+    }
+
+    // member nodes
+    for member_id in members {
+        nodes.push((*member_id).into_any());
+    }
+
+    // source order
+    nodes.sort_by_key(|node_id| context.span_by_id(node_id.id).start);
+    nodes
+}
+
+/// Write one enum body.
+fn write_enum_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     fields: &[LocalNodeId<EnumField>],
     members: &[LocalNodeId<Member>],
-) -> FormatResult<bool> {
-    if fields.is_empty() && members.is_empty() {
-        write!(f, [empty_block_with_infix_annotations(node_id)])?;
-        write!(
-            f,
-            [postfix_annotations_without_line_suffix_boundary(
-                f.context(),
-                node_id
-            )]
-        )?;
-        return Ok(true);
+) -> FormatResult<()> {
+    let nodes = ordered_enum_body_nodes(f.context(), fields, members);
+
+    // empty body
+    if nodes.is_empty() {
+        write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;
+        return Ok(());
     }
 
-    write!(f, [token("{"), hard_line_break()])?;
-    let trailing_separator = match f.context().options.trailing_comma {
-        destack_workspace::TrailingComma::All | destack_workspace::TrailingComma::Es5 => {
-            TrailingSeparator::Allowed
+    // body
+    write!(f, [space(), token("{"), hard_line_break()])?;
+
+    for (index, node_id) in nodes.iter().copied().enumerate() {
+        if index > 0 {
+            write!(f, [hard_line_break()])?;
         }
-        destack_workspace::TrailingComma::None => TrailingSeparator::Omit,
-    };
-    write!(
-        f,
-        [group(&format_args![block_indent(&separated_entries(
-            ",",
-            fields,
-            trailing_separator,
-            None
-        )),])]
-    )?;
 
-    if !fields.is_empty() && !members.is_empty() {
-        write!(f, [hard_line_break(), empty_line()])?;
+        write!(f, [node_id])?;
     }
 
-    write!(
-        f,
-        [group(&format_args![block_indent(&format_with(|f| {
-            format_block_of_members(f, members)
-        })),])]
-    )?;
-    write!(f, [block_infix_annotations(f.context(), node_id)])?;
-    write!(f, [hard_line_break(), token("}")])?;
-
-    Ok(false)
+    write!(f, [hard_line_break(), token("}")])
 }
 
-/// Format declaration head boundary annotations before heritage clauses.
-fn format_declaration_heritage_head_annotations<'ast>(
+/// Format one enum declaration.
+pub(crate) fn format_enum_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
+    declaration: &EnumDeclaration,
 ) -> FormatResult<()> {
-    let prefix_annotation_ids: Vec<_> = f
-        .context()
-        .annotation_ids(node_id)
-        .iter()
-        .copied()
-        .filter(|annotation_id| {
-            matches!(
-                f.context().annotation(*annotation_id).position(),
-                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-            ) && !matches!(
-                f.context().annotation(*annotation_id),
-                Annotation::Decorator { .. }
-            )
-        })
-        .collect();
-
-    write!(
-        f,
-        [
-            line_suffix_boundary_annotations(f.context(), node_id),
-            format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                write_annotation_sequence(f, &prefix_annotation_ids)
-            })
-        ]
-    )
-}
-
-/// Return whether one declaration has non-decorator prefix annotations.
-fn declaration_has_non_decorator_prefix_annotation(
-    f: &DestackFormatter<'_, '_>,
-    node_id: LocalNodeId<Declaration>,
-) -> bool {
-    f.context()
-        .annotation_ids(node_id)
-        .iter()
-        .copied()
-        .any(|annotation_id| {
-            matches!(
-                f.context().annotation(annotation_id).position(),
-                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-            ) && !matches!(
-                f.context().annotation(annotation_id),
-                Annotation::Decorator { .. }
-            )
-        })
-}
-
-/// Format declaration extends and optional implements clauses.
-fn format_declaration_heritage<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    heritage: &Heritage,
-    include_implements: bool,
-    start_on_new_line: bool,
-) -> FormatResult<()> {
-    let mut extends_has_boundary_comments = false;
-    if let Some(extends_types) = heritage.extends_types.as_ref()
-        && !extends_types.is_empty()
-    {
-        extends_has_boundary_comments =
-            super_type_clause_has_line_suffix_boundary_annotation(f, extends_types);
-        let extends_should_stay_inline_with_head = !extends_has_boundary_comments
-            && !start_on_new_line
-            && extends_types.len() == 1
-            && is_parenthesized_class_extends_type(f, extends_types[0]);
-        if extends_should_stay_inline_with_head {
-            write!(f, [space(), Keyword::Extends, space()])?;
-            write_type_expression_with_inline_prefix_annotations(f, extends_types[0])?;
-        } else {
-            format_super_type_clause_with_expand(
-                f,
-                Keyword::Extends,
-                extends_types,
-                extends_has_boundary_comments,
-                start_on_new_line || extends_has_boundary_comments,
-            )?;
-        }
+    // prefixes
+    format_declaration_export_modifier(f, node_id, declaration.export)?;
+    if declaration.ambient.is_ambient() {
+        write!(f, [Keyword::Declare, space()])?;
     }
 
-    if include_implements
-        && let Some(implements_types) = heritage.implements_types.as_ref()
-        && !implements_types.is_empty()
-    {
-        let implements_has_boundary_comments =
-            super_type_clause_has_line_suffix_boundary_annotation(f, implements_types);
-        let implements_start_on_new_line =
-            start_on_new_line || extends_has_boundary_comments || implements_has_boundary_comments;
-        if implements_has_boundary_comments {
-            format_expanded_implements_clause(f, implements_types, implements_start_on_new_line)?;
-        } else {
-            format_super_type_clause_with_expand(
-                f,
-                Keyword::Implements,
-                implements_types,
-                false,
-                implements_start_on_new_line,
-            )?;
-        }
+    if declaration.kind == EnumKind::Const {
+        write!(f, [Keyword::Const, space()])?;
     }
 
-    Ok(())
-}
-
-/// Format anonymous class heritage, preserving oxfmt style for generic extends and implements.
-fn format_anonymous_class_heritage<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    heritage: &Heritage,
-) -> FormatResult<()> {
-    if let Some(extends_types) = heritage.extends_types.as_ref()
-        && !extends_types.is_empty()
-    {
-        let has_generic_extends = extends_types
-            .iter()
-            .copied()
-            .any(|type_id| expression_has_static_type_arguments(f.context(), type_id));
-        if has_generic_extends {
-            let content = format_with(|f| {
-                f.join_with(&format_args![&token(","), soft_line_break_or_space()])
-                    .entries(extends_types.iter().copied().map(|type_id| {
-                        format_with(move |f| format_class_extends_expression(f, type_id))
-                    }))
-                    .finish()
-            });
-            let group_id = f.group_id("anonymous_class_extends");
-            let broken_content =
-                format_with(|f| write!(f, [token("("), soft_block_indent(&content), token(")")]));
-
-            write!(f, [space(), Keyword::Extends, space()])?;
-            write!(
-                f,
-                [group(&format_args![
-                    if_group_breaks(&broken_content).with_group_id(Some(group_id)),
-                    if_group_fits_on_line(&content).with_group_id(Some(group_id))
-                ])
-                .with_id(Some(group_id))]
-            )?;
-        } else {
-            write!(f, [space(), Keyword::Extends, space()])?;
-            write!(
-                f,
-                [format_with(|f| {
-                    f.join_with(&format_args![&token(","), space()])
-                        .entries(extends_types.iter().copied().map(|type_id| {
-                            format_with(move |f| format_class_extends_expression(f, type_id))
-                        }))
-                        .finish()
-                })]
-            )?;
-        }
-    }
-
-    if let Some(implements_types) = heritage.implements_types.as_ref()
-        && !implements_types.is_empty()
-    {
-        let has_generic_implements = implements_types
-            .iter()
-            .copied()
-            .any(|type_id| expression_has_static_type_arguments(f.context(), type_id));
-        if has_generic_implements {
-            write!(f, [space(), Keyword::Implements, space()])?;
-            write!(
-                f,
-                [format_with(|f| {
-                    f.join_with(&format_args![&token(","), space()])
-                        .entries(implements_types.iter().copied().map(|type_id| {
-                            format_with(move |f| {
-                                write_type_expression_with_inline_prefix_annotations(f, type_id)
-                            })
-                        }))
-                        .finish()
-                })]
-            )?;
-        } else {
-            format_super_type_clause(f, Keyword::Implements, implements_types)?;
-        }
-    }
-
-    Ok(())
-}
-
-/// Return whether one class declaration uses the anonymous assignment-like heritage shell.
-fn declaration_uses_anonymous_class_heritage_layout(
-    context: &DestackFormatContext<'_>,
-    descriptor: &DeclarationDescriptor,
-    declaration_expression_id: Option<LocalNodeId<Expression>>,
-    is_class: bool,
-) -> bool {
-    if !is_class || descriptor.name.is_some() {
-        return false;
-    }
-
-    let Some(expression_id) = declaration_expression_id else {
-        return false;
-    };
-    let Some((parent_id, parent_type)) = context.parent(expression_id) else {
-        return false;
-    };
-
-    match parent_type {
-        NodeType::Expression => {
-            let parent_expression = LocalNodeId::<Expression>::new(parent_id);
-            matches!(
-                context.tree.get(parent_expression),
-                Expression::Assign { right, .. } if *right == expression_id
-            )
-        }
-        NodeType::Declarator => {
-            let parent_declarator = LocalNodeId::<Declarator>::new(parent_id);
-            matches!(
-                context.tree.get(parent_declarator),
-                Declarator { value, .. } if *value == Some(expression_id)
-            )
-        }
-        _ => false,
-    }
-}
-
-/// Format the heritage clauses for one struct or class declaration.
-fn format_struct_or_class_heritage<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    heritage: &Heritage,
-    has_generic_head_comment: bool,
-    use_anonymous_class_layout: bool,
-) -> FormatResult<()> {
-    if use_anonymous_class_layout {
-        return format_anonymous_class_heritage(f, heritage);
-    }
-
-    format_declaration_heritage(f, heritage, true, has_generic_head_comment)
-}
-
-/// Format a struct or class declaration and return whether it ended early.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn format_struct_or_class_declaration<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Declaration>,
-    declaration_expression_id: Option<LocalNodeId<Expression>>,
-    descriptor: &DeclarationDescriptor,
-    generics: &Generics,
-    heritage: &Heritage,
-    members: &[LocalNodeId<Member>],
-    is_class: bool,
-) -> FormatResult<bool> {
-    format_declaration_header_prefix(f, node_id, descriptor)?;
-
-    if descriptor.abstraction == DeclarationAbstraction::Abstract {
-        write!(f, [Keyword::Abstract, space()])?;
-    }
-
-    if is_class {
-        write!(f, [Keyword::Class])?;
-    } else {
-        write!(f, [Keyword::Struct])?;
-    }
-
-    if let Some(name) = descriptor.name {
+    // head
+    write!(f, [Keyword::Enum])?;
+    if let Some(name) = declaration.name {
         write!(f, [space(), name])?;
     }
 
-    let use_anonymous_class_layout = declaration_uses_anonymous_class_heritage_layout(
-        f.context(),
-        descriptor,
-        declaration_expression_id,
-        is_class,
-    );
-    let has_generic_head_comment = declaration_has_non_decorator_prefix_annotation(f, node_id);
-    let has_body_head_comment = false;
+    write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
+    format_super_type_clause(f, Keyword::Implements, &declaration.implements_types)?;
+    write_declaration_where_clauses(f, &declaration.where_clauses)?;
 
-    format_declaration_static_parameters(f, generics)?;
-    format_declaration_heritage_head_annotations(f, node_id)?;
-    format_struct_or_class_heritage(
-        f,
-        heritage,
-        has_generic_head_comment,
-        use_anonymous_class_layout,
-    )?;
-    format_declaration_where_clauses(f, generics.where_clauses.as_deref())?;
-    let implements_has_line_boundary_comment = heritage
-        .implements_types
-        .as_ref()
-        .is_some_and(|types| super_type_clause_has_line_suffix_boundary_annotation(f, types));
-    let has_heritage_line_boundary_annotation =
-        has_generic_head_comment || implements_has_line_boundary_comment;
-
-    write_declaration_body_separator(
-        f,
-        has_heritage_line_boundary_annotation,
-        has_body_head_comment,
-    )?;
-    write_member_declaration_body_or_empty(f, node_id, members)
+    // body
+    write_enum_body(f, node_id, &declaration.fields, &declaration.members)
 }
 
-/// Format one enum field entry.
+/// Format one interface declaration.
+pub(crate) fn format_interface_declaration<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+    declaration: &InterfaceDeclaration,
+) -> FormatResult<()> {
+    // prefixes
+    format_declaration_export_modifier(f, node_id, declaration.export)?;
+    if declaration.ambient.is_ambient() {
+        write!(f, [Keyword::Declare, space()])?;
+    }
+
+    if declaration.is_nominal {
+        write!(f, [Keyword::Newtype, space()])?;
+    }
+
+    // head
+    write!(f, [Keyword::Interface])?;
+    if let Some(name) = declaration.name {
+        write!(f, [space(), name])?;
+    }
+
+    write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
+    format_super_type_clause(f, Keyword::Extends, &declaration.extends_types)?;
+    write_declaration_where_clauses(f, &declaration.where_clauses)?;
+
+    // body
+    write_type_member_body(f, node_id, &declaration.members, false)
+}
+
 impl<'ast> FormatNode<'ast, EnumField> for EnumField {
-    /// Emit the field name, optional value, trailing comma, and attached annotations.
     fn format_node(
         &self,
         node_id: LocalNodeId<EnumField>,
@@ -701,75 +387,8 @@ impl<'ast> FormatNode<'ast, EnumField> for EnumField {
             write!(f, [space(), token("="), space(), value])?;
         }
 
-        write!(f, [infix_or_postfix_annotations(f.context(), node_id)])?;
-        Ok(())
+        // separator
+        write!(f, [token(",")])?;
+        write!(f, [infix_or_postfix_annotations(f.context(), node_id)])
     }
-}
-
-/// Format an enum declaration and return whether it ended early.
-pub(crate) fn format_enum_declaration<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Declaration>,
-    descriptor: &DeclarationDescriptor,
-    kind: EnumKind,
-    generics: &Generics,
-    heritage: &Heritage,
-    fields: &[LocalNodeId<EnumField>],
-    members: &[LocalNodeId<Member>],
-) -> FormatResult<bool> {
-    format_declaration_header_prefix(f, node_id, descriptor)?;
-
-    if kind == EnumKind::Const {
-        write!(f, [Keyword::Const, space()])?;
-    }
-
-    write!(f, [Keyword::Enum])?;
-
-    if let Some(name) = descriptor.name {
-        write!(f, [space(), name])?;
-    }
-
-    format_declaration_static_parameters(f, generics)?;
-    let has_heritage_head_comment =
-        declaration_heritage_head_has_line_suffix_boundary_annotation(f, node_id)
-            || declaration_has_non_decorator_prefix_annotation(f, node_id);
-    format_declaration_heritage_head_annotations(f, node_id)?;
-    format_declaration_heritage(f, heritage, true, has_heritage_head_comment)?;
-    format_declaration_where_clauses(f, generics.where_clauses.as_deref())?;
-
-    write_declaration_body_separator(f, false, false)?;
-    write_enum_declaration_body_or_empty(f, node_id, fields, members)
-}
-
-/// Format an interface declaration and return whether it ended early.
-pub(crate) fn format_interface_declaration<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Declaration>,
-    descriptor: &DeclarationDescriptor,
-    kind: TypeKind,
-    generics: &Generics,
-    heritage: &Heritage,
-    members: &[LocalNodeId<Member>],
-) -> FormatResult<bool> {
-    format_declaration_header_prefix(f, node_id, descriptor)?;
-
-    if kind == TypeKind::Nominal {
-        write!(f, [Keyword::Newtype, space()])?;
-    }
-    write!(f, [Keyword::Interface])?;
-
-    if let Some(name) = descriptor.name {
-        write!(f, [space(), name])?;
-    }
-
-    format_declaration_static_parameters(f, generics)?;
-    let has_heritage_head_comment =
-        declaration_heritage_head_has_line_suffix_boundary_annotation(f, node_id)
-            || declaration_has_non_decorator_prefix_annotation(f, node_id);
-    format_declaration_heritage_head_annotations(f, node_id)?;
-    format_declaration_heritage(f, heritage, false, has_heritage_head_comment)?;
-    format_declaration_where_clauses(f, generics.where_clauses.as_deref())?;
-
-    write_declaration_body_separator(f, false, false)?;
-    write_member_declaration_body_or_empty(f, node_id, members)
 }

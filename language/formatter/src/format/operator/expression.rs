@@ -13,15 +13,10 @@ use crate::format::expression::{
 use crate::format::operator::assign::format_assign_expression;
 use crate::format::operator::binary::format_binary_expression;
 use crate::format::operator::needs_parens_in_postfix_position;
-use crate::format::operator::types::{
-    expression_uses_angle_assertion_syntax, format_type_binary_expression,
-};
+use crate::format::operator::types::{format_as_expression, format_satisfies_expression};
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
-    Comment, CommentKind, Expression, LocalNodeId, Mutability, PostfixPosition, TypeUnaryOperator,
-    UnaryOperator,
-};
-use destack_fir::format::{Buffer, Format, FormatResult};
+use destack_ast::{Comment, Expression, LocalNodeId, Mutability, PostfixPosition, UnaryOperator};
+use destack_fir::format::{Buffer, Format, FormatError, FormatResult};
 use destack_fir::prelude::{
     empty_line, format_with, hard_line_break, soft_block_indent, space, token,
 };
@@ -34,26 +29,16 @@ pub(crate) fn operator_expression_uses_postfix_only_annotations(
     node_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> bool {
-    if matches!(
-        expression,
-        Expression::TypeUnary {
-            operator: TypeUnaryOperator::AsConst | TypeUnaryOperator::AsComptime,
-            ..
-        }
-    ) {
-        return true;
-    }
-
     matches!(
         expression,
         Expression::Call {
-            dynamic_arguments,
+            arguments,
             ..
         }
         | Expression::New {
-            dynamic_arguments,
+            arguments,
             ..
-        } if dynamic_arguments.is_empty() && context.has_infix_annotation(node_id)
+        } if arguments.is_empty() && context.has_infix_annotation(node_id)
     )
 }
 
@@ -73,56 +58,6 @@ pub(crate) fn write_operator_expression_trailing_annotations<'ast>(
         f,
         [infix_or_postfix_annotations(f.context(), expression_id)]
     )
-}
-
-/// Collect block infix comment nodes for one type unary expression node.
-fn type_unary_infix_comments(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> Vec<(CommentKind, bool, Comment)> {
-    let Expression::TypeUnary { right, .. } = context.tree.get(node_id) else {
-        return Vec::new();
-    };
-
-    let right_span = context.span(*right);
-    let node_span = context.span(node_id);
-    if right_span.file != node_span.file || right_span.end >= node_span.end {
-        return Vec::new();
-    }
-
-    context
-        .comments()
-        .comments_in_range(right_span.end, node_span.end)
-        .iter()
-        .copied()
-        .map(|comment| {
-            let comment_span = comment.span;
-            (
-                comment.kind,
-                context.span_has_newline_before_next_non_whitespace_token(comment_span),
-                comment,
-            )
-        })
-        .collect()
-}
-
-/// Collect boundary comments between one prefix unary operator and its operand.
-fn prefix_unary_boundary_comments(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    right_id: LocalNodeId<Expression>,
-) -> Vec<Comment> {
-    let node_span = context.span(node_id);
-    let right_span = context.span(right_id);
-    if node_span.file != right_span.file || right_span.start <= node_span.start {
-        return Vec::new();
-    }
-
-    let comments = context.comments();
-
-    comments
-        .comments_in_range(node_span.start, right_span.start)
-        .to_vec()
 }
 
 /// Write grouped prefix-unary operand comments with source-shaped operand spacing.
@@ -180,45 +115,6 @@ fn write_grouped_prefix_unary_operand_comments<'ast>(
 
     Ok(())
 }
-
-/// Write a type-unary `as <keyword>` suffix with infix comments.
-fn write_type_unary_as_keyword_with_infix_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
-    keyword: &'static str,
-) -> FormatResult<()> {
-    let infix_comments = type_unary_infix_comments(f.context(), node_id);
-    if infix_comments.is_empty() {
-        write!(f, [space(), token(keyword)])?;
-        return Ok(());
-    }
-
-    if infix_comments.len() == 1 && infix_comments[0].0 == CommentKind::Line && !infix_comments[0].1
-    {
-        write!(f, [space()])?;
-        format_raw_comment(f, infix_comments[0].2)?;
-        write!(f, [hard_line_break(), token(keyword)])?;
-        return Ok(());
-    }
-
-    if infix_comments.len() == 1 && infix_comments[0].0 != CommentKind::Line && !infix_comments[0].1
-    {
-        write!(f, [space()])?;
-        format_raw_comment(f, infix_comments[0].2)?;
-        write!(f, [space(), token(keyword)])?;
-        return Ok(());
-    }
-
-    write!(f, [hard_line_break()])?;
-    for (comment_index, (_, _, comment)) in infix_comments.iter().enumerate() {
-        if comment_index > 0 {
-            write!(f, [hard_line_break()])?;
-        }
-        format_raw_comment(f, *comment)?;
-    }
-    write!(f, [hard_line_break(), token(keyword)])
-}
-
 /// Format operator and chain expression variants.
 pub(crate) fn format_operator_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -231,10 +127,6 @@ pub(crate) fn format_operator_expression<'ast>(
         // unary
         Expression::Unary { operator, right } => {
             if operator.is_prefix() {
-                let boundary_comments =
-                    prefix_unary_boundary_comments(f.context(), node_id, *right);
-                let boundary_comments_require_multiline =
-                    boundary_comments.iter().any(|comment| comment.is_line());
                 let right_needs_await_or_yield_grouping = matches!(
                     tree.get(*right),
                     Expression::Await { .. }
@@ -251,25 +143,10 @@ pub(crate) fn format_operator_expression<'ast>(
                 let right_is_parenthesized =
                     matches!(tree.get(*right), Expression::Parenthesized { .. });
                 let right_needs_comment_grouping = !right_is_parenthesized
-                    && (right_has_leading_prefix_comment
-                        || right_has_raw_prefix_comments
-                        || !boundary_comments.is_empty());
+                    && (right_has_leading_prefix_comment || right_has_raw_prefix_comments);
                 let right_needs_inline_grouping = right_needs_await_or_yield_grouping;
                 let needs_space = matches!(operator, UnaryOperator::Typeof | UnaryOperator::Void);
                 let format_grouped_right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    if !boundary_comments.is_empty() {
-                        write_grouped_prefix_unary_operand_comments(f, &boundary_comments, *right)?;
-                        let boundary_end = boundary_comments
-                            .last()
-                            .map_or(f.context().span(*right).start, |comment| comment.span.end);
-
-                        return write_expression_with_prefix_annotations_after_offset(
-                            f,
-                            *right,
-                            boundary_end,
-                        );
-                    }
-
                     if right_has_raw_prefix_comments {
                         write_grouped_prefix_unary_operand_comments(
                             f,
@@ -289,9 +166,8 @@ pub(crate) fn format_operator_expression<'ast>(
 
                     write!(f, [right])
                 });
-                let can_inline_grouped_right = (!boundary_comments.is_empty()
-                    && !boundary_comments_require_multiline)
-                    || (right_has_raw_prefix_comments && !right_has_line_raw_prefix_comments);
+                let can_inline_grouped_right =
+                    right_has_raw_prefix_comments && !right_has_line_raw_prefix_comments;
 
                 if needs_space {
                     if right_needs_comment_grouping {
@@ -347,47 +223,10 @@ pub(crate) fn format_operator_expression<'ast>(
             }
         }
 
-        // type unary
-        Expression::TypeUnary { operator, right } => match operator {
-            TypeUnaryOperator::Not => {
-                write!(f, [operator, right])?;
-            }
-            TypeUnaryOperator::Must => {
-                write!(f, [right, operator])?;
-            }
-            TypeUnaryOperator::Newtype
-            | TypeUnaryOperator::Type
-            | TypeUnaryOperator::Readonly
-            | TypeUnaryOperator::Typeof
-            | TypeUnaryOperator::Keyof => {
-                write!(f, [operator, space(), right])?;
-            }
-            TypeUnaryOperator::AsConst => {
-                if expression_uses_angle_assertion_syntax(f.context(), node_id, false) {
-                    write!(f, [token("<const>"), right])?;
-                    return Ok(true);
-                }
-
-                let right_has_postfix = f.context().has_postfix_annotation(*right);
-                write!(f, [right])?;
-                if right_has_postfix {
-                    write!(f, [token("as")])?;
-                } else {
-                    write!(f, [token(" as")])?;
-                }
-                write_type_unary_as_keyword_with_infix_comments(f, node_id, "const")?;
-            }
-            TypeUnaryOperator::AsComptime => {
-                let right_has_postfix = f.context().has_postfix_annotation(*right);
-                write!(f, [right])?;
-                if right_has_postfix {
-                    write!(f, [token("as")])?;
-                } else {
-                    write!(f, [token(" as")])?;
-                }
-                write_type_unary_as_keyword_with_infix_comments(f, node_id, "comptime")?;
-            }
-        },
+        // type shell
+        Expression::Type { value } => {
+            write!(f, [value])?;
+        }
 
         // value
         Expression::ValueOf {
@@ -478,10 +317,10 @@ pub(crate) fn format_operator_expression<'ast>(
         // new
         Expression::New {
             left,
-            static_arguments,
-            dynamic_arguments,
+            generic_arguments,
+            arguments,
         } => {
-            format_new_expression(f, node_id, *left, static_arguments, dynamic_arguments)?;
+            format_new_expression(f, node_id, *left, generic_arguments, arguments)?;
         }
 
         // delete
@@ -508,13 +347,24 @@ pub(crate) fn format_operator_expression<'ast>(
             format_binary_expression(f, node_id, *left, operator, *right)?;
         }
 
-        // type binary
-        Expression::TypeBinary {
-            left,
-            operator,
-            right,
+        // assertions
+        Expression::As {
+            expression,
+            target_type,
         } => {
-            format_type_binary_expression(f, node_id, *left, operator, *right)?;
+            format_as_expression(f, node_id, *expression, *target_type)?;
+        }
+        Expression::Satisfies {
+            expression,
+            target_type,
+        } => {
+            format_satisfies_expression(f, node_id, *expression, *target_type)?;
+        }
+        Expression::Is { value, target_type } => {
+            write!(f, [value, space(), token("is"), space(), target_type])?;
+        }
+        Expression::InstanceOf { value, target } => {
+            write!(f, [value, space(), token("instanceof"), space(), target])?;
         }
 
         // assign
@@ -534,7 +384,7 @@ pub(crate) fn format_operator_expression<'ast>(
         // stub: placeholder for annotation only files
         Expression::Stub => {}
 
-        // missing: preserve the surrounding syntax hole
+        // missing: preserve the surrounding source hole
         Expression::Missing => {}
 
         // error
@@ -553,17 +403,15 @@ fn format_call_or_chain_expression<'ast>(
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let Expression::Call {
-        left,
-        dynamic_arguments,
-        ..
+        left, arguments, ..
     } = f.context().tree.get(node_id)
     else {
-        debug_assert!(false, "unexpected expression kind for call-chain routing");
-        return Ok(());
+        return Err(FormatError::SyntaxError {
+            message: "unexpected expression kind for call-chain routing",
+        });
     };
 
-    let should_route_to_chain =
-        call_should_route_to_chain(f.context(), node_id, *left, dynamic_arguments);
+    let should_route_to_chain = call_should_route_to_chain(f.context(), node_id, *left, arguments);
     if should_route_to_chain {
         format_expression_chain(f, node_id)?;
     } else {

@@ -5,8 +5,8 @@ use crate::format::operator::{
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    AnnotationPosition, Argument, Declarator, Expression, LocalNodeId, NodeTree, NodeType,
-    PostfixPosition, ScalarLiteral, TokenType,
+    Argument, Declarator, DecoratorPosition, Expression, GenericArgument, LocalNodeId, NodeTree,
+    NodeType, PostfixPosition, ScalarLiteral, TokenType,
 };
 use destack_core::StringId;
 use destack_fir::format::{Buffer, FormatError, FormatResult};
@@ -60,7 +60,9 @@ pub(crate) fn format_maybe_expression<'ast>(
             PostfixPosition::Indirect => write!(f, [token("."), token("?")])?,
         }
     } else {
-        debug_assert!(false, "unexpected expression kind for maybe formatter");
+        return Err(FormatError::SyntaxError {
+            message: "unexpected expression kind for maybe formatter",
+        });
     }
     Ok(())
 }
@@ -71,7 +73,7 @@ pub(crate) enum ChainExpressionBaseHead {
     Path {
         node_id: LocalNodeId<Expression>,
         segment: StringId,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
         emit_postfix_annotations: bool,
     },
     Expression(LocalNodeId<Expression>),
@@ -103,14 +105,14 @@ pub(crate) enum ChainExpression {
         node_id: LocalNodeId<Expression>,
         optional_position: Option<PostfixPosition>,
         segment: StringId,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
         emit_prefix_annotations: bool,
         emit_postfix_annotations: bool,
     },
     /// Instantiation expression.
     Instantiation {
         node_id: LocalNodeId<Expression>,
-        static_arguments: Vec<LocalNodeId<Argument>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
     },
     /// Call expression.
     Call {
@@ -118,8 +120,8 @@ pub(crate) enum ChainExpression {
         call_position: CallChainPosition,
         optional_position: Option<PostfixPosition>,
         position: PostfixPosition,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-        dynamic_arguments: Vec<LocalNodeId<Argument>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
+        arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Index expression.
     Index {
@@ -332,7 +334,7 @@ fn split_path_chain_root(
 ) -> FormatResult<Option<(ChainExpressionBaseHead, Vec<ChainExpression>)>> {
     let Expression::QualifiedReference {
         path,
-        static_arguments,
+        generic_arguments,
     } = context.tree.get(base_root_id)
     else {
         return Ok(None);
@@ -343,7 +345,7 @@ fn split_path_chain_root(
     }
 
     let segments = &path.segments;
-    let static_arguments = static_arguments.clone();
+    let generic_arguments = generic_arguments.clone();
     let Some(first_segment) = segments.first().copied() else {
         return Err(FormatError::SyntaxError {
             message: "path chain root must contain at least one segment",
@@ -354,31 +356,31 @@ fn split_path_chain_root(
     let tail_len = tail_segments.len();
     let emit_postfix_on_tail = tail_len > 0
         && path_postfix_annotations_emit_on_tail(context, base_root_id, segments.len());
-    let base_static_arguments = if tail_len == 0 {
-        static_arguments.clone()
+    let base_generic_arguments = if tail_len == 0 {
+        generic_arguments.clone()
     } else {
-        None
+        Vec::new()
     };
     let base_head = ChainExpressionBaseHead::Path {
         node_id: base_root_id,
         segment: first_segment,
-        static_arguments: base_static_arguments,
+        generic_arguments: base_generic_arguments,
         emit_postfix_annotations: tail_len == 0 || !emit_postfix_on_tail,
     };
 
     let mut operations = Vec::with_capacity(tail_len);
     for (index, segment) in tail_segments.iter().copied().enumerate() {
         let is_last = index + 1 == tail_len;
-        let static_args = if is_last {
-            static_arguments.clone()
+        let generic_arguments = if is_last {
+            generic_arguments.clone()
         } else {
-            None
+            Vec::new()
         };
         operations.push(ChainExpression::Member {
             node_id: base_root_id,
             optional_position: None,
             segment,
-            static_arguments: static_args,
+            generic_arguments,
             emit_prefix_annotations: false,
             emit_postfix_annotations: emit_postfix_on_tail && is_last,
         });
@@ -402,6 +404,21 @@ pub(crate) fn has_comment_between_expressions(
     !context
         .comments_in_range(between_span.start, between_span.end)
         .is_empty()
+}
+
+/// Check whether source contains one own-line or multiline comment between two expression nodes.
+pub(crate) fn has_own_line_or_multiline_comment_between_expressions(
+    context: &DestackFormatContext<'_>,
+    left_id: LocalNodeId<Expression>,
+    right_id: LocalNodeId<Expression>,
+) -> bool {
+    let left_span = context.span(left_id);
+    let right_span = context.span(right_id);
+    let Some(between_span) = left_span.gap_to(right_span) else {
+        return false;
+    };
+
+    context.has_own_line_or_multiline_comment(between_span)
 }
 
 /// Check whether an optional index is numerically inline.
@@ -527,13 +544,13 @@ pub(crate) fn path_postfix_annotations_emit_on_tail(
 
     for annotation_id in context.annotation_ids(node_id).iter().copied() {
         let annotation = context.annotation(annotation_id);
-        let position = annotation.position();
+        let position = annotation.position;
         let is_postfix = matches!(
             position,
-            AnnotationPosition::LinePostfix
-                | AnnotationPosition::LinePostfixBoundary
-                | AnnotationPosition::BlockInfix
-                | AnnotationPosition::BlockPostfix
+            DecoratorPosition::LinePostfix
+                | DecoratorPosition::LinePostfixBoundary
+                | DecoratorPosition::BlockInfix
+                | DecoratorPosition::BlockPostfix
         );
         if !is_postfix {
             continue;
@@ -576,7 +593,7 @@ pub(crate) fn chain_expression_from_node(
         Expression::Member {
             left,
             name,
-            static_arguments,
+            generic_arguments,
             ..
         } => {
             let Some(name) = *name else {
@@ -588,15 +605,15 @@ pub(crate) fn chain_expression_from_node(
                 node_id: expression_id,
                 optional_position: maybe_position_for_left(tree, *left),
                 segment: name,
-                static_arguments: static_arguments.clone(),
-                emit_prefix_annotations: true,
+                generic_arguments: generic_arguments.clone(),
+                emit_prefix_annotations: false,
                 emit_postfix_annotations: true,
             }
         }
         Expression::PrivateMember {
             left,
             name,
-            static_arguments,
+            generic_arguments,
             ..
         } => {
             let Some(name) = *name else {
@@ -608,30 +625,30 @@ pub(crate) fn chain_expression_from_node(
                 node_id: expression_id,
                 optional_position: maybe_position_for_left(tree, *left),
                 segment: name,
-                static_arguments: static_arguments.clone(),
-                emit_prefix_annotations: true,
+                generic_arguments: generic_arguments.clone(),
+                emit_prefix_annotations: false,
                 emit_postfix_annotations: true,
             }
         }
         Expression::Call {
             left,
             position,
-            static_arguments,
-            dynamic_arguments,
+            generic_arguments,
+            arguments,
             ..
         } => ChainExpression::Call {
             node_id: expression_id,
             call_position: CallChainPosition::End,
             optional_position: maybe_position_for_left(tree, *left),
             position: *position,
-            static_arguments: static_arguments.clone(),
-            dynamic_arguments: dynamic_arguments.clone(),
+            generic_arguments: generic_arguments.clone(),
+            arguments: arguments.clone(),
         },
         Expression::Instantiation {
-            static_arguments, ..
+            generic_arguments, ..
         } => ChainExpression::Instantiation {
             node_id: expression_id,
-            static_arguments: static_arguments.clone(),
+            generic_arguments: generic_arguments.clone(),
         },
         Expression::Index {
             left,

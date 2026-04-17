@@ -515,27 +515,6 @@ fn parse_directive_token_from_raw(raw: &str) -> Option<IgnoreDirective> {
     parse_directive_token(content.as_ref())
 }
 
-/// Return whether raw comment text is any ignore directive token.
-pub(crate) fn is_any_ignore_directive_comment(raw: &str) -> bool {
-    matches!(
-        parse_directive_token_from_raw(raw),
-        Some(
-            IgnoreDirective::Ignore
-                | IgnoreDirective::IgnoreFile
-                | IgnoreDirective::IgnoreStart
-                | IgnoreDirective::IgnoreEnd
-        )
-    )
-}
-
-/// Return whether raw comment text suppresses formatter output for the next node.
-pub(crate) fn is_ignore_suppression_comment(raw: &str) -> bool {
-    matches!(
-        parse_directive_token_from_raw(raw),
-        Some(IgnoreDirective::Ignore | IgnoreDirective::IgnoreStart)
-    )
-}
-
 /// Strip comment markers from a raw comment string.
 fn strip_comment_markers(raw: &str) -> Cow<'_, str> {
     let trimmed = raw.trim();

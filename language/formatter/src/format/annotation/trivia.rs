@@ -1,6 +1,6 @@
-use crate::DestackFormatter;
+use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::Comment;
-use destack_fir::format::{Buffer, FormatResult, hard_line_break};
+use destack_fir::format::{Buffer, Format, FormatResult, Formatter, hard_line_break};
 use destack_fir::prelude::{
     empty_line, expand_parent, format_with, line_suffix, soft_line_break_or_space, space, text,
 };
@@ -101,6 +101,14 @@ pub(crate) fn write_raw_trailing_comments<'ast>(
     comments: &[Comment],
 ) -> FormatResult<()> {
     write_raw_trailing_comments_with_options(f, comments, true)
+}
+
+/// Write raw trailing comments without expanding the parent group for line comments.
+pub(crate) fn write_raw_trailing_comments_without_parent_expansion<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    comments: &[Comment],
+) -> FormatResult<()> {
+    write_raw_trailing_comments_with_options(f, comments, false)
 }
 
 /// Write raw trailing comments with configurable parent expansion for line comments.
@@ -273,13 +281,8 @@ pub(crate) enum FormatTrailingComments<'a> {
     Comments(&'a [Comment]),
 }
 
-impl<'a> destack_fir::format::Format<crate::DestackFormatContext<'a>>
-    for FormatTrailingComments<'_>
-{
-    fn format(
-        &self,
-        f: &mut destack_fir::format::Formatter<'_, crate::DestackFormatContext<'a>>,
-    ) -> FormatResult<()> {
+impl<'a> Format<DestackFormatContext<'a>> for FormatTrailingComments<'_> {
+    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'a>>) -> FormatResult<()> {
         match self {
             Self::Node((enclosing_span, preceding_span, boundary_start, following_span_start)) => {
                 let comments = {

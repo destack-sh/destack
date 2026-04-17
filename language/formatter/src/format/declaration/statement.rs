@@ -11,7 +11,7 @@ use crate::format::declaration::sequence::{
     block_allows_value_tail, expression_postfix_end, format_block_body_narrow,
     format_block_body_wide, program_statement_sequence,
 };
-use crate::format::directive::{has_file_ignore_directive, write_ignored_span};
+use crate::format::file::{has_file_ignore_directive, write_ignored_span};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 
 /// Create a formatter for a list of expression statements.

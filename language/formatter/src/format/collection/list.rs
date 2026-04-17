@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use destack_fir::format::{FormatResult, GroupId};
 
-use crate::format::directive::{ignore_ranges_for_nodes, write_ignored_span};
+use crate::format::file::{ignore_ranges_for_nodes, write_ignored_span};
 use crate::{DestackFormatContext, FormatNode};
 use destack_ast::{Comment, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenType};
 use destack_fir::prelude::*;
@@ -45,7 +45,7 @@ where
             .context()
             .last_non_trivia_token_in_span(element_span)
             .map_or(element_span.end, |token| token.span.end);
-        let following_start = self
+        let next_boundary_start = self
             .next_element
             .map(|next_element| {
                 let next_element_span = f.context().span(next_element);
@@ -63,9 +63,11 @@ where
         let source_separator = separator_token_after_element(
             f.context(),
             element_span,
-            following_start,
+            next_boundary_start,
             self.separator,
         );
+        let following_start =
+            list_element_following_start(f.context(), source_separator, next_boundary_start);
         let gap_comments =
             gap_comments_after_element(f.context(), element_anchor_end, following_start);
         let element_owned_trailing_comments =
@@ -143,6 +145,21 @@ where
 
         Ok(())
     }
+}
+
+/// Return the boundary after one list element's separator, when present.
+fn list_element_following_start(
+    context: &DestackFormatContext<'_>,
+    source_separator: Option<destack_ast::TokenSpan>,
+    next_boundary_start: u32,
+) -> u32 {
+    let Some(source_separator) = source_separator else {
+        return next_boundary_start;
+    };
+
+    context
+        .next_non_trivia_token_after_span(source_separator.span)
+        .map_or(source_separator.span.end, |token| token.span.start)
 }
 
 /// Write one separator token according to list position and trailing-separator mode.

@@ -6,7 +6,9 @@ use destack_fir::format::{Buffer, FormatResult, hard_line_break};
 use destack_fir::prelude::{block_indent, format_with, token};
 use destack_fir::write;
 
-use crate::format::annotation::{format_raw_comment, write_raw_comment_slice};
+use crate::format::annotation::{
+    format_raw_comment, write_raw_trailing_comments_without_parent_expansion,
+};
 use crate::format::chain::expression_trivia_anchor_end;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_source::Span;
@@ -37,6 +39,15 @@ fn statement_terminator_comments_after(
     }
 
     Vec::new()
+}
+
+/// Return whether one statement owns same-line terminator comments.
+pub(crate) fn statement_has_inline_terminator_comments(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let anchor_end = statement_trailing_comment_anchor_end(context, expression_id);
+    !statement_terminator_comments_after(context, anchor_end).is_empty()
 }
 
 /// Return trailing statement comments with one explicit following sibling boundary.
@@ -72,10 +83,6 @@ fn statement_terminator_comments_between(
                 byte.is_ascii_whitespace() || byte == b';'
             })
         {
-            break;
-        }
-
-        if comments.comment_is_type_cast(comment) {
             break;
         }
 
@@ -162,7 +169,7 @@ fn write_statement_terminator_comments<'ast>(
         );
     }
 
-    write_raw_comment_slice(f, comments)
+    write_raw_trailing_comments_without_parent_expansion(f, comments)
 }
 
 /// Return whether one export expression still needs the outer statement terminator.
@@ -205,12 +212,8 @@ pub(crate) fn expression_needs_statement_terminator(
         Expression::Declaration(declaration_id)
             if matches!(
                 context.tree.get(*declaration_id),
-                Declaration::Function {
-                    descriptor,
-                    signature,
-                    ..
-                }
-                if descriptor.name.is_none() && signature.kind == FunctionKind::Lambda
+                Declaration::Function(function)
+                    if function.name.is_none() && function.signature.kind == FunctionKind::Lambda
             )
     ) || matches!(
         expression,

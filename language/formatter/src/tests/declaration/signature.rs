@@ -138,7 +138,7 @@ fn test_format_method_comments() {
 
 /// Type-literal parameter defaults should keep the expected signature layout.
 #[test]
-fn test_format_typescript_type_literal_parameter_layout() {
+fn test_format_type_literal_parameter_layout() {
     assert_format_program_reference_widths(
         r#"export default function useTagsCount({
   query,
@@ -165,7 +165,7 @@ fn test_format_typescript_type_literal_parameter_layout() {
 
 /// Mapped types should respect bracket spacing options exactly.
 #[test]
-fn test_format_typescript_mapped_type_bracket_spacing() {
+fn test_format_mapped_type_bracket_spacing() {
     let input = "export type Bar<T> = {[P in keyof T]: string}\n";
 
     let spaced_options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
@@ -208,7 +208,7 @@ fn test_format_typescript_mapped_type_bracket_spacing() {
 
 /// Parameter type comments should stay on the type side of the boundary.
 #[test]
-fn test_format_typescript_parameter_name_type_comments() {
+fn test_format_parameter_name_type_comments() {
     assert_format_program_reference_widths(
         r#"// comment between parameter name and type annotation
 function f(x /* a */ : number) {}
@@ -231,48 +231,88 @@ function optionalMultiple(a? /* c1 */ : string, b? /* c2 */ : number) {}
             (
                 80,
                 r#"// comment between parameter name and type annotation
-function f(x: /* a */ number) {}
+function f(x /* a */ : number) {}
 
 // Additional test cases
-function g(y: /* comment */ string, z: /* another */ boolean) {}
+function g(y /* comment */ : string, z /* another */ : boolean) {}
 
 // With different comment styles
-function h(a: /* inline */ number) {}
+function h(a /* inline */ : number) {}
 
 // Multiple parameters with comments
-const arrow = (x: /* c1 */ number, y: /* c2 */ string) => {};
+const arrow = (x /* c1 */ : number, y /* c2 */ : string) => {};
 
 // Optional parameters with comments
-function optional(x?: /* comment */ number) {}
-function optionalMultiple(a?: /* c1 */ string, b?: /* c2 */ number) {}
+function optional(x? /* comment */ : number) {}
+function optionalMultiple(a? /* c1 */ : string, b? /* c2 */ : number) {}
 "#,
             ),
             (
                 100,
                 r#"// comment between parameter name and type annotation
-function f(x: /* a */ number) {}
+function f(x /* a */ : number) {}
 
 // Additional test cases
-function g(y: /* comment */ string, z: /* another */ boolean) {}
+function g(y /* comment */ : string, z /* another */ : boolean) {}
 
 // With different comment styles
-function h(a: /* inline */ number) {}
+function h(a /* inline */ : number) {}
 
 // Multiple parameters with comments
-const arrow = (x: /* c1 */ number, y: /* c2 */ string) => {};
+const arrow = (x /* c1 */ : number, y /* c2 */ : string) => {};
 
 // Optional parameters with comments
-function optional(x?: /* comment */ number) {}
-function optionalMultiple(a?: /* c1 */ string, b?: /* c2 */ number) {}
+function optional(x? /* comment */ : number) {}
+function optionalMultiple(a? /* c1 */ : string, b? /* c2 */ : number) {}
 "#,
             ),
         ],
     );
 }
 
+/// Interface method parameter separator comments should stay with the same parameter.
+#[test]
+fn test_format_interface_method_parameter_separator_comment() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"interface Worker {
+  run(
+    value: string, // value-tail
+  ): number
+}
+"#,
+        r#"interface Worker {
+    run(
+        value: string, // value-tail
+    ): number;
+}
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Signature return boundary comments should stay attached to the return type shell.
+#[test]
+fn test_format_signature_return_boundary_comment() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"interface Worker {
+  run(): // return-tail
+  Promise<void>
+}
+"#,
+        r#"interface Worker {
+    run(): // return-tail
+    Promise<void>;
+}
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
 /// Method-style signatures should keep trailing generic commas in broken layouts.
 #[test]
-fn test_format_typescript_grouped_method_signature_layout() {
+fn test_format_grouped_method_signature_layout() {
     assert_format_program_reference_widths(
         r#"type A = {
   new(...args): T<{
@@ -416,7 +456,7 @@ const A5 = {
 
 /// Parameter layout should keep the expected hugging and object-pattern behavior.
 #[test]
-fn test_format_typescript_parameter_layout_fixtures() {
+fn test_format_parameter_layout() {
     assert_format_program_reference_widths(
         r#" const assertFilteringFor = (expected: {
    [T in TestFilterTerm]?: boolean;
@@ -561,9 +601,9 @@ function parseTitle(
     );
 }
 
-/// Rest parameter type queries should follow the OXC parameter layout.
+/// Rest parameter type queries should follow the shared parameter layout.
 #[test]
-fn test_format_typescript_parameter_type_query_layout() {
+fn test_format_parameter_type_query_layout() {
     assert_format_program_reference_widths(
         r#"useStableCallback(function useShowToast(
     ...args: Parameters<typeof toastService.addToastItem>

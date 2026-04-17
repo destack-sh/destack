@@ -6,9 +6,9 @@ use crate::format::annotation::{
 use crate::format::collection::{TrailingSeparator, separated_entries};
 use crate::format::context::DestackFormatterCommentExt;
 use crate::format::declaration::GroupedCallArgumentLayout;
-use crate::format::directive::any_ignore_range_for_nodes;
-use crate::{Annotation, DestackFormatContext, DestackFormatter};
-use destack_ast::{AnnotationPosition, Argument, Expression, LocalNodeId, TokenType};
+use crate::format::file::any_ignore_range_for_nodes;
+use crate::{Decorator, DestackFormatContext, DestackFormatter};
+use destack_ast::{Argument, DecoratorPosition, Expression, LocalNodeId, TokenType};
 use destack_fir::format::{Buffer, FormatNodes, FormatResult, GroupId};
 use destack_fir::prelude::{
     block_indent, empty_line, format_with, group, hard_line_break, if_group_breaks,
@@ -19,9 +19,9 @@ use destack_fir::{format_args, write};
 /// Return whether source text contains an empty line between adjacent arguments.
 pub(crate) fn arguments_have_empty_line(
     context: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
 ) -> bool {
-    dynamic_arguments.windows(2).any(|window| {
+    arguments.windows(2).any(|window| {
         let [current_argument_id, next_argument_id] = window else {
             return false;
         };
@@ -52,7 +52,7 @@ pub(crate) fn call_argument_lines_before(
 pub(crate) fn format_all_args_broken_out<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     call_span: destack_source::Span,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
     group_id: GroupId,
     disallow_trailing_separator: bool,
 ) -> FormatResult<()> {
@@ -67,7 +67,7 @@ pub(crate) fn format_all_args_broken_out<'ast>(
         [group(&format_args![
             token("("),
             soft_block_indent(&format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
+                for (index, argument_id) in arguments.iter().copied().enumerate() {
                     if index > 0 {
                         let has_empty_line =
                             call_argument_lines_before(f.context(), argument_id) > 1;
@@ -79,7 +79,7 @@ pub(crate) fn format_all_args_broken_out<'ast>(
                         }
                     }
 
-                    let following_span_start = dynamic_arguments
+                    let following_span_start = arguments
                         .get(index + 1)
                         .map(|argument_id| f.context().span(*argument_id).start)
                         .unwrap_or(0);
@@ -92,7 +92,7 @@ pub(crate) fn format_all_args_broken_out<'ast>(
                         index == 0,
                     )?;
 
-                    if index + 1 != dynamic_arguments.len() {
+                    if index + 1 != arguments.len() {
                         write!(f, [token(",")])?;
                     }
                 }
@@ -114,7 +114,7 @@ pub(crate) fn format_all_args_broken_out<'ast>(
 pub(crate) fn format_long_curried_call_arguments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     call_span: destack_source::Span,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
     let write_trailing_separator = matches!(
         f.context().options.trailing_comma,
@@ -126,12 +126,12 @@ pub(crate) fn format_long_curried_call_arguments<'ast>(
         [
             token("("),
             soft_block_indent(&format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
+                for (index, argument_id) in arguments.iter().copied().enumerate() {
                     if index > 0 {
                         write!(f, [token(","), soft_line_break_or_space()])?;
                     }
 
-                    let following_span_start = dynamic_arguments
+                    let following_span_start = arguments
                         .get(index + 1)
                         .map(|argument_id| f.context().span(*argument_id).start)
                         .unwrap_or(0);
@@ -362,16 +362,16 @@ fn write_empty_call_argument_comments<'ast>(
 pub(crate) fn write_simple_call_argument_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     call_span: destack_source::Span,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
     write!(f, [token("(")])?;
 
-    for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
+    for (index, argument_id) in arguments.iter().copied().enumerate() {
         if index > 0 {
             write!(f, [token(","), space()])?;
         }
 
-        let following_span_start = dynamic_arguments
+        let following_span_start = arguments
             .get(index + 1)
             .map(|argument_id| f.context().span(*argument_id).start)
             .unwrap_or(0);
@@ -391,20 +391,20 @@ pub(crate) fn write_simple_call_argument_list<'ast>(
 /// Return whether one call argument list contains ignored ranges.
 pub(crate) fn call_arguments_have_ignored_ranges(
     context: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
 ) -> bool {
     if !context.has_ignore_directive_markers() {
         return false;
     }
 
     let comment_tokens = context.comment_tokens();
-    any_ignore_range_for_nodes(context, dynamic_arguments, comment_tokens)
+    any_ignore_range_for_nodes(context, arguments, comment_tokens)
 }
 
 /// Write call arguments with ignored ranges preserved as raw text.
 pub(crate) fn write_ignored_call_arguments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
     group_id: GroupId,
 ) -> FormatResult<()> {
     write!(
@@ -413,7 +413,7 @@ pub(crate) fn write_ignored_call_arguments<'ast>(
             token("("),
             soft_block_indent(&separated_entries(
                 ",",
-                dynamic_arguments,
+                arguments,
                 TrailingSeparator::Allowed,
                 Some(group_id),
             )),
@@ -441,7 +441,7 @@ fn empty_call_infix_requires_multiline(
             .iter()
             .any(|annotation_id| {
                 let annotation = ctx.annotation(*annotation_id);
-                if annotation.position() != AnnotationPosition::BlockInfix {
+                if annotation.position != DecoratorPosition::BlockInfix {
                     return false;
                 }
 
@@ -451,7 +451,7 @@ fn empty_call_infix_requires_multiline(
                 }
 
                 match annotation {
-                    Annotation::Decorator { .. } => false,
+                    Decorator { .. } => false,
                 }
             })
 }
@@ -461,7 +461,7 @@ pub(crate) fn format_default_call_argument_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     call_span: destack_source::Span,
     group_id: GroupId,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
     force_expand: bool,
     disallow_trailing_separator: bool,
 ) -> FormatResult<()> {
@@ -482,12 +482,12 @@ pub(crate) fn format_default_call_argument_list<'ast>(
             [
                 token("("),
                 soft_block_indent(&format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                    for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
+                    for (index, argument_id) in arguments.iter().copied().enumerate() {
                         if index > 0 {
                             write!(f, [token(","), soft_line_break_or_space()])?;
                         }
 
-                        let following_span_start = dynamic_arguments
+                        let following_span_start = arguments
                             .get(index + 1)
                             .map(|argument_id| f.context().span(*argument_id).start)
                             .unwrap_or(0);

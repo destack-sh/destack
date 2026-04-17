@@ -1,6 +1,6 @@
-use crate::format::operator::format_static_argument_list;
-use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
-use destack_ast::{AnnotationPosition, Argument, Expression, LocalNodeId, Path, TokenType};
+use crate::format::operator::format_generic_argument_list;
+use crate::{Decorator, DestackFormatContext, DestackFormatter, FormatNode};
+use destack_ast::{DecoratorPosition, Expression, GenericArgument, LocalNodeId, Path, TokenType};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{format_with, hard_line_break, indent, token};
 use destack_fir::write;
@@ -11,7 +11,7 @@ pub(super) fn path_boundary_annotations_by_dot(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     segment_count: usize,
-) -> Option<Vec<SmallVec<[LocalNodeId<Annotation>; 2]>>> {
+) -> Option<Vec<SmallVec<[LocalNodeId<Decorator>; 2]>>> {
     if segment_count <= 1 {
         return None;
     }
@@ -25,11 +25,11 @@ pub(super) fn path_boundary_annotations_by_dot(
     }
 
     let mut buckets =
-        vec![SmallVec::<[LocalNodeId<Annotation>; 2]>::new(); segment_count.saturating_sub(1)];
+        vec![SmallVec::<[LocalNodeId<Decorator>; 2]>::new(); segment_count.saturating_sub(1)];
     let mut has_boundary_annotations = false;
     for annotation_id in context.annotation_ids(expression_id) {
         let annotation = context.annotation(*annotation_id);
-        if annotation.position() != AnnotationPosition::LinePostfixBoundary {
+        if annotation.position != DecoratorPosition::LinePostfixBoundary {
             continue;
         }
 
@@ -75,7 +75,7 @@ pub(crate) fn primary_expression_skips_boundary_annotations(
 fn format_path_with_boundary_annotations<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     path: &Path,
-    boundary_annotation_buckets: &[SmallVec<[LocalNodeId<Annotation>; 2]>],
+    boundary_annotation_buckets: &[SmallVec<[LocalNodeId<Decorator>; 2]>],
 ) -> FormatResult<()> {
     let Some(first_segment) = path.segments.first().copied() else {
         return Ok(());
@@ -113,12 +113,12 @@ fn format_path_with_boundary_annotations<'ast>(
     Ok(())
 }
 
-/// Format one path expression and its static arguments.
+/// Format one path expression and its generic arguments.
 pub(crate) fn format_path_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     path: &Path,
-    static_arguments: &Option<Vec<LocalNodeId<Argument>>>,
+    generic_arguments: &[LocalNodeId<GenericArgument>],
 ) -> FormatResult<()> {
     let boundary_annotation_buckets =
         path_boundary_annotations_by_dot(f.context(), node_id, path.segments.len());
@@ -129,10 +129,8 @@ pub(crate) fn format_path_expression<'ast>(
         write!(f, [path])?;
     }
 
-    if let Some(static_arguments) = static_arguments
-        && !static_arguments.is_empty()
-    {
-        format_static_argument_list(f, static_arguments)?;
+    if !generic_arguments.is_empty() {
+        format_generic_argument_list(f, generic_arguments)?;
     }
 
     Ok(())

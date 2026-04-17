@@ -1,16 +1,15 @@
 use crate::format::chain::{
-    has_comment_between_expressions, is_assignment_chain_tail_lambda, is_chain_root,
-    is_expression_chain, is_lambda_expression, transparent_inner_expression,
+    has_own_line_or_multiline_comment_between_expressions, is_assignment_chain_tail_lambda,
+    is_chain_root, is_expression_chain, is_lambda_expression, transparent_inner_expression,
 };
 use crate::format::context::ParenthesizedExpressionView;
-use crate::format::declaration::is_poorly_breakable_member_or_call_chain;
 use crate::format::expression::{
     expression_has_prefix_comment_or_doc_annotation_in_left_spine,
     expression_is_trivial_inline_without_annotations,
 };
-use crate::{Annotation, DestackFormatContext, DestackFormatter};
+use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    AnnotationPosition, AssignOperator, Declaration, Expression, LocalNodeId, NodeType,
+    AssignOperator, Comment, Declaration, DecoratorPosition, Expression, LocalNodeId, NodeType,
     ScalarLiteral, TokenType,
 };
 use destack_fir::format::{Buffer, Format, FormatResult};
@@ -33,8 +32,8 @@ fn assign_expression_has_own_line_prefix_annotation(
         .any(|annotation_id| {
             let annotation = context.annotation(annotation_id);
             if !matches!(
-                annotation.position(),
-                AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                annotation.position,
+                DecoratorPosition::LinePrefix | DecoratorPosition::BlockPrefix
             ) {
                 return false;
             }
@@ -86,18 +85,6 @@ pub(crate) fn assignment_rhs_has_inline_operator_prefix_comment(
     assignment_rhs_has_inline_operator_prefix_annotation_style(context, expression_id, |_| true)
 }
 
-/// Return whether one expression has an inline slash prefix comment after an assignment operator.
-fn assignment_rhs_has_inline_operator_prefix_slash_comment(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    assignment_rhs_has_inline_operator_prefix_annotation_style(
-        context,
-        expression_id,
-        |is_slash_style| is_slash_style,
-    )
-}
-
 /// Return whether one expression has an inline prefix assignment-operator annotation matching one filter.
 fn assignment_rhs_has_inline_operator_prefix_annotation_style(
     context: &DestackFormatContext<'_>,
@@ -107,17 +94,39 @@ fn assignment_rhs_has_inline_operator_prefix_annotation_style(
     let mut current_expression_id = transparent_inner_expression(context, expression_id);
 
     loop {
-        let has_inline_prefix_comment = context
-            .annotation_ids(current_expression_id)
-            .iter()
-            .copied()
-            .any(|annotation_id| {
-                annotation_is_inline_assignment_operator_prefix_comment(
-                    context,
-                    annotation_id,
-                    &mut style_filter,
-                )
-            });
+        let has_inline_prefix_comment =
+            assignment_rhs_operator_comment_nodes(context, current_expression_id)
+                .into_iter()
+                .any(|comment| {
+                    let Some(previous_token) =
+                        context.previous_non_trivia_token_before_span(comment.span)
+                    else {
+                        return false;
+                    };
+                    if !is_assignment_operator_token(previous_token.token.ty) {
+                        return false;
+                    }
+
+                    let assignment_and_comment_share_line = context.file.is_same_line(
+                        previous_token.span.end.saturating_sub(1),
+                        comment.span.start,
+                    );
+                    if !assignment_and_comment_share_line {
+                        return false;
+                    }
+
+                    let is_slash_style = comment.is_line();
+                    if !style_filter(is_slash_style) {
+                        return false;
+                    }
+
+                    if is_slash_style {
+                        return true;
+                    }
+
+                    !context.has_newline(comment.span)
+                        && !context.span_has_newline_before_next_non_whitespace_token(comment.span)
+                });
         if has_inline_prefix_comment {
             return true;
         }
@@ -128,65 +137,6 @@ fn assignment_rhs_has_inline_operator_prefix_annotation_style(
             return false;
         };
         current_expression_id = next_expression_id;
-    }
-}
-
-/// Return whether one annotation is an inline assignment-operator prefix comment.
-fn annotation_is_inline_assignment_operator_prefix_comment(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-    style_filter: &mut impl FnMut(bool) -> bool,
-) -> bool {
-    let Some((comment_span, annotation_position, is_slash_style)) =
-        assignment_operator_annotation_style(context, annotation_id)
-    else {
-        return false;
-    };
-    if !matches!(
-        annotation_position,
-        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-    ) {
-        return false;
-    }
-    if !style_filter(is_slash_style) {
-        return false;
-    }
-
-    let Some(previous_token) = context.annotation_previous_non_whitespace_token(annotation_id)
-    else {
-        return false;
-    };
-    if !is_assignment_operator_token(previous_token.token.ty) {
-        return false;
-    }
-
-    let assignment_and_comment_share_line = context.file.is_same_line(
-        previous_token.span.end.saturating_sub(1),
-        comment_span.start,
-    );
-    if !assignment_and_comment_share_line {
-        return false;
-    }
-
-    if context.annotation_starts_on_own_line(annotation_id) {
-        return false;
-    }
-
-    if is_slash_style {
-        true
-    } else {
-        !context.has_newline(comment_span)
-            && context.annotation_next_token_is_on_same_line(annotation_id)
-    }
-}
-
-/// Return node id, position, and style for one assignment-operator annotation.
-fn assignment_operator_annotation_style(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> Option<(Span, AnnotationPosition, bool)> {
-    match context.annotation(annotation_id) {
-        Annotation::Decorator { .. } => None,
     }
 }
 
@@ -205,8 +155,8 @@ fn next_assignment_left_spine_expression(
         | Expression::Instantiation { left, .. }
         | Expression::Maybe { left, .. }
         | Expression::Must { left, .. }
-        | Expression::TypeBinary { left, .. }
         | Expression::Binary { left, .. } => Some(*left),
+        Expression::Is { value, .. } | Expression::InstanceOf { value, .. } => Some(*value),
         _ => None,
     }
 }
@@ -219,7 +169,7 @@ fn expression_is_class_declaration(
     matches!(
         context.tree.get(transparent_inner_expression(context, expression_id)),
         Expression::Declaration(declaration_id)
-            if matches!(context.tree.get(*declaration_id), Declaration::Class { .. })
+            if matches!(context.tree.get(*declaration_id), Declaration::Class(_))
     )
 }
 
@@ -247,6 +197,38 @@ pub(crate) fn assignment_operator_has_line_comment_between(
             .previous_non_whitespace_token_before_span(comment_token.span)
             .is_some_and(|token| is_assignment_operator_token(token.token.ty))
     })
+}
+
+/// Return raw comments between one assignment operator and rhs expression.
+fn assignment_rhs_operator_comment_nodes(
+    context: &DestackFormatContext<'_>,
+    right: LocalNodeId<Expression>,
+) -> Vec<Comment> {
+    let right_span = context.span(right);
+    let right_token_start = context
+        .first_non_trivia_token_in_span(right_span)
+        .map_or(right_span.start, |token| token.span.start);
+    let Some(previous_token) = context.previous_non_trivia_token_before_span(Span::new(
+        right_span.file,
+        right_token_start,
+        right_token_start,
+    )) else {
+        return Vec::new();
+    };
+
+    if !is_assignment_operator_token(previous_token.token.ty)
+        || previous_token.span.file != right_span.file
+        || previous_token.span.end >= right_token_start
+    {
+        return Vec::new();
+    }
+
+    {
+        let comments = context.comments();
+        comments
+            .comments_in_range(previous_token.span.end, right_token_start)
+            .to_vec()
+    }
 }
 
 /// Walk left-linked assignment parents and return the outermost chain node.
@@ -329,7 +311,7 @@ pub(crate) fn right_assignment_parent(
     Some(parent_id)
 }
 
-/// One OXC-style layout for one assignment-like shell.
+/// One layout for one assignment-like shell.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AssignmentLikeLayout {
     Fluid,
@@ -462,7 +444,8 @@ fn assignment_expression_layout<'ast>(
             || assignment_operator_has_line_comment_between(context, left, right);
     let right_has_prefix_annotation_that_forces_operator_break =
         right_has_prefix_annotation && !right_has_assignment_operator_prefix_comment;
-    let right_has_between_comment = has_comment_between_expressions(context, left, right);
+    let right_has_between_comment =
+        has_own_line_or_multiline_comment_between_expressions(context, left, right);
     let is_string_literal = matches!(
         inner_right_expression,
         Expression::ScalarLiteral(ScalarLiteral::String(_)) | Expression::TemplateExpression { .. }
@@ -484,17 +467,8 @@ fn assignment_expression_layout<'ast>(
         return Ok(AssignmentLikeLayout::NeverBreakAfterOperator);
     }
 
-    // keep assignment operator prefix comments with the operator
+    // operator-bound trivia breaks after `=`
     if right_has_assignment_operator_prefix_comment {
-        let right_has_inline_operator_slash_comment =
-            assignment_rhs_has_inline_operator_prefix_slash_comment(f.context(), right);
-        if !right_has_inline_operator_slash_comment
-            && !right_has_newline
-            && !right_has_own_line_prefix_annotation
-        {
-            return Ok(AssignmentLikeLayout::NeverBreakAfterOperator);
-        }
-
         return Ok(AssignmentLikeLayout::BreakAfterOperator);
     }
 
@@ -526,7 +500,7 @@ fn assignment_expression_layout<'ast>(
         return Ok(AssignmentLikeLayout::BreakAfterOperator);
     }
 
-    if right_is_chain && is_poorly_breakable_member_or_call_chain(f, inner_right_id) {
+    if right_is_chain {
         return Ok(AssignmentLikeLayout::BreakAfterOperator);
     }
 

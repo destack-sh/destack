@@ -8,8 +8,8 @@ use crate::format::annotation::{
 use crate::format::collection::{TrailingSeparator, separated_entries};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AnnotationPosition, Expression, LocalNodeId, Mutability, NodeTree, NodeType, Pattern,
-    PatternField,
+    DecoratorPosition, LocalNodeId, Mutability, NodeTree, NodeType, Pattern, PatternField,
+    TypeExpression,
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
@@ -161,7 +161,7 @@ fn format_empty_pattern_delimiter_with_interior_annotations<'ast>(
 ) -> FormatResult<()> {
     let mut interior_items = Vec::new();
     for annotation_id in f.context().annotation_ids(node_id).iter().copied() {
-        if f.context().annotation(annotation_id).position() == AnnotationPosition::BlockInfix {
+        if f.context().annotation(annotation_id).position == DecoratorPosition::BlockInfix {
             interior_items.push(annotation_id);
         }
     }
@@ -207,7 +207,7 @@ fn object_pattern_is_inline(
     parameter_pattern.is_some_and(|pattern_id| pattern_id.id == node_id.id)
 }
 
-/// Return whether one object-like pattern is in assignment-like syntax.
+/// Return whether one object-like pattern is in assignment form.
 fn object_pattern_is_in_assignment_like(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Pattern>,
@@ -294,7 +294,7 @@ fn object_pattern_layout(
 fn format_object_pattern_like<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Pattern>,
-    ty: Option<LocalNodeId<Expression>>,
+    ty: Option<LocalNodeId<TypeExpression>>,
     fields: &[LocalNodeId<PatternField>],
 ) -> FormatResult<()> {
     if let Some(ty) = ty {
@@ -385,6 +385,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 }
             }
             Pattern::Expression { value } => write!(f, [value])?,
+            Pattern::TypeExpression { value } => write!(f, [value])?,
             Pattern::Tuple { fields } => {
                 format_pattern_field_list(f, node_id, "(", ")", fields, false)?;
             }

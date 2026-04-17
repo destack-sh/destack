@@ -1,15 +1,14 @@
 use super::options::DestackFormatOptions;
 use crate::format::context::source::{SourceText, token_keyword_map};
-use crate::format::directive::is_any_ignore_directive_comment;
 use std::cell::{Cell, OnceCell, RefCell};
 use std::rc::Rc;
 
-pub use destack_ast::Annotation;
+pub use destack_ast::Decorator;
 use destack_ast::{
-    Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField, Expression,
-    Keyword, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node, NodeParentIndex, NodeTree,
-    NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Property, TokenSpan, TokenType,
-    WhereClause,
+    Argument, Block, Declaration, Declarator, DependencyItem, EnumField, Expression,
+    GenericArgument, GenericParameter, Keyword, LocalNodeId, LocalNodeIdAny, MatchCase, Member,
+    Node, NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField,
+    Property, TokenSpan, TokenType, TupleElement, TypeExpression, TypeMember, WhereClause,
 };
 use destack_core::ImmutableStringPool;
 use destack_fir::format::{Format, FormatContext, FormatResult, Formatter};
@@ -28,10 +27,19 @@ pub(crate) const TYPE_CONTEXT_STATE_TRUE: u8 = 2;
 /// One explicit type root with its leading comment boundary.
 #[derive(Debug, Copy, Clone)]
 pub struct TypeExpressionRoot {
-    /// The expression formatted in type position.
-    pub node_id: LocalNodeId<Expression>,
+    /// The node formatted in type position.
+    pub node_id: LocalNodeIdAny,
     /// The earliest offset that may own leading raw comments for this root.
     pub leading_comment_start: Option<u32>,
+}
+
+/// One expression root formatted through one assignment-like type shell.
+#[derive(Debug, Copy, Clone)]
+pub struct AssignmentLikeTypeRoot {
+    /// The expression formatted through the assignment-like shell.
+    pub node_id: LocalNodeId<Expression>,
+    /// Whether the shell keeps the rhs attached after the operator.
+    pub rhs_is_inline_attached: bool,
 }
 
 /// The formatter implementation specialized for the Destack context.
@@ -93,7 +101,7 @@ pub struct DestackFormatContext<'a> {
     /// Expression roots that are explicitly formatted in type position.
     pub type_expression_roots: Rc<RefCell<Vec<TypeExpressionRoot>>>,
     /// Expression roots that are formatted through assignment-like type shells.
-    pub assignment_like_type_roots: Rc<RefCell<Vec<LocalNodeId<Expression>>>>,
+    pub assignment_like_type_roots: Rc<RefCell<Vec<AssignmentLikeTypeRoot>>>,
 }
 
 impl<'a> DestackFormatContext<'a> {
@@ -111,7 +119,7 @@ impl<'a> DestackFormatContext<'a> {
         let token_keyword_by_span = token_keyword_map(file, tokens, side_tokens);
         let node_count = tree.next_id() as usize;
         let source_is_ascii = file.text().is_ascii();
-        let mut has_ignore_directive_markers = false;
+        let has_ignore_directive_markers = false;
         let mut has_template_literal_markers = false;
         let mut comment_spans = Vec::new();
         let mut line_comment_spans = Vec::new();
@@ -130,19 +138,9 @@ impl<'a> DestackFormatContext<'a> {
                 TokenType::LineComment | TokenType::DocLineComment => {
                     comment_spans.push(token.span);
                     line_comment_spans.push(token.span);
-
-                    if !has_ignore_directive_markers {
-                        let raw = file.span_str(token.span);
-                        has_ignore_directive_markers = is_any_ignore_directive_comment(raw);
-                    }
                 }
                 TokenType::BlockComment | TokenType::DocBlockComment => {
                     comment_spans.push(token.span);
-
-                    if !has_ignore_directive_markers {
-                        let raw = file.span_str(token.span);
-                        has_ignore_directive_markers = is_any_ignore_directive_comment(raw);
-                    }
                 }
                 _ => {}
             }
@@ -219,26 +217,26 @@ impl<'a> DestackFormatContext<'a> {
         cloned
     }
 
-    /// Run one operation while one expression is an explicit type root.
-    pub fn with_type_expression_root<T>(
+    /// Run one operation while one node is an explicit type root.
+    pub fn with_type_expression_root<N: Node + Clone, T>(
         &self,
-        node_id: LocalNodeId<Expression>,
+        node_id: LocalNodeId<N>,
         operation: impl FnOnce() -> T,
     ) -> T {
         self.with_type_expression_root_from(node_id, None, operation)
     }
 
-    /// Run one operation while one expression is an explicit type root with one leading boundary.
-    pub fn with_type_expression_root_from<T>(
+    /// Run one operation while one node is an explicit type root with one leading boundary.
+    pub fn with_type_expression_root_from<N: Node + Clone, T>(
         &self,
-        node_id: LocalNodeId<Expression>,
+        node_id: LocalNodeId<N>,
         leading_comment_start: Option<u32>,
         operation: impl FnOnce() -> T,
     ) -> T {
         self.type_expression_roots
             .borrow_mut()
             .push(TypeExpressionRoot {
-                node_id,
+                node_id: node_id.into_any(),
                 leading_comment_start,
             });
 
@@ -252,9 +250,15 @@ impl<'a> DestackFormatContext<'a> {
     pub fn with_assignment_like_type_root<T>(
         &self,
         node_id: LocalNodeId<Expression>,
+        rhs_is_inline_attached: bool,
         operation: impl FnOnce() -> T,
     ) -> T {
-        self.assignment_like_type_roots.borrow_mut().push(node_id);
+        self.assignment_like_type_roots
+            .borrow_mut()
+            .push(AssignmentLikeTypeRoot {
+                node_id,
+                rhs_is_inline_attached,
+            });
 
         let result = operation();
 
@@ -262,9 +266,96 @@ impl<'a> DestackFormatContext<'a> {
         result
     }
 
-    /// Return whether one expression is inside one explicit type root.
-    pub fn is_in_type_expression_root(&self, node_id: LocalNodeId<Expression>) -> bool {
+    /// Return whether one node is inside one explicit type root.
+    pub fn is_in_type_expression_root<N: Node + Clone>(&self, node_id: LocalNodeId<N>) -> bool {
         let type_roots = self.type_expression_roots.borrow();
+        if type_roots.is_empty() {
+            return false;
+        }
+
+        let mut current_id = node_id.id;
+        let mut current_type = N::TYPE;
+        loop {
+            if type_roots
+                .iter()
+                .rev()
+                .any(|root| root.node_id == LocalNodeIdAny::new(current_id, current_type))
+            {
+                return true;
+            }
+
+            let Some((parent_id, parent_type)) = self.parent_by_id(current_id) else {
+                return false;
+            };
+
+            current_id = parent_id;
+            current_type = parent_type;
+        }
+    }
+
+    /// Return the nearest explicit type root that owns one node.
+    pub fn type_expression_root_id<N: Node + Clone>(
+        &self,
+        node_id: LocalNodeId<N>,
+    ) -> Option<LocalNodeIdAny> {
+        let type_roots = self.type_expression_roots.borrow();
+        if type_roots.is_empty() {
+            return None;
+        }
+
+        let mut current_id = node_id.id;
+        let mut current_type = N::TYPE;
+        loop {
+            if let Some(root) = type_roots
+                .iter()
+                .rev()
+                .find(|root| root.node_id == LocalNodeIdAny::new(current_id, current_type))
+            {
+                return Some(root.node_id);
+            }
+
+            let Some((parent_id, parent_type)) = self.parent_by_id(current_id) else {
+                return None;
+            };
+
+            current_id = parent_id;
+            current_type = parent_type;
+        }
+    }
+
+    /// Return the leading raw-comment boundary for one explicit type root, if any.
+    pub fn type_expression_leading_comment_start<N: Node + Clone>(
+        &self,
+        node_id: LocalNodeId<N>,
+    ) -> Option<u32> {
+        let type_roots = self.type_expression_roots.borrow();
+        if type_roots.is_empty() {
+            return None;
+        }
+
+        let mut current_id = node_id.id;
+        let mut current_type = N::TYPE;
+        loop {
+            if let Some(root) = type_roots
+                .iter()
+                .rev()
+                .find(|root| root.node_id == LocalNodeIdAny::new(current_id, current_type))
+            {
+                return root.leading_comment_start;
+            }
+
+            let Some((parent_id, parent_type)) = self.parent_by_id(current_id) else {
+                return None;
+            };
+
+            current_id = parent_id;
+            current_type = parent_type;
+        }
+    }
+
+    /// Return whether one expression is inside one assignment-like type root.
+    pub fn is_in_assignment_like_type_root(&self, node_id: LocalNodeId<Expression>) -> bool {
+        let type_roots = self.assignment_like_type_roots.borrow();
         if type_roots.is_empty() {
             return false;
         }
@@ -291,12 +382,12 @@ impl<'a> DestackFormatContext<'a> {
         }
     }
 
-    /// Return the leading raw-comment boundary for one explicit type root, if any.
-    pub fn type_expression_leading_comment_start(
+    /// Return whether one assignment-like type root keeps the rhs attached inline.
+    pub fn assignment_like_type_root_rhs_is_inline_attached(
         &self,
         node_id: LocalNodeId<Expression>,
-    ) -> Option<u32> {
-        let type_roots = self.type_expression_roots.borrow();
+    ) -> Option<bool> {
+        let type_roots = self.assignment_like_type_roots.borrow();
         if type_roots.is_empty() {
             return None;
         }
@@ -309,7 +400,7 @@ impl<'a> DestackFormatContext<'a> {
                 .rev()
                 .find(|root| root.node_id == current_expression_id)
             {
-                return root.leading_comment_start;
+                return Some(root.rhs_is_inline_attached);
             }
 
             let Some((parent_id, parent_type)) = self.parent_by_id(current_id) else {
@@ -317,35 +408,6 @@ impl<'a> DestackFormatContext<'a> {
             };
             if parent_type != NodeType::Expression {
                 return None;
-            }
-
-            current_id = parent_id;
-        }
-    }
-
-    /// Return whether one expression is inside one assignment-like type root.
-    pub fn is_in_assignment_like_type_root(&self, node_id: LocalNodeId<Expression>) -> bool {
-        let type_roots = self.assignment_like_type_roots.borrow();
-        if type_roots.is_empty() {
-            return false;
-        }
-
-        let mut current_id = node_id.id;
-        loop {
-            let current_expression_id = LocalNodeId::<Expression>::new(current_id);
-            if type_roots
-                .iter()
-                .rev()
-                .any(|root_id| *root_id == current_expression_id)
-            {
-                return true;
-            }
-
-            let Some((parent_id, parent_type)) = self.parent_by_id(current_id) else {
-                return false;
-            };
-            if parent_type != NodeType::Expression {
-                return false;
             }
 
             current_id = parent_id;
@@ -406,6 +468,11 @@ impl<'a> Format<DestackFormatContext<'a>> for LocalNodeIdAny {
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
+            NodeType::TypeExpression => {
+                let node_id = LocalNodeId::<TypeExpression>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
             NodeType::Block => {
                 let node_id = LocalNodeId::<Block>::new(self.id);
                 let node = context.tree.get(node_id);
@@ -418,6 +485,11 @@ impl<'a> Format<DestackFormatContext<'a>> for LocalNodeIdAny {
             }
             NodeType::Property => {
                 let node_id = LocalNodeId::<Property>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::TypeMember => {
+                let node_id = LocalNodeId::<TypeMember>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
@@ -441,8 +513,23 @@ impl<'a> Format<DestackFormatContext<'a>> for LocalNodeIdAny {
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
+            NodeType::GenericParameter => {
+                let node_id = LocalNodeId::<GenericParameter>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
             NodeType::Parameter => {
                 let node_id = LocalNodeId::<Parameter>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::GenericArgument => {
+                let node_id = LocalNodeId::<GenericArgument>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::TupleElement => {
+                let node_id = LocalNodeId::<TupleElement>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
@@ -469,11 +556,6 @@ impl<'a> Format<DestackFormatContext<'a>> for LocalNodeIdAny {
             NodeType::Declarator => {
                 let node_id = LocalNodeId::<Declarator>::new(self.id);
                 let node = context.tree.get(node_id);
-                node.format_node(node_id, f)
-            }
-            NodeType::Annotation => {
-                let node_id = LocalNodeId::<Annotation>::new(self.id);
-                let node = context.annotation(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Decorator => {

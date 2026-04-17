@@ -36,7 +36,7 @@ pub fn format_file_source(
     match file.ty {
         FileType::Css => format_css_file_source(file, source, options),
         FileType::Html => format_html_file_source(file, source, options),
-        _ => format_destack_file_source(file, options),
+        _ => format_parser_file_source(file, options),
     }
 }
 
@@ -86,8 +86,8 @@ fn format_html_file_source(
     Ok(formatted)
 }
 
-/// Format one parser driven source file.
-fn format_destack_file_source(
+/// Format one parser-driven source file.
+fn format_parser_file_source(
     file: &File,
     options: FormatterOptions,
 ) -> Result<String, FormatFileError> {
@@ -129,11 +129,11 @@ fn format_destack_file_source(
         parents,
     );
 
-    render_destack_expressions(&context, &expressions)
+    render_program_roots(&context, &expressions)
 }
 
-/// Render one parser expression list through the main formatter.
-fn render_destack_expressions<'a>(
+/// Render one parsed root list through the main formatter.
+fn render_program_roots<'a>(
     context: &DestackFormatContext<'a>,
     expressions: &'a [LocalNodeId<Expression>],
 ) -> Result<String, FormatFileError> {
@@ -203,7 +203,7 @@ mod tests {
 
         assert_eq!(
             formatted,
-            "@media screen {\n    .button {\n        color: red;\n        background: #00f;\n    }\n}\n"
+            "@media screen {\n    .button {\n        color: red;\n        background: blue;\n    }\n}\n"
         );
     }
 

@@ -42,21 +42,40 @@ fn test_format_binary_expression_keeps_mixed_bitwise_precedence_without_extra_gr
     );
 }
 
-/// Short logical rhs values can stay inline when the whole cast-headed expression still fits.
+/// Object property values should own the outer indent for long logical chains.
 #[test]
-fn test_format_logical_expression_keeps_short_tail_after_multiline_type_cast_head() {
-    assert_format_program_reference_widths(
-        r#"const sourcemap =
-  /** @type {'inline' | 'hidden' | 'sourcemap'} */ (
-      process.env.WORKER_MODE
-    ) || sourcemap
+fn test_format_logical_expression_in_object_property_breaks_after_colon() {
+    assert_format_program!(
+        r#"const value = {
+  field: leftHandSideIsVeryLongAndKeepsGoingAndGoingAndGoing || anotherVeryLongThingThatKeepsGoingAndGoingAndGoing || thirdVeryLongThingThatKeepsGoingAndGoingAndGoing
+}
+"#,
+        r#"const value = {
+    field:
+        leftHandSideIsVeryLongAndKeepsGoingAndGoingAndGoing ||
+        anotherVeryLongThingThatKeepsGoingAndGoingAndGoing ||
+        thirdVeryLongThingThatKeepsGoingAndGoingAndGoing,
+};
 "#,
         destack_source::FileType::TypeScript,
-        &[(
-            100,
-            r#"const sourcemap =
-  /** @type {'inline' | 'hidden' | 'sourcemap'} */ (process.env.WORKER_MODE) || sourcemap;
+    );
+}
+
+/// Class field initializers should own the outer indent for long logical chains.
+#[test]
+fn test_format_logical_expression_in_class_field_initializer_breaks_after_equals() {
+    assert_format_program!(
+        r#"class Example {
+  field = leftHandSideIsVeryLongAndKeepsGoingAndGoingAndGoing || anotherVeryLongThingThatKeepsGoingAndGoingAndGoing || thirdVeryLongThingThatKeepsGoingAndGoingAndGoing
+}
 "#,
-        )],
+        r#"class Example {
+    field =
+        leftHandSideIsVeryLongAndKeepsGoingAndGoingAndGoing ||
+        anotherVeryLongThingThatKeepsGoingAndGoingAndGoing ||
+        thirdVeryLongThingThatKeepsGoingAndGoingAndGoing;
+}
+"#,
+        destack_source::FileType::TypeScript,
     );
 }

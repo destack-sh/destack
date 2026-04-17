@@ -1,5 +1,5 @@
-use crate::format::directive::node_has_ignore_directive;
 use crate::format::expression::format_expression;
+use crate::format::file::node_has_ignore_directive;
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{Decorator, Expression, LocalNodeId, NodeTree};
 use destack_fir::format::{Buffer, FormatResult};
@@ -40,14 +40,14 @@ fn decorator_needs_parentheses(tree: &NodeTree, expression_id: LocalNodeId<Expre
         Expression::Parenthesized { .. } => false,
         Expression::Identifier { .. } => false,
         Expression::QualifiedReference {
-            static_arguments, ..
-        } => static_arguments.is_some(),
+            generic_arguments, ..
+        } => !generic_arguments.is_empty(),
         Expression::Call { left, .. } => !is_identifier_or_static_member_only(tree, *left),
         Expression::Member {
             left,
-            static_arguments,
+            generic_arguments,
             ..
-        } => static_arguments.is_some() || !is_identifier_or_static_member_only(tree, *left),
+        } => !generic_arguments.is_empty() || !is_identifier_or_static_member_only(tree, *left),
         _ => true,
     }
 }
@@ -60,13 +60,13 @@ fn is_identifier_or_static_member_only(
     match tree.get(expression_id) {
         Expression::Identifier { .. } => true,
         Expression::QualifiedReference {
-            static_arguments, ..
-        } => static_arguments.is_none(),
+            generic_arguments, ..
+        } => generic_arguments.is_empty(),
         Expression::Member {
             left,
-            static_arguments,
+            generic_arguments,
             ..
-        } => static_arguments.is_none() && is_identifier_or_static_member_only(tree, *left),
+        } => generic_arguments.is_empty() && is_identifier_or_static_member_only(tree, *left),
         _ => false,
     }
 }

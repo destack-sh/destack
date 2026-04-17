@@ -4,9 +4,8 @@ pub mod chain;
 pub mod collection;
 mod context;
 pub mod declaration;
-pub mod directive;
 pub mod expression;
-mod file;
+pub mod file;
 pub mod operator;
 pub mod tree;
 

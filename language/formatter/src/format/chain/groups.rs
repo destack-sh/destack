@@ -1,4 +1,5 @@
 use std::cell::Cell;
+use std::collections::VecDeque;
 
 use super::{
     ChainExpression, ChainExpressionBase, ChainExpressionBaseHead, chain_operation_is_call_like,
@@ -6,8 +7,8 @@ use super::{
     transparent_inner_expression,
 };
 use crate::DestackFormatContext;
-use crate::format::operator::expression_has_static_type_arguments;
-use destack_ast::{AnnotationPosition, Expression, PostfixPosition};
+use crate::format::operator::expression_has_generic_arguments;
+use destack_ast::{DecoratorPosition, Expression, PostfixPosition};
 use smallvec::SmallVec;
 
 /// One tail group following the chain head.
@@ -17,20 +18,14 @@ pub(crate) struct TailChainGroup {
     needs_empty_line: Cell<bool>,
 }
 
-impl Default for TailChainGroup {
-    fn default() -> Self {
+impl TailChainGroup {
+    /// Build one group from its first operation.
+    fn new(operation: ChainExpression) -> Self {
         Self {
-            operations: SmallVec::new(),
+            operations: SmallVec::from_iter([operation]),
             will_break: Cell::new(false),
             needs_empty_line: Cell::new(false),
         }
-    }
-}
-
-impl TailChainGroup {
-    /// Return whether there are no operations in the group.
-    fn is_empty(&self) -> bool {
-        self.operations.is_empty()
     }
 
     /// Push one operation into the group.
@@ -82,47 +77,47 @@ impl TailChainGroup {
 /// Build tail groups after the chain head.
 #[derive(Default)]
 struct TailChainGroupsBuilder {
-    groups: Vec<TailChainGroup>,
-    current_group: TailChainGroup,
+    groups: VecDeque<TailChainGroup>,
+    current_group: Option<TailChainGroup>,
 }
 
 impl TailChainGroupsBuilder {
     /// Start a new tail group.
     fn start_group(&mut self, operation: ChainExpression) {
-        debug_assert!(self.current_group.is_empty());
-        self.current_group.push(operation);
+        debug_assert!(self.current_group.is_none());
+        self.current_group = Some(TailChainGroup::new(operation));
     }
 
     /// Append to the current group or start a new one.
     fn start_or_continue_group(&mut self, operation: ChainExpression) {
-        if self.current_group.is_empty() {
-            self.start_group(operation);
-        } else {
-            self.current_group.push(operation);
+        match &mut self.current_group {
+            None => self.start_group(operation),
+            Some(group) => group.push(operation),
         }
     }
 
     /// Close the current group.
     fn close_group(&mut self) {
-        if self.current_group.is_empty() {
-            return;
+        if let Some(group) = self.current_group.take() {
+            self.groups.push_back(group);
         }
-
-        self.groups.push(std::mem::take(&mut self.current_group));
     }
 
     /// Finish building all tail groups.
-    fn finish(mut self) -> TailChainGroups {
-        self.close_group();
-        TailChainGroups {
-            groups: self.groups,
+    fn finish(self) -> TailChainGroups {
+        let mut groups = self.groups;
+
+        if let Some(group) = self.current_group {
+            groups.push_back(group);
         }
+
+        TailChainGroups { groups }
     }
 }
 
 /// The groups following the chain head.
 pub(crate) struct TailChainGroups {
-    groups: Vec<TailChainGroup>,
+    groups: VecDeque<TailChainGroup>,
 }
 
 impl TailChainGroups {
@@ -138,21 +133,17 @@ impl TailChainGroups {
 
     /// Return the first tail group.
     pub(crate) fn first(&self) -> Option<&TailChainGroup> {
-        self.groups.first()
+        self.groups.front()
     }
 
     /// Return the last tail group.
     pub(crate) fn last(&self) -> Option<&TailChainGroup> {
-        self.groups.last()
+        self.groups.back()
     }
 
     /// Remove and return the first tail group.
     pub(crate) fn pop_first(&mut self) -> Option<TailChainGroup> {
-        if self.groups.is_empty() {
-            return None;
-        }
-
-        Some(self.groups.remove(0))
+        self.groups.pop_front()
     }
 
     /// Return an iterator over all tail groups.
@@ -268,10 +259,14 @@ pub(crate) fn build_tail_chain_groups(
         }
 
         let current_group = &groups_builder.current_group;
-        if current_group.last().is_some_and(|operation| {
-            chain_operation_has_trailing_annotations(context, operation)
-                || chain_operation_has_trailing_comment(context, operation)
-        }) {
+        if current_group
+            .as_ref()
+            .and_then(TailChainGroup::last)
+            .is_some_and(|operation| {
+                chain_operation_has_trailing_annotations(context, operation)
+                    || chain_operation_has_trailing_comment(context, operation)
+            })
+        {
             groups_builder.close_group();
             has_seen_call_like = false;
         }
@@ -308,13 +303,11 @@ pub(crate) fn chain_instantiation_prefix_wrap_body_ops(
 ) -> Option<usize> {
     let head_has_static_instantiation_prefix = match &base.head {
         ChainExpressionBaseHead::Expression(expression_id) => {
-            expression_has_static_type_arguments(context, *expression_id)
+            expression_has_generic_arguments(context, *expression_id)
         }
         ChainExpressionBaseHead::Path {
-            static_arguments, ..
-        } => static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty()),
+            generic_arguments, ..
+        } => !generic_arguments.is_empty(),
     };
     let static_instantiation_body_index = base
         .body
@@ -435,13 +428,11 @@ fn chain_operation_is_call_or_attached_tail(operation: &ChainExpression) -> bool
 fn chain_operation_has_static_instantiation_arguments(operation: &ChainExpression) -> bool {
     match operation {
         ChainExpression::Instantiation {
-            static_arguments, ..
-        } => !static_arguments.is_empty(),
+            generic_arguments, ..
+        } => !generic_arguments.is_empty(),
         ChainExpression::Member {
-            static_arguments, ..
-        } => static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty()),
+            generic_arguments, ..
+        } => !generic_arguments.is_empty(),
         _ => false,
     }
 }
@@ -456,10 +447,10 @@ fn chain_operation_has_trailing_annotations(
         .iter()
         .any(|annotation_id| {
             matches!(
-                context.annotation(*annotation_id).position(),
-                AnnotationPosition::LinePostfix
-                    | AnnotationPosition::LinePostfixBoundary
-                    | AnnotationPosition::BlockPostfix
+                context.annotation(*annotation_id).position,
+                DecoratorPosition::LinePostfix
+                    | DecoratorPosition::LinePostfixBoundary
+                    | DecoratorPosition::BlockPostfix
             )
         })
 }

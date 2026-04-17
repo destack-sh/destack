@@ -1,9 +1,7 @@
-use super::is_type_cast_comment_node;
 use crate::DestackFormatContext;
-use crate::format::context::ParenthesizedExpressionView;
 use destack_ast::{
-    Argument, Expression, IfCondition, IfKind, LocalNodeId, NodeTree, NodeType, Pattern, Property,
-    ScalarLiteral, TokenType, TypeBinaryOperator, UnaryOperator,
+    Argument, Expression, GenericArgument, IfCondition, IfKind, LocalNodeId, NodeTree, NodeType,
+    Pattern, Property, ScalarLiteral, TokenType, TypeExpression, UnaryOperator,
 };
 use destack_source::Span;
 
@@ -53,7 +51,6 @@ pub(crate) fn expression_has_prefix_comment_or_doc_annotation_in_left_spine(
             | Expression::Instantiation { left, .. }
             | Expression::Maybe { left, .. }
             | Expression::Must { left, .. }
-            | Expression::TypeBinary { left, .. }
             | Expression::Binary { left, .. } => Some(*left),
             _ => None,
         };
@@ -68,45 +65,20 @@ pub(crate) fn expression_has_prefix_comment_or_doc_annotation_in_left_spine(
     false
 }
 
-/// Return whether a left-spine type-cast wrapper owns prefix comments for this expression shell.
-pub(crate) fn expression_has_type_cast_comment_head(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    expression_type_cast_comment_head_start(context, expression_id).is_some()
-}
-
-/// Return the start offset of one left-spine type-cast comment owner.
-pub(crate) fn expression_type_cast_comment_head_start(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> Option<u32> {
-    let mut current_id = expression_id;
-
-    loop {
-        if is_type_cast_comment_node(context, current_id) {
-            let comments = context.comments();
-            let comment_index = comments.get_type_cast_comment_index(context.span(current_id))?;
-            return Some(comments.unprinted_comments()[comment_index].span.start);
+/// Return whether a type expression prefers inline layout.
+fn is_trivial_type_expression(tree: &NodeTree, expression_id: LocalNodeId<TypeExpression>) -> bool {
+    match tree.get(expression_id) {
+        TypeExpression::Parenthesized { expression } => {
+            is_trivial_type_expression(tree, *expression)
         }
-
-        let next_id = match context.tree.get(current_id) {
-            Expression::Call { left, .. }
-            | Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
-            | Expression::Index { left, .. }
-            | Expression::Instantiation { left, .. }
-            | Expression::Maybe { left, .. }
-            | Expression::Must { left, .. } => Some(*left),
-            Expression::TaggedTemplateExpression { tag, .. } => Some(*tag),
-            _ => None,
-        };
-
-        let Some(next_id) = next_id else {
-            return None;
-        };
-
-        current_id = next_id;
+        TypeExpression::ScalarLiteral { .. }
+        | TypeExpression::Literal { .. }
+        | TypeExpression::Intrinsic
+        | TypeExpression::Reference { .. }
+        | TypeExpression::Member { .. }
+        | TypeExpression::Const
+        | TypeExpression::This => true,
+        _ => false,
     }
 }
 
@@ -114,13 +86,13 @@ pub(crate) fn expression_type_cast_comment_head_start(
 pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
     match expression {
         Expression::ScalarLiteral(_)
-        | Expression::TypeLiteral(_)
         | Expression::Identifier { .. }
         | Expression::ImportMeta
         | Expression::NewTarget
         | Expression::This
         | Expression::Super
         | Expression::PrivateIdentifier { .. } => true,
+        Expression::Type { value } => is_trivial_type_expression(tree, *value),
         Expression::ObjectExpression { ty, properties, .. } => {
             ty.is_none()
                 && properties.len() <= 5
@@ -142,33 +114,34 @@ pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
         }
         Expression::QualifiedReference {
             path,
-            static_arguments,
-        } => {
-            path.segments.len() <= 3
-                && static_arguments.as_deref().is_none_or(|static_arguments| {
-                    static_arguments_are_trivial(tree, static_arguments)
-                })
+            generic_arguments,
+        } => path.segments.len() <= 3 && generic_arguments_are_trivial(tree, generic_arguments),
+        Expression::As {
+            expression: left,
+            target_type: right,
         }
-        Expression::TypeBinary {
-            left,
-            operator: TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies,
-            right,
+        | Expression::Satisfies {
+            expression: left,
+            target_type: right,
         } => {
-            is_trivial_expression(tree, tree.get(*left))
-                && is_trivial_expression(tree, tree.get(*right))
+            is_trivial_expression(tree, tree.get(*left)) && is_trivial_type_expression(tree, *right)
         }
         _ => false,
     }
 }
 
-/// Return whether static arguments stay concise when inlined.
-fn static_arguments_are_trivial(
+/// Return whether generic arguments stay concise when inlined.
+fn generic_arguments_are_trivial(
     tree: &NodeTree,
-    static_arguments: &[LocalNodeId<Argument>],
+    generic_arguments: &[LocalNodeId<GenericArgument>],
 ) -> bool {
-    static_arguments
+    generic_arguments
         .iter()
-        .all(|argument_id| is_trivial_argument(tree, tree.get(*argument_id)))
+        .all(|argument_id| match tree.get(*argument_id) {
+            GenericArgument::Type { value } => is_trivial_type_expression(tree, *value),
+            GenericArgument::Value { value } => is_trivial_expression(tree, tree.get(*value)),
+            GenericArgument::Error => false,
+        })
 }
 
 /// Return whether an argument prefers inline layout.
@@ -185,10 +158,7 @@ pub fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
 /// Return whether a property prefers inline layout.
 pub fn is_trivial_property(tree: &NodeTree, property: &Property) -> bool {
     match property {
-        Property::Field { value, default, .. } => {
-            value.is_none_or(|value| is_trivial_expression(tree, tree.get(value)))
-                && default.is_none_or(|default| is_trivial_expression(tree, tree.get(default)))
-        }
+        Property::Field { value, .. } => is_trivial_expression(tree, tree.get(*value)),
         Property::Method { body, .. } => {
             body.is_none_or(|body| is_trivial_expression(tree, tree.get(body)))
         }
@@ -204,8 +174,7 @@ pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool
         Expression::TupleExpression { elements, .. } => !elements.is_empty(),
         Expression::SequenceExpression { expressions, .. } => !expressions.is_empty(),
         Expression::ObjectExpression { ty, properties, .. } => {
-            ty.is_some_and(|ty| is_expression_breakable(tree, tree.get(ty)))
-                || !properties.is_empty()
+            ty.is_some_and(|ty| is_type_expression_breakable(tree, ty)) || !properties.is_empty()
         }
         Expression::TreeExpression {
             arguments,
@@ -219,12 +188,9 @@ pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool
                     .as_ref()
                     .is_some_and(|elements| !elements.is_empty())
         }
-        Expression::Call {
-            dynamic_arguments, ..
+        Expression::Call { arguments, .. } | Expression::New { arguments, .. } => {
+            !arguments.is_empty()
         }
-        | Expression::New {
-            dynamic_arguments, ..
-        } => !dynamic_arguments.is_empty(),
         Expression::Match { .. }
         | Expression::If { .. }
         | Expression::Loop { .. }
@@ -236,15 +202,31 @@ pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool
         | Expression::Import { .. }
         | Expression::Export { .. }
         | Expression::Binary { .. }
-        | Expression::TypeBinary { .. }
-        | Expression::TypeConditional { .. }
-        | Expression::TypeMapped { .. }
-        | Expression::TypeTemplateLiteral { .. } => true,
+        | Expression::As { .. }
+        | Expression::Satisfies { .. }
+        | Expression::Is { .. }
+        | Expression::InstanceOf { .. } => true,
         Expression::QualifiedReference {
-            static_arguments, ..
-        } => static_arguments
-            .as_ref()
-            .is_some_and(|static_arguments| !static_arguments.is_empty()),
+            generic_arguments, ..
+        } => !generic_arguments.is_empty(),
+        _ => false,
+    }
+}
+
+/// Return whether a type expression can break across multiple lines.
+fn is_type_expression_breakable(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<TypeExpression>,
+) -> bool {
+    match tree.get(expression_id) {
+        TypeExpression::Tuple { elements } => !elements.is_empty(),
+        TypeExpression::Object { members } => !members.is_empty(),
+        TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
+            !elements.is_empty()
+        }
+        TypeExpression::Conditional { .. }
+        | TypeExpression::Mapped { .. }
+        | TypeExpression::TemplateLiteral { .. } => true,
         _ => false,
     }
 }
@@ -384,7 +366,7 @@ pub(crate) fn expression_has_leading_prefix_comment(
 
         let next = match context.tree.get(current) {
             Expression::Parenthesized { expression } => Some(*expression),
-            Expression::Binary { left, .. } | Expression::TypeBinary { left, .. } => Some(*left),
+            Expression::Binary { left, .. } => Some(*left),
             Expression::If {
                 kind: IfKind::Ternary,
                 condition:
@@ -411,32 +393,6 @@ pub(crate) fn expression_has_leading_prefix_comment(
     }
 
     false
-}
-
-/// Return whether parenthesized cast comments should be hoisted before `(`.
-pub(crate) fn should_hoist_parenthesized_inner_cast_prefix_comments(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    inner_id: LocalNodeId<Expression>,
-) -> bool {
-    let is_parent_yield_value = context
-        .parent(node_id)
-        .is_some_and(|(parent_id, parent_type)| {
-            parent_type == NodeType::Expression
-                && matches!(
-                    context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
-                    Expression::Yield { value: Some(value_id), .. } if *value_id == node_id
-                )
-        });
-    if is_parent_yield_value {
-        return false;
-    }
-
-    let has_doc_like_prefix_annotation = !context.raw_prefix_doc_comments_for(inner_id).is_empty();
-
-    ParenthesizedExpressionView::from_node(context, node_id)
-        .is_some_and(ParenthesizedExpressionView::has_leading_inner_trivia)
-        && has_doc_like_prefix_annotation
 }
 
 /// Return whether a sequence expression needs parentheses in its parent context.

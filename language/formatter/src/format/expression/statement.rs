@@ -119,20 +119,23 @@ pub(crate) fn format_statement_expression<'ast>(
         // let
         Expression::Let {
             kind,
-            descriptor,
+            export,
+            ambient,
             declarators,
             ..
         } => {
-            format_let_statement_expression(f, *kind, descriptor, declarators)?;
+            format_let_statement_expression(f, *kind, *export, *ambient, declarators)?;
         }
 
         // using
         Expression::Using {
             asynchrony,
-            descriptor,
+            export,
+            ambient,
             declarators,
+            ..
         } => {
-            format_using_statement_expression(f, *asynchrony, descriptor, declarators)?;
+            format_using_statement_expression(f, *asynchrony, *export, *ambient, declarators)?;
         }
 
         // if (ternary)

@@ -97,6 +97,7 @@ pub(crate) fn format_scalar_literal<'ast>(
     let is_tree_text = literal_type == Some(LiteralType::TreeString);
 
     match scalar {
+        ScalarLiteral::Null => token("null").format(f)?,
         ScalarLiteral::Boolean(value) => token(if *value { "true" } else { "false" }).format(f)?,
         ScalarLiteral::Integer(value) => {
             if source_lexeme.is_empty() {
@@ -359,7 +360,6 @@ fn template_argument_should_indent_fit_layout(
             | Expression::PrivateMember { .. }
             | Expression::Index { .. }
             | Expression::If { .. }
-            | Expression::TypeBinary { .. }
             | Expression::Binary { .. }
             | Expression::Identifier { .. }
             | Expression::QualifiedReference { .. }

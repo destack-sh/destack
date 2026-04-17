@@ -2,15 +2,15 @@ use super::arguments::format_call_arguments;
 use crate::format::annotation::format_trailing_comment_slice;
 use crate::format::chain::extract_parenthesized_index_chain;
 use crate::format::context::ParenthesizedExpressionView;
-use crate::format::directive::node_has_ignore_directive;
 use crate::format::expression::{
-    format_expression, format_static_argument_list, format_static_member_with_following_suffix,
-    should_unwrap_parenthesized_member_object, write_expression_without_trailing_annotations,
+    format_expression, format_generic_argument_list, should_unwrap_parenthesized_member_object,
+    write_expression_without_trailing_annotations,
 };
-use crate::format::operator::expression_has_static_type_arguments;
+use crate::format::file::node_has_ignore_directive;
+use crate::format::operator::expression_has_generic_arguments;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Argument, Expression, LocalNodeId, NodeType, PostfixPosition};
-use destack_fir::format::{Buffer, FormatResult};
+use destack_ast::{Argument, Expression, GenericArgument, LocalNodeId, NodeType, PostfixPosition};
+use destack_fir::format::{Buffer, FormatError, FormatResult};
 use destack_fir::prelude::{format_with, group, space, token};
 use destack_fir::write;
 
@@ -24,7 +24,7 @@ pub(crate) fn call_drops_parenthesized_callee_wrapper(
     matches!(
         parent_expression,
         Expression::Call { left, .. } if *left == parenthesized_id
-    ) && expression_has_static_type_arguments(context, inner_expression_id)
+    ) && expression_has_generic_arguments(context, inner_expression_id)
         && !context.has_annotation(parenthesized_id)
         && !context.has_annotation(inner_expression_id)
         && !ParenthesizedExpressionView::from_node(context, parenthesized_id)
@@ -40,8 +40,8 @@ pub(crate) fn format_call_expression<'ast>(
     if let Expression::Call {
         position,
         left,
-        static_arguments,
-        dynamic_arguments,
+        generic_arguments,
+        arguments,
     } = f.context().tree.get(node_id)
     {
         let callee_id = call_callee_expression_id(f.context(), *left);
@@ -49,36 +49,20 @@ pub(crate) fn format_call_expression<'ast>(
         let format_inner = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
             let callee_span_end = f.context().span(callee_id).end;
             let optional_boundary = call_optional_boundary_position(f.context(), *left);
-            let call_parent_is_decorator =
-                f.context().parent(node_id).is_some_and(|(_, parent_type)| {
-                    matches!(parent_type, NodeType::Decorator | NodeType::Annotation)
-                });
+            let call_parent_is_decorator = f
+                .context()
+                .parent(node_id)
+                .is_some_and(|(_, parent_type)| parent_type == NodeType::Decorator);
 
             // decorator parents own the callee formatting directly
             if call_parent_is_decorator {
                 let callee_expression = f.context().tree.get(callee_id);
-                let callee_is_ignored = node_has_ignore_directive(f.context(), callee_id);
-                format_expression(f, callee_id, callee_expression, callee_is_ignored)?;
+                let is_ignored = node_has_ignore_directive(f.context(), callee_id);
+                format_expression(f, callee_id, callee_expression, is_ignored)?;
             }
-            // static arguments keep the callee trailing comments with the callee
-            else if static_arguments.is_some() {
+            // generic arguments keep the callee trailing comments with the callee
+            else if !generic_arguments.is_empty() {
                 write!(f, [callee_id])?;
-            }
-            // static member callees must see the following call suffix when deciding whether they break
-            else if optional_boundary.is_none()
-                && !dynamic_arguments.is_empty()
-                && matches!(f.context().tree.get(callee_id), Expression::Member { .. })
-            {
-                let suffix = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                    if *position == PostfixPosition::Indirect {
-                        write!(f, [token(".")])?;
-                    }
-
-                    format_call_arguments(f, node_id, dynamic_arguments)
-                });
-
-                format_static_member_with_following_suffix(f, callee_id, &suffix)?;
-                return Ok(());
             }
             // otherwise the call expression owns trailing comments between callee and arguments
             else {
@@ -89,11 +73,11 @@ pub(crate) fn format_call_expression<'ast>(
                     comments
                         .comments_before_character(callee_span_end, b'?')
                         .to_vec()
-                } else if dynamic_arguments.is_empty() {
-                    let comments = f.context().comments();
-                    comments
-                        .comments_before_character(callee_span_end, b'(')
-                        .to_vec()
+                } else if arguments.is_empty() {
+                    f.context()
+                        .raw_comments_before_next_non_trivia_token_after_span(
+                            f.context().span(callee_id),
+                        )
                 } else {
                     Vec::new()
                 };
@@ -114,11 +98,11 @@ pub(crate) fn format_call_expression<'ast>(
                 write!(f, [token(".")])?;
             }
 
-            if let Some(static_arguments) = static_arguments {
-                format_static_argument_list(f, static_arguments)?;
+            if !generic_arguments.is_empty() {
+                format_generic_argument_list(f, generic_arguments)?;
             }
 
-            format_call_arguments(f, node_id, dynamic_arguments)
+            format_call_arguments(f, node_id, arguments)
         });
 
         if matches!(f.context().tree.get(callee_id), Expression::Call { .. }) {
@@ -127,7 +111,9 @@ pub(crate) fn format_call_expression<'ast>(
             write!(f, [format_inner])?;
         }
     } else {
-        debug_assert!(false, "unexpected expression kind for call formatter");
+        return Err(FormatError::SyntaxError {
+            message: "unexpected expression kind for call formatter",
+        });
     }
 
     Ok(())
@@ -165,11 +151,11 @@ pub(crate) fn format_instantiation_expression<'ast>(
 ) -> FormatResult<()> {
     if let Expression::Instantiation {
         left,
-        static_arguments,
+        generic_arguments,
     } = f.context().tree.get(node_id)
     {
         write!(f, [*left])?;
-        format_static_argument_list(f, static_arguments)?;
+        format_generic_argument_list(f, generic_arguments)?;
     } else {
         debug_assert!(
             false,
@@ -185,8 +171,8 @@ pub(crate) fn format_new_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     left: LocalNodeId<Expression>,
-    static_arguments: &Option<Vec<LocalNodeId<Argument>>>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    generic_arguments: &[LocalNodeId<GenericArgument>],
+    arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
     if let Some((base_expression, indices)) =
         extract_parenthesized_index_chain(f.context().tree, left)
@@ -207,11 +193,11 @@ pub(crate) fn format_new_expression<'ast>(
         write!(f, [token("new"), space(), left])?;
     }
 
-    if let Some(static_arguments) = static_arguments {
-        format_static_argument_list(f, static_arguments)?;
+    if !generic_arguments.is_empty() {
+        format_generic_argument_list(f, generic_arguments)?;
     }
 
-    format_call_arguments(f, node_id, dynamic_arguments)?;
+    format_call_arguments(f, node_id, arguments)?;
 
     Ok(())
 }

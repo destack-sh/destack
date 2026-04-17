@@ -71,13 +71,13 @@ fn expression_is_multiline_template_starting_on_same_line(
 /// Return whether one argument list contains exactly one multiline template argument.
 pub(crate) fn is_multiline_template_only_args(
     context: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
 ) -> bool {
-    if dynamic_arguments.len() != 1 {
+    if arguments.len() != 1 {
         return false;
     }
 
-    argument_expression_id(context, dynamic_arguments[0]).is_some_and(|expression_id| {
+    argument_expression_id(context, arguments[0]).is_some_and(|expression_id| {
         expression_is_multiline_template_starting_on_same_line(context, expression_id)
     })
 }
@@ -87,10 +87,7 @@ pub(crate) fn expression_is_long_curried_call(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Expression::Call {
-        dynamic_arguments, ..
-    } = context.tree.get(call_node_id)
-    else {
+    let Expression::Call { arguments, .. } = context.tree.get(call_node_id) else {
         return false;
     };
 
@@ -104,7 +101,7 @@ pub(crate) fn expression_is_long_curried_call(
     let parent_call_id = LocalNodeId::<Expression>::new(parent_id);
     let Expression::Call {
         left,
-        dynamic_arguments: parent_dynamic_arguments,
+        arguments: parent_dynamic_arguments,
         ..
     } = context.tree.get(parent_call_id)
     else {
@@ -112,7 +109,7 @@ pub(crate) fn expression_is_long_curried_call(
     };
 
     *left == call_node_id
-        && dynamic_arguments.len() > parent_dynamic_arguments.len()
+        && arguments.len() > parent_dynamic_arguments.len()
         && !parent_dynamic_arguments.is_empty()
 }
 
@@ -121,7 +118,7 @@ pub(crate) fn call_should_route_to_chain(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     left: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
 ) -> bool {
     if !is_expression_chain(context.tree, node_id)
         || !chain_has_call_like_expression(context.tree, node_id)
@@ -129,11 +126,11 @@ pub(crate) fn call_should_route_to_chain(
         return false;
     }
 
-    if is_multiline_template_only_args(context, dynamic_arguments) {
+    if is_multiline_template_only_args(context, arguments) {
         return false;
     }
 
-    if call_uses_simple_list_layout(context, node_id, left, dynamic_arguments) {
+    if call_uses_simple_list_layout(context, node_id, left, arguments) {
         return false;
     }
 
@@ -176,18 +173,18 @@ pub(crate) fn call_uses_simple_list_layout(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     left: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
 ) -> bool {
-    if is_multiline_template_only_args(context, dynamic_arguments)
-        || is_react_hook_with_deps_array(context, call_node_id, dynamic_arguments)
+    if is_multiline_template_only_args(context, arguments)
+        || is_react_hook_with_deps_array(context, call_node_id, arguments)
     {
         return true;
     }
 
     matches!(context.tree.get(call_node_id), Expression::Call { .. })
-        && (is_simple_module_import_call(context, call_node_id, left, dynamic_arguments)
-            || is_commonjs_or_amd_call(context, call_node_id, left, dynamic_arguments)
-            || is_test_call_expression(context, call_node_id, left, dynamic_arguments))
+        && (is_simple_module_import_call(context, call_node_id, left, arguments)
+            || is_commonjs_or_amd_call(context, call_node_id, left, arguments)
+            || is_test_call_expression(context, call_node_id, left, arguments))
 }
 
 /// Return whether one call is a simple module import helper.
@@ -195,10 +192,10 @@ fn is_simple_module_import_call(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     left: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
 ) -> bool {
-    if dynamic_arguments.len() != 1
-        || !argument_is_string_literal(context, dynamic_arguments[0])
+    if arguments.len() != 1
+        || !argument_is_string_literal(context, arguments[0])
         || has_comment_in_span(context, context.span(call_node_id))
     {
         return false;
@@ -216,10 +213,10 @@ fn is_commonjs_or_amd_call(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     left: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
 ) -> bool {
     if name_is_identifier(context, left, "require") {
-        let Some(first_argument_id) = dynamic_arguments.first().copied() else {
+        let Some(first_argument_id) = arguments.first().copied() else {
             return false;
         };
 
@@ -231,7 +228,7 @@ fn is_commonjs_or_amd_call(
             return false;
         }
 
-        return match dynamic_arguments.len() {
+        return match arguments.len() {
             1 => argument_is_string_literal(context, first_argument_id),
             _ => true,
         };
@@ -243,7 +240,7 @@ fn is_commonjs_or_amd_call(
         return false;
     }
 
-    match dynamic_arguments {
+    match arguments {
         [_first] => true,
         [first, second] => {
             argument_is_array_expression(context, *first)
@@ -263,9 +260,9 @@ fn is_test_call_expression(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     left: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
 ) -> bool {
-    match dynamic_arguments {
+    match arguments {
         [argument_id] => {
             if is_angular_test_wrapper_call(context, left)
                 && context
@@ -277,21 +274,14 @@ fn is_test_call_expression(
 
                         let parent_call_id = LocalNodeId::<Expression>::new(parent_id);
                         let Expression::Call {
-                            left,
-                            dynamic_arguments,
-                            ..
+                            left, arguments, ..
                         } = context.tree.get(parent_call_id)
                         else {
                             return false;
                         };
 
                         *left == call_node_id
-                            && is_test_call_expression(
-                                context,
-                                parent_call_id,
-                                *left,
-                                dynamic_arguments,
-                            )
+                            && is_test_call_expression(context, parent_call_id, *left, arguments)
                     })
             {
                 return argument_expression_id(context, *argument_id).is_some_and(
@@ -308,12 +298,12 @@ fn is_test_call_expression(
             false
         }
         [first_argument_id, second_argument_id] | [first_argument_id, second_argument_id, _]
-            if dynamic_arguments.len() <= 3
+            if arguments.len() <= 3
                 && argument_is_string_or_template_literal(context, *first_argument_id)
                 && contains_test_pattern(context, left) =>
         {
-            let allow_any_callback_shape = dynamic_arguments.len() == 2;
-            let third_argument = dynamic_arguments.get(2).copied();
+            let allow_any_callback_shape = arguments.len() == 2;
+            let third_argument = arguments.get(2).copied();
             if third_argument
                 .is_some_and(|argument_id| !argument_is_numeric_literal(context, argument_id))
             {
@@ -338,14 +328,14 @@ fn is_test_call_expression(
 fn is_react_hook_with_deps_array(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
 ) -> bool {
-    if !(2..=3).contains(&dynamic_arguments.len()) {
+    if !(2..=3).contains(&arguments.len()) {
         return false;
     }
 
-    let callback_index = if dynamic_arguments.len() == 3 {
-        if !argument_is_identifier(context, dynamic_arguments[0]) {
+    let callback_index = if arguments.len() == 3 {
+        if !argument_is_identifier(context, arguments[0]) {
             return false;
         }
 
@@ -354,12 +344,10 @@ fn is_react_hook_with_deps_array(
         0
     };
 
-    let Some(callback_id) = argument_expression_id(context, dynamic_arguments[callback_index])
-    else {
+    let Some(callback_id) = argument_expression_id(context, arguments[callback_index]) else {
         return false;
     };
-    let Some(deps_id) = argument_expression_id(context, dynamic_arguments[callback_index + 1])
-    else {
+    let Some(deps_id) = argument_expression_id(context, arguments[callback_index + 1]) else {
         return false;
     };
     if !expression_is_zero_parameter_block_callback(context, callback_id)
@@ -450,10 +438,7 @@ fn expression_is_test_callback(
     let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
         return false;
     };
-    let Declaration::Function {
-        signature, body, ..
-    } = context.tree.get(*declaration_id)
-    else {
+    let Declaration::Function(function) = context.tree.get(*declaration_id) else {
         return false;
     };
 
@@ -461,12 +446,12 @@ fn expression_is_test_callback(
         return true;
     }
 
-    let Some(body_id) = body else {
+    let Some(body_id) = function.body else {
         return false;
     };
 
-    signature.dynamic_parameters.len() <= 1
-        && matches!(context.tree.get(*body_id), Expression::Block(_))
+    function.signature.parameters.len() <= 1
+        && matches!(context.tree.get(body_id), Expression::Block(_))
 }
 
 /// Return whether one expression is a zero-parameter callback with a block body.
@@ -477,19 +462,16 @@ fn expression_is_zero_parameter_block_callback(
     let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
         return false;
     };
-    let Declaration::Function {
-        signature, body, ..
-    } = context.tree.get(*declaration_id)
-    else {
+    let Declaration::Function(function) = context.tree.get(*declaration_id) else {
         return false;
     };
-    let Some(body_id) = body else {
+    let Some(body_id) = function.body else {
         return false;
     };
 
-    signature.kind == FunctionKind::Lambda
-        && signature.dynamic_parameters.is_empty()
-        && matches!(context.tree.get(*body_id), Expression::Block(_))
+    function.signature.kind == FunctionKind::Lambda
+        && function.signature.parameters.is_empty()
+        && matches!(context.tree.get(body_id), Expression::Block(_))
 }
 
 /// Return whether one argument is a string literal.
@@ -611,15 +593,17 @@ fn is_import_meta_resolve_call(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(name_ids) = callee_names(context, expression_id) else {
+    let Expression::Member { left, name, .. } = context.tree.get(expression_id) else {
         return false;
     };
-    let names = name_ids
-        .iter()
-        .map(|name| context.strings.get(*name))
-        .collect::<Vec<_>>();
+    let Some(name) = name else {
+        return false;
+    };
+    if context.strings.get(*name) != "resolve" {
+        return false;
+    }
 
-    matches!(names.as_slice(), ["import", "meta", "resolve"])
+    matches!(context.tree.get(*left), Expression::ImportMeta)
 }
 
 /// Return the static callee names for one identifier or member chain.
