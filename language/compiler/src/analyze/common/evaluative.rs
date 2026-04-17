@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use destack_dir::{
     GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, PrimitiveType, ScalarLiteral,
-    Type, TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator,
+    Type, TypeLiteral, TypeTable,
 };
 
 use super::{CanonicalSymbolMode, RelationMode};
@@ -119,10 +119,9 @@ impl Compiler {
         type_id: LocalTypeId,
     ) -> bool {
         match ctx.types.get_type(type_id) {
-            Type::Unary {
-                operator: TypeUnaryOperator::Keyof,
-                right,
-            } => self.type_requires_evaluative_normalization(ctx, *right),
+            Type::KeyOf { target_type } => {
+                self.type_requires_evaluative_normalization(ctx, *target_type)
+            }
             _ => false,
         }
     }
@@ -149,7 +148,7 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
-        operator: TypeBinaryOperator,
+        is_membership_check: bool,
         left: LocalTypeId,
         right: LocalTypeId,
         mode: NormalizationMode,
@@ -157,17 +156,6 @@ impl Compiler {
     ) -> Option<LocalTypeId> {
         // type operators always use type operations semantics
         let relation_mode = RelationMode::TYPE_OPERATOR;
-
-        if !matches!(
-            operator,
-            TypeBinaryOperator::In
-                | TypeBinaryOperator::Is
-                | TypeBinaryOperator::InstanceOf
-                | TypeBinaryOperator::Extends
-                | TypeBinaryOperator::Implements
-        ) {
-            return None;
-        }
 
         // unwrap type values before assignability checks
         let unwrap_value = |ty_id: LocalTypeId, types: &TypeTable| match types.get_type(ty_id) {
@@ -185,7 +173,7 @@ impl Compiler {
         let is_decidable = !(left_needs_evaluation || right_needs_evaluation);
 
         // compute assignability for operator semantics
-        let assignability = if operator == TypeBinaryOperator::In {
+        let assignability = if is_membership_check {
             let mut key_visited = Vec::new();
             let key_type_id = self.normalize_keyof_type(
                 &mut ctx.reborrow(),

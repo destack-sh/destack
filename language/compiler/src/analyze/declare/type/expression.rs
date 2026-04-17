@@ -3,13 +3,13 @@ use crate::analyze::common::{CanonicalSymbolMode, RelationMode, TypeContext};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Argument, BinaryOperator, BindingKind, Declaration, DependencyItem, DynamicKey, Expression,
-    FunctionMode, FunctionSignature, GlobalSymbolId, IntrinsicType, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, Mutability, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions,
-    NormalizationMode, Parameter, Path, PrimitiveType, Property, ScalarLiteral, StaticKey,
-    StaticParameterKind, SymbolSpace, SymbolSpaceOrder, Type, TypeElement, TypeField,
-    TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeUnaryOperator, UnaryOperator,
-    walk_expression,
+    Declaration, DependencyItem, Expression, FunctionMode, FunctionSignature, GenericArgument,
+    GlobalSymbolId, IntrinsicType, LocalNodeId, LocalNodeIdAny, LocalTypeId, MappedTypeModifier,
+    MappedTypeModifiers, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, NormalizationMode,
+    Parameter, Path, PredicateSubject, PrimitiveType, ScalarLiteral, StaticKey,
+    StaticParameterKind, SymbolSpace, SymbolSpaceOrder, TupleElement, Type, TypeElement,
+    TypeExpression, TypeField, TypeIndexSignature, TypeLiteral, TypeMember, TypeModifier,
+    TypePredicateSubject, walk_type_expression,
 };
 use destack_workspace::ModuleSource;
 use std::collections::HashSet;
@@ -79,11 +79,11 @@ impl NodeVisitor for StaticValueParameterValidator<'_> {
         &self.options
     }
 
-    fn visit_expression(
+    fn visit_type_expression(
         &mut self,
         tree: &NodeTree,
-        id: LocalNodeId<Expression>,
-        expression: &Expression,
+        id: LocalNodeId<TypeExpression>,
+        expression: &TypeExpression,
     ) {
         // stop on first error
         if !self.should_continue() {
@@ -91,7 +91,7 @@ impl NodeVisitor for StaticValueParameterValidator<'_> {
         }
 
         // validate array-size usage for type index expressions
-        if let Expression::TypeIndex { left, index } = expression {
+        if let TypeExpression::Index { left, index } = expression {
             // resolve the left type to decide between index access and array sizes
             let left_id = {
                 match self.compiler.resolve_declared_type_expression(
@@ -123,7 +123,7 @@ impl NodeVisitor for StaticValueParameterValidator<'_> {
             if interpretation == TypeIndexResolutionKind::ArraySized {
                 let is_array_size_candidate = match self
                     .compiler
-                    .expression_is_array_size_candidate(&mut self.ctx.reborrow(), *index)
+                    .type_expression_is_array_size_candidate(&mut self.ctx.reborrow(), *index)
                 {
                     Ok(value) => value,
                     Err(error) => {
@@ -133,7 +133,7 @@ impl NodeVisitor for StaticValueParameterValidator<'_> {
                 };
 
                 if is_array_size_candidate {
-                    let result = self.compiler.resolve_array_size_parameter_type(
+                    let result = self.compiler.resolve_array_size_type_parameter(
                         &mut self.ctx.reborrow(),
                         *index,
                         self.validate_static_argument_bounds,
@@ -146,7 +146,7 @@ impl NodeVisitor for StaticValueParameterValidator<'_> {
 
         // walk nested expression nodes
         destack_core::ensure_sufficient_stack(|| {
-            walk_expression(self, tree, id, expression);
+            walk_type_expression(self, tree, id, expression);
         });
     }
 }
@@ -157,7 +157,7 @@ impl Compiler {
     pub(crate) fn query_declared_type_expression_value(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
         resolve_static_arguments: bool,
@@ -177,6 +177,34 @@ impl Compiler {
             }
             Err(error) => Err(error),
         }
+    }
+
+    /// Resolve one bare intrinsic marker to its semantic intrinsic literal.
+    fn intrinsic_alias_literal(
+        &self,
+        ctx: &TypeContext<'_>,
+        expression_id: LocalNodeId<TypeExpression>,
+    ) -> Option<TypeLiteral> {
+        // enclosing declaration
+        let parent_id = ctx.tree.get_parent(expression_id.id)?;
+        let declaration_id = parent_id.try_into_typed::<Declaration>().ok()?;
+        let Declaration::Type(declaration) = ctx.tree.get(declaration_id) else {
+            return None;
+        };
+
+        // intrinsic alias name
+        let name = self.repository.strings.get(declaration.name.string());
+        let intrinsic = match name.as_ref() {
+            "Uppercase" => IntrinsicType::Uppercase,
+            "Lowercase" => IntrinsicType::Lowercase,
+            "Capitalize" => IntrinsicType::Capitalize,
+            "Uncapitalize" => IntrinsicType::Uncapitalize,
+            "NoInfer" => IntrinsicType::NoInfer,
+            "BuiltinIteratorReturn" => IntrinsicType::BuiltinIteratorReturn,
+            _ => return None,
+        };
+
+        Some(TypeLiteral::Intrinsic(intrinsic))
     }
 
     /// Return whether one declared index receiver is concrete enough for missing-member diagnostics.
@@ -258,7 +286,7 @@ impl Compiler {
     pub(crate) fn resolve_declared_type_expression_value(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
         resolve_static_arguments: bool,
@@ -279,9 +307,9 @@ impl Compiler {
         let cache_key = cache_context.cache_key(global_node_id);
         let is_reference_expression = matches!(
             ctx.tree.get(expression_id),
-            Expression::LocalReference { .. }
-                | Expression::ModuleReference { .. }
-                | Expression::GlobalReference { .. }
+            TypeExpression::LocalReference { .. }
+                | TypeExpression::ModuleReference { .. }
+                | TypeExpression::GlobalReference { .. }
         );
 
         // reuse cached expression types when available
@@ -360,7 +388,7 @@ impl Compiler {
     pub(crate) fn validate_static_value_parameter_usage(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<()> {
@@ -378,7 +406,7 @@ impl Compiler {
 
         // walk the expression tree to validate index usages
         let expression = validator.ctx.tree.get(expression_id);
-        validator.visit_expression(validator.ctx.tree, expression_id, expression);
+        validator.visit_type_expression(validator.ctx.tree, expression_id, expression);
         validator.finish()
     }
 
@@ -386,7 +414,7 @@ impl Compiler {
     pub(crate) fn query_static_value_parameter_usage(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<Option<()>> {
@@ -408,7 +436,7 @@ impl Compiler {
     pub(crate) fn query_declared_type_expression(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
@@ -430,7 +458,7 @@ impl Compiler {
     pub(crate) fn resolve_declared_type_expression(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<LocalTypeId> {
@@ -444,9 +472,9 @@ impl Compiler {
         let cache_key = cache_context.cache_key(global_node_id);
         let is_reference_expression = matches!(
             ctx.tree.get(expression_id),
-            Expression::LocalReference { .. }
-                | Expression::ModuleReference { .. }
-                | Expression::GlobalReference { .. }
+            TypeExpression::LocalReference { .. }
+                | TypeExpression::ModuleReference { .. }
+                | TypeExpression::GlobalReference { .. }
         );
         let mut cached_type_id = None;
         if let Some(existing) = ctx.types.get_expression_type_id_cache(cache_key)
@@ -531,8 +559,8 @@ impl Compiler {
             self.static_parameter_placeholders_for_signature(&mut ctx.reborrow(), signature);
 
         // evaluate parameter types
-        let mut dynamic_parameters = Vec::with_capacity(signature.dynamic_parameters.len());
-        for parameter_id in signature.dynamic_parameters.iter() {
+        let mut dynamic_parameters = Vec::with_capacity(signature.parameters.len());
+        for parameter_id in signature.parameters.iter() {
             let declared_type_id = ctx
                 .types
                 .get_declared_type_id(parameter_id.into_global(ctx.module.id).into())
@@ -629,7 +657,7 @@ impl Compiler {
     fn declared_type_id_for_expression_or_insert(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
     ) -> LocalTypeId {
         let global_id = expression_id.into_global_any(ctx.module.id);
         if let Some(existing) = ctx.types.get_declared_type_id(global_id) {
@@ -647,7 +675,7 @@ impl Compiler {
     fn resolve_declared_template_literal_span_type(
         &self,
         ctx: &mut TypeContext<'_>,
-        span_id: LocalNodeId<Expression>,
+        span_id: LocalNodeId<TypeExpression>,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<LocalTypeId> {
@@ -655,33 +683,33 @@ impl Compiler {
 
         // resolve direct references to avoid caching template spans as unknown
         match ctx.tree.get(span_id) {
-            Expression::LocalReference {
+            TypeExpression::LocalReference {
                 target_symbol,
-                static_arguments,
+                generic_arguments,
                 ..
             }
-            | Expression::ModuleReference {
+            | TypeExpression::ModuleReference {
                 target_symbol,
-                static_arguments,
+                generic_arguments,
                 ..
             }
-            | Expression::GlobalReference {
+            | TypeExpression::GlobalReference {
                 target_symbol,
-                static_arguments,
+                generic_arguments,
                 ..
             } => {
                 let ty = self.resolve_declared_template_span_reference(
                     &mut ctx.reborrow(),
                     span_id,
                     *target_symbol,
-                    static_arguments.as_deref(),
+                    Some(generic_arguments.as_slice()),
                     validate_static_argument_bounds,
                 )?;
                 return Ok(ty);
             }
-            Expression::UnresolvedPath {
+            TypeExpression::Reference {
                 path,
-                static_arguments,
+                generic_arguments,
                 space_order,
             } => {
                 let resolved_symbol = self.resolve_template_literal_span_path(
@@ -695,7 +723,7 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         span_id,
                         resolved_symbol,
-                        static_arguments.as_deref(),
+                        Some(generic_arguments.as_slice()),
                         validate_static_argument_bounds,
                     )?;
                     return Ok(ty);
@@ -722,9 +750,9 @@ impl Compiler {
     fn resolve_declared_template_span_reference(
         &self,
         ctx: &mut TypeContext<'_>,
-        span_id: LocalNodeId<Expression>,
+        span_id: LocalNodeId<TypeExpression>,
         target_symbol: GlobalSymbolId,
-        static_arguments: Option<&[LocalNodeId<Argument>]>,
+        generic_arguments: Option<&[LocalNodeId<GenericArgument>]>,
         validate_static_argument_bounds: bool,
     ) -> AnalyzeResult<LocalTypeId> {
         // follow dependency items for local imports before canonicalization
@@ -774,9 +802,9 @@ impl Compiler {
             }
         }
 
-        // resolve static arguments for the referenced span
+        // resolve generic arguments for the referenced span
         let static_arguments =
-            self.evaluate_static_arguments(&mut ctx.reborrow(), static_arguments)?;
+            self.evaluate_generic_arguments(&mut ctx.reborrow(), generic_arguments)?;
         let resolved_arguments = self.resolve_declared_type_reference_static_arguments(
             &mut ctx.reborrow(),
             span_id.into_any(),
@@ -796,7 +824,7 @@ impl Compiler {
     fn resolve_template_literal_span_path(
         &self,
         ctx: &mut TypeContext<'_>,
-        span_id: LocalNodeId<Expression>,
+        span_id: LocalNodeId<TypeExpression>,
         path: &Path,
         space_order: SymbolSpaceOrder,
     ) -> Option<GlobalSymbolId> {
@@ -865,89 +893,12 @@ impl Compiler {
         nearest_non_preferred_symbol
     }
 
-    /// Collect element types for a binary union or intersection expression.
-    /// (This is a faster and deterministic alternative for the elementwise combinators.)
-    fn collect_binary_type_elements(
-        &self,
-        ctx: &mut TypeContext<'_>,
-        left: LocalNodeId<Expression>,
-        right: LocalNodeId<Expression>,
-        operator: BinaryOperator,
-        validate_static_argument_bounds: bool,
-        enforce_implicit_managed: bool,
-    ) -> AnalyzeResult<Vec<LocalTypeId>> {
-        // seed the work list right-to-left so left is processed first
-        let mut pending_expressions = Vec::new();
-        pending_expressions.push(right);
-        pending_expressions.push(left);
-
-        // walk the binary tree
-        let mut elements = Vec::new();
-        while let Some(expression_id) = pending_expressions.pop() {
-            let expression = ctx.tree.get(expression_id);
-
-            // unwrap parenthesized expressions
-            if let Expression::Parenthesized { expression } = expression {
-                pending_expressions.push(*expression);
-                continue;
-            }
-
-            // flatten nested union or intersection expressions
-            if let Expression::Binary {
-                left,
-                operator: nested_operator,
-                right,
-                ..
-            } = expression
-                && *nested_operator == operator
-            {
-                // push right first to preserve left-to-right order
-                pending_expressions.push(*right);
-                pending_expressions.push(*left);
-                continue;
-            }
-
-            // evaluate the leaf expression to a type id
-            let element_id = self.resolve_declared_type_expression(
-                &mut ctx.reborrow(),
-                expression_id,
-                validate_static_argument_bounds,
-                enforce_implicit_managed,
-            )?;
-
-            // flatten nested union or intersection types
-            match (operator, ctx.types.get_type(element_id)) {
-                (
-                    BinaryOperator::ElementwiseOr,
-                    Type::Union {
-                        elements: union_elements,
-                    },
-                ) => {
-                    elements.extend_from_slice(union_elements);
-                }
-                (
-                    BinaryOperator::ElementwiseAnd,
-                    Type::Intersection {
-                        elements: intersection_elements,
-                    },
-                ) => {
-                    elements.extend_from_slice(intersection_elements);
-                }
-                _ => {
-                    elements.push(element_id);
-                }
-            }
-        }
-
-        Ok(elements)
-    }
-
     /// Resolve one declared type-index expression.
     fn resolve_declared_type_index_expression(
         &self,
         ctx: &mut TypeContext<'_>,
-        left: LocalNodeId<Expression>,
-        index: LocalNodeId<Expression>,
+        left: LocalNodeId<TypeExpression>,
+        index: LocalNodeId<TypeExpression>,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<Type> {
@@ -1026,7 +977,7 @@ impl Compiler {
         if let Some(missing_key) = resolution.missing_keys.first().copied() {
             self.report_missing_member_diagnostic(
                 ctx.type_view(),
-                index,
+                index.into_any(),
                 left_id,
                 missing_key,
                 true,
@@ -1061,7 +1012,7 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         element_type_id: LocalTypeId,
-        index: LocalNodeId<Expression>,
+        index: LocalNodeId<TypeExpression>,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<Type> {
@@ -1077,9 +1028,9 @@ impl Compiler {
                 });
             }
 
-            self.set_integer_literal_type(ctx.module.id, index, value, ctx.types);
+            self.set_integer_literal_type_expression(ctx.module.id, index, value, ctx.types);
             let count_type_id =
-                self.array_sized_count_type_id_for_expression(ctx.module.id, index, ctx.types);
+                self.array_sized_count_type_id_for_type_expression(ctx.module.id, index, ctx.types);
 
             return Ok(Type::ArraySized {
                 element: element_type_id,
@@ -1089,16 +1040,20 @@ impl Compiler {
         }
 
         // resolve symbolic static-parameter counts when present
-        if self.expression_is_array_size_candidate(&mut ctx.reborrow(), index)? {
+        if self.type_expression_is_array_size_candidate(&mut ctx.reborrow(), index)? {
             let count_type_id = self
-                .resolve_array_size_parameter_type(
+                .resolve_array_size_type_parameter(
                     &mut ctx.reborrow(),
                     index,
                     validate_static_argument_bounds,
                     enforce_implicit_managed,
                 )?
                 .unwrap_or_else(|| {
-                    self.array_sized_count_type_id_for_expression(ctx.module.id, index, ctx.types)
+                    self.array_sized_count_type_id_for_type_expression(
+                        ctx.module.id,
+                        index,
+                        ctx.types,
+                    )
                 });
 
             return Ok(Type::ArraySized {
@@ -1125,7 +1080,7 @@ impl Compiler {
     fn resolve_declared_expression_type(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
         resolve_static_arguments: bool,
@@ -1140,18 +1095,15 @@ impl Compiler {
 
         let expression = ctx.tree.get(expression_id).clone();
         let ty = match expression {
-            Expression::Missing | Expression::Error => {
+            TypeExpression::Missing | TypeExpression::Error => {
                 return Ok(Some(Type::Error));
             }
-            Expression::Member {
+            TypeExpression::Member {
                 left,
                 name,
-                static_arguments,
+                generic_arguments,
             } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE);
-                let Some(name) = name else {
-                    return Ok(Some(Type::Error));
-                };
                 let member_key = StaticKey::Name(name);
                 let Some(selection) = self.resolve_type_member_symbol(
                     &mut ctx.reborrow(),
@@ -1174,7 +1126,7 @@ impl Compiler {
                         // report missing-member unless receiver has a primary blocker
                         let _ = self.report_missing_member_diagnostic(
                             ctx.type_view(),
-                            expression_id,
+                            expression_id.into_any(),
                             receiver_ty_id,
                             member_key,
                             true,
@@ -1196,9 +1148,7 @@ impl Compiler {
                 };
 
                 // require explicit arguments for generic associated type projections
-                let has_explicit_static_arguments = static_arguments
-                    .as_ref()
-                    .is_some_and(|arguments| !arguments.is_empty());
+                let has_explicit_static_arguments = !generic_arguments.is_empty();
                 if !has_explicit_static_arguments
                     && self.associated_type_requires_static_arguments(
                         ctx.tree_symbol_view(),
@@ -1213,8 +1163,10 @@ impl Compiler {
                 }
 
                 // evaluate static arguments for the referenced symbol
-                let static_arguments = self
-                    .evaluate_static_arguments(&mut ctx.reborrow(), static_arguments.as_deref())?;
+                let static_arguments = self.evaluate_generic_arguments(
+                    &mut ctx.reborrow(),
+                    Some(generic_arguments.as_slice()),
+                )?;
                 let resolve_static_arguments =
                     resolve_static_arguments && !defer_reference_resolution;
                 let validate_member_static_argument_bounds =
@@ -1239,75 +1191,27 @@ impl Compiler {
                     member_ty,
                 )?
             }
-            Expression::Instantiation {
-                left,
-                static_arguments,
-            } => {
-                // evaluate the left side to a type reference before applying instantiation arguments
-                let receiver_type_id = self.resolve_declared_type_expression(
-                    &mut ctx.reborrow(),
-                    left,
-                    validate_static_argument_bounds,
-                    enforce_implicit_managed,
-                )?;
-
-                // extract a nominal receiver symbol from direct references and merge intersections
-                let receiver_symbol = self
-                    .unwrap_type_symbol(ctx.types, receiver_type_id)
-                    .map(|(symbol, _, _)| symbol)
-                    .or_else(|| match ctx.types.get_type(receiver_type_id).clone() {
-                        Type::Intersection { elements } | Type::Union { elements } => {
-                            elements.iter().find_map(|element_id| {
-                                self.unwrap_type_symbol(ctx.types, *element_id)
-                                    .map(|(symbol, _, _)| symbol)
-                            })
-                        }
-                        _ => None,
-                    });
-                let Some(target_symbol) = receiver_symbol else {
-                    return Ok(None);
-                };
-                let target_symbol = self.resolve_type_reference_symbol(ctx, target_symbol);
-
-                // evaluate explicit instantiation static arguments
-                let static_arguments = self.evaluate_static_arguments(
-                    &mut ctx.reborrow(),
-                    Some(static_arguments.as_slice()),
-                )?;
-                let resolve_static_arguments =
-                    resolve_static_arguments && !defer_reference_resolution;
-
-                self.resolve_type_reference_type(
-                    &mut ctx.reborrow(),
-                    expression_id,
-                    target_symbol,
-                    static_arguments,
-                    resolve_static_arguments,
-                    validate_static_argument_bounds,
-                    enforce_implicit_managed,
-                )?
-            }
-            Expression::LocalReference {
+            TypeExpression::LocalReference {
                 target_symbol,
-                static_arguments,
+                generic_arguments,
                 path: _,
                 ..
             }
-            | Expression::ModuleReference {
+            | TypeExpression::ModuleReference {
                 target_symbol,
-                static_arguments,
+                generic_arguments,
                 path: _,
                 ..
             }
-            | Expression::GlobalReference {
+            | TypeExpression::GlobalReference {
                 target_symbol,
-                static_arguments,
+                generic_arguments,
                 path: _,
                 ..
             } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE);
                 let target_symbol = if let Some((parameter_symbol, _)) =
-                    self.static_parameter_reference(&mut ctx.reborrow(), expression_id)?
+                    self.static_parameter_type_reference(&mut ctx.reborrow(), expression_id)?
                 {
                     parameter_symbol
                 } else {
@@ -1317,9 +1221,9 @@ impl Compiler {
                 let static_arguments = {
                     let _timing =
                         self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE_ARGUMENTS);
-                    self.evaluate_static_arguments(
+                    self.evaluate_generic_arguments(
                         &mut ctx.reborrow(),
-                        static_arguments.as_deref(),
+                        Some(generic_arguments.as_slice()),
                     )?
                 };
                 let resolve_static_arguments =
@@ -1334,10 +1238,22 @@ impl Compiler {
                     enforce_implicit_managed,
                 )?
             }
-            Expression::ScalarLiteral { value } => Type::TypeLiteral {
+            TypeExpression::ScalarLiteral { value } => Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(value.clone()),
             },
-            Expression::TypeLiteral { value } => {
+            TypeExpression::Intrinsic => {
+                // semantic intrinsic alias
+                let Some(value) = self.intrinsic_alias_literal(ctx, expression_id) else {
+                    return self.report_declared_type_error(AnalyzeError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
+                };
+
+                Type::TypeLiteral { value }
+            }
+            TypeExpression::Literal { value } => {
                 // reject forbidden type literals in user code
                 if is_user_module {
                     // disallow explicit any
@@ -1389,28 +1305,8 @@ impl Compiler {
                     }
                 }
             }
-            Expression::This | Expression::Super => Type::This,
-            Expression::Parenthesized { expression } => {
-                if let Expression::Unary {
-                    operator: UnaryOperator::Spread,
-                    right,
-                } = ctx.tree.get(expression)
-                {
-                    let element_type_id = self.resolve_declared_type_expression(
-                        &mut ctx.reborrow(),
-                        *right,
-                        validate_static_argument_bounds,
-                        enforce_implicit_managed,
-                    )?;
-                    let mut element = TypeElement::new(element_type_id);
-                    element.is_rest = true;
-
-                    return Ok(Some(Type::Tuple {
-                        elements: vec![element],
-                        is_readonly: false,
-                    }));
-                }
-
+            TypeExpression::This => Type::This,
+            TypeExpression::Parenthesized { expression } => {
                 return self.resolve_declared_expression_type(
                     &mut ctx.reborrow(),
                     expression,
@@ -1420,14 +1316,14 @@ impl Compiler {
                 );
             }
 
-            Expression::Declaration {
+            TypeExpression::Declaration {
                 declaration: declaration_id,
             } => {
                 let declaration = ctx.tree.get(declaration_id).clone();
-                if let Declaration::Function { signature, .. } = declaration {
+                if let Declaration::Function(declaration) = declaration {
                     self.resolve_declared_function_signature_type(
                         &mut ctx.reborrow(),
-                        &signature,
+                        &declaration.signature,
                         declaration_id.into_any(),
                         false,
                     )?
@@ -1437,50 +1333,82 @@ impl Compiler {
                 }
             }
 
-            // not
-            Expression::Unary {
-                operator: UnaryOperator::Not,
-                right,
-            } => {
+            TypeExpression::Readonly { target_type } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                let type_id = self.resolve_declared_type_expression(
+                let right_id = self.resolve_declared_type_expression(
                     &mut ctx.reborrow(),
-                    right,
+                    target_type,
                     validate_static_argument_bounds,
                     enforce_implicit_managed,
                 )?;
-                Type::Unary {
-                    operator: TypeUnaryOperator::Not,
-                    right: type_id,
+                Type::Readonly {
+                    target_type: right_id,
                 }
             }
-            // maybe
-            Expression::Maybe { .. } => {
-                return Ok(None); // cannot be evaluated to a type here (not supported in type contexts)
-            }
-            // must
-            Expression::Must { left } => {
-                let type_id = self.resolve_declared_type_expression(
+            TypeExpression::KeyOf { target_type } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                let right_id = self.resolve_declared_type_expression(
                     &mut ctx.reborrow(),
-                    left,
+                    target_type,
                     validate_static_argument_bounds,
                     enforce_implicit_managed,
                 )?;
-                Type::Unary {
-                    operator: TypeUnaryOperator::Must,
-                    right: type_id,
+                Type::KeyOf {
+                    target_type: right_id,
                 }
             }
-            // value
-            Expression::ValueOf {
+            TypeExpression::TypeOfValue { value } => {
+                return Ok(Some(self.resolve_typeof_expression(
+                    &mut ctx.reborrow(),
+                    expression_id,
+                    value,
+                )?));
+            }
+            TypeExpression::Must { target_type } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                let right_id = self.resolve_declared_type_expression(
+                    &mut ctx.reborrow(),
+                    target_type,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                )?;
+                Type::Must {
+                    target_type: right_id,
+                }
+            }
+            TypeExpression::AsComptime { target_type } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                let right_id = self.resolve_declared_type_expression(
+                    &mut ctx.reborrow(),
+                    target_type,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                )?;
+                Type::AsComptime {
+                    target_type: right_id,
+                }
+            }
+            TypeExpression::Not { target_type } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                let right_id = self.resolve_declared_type_expression(
+                    &mut ctx.reborrow(),
+                    target_type,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                )?;
+                Type::Not {
+                    target_type: right_id,
+                }
+            }
+            TypeExpression::ValueOf {
                 mutability,
                 variance,
-                right,
+                target_type,
             } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
                 let type_id = self.resolve_declared_type_expression(
                     &mut ctx.reborrow(),
-                    right,
+                    target_type,
                     validate_static_argument_bounds,
                     false,
                 )?;
@@ -1490,16 +1418,15 @@ impl Compiler {
                     right: type_id,
                 }
             }
-            // reference
-            Expression::ReferenceOf {
+            TypeExpression::ReferenceOf {
                 mutability,
                 variance,
-                right,
+                target_type,
             } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
                 let type_id = self.resolve_declared_type_expression(
                     &mut ctx.reborrow(),
-                    right,
+                    target_type,
                     validate_static_argument_bounds,
                     false,
                 )?;
@@ -1509,12 +1436,14 @@ impl Compiler {
                     right: type_id,
                 }
             }
-            // pointer
-            Expression::PointerOf { mutability, right } => {
+            TypeExpression::PointerOf {
+                mutability,
+                target_type,
+            } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
                 let type_id = self.resolve_declared_type_expression(
                     &mut ctx.reborrow(),
-                    right,
+                    target_type,
                     validate_static_argument_bounds,
                     false,
                 )?;
@@ -1523,61 +1452,13 @@ impl Compiler {
                     right: type_id,
                 }
             }
-            // unary
-            Expression::TypeUnary { operator, right } => {
-                if operator == TypeUnaryOperator::Typeof {
-                    return Ok(Some(self.resolve_typeof_expression(
-                        &mut ctx.reborrow(),
-                        expression_id,
-                        right,
-                    )?));
-                }
-
-                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                let right_id = self.resolve_declared_type_expression(
-                    &mut ctx.reborrow(),
-                    right,
-                    validate_static_argument_bounds,
-                    enforce_implicit_managed,
-                )?;
-                Type::Unary {
-                    operator,
-                    right: right_id,
-                }
-            }
-            // binary
-            Expression::TypeBinary {
+            TypeExpression::Conditional {
                 left,
-                operator,
-                right,
-            } => {
-                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                let left_id = self.resolve_declared_type_expression(
-                    &mut ctx.reborrow(),
-                    left,
-                    validate_static_argument_bounds,
-                    enforce_implicit_managed,
-                )?;
-                let right_id = self.resolve_declared_type_expression(
-                    &mut ctx.reborrow(),
-                    right,
-                    validate_static_argument_bounds,
-                    enforce_implicit_managed,
-                )?;
-                Type::Binary {
-                    left: left_id,
-                    operator,
-                    right: right_id,
-                }
-            }
-            Expression::TypeConditional {
-                left,
-                right,
+                extends_type,
                 then_type,
                 else_type,
             } => {
-                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_CONDITIONAL);
-
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
                 let left_id = self.resolve_declared_type_expression(
                     &mut ctx.reborrow(),
                     left,
@@ -1586,7 +1467,7 @@ impl Compiler {
                 )?;
                 let right_id = self.resolve_declared_type_expression(
                     &mut ctx.reborrow(),
-                    right,
+                    extends_type,
                     validate_static_argument_bounds,
                     enforce_implicit_managed,
                 )?;
@@ -1617,23 +1498,24 @@ impl Compiler {
                     else_type: else_type_id,
                 }
             }
-            Expression::TypeMapped {
+            TypeExpression::Mapped {
                 parameter,
-                modifiers,
+                readonly,
+                optional,
                 value,
             } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_MAPPED);
 
-                let constraint = self.resolve_declared_type_expression(
+                let source_type = self.resolve_declared_type_expression(
                     &mut ctx.reborrow(),
-                    parameter.constraint,
+                    parameter.source_type,
                     validate_static_argument_bounds,
                     enforce_implicit_managed,
                 )?;
-                // cache the mapped parameter constraint for later validation
+                // cache the mapped parameter source type for later validation
                 let parameter_symbol = parameter.symbol.into_global(ctx.module.id);
                 ctx.types
-                    .set_static_parameter_constraint_type(parameter_symbol, constraint);
+                    .set_static_parameter_constraint_type(parameter_symbol, source_type);
                 let key_remap = parameter.key_remap.map(|key_remap| {
                     self.resolve_declared_type_expression(
                         &mut ctx.reborrow(),
@@ -1653,19 +1535,32 @@ impl Compiler {
                     validate_static_argument_bounds,
                     enforce_implicit_managed,
                 )?;
-                let parameter = TypeMappedParameter {
+                let readonly = match readonly {
+                    TypeModifier::Present => MappedTypeModifier::Present,
+                    TypeModifier::Add => MappedTypeModifier::Add,
+                    TypeModifier::Remove => MappedTypeModifier::Remove,
+                    TypeModifier::None => MappedTypeModifier::None,
+                };
+                let optional = match optional {
+                    TypeModifier::Present => MappedTypeModifier::Present,
+                    TypeModifier::Add => MappedTypeModifier::Add,
+                    TypeModifier::Remove => MappedTypeModifier::Remove,
+                    TypeModifier::None => MappedTypeModifier::None,
+                };
+
+                let parameter = destack_dir::MappedTypeParameter {
                     name: parameter.name,
                     symbol: parameter_symbol,
-                    constraint,
+                    constraint: source_type,
                     key_remap,
                 };
                 Type::Mapped {
                     parameter,
-                    modifiers,
+                    modifiers: MappedTypeModifiers { readonly, optional },
                     value: value_id,
                 }
             }
-            Expression::TypeIndex { left, index } => {
+            TypeExpression::Index { left, index } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_INDEX);
                 self.resolve_declared_type_index_expression(
                     &mut ctx.reborrow(),
@@ -1675,7 +1570,7 @@ impl Compiler {
                     enforce_implicit_managed,
                 )?
             }
-            Expression::TypeTemplateLiteral { strings, spans } => {
+            TypeExpression::TemplateLiteral { strings, spans } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
                 let spans = spans
                     .iter()
@@ -1693,15 +1588,17 @@ impl Compiler {
                     spans,
                 }
             }
-            Expression::TypeImport {
+            TypeExpression::Import {
                 target,
                 arguments: _,
                 qualifier,
-                static_arguments,
+                generic_arguments,
             } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                let static_arguments = self
-                    .evaluate_static_arguments(&mut ctx.reborrow(), static_arguments.as_deref())?;
+                let static_arguments = self.evaluate_generic_arguments(
+                    &mut ctx.reborrow(),
+                    Some(generic_arguments.as_slice()),
+                )?;
                 if let Expression::ScalarLiteral {
                     value: ScalarLiteral::String(target),
                 } = ctx.tree.get(target)
@@ -1717,7 +1614,7 @@ impl Compiler {
                     }
                 }
             }
-            Expression::TypeInfer { name, constraint } => {
+            TypeExpression::Infer { name, constraint } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
                 let constraint = constraint.map(|constraint| {
                     self.resolve_declared_type_expression(
@@ -1734,7 +1631,7 @@ impl Compiler {
                 };
                 Type::Infer { name, constraint }
             }
-            Expression::TypePredicate {
+            TypeExpression::Predicate {
                 asserts,
                 subject,
                 target,
@@ -1753,6 +1650,13 @@ impl Compiler {
                     Some(Err(error)) => return Err(error),
                     None => None,
                 };
+
+                // predicate subject
+                let subject = match subject {
+                    TypePredicateSubject::Identifier(name) => PredicateSubject::Unresolved(name),
+                    TypePredicateSubject::This => PredicateSubject::This,
+                };
+
                 Type::Predicate {
                     asserts,
                     subject,
@@ -1760,50 +1664,58 @@ impl Compiler {
                 }
             }
 
-            // union and intersection ctx.types
-            Expression::Binary {
-                left,
-                operator,
-                right,
-                ..
-            } => match operator {
-                BinaryOperator::ElementwiseOr => {
-                    let _timing =
-                        self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                    let elements = self.collect_binary_type_elements(
-                        &mut ctx.reborrow(),
-                        left,
-                        right,
-                        operator,
-                        validate_static_argument_bounds,
-                        enforce_implicit_managed,
-                    )?;
-                    Type::Union { elements }
-                }
-                BinaryOperator::ElementwiseAnd => {
-                    let _timing =
-                        self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                    let elements = self.collect_binary_type_elements(
-                        &mut ctx.reborrow(),
-                        left,
-                        right,
-                        operator,
-                        validate_static_argument_bounds,
-                        enforce_implicit_managed,
-                    )?;
-                    Type::Intersection { elements }
-                }
-                _ => return Ok(None),
-            },
+            TypeExpression::Union { elements } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                let elements = elements
+                    .iter()
+                    .map(|element| {
+                        self.resolve_declared_type_expression(
+                            &mut ctx.reborrow(),
+                            *element,
+                            validate_static_argument_bounds,
+                            enforce_implicit_managed,
+                        )
+                    })
+                    .collect::<AnalyzeResult<Vec<_>>>()?;
 
-            // tuple (anonymous)
-            Expression::ArrayExpression { elements } => {
+                Type::Union { elements }
+            }
+            TypeExpression::Intersection { elements } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_LITERAL);
-                // evaluate element ctx.types
+                let elements = elements
+                    .iter()
+                    .map(|element| {
+                        self.resolve_declared_type_expression(
+                            &mut ctx.reborrow(),
+                            *element,
+                            validate_static_argument_bounds,
+                            enforce_implicit_managed,
+                        )
+                    })
+                    .collect::<AnalyzeResult<Vec<_>>>()?;
+
+                Type::Intersection { elements }
+            }
+            TypeExpression::Tuple { elements } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_LITERAL);
                 let mut element_types = Vec::with_capacity(elements.len());
                 for element_id in elements {
-                    let argument = ctx.tree.get(element_id);
-                    let value_id = argument.value();
+                    let element_expression = ctx.tree.get(element_id);
+                    let (label, value_id, is_optional, is_readonly, is_rest) =
+                        match element_expression {
+                            TupleElement::Element {
+                                label,
+                                value,
+                                is_optional,
+                                is_readonly,
+                            } => (*label, *value, *is_optional, *is_readonly, false),
+                            TupleElement::Spread { label, value } => {
+                                (*label, *value, false, false, true)
+                            }
+                            TupleElement::Error => {
+                                continue;
+                            }
+                        };
                     let value_ty_id = self.resolve_declared_type_expression(
                         &mut ctx.reborrow(),
                         value_id,
@@ -1823,30 +1735,10 @@ impl Compiler {
                         });
                     }
                     let mut element = TypeElement::new(value_ty_id);
-                    match argument {
-                        Argument::Labeled { label, .. } => {
-                            element.label = Some(*label);
-                        }
-                        Argument::Spread { .. } => {
-                            element.is_rest = true;
-                        }
-                        _ => {}
-                    }
-                    let modifiers = match argument {
-                        Argument::Named { modifiers, .. }
-                        | Argument::Labeled { modifiers, .. }
-                        | Argument::Positional { modifiers, .. }
-                        | Argument::Spread { modifiers, .. } => modifiers.as_ref(),
-                        Argument::Error { .. } => None,
-                    };
-                    if let Some(modifiers) = modifiers {
-                        if matches!(modifiers.kind, Some(BindingKind::Maybe)) {
-                            element.is_optional = true;
-                        }
-                        if matches!(modifiers.mutability, Some(Mutability::Immutable)) {
-                            element.is_readonly = true;
-                        }
-                    }
+                    element.label = label;
+                    element.is_optional = is_optional;
+                    element.is_readonly = is_readonly;
+                    element.is_rest = is_rest;
                     element_types.push(element);
                 }
 
@@ -1855,157 +1747,75 @@ impl Compiler {
                     is_readonly: false,
                 }
             }
-
-            // tuple (anonymous)
-            Expression::TupleExpression { elements } => {
-                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_LITERAL);
-                // evaluate element ctx.types
-                let mut element_types = Vec::with_capacity(elements.len());
-                for element_id in elements {
-                    let argument = ctx.tree.get(element_id);
-                    let value_id = argument.value();
-                    let value_ty_id = self.resolve_declared_type_expression(
-                        &mut ctx.reborrow(),
-                        value_id,
-                        validate_static_argument_bounds,
-                        enforce_implicit_managed,
-                    )?;
-                    if matches!(
-                        ctx.types.get_type(value_ty_id),
-                        Type::TypeLiteral {
-                            value: TypeLiteral::Void
-                        }
-                    ) {
-                        return self.report_declared_type_error(AnalyzeError::VoidInTuple {
-                            node: value_id
-                                .into_global_any(ctx.module.id)
-                                .into_anchored(Some(ctx.profile)),
-                        });
+            TypeExpression::Array { element } => {
+                let left_id = self.resolve_declared_type_expression(
+                    &mut ctx.reborrow(),
+                    element,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                )?;
+                if matches!(
+                    ctx.types.get_type(left_id),
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Void
                     }
-                    let mut element = TypeElement::new(value_ty_id);
-                    let modifiers = match argument {
-                        Argument::Named { modifiers, .. }
-                        | Argument::Labeled { modifiers, .. }
-                        | Argument::Positional { modifiers, .. }
-                        | Argument::Spread { modifiers, .. } => modifiers.as_ref(),
-                        Argument::Error { .. } => None,
-                    };
-                    if let Some(modifiers) = modifiers {
-                        if matches!(modifiers.kind, Some(BindingKind::Maybe)) {
-                            element.is_optional = true;
-                        }
-                        if matches!(modifiers.mutability, Some(Mutability::Immutable)) {
-                            element.is_readonly = true;
-                        }
-                    }
-                    element_types.push(element);
+                ) {
+                    return self.report_declared_type_error(AnalyzeError::VoidInArray {
+                        node: element
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
                 }
 
-                Type::Tuple {
-                    elements: element_types,
+                Type::Array {
+                    element: Some(left_id),
                     is_readonly: false,
                 }
             }
-            // sequence expression (comma operator)
-            Expression::SequenceExpression { .. } => {
-                return self.report_declared_type_error(AnalyzeError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(ctx.module.id)
-                        .into_anchored(Some(ctx.profile)),
-                });
-            }
-            // object (anonymous)
-            Expression::ObjectExpression { properties } => {
+            TypeExpression::Object { members } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_LITERAL);
                 // evaluate object fields
                 // #Cleanup: extract property -> type field evaluation?
-                let mut fields = Vec::with_capacity(properties.len());
+                let mut fields = Vec::with_capacity(members.len());
                 let mut call_signatures = Vec::new();
                 let mut construct_signatures = Vec::new();
                 let mut index_signatures = Vec::new();
-                for property_id in properties {
-                    let property = ctx.tree.get(property_id).clone();
-                    let field = match property {
-                        Property::Field {
-                            modifiers,
+                for member_id in members {
+                    let member = ctx.tree.get(member_id).clone();
+                    let field = match member {
+                        TypeMember::Field {
+                            is_optional,
+                            is_readonly,
                             key,
-                            value,
-                            ..
+                            declared_type,
+                            symbol: _,
                         } => {
-                            // index signature
-                            if let Some(DynamicKey::NamedExpression { name, key }) = key {
-                                let key_type = self.resolve_declared_type_expression(
-                                    &mut ctx.reborrow(),
-                                    key,
-                                    validate_static_argument_bounds,
-                                    enforce_implicit_managed,
-                                )?;
-                                let value_type = if let Some(value_id) = value {
-                                    self.resolve_declared_type_expression(
-                                        &mut ctx.reborrow(),
-                                        value_id,
-                                        validate_static_argument_bounds,
-                                        enforce_implicit_managed,
-                                    )?
-                                } else {
-                                    let ty = Type::TypeLiteral {
-                                        value: TypeLiteral::Unknown,
-                                    };
-                                    ctx.types.insert_type_from(ty, property_id)
-                                };
-                                let is_readonly = modifiers.is_some_and(|modifiers| {
-                                    modifiers.mutability == Some(Mutability::Immutable)
-                                });
-                                index_signatures.push(TypeIndexSignature {
-                                    name,
-                                    key_type,
-                                    value_type,
-                                    is_readonly,
-                                });
-                                continue;
-                            }
-
-                            let Some(key) = key.and_then(|key| {
-                                self.static_key_from_dynamic_key(
-                                    ctx.compiler_context.revision(),
-                                    ctx.profile,
-                                    ctx.tree,
-                                    ctx.symbols,
-                                    ctx.types,
-                                    key,
-                                )
-                            }) else {
+                            let Some(key) = self.static_key_from_key(
+                                ctx.compiler_context.revision(),
+                                ctx.profile,
+                                ctx.tree,
+                                ctx.symbols,
+                                ctx.types,
+                                key,
+                            ) else {
                                 if ctx.module.language_type.is_declaration() {
                                     continue;
                                 }
                                 return self.report_declared_type_error(
                                     AnalyzeError::UnsupportedConstruct {
-                                        node: property_id
+                                        node: member_id
                                             .into_global_any(ctx.module.id)
                                             .into_anchored(Some(ctx.profile)),
                                     },
                                 );
                             };
 
-                            let ty = if let Some(value_id) = value {
-                                self.resolve_declared_type_expression(
-                                    &mut ctx.reborrow(),
-                                    value_id,
-                                    validate_static_argument_bounds,
-                                    enforce_implicit_managed,
-                                )?
-                            } else {
-                                let ty = Type::TypeLiteral {
-                                    value: TypeLiteral::Unknown,
-                                };
-                                ctx.types.insert_type_from(ty, property_id)
-                            };
-                            let is_optional = modifiers.is_some_and(|modifiers| {
-                                modifiers.kind == Some(BindingKind::Maybe)
-                            });
-                            let is_readonly = modifiers.is_some_and(|modifiers| {
-                                modifiers.mutability == Some(Mutability::Immutable)
-                            });
+                            let ty = self.resolve_declared_type_expression(
+                                &mut ctx.reborrow(),
+                                declared_type,
+                                validate_static_argument_bounds,
+                                enforce_implicit_managed,
+                            )?;
 
                             TypeField {
                                 key,
@@ -2014,11 +1824,12 @@ impl Compiler {
                                 is_readonly,
                             }
                         }
-                        Property::Method {
-                            modifiers,
+                        TypeMember::Method {
+                            is_optional,
                             key,
                             signature,
-                            ..
+                            body: _,
+                            symbol: _,
                         } => {
                             // call or construct signature
                             if key.is_none()
@@ -2032,10 +1843,10 @@ impl Compiler {
                                 let ty = self.resolve_declared_function_signature_type(
                                     &mut ctx.reborrow(),
                                     &signature,
-                                    property_id.into_any(),
+                                    member_id.into_any(),
                                     false,
                                 )?;
-                                let ty_id = ctx.types.insert_type_from(ty, property_id);
+                                let ty_id = ctx.types.insert_type_from(ty, member_id);
                                 match signature.mode {
                                     Some(FunctionMode::New) | Some(FunctionMode::Constructor) => {
                                         construct_signatures.push(ty_id);
@@ -2047,14 +1858,14 @@ impl Compiler {
                                 continue;
                             }
 
-                            let Some(key) = key.and_then(|key| {
-                                self.static_key_from_dynamic_key(
+                            let Some(key) = key.as_ref().and_then(|key| {
+                                self.static_key_from_key(
                                     ctx.compiler_context.revision(),
                                     ctx.profile,
                                     ctx.tree,
                                     ctx.symbols,
                                     ctx.types,
-                                    key,
+                                    *key,
                                 )
                             }) else {
                                 if ctx.module.language_type.is_declaration() {
@@ -2062,7 +1873,7 @@ impl Compiler {
                                 }
                                 return self.report_declared_type_error(
                                     AnalyzeError::UnsupportedConstruct {
-                                        node: property_id
+                                        node: member_id
                                             .into_global_any(ctx.module.id)
                                             .into_anchored(Some(ctx.profile)),
                                     },
@@ -2072,39 +1883,54 @@ impl Compiler {
                             let ty = self.resolve_declared_function_signature_type(
                                 &mut ctx.reborrow(),
                                 &signature,
-                                property_id.into_any(),
+                                member_id.into_any(),
                                 false,
                             )?;
-                            let ty_id = ctx.types.insert_type_from(ty, property_id);
-
-                            let is_optional = modifiers.is_some_and(|modifiers| {
-                                modifiers.kind == Some(BindingKind::Maybe)
-                            });
-                            let is_readonly = modifiers.is_some_and(|modifiers| {
-                                modifiers.mutability == Some(Mutability::Immutable)
-                            });
+                            let ty_id = ctx.types.insert_type_from(ty, member_id);
 
                             TypeField {
                                 key,
                                 ty: ty_id,
                                 is_optional,
-                                is_readonly,
+                                is_readonly: false,
                             }
                         }
-                        Property::Spread { .. } => {
-                            // #Incomplete: spread properties into ctx.types
-                            return self.report_declared_type_error(
-                                AnalyzeError::UnsupportedConstruct {
-                                    node: property_id
-                                        .into_global_any(ctx.module.id)
-                                        .into_anchored(Some(ctx.profile)),
-                                },
-                            );
+                        TypeMember::IndexSignature {
+                            is_optional,
+                            is_readonly,
+                            name,
+                            key_type,
+                            value_type,
+                            symbol: _,
+                        } => {
+                            let key_type = self.resolve_declared_type_expression(
+                                &mut ctx.reborrow(),
+                                key_type,
+                                validate_static_argument_bounds,
+                                enforce_implicit_managed,
+                            )?;
+                            let value_type = self.resolve_declared_type_expression(
+                                &mut ctx.reborrow(),
+                                value_type,
+                                validate_static_argument_bounds,
+                                enforce_implicit_managed,
+                            )?;
+                            index_signatures.push(TypeIndexSignature {
+                                name,
+                                key_type,
+                                value_type,
+                                is_optional,
+                                is_readonly,
+                            });
+                            continue;
                         }
-                        Property::Error { .. } => {
+                        TypeMember::Embed { .. }
+                        | TypeMember::AssociatedType { .. }
+                        | TypeMember::AssociatedConst { .. }
+                        | TypeMember::Error { .. } => {
                             return self.report_declared_type_error(
                                 AnalyzeError::UnsupportedConstruct {
-                                    node: property_id
+                                    node: member_id
                                         .into_global_any(ctx.module.id)
                                         .into_anchored(Some(ctx.profile)),
                                 },
@@ -2123,91 +1949,6 @@ impl Compiler {
                 }
             }
 
-            // array or slice
-            Expression::Index { left, right } => {
-                // array with static length
-                if let Some(right) = right {
-                    // resolve the element type
-                    let left_id = self.resolve_declared_type_expression(
-                        &mut ctx.reborrow(),
-                        left,
-                        validate_static_argument_bounds,
-                        enforce_implicit_managed,
-                    )?;
-                    if matches!(
-                        ctx.types.get_type(left_id),
-                        Type::TypeLiteral {
-                            value: TypeLiteral::Void
-                        }
-                    ) {
-                        return self.report_declared_type_error(AnalyzeError::VoidInArray {
-                            node: left
-                                .into_global_any(ctx.module.id)
-                                .into_anchored(Some(ctx.profile)),
-                        });
-                    }
-
-                    // require a literal length for array ctx.types
-                    let value =
-                        match self.evaluate_integer_static_literal(&mut ctx.reborrow(), right)? {
-                            Some(value) => value,
-                            None => {
-                                return self.report_declared_type_error(
-                                    AnalyzeError::InvalidArraySize {
-                                        node: right
-                                            .into_global_any(ctx.module.id)
-                                            .into_anchored(Some(ctx.profile)),
-                                    },
-                                );
-                            }
-                        };
-                    if value < 0 {
-                        return self.report_declared_type_error(AnalyzeError::InvalidArraySize {
-                            node: right
-                                .into_global_any(ctx.module.id)
-                                .into_anchored(Some(ctx.profile)),
-                        });
-                    }
-                    self.set_integer_literal_type(ctx.module.id, right, value, ctx.types);
-                    let count_type_id = self.array_sized_count_type_id_for_expression(
-                        ctx.module.id,
-                        right,
-                        ctx.types,
-                    );
-                    Type::ArraySized {
-                        element: left_id,
-                        count: count_type_id,
-                        is_readonly: false,
-                    }
-                }
-                // slice
-                else {
-                    // resolve the element type
-                    let left_id = self.resolve_declared_type_expression(
-                        &mut ctx.reborrow(),
-                        left,
-                        validate_static_argument_bounds,
-                        enforce_implicit_managed,
-                    )?;
-                    if matches!(
-                        ctx.types.get_type(left_id),
-                        Type::TypeLiteral {
-                            value: TypeLiteral::Void
-                        }
-                    ) {
-                        return self.report_declared_type_error(AnalyzeError::VoidInArray {
-                            node: left
-                                .into_global_any(ctx.module.id)
-                                .into_anchored(Some(ctx.profile)),
-                        });
-                    }
-                    Type::Array {
-                        element: Some(left_id),
-                        is_readonly: false,
-                    }
-                }
-            }
-
             _ => return Ok(None),
         };
 
@@ -2215,7 +1956,7 @@ impl Compiler {
         if is_user_module
             && enforce_implicit_managed
             && ctx.options.no_implicit_managed
-            && !self.expression_has_explicit_ownership(ctx.tree, expression_id)
+            && !self.type_expression_has_explicit_ownership(ctx.tree, expression_id)
             && self.type_is_implicit_managed(ctx.module_type_view(), &ty)
         {
             return self.report_declared_type_error(AnalyzeError::ImplicitManagedTypeDisabled {

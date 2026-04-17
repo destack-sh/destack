@@ -66,12 +66,11 @@ if (value != null) {
 
     // locate the narrowed declaration in the then block
     let then_expression_id = match view.tree().get(*then_expression) {
-        Expression::Block { block } => {
-            let block = view.tree().get(*block);
-            block
-                .first_expression()
-                .expect("expected then block expression")
-        }
+        Expression::Block(block_id) => view
+            .tree()
+            .get(*block_id)
+            .first_expression()
+            .expect("expected then block expression"),
         _ => *then_expression,
     };
 

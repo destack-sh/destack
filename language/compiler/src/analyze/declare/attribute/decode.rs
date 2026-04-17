@@ -1,7 +1,7 @@
 use crate::Compiler;
 use destack_core::StringId;
 use destack_dir::{
-    Annotation, Argument, Binding, Expression, LifetimeAnnotation, LocalNodeId, NodeTree,
+    Argument, Binding, Decorator, Expression, LifetimeAnnotation, LocalNodeId, NodeTree,
     ScalarLiteral,
 };
 use destack_workspace::{Module, ProfileId};
@@ -14,7 +14,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         decorator_name: &str,
         arguments: Option<&[LocalNodeId<Argument>]>,
     ) -> Option<Vec<LocalNodeId<Expression>>> {
@@ -53,7 +53,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         decorator_name: &str,
         values: &[LocalNodeId<Expression>],
     ) -> Option<Option<StringId>> {
@@ -95,7 +95,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         values: &[LocalNodeId<Expression>],
     ) -> Option<Binding> {
         // allow empty bindings: defaults to the declaration name
@@ -156,7 +156,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         decorator_name: &str,
         values: &[LocalNodeId<Expression>],
     ) -> Option<Vec<StringId>> {
@@ -196,7 +196,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         decorator_name: &str,
         values: &[LocalNodeId<Expression>],
     ) -> Option<Option<u32>> {
@@ -255,7 +255,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         decorator_name: &str,
         values: &[LocalNodeId<Expression>],
     ) -> Option<Option<LifetimeAnnotation>> {

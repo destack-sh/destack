@@ -58,26 +58,6 @@ impl Compiler {
         });
     }
 
-    /// Record one post solve relation obligation using expression operands.
-    pub(crate) fn push_relation_obligation_for_expression_operands(
-        &self,
-        module: &Module,
-        node_id: LocalNodeIdAny,
-        target_expression_id: LocalNodeId<Expression>,
-        source_expression_id: LocalNodeId<Expression>,
-        diagnostic: TypeRelationObligationDiagnostic,
-        infer: &mut InferTable,
-    ) {
-        infer.push_type_relation_obligation(TypeRelationObligation {
-            source_node_id: node_id.into_global(module.id),
-            operands: TypeRelationObligationOperands::ExpressionOperands {
-                target_expression_id: target_expression_id.into_global_any(module.id),
-                source_expression_id: source_expression_id.into_global_any(module.id),
-            },
-            diagnostic,
-        });
-    }
-
     /// Record one post solve relation obligation using a captured target type and one source expression.
     pub(crate) fn push_relation_obligation_for_target_type_and_source_expression(
         &self,

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    Annotation, Argument, CaptureTable, Declaration, DeprecatedNotice, ExperimentalNotice,
+    Argument, CaptureTable, Declaration, Decorator, DeprecatedNotice, ExperimentalNotice,
     Expression, ExternBinding, GlobalSymbolId, IntrinsicBinding, LanguageItemBinding, LocalNodeId,
     LocalNodeIdAny, NodeTree, SanitizerMarker, SinkMarker, Symbol, SymbolDecorators, SymbolTable,
     TagMarker, TaintMarker, UnrollHint, WellKnownDecorator,
@@ -248,7 +248,7 @@ impl Compiler {
         // index expression wrappers for declaration nodes
         let mut wrappers = HashMap::new();
         for (expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
-            if let Expression::Declaration { declaration } = expression {
+            if let Expression::Declaration(declaration) = expression {
                 wrappers
                     .entry(declaration.into_any())
                     .or_insert_with(Vec::new)
@@ -269,14 +269,14 @@ impl Compiler {
         decorators: &mut SymbolDecorators,
         captures: &mut CaptureTable,
     ) -> AnalyzeResult<()> {
-        // scan annotations for decorator markers
-        let annotations = ctx.tree.get_annotations(node_id.id);
-        for annotation_id in annotations {
-            let annotation = ctx.tree.get(annotation_id);
-            let Annotation::Decorator { expression, .. } = annotation;
+        // scan decorators for marker calls
+        let decorator_ids = ctx.tree.get_decorators(node_id.id);
+        for decorator_id in decorator_ids {
+            let decorator = ctx.tree.get(decorator_id);
+            let expression = decorator.expression;
 
             // resolve decorator marker symbol
-            let call = self.decorator_call(ctx.tree, *expression);
+            let call = self.decorator_call(ctx.tree, expression);
             let callee_expr = ctx.tree.get(call.callee);
             let target_symbol = match callee_expr {
                 Expression::LocalReference { target_symbol, .. }
@@ -307,7 +307,7 @@ impl Compiler {
                 self.report_invalid_well_known_decorator(
                     ctx.module,
                     ctx.profile,
-                    annotation_id,
+                    decorator_id,
                     "unknown builtin decorator marker",
                 );
             }
@@ -320,7 +320,7 @@ impl Compiler {
                 ctx.module,
                 ctx.profile,
                 ctx.tree,
-                annotation_id,
+                decorator_id,
                 node_id,
                 marker,
                 call.arguments,
@@ -381,7 +381,7 @@ impl Compiler {
         module: &destack_workspace::Module,
         profile: ProfileId,
         tree: &NodeTree,
-        annotation_id: LocalNodeId<Annotation>,
+        decorator_id: LocalNodeId<Decorator>,
         node_id: LocalNodeIdAny,
         marker: WellKnownDecorator,
         arguments: Option<&[LocalNodeId<Argument>]>,
@@ -395,7 +395,7 @@ impl Compiler {
             module,
             profile,
             tree,
-            annotation_id,
+            decorator_id,
             decorator_name,
             arguments,
         ) else {
@@ -406,7 +406,7 @@ impl Compiler {
         match marker {
             WellKnownDecorator::Binding => {
                 let Some(binding) =
-                    self.decorator_binding_argument(module, profile, tree, annotation_id, &values)
+                    self.decorator_binding_argument(module, profile, tree, decorator_id, &values)
                 else {
                     return;
                 };
@@ -416,20 +416,20 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "binding cannot be combined with extern or intrinsic",
                     );
                     return;
                 }
 
-                self.merge_binding(module, profile, annotation_id, binding, decorators);
+                self.merge_binding(module, profile, decorator_id, binding, decorators);
             }
             WellKnownDecorator::Extern => {
                 let Some(name) = self.decorator_string_argument(
                     module,
                     profile,
                     tree,
-                    annotation_id,
+                    decorator_id,
                     decorator_name,
                     &values,
                 ) else {
@@ -440,27 +440,27 @@ impl Compiler {
                         self.report_invalid_well_known_decorator(
                             module,
                             profile,
-                            annotation_id,
+                            decorator_id,
                             "extern cannot be combined with binding or intrinsic",
                         );
                         return;
                     }
 
                     let binding = ExternBinding { name: Some(name) };
-                    self.merge_extern_binding(module, profile, annotation_id, binding, decorators);
+                    self.merge_extern_binding(module, profile, decorator_id, binding, decorators);
                 } else {
                     if decorators.intrinsic_binding.is_some() || decorators.binding.is_some() {
                         self.report_invalid_well_known_decorator(
                             module,
                             profile,
-                            annotation_id,
+                            decorator_id,
                             "extern cannot be combined with binding or intrinsic",
                         );
                         return;
                     }
 
                     let binding = ExternBinding { name: None };
-                    self.merge_extern_binding(module, profile, annotation_id, binding, decorators);
+                    self.merge_extern_binding(module, profile, decorator_id, binding, decorators);
                 }
             }
             WellKnownDecorator::Intrinsic => {
@@ -469,7 +469,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "intrinsic decorators are only supported in builtin modules",
                     );
                     return;
@@ -479,7 +479,7 @@ impl Compiler {
                     module,
                     profile,
                     tree,
-                    annotation_id,
+                    decorator_id,
                     decorator_name,
                     &values,
                 ) else {
@@ -490,7 +490,7 @@ impl Compiler {
                         self.report_invalid_well_known_decorator(
                             module,
                             profile,
-                            annotation_id,
+                            decorator_id,
                             "extern and intrinsic decorators cannot be combined",
                         );
                         return;
@@ -500,7 +500,7 @@ impl Compiler {
                     self.merge_intrinsic_binding(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         binding,
                         decorators,
                     );
@@ -509,7 +509,7 @@ impl Compiler {
                         self.report_invalid_well_known_decorator(
                             module,
                             profile,
-                            annotation_id,
+                            decorator_id,
                             "extern and intrinsic decorators cannot be combined",
                         );
                         return;
@@ -519,7 +519,7 @@ impl Compiler {
                     self.merge_intrinsic_binding(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         binding,
                         decorators,
                     );
@@ -530,7 +530,7 @@ impl Compiler {
                     module,
                     profile,
                     tree,
-                    annotation_id,
+                    decorator_id,
                     decorator_name,
                     &values,
                 ) else {
@@ -541,7 +541,7 @@ impl Compiler {
                 self.merge_language_item_binding(
                     module,
                     profile,
-                    annotation_id,
+                    decorator_id,
                     binding,
                     decorators,
                 );
@@ -551,7 +551,7 @@ impl Compiler {
                     module,
                     profile,
                     tree,
-                    annotation_id,
+                    decorator_id,
                     decorator_name,
                     &values,
                 ) else {
@@ -559,14 +559,14 @@ impl Compiler {
                 };
 
                 let notice = DeprecatedNotice { message };
-                self.merge_deprecated_notice(module, profile, annotation_id, notice, decorators);
+                self.merge_deprecated_notice(module, profile, decorator_id, notice, decorators);
             }
             WellKnownDecorator::Experimental => {
                 let Some(message) = self.decorator_string_argument(
                     module,
                     profile,
                     tree,
-                    annotation_id,
+                    decorator_id,
                     decorator_name,
                     &values,
                 ) else {
@@ -574,14 +574,14 @@ impl Compiler {
                 };
 
                 let notice = ExperimentalNotice { message };
-                self.merge_experimental_notice(module, profile, annotation_id, notice, decorators);
+                self.merge_experimental_notice(module, profile, decorator_id, notice, decorators);
             }
             WellKnownDecorator::NoManaged => {
                 if !values.is_empty() {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "noManaged decorator does not accept arguments",
                     );
                     return;
@@ -594,7 +594,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "stackOnly decorator does not accept arguments",
                     );
                     return;
@@ -605,7 +605,7 @@ impl Compiler {
             }
             WellKnownDecorator::Capture => {
                 let Some(declaration_id) =
-                    self.capture_decorator_target(module, profile, tree, annotation_id, node_id)
+                    self.capture_decorator_target(module, profile, tree, decorator_id, node_id)
                 else {
                     return;
                 };
@@ -614,7 +614,7 @@ impl Compiler {
                     module,
                     profile,
                     tree,
-                    annotation_id,
+                    decorator_id,
                     decorator_name,
                     &values,
                 ) else {
@@ -626,7 +626,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "capture decorator is only supported on functions",
                     );
                     return;
@@ -637,7 +637,7 @@ impl Compiler {
                         self.report_invalid_well_known_decorator(
                             module,
                             profile,
-                            annotation_id,
+                            decorator_id,
                             "capture decorator is already defined for this function",
                         );
                     }
@@ -651,7 +651,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "inline decorator does not accept arguments",
                     );
                     return;
@@ -660,7 +660,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "inline and noinline decorators cannot be combined",
                     );
                     return;
@@ -673,7 +673,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "noinline decorator does not accept arguments",
                     );
                     return;
@@ -682,7 +682,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "inline and noinline decorators cannot be combined",
                     );
                     return;
@@ -695,7 +695,7 @@ impl Compiler {
                     module,
                     profile,
                     tree,
-                    annotation_id,
+                    decorator_id,
                     decorator_name,
                     &values,
                 ) else {
@@ -703,14 +703,14 @@ impl Compiler {
                 };
 
                 let hint = UnrollHint { factor };
-                self.merge_unroll_hint(module, profile, annotation_id, hint, decorators);
+                self.merge_unroll_hint(module, profile, decorator_id, hint, decorators);
             }
             WellKnownDecorator::Hot => {
                 if !values.is_empty() {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "hot decorator does not accept arguments",
                     );
                     return;
@@ -719,7 +719,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "hot and cold decorators cannot be combined",
                     );
                     return;
@@ -732,7 +732,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "cold decorator does not accept arguments",
                     );
                     return;
@@ -741,7 +741,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "hot and cold decorators cannot be combined",
                     );
                     return;
@@ -754,7 +754,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "likely decorator does not accept arguments",
                     );
                     return;
@@ -763,7 +763,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "likely and unlikely decorators cannot be combined",
                     );
                     return;
@@ -776,7 +776,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "unlikely decorator does not accept arguments",
                     );
                     return;
@@ -785,7 +785,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "likely and unlikely decorators cannot be combined",
                     );
                     return;
@@ -798,7 +798,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "mustUse decorator does not accept arguments",
                     );
                     return;
@@ -811,7 +811,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "pure decorator does not accept arguments",
                     );
                     return;
@@ -824,7 +824,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "tailcall decorator does not accept arguments",
                     );
                     return;
@@ -837,7 +837,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "unsafe decorator does not accept arguments",
                     );
                     return;
@@ -850,7 +850,7 @@ impl Compiler {
                     self.report_invalid_well_known_decorator(
                         module,
                         profile,
-                        annotation_id,
+                        decorator_id,
                         "transmute decorator does not accept arguments",
                     );
                     return;
@@ -863,7 +863,7 @@ impl Compiler {
                     module,
                     profile,
                     tree,
-                    annotation_id,
+                    decorator_id,
                     decorator_name,
                     &values,
                 ) else {
@@ -893,7 +893,7 @@ impl Compiler {
                     module,
                     profile,
                     tree,
-                    annotation_id,
+                    decorator_id,
                     decorator_name,
                     &values,
                 ) else {
@@ -923,7 +923,7 @@ impl Compiler {
                     module,
                     profile,
                     tree,
-                    annotation_id,
+                    decorator_id,
                     decorator_name,
                     &values,
                 ) else {
@@ -953,7 +953,7 @@ impl Compiler {
                     module,
                     profile,
                     tree,
-                    annotation_id,
+                    decorator_id,
                     decorator_name,
                     &values,
                 ) else {
@@ -968,7 +968,7 @@ impl Compiler {
                     module,
                     profile,
                     tree,
-                    annotation_id,
+                    decorator_id,
                     decorator_name,
                     &values,
                 ) else {
@@ -978,13 +978,7 @@ impl Compiler {
                     return;
                 };
 
-                self.merge_lifetime_annotation(
-                    module,
-                    profile,
-                    annotation_id,
-                    lifetime,
-                    decorators,
-                );
+                self.merge_lifetime_annotation(module, profile, decorator_id, lifetime, decorators);
             }
             WellKnownDecorator::Allow
             | WellKnownDecorator::Warn

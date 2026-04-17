@@ -1,18 +1,16 @@
-use super::{StaticEvaluationDiagnosticMode, StaticEvaluationMode};
 use crate::analyze::common::TypeContext;
 use crate::{AnalyzeResult, Compiler};
 use destack_dir::{
-    Argument, BinaryOperator, Expression, LocalNodeId, LocalTypeId, PrimitiveType, ScalarLiteral,
-    StaticArgument, StaticExpression, Type, TypeLiteral, TypeTable,
+    BinaryOperator, GenericArgument, LocalNodeId, LocalTypeId, PrimitiveType, ScalarLiteral,
+    StaticArgument, StaticExpression, Type, TypeExpression, TypeLiteral, TypeTable,
 };
-use std::collections::HashSet;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     pub(crate) fn evaluate_integer_static_literal(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
     ) -> AnalyzeResult<Option<i64>> {
         // prefer existing type commitments before re-evaluating the expression tree
         let expression_global = expression_id.into_global_any(ctx.module.id);
@@ -25,34 +23,20 @@ impl Compiler {
             return Ok(Some(value));
         }
 
-        let (expression_id, _) = self.unwrap_as_comptime_expression(expression_id, ctx.tree);
-        let mut visited = HashSet::new();
-        let value = self.evaluate_static_expression_value_inner(
-            &mut ctx.reborrow(),
-            expression_id,
-            None,
-            StaticEvaluationMode::Parametric,
-            StaticEvaluationDiagnosticMode::Suppress,
-            None,
-            destack_artifact::ArtifactKey::dir_interface,
-            &mut visited,
-        )?;
-        let literal = match value {
-            Some(StaticExpression::ScalarLiteral {
-                value: ScalarLiteral::Integer(value),
-            }) => Some(value),
-            Some(StaticExpression::TypeLiteral {
-                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(value)),
-            }) => Some(value),
-            Some(StaticExpression::Type { ty }) => match ctx.types.get_type(ty) {
-                Type::TypeLiteral {
-                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(value)),
-                } => Some(*value),
-                _ => None,
-            },
-            _ => None,
-        };
-        Ok(literal)
+        let (expression_id, _) = self.unwrap_as_comptime_type_expression(expression_id, ctx.tree);
+
+        // fast path scalar literals before recursive type evaluation
+        if let TypeExpression::ScalarLiteral {
+            value: ScalarLiteral::Integer(value),
+        } = ctx.tree.get(expression_id)
+        {
+            return Ok(Some(*value));
+        }
+
+        let type_id =
+            self.resolve_declared_type_expression(&mut ctx.reborrow(), expression_id, true, true)?;
+
+        Ok(self.integer_literal_value_for_type_id(type_id, ctx.types))
     }
 
     /// Convert one substituted static parameter type into a static expression.
@@ -159,20 +143,21 @@ impl Compiler {
         }
     }
 
-    pub(crate) fn evaluate_static_arguments(
+    /// Evaluate one syntax generic argument list into static arguments.
+    pub(crate) fn evaluate_generic_arguments(
         &self,
         ctx: &mut TypeContext<'_>,
-        static_arguments: Option<&[LocalNodeId<Argument>]>,
+        generic_arguments: Option<&[LocalNodeId<GenericArgument>]>,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
-        // skip when there are no static arguments
-        let Some(static_arguments) = static_arguments else {
+        // skip when there are no generic arguments
+        let Some(generic_arguments) = generic_arguments else {
             return Ok(None);
         };
 
-        let mut evaluated_arguments = Vec::with_capacity(static_arguments.len());
+        let mut evaluated_arguments = Vec::with_capacity(generic_arguments.len());
 
         // defer static argument evaluation until parameter kinds are known
-        for argument_id in static_arguments {
+        for argument_id in generic_arguments {
             evaluated_arguments.push(StaticArgument::Unevaluated {
                 node: argument_id.into_global_any(ctx.module.id),
             });

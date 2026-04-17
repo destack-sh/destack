@@ -7,11 +7,10 @@ pub(crate) use crate::{AnalyzeError, AnalyzeResult, Compiler, InferState};
 pub(crate) use destack_builtin::LanguageSymbol;
 pub(crate) use destack_core::StringId;
 pub(crate) use destack_dir::{
-    Argument, AssociatedComptimeProjectionObligation, BindingAnchor, BindingCategory,
-    BindingModifier, Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, Member, MissingMemberObligation, Mutability, NodeTree, NodeType,
-    NormalizationMode, Parameter, StaticArgument, StaticKey, SymbolTable, SymbolType, Type,
-    TypeLiteral, TypeTable, Visibility,
+    AssociatedComptimeProjectionObligation, BindingCategory, Declaration, Expression,
+    GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, MissingMemberObligation,
+    NodeTree, NodeType, NormalizationMode, Parameter, StaticArgument, StaticKey, SymbolTable,
+    SymbolType, Type, TypeLiteral, TypeTable, Visibility,
 };
 pub(crate) use destack_source::ModuleId;
 pub(crate) use destack_workspace::{Module, ModuleSource, ProfileId};

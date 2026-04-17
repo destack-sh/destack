@@ -89,7 +89,7 @@ impl Compiler {
                     remote_types,
                     types,
                 );
-                let parameter = TypeMappedParameter {
+                let parameter = destack_dir::MappedTypeParameter {
                     name: parameter.name,
                     symbol: parameter.symbol,
                     constraint: local_constraint,
@@ -319,6 +319,7 @@ impl Compiler {
                                 remote_types,
                                 types,
                             ),
+                            is_optional: signature.is_optional,
                             is_readonly: signature.is_readonly,
                         }
                     })
@@ -463,23 +464,62 @@ impl Compiler {
                     node_id,
                 )
             }
-            Type::Unary { operator, right } => {
+            Type::Readonly { target_type: right } => {
                 let inner_ty = remote_types.get_type(*right);
                 let local_inner =
                     self.import_remote_type_for_node(node_id, inner_ty, remote_types, types);
                 types.insert_imported_type_from_any(
-                    Type::Unary {
-                        operator: *operator,
-                        right: local_inner,
+                    Type::Readonly {
+                        target_type: local_inner,
                     },
                     node_id,
                 )
             }
-            Type::Binary {
-                left,
-                operator,
-                right,
-            } => {
+            Type::KeyOf { target_type: right } => {
+                let inner_ty = remote_types.get_type(*right);
+                let local_inner =
+                    self.import_remote_type_for_node(node_id, inner_ty, remote_types, types);
+                types.insert_imported_type_from_any(
+                    Type::KeyOf {
+                        target_type: local_inner,
+                    },
+                    node_id,
+                )
+            }
+            Type::Must { target_type: right } => {
+                let inner_ty = remote_types.get_type(*right);
+                let local_inner =
+                    self.import_remote_type_for_node(node_id, inner_ty, remote_types, types);
+                types.insert_imported_type_from_any(
+                    Type::Must {
+                        target_type: local_inner,
+                    },
+                    node_id,
+                )
+            }
+            Type::AsComptime { target_type: right } => {
+                let inner_ty = remote_types.get_type(*right);
+                let local_inner =
+                    self.import_remote_type_for_node(node_id, inner_ty, remote_types, types);
+                types.insert_imported_type_from_any(
+                    Type::AsComptime {
+                        target_type: local_inner,
+                    },
+                    node_id,
+                )
+            }
+            Type::Not { target_type: right } => {
+                let inner_ty = remote_types.get_type(*right);
+                let local_inner =
+                    self.import_remote_type_for_node(node_id, inner_ty, remote_types, types);
+                types.insert_imported_type_from_any(
+                    Type::Not {
+                        target_type: local_inner,
+                    },
+                    node_id,
+                )
+            }
+            Type::In { left, right } => {
                 let left_ty = remote_types.get_type(*left);
                 let right_ty = remote_types.get_type(*right);
                 let local_left =
@@ -487,9 +527,38 @@ impl Compiler {
                 let local_right =
                     self.import_remote_type_for_node(node_id, right_ty, remote_types, types);
                 types.insert_imported_type_from_any(
-                    Type::Binary {
+                    Type::In {
                         left: local_left,
-                        operator: *operator,
+                        right: local_right,
+                    },
+                    node_id,
+                )
+            }
+            Type::Extends { left, right } => {
+                let left_ty = remote_types.get_type(*left);
+                let right_ty = remote_types.get_type(*right);
+                let local_left =
+                    self.import_remote_type_for_node(node_id, left_ty, remote_types, types);
+                let local_right =
+                    self.import_remote_type_for_node(node_id, right_ty, remote_types, types);
+                types.insert_imported_type_from_any(
+                    Type::Extends {
+                        left: local_left,
+                        right: local_right,
+                    },
+                    node_id,
+                )
+            }
+            Type::Implements { left, right } => {
+                let left_ty = remote_types.get_type(*left);
+                let right_ty = remote_types.get_type(*right);
+                let local_left =
+                    self.import_remote_type_for_node(node_id, left_ty, remote_types, types);
+                let local_right =
+                    self.import_remote_type_for_node(node_id, right_ty, remote_types, types);
+                types.insert_imported_type_from_any(
+                    Type::Implements {
+                        left: local_left,
                         right: local_right,
                     },
                     node_id,
@@ -684,37 +753,20 @@ impl Compiler {
     ) -> StaticProperty {
         match property {
             StaticProperty::Unevaluated { .. } => property.clone(),
-            StaticProperty::Field {
-                modifiers,
-                key,
-                value,
-                default,
-                symbol,
-            } => {
+            StaticProperty::Field { key, value, symbol } => {
                 let mapped_value = self.import_remote_static_expression_for_node(
                     node_id,
                     value,
                     remote_types,
                     types,
                 );
-                let mapped_default = default.as_ref().map(|default| {
-                    self.import_remote_static_expression_for_node(
-                        node_id,
-                        default,
-                        remote_types,
-                        types,
-                    )
-                });
                 StaticProperty::Field {
-                    modifiers: *modifiers,
                     key: *key,
                     value: mapped_value,
-                    default: mapped_default,
                     symbol: *symbol,
                 }
             }
             StaticProperty::Method {
-                modifiers,
                 key,
                 signature,
                 body,
@@ -727,10 +779,21 @@ impl Compiler {
                     types,
                 );
                 StaticProperty::Method {
-                    modifiers: *modifiers,
                     key: *key,
                     signature: signature.clone(),
                     body: mapped_body,
+                    symbol: *symbol,
+                }
+            }
+            StaticProperty::Spread { value, symbol } => {
+                let mapped_value = self.import_remote_static_expression_for_node(
+                    node_id,
+                    value,
+                    remote_types,
+                    types,
+                );
+                StaticProperty::Spread {
+                    value: mapped_value,
                     symbol: *symbol,
                 }
             }

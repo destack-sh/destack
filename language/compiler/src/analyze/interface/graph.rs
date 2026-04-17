@@ -410,10 +410,13 @@ export const value = 1;
             test.program.current_revision(),
             &ArtifactKey::module_graph(profile),
         );
+        let module_version = graph
+            .module_version_for(module_id)
+            .unwrap_or_else(|| panic!("expected module graph version for {module_id:?}"));
         graph.update_module_dependencies(
             module_id,
             destack_artifact::ModuleKind::Code,
-            test.module_version(module_id),
+            module_version,
             vec![module_id],
         );
         test.compiler

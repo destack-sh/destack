@@ -1,11 +1,10 @@
 use destack_dir::{
-    Asynchrony, BindingAnchor, BindingKind, BindingModifier, Block, Declaration,
-    DeclarationAbstraction, DynamicKey, Expression, Extension, ExtensionKind, FunctionCardinality,
-    FunctionMode, FunctionSignature, Generics, GlobalSymbolId, Heritage, Lineage, LocalNodeId,
-    LocalNodeIdAny, LocalSymbolId, LocalTypeId, Member, Mutability, NodeTree, NodeVisitor,
-    NodeVisitorOptions, Parameter, StaticArgument, StaticExpression, StaticKey, SymbolType, Timing,
-    Type, TypeField, TypeIndexSignature, TypeKind, TypeLiteral, TypeTable, TypeUnaryOperator,
-    walk_block, walk_declaration, walk_expression,
+    Asynchrony, Block, Declaration, Expression, Extension, ExtensionKind, FunctionCardinality,
+    FunctionMode, FunctionSignature, GenericParameter, GlobalSymbolId, Lineage, LocalNodeId,
+    LocalNodeIdAny, LocalSymbolId, LocalTypeId, Member, NodeTree, NodeVisitor, NodeVisitorOptions,
+    Parameter, StaticArgument, StaticExpression, StaticKey, SymbolType, TupleElement, Type,
+    TypeExpression, TypeField, TypeIndexSignature, TypeLiteral, TypeMember, TypeTable, walk_block,
+    walk_declaration, walk_expression,
 };
 use destack_workspace::{Module, ProfileId};
 use std::collections::{HashMap, HashSet};
@@ -124,15 +123,15 @@ impl NodeVisitor for CollectVisitor<'_> {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Return whether alias recursion should be checked later than declaration collection.
-    fn defer_alias_cycle_check(expression: &Expression) -> bool {
-        matches!(expression, Expression::TypeConditional { .. })
+    fn defer_alias_cycle_check(expression: &TypeExpression) -> bool {
+        matches!(expression, TypeExpression::Conditional { .. })
     }
 
     /// Report one recursive alias error and poison the declared type slot.
     fn report_recursive_declared_alias_error(
         &self,
         ctx: &mut TypeContext<'_>,
-        value_expression_id: LocalNodeId<Expression>,
+        value_expression_id: LocalNodeId<TypeExpression>,
         declared_ty_id: LocalTypeId,
     ) {
         let node = value_expression_id
@@ -147,7 +146,7 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         symbol: GlobalSymbolId,
-        value_expression_id: LocalNodeId<Expression>,
+        value_expression_id: LocalNodeId<TypeExpression>,
         declared_ty_id: LocalTypeId,
     ) -> AnalyzeResult<()> {
         let value_expression = ctx.tree.get(value_expression_id);
@@ -303,7 +302,7 @@ impl Compiler {
     pub(crate) fn collect_or_defer_type_expression(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         defer_type_evaluation: bool,
     ) -> AnalyzeResult<LocalTypeId> {
         if !defer_type_evaluation {
@@ -400,52 +399,52 @@ impl Compiler {
 
         // dispatch by declaration kind
         match declaration {
-            Declaration::Global { .. } => Ok(()),
-            Declaration::Namespace { generics, .. } => {
+            Declaration::Global(_) => Ok(()),
+            Declaration::Namespace(declaration) => {
                 // declare namespace generics
-                self.collect_generics(ctx, generics)?;
+                self.collect_generics(ctx, &declaration.generic_parameters)?;
 
                 Ok(())
             }
-            Declaration::Type {
-                descriptor,
-                kind,
-                static_parameters,
-                value,
-                ..
-            } => {
-                // declare static parameters
-                if let Some(parameters) = static_parameters.as_ref() {
-                    for parameter_id in parameters {
-                        self.collect_parameter(&mut ctx.reborrow(), *parameter_id)?;
-                    }
+            Declaration::Type(declaration) => {
+                // declare generic parameters
+                for generic_parameter_id in &declaration.generic_parameters {
+                    self.collect_generic_parameter(&mut ctx.reborrow(), *generic_parameter_id)?;
                 }
 
-                // avoid eager evaluation for generic aliases
-                // detect value static parameters that require deferred evaluation
-                let has_static_parameters = static_parameters
-                    .as_ref()
-                    .is_some_and(|parameters| !parameters.is_empty());
+                // validate comptime usage for value generic defaults
+                let has_static_parameters =
+                    declaration
+                        .generic_parameters
+                        .iter()
+                        .any(|generic_parameter_id| {
+                            matches!(
+                                ctx.tree.get(*generic_parameter_id),
+                                GenericParameter::Value { .. }
+                            )
+                        });
+
                 // validate comptime usage when static parameter dependencies are ready
                 if has_static_parameters {
                     self.query_static_value_parameter_usage(
                         &mut ctx.reborrow(),
-                        *value,
+                        declaration.value,
                         false,
                         true,
                     )?;
                 }
 
-                let symbol = self.declaration_symbol(ctx, descriptor.symbol);
-                let declared_type_global_id = value.into_global_any(ctx.module.id);
+                let symbol = self.declaration_symbol(ctx, declaration.symbol);
+                let declared_type_global_id = declaration.value.into_global_any(ctx.module.id);
                 let declared_ty_id = if let Some(existing) =
                     ctx.types.get_declared_type_id(declared_type_global_id)
                 {
                     existing
                 } else {
-                    let declared_ty_id = ctx
-                        .types
-                        .insert_type_from_any(Type::Unevaluated(*value), (*value).into_any());
+                    let declared_ty_id = ctx.types.insert_type_from_any(
+                        Type::Unevaluated(declaration.value),
+                        declaration.value.into_any(),
+                    );
                     ctx.types
                         .set_declared_type(declared_type_global_id, declared_ty_id);
                     declared_ty_id
@@ -454,28 +453,29 @@ impl Compiler {
                 // alias declarations always publish the declared target slot
                 ctx.types.set_alias_target_type_id(symbol, declared_ty_id);
 
-                let instance_ty_id = match *kind {
-                    TypeKind::Structural => declared_ty_id,
-                    TypeKind::Nominal => {
+                let instance_ty_id = if declaration.is_nominal {
+                    {
                         let ty = Type::Reference {
                             symbol,
                             static_arguments: None,
                         };
                         ctx.types.insert_type_from(ty, declaration_id)
                     }
+                } else {
+                    declared_ty_id
                 };
                 ctx.types.set_instance_type(symbol, instance_ty_id);
 
                 // register the value type for this symbol
-                if *kind == TypeKind::Nominal {
+                if declaration.is_nominal {
                     let static_parameters = self.static_parameter_placeholders_for_declaration(
                         &mut ctx.reborrow(),
-                        static_parameters.as_deref(),
+                        Some(&declaration.generic_parameters),
                     );
                     let constructor_id = self.newtype_constructor_signature(
                         &mut ctx.reborrow(),
                         declaration_id,
-                        *value,
+                        declaration.value,
                         declared_ty_id,
                         instance_ty_id,
                         static_parameters,
@@ -485,7 +485,7 @@ impl Compiler {
                     self.merge_value_shape_into_symbol(
                         &mut ctx.reborrow(),
                         declaration_id,
-                        descriptor.symbol,
+                        declaration.symbol,
                         symbol,
                         &shape,
                         false,
@@ -500,38 +500,40 @@ impl Compiler {
 
                 Ok(())
             }
-            Declaration::ImportAlias { .. } => Ok(()),
-            Declaration::Struct {
-                descriptor,
-                generics,
-                heritage,
-                members,
-                ..
-            } => {
+            Declaration::ImportAlias(_) => Ok(()),
+            Declaration::Struct(declaration) => {
                 // resolve declaration merge state
-                let symbol_entry = ctx.symbols.get_symbol(descriptor.symbol);
+                let symbol_entry = ctx.symbols.get_symbol(declaration.symbol);
                 let allow_merge = ctx.module.language_type.is_declaration();
                 let is_primary = symbol_entry.primary_declaration.is_some_and(|primary| {
                     primary == declaration_id.into_global_any(ctx.module.id)
                 });
 
                 // declare generics and heritage
-                self.collect_generics(&mut ctx.reborrow(), generics)?;
-                self.collect_heritage(&mut ctx.reborrow(), heritage, Some(descriptor.symbol))?;
-                let declaration_symbol = self.declaration_symbol(ctx, descriptor.symbol);
+                self.collect_generics(&mut ctx.reborrow(), &declaration.generic_parameters)?;
+                self.collect_lineage(
+                    &mut ctx.reborrow(),
+                    None,
+                    &[],
+                    &declaration.implements_types,
+                    &declaration.embedded_types,
+                    Some(declaration.symbol),
+                )?;
+                let declaration_symbol = self.declaration_symbol(ctx, declaration.symbol);
                 self.report_missing_associated_requirements(
                     &mut ctx.reborrow(),
                     declaration_symbol,
-                    heritage,
-                    members,
+                    &[],
+                    &declaration.implements_types,
+                    &declaration.members,
                     false,
                 )?;
 
                 // nominal reference for constructors
-                let symbol = self.declaration_symbol(ctx, descriptor.symbol);
+                let symbol = self.declaration_symbol(ctx, declaration.symbol);
                 let static_arguments = self.self_type_static_arguments_for_declaration(
                     &mut ctx.reborrow(),
-                    generics.static_parameters.as_deref(),
+                    Some(&declaration.generic_parameters),
                 );
                 let nominal_reference = Type::Reference {
                     symbol,
@@ -544,8 +546,8 @@ impl Compiler {
                 // build instance and value shapes from members
                 let shapes = self.collect_member_shapes(
                     &mut ctx.reborrow(),
-                    members,
-                    None,
+                    &declaration.members,
+                    Some(&declaration.generic_parameters),
                     Some(nominal_reference_id),
                 )?;
                 let instance_shape = shapes.instance;
@@ -555,7 +557,7 @@ impl Compiler {
                 self.merge_instance_shape_into_merge_group(
                     &mut ctx.reborrow(),
                     declaration_id,
-                    descriptor.symbol,
+                    declaration.symbol,
                     &instance_shape,
                     allow_merge,
                 );
@@ -565,7 +567,7 @@ impl Compiler {
                     self.merge_global_instance_shape_for_symbol(
                         &mut ctx.reborrow(),
                         declaration_id,
-                        descriptor.symbol,
+                        declaration.symbol,
                     )?;
                 }
 
@@ -582,7 +584,7 @@ impl Compiler {
                 self.merge_value_shape_into_symbol(
                     &mut ctx.reborrow(),
                     declaration_id,
-                    descriptor.symbol,
+                    declaration.symbol,
                     symbol,
                     &value_shape,
                     allow_merge,
@@ -593,21 +595,15 @@ impl Compiler {
                     self.merge_global_value_shape_for_symbol(
                         &mut ctx.reborrow(),
                         declaration_id,
-                        descriptor.symbol,
+                        declaration.symbol,
                     )?;
                 }
 
                 Ok(())
             }
-            Declaration::Class {
-                descriptor,
-                generics,
-                heritage,
-                members,
-                ..
-            } => {
+            Declaration::Class(declaration) => {
                 // resolve declaration merge state
-                let symbol_entry = ctx.symbols.get_symbol(descriptor.symbol);
+                let symbol_entry = ctx.symbols.get_symbol(declaration.symbol);
                 let allow_merge = ctx.module.language_type.supports_declaration_merging()
                     || symbol_entry.origin.is_global_augmentation();
                 let is_primary = symbol_entry.primary_declaration.is_some_and(|primary| {
@@ -615,24 +611,31 @@ impl Compiler {
                 });
 
                 // declare generics and heritage
-                self.collect_generics(&mut ctx.reborrow(), generics)?;
-                self.collect_heritage(&mut ctx.reborrow(), heritage, Some(descriptor.symbol))?;
-                let declaration_symbol = self.declaration_symbol(ctx, descriptor.symbol);
-                let allows_deferred_associated =
-                    descriptor.abstraction == DeclarationAbstraction::Abstract;
+                self.collect_generics(&mut ctx.reborrow(), &declaration.generic_parameters)?;
+                self.collect_lineage(
+                    &mut ctx.reborrow(),
+                    declaration.extends_expression,
+                    &[],
+                    &declaration.implements_types,
+                    &[],
+                    Some(declaration.symbol),
+                )?;
+                let declaration_symbol = self.declaration_symbol(ctx, declaration.symbol);
+                let allows_deferred_associated = declaration.is_abstract;
                 self.report_missing_associated_requirements(
                     &mut ctx.reborrow(),
                     declaration_symbol,
-                    heritage,
-                    members,
+                    &[],
+                    &declaration.implements_types,
+                    &declaration.members,
                     allows_deferred_associated,
                 )?;
 
                 // prepare nominal reference for constructors
-                let symbol = self.declaration_symbol(ctx, descriptor.symbol);
+                let symbol = self.declaration_symbol(ctx, declaration.symbol);
                 let static_arguments = self.self_type_static_arguments_for_declaration(
                     &mut ctx.reborrow(),
-                    generics.static_parameters.as_deref(),
+                    Some(&declaration.generic_parameters),
                 );
                 let nominal_reference = Type::Reference {
                     symbol,
@@ -645,8 +648,8 @@ impl Compiler {
                 // build instance and value shapes from members
                 let shapes = self.collect_member_shapes(
                     &mut ctx.reborrow(),
-                    members,
-                    generics.static_parameters.as_deref(),
+                    &declaration.members,
+                    Some(&declaration.generic_parameters),
                     Some(nominal_reference_id),
                 )?;
                 let instance_shape = shapes.instance;
@@ -656,7 +659,7 @@ impl Compiler {
                 self.merge_instance_shape_into_merge_group(
                     &mut ctx.reborrow(),
                     declaration_id,
-                    descriptor.symbol,
+                    declaration.symbol,
                     &instance_shape,
                     allow_merge,
                 );
@@ -666,7 +669,7 @@ impl Compiler {
                     self.merge_global_instance_shape_for_symbol(
                         &mut ctx.reborrow(),
                         declaration_id,
-                        descriptor.symbol,
+                        declaration.symbol,
                     )?;
                 }
 
@@ -683,7 +686,7 @@ impl Compiler {
                 self.merge_value_shape_into_symbol(
                     &mut ctx.reborrow(),
                     declaration_id,
-                    descriptor.symbol,
+                    declaration.symbol,
                     symbol,
                     &value_shape,
                     allow_merge,
@@ -694,22 +697,15 @@ impl Compiler {
                     self.merge_global_value_shape_for_symbol(
                         &mut ctx.reborrow(),
                         declaration_id,
-                        descriptor.symbol,
+                        declaration.symbol,
                     )?;
                 }
 
                 Ok(())
             }
-            Declaration::Enum {
-                descriptor,
-                generics,
-                heritage,
-                fields,
-                members,
-                ..
-            } => {
+            Declaration::Enum(declaration) => {
                 // resolve declaration merge state
-                let symbol_entry = ctx.symbols.get_symbol(descriptor.symbol);
+                let symbol_entry = ctx.symbols.get_symbol(declaration.symbol);
                 let allow_merge = ctx.module.language_type.supports_declaration_merging()
                     || symbol_entry.origin.is_global_augmentation();
                 let is_primary = symbol_entry.primary_declaration.is_some_and(|primary| {
@@ -717,22 +713,30 @@ impl Compiler {
                 });
 
                 // declare generics and heritage
-                self.collect_generics(&mut ctx.reborrow(), generics)?;
-                self.collect_heritage(&mut ctx.reborrow(), heritage, Some(descriptor.symbol))?;
-                let declaration_symbol = self.declaration_symbol(ctx, descriptor.symbol);
+                self.collect_generics(&mut ctx.reborrow(), &declaration.generic_parameters)?;
+                self.collect_lineage(
+                    &mut ctx.reborrow(),
+                    None,
+                    &[],
+                    &declaration.implements_types,
+                    &[],
+                    Some(declaration.symbol),
+                )?;
+                let declaration_symbol = self.declaration_symbol(ctx, declaration.symbol);
                 self.report_missing_associated_requirements(
                     &mut ctx.reborrow(),
                     declaration_symbol,
-                    heritage,
-                    members,
+                    &[],
+                    &declaration.implements_types,
+                    &declaration.members,
                     false,
                 )?;
 
                 // prepare the nominal reference for enum values
-                let symbol = self.declaration_symbol(ctx, descriptor.symbol);
+                let symbol = self.declaration_symbol(ctx, declaration.symbol);
                 let static_arguments = self.self_type_static_arguments_for_declaration(
                     &mut ctx.reborrow(),
-                    generics.static_parameters.as_deref(),
+                    Some(&declaration.generic_parameters),
                 );
                 let nominal_reference = Type::Reference {
                     symbol,
@@ -745,8 +749,8 @@ impl Compiler {
                 // build instance and value shapes from members
                 let shapes = self.collect_member_shapes(
                     &mut ctx.reborrow(),
-                    members,
-                    generics.static_parameters.as_deref(),
+                    &declaration.members,
+                    Some(&declaration.generic_parameters),
                     Some(nominal_reference_id),
                 )?;
                 let instance_shape = shapes.instance;
@@ -756,7 +760,7 @@ impl Compiler {
                 self.merge_instance_shape_into_merge_group(
                     &mut ctx.reborrow(),
                     declaration_id,
-                    descriptor.symbol,
+                    declaration.symbol,
                     &instance_shape,
                     allow_merge,
                 );
@@ -766,18 +770,24 @@ impl Compiler {
                     self.merge_global_instance_shape_for_symbol(
                         &mut ctx.reborrow(),
                         declaration_id,
-                        descriptor.symbol,
+                        declaration.symbol,
                     )?;
                 }
 
                 // build value fields for enum members
-                for field_id in fields {
+                for field_id in &declaration.fields {
                     let field = ctx.tree.get(*field_id);
-                    let field_symbol = field.symbol.into_global(ctx.module.id);
+                    let Some(field_symbol) = self.query_enum_field_symbol_for_name(
+                        ctx.type_view(),
+                        declaration.symbol.into_global(ctx.module.id),
+                        field.name.string(),
+                    ) else {
+                        continue;
+                    };
                     ctx.types.set_value_type(field_symbol, nominal_reference_id);
 
                     value_shape.fields.push(TypeField {
-                        key: StaticKey::Name(field.name),
+                        key: StaticKey::Name(field.name.string()),
                         ty: nominal_reference_id,
                         is_optional: false,
                         is_readonly: true,
@@ -788,7 +798,7 @@ impl Compiler {
                 self.merge_value_shape_into_symbol(
                     &mut ctx.reborrow(),
                     declaration_id,
-                    descriptor.symbol,
+                    declaration.symbol,
                     symbol,
                     &value_shape,
                     allow_merge,
@@ -799,21 +809,15 @@ impl Compiler {
                     self.merge_global_value_shape_for_symbol(
                         &mut ctx.reborrow(),
                         declaration_id,
-                        descriptor.symbol,
+                        declaration.symbol,
                     )?;
                 }
 
                 Ok(())
             }
-            Declaration::Interface {
-                descriptor,
-                generics,
-                heritage,
-                members,
-                ..
-            } => {
+            Declaration::Interface(declaration) => {
                 // resolve declaration merge state
-                let symbol_entry = ctx.symbols.get_symbol(descriptor.symbol);
+                let symbol_entry = ctx.symbols.get_symbol(declaration.symbol);
                 let allow_merge = ctx.module.language_type.supports_declaration_merging()
                     || symbol_entry.origin.is_global_augmentation();
                 let is_primary = symbol_entry.primary_declaration.is_some_and(|primary| {
@@ -821,17 +825,28 @@ impl Compiler {
                 });
 
                 // declare generics and heritage
-                self.collect_generics(&mut ctx.reborrow(), generics)?;
-                self.collect_heritage(&mut ctx.reborrow(), heritage, Some(descriptor.symbol))?;
+                self.collect_generics(&mut ctx.reborrow(), &declaration.generic_parameters)?;
+                self.collect_lineage(
+                    &mut ctx.reborrow(),
+                    None,
+                    &declaration.extends_types,
+                    &[],
+                    &[],
+                    Some(declaration.symbol),
+                )?;
 
                 // build instance shape from members
-                let shape = self.collect_member_shape(&mut ctx.reborrow(), members, None)?;
+                let shape = self.collect_type_member_shape(
+                    &mut ctx.reborrow(),
+                    &declaration.members,
+                    Some(&declaration.generic_parameters),
+                )?;
 
                 // merge instance shapes for merged declarations
                 self.merge_instance_shape_into_merge_group(
                     &mut ctx.reborrow(),
                     declaration_id,
-                    descriptor.symbol,
+                    declaration.symbol,
                     &shape,
                     allow_merge,
                 );
@@ -841,13 +856,13 @@ impl Compiler {
                     self.merge_global_instance_shape_for_symbol(
                         &mut ctx.reborrow(),
                         declaration_id,
-                        descriptor.symbol,
+                        declaration.symbol,
                     )?;
                 }
 
                 // register the nominal type as the value type
                 let nominal_ty = Type::Reference {
-                    symbol: self.declaration_symbol(ctx, descriptor.symbol),
+                    symbol: self.declaration_symbol(ctx, declaration.symbol),
                     static_arguments: None,
                 };
                 let nominal_ty_id = ctx.types.insert_type_from(nominal_ty, declaration_id);
@@ -855,29 +870,24 @@ impl Compiler {
                     value: nominal_ty_id,
                 };
                 let value_ty_id = ctx.types.insert_type_from(value_ty, declaration_id);
-                let symbol = self.declaration_symbol(ctx, descriptor.symbol);
+                let symbol = self.declaration_symbol(ctx, declaration.symbol);
                 ctx.types.set_value_type(symbol, value_ty_id);
 
                 Ok(())
             }
-            Declaration::Function {
-                descriptor,
-                signature,
-                body,
-                ..
-            } => {
+            Declaration::Function(declaration) => {
                 // decide whether to defer declared types
                 let defer_type_evaluation =
                     self.should_defer_declaration_types(ctx.compiler_context, ctx.module);
 
                 // resolve declaration merge state
-                let symbol_entry = ctx.symbols.get_symbol(descriptor.symbol);
+                let symbol_entry = ctx.symbols.get_symbol(declaration.symbol);
                 let allow_merge = ctx.module.language_type.supports_declaration_merging()
                     || ctx.module.language_type.is_destack()
                     || symbol_entry.origin.is_global_augmentation();
 
                 // enforce single implementation for TypeScript overloads
-                if self.should_enforce_single_overload(ctx.module) && body.is_some() {
+                if self.should_enforce_single_overload(ctx.module) && declaration.body.is_some() {
                     let mut implementation_count = 0;
                     let mut declaration_nodes = Vec::new();
                     if let Some(primary) = symbol_entry.primary_declaration {
@@ -896,8 +906,8 @@ impl Compiler {
                         else {
                             continue;
                         };
-                        if let Declaration::Function { body: Some(_), .. } =
-                            ctx.tree.get(declaration_id)
+                        if let Declaration::Function(declaration) = ctx.tree.get(declaration_id)
+                            && declaration.body.is_some()
                         {
                             implementation_count += 1;
                             if implementation_count > 1 {
@@ -914,15 +924,16 @@ impl Compiler {
                 }
 
                 // evaluate the function signature
-                if let Some(generics) = signature.generics.as_ref() {
-                    self.collect_generics(&mut ctx.reborrow(), generics)?;
-                }
+                self.collect_generics(
+                    &mut ctx.reborrow(),
+                    &declaration.signature.generic_parameters,
+                )?;
                 let previous_signature_id = ctx
                     .types
                     .get_signature_type_for_node(declaration_id.into_global_any(ctx.module.id));
                 let ty = self.resolve_declared_function_signature_type(
                     ctx,
-                    signature,
+                    &declaration.signature,
                     declaration_id.into_any(),
                     defer_type_evaluation,
                 )?;
@@ -942,7 +953,7 @@ impl Compiler {
                 self.merge_instance_shape_into_merge_group(
                     &mut ctx.reborrow(),
                     declaration_id,
-                    descriptor.symbol,
+                    declaration.symbol,
                     &shape,
                     allow_merge,
                 );
@@ -951,7 +962,7 @@ impl Compiler {
                 self.merge_function_value_type(
                     &mut ctx.reborrow(),
                     declaration_id,
-                    descriptor.symbol,
+                    declaration.symbol,
                     fn_ty_id,
                     previous_signature_id,
                     allow_merge,
@@ -959,31 +970,30 @@ impl Compiler {
 
                 Ok(())
             }
-            Declaration::Extension {
-                descriptor,
-                generics,
-                target_type,
-                target_symbol,
-                heritage,
-                members,
-                ..
-            } => {
+            Declaration::Extension(declaration) => {
                 // decide whether to defer declared types
                 let defer_type_evaluation =
                     self.should_defer_declaration_types(ctx.compiler_context, ctx.module);
 
                 // declare generics and heritage
-                self.collect_generics(&mut ctx.reborrow(), generics)?;
+                self.collect_generics(&mut ctx.reborrow(), &declaration.generic_parameters)?;
                 if !defer_type_evaluation {
                     self.resolve_declared_type_expression(
                         &mut ctx.reborrow(),
-                        *target_type,
+                        declaration.target_type,
                         true,
                         true,
                     )?;
                 }
-                let extension_symbol = self.declaration_symbol(ctx, descriptor.symbol);
-                self.collect_heritage(&mut ctx.reborrow(), heritage, Some(descriptor.symbol))?;
+                let extension_symbol = self.declaration_symbol(ctx, declaration.symbol);
+                self.collect_lineage(
+                    &mut ctx.reborrow(),
+                    None,
+                    &[],
+                    &declaration.implements_types,
+                    &[],
+                    Some(declaration.symbol),
+                )?;
 
                 // skip already declared extensions for this symbol
                 if ctx
@@ -995,11 +1005,10 @@ impl Compiler {
                 }
 
                 // build the extension instance shape
-                let extension_static_parameters = generics.static_parameters.as_deref();
                 let shape = self.collect_member_shape(
                     &mut ctx.reborrow(),
-                    members,
-                    extension_static_parameters,
+                    &declaration.members,
+                    Some(&declaration.generic_parameters),
                 )?;
                 let instance_ty = shape.into_object_type();
                 let instance_ty_id = ctx.types.insert_type_from(instance_ty, declaration_id);
@@ -1007,16 +1016,16 @@ impl Compiler {
                     .set_instance_type(extension_symbol, instance_ty_id);
 
                 // register the extension when a target symbol exists
-                if let Some(target) = target_symbol {
+                if let Some(target) = declaration.target_symbol {
                     // resolve the canonical target symbol for extension lookup
                     let canonical_target = self.canonical_symbol_id(
                         ctx.module_symbol_view(),
-                        *target,
+                        target,
                         CanonicalSymbolMode::FollowAliases,
                     );
                     let kind = if ctx.module.id == canonical_target.module_id {
                         ExtensionKind::Inherent
-                    } else if descriptor.name.is_some() {
+                    } else if declaration.name.is_some() {
                         ExtensionKind::Nominal
                     } else {
                         ExtensionKind::Local
@@ -1032,69 +1041,59 @@ impl Compiler {
         }
     }
 
-    /// Declare generics by evaluating static parameter constraints in one ctx context.
+    /// Declare generic parameters by evaluating their declared types in one ctx context.
     pub(crate) fn collect_generics(
         &self,
         ctx: &mut TypeContext<'_>,
-        generics: &Generics,
+        generic_parameters: &[LocalNodeId<GenericParameter>],
     ) -> AnalyzeResult<()> {
         // defer generic constraint evaluation for declaration modules
         if self.should_defer_declaration_types(ctx.compiler_context, ctx.module) {
             return Ok(());
         }
 
-        // evaluate static parameter constraints
-        if let Some(parameters) = generics.static_parameters.as_ref() {
-            for parameter_id in parameters {
-                self.collect_parameter(&mut ctx.reborrow(), *parameter_id)?;
-            }
+        // evaluate generic parameter constraints and declared types
+        for generic_parameter_id in generic_parameters {
+            self.collect_generic_parameter(&mut ctx.reborrow(), *generic_parameter_id)?;
         }
 
         Ok(())
     }
 
-    /// Declare a parameter by evaluating its declared type.
-    fn collect_parameter(
+    /// Declare a generic parameter by evaluating its declared type.
+    fn collect_generic_parameter(
         &self,
         ctx: &mut TypeContext<'_>,
-        parameter_id: LocalNodeId<Parameter>,
+        generic_parameter_id: LocalNodeId<GenericParameter>,
     ) -> AnalyzeResult<()> {
         // defer parameter evaluation for declaration modules
         if self.should_defer_declaration_types(ctx.compiler_context, ctx.module) {
             return Ok(());
         }
 
-        // reject explicit as comptime wrappers in value static parameter defaults
-        let parameter = ctx.tree.get(parameter_id);
-        let is_value_static =
-            parameter.modifiers().and_then(|modifiers| modifiers.timing) == Some(Timing::Comptime);
-        if is_value_static {
-            let default_expression = match parameter {
-                Parameter::Named { default, .. } | Parameter::Pattern { default, .. } => *default,
-                Parameter::VariadicNamed { .. }
-                | Parameter::VariadicPattern { .. }
-                | Parameter::Error { .. } => None,
-            };
-            if let Some(default_expression) = default_expression {
+        // reject explicit comptime wrappers in value generic defaults
+        let generic_parameter = ctx.tree.get(generic_parameter_id);
+        if let GenericParameter::Value {
+            default: Some(default_expression),
+            is_comptime: true,
+            ..
+        } = generic_parameter
+        {
+            {
                 let mut expression_id =
-                    self.unwrap_parenthesized_expression(default_expression, ctx.tree);
+                    self.unwrap_parenthesized_expression(*default_expression, ctx.tree);
                 let mut is_explicit_comptime = false;
+
                 loop {
                     match ctx.tree.get(expression_id) {
                         Expression::Comptime { body } => {
                             is_explicit_comptime = true;
                             expression_id = self.unwrap_parenthesized_expression(*body, ctx.tree);
                         }
-                        Expression::TypeUnary {
-                            operator: TypeUnaryOperator::AsComptime,
-                            right,
-                        } => {
-                            is_explicit_comptime = true;
-                            expression_id = self.unwrap_parenthesized_expression(*right, ctx.tree);
-                        }
                         _ => break,
                     }
                 }
+
                 if is_explicit_comptime {
                     self.error(AnalyzeError::NonStaticArgument {
                         node: default_expression
@@ -1105,10 +1104,10 @@ impl Compiler {
             }
         }
 
-        // resolve the declared type for the parameter
+        // resolve the declared type for the generic parameter
         let declared_type_id = ctx
             .types
-            .get_declared_type_id(parameter_id.into_global_any(ctx.module.id));
+            .get_declared_type_id(generic_parameter_id.into_global_any(ctx.module.id));
         let Some(declared_type_id) = declared_type_id else {
             return Ok(());
         };
@@ -1119,72 +1118,81 @@ impl Compiler {
         Ok(())
     }
 
-    /// Declare heritage lineages for a nominal type in one ctx context.
-    fn collect_heritage(
+    /// Declare one lineage from declaration type lists.
+    fn collect_lineage(
         &self,
         ctx: &mut TypeContext<'_>,
-        heritage: &Heritage,
+        extends_expression: Option<LocalNodeId<Expression>>,
+        extends_types: &[LocalNodeId<TypeExpression>],
+        implements_types: &[LocalNodeId<TypeExpression>],
+        embedded_types: &[LocalNodeId<TypeExpression>],
         symbol: Option<LocalSymbolId>,
     ) -> AnalyzeResult<()> {
         // defer heritage evaluation for declaration modules
         let defer_type_evaluation =
             self.should_defer_declaration_types(ctx.compiler_context, ctx.module);
 
-        // resolve extends symbols
+        // resolve class extends symbol
         let mut extends_symbols = Vec::new();
-        if let Some(extend_types) = heritage.extends_types.as_ref() {
-            for expression_id in extend_types {
-                let target_symbol = self.collect_heritage_symbol(
-                    &mut ctx.reborrow(),
-                    *expression_id,
-                    defer_type_evaluation,
-                )?;
-                if let Some(target_symbol) = target_symbol {
-                    let canonical_symbol = self.canonical_symbol_id(
-                        ctx.module_symbol_view(),
-                        target_symbol,
-                        CanonicalSymbolMode::FollowAliases,
-                    );
-                    extends_symbols.push(canonical_symbol);
-                }
+        if let Some(expression_id) = extends_expression {
+            let target_symbol = ctx.tree.get(expression_id).target_symbol();
+            if let Some(target_symbol) = target_symbol {
+                let canonical_symbol = self.canonical_symbol_id(
+                    ctx.module_symbol_view(),
+                    target_symbol,
+                    CanonicalSymbolMode::FollowAliases,
+                );
+                extends_symbols.push(canonical_symbol);
+            }
+        }
+
+        // resolve type extends symbols
+        for expression_id in extends_types {
+            if let Some(target_symbol) = self.collect_heritage_symbol(
+                &mut ctx.reborrow(),
+                *expression_id,
+                defer_type_evaluation,
+            )? {
+                let canonical_symbol = self.canonical_symbol_id(
+                    ctx.module_symbol_view(),
+                    target_symbol,
+                    CanonicalSymbolMode::FollowAliases,
+                );
+                extends_symbols.push(canonical_symbol);
             }
         }
 
         // resolve implements symbols
         let mut implements_symbols = Vec::new();
-        if let Some(implements_types) = heritage.implements_types.as_ref() {
-            for expression_id in implements_types {
-                if let Some(target_symbol) = self.collect_heritage_symbol(
-                    &mut ctx.reborrow(),
-                    *expression_id,
-                    defer_type_evaluation,
-                )? {
-                    let canonical_symbol = self.canonical_symbol_id(
-                        ctx.module_symbol_view(),
-                        target_symbol,
-                        CanonicalSymbolMode::FollowAliases,
-                    );
-                    implements_symbols.push(canonical_symbol);
-                }
+        for expression_id in implements_types {
+            if let Some(target_symbol) = self.collect_heritage_symbol(
+                &mut ctx.reborrow(),
+                *expression_id,
+                defer_type_evaluation,
+            )? {
+                let canonical_symbol = self.canonical_symbol_id(
+                    ctx.module_symbol_view(),
+                    target_symbol,
+                    CanonicalSymbolMode::FollowAliases,
+                );
+                implements_symbols.push(canonical_symbol);
             }
         }
 
         // resolve embedded symbols
         let mut embedded_symbols = Vec::new();
-        if let Some(embedded_types) = heritage.embedded_types.as_ref() {
-            for expression_id in embedded_types {
-                if let Some(target_symbol) = self.collect_heritage_symbol(
-                    &mut ctx.reborrow(),
-                    *expression_id,
-                    defer_type_evaluation,
-                )? {
-                    let canonical_symbol = self.canonical_symbol_id(
-                        ctx.module_symbol_view(),
-                        target_symbol,
-                        CanonicalSymbolMode::FollowAliases,
-                    );
-                    embedded_symbols.push(canonical_symbol);
-                }
+        for expression_id in embedded_types {
+            if let Some(target_symbol) = self.collect_heritage_symbol(
+                &mut ctx.reborrow(),
+                *expression_id,
+                defer_type_evaluation,
+            )? {
+                let canonical_symbol = self.canonical_symbol_id(
+                    ctx.module_symbol_view(),
+                    target_symbol,
+                    CanonicalSymbolMode::FollowAliases,
+                );
+                embedded_symbols.push(canonical_symbol);
             }
         }
 
@@ -1215,15 +1223,11 @@ impl Compiler {
     fn collect_heritage_symbol(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         defer_type_evaluation: bool,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // prefer the nominal target already present in syntax
-        let target_symbol = match ctx.tree.get(expression_id) {
-            Expression::Instantiation { left, .. } => ctx.tree.get(*left).target_symbol(),
-            expression => expression.target_symbol(),
-        };
-        if let Some(target_symbol) = target_symbol {
+        if let Some(target_symbol) = ctx.tree.get(expression_id).target_symbol() {
             return Ok(Some(self.resolve_type_reference_symbol(ctx, target_symbol)));
         }
 
@@ -1238,28 +1242,6 @@ impl Compiler {
             let type_symbol = self.unwrap_type_value_symbol(ctx.types, ty_id);
             if let Some(type_symbol) = type_symbol {
                 return Ok(Some(self.resolve_type_reference_symbol(ctx, type_symbol)));
-            }
-
-            if let Expression::Instantiation { left, .. } = ctx.tree.get(expression_id) {
-                let receiver_type_id =
-                    self.resolve_declared_type_expression(&mut ctx.reborrow(), *left, true, true)?;
-                let receiver_symbol = self
-                    .unwrap_type_symbol(ctx.types, receiver_type_id)
-                    .map(|(symbol, _, _)| symbol)
-                    .or_else(|| match ctx.types.get_type(receiver_type_id).clone() {
-                        Type::Intersection { elements } | Type::Union { elements } => {
-                            elements.iter().find_map(|element_id| {
-                                self.unwrap_type_symbol(ctx.types, *element_id)
-                                    .map(|(symbol, _, _)| symbol)
-                            })
-                        }
-                        _ => None,
-                    });
-                if let Some(receiver_symbol) = receiver_symbol {
-                    return Ok(Some(
-                        self.resolve_type_reference_symbol(ctx, receiver_symbol),
-                    ));
-                }
             }
         }
 
@@ -1301,11 +1283,6 @@ impl Compiler {
         types.insert_type_from_any(rebuilt, source_id)
     }
 
-    /// Return true when the member modifiers mark it as static.
-    fn member_is_static(modifiers: Option<&BindingModifier>) -> bool {
-        modifiers.is_some_and(|modifiers| modifiers.anchor == Some(BindingAnchor::Static))
-    }
-
     /// Select the target shape for a static or instance member.
     fn member_target_shape(shapes: &mut ObjectShapeSet, is_static: bool) -> &mut ObjectShape {
         if is_static {
@@ -1313,16 +1290,6 @@ impl Compiler {
         } else {
             &mut shapes.instance
         }
-    }
-
-    /// Return optionality and readonly flags for a field.
-    fn field_flags(modifiers: Option<&BindingModifier>) -> (bool, bool) {
-        let is_optional =
-            modifiers.is_some_and(|modifiers| matches!(modifiers.kind, Some(BindingKind::Maybe)));
-        let is_readonly = modifiers
-            .is_some_and(|modifiers| matches!(modifiers.mutability, Some(Mutability::Immutable)));
-
-        (is_optional, is_readonly)
     }
 
     /// Add constructor parameter property fields to an instance shape.
@@ -1342,20 +1309,23 @@ impl Compiler {
         };
 
         // map parameter property declarations into instance fields
-        for (index, parameter_id) in signature.dynamic_parameters.iter().enumerate() {
+        for (index, parameter_id) in signature.parameters.iter().enumerate() {
             let parameter = tree.get(*parameter_id);
-            let Some(modifiers) = parameter.modifiers() else {
+            let Parameter::Named {
+                name,
+                visibility,
+                is_readonly,
+                is_optional,
+                ..
+            } = parameter
+            else {
                 continue;
             };
-            let is_parameter_property = modifiers.visibility.is_some()
-                || modifiers.mutability == Some(Mutability::Immutable);
+            let is_parameter_property = visibility.is_some() || *is_readonly;
             if !is_parameter_property {
                 continue;
             }
 
-            let Parameter::Named { name, .. } = parameter else {
-                continue;
-            };
             let Some(parameter_ty_id) = dynamic_parameters.get(index).copied() else {
                 continue;
             };
@@ -1366,41 +1336,39 @@ impl Compiler {
                 continue;
             }
 
-            let is_optional = modifiers.kind == Some(BindingKind::Maybe);
-            let is_readonly = modifiers.mutability == Some(Mutability::Immutable);
             shape.fields.push(TypeField {
                 key,
                 ty: parameter_ty_id,
-                is_optional,
-                is_readonly,
+                is_optional: *is_optional,
+                is_readonly: *is_readonly,
             });
         }
     }
 
-    /// Build static parameter placeholders for a type declaration.
+    /// Build static parameter placeholders for a declaration.
     fn static_parameter_placeholders_for_declaration(
         &self,
         ctx: &mut TypeContext<'_>,
-        static_parameters: Option<&[LocalNodeId<Parameter>]>,
+        generic_parameters: Option<&[LocalNodeId<GenericParameter>]>,
     ) -> Vec<LocalTypeId> {
         // stop when no static parameters exist
-        let Some(parameters) = static_parameters else {
+        let Some(generic_parameters) = generic_parameters else {
             return Vec::new();
         };
 
         // map parameters to reference placeholders
-        let mut placeholders = Vec::with_capacity(parameters.len());
-        for parameter_id in parameters {
+        let mut placeholders = Vec::with_capacity(generic_parameters.len());
+        for generic_parameter_id in generic_parameters {
             let symbol = ctx
                 .tree
-                .get(*parameter_id)
+                .get(*generic_parameter_id)
                 .symbol()
                 .into_global(ctx.module.id);
             let ty = Type::Reference {
                 symbol,
                 static_arguments: None,
             };
-            let type_id = ctx.types.insert_type_from(ty, *parameter_id);
+            let type_id = ctx.types.insert_type_from(ty, *generic_parameter_id);
             placeholders.push(type_id);
         }
 
@@ -1411,11 +1379,11 @@ impl Compiler {
     fn self_type_static_arguments_for_declaration(
         &self,
         ctx: &mut TypeContext<'_>,
-        static_parameters: Option<&[LocalNodeId<Parameter>]>,
+        generic_parameters: Option<&[LocalNodeId<GenericParameter>]>,
     ) -> Option<Vec<StaticArgument>> {
         // build placeholder type references for static parameters
         let placeholders = self
-            .static_parameter_placeholders_for_declaration(&mut ctx.reborrow(), static_parameters);
+            .static_parameter_placeholders_for_declaration(&mut ctx.reborrow(), generic_parameters);
         if placeholders.is_empty() {
             return None;
         }
@@ -1436,11 +1404,11 @@ impl Compiler {
     fn extend_signature_static_parameters(
         &self,
         ctx: &mut TypeContext<'_>,
-        owner_static_parameters: Option<&[LocalNodeId<Parameter>]>,
+        owner_generic_parameters: Option<&[LocalNodeId<GenericParameter>]>,
         ty: Type,
     ) -> Type {
         // NOTE #Cleanup: owner static parameters are still prepended at this declaration step
-        let Some(owner_static_parameters) = owner_static_parameters else {
+        let Some(owner_generic_parameters) = owner_generic_parameters else {
             return ty;
         };
 
@@ -1458,7 +1426,7 @@ impl Compiler {
 
         let owner_placeholders = self.static_parameter_placeholders_for_declaration(
             &mut ctx.reborrow(),
-            Some(owner_static_parameters),
+            Some(owner_generic_parameters),
         );
         if owner_placeholders.is_empty() {
             return Type::Function {
@@ -1489,7 +1457,7 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         members: &[LocalNodeId<Member>],
-        owner_static_parameters: Option<&[LocalNodeId<Parameter>]>,
+        owner_generic_parameters: Option<&[LocalNodeId<GenericParameter>]>,
         constructor_return: Option<LocalTypeId>,
     ) -> AnalyzeResult<ObjectShapeSet> {
         // defer member type evaluation for declaration modules
@@ -1532,7 +1500,7 @@ impl Compiler {
                 let Some(key) = key.as_ref() else {
                     continue;
                 };
-                let Some(static_key) = self.static_key_from_dynamic_key(
+                let Some(static_key) = self.static_key_from_key(
                     ctx.compiler_context.revision(),
                     ctx.profile,
                     ctx.tree,
@@ -1567,76 +1535,40 @@ impl Compiler {
         for member_id in members {
             let member = ctx.tree.get(*member_id);
             match member {
-                Member::Type { .. } | Member::ComptimeConst { .. } => {}
+                Member::AssociatedType { .. } | Member::AssociatedConst { .. } => {}
                 Member::Field {
-                    modifiers,
                     key,
-                    value,
+                    declared_type,
+                    is_optional,
+                    is_readonly,
+                    is_static,
                     ..
                 } => {
-                    // decide whether this field is static
-                    let is_static = Self::member_is_static(modifiers.as_ref());
+                    // route fields to the static or instance shape
+                    let target_shape = Self::member_target_shape(&mut shapes, *is_static);
 
-                    // select the target shape
-                    let target_shape = Self::member_target_shape(&mut shapes, is_static);
+                    // resolve a static key when the member key is structural
+                    let static_key = self.static_key_from_key(
+                        ctx.compiler_context.revision(),
+                        ctx.profile,
+                        ctx.tree,
+                        ctx.symbols,
+                        ctx.types,
+                        *key,
+                    );
 
-                    // handle index signatures
-                    if let Some(DynamicKey::NamedExpression { name, key }) = key {
-                        // resolve index signature types
-                        let key_type = self.collect_or_defer_type_expression(
+                    // resolve the field type from its declared type
+                    let declared_ty_id = if let Some(declared_type_id) = declared_type {
+                        let declared_ty_id = self.collect_or_defer_type_expression(
                             &mut ctx.reborrow(),
-                            *key,
+                            *declared_type_id,
                             defer_type_evaluation,
                         )?;
-                        let value_type = if let Some(value) = value {
-                            self.collect_or_defer_type_expression(
-                                &mut ctx.reborrow(),
-                                *value,
-                                defer_type_evaluation,
-                            )?
-                        } else {
-                            let ty = Type::TypeLiteral {
-                                value: TypeLiteral::Unknown,
-                            };
-                            ctx.types.insert_type_from_any(ty, (*member_id).into_any())
-                        };
-
-                        // collect index signature flags
-                        let is_readonly = modifiers.as_ref().is_some_and(|modifiers| {
-                            modifiers.mutability == Some(Mutability::Immutable)
-                        });
-
-                        target_shape.index_signatures.push(TypeIndexSignature {
-                            name: *name,
-                            key_type,
-                            value_type,
-                            is_readonly,
-                        });
-                        continue;
-                    }
-
-                    // resolve a static key for the field
-                    let static_key = key.and_then(|key| {
-                        self.static_key_from_dynamic_key(
-                            ctx.compiler_context.revision(),
-                            ctx.profile,
-                            ctx.tree,
-                            ctx.symbols,
-                            ctx.types,
-                            key,
-                        )
-                    });
-
-                    // resolve the field type
-                    let value_ty_id = if let Some(value) = value {
-                        let value_ty_id = self.collect_or_defer_type_expression(
-                            &mut ctx.reborrow(),
-                            *value,
-                            defer_type_evaluation,
-                        )?;
-                        ctx.types
-                            .set_declared_type(value.into_global_any(ctx.module.id), value_ty_id);
-                        value_ty_id
+                        ctx.types.set_declared_type(
+                            declared_type_id.into_global_any(ctx.module.id),
+                            declared_ty_id,
+                        );
+                        declared_ty_id
                     } else {
                         let ty = Type::TypeLiteral {
                             value: TypeLiteral::Unknown,
@@ -1644,37 +1576,31 @@ impl Compiler {
                         ctx.types.insert_type_from_any(ty, (*member_id).into_any())
                     };
 
-                    // publish the declared member symbol type when the field has an explicit type
-                    if value.is_some() {
+                    // publish the declared member symbol type when present
+                    if declared_type.is_some() {
                         let member_symbol = member.symbol().into_global(ctx.module.id);
-                        ctx.types.set_value_type(member_symbol, value_ty_id);
+                        ctx.types.set_value_type(member_symbol, declared_ty_id);
                     }
 
-                    // collect field flags
-                    let (is_optional, is_readonly) = Self::field_flags(modifiers.as_ref());
-
-                    // build the field when a static key exists
+                    // add the structural field when the key is statically known
                     if let Some(key) = static_key {
                         target_shape.fields.push(TypeField {
                             key,
-                            ty: value_ty_id,
-                            is_optional,
-                            is_readonly,
+                            ty: declared_ty_id,
+                            is_optional: *is_optional,
+                            is_readonly: *is_readonly,
                         });
                     }
                 }
                 Member::Method {
-                    modifiers,
                     key,
                     signature,
+                    is_static,
                     body: _,
                     ..
                 } => {
-                    // decide whether this method is static
-                    let is_static = Self::member_is_static(modifiers.as_ref());
-
-                    // select the target shape
-                    let target_shape = Self::member_target_shape(&mut shapes, is_static);
+                    // route methods to the static or instance shape
+                    let target_shape = Self::member_target_shape(&mut shapes, *is_static);
 
                     // handle call or construct signatures
                     if key.is_none()
@@ -1685,10 +1611,8 @@ impl Compiler {
                                 | Some(FunctionMode::Constructor)
                         )
                     {
-                        // declare generics for the signature
-                        if let Some(generics) = signature.generics.as_ref() {
-                            self.collect_generics(&mut ctx.reborrow(), generics)?;
-                        }
+                        // declare signature generic parameters
+                        self.collect_generics(&mut ctx.reborrow(), &signature.generic_parameters)?;
 
                         // evaluate the signature type
                         let ty = self.resolve_declared_function_signature_type(
@@ -1699,7 +1623,7 @@ impl Compiler {
                         )?;
                         let ty = self.extend_signature_static_parameters(
                             &mut ctx.reborrow(),
-                            owner_static_parameters,
+                            owner_generic_parameters,
                             ty,
                         );
                         let signature_ty_id =
@@ -1769,23 +1693,21 @@ impl Compiler {
                     }
 
                     // resolve the method key
-                    let Some(key) = key.and_then(|key| {
-                        self.static_key_from_dynamic_key(
+                    let Some(key) = key.as_ref().and_then(|key| {
+                        self.static_key_from_key(
                             ctx.compiler_context.revision(),
                             ctx.profile,
                             ctx.tree,
                             ctx.symbols,
                             ctx.types,
-                            key,
+                            *key,
                         )
                     }) else {
                         continue;
                     };
 
-                    // declare generics for the signature
-                    if let Some(generics) = signature.generics.as_ref() {
-                        self.collect_generics(&mut ctx.reborrow(), generics)?;
-                    }
+                    // declare signature generic parameters
+                    self.collect_generics(&mut ctx.reborrow(), &signature.generic_parameters)?;
 
                     // build the method type
                     let ty = self.resolve_declared_function_signature_type(
@@ -1796,7 +1718,7 @@ impl Compiler {
                     )?;
                     let ty = self.extend_signature_static_parameters(
                         &mut ctx.reborrow(),
-                        owner_static_parameters,
+                        owner_generic_parameters,
                         ty,
                     );
                     let ty_id = ctx.types.insert_type_from_any(ty, (*member_id).into_any());
@@ -1819,11 +1741,10 @@ impl Compiler {
                     });
                 }
                 Member::Embed {
-                    modifiers, value, ..
+                    value, is_static, ..
                 } => {
                     // collect embedded fields from the target type
-                    let is_static = Self::member_is_static(modifiers.as_ref());
-                    let target_shape = Self::member_target_shape(&mut shapes, is_static);
+                    let target_shape = Self::member_target_shape(&mut shapes, *is_static);
                     let embed_shape = self.embed_member_shape(&mut ctx.reborrow(), *value)?;
                     target_shape.extend_from_shape(&embed_shape);
                 }
@@ -1841,7 +1762,7 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
-        value_expression_id: LocalNodeId<Expression>,
+        value_expression_id: LocalNodeId<TypeExpression>,
         declared_ty_id: LocalTypeId,
         nominal_reference_id: LocalTypeId,
         static_parameters: Vec<LocalTypeId>,
@@ -1856,13 +1777,16 @@ impl Compiler {
             let defer_type_evaluation =
                 self.should_defer_declaration_types(ctx.compiler_context, ctx.module);
             match ctx.tree.get(value_expression_id) {
-                Expression::ArrayExpression { elements }
-                | Expression::TupleExpression { elements } => {
+                TypeExpression::Tuple { elements } => {
                     for element_id in elements {
-                        let argument = ctx.tree.get(*element_id);
+                        let Some(argument_value) =
+                            ctx.tree.get::<TupleElement>(*element_id).value()
+                        else {
+                            continue;
+                        };
                         let parameter_type_id = self.collect_or_defer_type_expression(
                             &mut ctx.reborrow(),
-                            argument.value(),
+                            argument_value,
                             defer_type_evaluation,
                         )?;
                         dynamic_parameters.push(parameter_type_id);
@@ -1887,11 +1811,283 @@ impl Compiler {
     }
 
     /// Declare the instance shape for a list of members in one ctx context.
+    fn collect_type_member_shape(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        members: &[LocalNodeId<TypeMember>],
+        owner_generic_parameters: Option<&[LocalNodeId<GenericParameter>]>,
+    ) -> AnalyzeResult<ObjectShape> {
+        // defer member type evaluation for declaration modules
+        let defer_type_evaluation =
+            self.should_defer_declaration_types(ctx.compiler_context, ctx.module);
+        let mut shape = ObjectShape::default();
+
+        // predeclare associated type members so later member references can resolve by symbol
+        self.collect_type_member_associated_types(
+            &mut ctx.reborrow(),
+            members,
+            defer_type_evaluation,
+        )?;
+        self.collect_type_member_projection_dependencies(&mut ctx.reborrow(), members);
+
+        // collect member contributions
+        for member_id in members {
+            let member_shape = self.collect_type_member(
+                &mut ctx.reborrow(),
+                *member_id,
+                owner_generic_parameters,
+                defer_type_evaluation,
+            )?;
+            shape.extend_from_shape(&member_shape);
+        }
+
+        Ok(shape)
+    }
+
+    /// Declare a single type member into an object shape.
+    fn collect_type_member(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        member_id: LocalNodeId<TypeMember>,
+        owner_generic_parameters: Option<&[LocalNodeId<GenericParameter>]>,
+        defer_type_evaluation: bool,
+    ) -> AnalyzeResult<ObjectShape> {
+        // load the type member
+        let member = ctx.tree.get(member_id);
+        let mut shape = ObjectShape::default();
+
+        // collect the member contribution
+        match member {
+            // associated members only contribute through their symbols
+            TypeMember::AssociatedType { .. } => Ok(shape),
+            TypeMember::AssociatedConst {
+                declared_type,
+                symbol,
+                ..
+            } => {
+                // publish the declared member type when present
+                if let Some(declared_type_id) = declared_type {
+                    let declared_type_id = *declared_type_id;
+                    let declared_ty_id = self.collect_or_defer_type_expression(
+                        &mut ctx.reborrow(),
+                        declared_type_id,
+                        defer_type_evaluation,
+                    )?;
+                    ctx.types.set_declared_type(
+                        declared_type_id.into_global_any(ctx.module.id),
+                        declared_ty_id,
+                    );
+
+                    let member_symbol = symbol.into_global(ctx.module.id);
+                    ctx.types.set_value_type(member_symbol, declared_ty_id);
+                }
+
+                Ok(shape)
+            }
+
+            // named fields become structural fields
+            TypeMember::Field {
+                key,
+                declared_type,
+                is_optional,
+                is_readonly,
+                symbol,
+            } => {
+                // resolve a static key for the field
+                let static_key = self.static_key_from_key(
+                    ctx.compiler_context.revision(),
+                    ctx.profile,
+                    ctx.tree,
+                    ctx.symbols,
+                    ctx.types,
+                    *key,
+                );
+
+                // resolve the field type
+                let declared_type_id = *declared_type;
+                let declared_ty_id = self.collect_or_defer_type_expression(
+                    &mut ctx.reborrow(),
+                    declared_type_id,
+                    defer_type_evaluation,
+                )?;
+                ctx.types.set_declared_type(
+                    declared_type_id.into_global_any(ctx.module.id),
+                    declared_ty_id,
+                );
+
+                // publish the declared member symbol type
+                let member_symbol = symbol.into_global(ctx.module.id);
+                ctx.types.set_value_type(member_symbol, declared_ty_id);
+
+                // build the field when a static key exists
+                if let Some(key) = static_key {
+                    shape.fields.push(TypeField {
+                        key,
+                        ty: declared_ty_id,
+                        is_optional: *is_optional,
+                        is_readonly: *is_readonly,
+                    });
+                }
+
+                Ok(shape)
+            }
+
+            // methods contribute signatures or callable members
+            TypeMember::Method {
+                key,
+                signature,
+                is_optional,
+                symbol,
+                ..
+            } => {
+                // declare signature generic parameters
+                self.collect_generics(&mut ctx.reborrow(), &signature.generic_parameters)?;
+
+                // handle call or construct signatures
+                if key.is_none()
+                    && matches!(
+                        signature.mode,
+                        Some(FunctionMode::Call)
+                            | Some(FunctionMode::New)
+                            | Some(FunctionMode::Constructor)
+                    )
+                {
+                    let ty = self.resolve_declared_function_signature_type(
+                        &mut ctx.reborrow(),
+                        signature,
+                        member_id.into_any(),
+                        defer_type_evaluation,
+                    )?;
+                    let ty = self.extend_signature_static_parameters(
+                        &mut ctx.reborrow(),
+                        owner_generic_parameters,
+                        ty,
+                    );
+                    let signature_ty_id = ctx.types.insert_type_from_any(ty, member_id.into_any());
+                    let member_symbol = symbol.into_global(ctx.module.id);
+                    ctx.types.set_value_type(member_symbol, signature_ty_id);
+                    ctx.types.set_signature_type_for_node(
+                        member_id.into_global_any(ctx.module.id),
+                        signature_ty_id,
+                    );
+
+                    // route the signature to the correct shape
+                    match signature.mode {
+                        Some(FunctionMode::New) | Some(FunctionMode::Constructor) => {
+                            shape.construct_signatures.push(signature_ty_id);
+                        }
+                        _ => {
+                            shape.call_signatures.push(signature_ty_id);
+                        }
+                    }
+
+                    return Ok(shape);
+                }
+
+                // resolve the method key
+                let Some(key) = key.as_ref().and_then(|key| {
+                    self.static_key_from_key(
+                        ctx.compiler_context.revision(),
+                        ctx.profile,
+                        ctx.tree,
+                        ctx.symbols,
+                        ctx.types,
+                        *key,
+                    )
+                }) else {
+                    return Ok(shape);
+                };
+
+                // build the method type
+                let ty = self.resolve_declared_function_signature_type(
+                    &mut ctx.reborrow(),
+                    signature,
+                    member_id.into_any(),
+                    defer_type_evaluation,
+                )?;
+                let ty = self.extend_signature_static_parameters(
+                    &mut ctx.reborrow(),
+                    owner_generic_parameters,
+                    ty,
+                );
+                let ty_id = ctx.types.insert_type_from_any(ty, member_id.into_any());
+
+                // publish the declared member symbol type
+                let member_symbol = symbol.into_global(ctx.module.id);
+                ctx.types.set_value_type(member_symbol, ty_id);
+                ctx.types
+                    .set_signature_type_for_node(member_id.into_global_any(ctx.module.id), ty_id);
+
+                // setters are write only, everything else is readable
+                let is_readonly = signature.mode != Some(FunctionMode::Setter);
+
+                shape.fields.push(TypeField {
+                    key,
+                    ty: ty_id,
+                    is_optional: *is_optional,
+                    is_readonly,
+                });
+
+                Ok(shape)
+            }
+
+            // index signatures contribute structural index signatures
+            TypeMember::IndexSignature {
+                name,
+                key_type,
+                value_type,
+                is_optional,
+                is_readonly,
+                ..
+            } => {
+                let key_type_id = *key_type;
+                let key_type = self.collect_or_defer_type_expression(
+                    &mut ctx.reborrow(),
+                    key_type_id,
+                    defer_type_evaluation,
+                )?;
+                ctx.types
+                    .set_declared_type(key_type_id.into_global_any(ctx.module.id), key_type);
+
+                let value_type_id = *value_type;
+                let value_type = self.collect_or_defer_type_expression(
+                    &mut ctx.reborrow(),
+                    value_type_id,
+                    defer_type_evaluation,
+                )?;
+                ctx.types
+                    .set_declared_type(value_type_id.into_global_any(ctx.module.id), value_type);
+
+                shape.index_signatures.push(TypeIndexSignature {
+                    name: *name,
+                    key_type,
+                    value_type,
+                    is_optional: *is_optional,
+                    is_readonly: *is_readonly,
+                });
+
+                Ok(shape)
+            }
+
+            // embeds contribute the embedded shape directly
+            TypeMember::Embed { value, .. } => {
+                let embed_shape = self.embed_member_shape(&mut ctx.reborrow(), *value)?;
+                shape.extend_from_shape(&embed_shape);
+
+                Ok(shape)
+            }
+
+            // malformed nodes do not contribute shape
+            TypeMember::Error { .. } => Ok(shape),
+        }
+    }
+
+    /// Declare the instance shape for a list of members in one ctx context.
     fn collect_member_shape(
         &self,
         ctx: &mut TypeContext<'_>,
         members: &[LocalNodeId<Member>],
-        owner_static_parameters: Option<&[LocalNodeId<Parameter>]>,
+        owner_generic_parameters: Option<&[LocalNodeId<GenericParameter>]>,
     ) -> AnalyzeResult<ObjectShape> {
         // defer member type evaluation for declaration modules
         let defer_type_evaluation =
@@ -1907,7 +2103,7 @@ impl Compiler {
             let member_shape = self.collect_member(
                 &mut ctx.reborrow(),
                 *member_id,
-                owner_static_parameters,
+                owner_generic_parameters,
                 defer_type_evaluation,
             )?;
             shape.extend_from_shape(&member_shape);
@@ -1921,75 +2117,43 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         member_id: LocalNodeId<Member>,
-        owner_static_parameters: Option<&[LocalNodeId<Parameter>]>,
+        owner_generic_parameters: Option<&[LocalNodeId<GenericParameter>]>,
         defer_type_evaluation: bool,
     ) -> AnalyzeResult<ObjectShape> {
         let member = ctx.tree.get(member_id);
         let mut shape = ObjectShape::default();
 
         match member {
-            Member::Type { .. } | Member::ComptimeConst { .. } => Ok(shape),
+            Member::AssociatedType { .. } | Member::AssociatedConst { .. } => Ok(shape),
             Member::Field {
-                modifiers,
                 key,
-                value,
+                declared_type,
+                is_optional,
+                is_readonly,
                 ..
             } => {
-                // handle index signatures
-                if let Some(DynamicKey::NamedExpression { name, key }) = key {
-                    let key_type = self.collect_or_defer_type_expression(
-                        &mut ctx.reborrow(),
-                        *key,
-                        defer_type_evaluation,
-                    )?;
-                    let value_type = if let Some(value) = value {
-                        self.collect_or_defer_type_expression(
-                            &mut ctx.reborrow(),
-                            *value,
-                            defer_type_evaluation,
-                        )?
-                    } else {
-                        let ty = Type::TypeLiteral {
-                            value: TypeLiteral::Unknown,
-                        };
-                        ctx.types.insert_type_from_any(ty, member_id.into_any())
-                    };
-                    let is_readonly = modifiers.as_ref().is_some_and(|modifiers| {
-                        modifiers.mutability == Some(Mutability::Immutable)
-                    });
-
-                    shape.index_signatures.push(TypeIndexSignature {
-                        name: *name,
-                        key_type,
-                        value_type,
-                        is_readonly,
-                    });
-
-                    return Ok(shape);
-                }
-
                 // resolve a static key for the field
-                let static_key = key.and_then(|key| {
-                    self.static_key_from_dynamic_key(
-                        ctx.compiler_context.revision(),
-                        ctx.profile,
-                        ctx.tree,
-                        ctx.symbols,
-                        ctx.types,
-                        key,
-                    )
-                });
+                let static_key = self.static_key_from_key(
+                    ctx.compiler_context.revision(),
+                    ctx.profile,
+                    ctx.tree,
+                    ctx.symbols,
+                    ctx.types,
+                    *key,
+                );
 
                 // resolve the field type
-                let value_ty_id = if let Some(value) = value {
-                    let value_ty_id = self.collect_or_defer_type_expression(
+                let declared_ty_id = if let Some(declared_type_id) = declared_type {
+                    let declared_ty_id = self.collect_or_defer_type_expression(
                         &mut ctx.reborrow(),
-                        *value,
+                        *declared_type_id,
                         defer_type_evaluation,
                     )?;
-                    ctx.types
-                        .set_declared_type(value.into_global_any(ctx.module.id), value_ty_id);
-                    value_ty_id
+                    ctx.types.set_declared_type(
+                        declared_type_id.into_global_any(ctx.module.id),
+                        declared_ty_id,
+                    );
+                    declared_ty_id
                 } else {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Unknown,
@@ -1998,26 +2162,18 @@ impl Compiler {
                 };
 
                 // publish the declared member symbol type when the field has an explicit type
-                if value.is_some() {
+                if declared_type.is_some() {
                     let member_symbol = member.symbol().into_global(ctx.module.id);
-                    ctx.types.set_value_type(member_symbol, value_ty_id);
+                    ctx.types.set_value_type(member_symbol, declared_ty_id);
                 }
-
-                // collect field modifiers
-                let is_optional = modifiers
-                    .as_ref()
-                    .is_some_and(|m| matches!(m.kind, Some(BindingKind::Maybe)));
-                let is_readonly = modifiers
-                    .as_ref()
-                    .is_some_and(|m| matches!(m.mutability, Some(Mutability::Immutable)));
 
                 // build the field when a static key exists
                 if let Some(key) = static_key {
                     shape.fields.push(TypeField {
                         key,
-                        ty: value_ty_id,
-                        is_optional,
-                        is_readonly,
+                        ty: declared_ty_id,
+                        is_optional: *is_optional,
+                        is_readonly: *is_readonly,
                     });
                 }
 
@@ -2029,10 +2185,8 @@ impl Compiler {
                 body,
                 ..
             } => {
-                // declare generics for the signature
-                if let Some(generics) = signature.generics.as_ref() {
-                    self.collect_generics(&mut ctx.reborrow(), generics)?;
-                }
+                // declare signature generic parameters
+                self.collect_generics(&mut ctx.reborrow(), &signature.generic_parameters)?;
 
                 // handle call or construct signatures
                 if key.is_none()
@@ -2052,7 +2206,7 @@ impl Compiler {
                     )?;
                     let ty = self.extend_signature_static_parameters(
                         &mut ctx.reborrow(),
-                        owner_static_parameters,
+                        owner_generic_parameters,
                         ty,
                     );
                     let ty_id = ctx.types.insert_type_from_any(ty, member_id.into_any());
@@ -2083,14 +2237,14 @@ impl Compiler {
                 }
 
                 // resolve the method key
-                let Some(key) = key.and_then(|key| {
-                    self.static_key_from_dynamic_key(
+                let Some(key) = key.as_ref().and_then(|key| {
+                    self.static_key_from_key(
                         ctx.compiler_context.revision(),
                         ctx.profile,
                         ctx.tree,
                         ctx.symbols,
                         ctx.types,
-                        key,
+                        *key,
                     )
                 }) else {
                     return Ok(shape);
@@ -2105,7 +2259,7 @@ impl Compiler {
                 )?;
                 let ty = self.extend_signature_static_parameters(
                     &mut ctx.reborrow(),
-                    owner_static_parameters,
+                    owner_generic_parameters,
                     ty,
                 );
                 let ty_id = ctx.types.insert_type_from_any(ty, member_id.into_any());
@@ -2225,20 +2379,14 @@ impl Compiler {
         }
 
         // prefer positional constructors for nominal declarations
-        if let Declaration::Struct { members, .. } | Declaration::Class { members, .. } =
-            ctx.tree.get(declaration_id)
-        {
-            let owner_static_parameters = match ctx.tree.get(declaration_id) {
-                Declaration::Struct { generics, .. } | Declaration::Class { generics, .. } => {
-                    generics.static_parameters.as_deref()
-                }
-                _ => None,
-            };
+        let declaration = ctx.tree.get(declaration_id);
+        if let Some(members) = declaration.member_ids() {
+            let owner_generic_parameters = declaration.generic_parameters();
             let signature_id = self.struct_constructor_signature(
                 &mut ctx.reborrow(),
                 nominal_reference_id,
                 declaration_id,
-                owner_static_parameters,
+                owner_generic_parameters,
                 members,
             )?;
             value_shape.construct_signatures.push(signature_id);
@@ -2261,15 +2409,10 @@ impl Compiler {
         }
 
         // fall back to a default constructor
-        let owner_static_parameters = match ctx.tree.get(declaration_id) {
-            Declaration::Struct { generics, .. } | Declaration::Class { generics, .. } => {
-                generics.static_parameters.as_deref()
-            }
-            _ => None,
-        };
+        let owner_generic_parameters = ctx.tree.get(declaration_id).generic_parameters();
         let static_parameters = self.static_parameter_placeholders_for_declaration(
             &mut ctx.reborrow(),
-            owner_static_parameters,
+            owner_generic_parameters,
         );
         let signature = Type::Function {
             asynchrony: Asynchrony::Sync,
@@ -2302,7 +2445,7 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         nominal_reference_id: LocalTypeId,
         declaration_id: LocalNodeId<Declaration>,
-        owner_static_parameters: Option<&[LocalNodeId<Parameter>]>,
+        owner_generic_parameters: Option<&[LocalNodeId<GenericParameter>]>,
         members: &[LocalNodeId<Member>],
     ) -> AnalyzeResult<LocalTypeId> {
         // defer field type evaluation for declaration modules
@@ -2314,22 +2457,24 @@ impl Compiler {
         for member_id in members {
             let member = ctx.tree.get(*member_id);
             let Member::Field {
-                modifiers, value, ..
+                declared_type,
+                is_static,
+                ..
             } = member
             else {
                 continue;
             };
 
             // skip static fields
-            if Self::member_is_static(modifiers.as_ref()) {
+            if *is_static {
                 continue;
             }
 
             // resolve the field type or poison the constructor slot
-            let field_ty_id = if let Some(value_id) = value {
+            let field_ty_id = if let Some(declared_type_id) = declared_type {
                 self.collect_or_defer_type_expression(
                     &mut ctx.reborrow(),
-                    *value_id,
+                    *declared_type_id,
                     defer_type_evaluation,
                 )?
             } else {
@@ -2350,7 +2495,7 @@ impl Compiler {
         // build the constructor signature
         let static_parameters = self.static_parameter_placeholders_for_declaration(
             &mut ctx.reborrow(),
-            owner_static_parameters,
+            owner_generic_parameters,
         );
         let signature = Type::Function {
             asynchrony: Asynchrony::Sync,

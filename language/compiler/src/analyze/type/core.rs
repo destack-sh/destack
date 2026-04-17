@@ -5,8 +5,8 @@ pub(crate) use crate::analyze::common::{
 };
 pub(crate) use crate::{AnalyzeResult, Compiler};
 pub(crate) use destack_dir::{
-    EnumBackingType, LocalNodeIdAny, LocalTypeId, PrimitiveType, ScalarLiteral, StaticArgument,
-    StaticExpression, StaticKey, StaticProperty, SymbolSpaceOrder, SymbolType, Type, TypeField,
-    TypeLiteral, TypeMappedParameter, TypeTable, WellKnownSymbol,
+    LocalNodeIdAny, LocalTypeId, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression,
+    StaticKey, StaticProperty, SymbolSpaceOrder, SymbolType, Type, TypeField, TypeLiteral,
+    TypeTable, WellKnownSymbol,
 };
 pub(crate) use destack_workspace::ProfileId;

@@ -4,8 +4,8 @@ use crate::analyze::common::{
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, EnumBackingType, EnumField, EnumFieldValue, Expression, GlobalSymbolId, IntType,
-    LocalNodeId, NodeType, PrimitiveType, ScalarLiteral, StaticExpression, StringId, SymbolTable,
-    Type, TypeLiteral,
+    LocalNodeId, Name, NodeType, PrimitiveType, ScalarLiteral, StaticExpression, StaticKey,
+    StringId, SymbolTable, Type, TypeLiteral,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -31,9 +31,21 @@ impl Compiler {
         let mut has_next = false;
 
         // walk enum fields in declaration order
+        let enum_scope = ctx.symbols.get_scope_by_symbol(enum_symbol.local_id);
         for field_id in fields {
             let field = ctx.tree.get(*field_id);
-            let field_symbol = field.symbol.into_global(ctx.module.id);
+            let field_key = match field.name {
+                Name::Identifier(name) | Name::String(name) => StaticKey::Name(name),
+                Name::Number(name) => StaticKey::Number(name),
+            };
+            let Some(field_symbol) = ctx.symbols.find_active_symbol(enum_scope, field_key) else {
+                return Err(AnalyzeError::InvalidEnumFieldValue {
+                    node: field_id
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile)),
+                });
+            };
+            let field_symbol = field_symbol.into_global(ctx.module.id);
 
             // resolve explicit values first
             let explicit_value = if let Some(value_id) = field.value {
@@ -418,14 +430,10 @@ impl Compiler {
 
             for declaration_id in declaration_ids {
                 let declaration = ctx.tree.get(declaration_id);
-                let Declaration::Enum {
-                    fields: enum_fields,
-                    ..
-                } = declaration
-                else {
+                let Declaration::Enum(declaration) = declaration else {
                     continue;
                 };
-                fields.extend_from_slice(enum_fields);
+                fields.extend_from_slice(&declaration.fields);
             }
         }
 
@@ -450,7 +458,17 @@ impl Compiler {
                 let fields = self.enum_fields_for_symbol_in_tree(view, enum_symbol);
                 fields
                     .into_iter()
-                    .map(|field_id| view.tree.get(field_id).symbol.into_global(view.module.id))
+                    .filter_map(|field_id| {
+                        let field = view.tree.get(field_id);
+                        let field_key = match field.name {
+                            Name::Identifier(name) | Name::String(name) => StaticKey::Name(name),
+                            Name::Number(name) => StaticKey::Number(name),
+                        };
+                        let enum_scope = view.symbols.get_scope_by_symbol(enum_symbol.local_id);
+                        view.symbols
+                            .find_active_symbol(enum_scope, field_key)
+                            .map(|symbol| symbol.into_global(view.module.id))
+                    })
                     .collect()
             },
         )
@@ -568,7 +586,7 @@ impl Compiler {
     }
 
     /// Scan enum declarations in a single tree for a field symbol.
-    fn enum_field_symbol_for_name_in_tree(
+    pub(crate) fn enum_field_symbol_for_name_in_tree(
         &self,
         ctx: TreeSymbolView<'_>,
         enum_symbol: GlobalSymbolId,
@@ -605,15 +623,24 @@ impl Compiler {
             // scan enum members for the matching field
             for declaration_id in declaration_ids {
                 let declaration = ctx.tree.get(declaration_id);
-                let Declaration::Enum { fields, .. } = declaration else {
+                let Declaration::Enum(declaration) = declaration else {
                     continue;
                 };
 
                 // return the symbol for the matching field name
-                for field_id in fields {
+                for field_id in &declaration.fields {
                     let field = ctx.tree.get(*field_id);
-                    if field.name == field_name {
-                        return Some(field.symbol.into_global(ctx.module.id));
+                    if field.name.string() == field_name {
+                        let field_key = match field.name {
+                            Name::Identifier(name) | Name::String(name) => StaticKey::Name(name),
+                            Name::Number(name) => StaticKey::Number(name),
+                        };
+                        let enum_scope = ctx.symbols.get_scope_by_symbol(enum_symbol.local_id);
+                        if let Some(field_symbol) =
+                            ctx.symbols.find_active_symbol(enum_scope, field_key)
+                        {
+                            return Some(field_symbol.into_global(ctx.module.id));
+                        }
                     }
                 }
             }

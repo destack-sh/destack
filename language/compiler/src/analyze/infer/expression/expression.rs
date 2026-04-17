@@ -16,16 +16,15 @@ use crate::{
 use destack_artifact::ModuleEdgeRelation;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    Addressability, Argument, Asynchrony, BindingKind, BindingOperator, Block, CastOperator,
-    CastSource, Constraint, Declaration, DependencyItem, DependencyKind, DependencyMode,
-    DependencySource, DynamicKey, Expression, FlowGraphBuilder, ForEachBinding, ForEachKind,
-    Freshness, FunctionCardinality, FunctionKind, FunctionMode, GlobalNodeIdAny, GlobalSymbolId,
-    IfCondition, ImportTarget, InferOrigin, InferScope, LocalNodeId, LocalNodeIdAny, LocalSymbolId,
-    LocalTypeId, LoopKind, MatchCase, MatchKind, MatchSelector, MatchSource, Member, Mutability,
-    NodeTree, NodeType, NormalizationMode, Pattern, PrimitiveType, Property, Resolution,
-    ResolvedSignature, ScalarLiteral, StaticKey, StringId, SymbolDecorators, SymbolSpace, Type,
-    TypeBinaryOperator, TypeElement, TypeField, TypeLiteral, TypeRelationObligationDiagnostic,
-    TypeTable, TypeUnaryOperator, WellKnownSymbol, YieldCardinality,
+    Addressability, Argument, Asynchrony, Block, Constraint, Declaration, DependencyItem,
+    DependencyKind, DependencyMode, Expression, FlowGraphBuilder, ForEachBinding, ForEachKind,
+    Freshness, FunctionCardinality, FunctionKind, FunctionMode, GenericArgument, GlobalNodeIdAny,
+    GlobalSymbolId, IfCondition, ImportSource, ImportTarget, InferOrigin, InferScope, LocalNodeId,
+    LocalNodeIdAny, LocalSymbolId, LocalTypeId, LoopKind, MatchCase, MatchKind, MatchSelector,
+    MatchSource, Member, NodeTree, NodeType, NormalizationMode, Pattern, PrimitiveType, Property,
+    Resolution, ResolvedSignature, ScalarLiteral, StaticKey, StringId, SymbolDecorators,
+    SymbolSpace, Type, TypeElement, TypeExpression, TypeField, TypeLiteral,
+    TypeRelationObligationDiagnostic, TypeTable, WellKnownSymbol, YieldCardinality,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId, Revision};
@@ -173,8 +172,9 @@ impl Compiler {
             // non-lambda functions stop lexical super inheritance
             if parent.ty == NodeType::Declaration {
                 let declaration = tree.get(parent.into_typed::<Declaration>());
-                if let Declaration::Function { signature, .. } = declaration {
-                    if allow_lambda_boundaries && signature.kind == FunctionKind::Lambda {
+                if let Declaration::Function(declaration) = declaration {
+                    if allow_lambda_boundaries && declaration.signature.kind == FunctionKind::Lambda
+                    {
                         current = Some(parent);
                         continue;
                     }
@@ -194,8 +194,8 @@ impl Compiler {
                     Member::StaticBlock { .. } => {
                         return Some(SuperHomeObjectKind::ClassStaticBlock);
                     }
-                    Member::Type { .. }
-                    | Member::ComptimeConst { .. }
+                    Member::AssociatedType { .. }
+                    | Member::AssociatedConst { .. }
                     | Member::Embed { .. }
                     | Member::ComptimeBlock { .. }
                     | Member::Error { .. } => {
@@ -237,11 +237,8 @@ impl Compiler {
 
             if parent.ty == NodeType::Declaration {
                 let declaration = tree.get(parent.into_typed::<Declaration>());
-                if let Declaration::Class { heritage, .. } = declaration {
-                    return heritage
-                        .extends_types
-                        .as_ref()
-                        .is_some_and(|types| !types.is_empty());
+                if let Declaration::Class(declaration) = declaration {
+                    return declaration.extends_expression.is_some();
                 }
             }
 
@@ -714,21 +711,16 @@ impl Compiler {
     fn resolve_type_expression(
         &self,
         ctx: &mut InferContext<'_>,
-        expression_id: LocalNodeId<Expression>,
-        state: &mut InferState,
+        expression_id: LocalNodeId<TypeExpression>,
+        _state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
-        // evaluate the type expression when possible
-        let mut ty_id = self.resolve_declared_type_expression(
+        // evaluate the type expression directly from type syntax
+        let ty_id = self.resolve_declared_type_expression(
             &mut ctx.type_context_reborrow(),
             expression_id,
             true,
             true,
         )?;
-
-        // fall back to inference for unevaluated types
-        if matches!(ctx.types.get_type(ty_id), Type::Unevaluated(_)) {
-            ty_id = self.infer_expression(&mut ctx.reborrow(), expression_id, state)?;
-        }
 
         Ok(ty_id)
     }
@@ -950,7 +942,7 @@ impl Compiler {
         let expression = ctx.tree.get(expression_id);
         let ty_id = match expression {
             // declaration: analyze the declaration
-            Expression::Declaration { declaration } => {
+            Expression::Declaration(declaration) => {
                 if !self.declaration_requires_infer(ctx.module, *declaration, ctx.tree) {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Void,
@@ -962,10 +954,10 @@ impl Compiler {
                 let declaration = ctx.tree.get(*declaration);
 
                 // function declarations used as expressions evaluate to function values
-                if let Declaration::Function { descriptor, .. } = declaration {
+                if let Declaration::Function(declaration) = declaration {
                     if let Some(value_ty_id) = ctx
                         .types
-                        .get_value_type_id(descriptor.symbol.into_global(ctx.module.id))
+                        .get_value_type_id(declaration.symbol.into_global(ctx.module.id))
                     {
                         value_ty_id
                     } else {
@@ -983,7 +975,7 @@ impl Compiler {
             }
 
             // block: analyze the block
-            Expression::Block { block } => self.infer_block(&mut ctx.reborrow(), *block, state)?,
+            Expression::Block(block) => self.infer_block(&mut ctx.reborrow(), *block, state)?,
 
             // statement: analyze the statement
             // labelled statement: analyze the body with label in context
@@ -1013,10 +1005,7 @@ impl Compiler {
                 // reject dynamic imports when configured
                 if state.options.no_dynamic_import
                     && matches!(ctx.module.source, ModuleSource::User)
-                    && matches!(
-                        source,
-                        DependencySource::ImportCall | DependencySource::RequireCall
-                    )
+                    && matches!(source, ImportSource::ImportCall | ImportSource::RequireCall)
                 {
                     self.error(AnalyzeError::DynamicImportDisabled {
                         node: expression_id
@@ -1028,11 +1017,7 @@ impl Compiler {
                 for item_id in items.as_deref().unwrap_or(&[]) {
                     self.infer_dependency_item(&mut ctx.reborrow(), *item_id, state)?;
                 }
-                if let Some(attributes) = attributes {
-                    for argument_id in &attributes.arguments {
-                        self.infer_argument(&mut ctx.reborrow(), *argument_id, None, state)?;
-                    }
-                }
+                let _attributes = attributes;
                 if let Some(arguments) = arguments {
                     for argument_id in arguments {
                         self.infer_argument(&mut ctx.reborrow(), *argument_id, None, state)?;
@@ -1056,10 +1041,7 @@ impl Compiler {
                 // reject dynamic imports when configured
                 if state.options.no_dynamic_import
                     && matches!(ctx.module.source, ModuleSource::User)
-                    && matches!(
-                        source,
-                        DependencySource::ImportCall | DependencySource::RequireCall
-                    )
+                    && matches!(source, ImportSource::ImportCall | ImportSource::RequireCall)
                 {
                     self.error(AnalyzeError::DynamicImportDisabled {
                         node: expression_id
@@ -1075,11 +1057,7 @@ impl Compiler {
                 for item_id in items.as_deref().unwrap_or(&[]) {
                     self.infer_dependency_item(&mut ctx.reborrow(), *item_id, state)?;
                 }
-                if let Some(attributes) = attributes {
-                    for argument_id in &attributes.arguments {
-                        self.infer_argument(&mut ctx.reborrow(), *argument_id, None, state)?;
-                    }
-                }
+                let _attributes = attributes;
                 if let Some(arguments) = arguments {
                     for argument_id in arguments {
                         self.infer_argument(&mut ctx.reborrow(), *argument_id, None, state)?;
@@ -1107,11 +1085,7 @@ impl Compiler {
                 for item_id in items {
                     self.infer_dependency_item(&mut ctx.reborrow(), *item_id, state)?;
                 }
-                if let Some(attributes) = attributes {
-                    for argument_id in &attributes.arguments {
-                        self.infer_argument(&mut ctx.reborrow(), *argument_id, None, state)?;
-                    }
-                }
+                let _attributes = attributes;
 
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
@@ -1126,11 +1100,7 @@ impl Compiler {
                 for item_id in items {
                     self.infer_dependency_item(&mut ctx.reborrow(), *item_id, state)?;
                 }
-                if let Some(attributes) = attributes {
-                    for argument_id in &attributes.arguments {
-                        self.infer_argument(&mut ctx.reborrow(), *argument_id, None, state)?;
-                    }
-                }
+                let _attributes = attributes;
 
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
@@ -1146,9 +1116,9 @@ impl Compiler {
 
             // let
             Expression::Let {
-                descriptor: _,
                 mutability,
                 declarators,
+                ..
             } => {
                 for decl_id in declarators {
                     let mut decl_ctx = state.fork().with_binding_mutability(*mutability);
@@ -1169,8 +1139,8 @@ impl Compiler {
             // using
             Expression::Using {
                 asynchrony: _,
-                descriptor: _,
                 declarators,
+                ..
             } => {
                 for decl_id in declarators {
                     let mut decl_ctx = state.fork().with_using_binding();
@@ -1195,121 +1165,6 @@ impl Compiler {
         Ok(ty_id)
     }
 
-    /// Infer type-operation expressions that synthesize types from type syntax.
-    fn infer_type_operation_expression(
-        &self,
-        ctx: &mut InferContext<'_>,
-        expression_id: LocalNodeId<Expression>,
-        expression: &Expression,
-        state: &mut InferState,
-    ) -> AnalyzeResult<LocalTypeId> {
-        let ty_id = match expression {
-            // type operations
-            Expression::TypeUnary { operator, right } => {
-                let mut right_ctx = if matches!(operator, TypeUnaryOperator::AsConst) {
-                    state.fork().with_const_assertion_context()
-                } else {
-                    state.fork()
-                };
-                let right_ty_id =
-                    self.infer_expression(&mut ctx.reborrow(), *right, &mut right_ctx)?;
-
-                let ty = self.infer_type_unary_operation(
-                    &mut ctx.type_context_reborrow(),
-                    expression_id,
-                    operator,
-                    right_ty_id,
-                );
-                ctx.types.insert_type_from(ty, expression_id)
-            }
-            Expression::TypeBinary {
-                left,
-                operator,
-                right,
-            } => {
-                let (left_ty_id, right_ty_id) = match operator {
-                    TypeBinaryOperator::Extends | TypeBinaryOperator::Implements => {
-                        let left_ty_id = self.resolve_declared_type_expression(
-                            &mut ctx.type_context_reborrow(),
-                            *left,
-                            true,
-                            true,
-                        )?;
-                        let right_ty_id =
-                            self.resolve_type_expression(&mut ctx.reborrow(), *right, state)?;
-                        (left_ty_id, right_ty_id)
-                    }
-                    TypeBinaryOperator::Satisfies => {
-                        let right_ty_id =
-                            self.resolve_type_expression(&mut ctx.reborrow(), *right, state)?;
-                        ctx.infer.set_inferred_type_for_node(
-                            right.into_global_any(ctx.module.id),
-                            right_ty_id,
-                        );
-                        let mut left_ctx = state
-                            .fork()
-                            .with_expected_type(Some(right_ty_id))
-                            .with_contextual_typing_mode(ContextualTypingMode::Satisfies);
-                        let left_ty_id =
-                            self.infer_expression(&mut ctx.reborrow(), *left, &mut left_ctx)?;
-                        let left_ty_id = self.instantiate_type_from_node_instance_obligation(
-                            &mut ctx.reborrow(),
-                            *left,
-                            left_ty_id,
-                        );
-
-                        // enforce satisfies after convergence for full inferred substitutions
-                        self.push_relation_obligation_for_expression_operands(
-                            ctx.module,
-                            expression_id.into_any(),
-                            *right,
-                            *left,
-                            TypeRelationObligationDiagnostic::UnsatisfiedType,
-                            ctx.infer,
-                        );
-                        (left_ty_id, right_ty_id)
-                    }
-                    _ => {
-                        let left_ty_id =
-                            self.infer_expression(&mut ctx.reborrow(), *left, state)?;
-                        let right_ty_id =
-                            self.resolve_type_expression(&mut ctx.reborrow(), *right, state)?;
-                        (left_ty_id, right_ty_id)
-                    }
-                };
-
-                if matches!(operator, TypeBinaryOperator::Satisfies) {
-                    left_ty_id
-                } else {
-                    let ty = self.infer_type_binary_operation(
-                        &mut ctx.type_context_reborrow(),
-                        expression_id,
-                        operator,
-                        left_ty_id,
-                        right_ty_id,
-                    );
-                    ctx.types.insert_type_from(ty, expression_id)
-                }
-            }
-            Expression::TypeConditional { .. }
-            | Expression::TypeMapped { .. }
-            | Expression::TypeIndex { .. }
-            | Expression::TypeTemplateLiteral { .. }
-            | Expression::TypeImport { .. }
-            | Expression::TypeInfer { .. }
-            | Expression::TypePredicate { .. }
-            | Expression::PointerOf { .. } => {
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                };
-                ctx.types.insert_type_from(ty, expression_id)
-            }
-            _ => unreachable!("type-operation helper called with non type-operation expression"),
-        };
-
-        Ok(ty_id)
-    }
-
     /// Infer cast-like expressions.
     fn infer_cast_expression(
         &self,
@@ -1319,16 +1174,13 @@ impl Compiler {
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         let ty_id = match expression {
-            Expression::Cast {
-                operator,
-                source,
-                value,
+            // `value as T`: preserve the asserted target type
+            Expression::As {
+                expression: value,
                 target_type,
             } => {
                 // reject unsafe explicit casts when configured
                 if state.options.no_unsafe_type_assertions
-                    && matches!(source, CastSource::Explicit)
-                    && self.is_unsafe_type_assertion(*operator)
                     && matches!(ctx.module.source, ModuleSource::User)
                 {
                     self.error(AnalyzeError::UnsafeTypeAssertionDisabled {
@@ -1343,6 +1195,44 @@ impl Compiler {
                 self.resolve_type_expression(&mut ctx.reborrow(), *target_type, state)?
             }
 
+            // `value satisfies T`: keep the source type, but enforce relation to `T`
+            Expression::Satisfies {
+                expression: value,
+                target_type,
+            } => {
+                let target_ty_id =
+                    self.resolve_type_expression(&mut ctx.reborrow(), *target_type, state)?;
+                ctx.infer.set_inferred_type_for_node(
+                    target_type.into_global_any(ctx.module.id),
+                    target_ty_id,
+                );
+
+                let mut value_ctx = state
+                    .fork()
+                    .with_expected_type(Some(target_ty_id))
+                    .with_contextual_typing_mode(ContextualTypingMode::Satisfies);
+                let value_ty_id =
+                    self.infer_expression(&mut ctx.reborrow(), *value, &mut value_ctx)?;
+                let value_ty_id = self.instantiate_type_from_node_instance_obligation(
+                    &mut ctx.reborrow(),
+                    *value,
+                    value_ty_id,
+                );
+
+                // defer the final relation until substitutions converge
+                self.push_relation_obligation_for_target_type_and_source_expression(
+                    ctx.module,
+                    expression_id.into_any(),
+                    target_ty_id,
+                    *value,
+                    TypeRelationObligationDiagnostic::UnsatisfiedType,
+                    ctx.infer,
+                );
+
+                value_ty_id
+            }
+
+            // ownership casts only change the ownership lane
             Expression::OwnershipCast {
                 operator: _,
                 source: _,
@@ -1357,7 +1247,7 @@ impl Compiler {
         Ok(ty_id)
     }
 
-    /// Infer value and reference ownership operation expressions.
+    /// Infer value, reference, and pointer ownership operation expressions.
     fn infer_value_reference_operation_expression(
         &self,
         ctx: &mut InferContext<'_>,
@@ -1401,6 +1291,18 @@ impl Compiler {
                     self.infer_expression(&mut ctx.reborrow(), *right, &mut ownership_ctx)?;
 
                 let ty = self.infer_reference_of_operation(*mutability, *variance, right_ty_id);
+                ctx.types.insert_type_from(ty, expression_id)
+            }
+            // pointer of operation: raw pointer to type
+            Expression::PointerOf { mutability, right } => {
+                let mut ownership_ctx = state.fork().with_explicit_ownership();
+                let right_ty_id =
+                    self.infer_expression(&mut ctx.reborrow(), *right, &mut ownership_ctx)?;
+
+                let ty = Type::PointerOf {
+                    mutability: *mutability,
+                    right: right_ty_id,
+                };
                 ctx.types.insert_type_from(ty, expression_id)
             }
             _ => unreachable!("value/reference helper called with non ownership operation"),
@@ -1465,7 +1367,7 @@ impl Compiler {
             // unresolved references use error recovery
             Expression::UnresolvedPath {
                 path: _,
-                static_arguments: _,
+                generic_arguments: _,
                 space_order: _,
             } => ctx.types.insert_type_from(Type::Error, expression_id),
 
@@ -1594,11 +1496,11 @@ impl Compiler {
         ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
-        static_arguments: &[LocalNodeId<Argument>],
+        generic_arguments: &[LocalNodeId<GenericArgument>],
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         let left_ty_id = self.infer_expression(&mut ctx.reborrow(), left, state)?;
-        if static_arguments.is_empty() {
+        if generic_arguments.is_empty() {
             return Ok(left_ty_id);
         }
 
@@ -1625,7 +1527,7 @@ impl Compiler {
             expression_id,
             left_ty_id,
             owner_symbol,
-            static_arguments,
+            generic_arguments,
         )
     }
 
@@ -1636,7 +1538,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         base_ty_id: LocalTypeId,
         owner_symbol: Option<GlobalSymbolId>,
-        static_argument_ids: &[LocalNodeId<Argument>],
+        generic_argument_ids: &[LocalNodeId<GenericArgument>],
     ) -> AnalyzeResult<LocalTypeId> {
         // resolve one callable signature for generic instantiation
         let Some(signature_ty_id) = self
@@ -1693,7 +1595,7 @@ impl Compiler {
                 super::call::SignatureStaticResolutionContext {
                     node_id: expression_id.into_any(),
                     owner_symbol,
-                    static_argument_ids: Some(static_argument_ids),
+                    generic_argument_ids: Some(generic_argument_ids),
                     prefilled_static_arguments: None,
                     bound_substitutions: None,
                     dynamic_argument_ids: None,
@@ -1818,8 +1720,10 @@ impl Compiler {
             }
 
             // type as a value: type
-            Expression::Type { value } => {
-                let ty = Type::Value { value: *value };
+            Expression::Type { resolved_type, .. } => {
+                let ty = Type::Value {
+                    value: *resolved_type,
+                };
                 types.insert_type_from(ty, expression_id)
             }
 
@@ -2085,12 +1989,13 @@ impl Compiler {
             )?,
 
             // object expression: object type
-            Expression::ObjectExpression { properties } => self.infer_object_literal_expression(
-                &mut ctx.reborrow(),
-                expression_id,
-                properties,
-                state,
-            )?,
+            Expression::ObjectExpression { properties, .. } => self
+                .infer_object_literal_expression(
+                    &mut ctx.reborrow(),
+                    expression_id,
+                    properties,
+                    state,
+                )?,
 
             _ => unreachable!("aggregate helper called with non aggregate literal"),
         };
@@ -2462,6 +2367,20 @@ impl Compiler {
                 *right,
                 state,
             ),
+            Expression::Is { value, target_type } => self.infer_is_expression(
+                &mut ctx.reborrow(),
+                expression_id,
+                *value,
+                *target_type,
+                state,
+            ),
+            Expression::InstanceOf { value, target } => self.infer_instanceof_expression(
+                &mut ctx.reborrow(),
+                expression_id,
+                *value,
+                *target,
+                state,
+            ),
             Expression::Binary {
                 left,
                 operator,
@@ -2495,14 +2414,14 @@ impl Compiler {
             ),
             Expression::Call {
                 left,
-                static_arguments,
+                generic_arguments,
                 dynamic_arguments,
             } => {
                 let return_ty_id = self.infer_call_expression(
                     &mut ctx.reborrow(),
                     expression_id,
                     *left,
-                    static_arguments.as_deref(),
+                    Some(generic_arguments.as_slice()),
                     dynamic_arguments,
                     state,
                 )?;
@@ -2541,7 +2460,7 @@ impl Compiler {
             Expression::Member {
                 left,
                 name,
-                static_arguments,
+                generic_arguments,
             } => {
                 let Some(name) = *name else {
                     return Ok(ctx
@@ -2553,14 +2472,14 @@ impl Compiler {
                     expression_id,
                     *left,
                     name,
-                    static_arguments.as_deref(),
+                    Some(generic_arguments.as_slice()),
                     state,
                 )
             }
             Expression::PrivateMember {
                 left,
                 name,
-                static_arguments,
+                generic_arguments,
             } => {
                 let Some(name) = *name else {
                     return Ok(ctx
@@ -2573,7 +2492,7 @@ impl Compiler {
                     expression_id,
                     *left,
                     private_name,
-                    static_arguments.as_deref(),
+                    Some(generic_arguments.as_slice()),
                     state,
                 )
             }
@@ -2586,13 +2505,13 @@ impl Compiler {
             ),
             Expression::New {
                 left,
-                static_arguments,
+                generic_arguments,
                 dynamic_arguments,
             } => self.infer_new_expression(
                 &mut ctx.reborrow(),
                 expression_id,
                 *left,
-                static_arguments.as_deref(),
+                Some(generic_arguments.as_slice()),
                 dynamic_arguments,
                 state,
             ),
@@ -2638,12 +2557,12 @@ impl Compiler {
             ),
             Expression::Instantiation {
                 left,
-                static_arguments,
+                generic_arguments,
             } => self.infer_instantiation_expression(
                 &mut ctx.reborrow(),
                 expression_id,
                 *left,
-                static_arguments.as_slice(),
+                generic_arguments.as_slice(),
                 state,
             ),
             Expression::SequenceExpression { .. } | Expression::Parenthesized { .. } => self
@@ -2705,8 +2624,8 @@ impl Compiler {
         }
 
         let ty_id: LocalTypeId = match expression {
-            Expression::Declaration { .. }
-            | Expression::Block { .. }
+            Expression::Declaration(..)
+            | Expression::Block(..)
             | Expression::Labelled { .. }
             | Expression::Import { .. }
             | Expression::UnresolvedImport { .. }
@@ -2718,27 +2637,13 @@ impl Compiler {
             | Expression::Using { .. } => self
                 .infer_statement_expression(&mut ctx.reborrow(), expression_id, state)?,
 
-            // type operations
-            Expression::TypeUnary { .. }
-            | Expression::TypeBinary { .. }
-            | Expression::TypeConditional { .. }
-            | Expression::TypeMapped { .. }
-            | Expression::TypeIndex { .. }
-            | Expression::TypeTemplateLiteral { .. }
-            | Expression::TypeImport { .. }
-            | Expression::TypeInfer { .. }
-            | Expression::TypePredicate { .. }
-            | Expression::PointerOf { .. } => self.infer_type_operation_expression(
-                &mut ctx.reborrow(),
-                expression_id,
-                expression,
-                state,            )?,
-
-            Expression::Cast { .. } | Expression::OwnershipCast { .. } => self
+            Expression::As { .. } | Expression::Satisfies { .. } | Expression::OwnershipCast { .. } => self
                 .infer_cast_expression(&mut ctx.reborrow(), expression_id, expression, state)?,
 
             // expression variants that require table context
             Expression::Unary { .. }
+            | Expression::Is { .. }
+            | Expression::InstanceOf { .. }
             | Expression::Binary { .. }
             | Expression::Assign { .. }
             | Expression::AssignBinary { .. }
@@ -2760,7 +2665,7 @@ impl Compiler {
             | Expression::Parenthesized { .. } => self
                 .infer_expression_with_ctx(&mut ctx.reborrow(), expression_id, expression, state)?,
 
-            Expression::ValueOf { .. } | Expression::ReferenceOf { .. } => self
+            Expression::ValueOf { .. } | Expression::ReferenceOf { .. } | Expression::PointerOf { .. } => self
                 .infer_value_reference_operation_expression(
                     &mut ctx.reborrow(),
                     expression_id,
@@ -2775,7 +2680,7 @@ impl Compiler {
             // references: look up symbol type
             Expression::UnresolvedPath {
                 path: _,
-                static_arguments: _,
+                generic_arguments: _,
                 space_order: _,
             }
             | Expression::PrivateIdentifier { .. }
@@ -2794,22 +2699,22 @@ impl Compiler {
             Expression::LocalReference {
                 path: _,
                 target_symbol,
-                static_arguments,
+                generic_arguments,
             }
             | Expression::ModuleReference {
                 path: _,
                 target_symbol,
-                static_arguments,
+                generic_arguments,
             }
             | Expression::GlobalReference {
                 path: _,
                 target_symbol,
-                static_arguments,
+                generic_arguments,
             } => self.infer_reference_expression(
                 &mut ctx.reborrow(),
                 expression_id,
                 *target_symbol,
-                static_arguments.as_deref(),
+                Some(generic_arguments.as_slice()),
                 state,            )?,
 
             Expression::ScalarLiteral { .. }
@@ -3413,7 +3318,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         try_expression: LocalNodeId<Expression>,
         catch_pattern: Option<LocalNodeId<Pattern>>,
-        catch_ty: Option<LocalNodeId<Expression>>,
+        catch_ty: Option<LocalNodeId<TypeExpression>>,
         catch_expression: Option<LocalNodeId<Expression>>,
         finally_expression: Option<LocalNodeId<Expression>>,
         state: &mut InferState,
@@ -3459,7 +3364,12 @@ impl Compiler {
         let mut catch_ty_id = None;
         if let Some(catch_expr) = catch_expression {
             let catch_binding_ty_id = if let Some(catch_ty) = catch_ty {
-                Some(self.resolve_type_expression(&mut ctx.reborrow(), catch_ty, state)?)
+                Some(self.resolve_declared_type_expression(
+                    &mut ctx.type_context_reborrow(),
+                    catch_ty,
+                    true,
+                    true,
+                )?)
             } else {
                 None
             };
@@ -3805,12 +3715,12 @@ impl Compiler {
             | Expression::This => Addressability::Place,
             Expression::Super => Addressability::Value,
             Expression::Member {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Expression::PrivateMember {
-                static_arguments, ..
+                generic_arguments, ..
             } => {
-                if static_arguments.is_some() {
+                if !generic_arguments.is_empty() {
                     Addressability::Value
                 } else {
                     Addressability::Place
@@ -3874,43 +3784,6 @@ impl Compiler {
         Ok(ty_id)
     }
 
-    /// Find the nearest value symbol for a name in scope.
-    fn find_value_symbol_by_name(
-        &self,
-        ctx: TreeSymbolView<'_>,
-        property_id: LocalNodeId<Property>,
-        name: StringId,
-    ) -> Option<GlobalSymbolId> {
-        let key = StaticKey::Name(name);
-        let mut scope = ctx.symbols.get_scope(property_id, ctx.tree);
-
-        loop {
-            // scan for a value or type value symbol with the requested name
-            let mut candidates = ctx
-                .symbols
-                .active_named_symbols_up_to(scope.1, scope.2)
-                .collect::<Vec<_>>();
-            for (candidate_key, symbol_id) in candidates.drain(..).rev() {
-                if candidate_key != key {
-                    continue;
-                }
-
-                let symbol = ctx.symbols.get_symbol(symbol_id);
-                if matches!(symbol.space, SymbolSpace::Value | SymbolSpace::TypeValue) {
-                    return Some(symbol_id.into_global(ctx.module.id));
-                }
-            }
-
-            // fall back to the parent scope
-            let (parent_scope_id, parent_mark) = scope.1.parent?;
-            scope = (
-                parent_scope_id,
-                ctx.symbols.get_scope_by_id(parent_scope_id),
-                parent_mark,
-            );
-        }
-    }
-
     /// Resolve contextual `this` from the current function signature.
     pub(crate) fn contextual_this_type(
         &self,
@@ -3948,19 +3821,15 @@ impl Compiler {
             if parent.ty == NodeType::Declaration {
                 let declaration_id = parent.into_typed::<Declaration>();
                 let declaration = ctx.tree.get(declaration_id);
-                let Declaration::Class { heritage, .. } = declaration else {
+                let Declaration::Class(declaration) = declaration else {
                     break;
                 };
 
-                // resolve the first extends type for the class
-                let extends_type_id = heritage
-                    .extends_types
-                    .as_ref()
-                    .and_then(|extends_types| extends_types.first())
-                    .copied()?;
+                // resolve the extends expression for the class
+                let extends_expression_id = declaration.extends_expression?;
 
                 // prefer the declared or inferred base type
-                let extends_global_id = extends_type_id.into_global_any(ctx.module.id);
+                let extends_global_id = extends_expression_id.into_global_any(ctx.module.id);
                 if let Some(extends_ty_id) = ctx
                     .infer
                     .inferred_type_for_node(extends_global_id)
@@ -3973,7 +3842,8 @@ impl Compiler {
                 }
 
                 // fall back to the syntactic target symbol
-                if let Some(target_symbol) = ctx.tree.get(extends_type_id).target_symbol() {
+                let extends_expression = ctx.tree.get(extends_expression_id);
+                if let Some(target_symbol) = extends_expression.target_symbol() {
                     let super_type = Type::Reference {
                         symbol: target_symbol,
                         static_arguments: None,
@@ -4008,78 +3878,6 @@ impl Compiler {
         Some(super_ty_id)
     }
 
-    /// Infer the value type for a shorthand object literal field.
-    fn infer_shorthand_property_value(
-        &self,
-        ctx: &mut InferContext<'_>,
-        property_id: LocalNodeId<Property>,
-        name: StringId,
-        state: &InferState,
-    ) -> AnalyzeResult<LocalTypeId> {
-        // resolve the referenced symbol from the current scope
-        let Some(target_symbol) =
-            self.find_value_symbol_by_name(ctx.tree_symbol_view(), property_id, name)
-        else {
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            };
-            return Ok(ctx.types.insert_type_from_any(ty, property_id.into_any()));
-        };
-
-        // canonicalize imports before picking a type
-        let canonical_symbol = self.canonical_symbol_id(
-            ctx.module_symbol_view(),
-            target_symbol,
-            CanonicalSymbolMode::FollowAliases,
-        );
-
-        // reuse a narrowed or declared value type when possible
-        let narrowed_ty_id =
-            self.resolved_narrowed_type_for_symbol(&mut ctx.reborrow(), canonical_symbol, state)?;
-        let base_ty_id = if let Some(narrowed_ty_id) = narrowed_ty_id {
-            narrowed_ty_id
-        } else if let Some(value_ty_id) = ctx.types.get_value_type_id(canonical_symbol) {
-            value_ty_id
-        } else if let Some(inferred_ty_id) =
-            self.infer_direct_binding_value_type(&mut ctx.reborrow(), canonical_symbol, state)?
-        {
-            inferred_ty_id
-        } else if canonical_symbol.module_id != ctx.module.id {
-            self.resolve_remote_symbol_value_type_for_context(
-                &mut ctx.reborrow(),
-                state,
-                property_id.into_any(),
-                canonical_symbol,
-            )?
-        } else {
-            let scope = InferScope {
-                owner: canonical_symbol,
-                function_id: state.in_function.map(|f| f.into_global(ctx.module.id)),
-            };
-            self.infer_var_type_for_symbol(
-                ctx.infer,
-                ctx.types,
-                canonical_symbol,
-                property_id.into_any(),
-                InferOrigin::Expression(property_id.into_global_any(ctx.module.id)),
-                scope,
-            )
-        };
-
-        // resolve wrapped unevaluated receiver types before using the receiver type
-        let _base_unwrapped_ty_id =
-            self.ensure_unwrapped_value_type_evaluated(&mut ctx.reborrow(), base_ty_id)?;
-
-        // ensure instance types for referenced symbols
-        self.ensure_reference_instance_types_for_type(
-            &mut ctx.type_context_reborrow(),
-            property_id.into_any(),
-            base_ty_id,
-        )?;
-
-        Ok(base_ty_id)
-    }
-
     /// Infer a property and return its TypeField if it has a static key.
     pub(crate) fn infer_property(
         &self,
@@ -4091,23 +3889,19 @@ impl Compiler {
         let property = ctx.tree.get(property_id);
         match property {
             Property::Field {
-                modifiers,
                 key,
                 value,
-                default,
                 symbol: _,
             } => {
-                // extract the static key from the dynamic key
-                let static_key = key.and_then(|key| {
-                    self.static_key_from_dynamic_key(
-                        ctx.compiler_context.revision(),
-                        ctx.profile,
-                        ctx.tree,
-                        ctx.symbols,
-                        ctx.types,
-                        key,
-                    )
-                });
+                // extract the static key from the property key
+                let static_key = self.static_key_from_key(
+                    ctx.compiler_context.revision(),
+                    ctx.profile,
+                    ctx.tree,
+                    ctx.symbols,
+                    ctx.types,
+                    *key,
+                );
 
                 // derive an expected field type from the contextual object type
                 let expected_field_ty_id = static_key.as_ref().and_then(|key| {
@@ -4115,72 +3909,15 @@ impl Compiler {
                 });
 
                 // infer the value type
-                let value_ty_id = if let Some(value) = value {
-                    // infer explicit property values
-                    let is_as_const = modifiers.as_ref().is_some_and(|modifiers| {
-                        matches!(modifiers.operator, Some(BindingOperator::AsConst))
-                    });
-                    let mut value_ctx = if is_as_const {
-                        state
-                            .fork()
-                            .with_expected_type(expected_field_ty_id)
-                            .with_const_assertion_context()
-                    } else {
-                        state
-                            .nested_literal_context()
-                            .with_expected_type(expected_field_ty_id)
-                    };
-                    self.infer_expression(&mut ctx.reborrow(), *value, &mut value_ctx)?
-                } else if let Some(DynamicKey::Name(name)) = key {
-                    // infer shorthand values from the referenced symbol
-                    self.infer_shorthand_property_value(
-                        &mut ctx.reborrow(),
-                        property_id,
-                        *name,
-                        state,
-                    )?
-                } else {
-                    // no value and no shorthand binding: recover with an error type
-                    self.error(AnalyzeError::Internal {
-                        message: format!(
-                            "object property missing value and shorthand binding: module={}, property={property_id:?}",
-                            ctx.module.id,
-                        ),
-                    });
-                    ctx.types
-                        .insert_type_from_any(Type::Error, property_id.into_any())
-                };
+                let mut value_ctx = state
+                    .nested_literal_context()
+                    .with_expected_type(expected_field_ty_id);
+                let value_ty_id =
+                    self.infer_expression(&mut ctx.reborrow(), *value, &mut value_ctx)?;
 
-                // infer default with the same expected type
-                if let Some(default) = default {
-                    let is_as_const = modifiers.as_ref().is_some_and(|modifiers| {
-                        matches!(modifiers.operator, Some(BindingOperator::AsConst))
-                    });
-                    let mut default_state = if is_as_const {
-                        state
-                            .fork()
-                            .with_expected_type(expected_field_ty_id)
-                            .with_const_assertion_context()
-                    } else {
-                        state
-                            .nested_literal_context()
-                            .with_expected_type(expected_field_ty_id)
-                    };
-                    self.infer_expression(&mut ctx.reborrow(), *default, &mut default_state)?;
-                }
-
-                // is optional
-                let is_optional = modifiers
-                    .as_ref()
-                    .is_some_and(|m| matches!(m.kind, Some(BindingKind::Maybe)));
-
-                // is readonly
-                let mut is_readonly = modifiers
-                    .as_ref()
-                    .is_some_and(|m| matches!(m.mutability, Some(Mutability::Immutable)));
-                if matches!(state.const_context, ConstContext::AsConst) {
-                    is_readonly = true;
-                }
+                // object literal fields are only readonly under const assertions
+                let is_optional = false;
+                let is_readonly = matches!(state.const_context, ConstContext::AsConst);
 
                 // static key
                 if let Some(key) = static_key {
@@ -4198,7 +3935,6 @@ impl Compiler {
                 }
             }
             Property::Method {
-                modifiers,
                 key,
                 signature,
                 body,
@@ -4207,7 +3943,7 @@ impl Compiler {
             } => {
                 let expected_method_ty_id = key
                     .and_then(|key| {
-                        self.static_key_from_dynamic_key(
+                        self.static_key_from_key(
                             ctx.compiler_context.revision(),
                             ctx.profile,
                             ctx.tree,
@@ -4316,7 +4052,7 @@ impl Compiler {
                     }
                 }
                 let static_key = key.and_then(|key| {
-                    self.static_key_from_dynamic_key(
+                    self.static_key_from_key(
                         ctx.compiler_context.revision(),
                         ctx.profile,
                         ctx.tree,
@@ -4325,12 +4061,11 @@ impl Compiler {
                         key,
                     )
                 });
-                let is_optional = modifiers
-                    .as_ref()
-                    .is_some_and(|m| matches!(m.kind, Some(BindingKind::Maybe)));
-                let is_readonly = modifiers
-                    .as_ref()
-                    .is_some_and(|m| matches!(m.mutability, Some(Mutability::Immutable)));
+
+                // object literal methods are readonly only under const assertions
+                let is_optional = false;
+                let is_readonly = matches!(state.const_context, ConstContext::AsConst);
+
                 if let Some(key) = static_key {
                     Ok(Some(ObjectLiteralField {
                         field: TypeField {
@@ -4370,6 +4105,26 @@ impl Compiler {
         }
     }
 
+    /// Get the target symbol for a reference type expression.
+    pub(crate) fn reference_symbol_for_type_expression(
+        &self,
+        ctx: TreeSymbolView<'_>,
+        expression_id: LocalNodeId<TypeExpression>,
+    ) -> Option<GlobalSymbolId> {
+        match ctx.tree.get(expression_id) {
+            TypeExpression::LocalReference { target_symbol, .. }
+            | TypeExpression::ModuleReference { target_symbol, .. }
+            | TypeExpression::GlobalReference { target_symbol, .. } => {
+                Some(self.canonical_symbol_id(
+                    ctx.module_symbol_view(),
+                    *target_symbol,
+                    CanonicalSymbolMode::FollowAliases,
+                ))
+            }
+            _ => None,
+        }
+    }
+
     /// Peel nested parenthesized expressions to the underlying expression.
     pub(crate) fn unwrap_parenthesized_expression(
         &self,
@@ -4387,20 +4142,21 @@ impl Compiler {
         expression_id
     }
 
-    /// Return true when a cast operator is an unsafe type assertion.
-    fn is_unsafe_type_assertion(&self, operator: CastOperator) -> bool {
-        matches!(
-            operator,
-            CastOperator::AnyDowncast
-                | CastOperator::UnknownDowncast
-                | CastOperator::ObjectDowncast
-                | CastOperator::InstanceDowncast
-                | CastOperator::UnionDowncast
-                | CastOperator::NullableDowncast
-                | CastOperator::PointerCast
-                | CastOperator::PointerToInt
-                | CastOperator::IntToPointer
-        )
+    /// Peel nested parenthesized type expressions to the underlying type expression.
+    pub(crate) fn unwrap_parenthesized_type_expression(
+        &self,
+        mut expression_id: LocalNodeId<TypeExpression>,
+        tree: &NodeTree,
+    ) -> LocalNodeId<TypeExpression> {
+        loop {
+            let TypeExpression::Parenthesized { expression } = tree.get(expression_id) else {
+                break;
+            };
+
+            expression_id = *expression;
+        }
+
+        expression_id
     }
 
     /// Resolve a global symbol name with one explicit local symbol table when available.
@@ -4570,7 +4326,7 @@ impl Compiler {
         ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         target_symbol: GlobalSymbolId,
-        static_arguments: Option<&[LocalNodeId<Argument>]>,
+        generic_arguments: Option<&[LocalNodeId<GenericArgument>]>,
         state: &InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_REFERENCE);
@@ -4782,7 +4538,7 @@ impl Compiler {
         )?;
 
         // handle static arguments for generic instantiation
-        let Some(static_argument_ids) = static_arguments else {
+        let Some(generic_argument_ids) = generic_arguments else {
             return Ok(base_ty_id);
         };
 
@@ -4791,7 +4547,7 @@ impl Compiler {
             expression_id,
             base_ty_id,
             Some(canonical_symbol),
-            static_argument_ids,
+            generic_argument_ids,
         )
     }
 
@@ -5338,7 +5094,7 @@ pub(crate) fn implicit_return_expression(
             else_expression: None,
             ..
         } => None,
-        Expression::Block { block } => {
+        Expression::Block(block) => {
             // read the block expression list
             let block = tree.get(*block);
             let last_expression_id = block.tail_expression?;

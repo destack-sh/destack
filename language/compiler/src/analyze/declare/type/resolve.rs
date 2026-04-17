@@ -9,7 +9,7 @@ use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     DependencyItem, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
     NodeType, NormalizationMode, ScalarLiteral, StaticArgument, StaticExpression, StaticKey,
-    StaticParameterKind, SymbolKind, SymbolSpace, Type, TypeLiteral, TypeTable, TypeUnaryOperator,
+    StaticParameterKind, SymbolKind, SymbolSpace, Type, TypeExpression, TypeLiteral, TypeTable,
     are_types_equal,
 };
 use destack_source::{ModuleId, SourcePartKey};
@@ -54,8 +54,8 @@ impl Compiler {
     fn publish_symbolic_array_size_type(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
-        candidate_expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
+        candidate_expression_id: LocalNodeId<TypeExpression>,
         symbol: GlobalSymbolId,
         static_arguments: Option<Vec<StaticArgument>>,
     ) -> LocalTypeId {
@@ -82,10 +82,10 @@ impl Compiler {
         reference_type_id
     }
 
-    pub(crate) fn set_integer_literal_type(
+    pub(crate) fn set_integer_literal_type_expression(
         &self,
         module_id: ModuleId,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         value: i64,
         types: &mut TypeTable,
     ) {
@@ -97,10 +97,10 @@ impl Compiler {
     }
 
     /// Resolve one array-size count type id for an expression.
-    pub(crate) fn array_sized_count_type_id_for_expression(
+    pub(crate) fn array_sized_count_type_id_for_type_expression(
         &self,
         module_id: ModuleId,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         types: &mut TypeTable,
     ) -> LocalTypeId {
         if let Some(type_id) =
@@ -120,10 +120,10 @@ impl Compiler {
     }
 
     /// Resolve the inferred type for a static value parameter used as an array size.
-    pub(crate) fn resolve_array_size_parameter_type(
+    pub(crate) fn resolve_array_size_type_parameter(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
@@ -132,11 +132,11 @@ impl Compiler {
             return Ok(None);
         }
         let (candidate_expression_id, is_explicit_comptime) =
-            self.unwrap_as_comptime_expression(expression_id, ctx.tree);
+            self.unwrap_as_comptime_type_expression(expression_id, ctx.tree);
 
         // skip expressions that are not static value references
         let kind = if let Some(kind) =
-            self.static_parameter_reference_kind(&mut ctx.reborrow(), candidate_expression_id)?
+            self.static_parameter_type_reference_kind(&mut ctx.reborrow(), candidate_expression_id)?
         {
             kind
         } else {
@@ -158,7 +158,7 @@ impl Compiler {
                 NormalizationMode::Assign,
             );
             let symbol = self.unwrap_type_value_symbol(ctx.types, index_ty_id);
-            let selection = self.associated_comptime_selection_from_expression(
+            let selection = self.associated_comptime_selection_from_type_expression(
                 &mut ctx.reborrow(),
                 candidate_expression_id,
             )?;
@@ -196,10 +196,10 @@ impl Compiler {
                             value: TypeLiteral::Unknown,
                         }
                     ) {
-                        let expression_arguments =
-                            ctx.tree.get(candidate_expression_id).static_arguments();
+                        let generic_arguments =
+                            ctx.tree.get(candidate_expression_id).generic_arguments();
                         let static_arguments = self
-                            .evaluate_static_arguments(&mut ctx.reborrow(), expression_arguments)?;
+                            .evaluate_generic_arguments(&mut ctx.reborrow(), generic_arguments)?;
                         inferred_id = self.publish_symbolic_array_size_type(
                             &mut ctx.reborrow(),
                             expression_id,
@@ -317,51 +317,53 @@ impl Compiler {
     }
 
     /// Check whether an expression can be used as an array size candidate.
-    pub(crate) fn expression_is_array_size_candidate(
+    pub(crate) fn type_expression_is_array_size_candidate(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
     ) -> AnalyzeResult<bool> {
         let (expression_id, is_explicit_comptime) =
-            self.unwrap_as_comptime_expression(expression_id, ctx.tree);
+            self.unwrap_as_comptime_type_expression(expression_id, ctx.tree);
         if is_explicit_comptime {
             return Ok(true);
         }
 
         if self
-            .associated_comptime_selection_from_expression(&mut ctx.reborrow(), expression_id)?
+            .associated_comptime_selection_from_type_expression(&mut ctx.reborrow(), expression_id)?
             .is_some()
         {
             return Ok(true);
         }
 
-        let Some(static_value) =
-            self.query_static_expression_value(&mut ctx.reborrow(), expression_id, None)?
-        else {
-            return Ok(false);
-        };
+        let integer_literal =
+            self.evaluate_integer_static_literal(&mut ctx.reborrow(), expression_id)?;
+        if integer_literal.is_some() {
+            return Ok(true);
+        }
 
-        Ok(self.static_expression_may_be_numeric(&static_value, ctx.types))
+        let type_id =
+            self.resolve_declared_type_expression(&mut ctx.reborrow(), expression_id, true, true)?;
+        let type_id = ctx.types.unwrap_value_type_id(type_id);
+        let index_value = StaticExpression::Type { ty: type_id };
+
+        Ok(self.static_expression_may_be_numeric(&index_value, ctx.types))
     }
 
     /// Resolve an associated comptime member symbol from one projection expression.
-    pub(crate) fn associated_comptime_selection_from_expression(
+    pub(crate) fn associated_comptime_selection_from_type_expression(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
     ) -> AnalyzeResult<Option<AssociatedProjectionSelection>> {
-        let Expression::Member { left, name, .. } = ctx.tree.get(expression_id) else {
-            return Ok(None);
-        };
-        let Some(name) = *name else {
+        let TypeExpression::Member { left, name, .. } = ctx.tree.get(expression_id) else {
             return Ok(None);
         };
 
-        self.select_associated_projection_member_symbol(
+        self.select_associated_projection_type_member_symbol(
             &mut ctx.reborrow(),
             expression_id,
             *left,
-            StaticKey::Name(name),
+            StaticKey::Name(*name),
             Some(StaticMemberSymbolKind::AssociatedComptimeConst),
             true,
             true,
@@ -373,10 +375,10 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         left_type_id: LocalTypeId,
-        index_expression_id: LocalNodeId<Expression>,
+        index_expression_id: LocalNodeId<TypeExpression>,
     ) -> AnalyzeResult<TypeIndexResolutionKind> {
         let (_, is_explicit_comptime) =
-            self.unwrap_as_comptime_expression(index_expression_id, ctx.tree);
+            self.unwrap_as_comptime_type_expression(index_expression_id, ctx.tree);
         if ctx.module.language_type.is_declaration() {
             return Ok(if is_explicit_comptime {
                 TypeIndexResolutionKind::ArraySized
@@ -385,7 +387,7 @@ impl Compiler {
             });
         }
         let index_is_array_size_candidate =
-            self.expression_is_array_size_candidate(&mut ctx.reborrow(), index_expression_id)?;
+            self.type_expression_is_array_size_candidate(&mut ctx.reborrow(), index_expression_id)?;
         let left_is_array_sized =
             matches!(ctx.types.get_type(left_type_id), Type::ArraySized { .. });
         let supports_index_access =
@@ -513,10 +515,10 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         left_type_id: LocalTypeId,
-        index_expression_id: LocalNodeId<Expression>,
+        index_expression_id: LocalNodeId<TypeExpression>,
     ) -> AnalyzeResult<bool> {
         let (candidate_expression_id, is_explicit_comptime) =
-            self.unwrap_as_comptime_expression(index_expression_id, ctx.tree);
+            self.unwrap_as_comptime_type_expression(index_expression_id, ctx.tree);
         if is_explicit_comptime {
             return Ok(false);
         }
@@ -593,7 +595,7 @@ impl Compiler {
         &self,
         module: &Module,
         symbol: GlobalSymbolId,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         tree: &NodeTree,
     ) -> bool {
         // mapped-parameter membership is local syntax context
@@ -603,9 +605,9 @@ impl Compiler {
 
         let mut cursor = Some(expression_id.into_any());
         while let Some(node_id) = cursor {
-            if node_id.ty == NodeType::Expression {
-                let parent_expression_id = node_id.into_typed::<Expression>();
-                if let Expression::TypeMapped { parameter, .. } = tree.get(parent_expression_id)
+            if node_id.ty == NodeType::TypeExpression {
+                let parent_expression_id = node_id.into_typed::<TypeExpression>();
+                if let TypeExpression::Mapped { parameter, .. } = tree.get(parent_expression_id)
                     && parameter.symbol == symbol.local_id
                 {
                     return true;
@@ -682,11 +684,7 @@ impl Compiler {
             return true;
         }
 
-        let Type::Unary {
-            operator: TypeUnaryOperator::Keyof,
-            right,
-        } = constraint_ty
-        else {
+        let Type::KeyOf { target_type: right } = constraint_ty else {
             return false;
         };
 
@@ -808,10 +806,7 @@ impl Compiler {
                     left_symbol,
                     visited_symbols,
                 ),
-            Type::Unary {
-                operator: TypeUnaryOperator::Keyof,
-                right,
-            } => self
+            Type::KeyOf { target_type: right } => self
                 .resolved_reference_symbol_for_type_id(&mut ctx.reborrow(), right)
                 .is_some_and(|symbol| symbol == left_symbol),
             Type::Reference { symbol, .. } => {
@@ -828,11 +823,11 @@ impl Compiler {
             }
             _ => {
                 let source_id = ctx.types.get_type_source(constraint_type_id);
-                if source_id.ty != NodeType::Expression {
+                if source_id.ty != NodeType::TypeExpression {
                     return false;
                 }
 
-                let expression_id = source_id.into_typed::<Expression>();
+                let expression_id = source_id.into_typed::<TypeExpression>();
                 self.type_constraint_expression_matches_keyof_symbol(
                     &mut ctx.reborrow(),
                     expression_id,
@@ -847,25 +842,22 @@ impl Compiler {
     fn type_constraint_expression_matches_keyof_symbol(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         left_symbol: GlobalSymbolId,
         visited_symbols: &mut HashSet<GlobalSymbolId>,
     ) -> bool {
-        let expression_id = self.unwrap_parenthesized_expression(expression_id, ctx.tree);
+        let expression_id = self.unwrap_parenthesized_type_expression(expression_id, ctx.tree);
         match ctx.tree.get(expression_id) {
-            Expression::TypeUnary {
-                operator: TypeUnaryOperator::Keyof,
-                right,
-            } => {
-                let right = self.unwrap_parenthesized_expression(*right, ctx.tree);
+            TypeExpression::KeyOf { target_type } => {
+                let right = self.unwrap_parenthesized_type_expression(*target_type, ctx.tree);
                 let Some(right_symbol) = ctx.tree.get(right).target_symbol() else {
                     return false;
                 };
                 self.resolve_type_reference_symbol(ctx, right_symbol) == left_symbol
             }
-            Expression::LocalReference { target_symbol, .. }
-            | Expression::ModuleReference { target_symbol, .. }
-            | Expression::GlobalReference { target_symbol, .. } => {
+            TypeExpression::LocalReference { target_symbol, .. }
+            | TypeExpression::ModuleReference { target_symbol, .. }
+            | TypeExpression::GlobalReference { target_symbol, .. } => {
                 if !self.symbol_is_static_parameter(ctx.symbol_type_view(), *target_symbol) {
                     return false;
                 }
@@ -886,7 +878,7 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         left_type_id: LocalTypeId,
-        index_expression_id: LocalNodeId<Expression>,
+        index_expression_id: LocalNodeId<TypeExpression>,
     ) -> AnalyzeResult<bool> {
         Ok(self.type_index_interpretation(
             &mut ctx.reborrow(),
@@ -896,21 +888,17 @@ impl Compiler {
     }
 
     /// Unwrap parenthesized expressions and explicit `as comptime` markers.
-    pub(crate) fn unwrap_as_comptime_expression(
+    pub(crate) fn unwrap_as_comptime_type_expression(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         tree: &NodeTree,
-    ) -> (LocalNodeId<Expression>, bool) {
-        let mut expression_id = self.unwrap_parenthesized_expression(expression_id, tree);
+    ) -> (LocalNodeId<TypeExpression>, bool) {
+        let mut expression_id = self.unwrap_parenthesized_type_expression(expression_id, tree);
         let mut is_explicit_comptime = false;
 
-        while let Expression::TypeUnary {
-            operator: TypeUnaryOperator::AsComptime,
-            right,
-        } = tree.get(expression_id)
-        {
+        while let TypeExpression::AsComptime { target_type } = tree.get(expression_id) {
             is_explicit_comptime = true;
-            expression_id = self.unwrap_parenthesized_expression(*right, tree);
+            expression_id = self.unwrap_parenthesized_type_expression(*target_type, tree);
         }
 
         (expression_id, is_explicit_comptime)
@@ -1017,25 +1005,64 @@ impl Compiler {
         self.resolve_imported_namespace_member_symbol(ctx, expression_id, dependency, member_key)
     }
 
+    /// Resolve the static parameter symbol and kind for a reference type expression.
+    pub(crate) fn resolve_namespace_type_member_symbol(
+        &self,
+        ctx: TreeSymbolView<'_>,
+        expression_id: LocalNodeId<TypeExpression>,
+        left: LocalNodeId<TypeExpression>,
+        member_key: StaticKey,
+    ) -> Option<GlobalSymbolId> {
+        // require a reference expression on the left side
+        let (TypeExpression::LocalReference { target_symbol, .. }
+        | TypeExpression::ModuleReference { target_symbol, .. }
+        | TypeExpression::GlobalReference { target_symbol, .. }) = ctx.tree.get(left)
+        else {
+            return None;
+        };
+
+        // namespace imports are local dependency items
+        if target_symbol.module_id != ctx.module.id {
+            return None;
+        }
+
+        // require a dependency declaration
+        let symbol_entry = ctx.symbols.get_symbol(target_symbol.local_id);
+        let primary_declaration = symbol_entry.primary_declaration?;
+        if primary_declaration.local_id.ty != NodeType::DependencyItem {
+            return None;
+        }
+
+        // require a dependency item the import helpers understand
+        let dependency_id = primary_declaration.local_id.into_typed::<DependencyItem>();
+        let dependency = ctx.tree.get(dependency_id);
+        self.resolve_imported_namespace_member_symbol_in_type_expression(
+            ctx,
+            expression_id,
+            dependency,
+            member_key,
+        )
+    }
+
     /// Select a type member symbol for one member expression.
     pub(crate) fn resolve_type_member_symbol(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
+        left: LocalNodeId<TypeExpression>,
         member_key: StaticKey,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<Option<TypeMemberResolution>> {
         // select namespace imports before projection lookups
-        if let Some(namespace_symbol) = self.resolve_namespace_member_symbol(
+        if let Some(namespace_symbol) = self.resolve_namespace_type_member_symbol(
             ctx.tree_symbol_view(),
             expression_id,
             left,
             member_key,
         ) {
             let source_id = ctx.tree.get_source(expression_id.id);
-            let span_type = Expression::member_source_part(ctx.tree, expression_id);
+            let span_type = TypeExpression::member_source_part(ctx.tree, expression_id);
             ctx.types.set_symbol_target_for_source_part(
                 SourcePartKey::new(source_id, span_type),
                 namespace_symbol,
@@ -1047,7 +1074,7 @@ impl Compiler {
         }
 
         // select projected members through nominal receivers
-        let Some(selection) = self.select_associated_projection_member_symbol(
+        let Some(selection) = self.select_associated_projection_type_member_symbol(
             &mut ctx.reborrow(),
             expression_id,
             left,
@@ -1065,7 +1092,7 @@ impl Compiler {
                 enforce_implicit_managed,
             )? {
                 let source_id = ctx.tree.get_source(expression_id.id);
-                let span_type = Expression::member_source_part(ctx.tree, expression_id);
+                let span_type = TypeExpression::member_source_part(ctx.tree, expression_id);
                 ctx.types.set_symbol_target_for_source_part(
                     SourcePartKey::new(source_id, span_type),
                     enum_member_symbol,
@@ -1096,7 +1123,7 @@ impl Compiler {
                     .map_err(AnalyzeError::from)?;
                 if is_enum_field {
                     let source_id = ctx.tree.get_source(expression_id.id);
-                    let span_type = Expression::member_source_part(ctx.tree, expression_id);
+                    let span_type = TypeExpression::member_source_part(ctx.tree, expression_id);
                     ctx.types.set_symbol_target_for_source_part(
                         SourcePartKey::new(source_id, span_type),
                         projected_symbol,
@@ -1120,7 +1147,7 @@ impl Compiler {
             Some(StaticMemberSymbolKind::AssociatedType)
             | Some(StaticMemberSymbolKind::AssociatedComptimeConst) => {
                 let source_id = ctx.tree.get_source(expression_id.id);
-                let span_type = Expression::member_source_part(ctx.tree, expression_id);
+                let span_type = TypeExpression::member_source_part(ctx.tree, expression_id);
                 ctx.types.set_symbol_target_for_source_part(
                     SourcePartKey::new(source_id, span_type),
                     selection.target_symbol,
@@ -1130,7 +1157,7 @@ impl Compiler {
             }
             Some(StaticMemberSymbolKind::EnumField) => {
                 let source_id = ctx.tree.get_source(expression_id.id);
-                let span_type = Expression::member_source_part(ctx.tree, expression_id);
+                let span_type = TypeExpression::member_source_part(ctx.tree, expression_id);
                 ctx.types.set_symbol_target_for_source_part(
                     SourcePartKey::new(source_id, span_type),
                     selection.target_symbol,
@@ -1148,13 +1175,13 @@ impl Compiler {
     pub(crate) fn resolve_enum_member_symbol(
         &self,
         ctx: &mut TypeContext<'_>,
-        left: LocalNodeId<Expression>,
+        left: LocalNodeId<TypeExpression>,
         member_key: StaticKey,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         let left_target_symbol = self
-            .reference_symbol_for_expression(ctx.tree_symbol_view(), left)
+            .reference_symbol_for_type_expression(ctx.tree_symbol_view(), left)
             .or_else(|| ctx.tree.get(left).target_symbol())
             .map(|symbol| self.resolve_type_reference_symbol(ctx, symbol))
             .or_else(|| {
@@ -1251,7 +1278,7 @@ impl Compiler {
     pub(crate) fn resolve_type_reference_type(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         target_symbol: GlobalSymbolId,
         static_arguments: Option<Vec<StaticArgument>>,
         resolve_static_arguments: bool,
@@ -1417,7 +1444,7 @@ impl Compiler {
     pub(crate) fn resolve_typeof_expression(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         right_id: LocalNodeId<Expression>,
     ) -> AnalyzeResult<Type> {
         let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_TYPEOF);
@@ -1432,7 +1459,10 @@ impl Compiler {
         }
 
         // resolve the target symbol for a typeof reference
-        let Some(target_symbol) = ctx.tree.get(target_id).target_symbol() else {
+        let Some(target_symbol) = self
+            .reference_symbol_for_expression(ctx.tree_symbol_view(), target_id)
+            .or_else(|| ctx.tree.get(target_id).target_symbol())
+        else {
             return Ok(Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             });
@@ -1467,17 +1497,19 @@ impl Compiler {
 
             let declarator = ctx.tree.get(declarator_id);
             if let Some(value_id) = declarator.value {
-                let ty = self.resolve_declared_type_expression_value(
-                    &mut ctx.reborrow(),
-                    value_id,
-                    true,
-                    true,
-                    true,
-                    true,
-                    true,
-                )?;
-                if !matches!(ty, Type::Unevaluated(_)) {
-                    return Ok(ty);
+                if let Expression::Type { value, .. } = ctx.tree.get(value_id) {
+                    let ty = self.resolve_declared_type_expression_value(
+                        &mut ctx.reborrow(),
+                        *value,
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                    )?;
+                    if !matches!(ty, Type::Unevaluated(_)) {
+                        return Ok(ty);
+                    }
                 }
             }
         }

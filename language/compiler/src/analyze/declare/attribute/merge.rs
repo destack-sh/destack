@@ -1,6 +1,6 @@
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
-    Annotation, Binding, DeprecatedNotice, ExperimentalNotice, ExternBinding, IntrinsicBinding,
+    Binding, Decorator, DeprecatedNotice, ExperimentalNotice, ExternBinding, IntrinsicBinding,
     LanguageItemBinding, LifetimeAnnotation, LocalNodeId, SymbolDecorators, UnrollHint,
 };
 use destack_workspace::{Module, ProfileId};
@@ -11,7 +11,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         binding: ExternBinding,
         decorators: &mut SymbolDecorators,
     ) {
@@ -35,7 +35,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         binding: Binding,
         decorators: &mut SymbolDecorators,
     ) {
@@ -59,7 +59,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         binding: LanguageItemBinding,
         decorators: &mut SymbolDecorators,
     ) {
@@ -84,7 +84,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         binding: IntrinsicBinding,
         decorators: &mut SymbolDecorators,
     ) {
@@ -108,7 +108,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         lifetime: LifetimeAnnotation,
         decorators: &mut SymbolDecorators,
     ) {
@@ -133,7 +133,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         notice: DeprecatedNotice,
         decorators: &mut SymbolDecorators,
     ) {
@@ -157,7 +157,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         notice: ExperimentalNotice,
         decorators: &mut SymbolDecorators,
     ) {
@@ -181,7 +181,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         hint: UnrollHint,
         decorators: &mut SymbolDecorators,
     ) {
@@ -205,7 +205,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         message: &str,
     ) {
         let message = self.repository.strings.intern(message);

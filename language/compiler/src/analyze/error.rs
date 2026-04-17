@@ -4,11 +4,22 @@ use crate::{
 };
 use destack_compiler_macros::DefineError;
 use destack_core::StringId;
-use destack_dir::{
-    AnchoredGlobalNodeId, FunctionAbstraction, GlobalSymbolId, GlobalTypeId, StaticKey, Visibility,
-};
+use destack_dir::{AnchoredGlobalNodeId, GlobalSymbolId, GlobalTypeId, StaticKey, Visibility};
 use destack_source::ModuleId;
 use destack_workspace::Repository;
+
+/// The diagnostic abstraction state of one callable member.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallableAbstraction {
+    /// An abstract callable.
+    Abstract,
+    /// An abstract override callable.
+    AbstractOverride,
+    /// A concrete override callable.
+    Override,
+    /// A concrete non-override callable.
+    Concrete,
+}
 
 /// Errors during the analyze phase.
 #[derive(Debug, Clone, PartialEq, DefineError)]
@@ -755,7 +766,7 @@ pub enum AnalyzeError {
     #[error(code = "EA504", message = "invalid {abstraction} method")]
     InvalidMethod {
         node: AnchoredGlobalNodeId,
-        abstraction: FunctionAbstraction,
+        abstraction: CallableAbstraction,
     },
 
     /// Invalid member modifier (e.g., private field with visibility modifier).
@@ -783,7 +794,7 @@ pub enum AnalyzeError {
     )]
     InconsistentFunctionOverride {
         node: AnchoredGlobalNodeId,
-        abstraction: FunctionAbstraction,
+        abstraction: CallableAbstraction,
     },
 
     /// Missing override modifier for an overriding member.

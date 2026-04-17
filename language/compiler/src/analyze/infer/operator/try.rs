@@ -887,7 +887,7 @@ impl Compiler {
         if missing_from_error {
             let _ = self.report_missing_member_diagnostic(
                 ctx.type_view(),
-                expression_id,
+                expression_id.into_any(),
                 receiver_ty_id,
                 from_error_key,
                 false,

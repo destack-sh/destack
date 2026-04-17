@@ -1,6 +1,6 @@
 use super::*;
 use crate::analyze::common::{SymbolTypeView, TreeSymbolView, TypeContext};
-use destack_dir::{Declaration, TypeKind};
+use destack_dir::Declaration;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -1746,10 +1746,7 @@ impl Compiler {
 
         matches!(
             tree.get(declaration_id.into()),
-            Declaration::Interface {
-                kind: TypeKind::Nominal,
-                ..
-            }
+            Declaration::Interface(declaration) if declaration.is_nominal
         )
     }
 

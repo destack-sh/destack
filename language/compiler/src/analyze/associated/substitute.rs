@@ -7,10 +7,10 @@ use crate::analyze::common::{
 use crate::analyze::declare::StaticConstantResolutionMode;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Argument, Declaration, Expression, GlobalNodeId, GlobalSymbolId, Heritage, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, Member, NodeType, NormalizationMode, StaticArgument,
-    StaticExpression, StaticKey, SymbolType, Type, TypeLiteral, TypeMappedParameter, TypeRewriter,
-    TypeTable, TypeUnaryOperator,
+    Declaration, GlobalNodeId, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId,
+    MappedTypeParameter, Member, NodeType, NormalizationMode, StaticArgument, StaticExpression,
+    StaticKey, SymbolType, TupleElement, Type, TypeExpression, TypeLiteral, TypeRewriter,
+    TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -223,8 +223,8 @@ impl Compiler {
                         );
                         let expression_id = heritage_expression_id.local_id;
                         let expression = view.tree.get(expression_id);
-                        let expression_has_static_arguments = expression
-                            .static_arguments()
+                        let expression_has_generic_arguments = expression
+                            .generic_arguments()
                             .is_some_and(|arguments| !arguments.is_empty());
                         let Some(target_symbol) = expression.target_symbol() else {
                             return Ok(None);
@@ -273,10 +273,10 @@ impl Compiler {
                             self.unwrap_type_symbol(ctx.types, heritage_type_id)
                         {
                             let mut resolved_arguments = resolved_arguments.unwrap_or_default();
-                            if resolved_arguments.is_empty() && expression_has_static_arguments {
-                                let evaluated_arguments = self.evaluate_static_arguments(
+                            if resolved_arguments.is_empty() && expression_has_generic_arguments {
+                                let evaluated_arguments = self.evaluate_generic_arguments(
                                     &mut ctx.reborrow(),
-                                    expression.static_arguments(),
+                                    expression.generic_arguments(),
                                 )?;
                                 let evaluated_arguments = evaluated_arguments.unwrap_or_default();
                                 let resolved_static_arguments = self
@@ -329,7 +329,7 @@ impl Compiler {
         &self,
         ctx: &TypeContext<'_>,
         symbol: GlobalSymbolId,
-    ) -> AnalyzeResult<Vec<GlobalNodeId<Expression>>> {
+    ) -> AnalyzeResult<Vec<GlobalNodeId<TypeExpression>>> {
         self.with_module_tree_symbol_view_or_local_for_artifact(
             ctx.compiler_context,
             ctx.module,
@@ -348,33 +348,29 @@ impl Compiler {
                 }
 
                 let declaration_id = primary_declaration.local_id.into_typed::<Declaration>();
-                let heritage = match view.tree.get(declaration_id) {
-                    Declaration::Class { heritage, .. }
-                    | Declaration::Struct { heritage, .. }
-                    | Declaration::Enum { heritage, .. }
-                    | Declaration::Interface { heritage, .. } => Some(heritage),
-                    _ => None,
-                };
-                let Some(Heritage {
-                    extends_types,
-                    implements_types,
-                    ..
-                }) = heritage
-                else {
-                    return Vec::new();
-                };
-
                 let mut expressions = Vec::new();
-                if let Some(extends_types) = extends_types.as_ref() {
-                    for expression_id in extends_types {
-                        expressions.push((*expression_id).into_global(view.module.id));
+                match view.tree.get(declaration_id) {
+                    Declaration::Class(declaration) => {
+                        for expression_id in &declaration.implements_types {
+                            expressions.push((*expression_id).into_global(view.module.id));
+                        }
                     }
-                }
-
-                if let Some(implements_types) = implements_types.as_ref() {
-                    for expression_id in implements_types {
-                        expressions.push((*expression_id).into_global(view.module.id));
+                    Declaration::Struct(declaration) => {
+                        for expression_id in &declaration.implements_types {
+                            expressions.push((*expression_id).into_global(view.module.id));
+                        }
                     }
+                    Declaration::Enum(declaration) => {
+                        for expression_id in &declaration.implements_types {
+                            expressions.push((*expression_id).into_global(view.module.id));
+                        }
+                    }
+                    Declaration::Interface(declaration) => {
+                        for expression_id in &declaration.extends_types {
+                            expressions.push((*expression_id).into_global(view.module.id));
+                        }
+                    }
+                    _ => {}
                 }
 
                 expressions
@@ -433,25 +429,24 @@ impl Compiler {
                 |view| {
                     let mut declared = Vec::new();
                     for declaration_id in view.tree.iter_node_ids_of_type::<Declaration>() {
-                        let Declaration::Extension {
-                            descriptor,
-                            target_symbol: Some(extension_target),
-                            ..
-                        } = view.tree.get(declaration_id)
+                        let Declaration::Extension(declaration) = view.tree.get(declaration_id)
                         else {
+                            continue;
+                        };
+                        let Some(extension_target) = declaration.target_symbol else {
                             continue;
                         };
                         let view = view.module_symbol_view();
                         let canonical_target = self.canonical_symbol_id(
                             view,
-                            *extension_target,
+                            extension_target,
                             CanonicalSymbolMode::FollowAliases,
                         );
                         if canonical_target != canonical_receiver_symbol {
                             continue;
                         }
 
-                        declared.push(descriptor.symbol.into_global(view.module.id));
+                        declared.push(declaration.symbol.into_global(view.module.id));
                     }
 
                     declared
@@ -492,13 +487,13 @@ impl Compiler {
                         }
                         let declaration_id =
                             primary_declaration.local_id.into_typed::<Declaration>();
-                        let Declaration::Extension { heritage, .. } = view.tree.get(declaration_id)
+                        let Declaration::Extension(declaration) = view.tree.get(declaration_id)
                         else {
                             return Ok(None);
                         };
-                        let Some(implements_types) = heritage.implements_types.as_ref() else {
+                        if declaration.implements_types.is_empty() {
                             return Ok(None);
-                        };
+                        }
 
                         let owner_options = view
                             .compiler_context
@@ -519,7 +514,7 @@ impl Compiler {
                             extension_symbol,
                             receiver_arguments,
                             interface_symbol,
-                            implements_types,
+                            &declaration.implements_types,
                         )
                     },
                 )
@@ -560,9 +555,13 @@ impl Compiler {
                 }
                 let declaration_id = primary_declaration.local_id.into_typed::<Declaration>();
                 let implements_types = match view.tree.get(declaration_id) {
-                    Declaration::Class { heritage, .. }
-                    | Declaration::Struct { heritage, .. }
-                    | Declaration::Enum { heritage, .. } => heritage.implements_types.as_deref(),
+                    Declaration::Class(declaration) => {
+                        Some(declaration.implements_types.as_slice())
+                    }
+                    Declaration::Struct(declaration) => {
+                        Some(declaration.implements_types.as_slice())
+                    }
+                    Declaration::Enum(declaration) => Some(declaration.implements_types.as_slice()),
                     _ => None,
                 };
                 let Some(implements_types) = implements_types else {
@@ -603,7 +602,7 @@ impl Compiler {
         receiver_symbol: GlobalSymbolId,
         receiver_arguments: &[StaticArgument],
         interface_symbol: GlobalSymbolId,
-        implements_types: &[LocalNodeId<Expression>],
+        implements_types: &[LocalNodeId<TypeExpression>],
     ) -> AnalyzeResult<Option<HashMap<GlobalSymbolId, LocalTypeId>>> {
         let receiver_substitutions = self.build_type_parameter_substitutions_for_symbol(
             &mut ctx.reborrow(),
@@ -627,7 +626,7 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
         interface_symbol: GlobalSymbolId,
-        implements_types: &[LocalNodeId<Expression>],
+        implements_types: &[LocalNodeId<TypeExpression>],
         receiver_substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
     ) -> AnalyzeResult<Option<HashMap<GlobalSymbolId, LocalTypeId>>> {
         let interface_symbol = self.canonical_symbol_id(
@@ -653,9 +652,9 @@ impl Compiler {
                 .unwrap_or(canonical_target);
 
             // resolve interface arguments from heritage expressions
-            let static_argument_nodes = ctx.tree.get(*interface_expression_id).static_arguments();
+            let generic_argument_nodes = ctx.tree.get(*interface_expression_id).generic_arguments();
             let evaluated_static_arguments =
-                self.evaluate_static_arguments(&mut ctx.reborrow(), static_argument_nodes)?;
+                self.evaluate_generic_arguments(&mut ctx.reborrow(), generic_argument_nodes)?;
             let evaluated_static_arguments = evaluated_static_arguments.unwrap_or_default();
             let resolved_static_arguments = self.resolve_type_reference_static_arguments(
                 &mut ctx.reborrow(),
@@ -945,7 +944,7 @@ impl Compiler {
                     };
 
                     for member_id in member_ids {
-                        let Member::ComptimeConst {
+                        let Member::AssociatedConst {
                             name,
                             symbol,
                             value,
@@ -1176,24 +1175,21 @@ impl Compiler {
         type_id
     }
 
-    /// Return the projected substitution symbol referenced by one expression.
-    fn projection_substitution_symbol_from_expression(
+    /// Return the projected substitution symbol referenced by one type expression.
+    fn projection_substitution_symbol_from_type_expression(
         &self,
         ctx: TreeSymbolView<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
     ) -> Option<GlobalSymbolId> {
         let mut expression_id = expression_id;
 
         // peel wrappers used around projection arguments
         loop {
             match ctx.tree.get(expression_id) {
-                Expression::Parenthesized { expression } => {
+                TypeExpression::Parenthesized { expression } => {
                     expression_id = *expression;
                 }
-                Expression::TypeUnary {
-                    operator: TypeUnaryOperator::AsComptime,
-                    right,
-                } => {
+                TypeExpression::AsComptime { target_type: right } => {
                     expression_id = *right;
                 }
                 _ => break,
@@ -1204,16 +1200,15 @@ impl Compiler {
             return Some(target_symbol);
         }
 
-        if let Expression::Member { left, name, .. } = ctx.tree.get(expression_id)
-            && matches!(ctx.tree.get(*left), Expression::This)
-            && let Some(name) = *name
-            && let Some((owner_symbol, _)) = self.owner_symbol_for_this_expression(ctx, *left)
+        if let TypeExpression::Member { left, name, .. } = ctx.tree.get(expression_id)
+            && matches!(ctx.tree.get(*left), TypeExpression::This)
+            && let Some((owner_symbol, _)) = self.owner_symbol_for_this_type_expression(ctx, *left)
             && let Some(member_symbol) = self.query_static_member_symbol(
                 ctx.compiler_context.revision(),
                 ctx.module,
                 ctx.profile,
                 owner_symbol,
-                StaticKey::Name(name),
+                StaticKey::Name(*name),
                 ctx.tree,
                 ctx.symbols,
             )
@@ -1224,27 +1219,22 @@ impl Compiler {
         None
     }
 
-    /// Apply associated projection substitutions by alias expression shape.
-    pub(crate) fn apply_projection_substitutions_from_expression(
+    /// Apply associated projection substitutions by alias type-expression shape.
+    pub(crate) fn apply_projection_substitutions_from_type_expression(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         local_type_id: LocalTypeId,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
     ) -> AnalyzeResult<LocalTypeId> {
-        // resolve local declared types before rewriting structured expression shapes
+        // resolve local declared types before rewriting structured type shapes
         let needs_declared_shape = matches!(
             ctx.tree.get(expression_id),
-            Expression::TypeMapped { .. }
-                | Expression::TupleExpression { .. }
-                | Expression::ArrayExpression { .. }
-                | Expression::TaggedTupleExpression { .. }
-                | Expression::TypeIndex { .. }
-                | Expression::Parenthesized { .. }
-                | Expression::TypeUnary {
-                    operator: TypeUnaryOperator::AsComptime,
-                    ..
-                }
+            TypeExpression::Mapped { .. }
+                | TypeExpression::Tuple { .. }
+                | TypeExpression::Index { .. }
+                | TypeExpression::Parenthesized { .. }
+                | TypeExpression::AsComptime { .. }
         );
         if needs_declared_shape && matches!(ctx.types.get_type(local_type_id), Type::Unevaluated(_))
         {
@@ -1272,19 +1262,19 @@ impl Compiler {
 
         // recurse through nested index expressions and set count inferred types from substitutions
         match ctx.tree.get(expression_id).clone() {
-            Expression::TypeMapped {
+            TypeExpression::Mapped {
                 parameter, value, ..
             } => {
                 return self.apply_projection_substitutions_to_mapped_type(
                     &mut ctx.reborrow(),
-                    parameter.constraint,
+                    parameter.source_type,
                     parameter.key_remap,
                     value,
                     local_type_id,
                     substitutions,
                 );
             }
-            Expression::TupleExpression { elements } => {
+            TypeExpression::Tuple { elements } => {
                 return self.apply_projection_substitutions_to_tuple_type(
                     &mut ctx.reborrow(),
                     &elements,
@@ -1292,23 +1282,7 @@ impl Compiler {
                     substitutions,
                 );
             }
-            Expression::ArrayExpression { elements } => {
-                return self.apply_projection_substitutions_to_tuple_type(
-                    &mut ctx.reborrow(),
-                    &elements,
-                    local_type_id,
-                    substitutions,
-                );
-            }
-            Expression::TaggedTupleExpression { elements, .. } => {
-                return self.apply_projection_substitutions_to_tuple_type(
-                    &mut ctx.reborrow(),
-                    &elements,
-                    local_type_id,
-                    substitutions,
-                );
-            }
-            Expression::TypeIndex { left, index } => {
+            TypeExpression::Index { left, index } => {
                 return self.apply_projection_substitutions_to_type_index(
                     &mut ctx.reborrow(),
                     expression_id,
@@ -1318,19 +1292,16 @@ impl Compiler {
                     substitutions,
                 );
             }
-            Expression::Parenthesized { expression } => {
-                return self.apply_projection_substitutions_from_expression(
+            TypeExpression::Parenthesized { expression } => {
+                return self.apply_projection_substitutions_from_type_expression(
                     &mut ctx.reborrow(),
                     expression,
                     local_type_id,
                     substitutions,
                 );
             }
-            Expression::TypeUnary {
-                operator: TypeUnaryOperator::AsComptime,
-                right,
-            } => {
-                return self.apply_projection_substitutions_from_expression(
+            TypeExpression::AsComptime { target_type: right } => {
+                return self.apply_projection_substitutions_from_type_expression(
                     &mut ctx.reborrow(),
                     right,
                     local_type_id,
@@ -1369,11 +1340,11 @@ impl Compiler {
         )
     }
 
-    /// Return one projection-substituted type for a tuple expression.
+    /// Return one projection-substituted type for a tuple type expression.
     fn apply_projection_substitutions_to_tuple_type(
         &self,
         ctx: &mut TypeContext<'_>,
-        element_arguments: &[LocalNodeId<Argument>],
+        element_arguments: &[LocalNodeId<destack_dir::TupleElement>],
         local_type_id: LocalTypeId,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
     ) -> AnalyzeResult<LocalTypeId> {
@@ -1391,8 +1362,11 @@ impl Compiler {
         let mut mapped_elements = Vec::with_capacity(elements.len());
         let mut changed = false;
         for (argument_id, mut element) in element_arguments.iter().zip(elements.into_iter()) {
-            let element_expression_id = ctx.tree.get(*argument_id).value();
-            let mapped_element_ty = self.apply_projection_substitutions_from_expression(
+            let Some(element_expression_id) = ctx.tree.get::<TupleElement>(*argument_id).value()
+            else {
+                continue;
+            };
+            let mapped_element_ty = self.apply_projection_substitutions_from_type_expression(
                 &mut ctx.reborrow(),
                 element_expression_id,
                 element.ty,
@@ -1417,13 +1391,13 @@ impl Compiler {
         ))
     }
 
-    /// Return one projection-substituted type for a mapped-type expression.
+    /// Return one projection-substituted type for a mapped type expression.
     fn apply_projection_substitutions_to_mapped_type(
         &self,
         ctx: &mut TypeContext<'_>,
-        parameter_constraint_expression: LocalNodeId<Expression>,
-        parameter_key_remap_expression: Option<LocalNodeId<Expression>>,
-        value_expression: LocalNodeId<Expression>,
+        parameter_constraint_expression: LocalNodeId<TypeExpression>,
+        parameter_key_remap_expression: Option<LocalNodeId<TypeExpression>>,
+        value_expression: LocalNodeId<TypeExpression>,
         local_type_id: LocalTypeId,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
     ) -> AnalyzeResult<LocalTypeId> {
@@ -1433,7 +1407,7 @@ impl Compiler {
                 modifiers,
                 value,
             } => {
-                let mapped_constraint = self.apply_projection_substitutions_from_expression(
+                let mapped_constraint = self.apply_projection_substitutions_from_type_expression(
                     &mut ctx.reborrow(),
                     parameter_constraint_expression,
                     parameter.constraint,
@@ -1441,7 +1415,7 @@ impl Compiler {
                 )?;
                 let mapped_key_remap = match (parameter.key_remap, parameter_key_remap_expression) {
                     (Some(key_remap), Some(key_remap_expression)) => {
-                        Some(self.apply_projection_substitutions_from_expression(
+                        Some(self.apply_projection_substitutions_from_type_expression(
                             &mut ctx.reborrow(),
                             key_remap_expression,
                             key_remap,
@@ -1450,7 +1424,7 @@ impl Compiler {
                     }
                     (key_remap, _) => key_remap,
                 };
-                let mapped_value = self.apply_projection_substitutions_from_expression(
+                let mapped_value = self.apply_projection_substitutions_from_type_expression(
                     &mut ctx.reborrow(),
                     value_expression,
                     value,
@@ -1463,9 +1437,9 @@ impl Compiler {
                     return Ok(local_type_id);
                 }
 
-                let parameter = TypeMappedParameter {
+                let parameter = MappedTypeParameter {
                     name: parameter.name,
-                    symbol: parameter.symbol,
+                    symbol: parameter.symbol.into(),
                     constraint: mapped_constraint,
                     key_remap: mapped_key_remap,
                 };
@@ -1488,12 +1462,13 @@ impl Compiler {
                 let mut mapped_fields = Vec::with_capacity(fields.len());
                 let mut changed = false;
                 for mut field in fields {
-                    let mapped_field_ty = self.apply_projection_substitutions_from_expression(
-                        &mut ctx.reborrow(),
-                        value_expression,
-                        field.ty,
-                        substitutions,
-                    )?;
+                    let mapped_field_ty = self
+                        .apply_projection_substitutions_from_type_expression(
+                            &mut ctx.reborrow(),
+                            value_expression,
+                            field.ty,
+                            substitutions,
+                        )?;
                     if mapped_field_ty != field.ty {
                         field.ty = mapped_field_ty;
                         changed = true;
@@ -1519,16 +1494,17 @@ impl Compiler {
         }
     }
 
-    /// Return one projection-substituted alias target for a projection-root expression.
+    /// Return one projection-substituted alias target for a projection-root type expression.
     fn projection_substituted_alias_target_for_expression(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        let Some(target_symbol) = self
-            .projection_substitution_symbol_from_expression(ctx.tree_symbol_view(), expression_id)
-        else {
+        let Some(target_symbol) = self.projection_substitution_symbol_from_type_expression(
+            ctx.tree_symbol_view(),
+            expression_id,
+        ) else {
             return Ok(None);
         };
         let Some(alias_target_id) = self.require_alias_target_type_id_for_symbol(
@@ -1553,12 +1529,12 @@ impl Compiler {
         Ok(Some(mapped_alias_target))
     }
 
-    /// Resolve one alias expression node for projection substitution by declaration kind.
+    /// Resolve one alias type-expression node for projection substitution by declaration kind.
     fn projection_alias_expression_for_symbol(
         &self,
         view: TreeSymbolView<'_>,
         target_symbol: GlobalSymbolId,
-    ) -> Option<LocalNodeId<Expression>> {
+    ) -> Option<LocalNodeId<TypeExpression>> {
         let symbol_entry = view.symbols.get_symbol(target_symbol.local_id);
         let primary_declaration = symbol_entry.primary_declaration?;
         if primary_declaration.local_id.ty != NodeType::Member {
@@ -1567,7 +1543,7 @@ impl Compiler {
 
         let member_id = primary_declaration.local_id.into_typed::<Member>();
         match view.tree.get(member_id) {
-            Member::Type {
+            Member::AssociatedType {
                 value: Some(alias_expression),
                 ..
             } => Some(*alias_expression),
@@ -1579,7 +1555,7 @@ impl Compiler {
     fn substitute_projection_unevaluated_type(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         local_type_id: LocalTypeId,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
@@ -1587,9 +1563,10 @@ impl Compiler {
             return Ok(None);
         }
 
-        let Some(target_symbol) = self
-            .projection_substitution_symbol_from_expression(ctx.tree_symbol_view(), expression_id)
-        else {
+        let Some(target_symbol) = self.projection_substitution_symbol_from_type_expression(
+            ctx.tree_symbol_view(),
+            expression_id,
+        ) else {
             return Ok(None);
         };
 
@@ -1649,9 +1626,9 @@ impl Compiler {
     fn apply_projection_substitutions_to_type_index(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
-        index: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
+        left: LocalNodeId<TypeExpression>,
+        index: LocalNodeId<TypeExpression>,
         local_type_id: LocalTypeId,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
     ) -> AnalyzeResult<LocalTypeId> {
@@ -1680,7 +1657,7 @@ impl Compiler {
         );
 
         if let Some(target_symbol) =
-            self.projection_substitution_symbol_from_expression(ctx.tree_symbol_view(), index)
+            self.projection_substitution_symbol_from_type_expression(ctx.tree_symbol_view(), index)
             && let Some(substitution) =
                 self.projection_substitution_type_for_symbol(target_symbol, substitutions)
         {
@@ -1731,7 +1708,7 @@ impl Compiler {
             }
         }
 
-        let mapped_element = self.apply_projection_substitutions_from_expression(
+        let mapped_element = self.apply_projection_substitutions_from_type_expression(
             &mut ctx.reborrow(),
             left,
             element,
@@ -1768,16 +1745,17 @@ impl Compiler {
     fn substitute_projection_reference_without_arguments(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         symbol: GlobalSymbolId,
         local_type_id: LocalTypeId,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
     ) -> AnalyzeResult<LocalTypeId> {
-        if let Some(mapped_symbol) = self
-            .projection_substitution_symbol_from_expression(ctx.tree_symbol_view(), expression_id)
-            && (mapped_symbol == symbol
-                || (mapped_symbol.module_id == symbol.module_id
-                    && mapped_symbol.local_id.id == symbol.local_id.id))
+        if let Some(mapped_symbol) = self.projection_substitution_symbol_from_type_expression(
+            ctx.tree_symbol_view(),
+            expression_id,
+        ) && (mapped_symbol == symbol
+            || (mapped_symbol.module_id == symbol.module_id
+                && mapped_symbol.local_id.id == symbol.local_id.id))
             && let Some(substitution) =
                 self.projection_substitution_type_for_symbol(mapped_symbol, substitutions)
         {
@@ -1812,7 +1790,7 @@ impl Compiler {
     fn substitute_projection_reference_with_arguments(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
         symbol: GlobalSymbolId,
         static_arguments: Option<Vec<StaticArgument>>,
         local_type_id: LocalTypeId,
@@ -1821,7 +1799,7 @@ impl Compiler {
         let Some(static_arguments) = static_arguments else {
             return Ok(local_type_id);
         };
-        let Some(argument_nodes) = ctx.tree.get(expression_id).static_arguments() else {
+        let Some(argument_nodes) = ctx.tree.get(expression_id).generic_arguments() else {
             return Ok(local_type_id);
         };
 
@@ -1832,14 +1810,20 @@ impl Compiler {
             let Some(current_argument) = mapped_arguments.get(argument_index).cloned() else {
                 continue;
             };
-            let argument_expression_id = ctx.tree.get(*argument_node).value();
+            let argument_type_expression_id = match ctx.tree.get(*argument_node) {
+                destack_dir::GenericArgument::Type { value } => *value,
+                destack_dir::GenericArgument::Value { .. } => continue,
+                destack_dir::GenericArgument::Error => continue,
+            };
 
             // replace direct symbol references with projection substitutions
-            if let Some(target_symbol) = self.projection_substitution_symbol_from_expression(
+            let target_symbol = self.projection_substitution_symbol_from_type_expression(
                 ctx.tree_symbol_view(),
-                argument_expression_id,
-            ) && let Some(substitution) =
-                self.projection_substitution_type_for_symbol(target_symbol, substitutions)
+                argument_type_expression_id,
+            );
+            if let Some(target_symbol) = target_symbol
+                && let Some(substitution) =
+                    self.projection_substitution_type_for_symbol(target_symbol, substitutions)
             {
                 let substitution =
                     self.normalized_projection_substitution_type(substitution, ctx.types);
@@ -1867,9 +1851,9 @@ impl Compiler {
             let StaticExpression::Type { ty } = value else {
                 continue;
             };
-            let mapped_type = self.apply_projection_substitutions_from_expression(
+            let mapped_type = self.apply_projection_substitutions_from_type_expression(
                 &mut ctx.reborrow(),
-                argument_expression_id,
+                argument_type_expression_id,
                 ty,
                 substitutions,
             )?;
@@ -1946,7 +1930,7 @@ impl Compiler {
                         ctx.types,
                         ctx.index.clone(),
                     );
-                    self.apply_projection_substitutions_from_expression(
+                    self.apply_projection_substitutions_from_type_expression(
                         &mut ctx,
                         expression_id,
                         alias_target_id,

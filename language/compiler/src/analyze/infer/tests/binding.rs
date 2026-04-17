@@ -110,14 +110,14 @@ let f = (x:) => x;
     };
     let declarator = view.tree().get(declarators[0]);
     let value = declarator.value.expect("expected let value");
-    let Expression::Declaration { declaration } = view.tree().get(value) else {
+    let Expression::Declaration(declaration) = view.tree().get(value) else {
         panic!("expected lambda declaration");
     };
-    let Declaration::Function { signature, .. } = view.tree().get(*declaration) else {
+    let Declaration::Function(declaration) = view.tree().get(*declaration) else {
         panic!("expected function declaration");
     };
-    assert_eq!(signature.dynamic_parameters.len(), 1);
-    let parameter_id = signature.dynamic_parameters[0];
+    assert_eq!(declaration.signature.parameters.len(), 1);
+    let parameter_id = declaration.signature.parameters[0];
     match view.tree().get(parameter_id) {
         Parameter::Named { name, .. } => {
             assert_string!(test.program, *name, "x");
@@ -190,7 +190,7 @@ value.y;
     let view = test.view(module_id);
     let value_name = test.program.strings.intern("value");
     let value_initializer = view.expect_initializer(value_name);
-    let Expression::ObjectExpression { properties } = view.tree().get(value_initializer) else {
+    let Expression::ObjectExpression { properties, .. } = view.tree().get(value_initializer) else {
         panic!("expected object expression");
     };
     assert_eq!(properties.len(), 2);
@@ -200,10 +200,10 @@ value.y;
     }
     match view.tree().get(properties[1]) {
         Property::Field {
-            key: Some(DynamicKey::Name(name)),
+            key: Key::Name(name),
             ..
         } => {
-            assert_string!(test.program, *name, "y");
+            assert_string!(test.program, name.string(), "y");
         }
         other => panic!("expected field property, got {other:?}"),
     }
@@ -378,17 +378,15 @@ function next_id(id: UserId): int64 {
         .and_then(|decl| decl.try_into_typed::<Declaration>().ok())
         .map(LocalNodeId::from)
         .expect("next_id should resolve to a function declaration");
-    let Declaration::Function {
-        body: Some(body), ..
-    } = view.tree().get(declaration_id)
-    else {
+    let Declaration::Function(declaration) = view.tree().get(declaration_id) else {
         panic!("next_id should have a body");
     };
+    let body = declaration.body.expect("next_id should have a body");
 
     // normalize the function body to the last expression
-    let match_expression_id = match view.tree().get(*body) {
-        Expression::Match { .. } => *body,
-        Expression::Block { block } => {
+    let match_expression_id = match view.tree().get(body) {
+        Expression::Match { .. } => body,
+        Expression::Block(block) => {
             let block = view.tree().get(*block);
             block
                 .last_expression()

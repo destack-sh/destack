@@ -132,7 +132,7 @@ impl Compiler {
             let member_id = primary_declaration.local_id.into_typed::<Member>();
             if matches!(
                 ctx.tree.get(member_id),
-                Member::ComptimeConst { value: Some(_), .. }
+                Member::AssociatedConst { value: Some(_), .. }
             ) {
                 return true;
             }
@@ -498,7 +498,7 @@ impl Compiler {
                         let member_id = primary_declaration.local_id.into_typed::<Member>();
                         matches!(
                             ctx.tree.get(member_id),
-                            Member::ComptimeConst { value: Some(_), .. }
+                            Member::AssociatedConst { value: Some(_), .. }
                         )
                     })
             };
@@ -692,7 +692,7 @@ impl Compiler {
                 && primary_declaration.local_id.ty == NodeType::Member
             {
                 let member_id = primary_declaration.local_id.into_typed::<Member>();
-                if let Member::ComptimeConst {
+                if let Member::AssociatedConst {
                     value: Some(value_expression_id),
                     ..
                 } = ctx.tree.get(member_id)
@@ -712,9 +712,21 @@ impl Compiler {
                     };
                     let Some(value) = value else {
                         // evaluate type-level forms through substitution and normalization
+                        let Expression::Type {
+                            value: value_type_expression,
+                            ..
+                        } = ctx.tree.get(*value_expression_id)
+                        else {
+                            if owns_visit_marker {
+                                visited.remove(&symbol);
+                            }
+
+                            return Ok(None);
+                        };
+
                         let mut value_type_id = self.resolve_declared_type_expression(
                             &mut ctx.reborrow(),
-                            *value_expression_id,
+                            *value_type_expression,
                             true,
                             true,
                         )?;

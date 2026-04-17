@@ -54,14 +54,14 @@ impl Compiler {
             })
             .collect::<Vec<_>>();
         for (binding_id, binding_scope, exports) in binding_entries {
-            let Declaration::Namespace { descriptor, .. } = ctx.tree.get(binding_id) else {
+            let Declaration::Namespace(declaration) = ctx.tree.get(binding_id) else {
                 continue;
             };
             let binding_namespace_exports = namespace_exports_by_scope
                 .get(&binding_scope)
                 .map(Vec::as_slice)
                 .unwrap_or(&[]);
-            let binding_symbol = descriptor.symbol.into_global(ctx.module.id);
+            let binding_symbol = declaration.symbol.into_global(ctx.module.id);
             let binding_source_id = binding_id.into_any();
             let binding_ty_id = self.build_namespace_type_from_exports(
                 &mut ctx.reborrow(),

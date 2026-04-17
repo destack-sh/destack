@@ -69,14 +69,11 @@ fn assert_choose_body_if_tails_in_ast_tree(
     let destack_ast::Expression::Declaration(declaration_id) = tree.get(root_id) else {
         panic!("expected function declaration root");
     };
-    let destack_ast::Declaration::Function {
-        body: Some(body_id),
-        ..
-    } = tree.get(*declaration_id)
-    else {
+    let destack_ast::Declaration::Function(declaration) = tree.get(*declaration_id) else {
         panic!("expected function body");
     };
-    let destack_ast::Expression::Block(block_id) = tree.get(*body_id) else {
+    let body_id = declaration.body.expect("expected function body");
+    let destack_ast::Expression::Block(block_id) = tree.get(body_id) else {
         panic!("expected function body block");
     };
     let block = tree.get(*block_id);
@@ -111,17 +108,14 @@ fn assert_choose_body_if_tails_in_ast_tree(
 // function body and branch tails in one dir tree
 fn assert_choose_body_if_tails_in_tree(tree: &NodeTree, roots: &[LocalNodeId<Expression>]) {
     let root_id = root_expression_id(roots, tree, 0);
-    let Expression::Declaration { declaration } = tree.get(root_id) else {
+    let Expression::Declaration(declaration) = tree.get(root_id) else {
         panic!("expected function declaration root");
     };
-    let Declaration::Function {
-        body: Some(body_id),
-        ..
-    } = tree.get(*declaration)
-    else {
+    let Declaration::Function(declaration) = tree.get(*declaration) else {
         panic!("expected function body");
     };
-    let Expression::Block { block } = tree.get(*body_id) else {
+    let body_id = declaration.body.expect("expected function body");
+    let Expression::Block(block) = tree.get(body_id) else {
         panic!("expected function body block");
     };
     let block = tree.get(*block);
@@ -138,20 +132,14 @@ fn assert_choose_body_if_tails_in_tree(tree: &NodeTree, roots: &[LocalNodeId<Exp
         panic!("expected tail if expression");
     };
 
-    let Expression::Block {
-        block: then_block_id,
-    } = tree.get(*then_expression)
-    else {
+    let Expression::Block(then_block_id) = tree.get(*then_expression) else {
         panic!("expected then block");
     };
     let then_block = tree.get(*then_block_id);
     assert!(then_block.leading_expressions.is_empty());
     assert!(then_block.tail_expression.is_some());
 
-    let Expression::Block {
-        block: else_block_id,
-    } = tree.get(*else_expression)
-    else {
+    let Expression::Block(else_block_id) = tree.get(*else_expression) else {
         panic!("expected else block");
     };
     let else_block = tree.get(*else_block_id);
@@ -371,10 +359,8 @@ fn test_build_flow_graph_for_loop() {
         .roots()
         .iter()
         .find_map(|root_id| match view.tree().get(*root_id) {
-            Expression::Declaration { declaration } => match view.tree().get(*declaration) {
-                Declaration::Function {
-                    body: Some(body), ..
-                } => Some(*body),
+            Expression::Declaration(declaration) => match view.tree().get(*declaration) {
+                Declaration::Function(declaration) => declaration.body,
                 _ => None,
             },
             _ => None,

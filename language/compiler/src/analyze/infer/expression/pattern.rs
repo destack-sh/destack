@@ -6,7 +6,7 @@ use crate::analyze::common::{CanonicalSymbolMode, InferContext, TypeContext};
 use crate::{AnalyzeResult, Compiler, InferState};
 use destack_dir::{
     Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeTree, NormalizationMode,
-    Pattern, PatternField, ScalarLiteral, StaticKey, SymbolType, Type, TypeElement, TypeKind,
+    Pattern, PatternField, ScalarLiteral, StaticKey, SymbolType, Type, TypeElement, TypeExpression,
     TypeLiteral, TypeTable,
 };
 
@@ -79,7 +79,33 @@ impl Compiler {
             }
             Pattern::Expression { value } => {
                 let value_ty_id = self.infer_expression(&mut ctx.reborrow(), *value, state)?;
+
                 // ensure the pattern expression is compatible with the binding type
+                if let Some(binding_ty_id) = binding_ty_id {
+                    let assignable = self.is_type_assignable(
+                        &mut ctx.type_context_reborrow(),
+                        binding_ty_id,
+                        value_ty_id,
+                    );
+                    if !assignable.is_assignable() {
+                        self.emit_unassignable_type_for_types(
+                            ctx.module_type_view(),
+                            value.into_any(),
+                            binding_ty_id,
+                            value_ty_id,
+                        );
+                    }
+                }
+            }
+            Pattern::TypeExpression { value } => {
+                let value_ty_id = self.resolve_declared_type_expression(
+                    &mut ctx.type_context_reborrow(),
+                    *value,
+                    true,
+                    true,
+                )?;
+
+                // ensure the pattern type is compatible with the binding type
                 if let Some(binding_ty_id) = binding_ty_id {
                     let assignable = self.is_type_assignable(
                         &mut ctx.type_context_reborrow(),
@@ -356,6 +382,27 @@ impl Compiler {
                 } else {
                     true
                 }
+            }
+
+            // type-space patterns narrow by assignability to the resolved type
+            Pattern::TypeExpression { value } => {
+                let pattern_ty_id = match self.resolve_declared_type_expression(
+                    &mut ctx.reborrow(),
+                    *value,
+                    true,
+                    true,
+                ) {
+                    Ok(pattern_ty_id) => pattern_ty_id,
+
+                    // keep narrowing conservative when the pattern type is still invalid
+                    Err(error) => {
+                        self.error(error);
+                        return true;
+                    }
+                };
+
+                self.is_type_assignable(&mut ctx.reborrow(), candidate_ty_id, pattern_ty_id)
+                    .is_assignable()
             }
 
             // union patterns match when any branch matches
@@ -1267,11 +1314,11 @@ impl Compiler {
         ))
     }
 
-    /// Resolve a tagged pattern target type from an expression.
+    /// Resolve a tagged pattern target type from a type expression.
     fn evaluate_pattern_tag_type(
         &self,
         ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
     ) -> AnalyzeResult<LocalTypeId> {
         // evaluate the tag expression as a type
         let ty_id =
@@ -1314,17 +1361,15 @@ impl Compiler {
             return Ok(ty_id);
         };
         let declaration_id: LocalNodeId<Declaration> = declaration_id.into();
-        let Declaration::Type {
-            kind: TypeKind::Nominal,
-            value,
-            ..
-        } = ctx.tree.get(declaration_id)
-        else {
+        let Declaration::Type(declaration) = ctx.tree.get(declaration_id) else {
             return Ok(ty_id);
         };
+        if !declaration.is_nominal {
+            return Ok(ty_id);
+        }
 
         // resolve the declared type for the nominal alias
-        let value_id = value.into_global_any(ctx.module.id);
+        let value_id = declaration.value.into_global_any(ctx.module.id);
         let Some(declared_ty_id) = ctx.types.get_declared_type_id(value_id) else {
             return Ok(ty_id);
         };

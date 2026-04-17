@@ -2,12 +2,11 @@ use std::collections::{HashMap, HashSet};
 
 use destack_core::StringId;
 use destack_dir::{
-    AbstractionModifier, BindingKind, BindingModifier, Declaration, DeclarationDescriptor,
-    DeclarationKind, Declarator, DependencyItem, Expression, FlowGraphBuilder, FunctionAbstraction,
-    FunctionCardinality, FunctionMode, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalSymbolId,
-    LocalTypeId, MatchCase, MatchKind, Member, Mutability, NodeTree, NodeType, Parameter, Pattern,
-    PatternField, ScalarLiteral, StaticKey, SymbolBinding, SymbolSpace, SymbolTable, Type,
-    TypeLiteral, TypeTable,
+    Declaration, Declarator, DependencyItem, Expression, FlowGraphBuilder, FunctionCardinality,
+    FunctionMode, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
+    MatchCase, MatchKind, Member, NodeTree, NodeType, Parameter, Pattern, PatternField,
+    ScalarLiteral, StaticKey, SymbolBinding, SymbolSpace, SymbolTable, Type, TypeLiteral,
+    TypeTable,
 };
 use destack_workspace::ModuleSource;
 
@@ -46,13 +45,13 @@ impl Compiler {
                 if !symbol.is_active() {
                     continue;
                 }
-                let Declaration::Function {
-                    body: Some(body), ..
-                } = declaration
-                else {
+                let Declaration::Function(declaration) = declaration else {
                     continue;
                 };
-                self.validate_no_implicit_returns_for_body(ctx, id.into_any(), *body);
+                let Some(body) = declaration.body else {
+                    continue;
+                };
+                self.validate_no_implicit_returns_for_body(ctx, id.into_any(), body);
             }
 
             // check member methods for missing returns
@@ -82,30 +81,25 @@ impl Compiler {
             if !symbol.is_active() {
                 continue;
             }
-            let Declaration::Class {
-                descriptor,
-                heritage: _,
-                members,
-                ..
-            } = declaration
-            else {
+            let Declaration::Class(declaration) = declaration else {
                 continue;
             };
-            if descriptor.kind == DeclarationKind::Declaration {
+            if declaration.ambient.is_ambient() {
                 continue;
             }
 
             // validate override modifiers
+            let module_id = ctx.module.id;
             self.validate_class_overrides(
                 &mut ctx.reborrow(),
-                descriptor,
-                members,
+                declaration.symbol.into_global(module_id),
+                &declaration.members,
                 check_missing_override,
             );
 
             // validate property initialization
             if check_property_init {
-                self.validate_class_property_initialization(ctx, members);
+                self.validate_class_property_initialization(ctx, &declaration.members);
             }
         }
 
@@ -291,7 +285,7 @@ impl Compiler {
         ctx: &TypeContext<'_>,
         body_id: LocalNodeId<Expression>,
     ) -> bool {
-        let Expression::Block { block } = ctx.tree.get(body_id) else {
+        let Expression::Block(block) = ctx.tree.get(body_id) else {
             return false;
         };
         let block = ctx.tree.get(*block);
@@ -349,7 +343,7 @@ impl Compiler {
             Expression::Return { .. } | Expression::Break { .. } | Expression::Continue { .. } => {
                 false
             }
-            Expression::Block { block } => {
+            Expression::Block(block) => {
                 let block = ctx.tree.get(*block);
 
                 let Some(last_expression_id) = block.tail_expression else {
@@ -387,7 +381,7 @@ impl Compiler {
     fn validate_class_overrides(
         &self,
         ctx: &mut TypeContext<'_>,
-        descriptor: &DeclarationDescriptor,
+        class_symbol: GlobalSymbolId,
         members: &[LocalNodeId<Member>],
         check_missing_override: bool,
     ) {
@@ -397,7 +391,6 @@ impl Compiler {
         }
 
         // resolve the base class for override checks
-        let class_symbol = descriptor.symbol.into_global(ctx.module.id);
         let base_symbol = ctx
             .types
             .get_lineage_for_symbol(class_symbol)
@@ -406,54 +399,43 @@ impl Compiler {
         // walk class members and validate overrides
         for member_id in members {
             let member = ctx.tree.get(*member_id);
-            let (modifiers, key, has_override) = match member {
+            let (is_static, key, has_override) = match member {
                 Member::Method {
-                    modifiers,
                     key,
                     signature,
+                    is_override,
+                    is_static,
                     ..
                 } => {
                     if signature.mode == Some(FunctionMode::Constructor) {
                         continue;
                     }
-                    let has_override = matches!(
-                        signature.abstraction,
-                        FunctionAbstraction::AbstractOverride
-                            | FunctionAbstraction::ConcreteOverride
-                    );
-                    (modifiers.as_ref(), key, has_override)
+                    (*is_static, key.as_ref(), *is_override)
                 }
-                Member::Field { modifiers, key, .. } => {
-                    let has_override = modifiers.as_ref().is_some_and(|modifiers| {
-                        matches!(
-                            modifiers.abstraction,
-                            Some(
-                                AbstractionModifier::Override
-                                    | AbstractionModifier::AbstractOverride
-                            )
-                        )
-                    });
-                    (modifiers.as_ref(), key, has_override)
-                }
+                Member::Field {
+                    key,
+                    is_override,
+                    is_static,
+                    ..
+                } => (*is_static, Some(key), *is_override),
                 _ => continue,
             };
 
             // resolve static member keys only
             let Some(member_key) = key.and_then(|key| {
-                self.static_key_from_dynamic_key(
+                self.static_key_from_key(
                     ctx.compiler_context.revision(),
                     ctx.profile,
                     ctx.tree,
                     ctx.symbols,
                     ctx.types,
-                    key,
+                    *key,
                 )
             }) else {
                 continue;
             };
 
             // decide whether this member overrides a base member
-            let is_static = Self::member_is_static_override_member(modifiers);
             let overrides_base =
                 self.member_overrides_base_chain(base_symbol, is_static, &member_key, ctx.types);
 
@@ -522,8 +504,7 @@ impl Compiler {
                 continue;
             }
 
-            let parameter_keys =
-                self.parameter_property_keys(&signature.dynamic_parameters, ctx.tree);
+            let parameter_keys = self.parameter_property_keys(&signature.parameters, ctx.tree);
             constructors.push((*body, parameter_keys));
         }
 
@@ -574,9 +555,10 @@ impl Compiler {
         for member_id in members {
             let member = ctx.tree.get(*member_id);
             let Member::Field {
-                modifiers,
                 key,
                 default,
+                is_optional,
+                is_static,
                 ..
             } = member
             else {
@@ -584,7 +566,7 @@ impl Compiler {
             };
 
             // skip static members
-            if Self::member_is_static_override_member(modifiers.as_ref()) {
+            if *is_static {
                 continue;
             }
 
@@ -594,24 +576,19 @@ impl Compiler {
             }
 
             // skip optional and definite assignment fields
-            let is_exempt = modifiers.is_some_and(|modifiers| {
-                matches!(modifiers.kind, Some(BindingKind::Maybe | BindingKind::Must))
-            });
-            if is_exempt {
+            if *is_optional {
                 continue;
             }
 
             // record static keys only
-            let Some(key) = (*key).and_then(|key| {
-                self.static_key_from_dynamic_key(
-                    ctx.compiler_context.revision(),
-                    ctx.profile,
-                    ctx.tree,
-                    ctx.symbols,
-                    ctx.types,
-                    key,
-                )
-            }) else {
+            let Some(key) = self.static_key_from_key(
+                ctx.compiler_context.revision(),
+                ctx.profile,
+                ctx.tree,
+                ctx.symbols,
+                ctx.types,
+                *key,
+            ) else {
                 continue;
             };
 
@@ -635,16 +612,22 @@ impl Compiler {
         // collect named parameter properties
         for parameter_id in parameters {
             let parameter = tree.get(*parameter_id);
-            let Some(modifiers) = parameter.modifiers() else {
-                continue;
-            };
-            if !Self::is_parameter_property_modifier(modifiers) {
-                continue;
-            }
-
             match parameter {
-                Parameter::Named { name, .. } | Parameter::VariadicNamed { name, .. } => {
-                    keys.push(StaticKey::Name(*name));
+                Parameter::Named {
+                    name,
+                    visibility,
+                    is_readonly,
+                    ..
+                }
+                | Parameter::VariadicNamed {
+                    name,
+                    visibility,
+                    is_readonly,
+                    ..
+                } => {
+                    if visibility.is_some() || *is_readonly {
+                        keys.push(StaticKey::Name(*name));
+                    }
                 }
                 Parameter::Pattern { .. }
                 | Parameter::VariadicPattern { .. }
@@ -736,11 +719,6 @@ impl Compiler {
         }
 
         out_sets[graph.exit_block.0 as usize].clone()
-    }
-
-    /// Check if a binding modifier indicates a parameter property.
-    fn is_parameter_property_modifier(modifiers: &BindingModifier) -> bool {
-        modifiers.visibility.is_some() || modifiers.mutability == Some(Mutability::Immutable)
     }
 
     /// Resolve a field key from a constructor assignment expression.
@@ -1131,7 +1109,7 @@ impl Compiler {
 
         // walk nested patterns
         match pattern {
-            Pattern::Wildcard | Pattern::Expression { .. } => {}
+            Pattern::Wildcard | Pattern::Expression { .. } | Pattern::TypeExpression { .. } => {}
             Pattern::Must(inner)
             | Pattern::ReferenceOf { right: inner, .. }
             | Pattern::ValueOf { right: inner, .. } => {
@@ -1212,8 +1190,8 @@ impl Compiler {
             match parent_id.ty {
                 NodeType::Declaration => {
                     let declaration = tree.get(parent_id.into_typed::<Declaration>());
-                    if let Declaration::Function { body, .. } = declaration {
-                        return body.is_some();
+                    if let Declaration::Function(declaration) = declaration {
+                        return declaration.body.is_some();
                     }
                 }
                 NodeType::Member => {
@@ -1315,7 +1293,7 @@ impl Compiler {
             Expression::Parenthesized { expression } => {
                 self.is_terminating_statement(tree, *expression)
             }
-            Expression::Block { block } => {
+            Expression::Block(block) => {
                 let block = tree.get(*block);
                 if let Some(last_expression_id) = block.last_expression() {
                     self.ends_with_terminating_statement(tree, last_expression_id)

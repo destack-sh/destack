@@ -3,8 +3,7 @@ use std::collections::HashMap;
 use crate::Compiler;
 use crate::analyze::common::{CanonicalSymbolMode, SymbolTypeView, TypeContext};
 use destack_dir::{
-    BindingAnchor, BindingModifier, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId,
-    StaticKey, Type, TypeTable,
+    Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, StaticKey, Type, TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -49,19 +48,25 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         base_symbol: Option<GlobalSymbolId>,
-        extends_types: Option<&[LocalNodeId<Expression>]>,
+        extends_expression: Option<LocalNodeId<Expression>>,
     ) -> HashMap<GlobalSymbolId, LocalTypeId> {
         let Some(base_symbol) = base_symbol else {
             return HashMap::new();
         };
-        let Some(extends_type_id) = extends_types.and_then(|extends| extends.first()).copied()
-        else {
+        let Some(extends_expression_id) = extends_expression else {
             return HashMap::new();
         };
 
-        let expression = ctx.tree.get(extends_type_id);
-        let Some(resolved_symbol) = expression.target_symbol() else {
+        // resolve the base heritage reference
+        let extends_expression = ctx.tree.get(extends_expression_id);
+        let Some(resolved_symbol) = extends_expression.target_symbol() else {
             return HashMap::new();
+        };
+        let evaluated_static_arguments = match self
+            .evaluate_generic_arguments(&mut ctx.reborrow(), extends_expression.generic_arguments())
+        {
+            Ok(arguments) => arguments.unwrap_or_default(),
+            Err(_) => return HashMap::new(),
         };
         let resolved_symbol = self.canonical_symbol_id(
             ctx.module_symbol_view(),
@@ -71,16 +76,9 @@ impl Compiler {
         if resolved_symbol != base_symbol {
             return HashMap::new();
         }
-
-        let evaluated_static_arguments = match self
-            .evaluate_static_arguments(&mut ctx.reborrow(), expression.static_arguments())
-        {
-            Ok(arguments) => arguments.unwrap_or_default(),
-            Err(_) => return HashMap::new(),
-        };
         let static_arguments = match self.resolve_declared_type_reference_static_arguments(
             &mut ctx.reborrow(),
-            extends_type_id.into_any(),
+            extends_expression_id.into_any(),
             base_symbol,
             Some(evaluated_static_arguments.as_slice()),
             true,
@@ -92,7 +90,7 @@ impl Compiler {
         self.build_type_parameter_substitutions_for_symbol(
             &mut ctx.reborrow(),
             base_symbol,
-            extends_type_id.into_any(),
+            extends_expression_id.into_any(),
             &static_arguments,
         )
     }
@@ -180,10 +178,5 @@ impl Compiler {
             return false;
         };
         self.symbol_is_static_parameter(view, *symbol)
-    }
-
-    /// Return true when the member modifiers mark it as static.
-    pub(crate) fn member_is_static_override_member(modifiers: Option<&BindingModifier>) -> bool {
-        modifiers.is_some_and(|modifiers| modifiers.anchor == Some(BindingAnchor::Static))
     }
 }

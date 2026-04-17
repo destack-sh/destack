@@ -56,7 +56,7 @@ impl Compiler {
                         NodeType::Declaration => {
                             let declaration_id = LocalNodeId::<Declaration>::new(owner_id.id);
                             match ctx.tree.get(declaration_id) {
-                                Declaration::Function { signature, .. } => Some(signature),
+                                Declaration::Function(declaration) => Some(&declaration.signature),
                                 _ => None,
                             }
                         }
@@ -70,9 +70,11 @@ impl Compiler {
                         NodeType::Expression => {
                             let expression_id = LocalNodeId::<Expression>::new(owner_id.id);
                             match ctx.tree.get(expression_id) {
-                                Expression::Declaration { declaration } => {
+                                Expression::Declaration(declaration) => {
                                     match ctx.tree.get(*declaration) {
-                                        Declaration::Function { signature, .. } => Some(signature),
+                                        Declaration::Function(declaration) => {
+                                            Some(&declaration.signature)
+                                        }
                                         _ => None,
                                     }
                                 }
@@ -134,38 +136,31 @@ impl Compiler {
 
             // unwrap function declarations
             let declaration = ctx.tree.get(declaration_id);
-            let Declaration::Function {
-                descriptor,
-                signature: _,
-                scope,
-                body,
-                self_symbol: _,
-            } = declaration
-            else {
+            let Declaration::Function(declaration) = declaration else {
                 continue;
             };
 
             // skip inactive symbols
-            let symbol = ctx.symbols.get_symbol(descriptor.symbol);
+            let symbol = ctx.symbols.get_symbol(declaration.symbol);
             if !symbol.is_active() {
                 continue;
             }
 
             // skip functions without bodies
-            let Some(body_id) = body else {
+            let Some(body_id) = declaration.body else {
                 continue;
             };
 
             // resolve capture directive for this closure
-            let function_symbol = descriptor.symbol.into_global(ctx.module.id);
+            let function_symbol = declaration.symbol.into_global(ctx.module.id);
             let directive = captures
                 .capture_directive(function_symbol)
                 .cloned()
                 .unwrap_or_default();
 
             // collect captured symbols
-            let mut collector = CaptureCollector::new(ctx, *scope, self);
-            collector.collect(*body_id);
+            let mut collector = CaptureCollector::new(ctx, declaration.scope, self);
+            collector.collect(body_id);
 
             // build capture bindings and address taken info
             let mut captured_bindings = Vec::new();
@@ -378,8 +373,8 @@ impl Compiler {
             match current.ty {
                 NodeType::Declaration => {
                     let declaration_id = LocalNodeId::<Declaration>::new(current.id);
-                    if let Declaration::Function { descriptor, .. } = ctx.tree.get(declaration_id) {
-                        return Some(descriptor.symbol.into_global(ctx.module.id));
+                    if let Declaration::Function(declaration) = ctx.tree.get(declaration_id) {
+                        return Some(declaration.symbol.into_global(ctx.module.id));
                     }
                 }
                 NodeType::Member => {
@@ -390,10 +385,10 @@ impl Compiler {
                 }
                 NodeType::Expression => {
                     let expression_id = LocalNodeId::<Expression>::new(current.id);
-                    if let Expression::Declaration { declaration } = ctx.tree.get(expression_id)
-                        && let Declaration::Function { descriptor, .. } = ctx.tree.get(*declaration)
+                    if let Expression::Declaration(declaration) = ctx.tree.get(expression_id)
+                        && let Declaration::Function(declaration) = ctx.tree.get(*declaration)
                     {
-                        return Some(descriptor.symbol.into_global(ctx.module.id));
+                        return Some(declaration.symbol.into_global(ctx.module.id));
                     }
                 }
                 _ => {}
@@ -413,7 +408,7 @@ impl Compiler {
         match owner_id.ty {
             NodeType::Declaration => {
                 let declaration_id = LocalNodeId::<Declaration>::new(owner_id.id);
-                matches!(tree.get(declaration_id), Declaration::Function { .. })
+                matches!(tree.get(declaration_id), Declaration::Function(_))
             }
             NodeType::Member => {
                 let member_id = LocalNodeId::<Member>::new(owner_id.id);
@@ -421,8 +416,8 @@ impl Compiler {
             }
             NodeType::Expression => {
                 let expression_id = LocalNodeId::<Expression>::new(owner_id.id);
-                if let Expression::Declaration { declaration } = tree.get(expression_id) {
-                    matches!(tree.get(*declaration), Declaration::Function { .. })
+                if let Expression::Declaration(declaration) = tree.get(expression_id) {
+                    matches!(tree.get(*declaration), Declaration::Function(_))
                 } else {
                     false
                 }

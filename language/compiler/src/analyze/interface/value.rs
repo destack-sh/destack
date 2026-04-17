@@ -386,13 +386,10 @@ impl Compiler {
         let declaration_id = self.primary_declaration_id(tree, primary_declaration)?;
 
         // require an unannotated function declaration with a body
-        let Declaration::Function {
-            signature, body, ..
-        } = tree.get(declaration_id)
-        else {
+        let Declaration::Function(declaration) = tree.get(declaration_id) else {
             return None;
         };
-        if signature.return_type.is_some() || body.is_none() {
+        if declaration.signature.return_type.is_some() || declaration.body.is_none() {
             return None;
         }
 
@@ -525,7 +522,7 @@ impl Compiler {
             NodeType::Expression => {
                 let expression_id = primary_declaration.local_id.into_typed::<Expression>();
                 match tree.get(expression_id) {
-                    Expression::Declaration { declaration } => Some(*declaration),
+                    Expression::Declaration(declaration) => Some(*declaration),
                     _ => None,
                 }
             }

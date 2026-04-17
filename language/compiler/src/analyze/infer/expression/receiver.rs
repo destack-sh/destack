@@ -3,7 +3,7 @@ use crate::Compiler;
 use crate::analyze::common::{CanonicalSymbolMode, InferContext, ModuleSymbolView, TypeContext};
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, StaticKey, SymbolSpace, SymbolType, Type,
-    TypeTable,
+    TypeExpression, TypeTable,
 };
 use std::collections::HashSet;
 
@@ -15,12 +15,11 @@ impl Compiler {
         receiver_id: LocalNodeId<Expression>,
     ) -> bool {
         let receiver_id = self.unwrap_parenthesized_expression(receiver_id, ctx.tree);
-        if ctx
-            .tree
-            .get(receiver_id)
-            .static_arguments()
-            .is_none_or(|arguments| arguments.is_empty())
-        {
+        let Some(arguments) = ctx.tree.get(receiver_id).generic_arguments() else {
+            return false;
+        };
+
+        if arguments.is_empty() {
             return false;
         }
 
@@ -94,7 +93,7 @@ impl Compiler {
         let has_static_arguments = ctx
             .tree
             .get(receiver_id)
-            .static_arguments()
+            .generic_arguments()
             .is_some_and(|arguments| !arguments.is_empty());
         let has_this_receiver = matches!(
             ctx.tree.get(receiver_id),
@@ -207,6 +206,44 @@ impl Compiler {
 
         // resolve symbol references first and then consult the parse target symbol
         self.reference_symbol_for_expression(ctx.tree_symbol_view(), receiver_id)
+            .or_else(|| {
+                ctx.tree.get(receiver_id).target_symbol().map(|symbol| {
+                    self.canonical_symbol_id(
+                        ctx.module_symbol_view(),
+                        symbol,
+                        CanonicalSymbolMode::FollowAliases,
+                    )
+                })
+            })
+    }
+
+    /// Resolve one direct receiver symbol from a type expression.
+    pub(crate) fn resolve_direct_receiver_symbol_for_type_expression(
+        &self,
+        ctx: &TypeContext<'_>,
+        receiver_id: LocalNodeId<TypeExpression>,
+    ) -> Option<GlobalSymbolId> {
+        // peel parenthesized receivers to their core symbol
+        let receiver_id = self.unwrap_parenthesized_type_expression(receiver_id, ctx.tree);
+
+        // resolve namespace member receivers before parse target-symbol lookup
+        if let TypeExpression::Member { left, name, .. } = ctx.tree.get(receiver_id)
+            && let Some(symbol) = self.resolve_namespace_type_member_symbol(
+                ctx.tree_symbol_view(),
+                receiver_id,
+                *left,
+                StaticKey::Name(*name),
+            )
+        {
+            return Some(self.canonical_symbol_id(
+                ctx.module_symbol_view(),
+                symbol,
+                CanonicalSymbolMode::FollowAliases,
+            ));
+        }
+
+        // resolve symbol references first and then consult the parse target symbol
+        self.reference_symbol_for_type_expression(ctx.tree_symbol_view(), receiver_id)
             .or_else(|| {
                 ctx.tree.get(receiver_id).target_symbol().map(|symbol| {
                     self.canonical_symbol_id(

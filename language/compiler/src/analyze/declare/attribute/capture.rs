@@ -1,8 +1,8 @@
 use crate::Compiler;
 use destack_core::StringId;
 use destack_dir::{
-    Annotation, CaptureDirective, CaptureKind, CapturePolicy, CaptureRule, Declaration, DynamicKey,
-    Expression, LocalNodeId, LocalNodeIdAny, NodeTree, Property, ScalarLiteral,
+    CaptureDirective, CaptureKind, CapturePolicy, CaptureRule, Declaration, Decorator, Expression,
+    Key, LocalNodeId, LocalNodeIdAny, NodeTree, Property, ScalarLiteral,
 };
 use destack_workspace::{Module, ProfileId};
 use std::collections::HashSet;
@@ -15,7 +15,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         node_id: LocalNodeIdAny,
     ) -> Option<LocalNodeId<Declaration>> {
         // accept direct declaration nodes
@@ -25,7 +25,7 @@ impl Compiler {
 
         // accept expression nodes that wrap a declaration
         if let Ok(expression_id) = node_id.try_into_typed::<Expression>()
-            && let Expression::Declaration { declaration } = tree.get(expression_id)
+            && let Expression::Declaration(declaration) = tree.get(expression_id)
         {
             return Some(*declaration);
         }
@@ -46,7 +46,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         decorator_name: &str,
         values: &[LocalNodeId<Expression>],
     ) -> Option<CaptureDirective> {
@@ -82,7 +82,7 @@ impl Compiler {
         }
 
         // parse object literal overrides
-        if let Expression::ObjectExpression { properties } = expression {
+        if let Expression::ObjectExpression { properties, .. } = expression {
             return self.capture_directive_from_object_literal(
                 module,
                 profile,
@@ -109,7 +109,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         decorator_name: &str,
         properties: &[LocalNodeId<Property>],
     ) -> Option<CaptureDirective> {
@@ -131,7 +131,7 @@ impl Compiler {
             };
 
             // reject dynamic or invalid names
-            let Some(DynamicKey::Name(name)) = key else {
+            let Key::Name(name) = key else {
                 self.report_invalid_well_known_decorator(
                     module,
                     profile,
@@ -140,7 +140,8 @@ impl Compiler {
                 );
                 return None;
             };
-            if !seen_names.insert(*name) {
+            let property_name = name.string();
+            if !seen_names.insert(property_name) {
                 self.report_invalid_well_known_decorator(
                     module,
                     profile,
@@ -149,18 +150,9 @@ impl Compiler {
                 );
                 return None;
             }
-            let Some(value_id) = value else {
-                self.report_invalid_well_known_decorator(
-                    module,
-                    profile,
-                    annotation_id,
-                    &format!("{decorator_name} decorator values must be string literals"),
-                );
-                return None;
-            };
 
             // get capture value
-            let value_id = self.unwrap_capture_argument(tree, *value_id);
+            let value_id = self.unwrap_capture_argument(tree, *value);
             let Expression::ScalarLiteral {
                 value: ScalarLiteral::String(value_id),
             } = tree.get(value_id)
@@ -175,14 +167,17 @@ impl Compiler {
             };
 
             // set policy for that name
-            if self.repository.strings.get(*name) == "default" {
+            if self.repository.strings.get(property_name) == "default" {
                 let policy =
                     self.capture_policy_from_string(module, profile, annotation_id, *value_id)?;
                 directive.policy = policy;
             } else {
                 let kind =
                     self.capture_kind_from_string(module, profile, annotation_id, *value_id)?;
-                directive.rules.push(CaptureRule { name: *name, kind });
+                directive.rules.push(CaptureRule {
+                    name: property_name,
+                    kind,
+                });
             }
         }
 
@@ -203,8 +198,8 @@ impl Compiler {
                 Expression::Parenthesized { expression } => {
                     current = *expression;
                 }
-                Expression::Cast { value, .. } => {
-                    current = *value;
+                Expression::As { expression, .. } | Expression::Satisfies { expression, .. } => {
+                    current = *expression;
                 }
                 Expression::OwnershipCast { value, .. } => {
                     current = *value;
@@ -219,7 +214,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         value: StringId,
     ) -> Option<CapturePolicy> {
         // compare without holding the string pool lock during diagnostics
@@ -253,7 +248,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         value: StringId,
     ) -> Option<CaptureKind> {
         // compare without holding the string pool lock during diagnostics

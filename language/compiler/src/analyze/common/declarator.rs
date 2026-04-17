@@ -1,6 +1,6 @@
 use destack_dir::{
     Declarator, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalSymbolId, NodeTree,
-    NodeType, Pattern, TypeUnaryOperator,
+    NodeType, Pattern, TypeExpression,
 };
 
 use super::TreeSymbolView;
@@ -81,13 +81,15 @@ impl Compiler {
         tree: &NodeTree,
     ) -> bool {
         let expression_id = self.unwrap_parenthesized_expression(expression_id, tree);
-        matches!(
-            tree.get(expression_id),
-            Expression::TypeUnary {
-                operator: TypeUnaryOperator::AsConst,
-                ..
-            }
-        )
+
+        // `as const`
+        let Expression::As { target_type, .. } = tree.get(expression_id) else {
+            return false;
+        };
+
+        let target_type = self.unwrap_parenthesized_type_expression(*target_type, tree);
+
+        matches!(tree.get(target_type), TypeExpression::Const)
     }
 
     /// Return true when the primary declaration is a direct binding.

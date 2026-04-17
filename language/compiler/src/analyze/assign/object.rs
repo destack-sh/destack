@@ -125,6 +125,7 @@ impl Compiler {
             name,
             key_type: key_type_id,
             value_type: value_type_id,
+            is_optional: false,
             is_readonly: false,
         })
     }

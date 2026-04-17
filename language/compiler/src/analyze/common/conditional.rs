@@ -1409,13 +1409,19 @@ impl Compiler {
                     self.collect_infer_names_from_type(*return_type, types, visited, names);
                 }
             }
-            Type::Unary { right, .. }
+            Type::Readonly { target_type: right }
+            | Type::KeyOf { target_type: right }
+            | Type::Must { target_type: right }
+            | Type::AsComptime { target_type: right }
+            | Type::Not { target_type: right }
             | Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. } => {
                 self.collect_infer_names_from_type(*right, types, visited, names);
             }
-            Type::Binary { left, right, .. } => {
+            Type::In { left, right }
+            | Type::Extends { left, right }
+            | Type::Implements { left, right } => {
                 self.collect_infer_names_from_type(*left, types, visited, names);
                 self.collect_infer_names_from_type(*right, types, visited, names);
             }
@@ -1491,19 +1497,19 @@ impl Compiler {
                 for property in properties {
                     match property {
                         StaticProperty::Unevaluated { .. } => {}
-                        StaticProperty::Field { value, default, .. } => {
+                        StaticProperty::Field { value, .. } => {
                             self.collect_infer_names_from_static_expression(
                                 value, types, visited, names,
                             );
-                            if let Some(default) = default {
-                                self.collect_infer_names_from_static_expression(
-                                    default, types, visited, names,
-                                );
-                            }
                         }
                         StaticProperty::Method { body, .. } => {
                             self.collect_infer_names_from_static_expression(
                                 body, types, visited, names,
+                            );
+                        }
+                        StaticProperty::Spread { value, .. } => {
+                            self.collect_infer_names_from_static_expression(
+                                value, types, visited, names,
                             );
                         }
                     }

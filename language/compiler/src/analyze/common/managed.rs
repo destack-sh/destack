@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeTree, PrimitiveType, ScalarLiteral,
-    SymbolType, Type, TypeLiteral,
+    SymbolType, Type, TypeExpression, TypeLiteral,
 };
 use destack_workspace::ModuleSource;
 
@@ -62,6 +62,24 @@ impl Compiler {
             | Expression::OwnershipCast { .. } => true,
             Expression::Parenthesized { expression } => {
                 self.expression_has_explicit_ownership(tree, *expression)
+            }
+            _ => false,
+        }
+    }
+
+    /// Check whether a type expression makes ownership explicit.
+    pub(crate) fn type_expression_has_explicit_ownership(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<TypeExpression>,
+    ) -> bool {
+        // walk nested type expressions to find explicit ownership operators
+        match tree.get(expression_id) {
+            TypeExpression::ValueOf { .. }
+            | TypeExpression::ReferenceOf { .. }
+            | TypeExpression::PointerOf { .. } => true,
+            TypeExpression::Parenthesized { expression } => {
+                self.type_expression_has_explicit_ownership(tree, *expression)
             }
             _ => false,
         }
@@ -162,7 +180,12 @@ impl Compiler {
         // treat explicit ownership wrappers as non managed
         match ty {
             Type::ValueOf { .. } | Type::ReferenceOf { .. } | Type::PointerOf { .. } => false,
-            Type::Unary { right, .. } | Type::Value { value: right } => {
+            Type::Readonly { target_type: right }
+            | Type::KeyOf { target_type: right }
+            | Type::Must { target_type: right }
+            | Type::AsComptime { target_type: right }
+            | Type::Not { target_type: right }
+            | Type::Value { value: right } => {
                 // follow the wrapped type
                 let inner = ctx.types.get_type(*right);
                 self.type_is_implicit_managed_inner(ctx, inner, visited)

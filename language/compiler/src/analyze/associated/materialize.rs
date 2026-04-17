@@ -6,8 +6,8 @@ use crate::analyze::common::{RelationMode, TreeSymbolView, TypeContext, TypeRewr
 use crate::analyze::declare::StaticConstantResolutionMode;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Expression, GlobalSymbolId, LocalNodeIdAny, Member, NodeType, NormalizationMode,
-    StaticArgument, SymbolType, Type, TypeRewriter,
+    GenericParameter, GlobalSymbolId, LocalNodeIdAny, Member, NodeType, NormalizationMode,
+    StaticArgument, SymbolType, Type, TypeExpression, TypeRewriter,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -110,7 +110,7 @@ impl Compiler {
 
             // keep unresolved associated comptime projections explicit
             // this allows post-convergence obligation reporting to reject unresolved value-space projections
-            if let Ok(expression_id) = source_id.try_into_typed::<Expression>()
+            if let Ok(expression_id) = source_id.try_into_typed::<TypeExpression>()
                 && ctx.tree.has_node_id(expression_id.id)
             {
                 return Ok(Type::Unevaluated(expression_id));
@@ -213,22 +213,28 @@ impl Compiler {
 
                 // require arguments when any parameter has no default
                 let member_id = primary_declaration.local_id.into_typed::<Member>();
-                let Member::Type {
-                    static_parameters, ..
+                let Member::AssociatedType {
+                    generic_parameters, ..
                 } = view.tree.get(member_id)
                 else {
                     return false;
                 };
-                let Some(parameters) = static_parameters.as_ref() else {
+                if generic_parameters.is_empty() {
                     return false;
-                };
+                }
+                let parameters = generic_parameters;
                 if parameters.is_empty() {
                     return false;
                 }
 
-                parameters
-                    .iter()
-                    .any(|parameter_id| !view.tree.get(*parameter_id).has_default())
+                parameters.iter().any(|parameter_id| {
+                    matches!(
+                        view.tree.get(*parameter_id),
+                        GenericParameter::Type { default: None, .. }
+                            | GenericParameter::Value { default: None, .. }
+                            | GenericParameter::Error { .. }
+                    )
+                })
             },
         )
         .map_err(AnalyzeError::from)

@@ -1,9 +1,9 @@
 use crate::analyze::common::{TreeSymbolView, TypeContext};
 use crate::{AnalyzeError, AnalyzeResult, Compiler, ResolveError};
 use destack_dir::{
-    DependencyItem, DependencyKind, DependencyMode, DependencySource, Expression, GlobalSymbolId,
+    DependencyItem, DependencyKind, DependencyMode, Expression, GlobalSymbolId, ImportSource,
     LocalNodeId, LocalNodeIdAny, LocalTypeId, Path, StaticArgument, StaticKey, StringId,
-    SymbolSpaceOrder, Type,
+    SymbolSpaceOrder, Type, TypeExpression,
 };
 use destack_workspace::workspace::{Module, ProfileId};
 
@@ -55,7 +55,7 @@ impl Compiler {
             dir.as_ref(),
             profile,
             node,
-            DependencySource::ImportStatement,
+            ImportSource::ImportStatement,
             target,
             DependencyKind::Type,
         ) {
@@ -191,6 +191,68 @@ impl Compiler {
             target_module,
             ctx.profile,
             SymbolSpaceOrder::TypeThenValue,
+            member_key,
+        )
+        .ok()
+        .flatten()
+    }
+
+    /// Resolve one member through an imported namespace-like binding in type syntax.
+    pub(crate) fn resolve_imported_namespace_member_symbol_in_type_expression(
+        &self,
+        ctx: TreeSymbolView<'_>,
+        expression_id: LocalNodeId<TypeExpression>,
+        dependency: &DependencyItem,
+        member_key: StaticKey,
+    ) -> Option<GlobalSymbolId> {
+        let (mode, kind, target_module, target_symbol) = match dependency {
+            DependencyItem::Remote {
+                mode,
+                kind,
+                target_module,
+                target_symbol,
+                ..
+            } => (*mode, *kind, Some(*target_module), Some(*target_symbol)),
+            DependencyItem::UnresolvedRemote {
+                mode,
+                kind,
+                target_module,
+                ..
+            } => (*mode, *kind, *target_module, None),
+            _ => return None,
+        };
+
+        // named imports can still denote one namespace export like `export * as api`
+        if mode != DependencyMode::Namespace {
+            let target_symbol = target_symbol?;
+
+            return self
+                .resolve_symbol_in_namespace(
+                    ctx.compiler_context.revision(),
+                    expression_id.into_global_any(ctx.module.id),
+                    target_symbol,
+                    ctx.profile,
+                    kind,
+                    member_key,
+                    None,
+                )
+                .ok()
+                .flatten();
+        }
+
+        // namespace imports resolve members through the imported target module
+        let target_module = target_module?;
+        let target_module = target_module.ty.or(target_module.value)?;
+        self.resolve_export_symbol_for_target(
+            ctx.compiler_context.revision(),
+            ctx.module.id,
+            expression_id.into_global_any(ctx.module.id),
+            target_module,
+            ctx.profile,
+            match kind {
+                DependencyKind::Type => SymbolSpaceOrder::TypeThenValue,
+                DependencyKind::Value => SymbolSpaceOrder::ValueThenType,
+            },
             member_key,
         )
         .ok()

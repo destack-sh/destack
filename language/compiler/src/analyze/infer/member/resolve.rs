@@ -7,7 +7,7 @@ use crate::analyze::common::{
 };
 use crate::analyze::infer::RemoteValueTypeReadDomain;
 use crate::analyze::module::GlobalMergeCategory;
-use destack_dir::{SymbolSpaceOrder, WellKnownSymbol};
+use destack_dir::{Name, SymbolSpaceOrder, WellKnownSymbol};
 
 /// Inputs for resolving member index-signature fallback versus missing-member diagnostics.
 #[derive(Clone, Copy)]
@@ -258,8 +258,8 @@ impl Compiler {
 
             if primary_declaration.local_id.ty == NodeType::Member {
                 let member_id = primary_declaration.local_id.into_typed::<Member>();
-                if let Member::ComptimeConst {
-                    ty: Some(member_type),
+                if let Member::AssociatedConst {
+                    declared_type: Some(member_type),
                     ..
                 } = ctx.tree.get(member_id)
                 {
@@ -311,8 +311,8 @@ impl Compiler {
             && primary_declaration.local_id.ty == NodeType::Member
         {
             let member_id = primary_declaration.local_id.into_typed::<Member>();
-            if let Member::ComptimeConst {
-                ty: Some(member_type),
+            if let Member::AssociatedConst {
+                declared_type: Some(member_type),
                 ..
             } = remote_dir.tree.get(member_id)
             {
@@ -816,7 +816,7 @@ impl Compiler {
         // suppress missing-member cascades only when a primary semantic fault blocks lookup
         let reported = self.report_missing_member_diagnostic(
             ctx.type_view(),
-            expression_id,
+            expression_id.into_any(),
             diagnostic_receiver_ty_id,
             *member_key,
             allow_associated_contract_blocker,
@@ -1477,23 +1477,28 @@ impl Compiler {
             };
             let declaration = tree.get(declaration_id);
 
-            if let Declaration::Enum {
-                fields, members, ..
-            } = declaration
-            {
+            if let Declaration::Enum(declaration) = declaration {
                 // only expose enum fields through value lookups
                 if matches!(lookup_mode, MemberLookupMode::Value | MemberLookupMode::Any) {
-                    for field_id in fields {
+                    for field_id in &declaration.fields {
                         let field = tree.get(*field_id);
-                        let field_key = StaticKey::Name(field.name);
+                        let field_key = match field.name {
+                            Name::Identifier(name) | Name::String(name) => StaticKey::Name(name),
+                            Name::Number(name) => StaticKey::Number(name),
+                        };
                         if field_key.matches(member_key) {
-                            return Some(field.symbol.into_global(owner_module_id));
+                            let enum_scope = symbols.get_scope_by_symbol(symbol.local_id);
+                            if let Some(field_symbol) =
+                                symbols.find_active_symbol(enum_scope, field_key)
+                            {
+                                return Some(field_symbol.into_global(owner_module_id));
+                            }
                         }
                     }
                 }
 
                 // check enum methods and members
-                for member_id in members {
+                for member_id in &declaration.members {
                     let member = tree.get(*member_id);
                     // honor static versus instance lookup modes
                     if !self.member_visible_for_lookup(member, lookup_mode) {
@@ -1501,9 +1506,7 @@ impl Compiler {
                     }
 
                     let static_key = member.key().and_then(|key| {
-                        self.static_key_from_dynamic_key(
-                            revision, profile, tree, symbols, types, *key,
-                        )
+                        self.static_key_from_key(revision, profile, tree, symbols, types, *key)
                     });
 
                     if let Some(static_key) = static_key
@@ -1529,7 +1532,7 @@ impl Compiler {
                 }
 
                 let static_key = member.key().and_then(|key| {
-                    self.static_key_from_dynamic_key(revision, profile, tree, symbols, types, *key)
+                    self.static_key_from_key(revision, profile, tree, symbols, types, *key)
                 });
 
                 if let Some(static_key) = static_key
@@ -1549,36 +1552,22 @@ impl Compiler {
         member: &Member,
         lookup_mode: MemberLookupMode,
     ) -> bool {
-        // resolve modifiers from the member node
-        let modifiers = match member {
-            Member::Type { modifiers, .. }
-            | Member::ComptimeConst { modifiers, .. }
-            | Member::Field { modifiers, .. }
-            | Member::Method { modifiers, .. }
-            | Member::Embed { modifiers, .. }
-            | Member::StaticBlock { modifiers, .. }
-            | Member::ComptimeBlock { modifiers, .. } => modifiers.as_ref(),
-            Member::Error { .. } => None,
+        // resolve the member staticness from the current dir shape
+        let is_static = match member {
+            Member::AssociatedType { is_static, .. }
+            | Member::AssociatedConst { is_static, .. }
+            | Member::Field { is_static, .. }
+            | Member::Method { is_static, .. }
+            | Member::Embed { is_static, .. } => *is_static,
+            Member::StaticBlock { .. } => true,
+            Member::ComptimeBlock { .. } | Member::Error { .. } => false,
         };
 
-        // filter by anchor for the lookup mode
-        self.modifiers_visible_for_lookup(modifiers, lookup_mode)
-    }
-
-    /// Return true when modifiers allow access for a lookup mode.
-    pub(crate) fn modifiers_visible_for_lookup(
-        &self,
-        modifiers: Option<&BindingModifier>,
-        lookup_mode: MemberLookupMode,
-    ) -> bool {
-        // normalize the binding anchor for comparison
-        let anchor = modifiers.and_then(|modifiers| modifiers.anchor);
-
-        // match anchors to the requested lookup mode
+        // match member staticness to the requested lookup mode
         match lookup_mode {
             MemberLookupMode::Any => true,
-            MemberLookupMode::Instance => !matches!(anchor, Some(BindingAnchor::Static)),
-            MemberLookupMode::Value => matches!(anchor, Some(BindingAnchor::Static)),
+            MemberLookupMode::Instance => !is_static,
+            MemberLookupMode::Value => is_static,
         }
     }
 }

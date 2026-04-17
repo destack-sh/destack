@@ -136,8 +136,8 @@ impl Compiler {
                 let declaration = tree.get(parent.into_typed::<Declaration>());
                 matches!(
                     declaration,
-                    Declaration::Function { signature, .. }
-                        if signature.this_parameter == Some(parameter_id)
+                    Declaration::Function(declaration)
+                        if declaration.signature.this_parameter == Some(parameter_id)
                 )
             }
             NodeType::Member => {

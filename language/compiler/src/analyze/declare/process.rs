@@ -7,8 +7,8 @@ use crate::{
 use destack_artifact::{ArtifactKey, DirResolved};
 use destack_builtin::BuiltinLibraryKind;
 use destack_dir::{
-    CaptureTable, Declaration, DeclarationAbstraction, GlobalSymbolId, LocalSymbolId, LocalTypeId,
-    Member, NodeType, SymbolTable, SymbolType, Type, TypeTable,
+    CaptureTable, Declaration, GlobalSymbolId, LocalSymbolId, LocalTypeId, Member, NodeType,
+    SymbolTable, SymbolType, Type, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId, Revision};
@@ -222,39 +222,34 @@ impl Compiler {
             }
 
             match declaration {
-                Declaration::Struct { heritage, .. } => {
-                    let declaration_symbol = declaration.symbol().into_global(ctx.module.id);
+                Declaration::Struct(declaration) => {
+                    let declaration_symbol = declaration.symbol.into_global(ctx.module.id);
                     self.validate_declaration_contract_conformance(
                         &mut ctx.reborrow(),
                         id.into_any(),
                         declaration_symbol,
-                        heritage.implements_types.as_deref().unwrap_or(&[]),
+                        &declaration.implements_types,
                         false,
                     )?;
                 }
-                Declaration::Class {
-                    descriptor,
-                    heritage,
-                    ..
-                } => {
-                    let allows_deferred_associated =
-                        descriptor.abstraction == DeclarationAbstraction::Abstract;
-                    let declaration_symbol = declaration.symbol().into_global(ctx.module.id);
+                Declaration::Class(declaration) => {
+                    let allows_deferred_associated = declaration.is_abstract;
+                    let declaration_symbol = declaration.symbol.into_global(ctx.module.id);
                     self.validate_declaration_contract_conformance(
                         &mut ctx.reborrow(),
                         id.into_any(),
                         declaration_symbol,
-                        heritage.implements_types.as_deref().unwrap_or(&[]),
+                        &declaration.implements_types,
                         allows_deferred_associated,
                     )?;
                 }
-                Declaration::Enum { heritage, .. } => {
-                    let declaration_symbol = declaration.symbol().into_global(ctx.module.id);
+                Declaration::Enum(declaration) => {
+                    let declaration_symbol = declaration.symbol.into_global(ctx.module.id);
                     self.validate_declaration_contract_conformance(
                         &mut ctx.reborrow(),
                         id.into_any(),
                         declaration_symbol,
-                        heritage.implements_types.as_deref().unwrap_or(&[]),
+                        &declaration.implements_types,
                         false,
                     )?;
                 }
@@ -440,16 +435,17 @@ impl Compiler {
                         NodeType::Declaration => {
                             let declaration_id =
                                 primary_declaration.local_id.into_typed::<Declaration>();
-                            let Declaration::Type { value, .. } = ctx.tree.get(declaration_id)
+                            let Declaration::Type(declaration) = ctx.tree.get(declaration_id)
                             else {
                                 return None;
                             };
 
-                            Some(*value)
+                            Some(declaration.value)
                         }
                         NodeType::Member => {
                             let member_id = primary_declaration.local_id.into_typed::<Member>();
-                            let Member::Type { value, .. } = ctx.tree.get(member_id) else {
+                            let Member::AssociatedType { value, .. } = ctx.tree.get(member_id)
+                            else {
                                 return None;
                             };
 

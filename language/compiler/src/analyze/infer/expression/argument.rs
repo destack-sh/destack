@@ -11,13 +11,12 @@ use crate::{
     InferState,
 };
 use destack_dir::{
-    AnchoredGlobalNodeId, Argument, BindingKind, Constraint, Declaration, DependencyItem,
-    DynamicKey, EnumFieldValue, Expression, Freshness, GlobalNodeId, GlobalNodeIdAny,
-    GlobalSymbolId, InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny,
-    LocalSymbolId, LocalTypeId, Mutability, NodeTree, ScalarLiteral, StaticArgument,
-    StaticExpression, StaticKey, StaticParameter, StaticParameterKind, StaticProperty, StringId,
-    SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeLiteral, TypeTable,
-    TypeUnaryOperator,
+    AnchoredGlobalNodeId, Argument, Constraint, Declaration, DependencyItem, Expression, Freshness,
+    GenericArgument, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope,
+    InferTable, Key, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, Name, NodeTree,
+    ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StaticParameter,
+    StaticParameterKind, StaticProperty, StringId, SymbolTable, SymbolType, Type, TypeElement,
+    TypeExpression, TypeField, TypeLiteral, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -271,7 +270,7 @@ impl Compiler {
                             Ok(match argument {
                                 Argument::Named { name, .. } => {
                                     has_named_arguments = true;
-                                    (Some(*name), false)
+                                    (Some(name.string()), false)
                                 }
                                 Argument::Spread { .. } => (None, true),
                                 _ => (None, false),
@@ -1033,7 +1032,7 @@ impl Compiler {
         let _ = self.with_static_argument_owner(&mut ctx, argument_node, |ctx, argument_id| {
             let argument = ctx.tree.get(argument_id);
             let argument_name = match argument {
-                Argument::Named { name, .. } => Some(*name),
+                Argument::Named { name, .. } => Some(name.string()),
                 _ => None,
             };
 
@@ -1216,17 +1215,15 @@ impl Compiler {
             let mut properties = Vec::with_capacity(fields.len());
             for field in fields {
                 let key = match field.key {
-                    StaticKey::Name(name) => Some(DynamicKey::Name(name)),
-                    StaticKey::Number(value) => Some(DynamicKey::Number(value)),
+                    StaticKey::Name(name) => Some(Key::Name(Name::Identifier(name))),
+                    StaticKey::Number(value) => Some(Key::Name(Name::Number(value))),
                     _ => None,
                 }?;
 
                 let value = self.static_expression_from_value_type(field.ty, types)?;
                 properties.push(StaticProperty::Field {
-                    modifiers: None,
-                    key: Some(key),
+                    key,
                     value,
-                    default: None,
                     symbol: LocalSymbolId::new(0),
                 });
             }
@@ -1490,12 +1487,12 @@ impl Compiler {
         &self,
         tree: &NodeTree,
         symbols: &SymbolTable,
-        types: &TypeTable,
-        enum_symbol: GlobalSymbolId,
+        _types: &TypeTable,
+        _enum_symbol: GlobalSymbolId,
         literal: &ScalarLiteral,
     ) -> bool {
         // ensure the symbol refers to an enum declaration
-        let symbol_entry = symbols.get_symbol(enum_symbol.local_id);
+        let symbol_entry = symbols.get_symbol(_enum_symbol.local_id);
         if symbol_entry.ty != SymbolType::Enum {
             return false;
         }
@@ -1509,23 +1506,41 @@ impl Compiler {
             declaration_ids.extend(secondary.iter().copied());
         }
 
-        // scan enum fields for a matching literal value
+        // scan enum fields in declaration order
         for declaration_id in declaration_ids {
             let Ok(declaration_id) = declaration_id.try_into_local_typed::<Declaration>() else {
                 continue;
             };
-            let Declaration::Enum { fields, .. } = tree.get(declaration_id) else {
+            let Declaration::Enum(declaration) = tree.get(declaration_id) else {
                 continue;
             };
-            for field_id in fields {
+            let mut next_integer = 0_i64;
+            for field_id in &declaration.fields {
                 let field = tree.get(*field_id);
-                let field_symbol = field.symbol.into_global(enum_symbol.module_id);
-                let Some(value) = types.get_enum_field_value(field_symbol) else {
+
+                // explicit enum field values
+                if let Some(value_id) = field.value
+                    && let Expression::ScalarLiteral { value } = tree.get(value_id)
+                {
+                    if self.enum_field_value_matches_literal_from_scalar(value, literal) {
+                        return true;
+                    }
+
+                    if let ScalarLiteral::Integer(value) = value {
+                        next_integer = *value + 1;
+                    }
+
                     continue;
-                };
-                if self.enum_field_value_matches_literal(value, literal) {
+                }
+
+                // implicit numeric enum field values
+                if let ScalarLiteral::Integer(value) = literal
+                    && *value == next_integer
+                {
                     return true;
                 }
+
+                next_integer += 1;
             }
         }
 
@@ -1533,14 +1548,14 @@ impl Compiler {
     }
 
     /// Check whether an enum field value matches a scalar literal.
-    fn enum_field_value_matches_literal(
+    fn enum_field_value_matches_literal_from_scalar(
         &self,
-        value: EnumFieldValue,
+        value: &ScalarLiteral,
         literal: &ScalarLiteral,
     ) -> bool {
         match (value, literal) {
-            (EnumFieldValue::Int(value), ScalarLiteral::Integer(literal)) => value == *literal,
-            (EnumFieldValue::String(value), ScalarLiteral::String(literal)) => value == *literal,
+            (ScalarLiteral::Integer(value), ScalarLiteral::Integer(literal)) => value == literal,
+            (ScalarLiteral::String(value), ScalarLiteral::String(literal)) => value == literal,
             _ => false,
         }
     }
@@ -1610,19 +1625,14 @@ impl Compiler {
         // map object literal expressions into structural object types
         let mut fields = Vec::new();
         for property in properties {
-            let StaticProperty::Field {
-                modifiers,
-                key,
-                value,
-                default: _,
-                symbol: _,
-            } = property
-            else {
+            let StaticProperty::Field { key, value, .. } = property else {
                 continue;
             };
             let key = match *key {
-                Some(DynamicKey::Name(name)) => Some(StaticKey::Name(name)),
-                Some(DynamicKey::Number(name)) => Some(StaticKey::Number(name)),
+                Key::Name(Name::Identifier(name)) | Key::Name(Name::String(name)) => {
+                    Some(StaticKey::Name(name))
+                }
+                Key::Name(Name::Number(name)) => Some(StaticKey::Number(name)),
                 _ => None,
             };
             let Some(key) = key else {
@@ -1630,21 +1640,11 @@ impl Compiler {
             };
             let field_ty_id =
                 self.static_expression_value_type(&mut ctx.reborrow(), error_node, value)?;
-            let is_optional = modifiers.is_some_and(|modifiers| {
-                modifiers
-                    .kind
-                    .is_some_and(|kind| kind == BindingKind::Maybe)
-            });
-            let is_readonly = modifiers.is_some_and(|modifiers| {
-                modifiers
-                    .mutability
-                    .is_some_and(|mutability| mutability == Mutability::Immutable)
-            });
             fields.push(TypeField {
                 key,
                 ty: field_ty_id,
-                is_optional,
-                is_readonly,
+                is_optional: false,
+                is_readonly: false,
             });
         }
 
@@ -1974,13 +1974,11 @@ impl Compiler {
         // accept property values only when they are fully static
         match property {
             StaticProperty::Unevaluated { .. } => false,
-            StaticProperty::Field { value, default, .. } => {
-                self.static_value_argument_is_static(value, ctx)
-                    && default
-                        .as_ref()
-                        .is_none_or(|value| self.static_value_argument_is_static(value, ctx))
-            }
+            StaticProperty::Field { value, .. } => self.static_value_argument_is_static(value, ctx),
             StaticProperty::Method { body, .. } => self.static_value_argument_is_static(body, ctx),
+            StaticProperty::Spread { value, .. } => {
+                self.static_value_argument_is_static(value, ctx)
+            }
         }
     }
 
@@ -2030,39 +2028,41 @@ impl Compiler {
             return Ok(None);
         };
         let declaration = tree.get(declaration_id);
-        let Declaration::Extension { target_type, .. } = declaration else {
+        let Declaration::Extension(declaration) = declaration else {
             return Ok(None);
         };
+        let target_type = declaration.target_type;
 
         // read the target type arguments
-        let target_expression = tree.get(*target_type);
-        let static_arguments = match target_expression {
-            Expression::LocalReference {
-                static_arguments, ..
+        let target_expression = tree.get(target_type);
+        let generic_arguments = match target_expression {
+            TypeExpression::LocalReference {
+                generic_arguments, ..
             }
-            | Expression::ModuleReference {
-                static_arguments, ..
+            | TypeExpression::ModuleReference {
+                generic_arguments, ..
             }
-            | Expression::GlobalReference {
-                static_arguments, ..
-            } => static_arguments.as_ref(),
+            | TypeExpression::GlobalReference {
+                generic_arguments, ..
+            } => Some(generic_arguments.as_slice()),
             _ => None,
         };
-        let Some(static_arguments) = static_arguments else {
+        let Some(generic_arguments) = generic_arguments else {
             return Ok(None);
         };
 
         // map target arguments to extension parameter indices
-        let mut mapping = Vec::with_capacity(static_arguments.len());
-        for argument_id in static_arguments {
+        let mut mapping = Vec::with_capacity(generic_arguments.len());
+        for argument_id in generic_arguments {
             let argument = tree.get(*argument_id);
-            let expression_id = argument.value();
-            let expression = tree.get(expression_id);
-            let target_symbol = match expression {
-                Expression::LocalReference { target_symbol, .. }
-                | Expression::ModuleReference { target_symbol, .. }
-                | Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
-                _ => None,
+            let target_symbol = match argument {
+                GenericArgument::Type { value } => match tree.get(*value) {
+                    TypeExpression::LocalReference { target_symbol, .. }
+                    | TypeExpression::ModuleReference { target_symbol, .. }
+                    | TypeExpression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
+                    _ => None,
+                },
+                GenericArgument::Value { .. } | GenericArgument::Error => return Ok(None),
             };
             let Some(target_symbol) = target_symbol else {
                 return Ok(None);
@@ -2825,7 +2825,7 @@ impl Compiler {
         let _ = self.with_static_argument_owner(&mut ctx, argument_node, |ctx, argument_id| {
             let argument = ctx.tree.get(argument_id);
             let argument_name = match argument {
-                Argument::Named { name, .. } => Some(*name),
+                Argument::Named { name, .. } => Some(name.string()),
                 _ => None,
             };
 
@@ -2850,20 +2850,9 @@ impl Compiler {
             }
 
             // try evaluate expression as a type
-            let ty_id = self.resolve_declared_type_expression(
-                &mut ctx.reborrow(),
-                expression_id,
-                true,
-                true,
-            )?;
-            if matches!(ctx.types.get_type(ty_id), Type::Unevaluated { .. }) {
-                return Ok(());
-            }
-
-            evaluated = Some(StaticArgument::Evaluated {
-                name: argument_name,
-                value: StaticExpression::Type { ty: ty_id },
-            });
+            let value =
+                self.evaluate_static_argument_as_type(&mut ctx.reborrow(), argument_node)?;
+            evaluated = value;
             Ok(())
         })?;
 
@@ -2882,7 +2871,7 @@ impl Compiler {
             // capture argument name for reuse in evaluated form
             let argument = ctx.tree.get(argument_id);
             let argument_name = match argument {
-                Argument::Named { name, .. } => Some(*name),
+                Argument::Named { name, .. } => Some(name.string()),
                 _ => None,
             };
 
@@ -2925,13 +2914,13 @@ impl Compiler {
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         let Expression::Member {
             name,
-            static_arguments,
+            generic_arguments,
             left,
         } = ctx.tree.get(expression_id)
         else {
             return Ok(None);
         };
-        if static_arguments.is_some() {
+        if !generic_arguments.is_empty() {
             return Ok(None);
         }
 
@@ -3619,13 +3608,6 @@ impl Compiler {
                     is_explicit_comptime = true;
                     default_expression = self.unwrap_parenthesized_expression(*body, ctx.tree);
                 }
-                Expression::TypeUnary {
-                    operator: TypeUnaryOperator::AsComptime,
-                    right,
-                } => {
-                    is_explicit_comptime = true;
-                    default_expression = self.unwrap_parenthesized_expression(*right, ctx.tree);
-                }
                 _ => break,
             }
         }
@@ -3654,9 +3636,21 @@ impl Compiler {
         // evaluate default value based on the parameter kind
         let value = match parameter_kind {
             StaticParameterKind::Type => {
+                let Expression::Type {
+                    value: type_expression_id,
+                    ..
+                } = ctx.tree.get(default_expression)
+                else {
+                    return Ok(StaticArgument::Evaluated {
+                        name,
+                        value: StaticExpression::Unevaluated {
+                            node: default_expression,
+                        },
+                    });
+                };
                 let resolved = self.resolve_declared_type_expression_value(
                     &mut ctx.reborrow(),
-                    default_expression,
+                    *type_expression_id,
                     true,
                     true,
                     true,

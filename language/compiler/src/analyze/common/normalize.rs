@@ -5,7 +5,7 @@ use destack_dir::{
     GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType, NormalizationMode,
     PrimitiveType, ScalarLiteral, StaticArgument, StaticParameterKind, Symbol, SymbolSpace,
     SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
-    TypeTable, TypeUnaryOperator, WellKnownSymbol,
+    TypeTable, WellKnownSymbol,
 };
 use destack_workspace::workspace::{Module, ProfileId};
 
@@ -923,67 +923,78 @@ impl Compiler {
                     ctx.types.insert_type_from_any(normalized, source_id)
                 }
             }
-            Type::Unary { operator, right } => match operator {
-                TypeUnaryOperator::Keyof => self.normalize_keyof_type(
+            Type::KeyOf { target_type } => self.normalize_keyof_type(
+                &mut ctx.reborrow(),
+                source_id,
+                Some(type_id),
+                target_type,
+                mode,
+                relation_mode,
+                visited,
+            ),
+            Type::Readonly { target_type } => {
+                // materialize readonly modifiers during normalization
+                let normalized_right = self.normalize_type_inner(
                     &mut ctx.reborrow(),
-                    source_id,
-                    Some(type_id),
-                    right,
+                    target_type,
                     mode,
                     relation_mode,
                     visited,
-                ),
-                TypeUnaryOperator::Readonly => {
-                    // materialize readonly modifiers during normalization
-                    let normalized_right = self.normalize_type_inner(
-                        &mut ctx.reborrow(),
-                        right,
-                        mode,
-                        relation_mode,
-                        visited,
-                    );
-                    let deep_readonly = ctx.options.deep_readonly;
-                    self.materialize_readonly_type(
-                        source_id,
-                        normalized_right,
-                        ctx.types,
-                        deep_readonly,
-                    )
+                );
+                let deep_readonly = ctx.options.deep_readonly;
+                self.materialize_readonly_type(
+                    source_id,
+                    normalized_right,
+                    ctx.types,
+                    deep_readonly,
+                )
+            }
+            Type::Must { target_type } => {
+                let right = self.normalize_type_inner(
+                    &mut ctx.reborrow(),
+                    target_type,
+                    mode,
+                    relation_mode,
+                    visited,
+                );
+                if right == target_type {
+                    type_id
+                } else {
+                    let normalized = Type::Must { target_type: right };
+                    ctx.types.insert_type_from_any(normalized, source_id)
                 }
-                TypeUnaryOperator::AsConst => {
-                    // materialize const modifiers with deep readonly
-                    let normalized_right = self.normalize_type_inner(
-                        &mut ctx.reborrow(),
-                        right,
-                        mode,
-                        relation_mode,
-                        visited,
-                    );
-                    self.materialize_readonly_type(source_id, normalized_right, ctx.types, true)
+            }
+            Type::AsComptime { target_type } => {
+                let right = self.normalize_type_inner(
+                    &mut ctx.reborrow(),
+                    target_type,
+                    mode,
+                    relation_mode,
+                    visited,
+                );
+                if right == target_type {
+                    type_id
+                } else {
+                    let normalized = Type::AsComptime { target_type: right };
+                    ctx.types.insert_type_from_any(normalized, source_id)
                 }
-                _ => {
-                    // normalize unary operand
-                    let original_right = right;
-                    let right = self.normalize_type_inner(
-                        &mut ctx.reborrow(),
-                        original_right,
-                        mode,
-                        relation_mode,
-                        visited,
-                    );
-                    if right == original_right {
-                        type_id
-                    } else {
-                        let normalized = Type::Unary { operator, right };
-                        ctx.types.insert_type_from_any(normalized, source_id)
-                    }
+            }
+            Type::Not { target_type } => {
+                let right = self.normalize_type_inner(
+                    &mut ctx.reborrow(),
+                    target_type,
+                    mode,
+                    relation_mode,
+                    visited,
+                );
+                if right == target_type {
+                    type_id
+                } else {
+                    let normalized = Type::Not { target_type: right };
+                    ctx.types.insert_type_from_any(normalized, source_id)
                 }
-            },
-            Type::Binary {
-                left,
-                operator,
-                right,
-            } => {
+            }
+            Type::In { left, right } => {
                 // normalize binary operands
                 let original_left = left;
                 let original_right = right;
@@ -1006,7 +1017,7 @@ impl Compiler {
                 let normalized_id = self.normalize_decidable_type_operator(
                     &mut ctx.reborrow(),
                     source_id,
-                    operator,
+                    true,
                     left,
                     right,
                     mode,
@@ -1017,11 +1028,79 @@ impl Compiler {
                 } else if left == original_left && right == original_right {
                     type_id
                 } else {
-                    let normalized = Type::Binary {
-                        left,
-                        operator,
-                        right,
-                    };
+                    let normalized = Type::In { left, right };
+                    ctx.types.insert_type_from_any(normalized, source_id)
+                }
+            }
+            Type::Extends { left, right } => {
+                let original_left = left;
+                let original_right = right;
+                let left = self.normalize_type_inner(
+                    &mut ctx.reborrow(),
+                    original_left,
+                    mode,
+                    relation_mode,
+                    visited,
+                );
+                let right = self.normalize_type_inner(
+                    &mut ctx.reborrow(),
+                    original_right,
+                    mode,
+                    relation_mode,
+                    visited,
+                );
+
+                let normalized_id = self.normalize_decidable_type_operator(
+                    &mut ctx.reborrow(),
+                    source_id,
+                    false,
+                    left,
+                    right,
+                    mode,
+                    relation_mode,
+                );
+                if let Some(normalized_id) = normalized_id {
+                    normalized_id
+                } else if left == original_left && right == original_right {
+                    type_id
+                } else {
+                    let normalized = Type::Extends { left, right };
+                    ctx.types.insert_type_from_any(normalized, source_id)
+                }
+            }
+            Type::Implements { left, right } => {
+                let original_left = left;
+                let original_right = right;
+                let left = self.normalize_type_inner(
+                    &mut ctx.reborrow(),
+                    original_left,
+                    mode,
+                    relation_mode,
+                    visited,
+                );
+                let right = self.normalize_type_inner(
+                    &mut ctx.reborrow(),
+                    original_right,
+                    mode,
+                    relation_mode,
+                    visited,
+                );
+
+                let normalized_id = self.normalize_decidable_type_operator(
+                    &mut ctx.reborrow(),
+                    source_id,
+                    false,
+                    left,
+                    right,
+                    mode,
+                    relation_mode,
+                );
+                if let Some(normalized_id) = normalized_id {
+                    normalized_id
+                } else if left == original_left && right == original_right {
+                    type_id
+                } else {
+                    let normalized = Type::Implements { left, right };
                     ctx.types.insert_type_from_any(normalized, source_id)
                 }
             }
@@ -1372,23 +1451,25 @@ impl Compiler {
             );
         }
 
-        let Ok(Some(static_value)) = self.evaluate_static_expression_value_with_substitutions(
+        let mapped_type = match self.resolve_declared_type_expression_value(
             &mut ctx.reborrow(),
             expression_id,
-            None,
-            substitutions,
-        ) else {
-            return type_id;
-        };
-        let Some(value_type_id) = self.static_expression_type_id_for_substitution(
-            expression_id.into_any(),
-            &static_value,
-            ctx.types,
-        ) else {
-            return type_id;
+            true,
+            true,
+            true,
+            true,
+            true,
+        ) {
+            Ok(mapped_type) => mapped_type,
+            Err(error) => {
+                self.error(error);
+                return type_id;
+            }
         };
 
-        let mut mapped_type_id = value_type_id;
+        let mut mapped_type_id = ctx
+            .types
+            .insert_type_from_any(mapped_type, expression_id.into());
         let mut substitution_cache = HashMap::new();
         mapped_type_id = self.substitute_static_parameters(
             mapped_type_id,
@@ -1509,7 +1590,7 @@ impl Compiler {
                 }
 
                 let member_id = primary_declaration.local_id.into_typed::<Member>();
-                let Member::Type { value, .. } = view.tree.get(member_id) else {
+                let Member::AssociatedType { value, .. } = view.tree.get(member_id) else {
                     return false;
                 };
 
@@ -1695,11 +1776,7 @@ impl Compiler {
         let mut element_ty_id = element.ty;
         let mut element_is_readonly = element.is_readonly;
         let mut did_change = false;
-        if let Type::Unary {
-            operator: TypeUnaryOperator::Readonly | TypeUnaryOperator::AsConst,
-            right,
-        } = ctx.types.get_type(element_ty_id)
-        {
+        if let Type::Readonly { target_type: right } = ctx.types.get_type(element_ty_id) {
             element_ty_id = *right;
             element_is_readonly = true;
             did_change = true;

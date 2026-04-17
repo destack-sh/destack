@@ -1,15 +1,14 @@
 use super::constant::StaticCycleDiagnosticMode;
 use super::{StaticEvaluationDiagnosticMode, StaticEvaluationMode};
 use crate::analyze::StaticMemberSymbolKind;
-use crate::analyze::common::{CanonicalSymbolMode, RelationMode, TypeContext, TypeRewriteCache};
+use crate::analyze::common::{CanonicalSymbolMode, TypeContext};
 use crate::timing::tags;
-use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_artifact::ArtifactKey;
 use destack_dir::{
     BinaryOperator, DependencyItem, EnumFieldValue, Expression, GlobalSymbolId, IfCondition,
-    IfKind, LocalNodeId, LocalTypeId, NodeType, NormalizationMode, Property, Resolution,
-    ScalarLiteral, StaticExpression, StaticKey, StaticParameterKind, StaticProperty, Type,
-    TypeBinaryOperator, UnaryOperator,
+    IfKind, LocalNodeId, LocalTypeId, NodeType, Property, Resolution, ScalarLiteral,
+    StaticExpression, StaticKey, StaticParameterKind, StaticProperty, Type, UnaryOperator,
 };
 use destack_source::ModuleId;
 use destack_workspace::ProfileId;
@@ -35,30 +34,6 @@ impl Compiler {
             StaticEvaluationDiagnosticMode::Report,
             None,
             destack_artifact::ArtifactKey::dir_analyzed,
-            &mut visited,
-        )
-    }
-
-    /// Evaluate one static expression value with concrete substitutions.
-    pub(crate) fn evaluate_static_expression_value_with_substitutions(
-        &self,
-        ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
-        enum_symbol: Option<GlobalSymbolId>,
-        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
-    ) -> AnalyzeResult<Option<StaticExpression>> {
-        let _timing = self.timing_scope(tags::ANALYZE_INFER_STATIC_EVALUATE);
-
-        let mut visited = HashSet::new();
-        let mut inner_ctx = ctx.reborrow();
-        self.evaluate_static_expression_value_inner(
-            &mut inner_ctx,
-            expression_id,
-            enum_symbol,
-            StaticEvaluationMode::Instantiated,
-            StaticEvaluationDiagnosticMode::Report,
-            Some(substitutions),
-            destack_artifact::ArtifactKey::dir_interface,
             &mut visited,
         )
     }
@@ -108,7 +83,7 @@ impl Compiler {
             Expression::TypeLiteral { value } => StaticExpression::TypeLiteral {
                 value: value.clone(),
             },
-            Expression::Type { value } => StaticExpression::Type { ty: *value },
+            Expression::Type { resolved_type, .. } => StaticExpression::Type { ty: *resolved_type },
             Expression::Parenthesized { expression } => {
                 return self.evaluate_static_expression_value_inner(
                     &mut ctx.reborrow(),
@@ -121,7 +96,12 @@ impl Compiler {
                     visited,
                 );
             }
-            Expression::Cast { value, .. } => {
+            Expression::As {
+                expression: value, ..
+            }
+            | Expression::Satisfies {
+                expression: value, ..
+            } => {
                 return self.evaluate_static_expression_value_inner(
                     &mut ctx.reborrow(),
                     *value,
@@ -267,7 +247,7 @@ impl Compiler {
             | Expression::GlobalReference { target_symbol, .. } => {
                 // static parameter references
                 if let Some((parameter_symbol, kind)) =
-                    self.static_parameter_reference(&mut ctx.reborrow(), expression_id)?
+                    self.static_parameter_expression_reference(&mut ctx.reborrow(), expression_id)?
                 {
                     if kind == StaticParameterKind::Value {
                         // use substitution values when available
@@ -374,7 +354,7 @@ impl Compiler {
             Expression::Member {
                 left,
                 name,
-                static_arguments: _,
+                generic_arguments: _,
             } => {
                 let node_id = expression_id.into_global_any(ctx.module.id);
                 let Some(name) = *name else {
@@ -576,98 +556,6 @@ impl Compiler {
                 };
 
                 let condition_holds = match ctx.tree.get(*condition_expression) {
-                    Expression::TypeBinary {
-                        left,
-                        operator: TypeBinaryOperator::Extends,
-                        right,
-                    } => {
-                        // resolve both sides for extends checks
-                        let Some(mut left_type_id) = self.resolve_static_conditional_operand_type(
-                            &mut ctx.reborrow(),
-                            *left,
-                            substitutions,
-                            mode,
-                        )?
-                        else {
-                            return Ok(None);
-                        };
-                        let Some(mut right_type_id) = self
-                            .resolve_static_conditional_operand_type(
-                                &mut ctx.reborrow(),
-                                *right,
-                                substitutions,
-                                mode,
-                            )?
-                        else {
-                            return Ok(None);
-                        };
-
-                        if let Some(substitutions) = substitutions
-                            && !substitutions.is_empty()
-                        {
-                            let mut substitution_cache = HashMap::new();
-                            left_type_id = self.substitute_static_parameters(
-                                left_type_id,
-                                substitutions,
-                                ctx.types,
-                                &mut substitution_cache,
-                            );
-                            right_type_id = self.substitute_static_parameters(
-                                right_type_id,
-                                substitutions,
-                                ctx.types,
-                                &mut substitution_cache,
-                            );
-                        }
-
-                        let mut materialize_cache = TypeRewriteCache::new();
-                        left_type_id = self.materialize_static_arguments_in_type(
-                            &mut ctx.reborrow(),
-                            left_type_id,
-                            &mut materialize_cache,
-                        );
-                        right_type_id = self.materialize_static_arguments_in_type(
-                            &mut ctx.reborrow(),
-                            right_type_id,
-                            &mut materialize_cache,
-                        );
-                        left_type_id = self.normalize_type_with_relation(
-                            &mut ctx.reborrow(),
-                            left_type_id,
-                            NormalizationMode::Assign,
-                            RelationMode::STATIC_EVAL,
-                        );
-                        right_type_id = self.normalize_type_with_relation(
-                            &mut ctx.reborrow(),
-                            right_type_id,
-                            NormalizationMode::Assign,
-                            RelationMode::STATIC_EVAL,
-                        );
-
-                        // unresolved type operands keep conditional evaluation deferred
-                        if !self
-                            .type_is_converged_for_static_evaluation(ctx.type_view(), left_type_id)
-                            || !self.type_is_converged_for_static_evaluation(
-                                ctx.type_view(),
-                                right_type_id,
-                            )
-                        {
-                            if mode == StaticEvaluationMode::Instantiated {
-                                return Ok(None);
-                            }
-
-                            return Ok(Some(StaticExpression::Unevaluated {
-                                node: expression_id,
-                            }));
-                        }
-
-                        let assignability = self.is_type_assignable(
-                            &mut ctx.reborrow(),
-                            right_type_id,
-                            left_type_id,
-                        );
-                        assignability != Assignability::NotAssignable
-                    }
                     Expression::ScalarLiteral {
                         value: ScalarLiteral::Boolean(value),
                     } => *value,
@@ -679,109 +567,6 @@ impl Compiler {
                 } else {
                     *else_expression
                 };
-                return self.evaluate_static_expression_value_inner(
-                    &mut ctx.reborrow(),
-                    selected,
-                    enum_symbol,
-                    mode,
-                    diagnostic_mode,
-                    substitutions,
-                    remote_dependency_artifact,
-                    visited,
-                );
-            }
-            Expression::TypeConditional {
-                left,
-                right,
-                then_type,
-                else_type,
-            } => {
-                // evaluate both sides as types before selecting one branch
-                let Some(mut left_type_id) = self.resolve_static_conditional_operand_type(
-                    &mut ctx.reborrow(),
-                    *left,
-                    substitutions,
-                    mode,
-                )?
-                else {
-                    return Ok(None);
-                };
-                let Some(mut right_type_id) = self.resolve_static_conditional_operand_type(
-                    &mut ctx.reborrow(),
-                    *right,
-                    substitutions,
-                    mode,
-                )?
-                else {
-                    return Ok(None);
-                };
-
-                // apply caller substitutions before relation checks
-                if let Some(substitutions) = substitutions
-                    && !substitutions.is_empty()
-                {
-                    let mut substitution_cache = HashMap::new();
-                    left_type_id = self.substitute_static_parameters(
-                        left_type_id,
-                        substitutions,
-                        ctx.types,
-                        &mut substitution_cache,
-                    );
-                    right_type_id = self.substitute_static_parameters(
-                        right_type_id,
-                        substitutions,
-                        ctx.types,
-                        &mut substitution_cache,
-                    );
-                }
-
-                // materialize and normalize both sides in type-op relation mode
-                let mut materialize_cache = TypeRewriteCache::new();
-                left_type_id = self.materialize_static_arguments_in_type(
-                    &mut ctx.reborrow(),
-                    left_type_id,
-                    &mut materialize_cache,
-                );
-                right_type_id = self.materialize_static_arguments_in_type(
-                    &mut ctx.reborrow(),
-                    right_type_id,
-                    &mut materialize_cache,
-                );
-                left_type_id = self.normalize_type_with_relation(
-                    &mut ctx.reborrow(),
-                    left_type_id,
-                    NormalizationMode::Assign,
-                    RelationMode::STATIC_EVAL,
-                );
-                right_type_id = self.normalize_type_with_relation(
-                    &mut ctx.reborrow(),
-                    right_type_id,
-                    NormalizationMode::Assign,
-                    RelationMode::STATIC_EVAL,
-                );
-
-                // unresolved type operands keep conditional evaluation deferred
-                if !self.type_is_converged_for_static_evaluation(ctx.type_view(), left_type_id)
-                    || !self.type_is_converged_for_static_evaluation(ctx.type_view(), right_type_id)
-                {
-                    if mode == StaticEvaluationMode::Instantiated {
-                        return Ok(None);
-                    }
-
-                    return Ok(Some(StaticExpression::Unevaluated {
-                        node: expression_id,
-                    }));
-                }
-
-                // choose the branch using extends assignability semantics
-                let is_assignable =
-                    self.is_type_assignable(&mut ctx.reborrow(), right_type_id, left_type_id);
-                let selected = if is_assignable == Assignability::NotAssignable {
-                    *else_type
-                } else {
-                    *then_type
-                };
-
                 return self.evaluate_static_expression_value_inner(
                     &mut ctx.reborrow(),
                     selected,
@@ -848,24 +633,15 @@ impl Compiler {
 
                 StaticExpression::TupleExpression { elements: values }
             }
-            Expression::ObjectExpression { properties } => {
+            Expression::ObjectExpression { properties, .. } => {
                 let mut evaluated_properties = Vec::with_capacity(properties.len());
                 for property_id in properties {
                     let property = ctx.tree.get(*property_id).clone();
                     let evaluated_property = match property {
-                        Property::Field {
-                            modifiers,
-                            key,
-                            value,
-                            default,
-                            symbol,
-                        } => {
-                            let Some(value_id) = value else {
-                                return Ok(None);
-                            };
+                        Property::Field { key, value, symbol } => {
                             let value = self.evaluate_static_expression_value_inner(
                                 &mut ctx.reborrow(),
-                                value_id,
+                                value,
                                 enum_symbol,
                                 mode,
                                 diagnostic_mode,
@@ -876,34 +652,27 @@ impl Compiler {
                             let Some(value) = value else {
                                 return Ok(None);
                             };
-                            let default = if let Some(default_id) = default {
-                                let default_value = self.evaluate_static_expression_value_inner(
-                                    &mut ctx.reborrow(),
-                                    default_id,
-                                    enum_symbol,
-                                    mode,
-                                    diagnostic_mode,
-                                    substitutions,
-                                    remote_dependency_artifact,
-                                    visited,
-                                )?;
-                                let Some(default_value) = default_value else {
-                                    return Ok(None);
-                                };
-                                Some(default_value)
-                            } else {
-                                None
+
+                            StaticProperty::Field { key, value, symbol }
+                        }
+                        Property::Spread { value, symbol } => {
+                            let value = self.evaluate_static_expression_value_inner(
+                                &mut ctx.reborrow(),
+                                value,
+                                enum_symbol,
+                                mode,
+                                diagnostic_mode,
+                                substitutions,
+                                remote_dependency_artifact,
+                                visited,
+                            )?;
+                            let Some(value) = value else {
+                                return Ok(None);
                             };
 
-                            StaticProperty::Field {
-                                modifiers,
-                                key,
-                                value,
-                                default,
-                                symbol,
-                            }
+                            StaticProperty::Spread { value, symbol }
                         }
-                        Property::Method { .. } | Property::Spread { .. } => {
+                        Property::Method { .. } => {
                             return Ok(None);
                         }
                         Property::Error { .. } => {
@@ -921,45 +690,5 @@ impl Compiler {
         };
 
         Ok(Some(value))
-    }
-
-    /// Resolve one conditional operand type for static branch selection.
-    fn resolve_static_conditional_operand_type(
-        &self,
-        ctx: &mut TypeContext<'_>,
-        side_id: LocalNodeId<Expression>,
-        substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
-        mode: StaticEvaluationMode,
-    ) -> AnalyzeResult<Option<LocalTypeId>> {
-        let mut has_static_parameter = false;
-
-        // prefer caller substitutions for static parameters
-        if let Some((parameter_symbol, _)) =
-            self.static_parameter_reference(&mut ctx.reborrow(), side_id)?
-        {
-            has_static_parameter = true;
-
-            if let Some(substitutions) = substitutions
-                && let Some(mapped) =
-                    self.substitution_type_id_for_static_parameter(parameter_symbol, substitutions)
-            {
-                let mapped = ctx.types.unwrap_value_type_id(mapped);
-                let is_resolved =
-                    self.type_is_converged_for_static_evaluation(ctx.type_view(), mapped);
-                if is_resolved {
-                    return Ok(Some(mapped));
-                }
-            }
-        }
-
-        // instantiated mode keeps unresolved parameters deferred
-        if has_static_parameter && mode != StaticEvaluationMode::Parametric {
-            return Ok(None);
-        }
-
-        // evaluate the side as a declared type
-        let side_type_id =
-            self.resolve_declared_type_expression(&mut ctx.reborrow(), side_id, true, true)?;
-        Ok(Some(side_type_id))
     }
 }

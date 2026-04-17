@@ -7,12 +7,11 @@ use crate::analyze::common::{NormalizationMode, TreeSymbolView, TypeContext};
 use crate::analyze::infer::RemoteValueTypeReadDomain;
 use destack_core::StringId;
 use destack_dir::{
-    Argument, BinaryOperator, Block, Declaration, DynamicKey, Expression, FlowBlock, FlowEdge,
-    FlowEdgeKind, FlowEnvironment, FlowGraph, FlowGuard, FlowTable, FunctionSignature,
-    GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, NodeType, NodeVisitor,
-    NodeVisitorOptions, Parameter, Pattern, PatternField, RuntimeCheckKind, ScalarLiteral,
-    StaticArgument, StaticExpression, StaticKey, Type, TypeBinaryOperator, TypeField, TypeLiteral,
-    TypePredicateSubject, TypeTable, TypeUnaryOperator, UnaryOperator, are_types_equal,
+    Argument, BinaryOperator, Block, Declaration, Expression, FlowBlock, FlowEdge, FlowEdgeKind,
+    FlowEnvironment, FlowGraph, FlowGuard, FlowTable, FunctionSignature, GlobalSymbolId, Key,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions,
+    Parameter, Pattern, PatternField, PredicateSubject, RuntimeCheckKind, ScalarLiteral, StaticKey,
+    Type, TypeExpression, TypeField, TypeLiteral, TypeTable, UnaryOperator, are_types_equal,
     walk_expression,
 };
 
@@ -123,9 +122,17 @@ impl NodeVisitor for FlowSensitiveVisitor {
 
         // only visit declarations that execute immediately
         match declaration {
-            Declaration::Global { expressions, .. }
-            | Declaration::Namespace { expressions, .. } => {
-                for expression_id in expressions {
+            Declaration::Global(declaration) => {
+                for expression_id in &declaration.expressions {
+                    let expression = tree.get(*expression_id);
+                    self.visit_expression(tree, *expression_id, expression);
+                    if self.requires_flow {
+                        return;
+                    }
+                }
+            }
+            Declaration::Namespace(declaration) => {
+                for expression_id in &declaration.expressions {
                     let expression = tree.get(*expression_id);
                     self.visit_expression(tree, *expression_id, expression);
                     if self.requires_flow {
@@ -948,19 +955,28 @@ impl Compiler {
                 environment,
                 context,
             ),
-            Expression::TypeBinary {
-                left,
-                operator,
-                right,
-            } => self.narrow_environment_for_type_binary_expression_guard(
+            Expression::Is { value, target_type } => self.narrow_environment_for_type_guard(
                 &mut ctx.reborrow(),
                 guard_id,
-                *left,
-                *operator,
-                *right,
+                *value,
+                *target_type,
                 environment,
                 context,
             ),
+            Expression::InstanceOf { value, target } => {
+                if let Some(environments) = self.narrow_environment_for_runtime_type_guard(
+                    &mut ctx.reborrow(),
+                    guard_id,
+                    *value,
+                    *target,
+                    environment,
+                    context,
+                )? {
+                    return Ok(environments);
+                }
+
+                Ok(self.unchanged_guard_environments(environment))
+            }
             Expression::Call {
                 left,
                 dynamic_arguments,
@@ -985,19 +1001,6 @@ impl Compiler {
         context: &InferState,
     ) -> AnalyzeResult<(FlowEnvironment, FlowEnvironment)> {
         match operator {
-            BinaryOperator::InstanceOf => {
-                if let Some(environments) = self.narrow_environment_for_runtime_type_guard(
-                    &mut ctx.reborrow(),
-                    guard_id,
-                    left,
-                    right,
-                    environment,
-                    context,
-                )? {
-                    return Ok(environments);
-                }
-                Ok(self.unchanged_guard_environments(environment))
-            }
             BinaryOperator::In => {
                 if let Some(environments) = self.narrow_environment_for_in_guard(
                     &mut ctx.reborrow(),
@@ -1108,46 +1111,33 @@ impl Compiler {
         }
     }
 
-    /// Split the environment for one type-binary expression guard.
-    fn narrow_environment_for_type_binary_expression_guard(
+    /// Split the environment for one `value is Type` guard.
+    fn narrow_environment_for_type_guard(
         &self,
         ctx: &mut TypeContext<'_>,
         guard_id: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
-        operator: TypeBinaryOperator,
-        right: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
+        target_type_id: LocalNodeId<TypeExpression>,
         environment: &FlowEnvironment,
         context: &InferState,
     ) -> AnalyzeResult<(FlowEnvironment, FlowEnvironment)> {
-        match operator {
-            TypeBinaryOperator::Extends | TypeBinaryOperator::Implements => {
-                if let Some(environments) = self.narrow_environment_for_comptime_relation_guard(
-                    &mut ctx.reborrow(),
-                    guard_id,
-                    left,
-                    right,
-                    environment,
-                    context,
-                )? {
-                    return Ok(environments);
-                }
-                Ok(self.unchanged_guard_environments(environment))
-            }
-            TypeBinaryOperator::Is => {
-                if let Some(environments) = self.narrow_environment_for_runtime_type_guard(
-                    &mut ctx.reborrow(),
-                    guard_id,
-                    left,
-                    right,
-                    environment,
-                    context,
-                )? {
-                    return Ok(environments);
-                }
-                Ok(self.unchanged_guard_environments(environment))
-            }
-            _ => Ok(self.unchanged_guard_environments(environment)),
+        let target_type_id =
+            self.resolve_declared_type_expression(&mut ctx.reborrow(), target_type_id, true, true)?;
+
+        if let Some(environments) = self
+            .narrow_environment_for_runtime_type_guard_with_target_type(
+                &mut ctx.reborrow(),
+                guard_id,
+                value_id,
+                target_type_id,
+                environment,
+                context,
+            )?
+        {
+            return Ok(environments);
         }
+
+        Ok(self.unchanged_guard_environments(environment))
     }
 
     /// Get a symbol type from a flow environment.
@@ -1242,9 +1232,17 @@ impl Compiler {
                     return Ok(Some(type_id));
                 }
 
+                let Expression::Type {
+                    value: target_expression,
+                    ..
+                } = ctx.tree.get(*value)
+                else {
+                    return Ok(None);
+                };
+
                 let target_type = self.resolve_declared_type_expression_value(
                     &mut ctx.reborrow(),
-                    *value,
+                    *target_expression,
                     true,
                     true,
                     true,
@@ -1258,7 +1256,7 @@ impl Compiler {
                 Ok(Some(self.unwrap_type_value(type_id, ctx.types)))
             }
             Pattern::TaggedTuple { ty, .. } | Pattern::TaggedObject { ty, .. } => {
-                let target_type_id = self.guard_target_type(&mut ctx.reborrow(), *ty)?;
+                let target_type_id = self.guard_target_type_expression(&mut ctx.reborrow(), *ty)?;
                 Ok(Some(self.unwrap_type_value(target_type_id, ctx.types)))
             }
             Pattern::Union { patterns } => {
@@ -1295,13 +1293,13 @@ impl Compiler {
                         }
                         PatternField::Alias { name, .. } => (Some(StaticKey::Name(*name)), None),
                         PatternField::Computed { key, pattern, .. } => (
-                            self.static_key_from_dynamic_key(
+                            self.static_key_from_key(
                                 ctx.compiler_context.revision(),
                                 ctx.profile,
                                 ctx.tree,
                                 ctx.symbols,
                                 ctx.types,
-                                DynamicKey::Expression(*key),
+                                Key::Expression(*key),
                             ),
                             *pattern,
                         ),
@@ -1475,10 +1473,6 @@ impl Compiler {
         // resolve the guard symbol from the typeof argument
         let typeof_id = self.unwrap_parenthesized_expression(typeof_id, ctx.tree);
         let right_id = match ctx.tree.get(typeof_id) {
-            Expression::TypeUnary {
-                operator: TypeUnaryOperator::Typeof,
-                right,
-            } => self.unwrap_parenthesized_expression(*right, ctx.tree),
             Expression::Unary {
                 operator: UnaryOperator::Typeof,
                 right,
@@ -1649,115 +1643,6 @@ impl Compiler {
         )))
     }
 
-    /// Split the environment for one comptime type relation guard.
-    fn narrow_environment_for_comptime_relation_guard(
-        &self,
-        ctx: &mut TypeContext<'_>,
-        guard_id: LocalNodeId<Expression>,
-        left_id: LocalNodeId<Expression>,
-        right_id: LocalNodeId<Expression>,
-        environment: &FlowEnvironment,
-        context: &InferState,
-    ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
-        // resolve the comptime relation observation from the guard syntax
-        let Some(relation) = self.comptime_extends_relation_observation_for_guard(
-            &mut ctx.reborrow(),
-            left_id,
-            right_id,
-            context,
-        )?
-        else {
-            return Ok(None);
-        };
-        let relation_symbol = relation.relation_symbol;
-        let target_type_id = relation.target_type_id;
-
-        // collect candidate value bindings for relation narrowing
-        let mut binding_symbols = environment.bindings.keys().copied().collect::<Vec<_>>();
-        for candidate_local_id in ctx.symbols.active_symbol_ids() {
-            let candidate_symbol = candidate_local_id.into_global(ctx.module.id);
-            if binding_symbols.contains(&candidate_symbol) {
-                continue;
-            }
-            if ctx.types.get_value_type_id(candidate_symbol).is_some() {
-                binding_symbols.push(candidate_symbol);
-            }
-        }
-
-        // refine all candidate bindings that reference the relation parameter
-        let mut true_environment = environment.clone();
-        let mut false_environment = environment.clone();
-        let mut did_narrow = false;
-
-        for binding_symbol in binding_symbols {
-            let base_type_id = self.symbol_type_for_guard(
-                &mut ctx.reborrow(),
-                guard_id,
-                binding_symbol,
-                environment,
-                context,
-            )?;
-            let mut visited = Vec::new();
-            if !self.type_references_symbol(base_type_id, relation_symbol, ctx.types, &mut visited)
-            {
-                continue;
-            }
-            let relation_base_type_id = base_type_id;
-
-            let (true_type_id, false_type_id) =
-                self.type_guard_types(&mut ctx.reborrow(), relation_base_type_id, target_type_id);
-            if let Some(type_id) = true_type_id {
-                true_environment.bindings.insert(binding_symbol, type_id);
-            }
-            if let Some(type_id) = false_type_id {
-                false_environment.bindings.insert(binding_symbol, type_id);
-            }
-            did_narrow = true;
-        }
-
-        if !did_narrow {
-            return Ok(None);
-        }
-
-        Ok(Some((true_environment, false_environment)))
-    }
-
-    /// Resolve one comptime extends relation observation from guard syntax.
-    fn comptime_extends_relation_observation_for_guard(
-        &self,
-        ctx: &mut TypeContext<'_>,
-        left_id: LocalNodeId<Expression>,
-        right_id: LocalNodeId<Expression>,
-        _context: &InferState,
-    ) -> AnalyzeResult<Option<ComptimeExtendsRelationObservation>> {
-        // unwrap comptime wrappers around the relation operand
-        let mut relation_expression_id = self.unwrap_parenthesized_expression(left_id, ctx.tree);
-        while let Expression::Comptime { body } = ctx.tree.get(relation_expression_id) {
-            relation_expression_id = self.unwrap_parenthesized_expression(*body, ctx.tree);
-        }
-
-        // resolve the static parameter symbol directly from the relation operand
-        let relation_symbol = self
-            .reference_symbol_for_expression(ctx.tree_symbol_view(), relation_expression_id)
-            .or_else(|| ctx.tree.get(relation_expression_id).target_symbol());
-        let Some(relation_symbol) = relation_symbol else {
-            return Ok(None);
-        };
-        if !self.symbol_is_static_parameter(ctx.symbol_type_view(), relation_symbol) {
-            return Ok(None);
-        }
-
-        // resolve the right-hand target type
-        let right_id = self.unwrap_parenthesized_expression(right_id, ctx.tree);
-        let target_type_id = self.guard_target_type(&mut ctx.reborrow(), right_id)?;
-        let target_type_id = self.unwrap_type_value(target_type_id, ctx.types);
-
-        Ok(Some(ComptimeExtendsRelationObservation {
-            relation_symbol,
-            target_type_id,
-        }))
-    }
-
     /// Split the environment for one runtime type relation guard.
     fn narrow_environment_for_runtime_type_guard(
         &self,
@@ -1768,17 +1653,37 @@ impl Compiler {
         environment: &FlowEnvironment,
         context: &InferState,
     ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
+        // resolve the target type from the guard expression
+        let target_id = self.unwrap_parenthesized_expression(target_id, ctx.tree);
+        let target_type_id = self.guard_target_type(&mut ctx.reborrow(), target_id)?;
+        let target_type_id = self.unwrap_type_value(target_type_id, ctx.types);
+
+        self.narrow_environment_for_runtime_type_guard_with_target_type(
+            &mut ctx.reborrow(),
+            guard_id,
+            value_id,
+            target_type_id,
+            environment,
+            context,
+        )
+    }
+
+    /// Split the environment for one runtime type guard with a resolved target type.
+    fn narrow_environment_for_runtime_type_guard_with_target_type(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        guard_id: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
+        target_type_id: LocalTypeId,
+        environment: &FlowEnvironment,
+        context: &InferState,
+    ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
         // resolve the target symbol
         let value_id = self.unwrap_parenthesized_expression(value_id, ctx.tree);
         let symbol = self.reference_symbol_for_expression(ctx.tree_symbol_view(), value_id);
         let Some(symbol) = symbol else {
             return Ok(None);
         };
-
-        // resolve the target type
-        let target_id = self.unwrap_parenthesized_expression(target_id, ctx.tree);
-        let target_type_id = self.guard_target_type(&mut ctx.reborrow(), target_id)?;
-        let target_type_id = self.unwrap_type_value(target_type_id, ctx.types);
 
         // resolve the base type for the symbol
         let base_type_id = self.symbol_type_for_guard(
@@ -1828,11 +1733,29 @@ impl Compiler {
         target_id: LocalNodeId<Expression>,
     ) -> AnalyzeResult<LocalTypeId> {
         // prefer explicit type nodes
-        if let Expression::Type { value } = ctx.tree.get(target_id) {
-            return Ok(*value);
+        if let Expression::Type { resolved_type, .. } = ctx.tree.get(target_id) {
+            return Ok(*resolved_type);
         }
 
-        // fall back to evaluating the expression as a type
+        // otherwise use the inferred value type and unwrap type-as-value wrappers
+        let Some(target_type_id) = ctx
+            .types
+            .get_declared_or_inferred_type_id(target_id.into_global_any(ctx.module.id))
+        else {
+            return Ok(ctx
+                .types
+                .insert_type_from_any(Type::Error, target_id.into_any()));
+        };
+
+        Ok(ctx.types.unwrap_value_type_id(target_type_id))
+    }
+
+    /// Determine the target type for a guard type expression.
+    fn guard_target_type_expression(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        target_id: LocalNodeId<TypeExpression>,
+    ) -> AnalyzeResult<LocalTypeId> {
         self.resolve_declared_type_expression(&mut ctx.reborrow(), target_id, true, true)
     }
 
@@ -1864,21 +1787,21 @@ impl Compiler {
 
         let declaration_id = LocalNodeId::<Declaration>::new(primary_declaration.local_id.id);
         let declaration = ctx.tree.get(declaration_id);
-        let Declaration::Function { signature, .. } = declaration else {
+        let Declaration::Function(declaration) = declaration else {
             return None;
         };
 
-        Some(signature.clone())
+        Some(declaration.signature.clone())
     }
 
     /// Find the parameter that matches a guard predicate subject.
     fn guard_parameter_for_subject(
         &self,
         ctx: &TypeContext<'_>,
-        subject: TypePredicateSubject,
+        subject: PredicateSubject,
         signature: &FunctionSignature,
     ) -> Option<(usize, Option<StringId>)> {
-        for (index, parameter_id) in signature.dynamic_parameters.iter().enumerate() {
+        for (index, parameter_id) in signature.parameters.iter().enumerate() {
             let parameter = ctx.tree.get(*parameter_id);
             let parameter_symbol = parameter.symbol().into_global(ctx.module.id);
             let parameter_name = match parameter {
@@ -1891,15 +1814,15 @@ impl Compiler {
             };
 
             match subject {
-                TypePredicateSubject::Symbol(symbol) if symbol == parameter_symbol => {
+                PredicateSubject::Symbol(symbol) if symbol == parameter_symbol => {
                     return Some((index, parameter_name));
                 }
-                TypePredicateSubject::Unresolved(name)
+                PredicateSubject::Unresolved(name)
                     if parameter_name.is_some_and(|parameter_name| parameter_name == name) =>
                 {
                     return Some((index, parameter_name));
                 }
-                TypePredicateSubject::This => return None,
+                PredicateSubject::This => return None,
                 _ => {}
             }
         }
@@ -1919,7 +1842,7 @@ impl Compiler {
         if let Some(parameter_name) = parameter_name {
             for argument_id in arguments {
                 match ctx.tree.get(*argument_id) {
-                    Argument::Named { name, value, .. } if *name == parameter_name => {
+                    Argument::Named { name, value, .. } if name.string() == parameter_name => {
                         return Some(*value);
                     }
                     Argument::Labeled { label, value, .. } if *label == parameter_name => {
@@ -2417,10 +2340,6 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
     ) -> Option<LocalNodeId<Expression>> {
         match tree.get(expression_id) {
-            Expression::TypeUnary {
-                operator: TypeUnaryOperator::Typeof,
-                ..
-            } => Some(expression_id),
             Expression::Unary {
                 operator: UnaryOperator::Typeof,
                 ..
@@ -2473,13 +2392,13 @@ impl Compiler {
             Expression::Index { left, right, .. } => {
                 let right_id = right.as_ref()?;
                 let right_id = self.unwrap_parenthesized_expression(*right_id, ctx.tree);
-                let key = self.static_key_from_dynamic_key(
+                let key = self.static_key_from_key(
                     ctx.compiler_context.revision(),
                     ctx.profile,
                     ctx.tree,
                     ctx.symbols,
                     ctx.types,
-                    DynamicKey::Expression(right_id),
+                    Key::Expression(right_id),
                 )?;
                 let left_id = self.unwrap_parenthesized_expression(*left, ctx.tree);
                 let symbol =
@@ -2652,145 +2571,6 @@ impl Compiler {
         Ok(self.normalize_type(&mut ctx.reborrow(), resolved_type, NormalizationMode::Flow))
     }
 
-    /// Return whether one type graph references a target symbol.
-    fn type_references_symbol(
-        &self,
-        type_id: LocalTypeId,
-        target_symbol: GlobalSymbolId,
-        types: &TypeTable,
-        visited: &mut Vec<LocalTypeId>,
-    ) -> bool {
-        // stop recursive loops
-        if visited.contains(&type_id) {
-            return false;
-        }
-        visited.push(type_id);
-
-        let references = match types.get_type(type_id) {
-            Type::Reference {
-                symbol,
-                static_arguments,
-            } => {
-                if *symbol == target_symbol {
-                    true
-                } else {
-                    static_arguments.as_deref().is_some_and(|arguments| {
-                        arguments.iter().any(|argument| {
-                            let maybe_type_id = match argument {
-                                StaticArgument::Evaluated {
-                                    value: StaticExpression::Type { ty },
-                                    ..
-                                } => Some(*ty),
-                                _ => None,
-                            };
-                            maybe_type_id.is_some_and(|type_id| {
-                                self.type_references_symbol(type_id, target_symbol, types, visited)
-                            })
-                        })
-                    })
-                }
-            }
-            Type::Value { value }
-            | Type::Unary { right: value, .. }
-            | Type::ValueOf { right: value, .. }
-            | Type::ReferenceOf { right: value, .. }
-            | Type::PointerOf { right: value, .. } => {
-                self.type_references_symbol(*value, target_symbol, types, visited)
-            }
-            Type::Binary { left, right, .. } | Type::Index { left, index: right } => {
-                self.type_references_symbol(*left, target_symbol, types, visited)
-                    || self.type_references_symbol(*right, target_symbol, types, visited)
-            }
-            Type::Conditional {
-                left,
-                right,
-                then_type,
-                else_type,
-                ..
-            } => {
-                self.type_references_symbol(*left, target_symbol, types, visited)
-                    || self.type_references_symbol(*right, target_symbol, types, visited)
-                    || self.type_references_symbol(*then_type, target_symbol, types, visited)
-                    || self.type_references_symbol(*else_type, target_symbol, types, visited)
-            }
-            Type::Mapped {
-                parameter, value, ..
-            } => {
-                self.type_references_symbol(parameter.constraint, target_symbol, types, visited)
-                    || parameter.key_remap.is_some_and(|type_id| {
-                        self.type_references_symbol(type_id, target_symbol, types, visited)
-                    })
-                    || self.type_references_symbol(*value, target_symbol, types, visited)
-            }
-            Type::ArraySized { element, count, .. } => {
-                self.type_references_symbol(*element, target_symbol, types, visited)
-                    || self.type_references_symbol(*count, target_symbol, types, visited)
-            }
-            Type::Array { element, .. } => element.is_some_and(|type_id| {
-                self.type_references_symbol(type_id, target_symbol, types, visited)
-            }),
-            Type::Tuple { elements, .. } => elements.iter().any(|element| {
-                self.type_references_symbol(element.ty, target_symbol, types, visited)
-            }),
-            Type::Object {
-                fields,
-                call_signatures,
-                construct_signatures,
-                index_signatures,
-            } => {
-                fields.iter().any(|field| {
-                    self.type_references_symbol(field.ty, target_symbol, types, visited)
-                }) || call_signatures.iter().any(|signature_type_id| {
-                    self.type_references_symbol(*signature_type_id, target_symbol, types, visited)
-                }) || construct_signatures.iter().any(|signature_type_id| {
-                    self.type_references_symbol(*signature_type_id, target_symbol, types, visited)
-                }) || index_signatures.iter().any(|signature| {
-                    self.type_references_symbol(signature.key_type, target_symbol, types, visited)
-                        || self.type_references_symbol(
-                            signature.value_type,
-                            target_symbol,
-                            types,
-                            visited,
-                        )
-                })
-            }
-            Type::TemplateLiteral { spans, .. } => spans.iter().any(|type_id| {
-                self.type_references_symbol(*type_id, target_symbol, types, visited)
-            }),
-            Type::Infer { constraint, .. } => constraint.is_some_and(|type_id| {
-                self.type_references_symbol(type_id, target_symbol, types, visited)
-            }),
-            Type::Predicate { target, .. } => target.is_some_and(|type_id| {
-                self.type_references_symbol(type_id, target_symbol, types, visited)
-            }),
-            Type::Union { elements } | Type::Intersection { elements } => {
-                elements.iter().any(|type_id| {
-                    self.type_references_symbol(*type_id, target_symbol, types, visited)
-                })
-            }
-            Type::Import {
-                static_arguments, ..
-            } => static_arguments.as_deref().is_some_and(|arguments| {
-                arguments.iter().any(|argument| {
-                    let maybe_type_id = match argument {
-                        StaticArgument::Evaluated {
-                            value: StaticExpression::Type { ty },
-                            ..
-                        } => Some(*ty),
-                        _ => None,
-                    };
-                    maybe_type_id.is_some_and(|type_id| {
-                        self.type_references_symbol(type_id, target_symbol, types, visited)
-                    })
-                })
-            }),
-            _ => false,
-        };
-
-        let _ = visited.pop();
-        references
-    }
-
     /// Extract a nullish literal kind from an expression.
     fn nullish_literal_kind(
         &self,
@@ -2807,15 +2587,6 @@ impl Compiler {
             _ => None,
         }
     }
-}
-
-/// Describe one `comptime T extends U` relation observation.
-#[derive(Debug, Clone, Copy)]
-struct ComptimeExtendsRelationObservation {
-    /// The relation parameter symbol on the left side.
-    relation_symbol: GlobalSymbolId,
-    /// The target type on the right side.
-    target_type_id: LocalTypeId,
 }
 
 /// Describe the nullish guard literal kind.

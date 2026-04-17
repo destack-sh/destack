@@ -1,5 +1,5 @@
 use super::*;
-use destack_dir::{DynamicKey, Instance, LocalInstanceId, Member, Resolution};
+use destack_dir::{Instance, Key, LocalInstanceId, Member, Node, Resolution};
 
 #[derive(Debug, Clone, PartialEq)]
 struct ExpectedInstanceShape {
@@ -28,12 +28,11 @@ impl TestModuleView<'_> {
         for member_id in members {
             let member = self.tree().get(*member_id);
             let key_name = member.key().and_then(|key| match key {
-                DynamicKey::Name(name) => Some(name),
-                DynamicKey::Number(name) => Some(name),
-                DynamicKey::Private(_) => None,
-                DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
+                Key::Name(name) => Some(name.string()),
+                Key::Private(_) => None,
+                Key::Expression(_) => None,
             });
-            if key_name.is_some_and(|name| *name == member_name) {
+            if key_name.is_some_and(|name| name == member_name) {
                 return member.symbol().into_global(self.module_id);
             }
         }
@@ -41,16 +40,16 @@ impl TestModuleView<'_> {
         panic!("expected member symbol");
     }
 
-    /// Resolve one instance attached to one expression node.
-    fn expect_instance_for_expression(
+    /// Resolve one instance attached to one node.
+    fn expect_instance_for_node<N: Node>(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        node_id: LocalNodeId<N>,
     ) -> (GlobalSymbolId, Vec<StaticArgument>) {
         // load the attached instance
         let instance_id = self
             .types()
-            .get_instance_for_node(expression_id.into_global_any(self.module_id))
-            .expect("expected instance for expression");
+            .get_instance_for_node(node_id.into_global_any(self.module_id))
+            .expect("expected instance for node");
         let instance = self.types().get_instance(instance_id);
 
         (instance.symbol_id, instance.static_arguments.clone())
@@ -72,13 +71,12 @@ impl TestModuleView<'_> {
             let declaration = self.tree().get(declaration_id);
             let declaration_symbol = declaration.symbol().into_global(self.module_id);
             let declaration_parameters = declaration
-                .static_parameters()
-                .cloned()
+                .generic_parameters()
                 .unwrap_or_default()
-                .into_iter()
+                .iter()
                 .map(|parameter_id| {
                     self.tree()
-                        .get(parameter_id)
+                        .get(*parameter_id)
                         .symbol()
                         .into_global(self.module_id)
                 })
@@ -100,29 +98,23 @@ impl TestModuleView<'_> {
                 }
 
                 let member_parameters = match member {
-                    Member::Type {
-                        static_parameters, ..
-                    } => static_parameters
-                        .clone()
-                        .unwrap_or_default()
-                        .into_iter()
+                    Member::AssociatedType {
+                        generic_parameters, ..
+                    } => generic_parameters
+                        .iter()
                         .map(|parameter_id| {
                             self.tree()
-                                .get(parameter_id)
+                                .get(*parameter_id)
                                 .symbol()
                                 .into_global(self.module_id)
                         })
                         .collect::<Vec<_>>(),
                     Member::Method { signature, .. } => signature
-                        .generics
-                        .as_ref()
-                        .and_then(|generics| generics.static_parameters.as_ref())
-                        .cloned()
-                        .unwrap_or_default()
-                        .into_iter()
+                        .generic_parameters
+                        .iter()
                         .map(|parameter_id| {
                             self.tree()
-                                .get(parameter_id)
+                                .get(*parameter_id)
                                 .symbol()
                                 .into_global(self.module_id)
                         })
@@ -299,8 +291,7 @@ let value: Wrap<number> = 1;
     let wrap_symbol = test
         .resolve_to_symbol("test.ds", "Wrap")
         .expect("expected Wrap symbol");
-    let (instance_symbol, static_arguments) =
-        view.expect_instance_for_expression(type_expression_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(type_expression_id);
     // Wrap
     assert_eq!(instance_symbol, wrap_symbol);
     // <number>
@@ -337,8 +328,7 @@ declare let value: Box<number>;
     let box_symbol = test
         .resolve_to_symbol("test.ds", "Box")
         .expect("expected Box symbol");
-    let (instance_symbol, static_arguments) =
-        view.expect_instance_for_expression(type_expression_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(type_expression_id);
     // Box
     assert_eq!(instance_symbol, box_symbol);
     // <number>
@@ -380,8 +370,7 @@ declare let value: Container<string>;
     let container_symbol = test
         .resolve_to_symbol("test.ds", "Container")
         .expect("expected Container symbol");
-    let (instance_symbol, static_arguments) =
-        view.expect_instance_for_expression(type_expression_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(type_expression_id);
     // Container
     assert_eq!(instance_symbol, container_symbol);
     // <string>
@@ -420,8 +409,7 @@ let boxed: Box<number> = makeBox();
     let box_symbol = test
         .resolve_to_symbol("test.ds", "Box")
         .expect("expected Box symbol");
-    let (instance_symbol, static_arguments) =
-        view.expect_instance_for_expression(type_expression_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(type_expression_id);
     // Box
     assert_eq!(instance_symbol, box_symbol);
     // <number>
@@ -468,7 +456,7 @@ let boxed = new Box<string>("hi");
     let box_symbol = test
         .resolve_to_symbol("test.ds", "Box")
         .expect("expected Box symbol");
-    let (instance_symbol, static_arguments) = view.expect_instance_for_expression(value_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
 
     // Box
     assert_eq!(instance_symbol, box_symbol);
@@ -551,7 +539,7 @@ let value = box.map<string>(1);
     let map_symbol = view.expect_member_symbol_for_owner(box_symbol, map_name);
 
     // box.map<string>(1)
-    let (instance_symbol, static_arguments) = view.expect_instance_for_expression(value_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
 
     // Box.map
     assert_eq!(instance_symbol, map_symbol);
@@ -598,7 +586,7 @@ let value = box.map(text);
     let map_symbol = view.expect_member_symbol_for_owner(box_symbol, map_name);
 
     // box.map(text)
-    let (instance_symbol, static_arguments) = view.expect_instance_for_expression(value_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
 
     // Box.map
     assert_eq!(instance_symbol, map_symbol);
@@ -657,7 +645,7 @@ let value = box.map(narrowed);
     let map_symbol = view.expect_member_symbol_for_owner(box_symbol, map_name);
 
     // box.map(valueOrCount)
-    let (instance_symbol, static_arguments) = view.expect_instance_for_expression(value_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
 
     // Box.map
     assert_eq!(instance_symbol, map_symbol);
@@ -700,7 +688,7 @@ let value = identity(text);
 
     // identity(text)
     let instance_id = view.expect_instance_id_for_expression(value_id);
-    let (instance_symbol, static_arguments) = view.expect_instance_for_expression(value_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
 
     // identity
     assert_eq!(instance_symbol, identity_symbol);
@@ -761,7 +749,7 @@ let head = mapOne(tuple, input => input[0]);
     let map_one_symbol = test
         .resolve_to_symbol("test.ds", "mapOne")
         .expect("expected mapOne symbol");
-    let (instance_symbol, static_arguments) = view.expect_instance_for_expression(value_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
     assert_eq!(instance_symbol, map_one_symbol);
     assert_eq!(static_arguments.len(), 2);
 
@@ -846,7 +834,7 @@ let value = identity(narrowed);
     let identity_symbol = test
         .resolve_to_symbol("test.ds", "identity")
         .expect("expected identity symbol");
-    let (instance_symbol, static_arguments) = view.expect_instance_for_expression(value_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
 
     // identity
     assert_eq!(instance_symbol, identity_symbol);
@@ -925,7 +913,7 @@ let value = container.map<string>(1);
     let map_symbol = view.expect_member_symbol_for_owner(container_symbol, map_name);
 
     // container.map<string>(1)
-    let (instance_symbol, static_arguments) = view.expect_instance_for_expression(value_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
 
     // Container.map
     assert_eq!(instance_symbol, map_symbol);
@@ -972,7 +960,7 @@ let value = container.map(text);
     let map_symbol = view.expect_member_symbol_for_owner(container_symbol, map_name);
 
     // container.map(text)
-    let (instance_symbol, static_arguments) = view.expect_instance_for_expression(value_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
 
     // Container.map
     assert_eq!(instance_symbol, map_symbol);
@@ -1021,7 +1009,7 @@ let value = derived.map<string>();
     let base_map_symbol = view.expect_member_symbol_for_owner(base_symbol, map_name);
 
     // derived.map<string>()
-    let (instance_symbol, static_arguments) = view.expect_instance_for_expression(value_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
 
     // Base.map
     assert_eq!(instance_symbol, base_map_symbol);
@@ -1070,7 +1058,7 @@ let value = derived.map(text);
     let base_map_symbol = view.expect_member_symbol_for_owner(base_symbol, map_name);
 
     // derived.map(text)
-    let (instance_symbol, static_arguments) = view.expect_instance_for_expression(value_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
 
     // Base.map
     assert_eq!(instance_symbol, base_map_symbol);
@@ -1129,11 +1117,11 @@ let third = boxNumber.map(flag);
 
     // Box<string>
     let (box_string_instance_symbol, box_string_arguments) =
-        view.expect_instance_for_expression(box_string_ty);
+        view.expect_instance_for_node(box_string_ty);
 
     // Box<number>
     let (box_number_instance_symbol, box_number_arguments) =
-        view.expect_instance_for_expression(box_number_ty);
+        view.expect_instance_for_node(box_number_ty);
 
     // Box
     assert_eq!(box_string_instance_symbol, box_symbol);
@@ -1157,12 +1145,9 @@ let third = boxNumber.map(flag);
         .expect("expected second initializer");
     let third_value_id = third_declarator.value.expect("expected third initializer");
 
-    let (first_instance_symbol, first_arguments) =
-        view.expect_instance_for_expression(first_value_id);
-    let (second_instance_symbol, second_arguments) =
-        view.expect_instance_for_expression(second_value_id);
-    let (third_instance_symbol, third_arguments) =
-        view.expect_instance_for_expression(third_value_id);
+    let (first_instance_symbol, first_arguments) = view.expect_instance_for_node(first_value_id);
+    let (second_instance_symbol, second_arguments) = view.expect_instance_for_node(second_value_id);
+    let (third_instance_symbol, third_arguments) = view.expect_instance_for_node(third_value_id);
 
     // Box.map
     assert_eq!(first_instance_symbol, map_symbol);
@@ -1267,7 +1252,7 @@ let value = derived.map<string>();
     let base_map_symbol = lib_view.expect_member_symbol_for_owner(base_symbol, map_name);
 
     // derived.map<string>()
-    let (instance_symbol, static_arguments) = main_view.expect_instance_for_expression(value_id);
+    let (instance_symbol, static_arguments) = main_view.expect_instance_for_node(value_id);
 
     // Base.map
     assert_eq!(instance_symbol, base_map_symbol);
@@ -1329,7 +1314,7 @@ let value = derived.map(text);
     let base_map_symbol = lib_view.expect_member_symbol_for_owner(base_symbol, map_name);
 
     // derived.map(text)
-    let (instance_symbol, static_arguments) = main_view.expect_instance_for_expression(value_id);
+    let (instance_symbol, static_arguments) = main_view.expect_instance_for_node(value_id);
 
     // Base.map
     assert_eq!(instance_symbol, base_map_symbol);
@@ -1378,7 +1363,7 @@ let value = identity(text);
         .expect("expected identity symbol");
 
     // identity(text)
-    let (instance_symbol, static_arguments) = main_view.expect_instance_for_expression(value_id);
+    let (instance_symbol, static_arguments) = main_view.expect_instance_for_node(value_id);
     // identity
     assert_eq!(instance_symbol, identity_symbol);
     // <string>
@@ -1468,12 +1453,12 @@ let value = identity(text);
         .expect("expected main_b value initializer");
 
     // main_a identity(text)
-    let (instance_symbol_a, arguments_a) = main_a_view.expect_instance_for_expression(value_a);
+    let (instance_symbol_a, arguments_a) = main_a_view.expect_instance_for_node(value_a);
     assert_eq!(instance_symbol_a, identity_symbol);
     main_a_view.assert_static_argument_primitive_sequence(&arguments_a, &[PrimitiveType::String]);
 
     // main_b identity(text)
-    let (instance_symbol_b, arguments_b) = main_b_view.expect_instance_for_expression(value_b);
+    let (instance_symbol_b, arguments_b) = main_b_view.expect_instance_for_node(value_b);
     assert_eq!(instance_symbol_b, identity_symbol);
     main_b_view.assert_static_argument_primitive_sequence(&arguments_b, &[PrimitiveType::String]);
 
@@ -1531,7 +1516,7 @@ let value = derived.map<string>();
     let base_map_symbol = view.expect_member_symbol_for_owner(base_symbol, map_name);
 
     // derived.map<string>()
-    let (instance_symbol, static_arguments) = view.expect_instance_for_expression(value_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
 
     // Base.map
     assert_eq!(instance_symbol, base_map_symbol);
@@ -1579,7 +1564,7 @@ let value = (derived.map<string>)();
     let base_map_symbol = view.expect_member_symbol_for_owner(base_symbol, map_name);
 
     // (derived.map<string>)()
-    let (instance_symbol, static_arguments) = view.expect_instance_for_expression(value_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
 
     // Base.map
     assert_eq!(instance_symbol, base_map_symbol);
@@ -1632,7 +1617,7 @@ let value = pair.map<boolean>(true);
     let map_symbol = view.expect_member_symbol_for_owner(extension_symbol, map_name);
 
     // pair.map<boolean>(true)
-    let (instance_symbol, static_arguments) = view.expect_instance_for_expression(value_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
 
     // PairOps.map
     assert_eq!(instance_symbol, map_symbol);
@@ -1928,7 +1913,7 @@ let value = box.map<boolean>(1, true);
     let map_symbol = view.expect_member_symbol_for_owner(box_symbol, map_name);
 
     // box.map<boolean>(1, true)
-    let (instance_symbol, static_arguments) = view.expect_instance_for_expression(value_id);
+    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
 
     // Box.map
     assert_eq!(instance_symbol, map_symbol);

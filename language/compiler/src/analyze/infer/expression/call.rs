@@ -11,11 +11,11 @@ use crate::analyze::infer::RemoteValueTypeReadDomain;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferState};
 use destack_dir::{
-    Argument, BindingKind, Constraint, Declaration, DispatchKey, DynamicResolutionCandidateSlotId,
-    Expression, FunctionKind, FunctionMode, GlobalSymbolId, InferOrigin, InferTable,
+    Argument, Constraint, Declaration, DispatchKey, DynamicResolutionCandidateSlotId, Expression,
+    FunctionKind, FunctionMode, GenericArgument, GlobalSymbolId, InferOrigin, InferTable,
     LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType,
     Parameter, Property, ResolutionCandidate, ResolvedSignature, StaticArgument, StaticExpression,
-    StaticKey, StaticParameter, StaticParameterKind, StringId, SymbolType, Timing, Type,
+    StaticKey, StaticParameter, StaticParameterKind, StringId, SymbolType, Type, TypeExpression,
     TypeLiteral, TypeTable,
 };
 use destack_workspace::ModuleSource;
@@ -93,7 +93,7 @@ struct CallExpressionResolution {
     /// Member-call lookup context when the callee is a member expression.
     member_call_context: Option<MemberCallContext>,
     /// Static arguments supplied on the member expression itself.
-    member_static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+    member_static_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
     /// Inherited static arguments from the receiver.
     inherited_static_arguments: Vec<StaticArgument>,
     /// Inherited substitutions from the receiver.
@@ -152,7 +152,7 @@ struct UnionMemberCallResolutionContext<'a> {
     /// The member key used for lookup.
     member_key: &'a StaticKey,
     /// Static arguments used for member-call signature resolution.
-    static_arguments: Option<&'a [LocalNodeId<Argument>]>,
+    generic_arguments: Option<&'a [LocalNodeId<GenericArgument>]>,
     /// Dynamic arguments used for overload selection.
     dynamic_arguments: &'a [LocalNodeId<Argument>],
 }
@@ -165,7 +165,7 @@ pub(crate) struct SignatureStaticResolutionContext<'a> {
     /// The declaration owner symbol when available.
     pub(crate) owner_symbol: Option<GlobalSymbolId>,
     /// Static arguments provided at the call site.
-    pub(crate) static_argument_ids: Option<&'a [LocalNodeId<Argument>]>,
+    pub(crate) generic_argument_ids: Option<&'a [LocalNodeId<GenericArgument>]>,
     /// Static arguments supplied by receiver or extension context.
     pub(crate) prefilled_static_arguments: Option<&'a [StaticArgument]>,
     /// Existing substitutions that must be applied before assigning call arguments.
@@ -194,7 +194,7 @@ pub(crate) struct CallSignatureResolutionContext<'a> {
     /// The declaration symbol of the callee when statically known.
     pub(crate) callee_symbol: Option<GlobalSymbolId>,
     /// Static arguments provided at the call site.
-    pub(crate) static_arguments: Option<&'a [LocalNodeId<Argument>]>,
+    pub(crate) generic_arguments: Option<&'a [LocalNodeId<GenericArgument>]>,
     /// Static arguments inherited from receiver or extension context.
     pub(crate) prefilled_static_arguments: Option<&'a [StaticArgument]>,
     /// Existing substitutions applied before static-argument resolution.
@@ -219,7 +219,7 @@ struct OverloadSelectionContext<'a> {
     /// The declaration symbol of the callee when statically known.
     callee_symbol: Option<GlobalSymbolId>,
     /// Static arguments provided at the call site.
-    static_arguments: Option<&'a [LocalNodeId<Argument>]>,
+    generic_arguments: Option<&'a [LocalNodeId<GenericArgument>]>,
     /// Static arguments inherited from receiver or extension context.
     prefilled_static_arguments: Option<&'a [StaticArgument]>,
     /// Existing substitutions applied before static-argument resolution.
@@ -389,7 +389,7 @@ impl Compiler {
         let CallSignatureResolutionContext {
             expression_id,
             callee_symbol,
-            static_arguments,
+            generic_arguments,
             prefilled_static_arguments,
             bound_substitutions,
             dynamic_arguments,
@@ -410,7 +410,7 @@ impl Compiler {
         };
 
         let has_explicit_static_arguments =
-            static_arguments.is_some_and(|static_arguments| !static_arguments.is_empty());
+            generic_arguments.is_some_and(|arguments| !arguments.is_empty());
         if has_explicit_static_arguments
             && static_parameters.is_empty()
             && let Some(callee_symbol) = callee_symbol
@@ -433,7 +433,7 @@ impl Compiler {
                 SignatureStaticResolutionContext {
                     node_id: expression_id.into_any(),
                     owner_symbol: callee_symbol,
-                    static_argument_ids: static_arguments,
+                    generic_argument_ids: generic_arguments,
                     prefilled_static_arguments,
                     bound_substitutions,
                     dynamic_argument_ids: dynamic_arguments,
@@ -487,7 +487,7 @@ impl Compiler {
         let OverloadSelectionContext {
             expression_id,
             callee_symbol,
-            static_arguments,
+            generic_arguments,
             prefilled_static_arguments,
             bound_substitutions,
             dynamic_arguments,
@@ -511,7 +511,7 @@ impl Compiler {
                 CallSignatureResolutionContext {
                     expression_id,
                     callee_symbol,
-                    static_arguments,
+                    generic_arguments,
                     prefilled_static_arguments,
                     bound_substitutions,
                     dynamic_arguments: Some(dynamic_arguments),
@@ -969,9 +969,9 @@ impl Compiler {
         types: &TypeTable,
     ) -> bool {
         let argument_value = tree.get(argument_value_id);
-        if let Expression::Declaration { declaration } = argument_value
-            && let Declaration::Function { signature, .. } = tree.get(*declaration)
-            && matches!(signature.kind, FunctionKind::Lambda)
+        if let Expression::Declaration(declaration) = argument_value
+            && let Declaration::Function(declaration) = tree.get(*declaration)
+            && matches!(declaration.signature.kind, FunctionKind::Lambda)
         {
             let param_signatures = self.call_signatures_for_type(param_ty_id, types);
             let Some(signature_id) = param_signatures.first().copied() else {
@@ -988,7 +988,7 @@ impl Compiler {
             let expected_params = dynamic_parameters.as_slice();
             let expected_return = *return_type;
 
-            if signature.dynamic_parameters.len() > expected_params.len() {
+            if declaration.signature.parameters.len() > expected_params.len() {
                 return false;
             }
 
@@ -996,9 +996,10 @@ impl Compiler {
                 matches!(types.get_type(return_ty_id), Type::Predicate { .. })
             });
             if expects_predicate {
-                let has_predicate_return = signature.return_type.is_some_and(|return_id| {
-                    matches!(tree.get(return_id), Expression::TypePredicate { .. })
-                });
+                let has_predicate_return =
+                    declaration.signature.return_type.is_some_and(|return_id| {
+                        matches!(tree.get(return_id), TypeExpression::Predicate { .. })
+                    });
                 if !has_predicate_return {
                     return false;
                 }
@@ -1219,7 +1220,7 @@ impl Compiler {
         receiver_union_ty_id: LocalTypeId,
         element_ids: &[LocalTypeId],
         member_key: &StaticKey,
-        static_arguments: Option<&[LocalNodeId<Argument>]>,
+        generic_arguments: Option<&[LocalNodeId<GenericArgument>]>,
         dynamic_arguments: &[LocalNodeId<Argument>],
     ) -> AnalyzeResult<Option<Vec<UnionMemberCallCandidate>>> {
         // query receiver context used by per element lookup filtering
@@ -1236,7 +1237,7 @@ impl Compiler {
             receiver_union_ty_id,
             receiver_nominal_symbol: receiver_context.nominal_symbol,
             member_key,
-            static_arguments,
+            generic_arguments,
             dynamic_arguments,
         };
 
@@ -1413,7 +1414,7 @@ impl Compiler {
                 OverloadSelectionContext {
                     expression_id: context.expression_id,
                     callee_symbol: Some(member_symbol),
-                    static_arguments: context.static_arguments,
+                    generic_arguments: context.generic_arguments,
                     prefilled_static_arguments: resolved_context.extension_arguments.as_deref(),
                     bound_substitutions,
                     dynamic_arguments: context.dynamic_arguments,
@@ -1441,7 +1442,7 @@ impl Compiler {
             CallSignatureResolutionContext {
                 expression_id: context.expression_id,
                 callee_symbol: Some(member_symbol),
-                static_arguments: context.static_arguments,
+                generic_arguments: context.generic_arguments,
                 prefilled_static_arguments: resolved_context.extension_arguments.as_deref(),
                 bound_substitutions,
                 dynamic_arguments: Some(context.dynamic_arguments),
@@ -1475,7 +1476,7 @@ impl Compiler {
 
         self.report_missing_member_diagnostic(
             context.tree_symbols.type_view(ctx.types),
-            context.expression_id,
+            context.expression_id.into_any(),
             context.receiver_union_ty_id,
             *context.member_key,
             allow_associated_contract_blocker,
@@ -1490,7 +1491,7 @@ impl Compiler {
         ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
-        static_arguments: Option<&[LocalNodeId<Argument>]>,
+        generic_arguments: Option<&[LocalNodeId<GenericArgument>]>,
         dynamic_arguments: &[LocalNodeId<Argument>],
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
@@ -1543,15 +1544,15 @@ impl Compiler {
             expression_id,
             left_id,
             callee.callee_ty_id,
-            static_arguments,
+            generic_arguments,
             state,
         )?;
 
         // resolve effective static-argument sources
         let effective_static_arguments =
-            self.query_call_signature_static_arguments(static_arguments, &call);
+            self.query_call_signature_static_arguments(generic_arguments, &call);
         let union_static_arguments =
-            self.query_union_member_call_static_arguments(static_arguments, &call);
+            self.query_union_member_call_static_arguments(generic_arguments, &call);
 
         // handle union receiver member calls with dynamic resolution
         let union_return_type_id = self.infer_union_member_call_expression(
@@ -1599,7 +1600,7 @@ impl Compiler {
                 OverloadSelectionContext {
                     expression_id,
                     callee_symbol: call.callee_symbol,
-                    static_arguments: effective_static_arguments,
+                    generic_arguments: effective_static_arguments,
                     prefilled_static_arguments: call.prefilled_static_arguments.as_deref(),
                     bound_substitutions,
                     dynamic_arguments,
@@ -1637,7 +1638,7 @@ impl Compiler {
                     CallSignatureResolutionContext {
                         expression_id,
                         callee_symbol: call.callee_symbol,
-                        static_arguments: effective_static_arguments,
+                        generic_arguments: effective_static_arguments,
                         prefilled_static_arguments: call.prefilled_static_arguments.as_deref(),
                         bound_substitutions,
                         dynamic_arguments: Some(dynamic_arguments),
@@ -1844,16 +1845,15 @@ impl Compiler {
             let parameter = tree.get(*parameter_id);
             let is_optional = match parameter {
                 Parameter::Named {
-                    modifiers, default, ..
+                    is_optional,
+                    default,
+                    ..
                 }
                 | Parameter::Pattern {
-                    modifiers, default, ..
-                } => {
-                    default.is_some()
-                        || modifiers.is_some_and(|modifiers| {
-                            matches!(modifiers.kind, Some(BindingKind::Maybe))
-                        })
-                }
+                    is_optional,
+                    default,
+                    ..
+                } => *is_optional || default.is_some(),
                 Parameter::VariadicNamed { .. }
                 | Parameter::VariadicPattern { .. }
                 | Parameter::Error { .. } => true,
@@ -1919,25 +1919,11 @@ impl Compiler {
         signature_ty_id: LocalTypeId,
         expected_owner_symbol: Option<GlobalSymbolId>,
     ) -> Vec<usize> {
-        let Some(dynamic_parameters) = self.dynamic_parameters_for_signature_source(
-            ctx,
-            signature_ty_id,
-            expected_owner_symbol,
-        ) else {
-            return Vec::new();
-        };
+        let _ctx = ctx;
+        let _signature_ty_id = signature_ty_id;
+        let _expected_owner_symbol = expected_owner_symbol;
 
-        let mut indexes = Vec::new();
-        for (index, parameter_id) in dynamic_parameters.iter().enumerate() {
-            let parameter = ctx.tree.get(*parameter_id);
-            let is_comptime = parameter.modifiers().and_then(|modifiers| modifiers.timing)
-                == Some(Timing::Comptime);
-            if is_comptime {
-                indexes.push(index);
-            }
-        }
-
-        indexes
+        Vec::new()
     }
 
     /// Return dynamic-parameter ids for one signature source when syntax metadata is available.
@@ -1956,9 +1942,9 @@ impl Compiler {
                 }
                 let declaration = ctx.tree.get(declaration_id);
                 match declaration {
-                    Declaration::Function { signature, .. } => (
-                        signature.dynamic_parameters.as_slice(),
-                        Some(declaration.symbol().into_global(ctx.module.id)),
+                    Declaration::Function(declaration) => (
+                        declaration.signature.parameters.as_slice(),
+                        Some(declaration.symbol.into_global(ctx.module.id)),
                     ),
                     _ => return None,
                 }
@@ -1971,7 +1957,7 @@ impl Compiler {
                 let member = ctx.tree.get(member_id);
                 match member {
                     Member::Method { signature, .. } => (
-                        signature.dynamic_parameters.as_slice(),
+                        signature.parameters.as_slice(),
                         Some(member.symbol().into_global(ctx.module.id)),
                     ),
                     _ => return None,
@@ -1987,7 +1973,7 @@ impl Compiler {
                     Property::Method {
                         symbol, signature, ..
                     } => (
-                        signature.dynamic_parameters.as_slice(),
+                        signature.parameters.as_slice(),
                         Some(symbol.into_global(ctx.module.id)),
                     ),
                     _ => return None,
@@ -2118,7 +2104,11 @@ impl Compiler {
                 })
             }
             Type::Value { value }
-            | Type::Unary { right: value, .. }
+            | Type::Readonly { target_type: value }
+            | Type::KeyOf { target_type: value }
+            | Type::Must { target_type: value }
+            | Type::AsComptime { target_type: value }
+            | Type::Not { target_type: value }
             | Type::ValueOf { right: value, .. }
             | Type::ReferenceOf { right: value, .. }
             | Type::PointerOf { right: value, .. } => {
@@ -2418,17 +2408,17 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         callee_ty_id: LocalTypeId,
-        static_arguments: Option<&[LocalNodeId<Argument>]>,
+        generic_arguments: Option<&[LocalNodeId<GenericArgument>]>,
         state: &mut InferState,
     ) -> AnalyzeResult<CallExpressionResolution> {
         let call_has_static_arguments =
-            static_arguments.is_some_and(|arguments| !arguments.is_empty());
+            generic_arguments.is_some_and(|arguments| !arguments.is_empty());
         let unwrapped_left_id = self.unwrap_parenthesized_expression(left_id, ctx.tree);
         match ctx.tree.get(unwrapped_left_id) {
             Expression::Member {
                 left: receiver_id,
                 name,
-                static_arguments: member_static_arguments,
+                generic_arguments: member_static_arguments,
                 ..
             } => self.resolve_member_call_expression_target(
                 &mut ctx.reborrow(),
@@ -2454,7 +2444,7 @@ impl Compiler {
                         });
                     }
                 },
-                member_static_arguments.clone(),
+                Some(member_static_arguments.clone()),
                 call_has_static_arguments,
                 state,
             ),
@@ -2476,7 +2466,7 @@ impl Compiler {
         unwrapped_left_id: LocalNodeId<Expression>,
         receiver_id: LocalNodeId<Expression>,
         member_name: StringId,
-        member_static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        member_static_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
         call_has_static_arguments: bool,
         state: &mut InferState,
     ) -> AnalyzeResult<CallExpressionResolution> {
@@ -2691,15 +2681,15 @@ impl Compiler {
     /// Query effective static arguments for direct call-signature resolution.
     fn query_call_signature_static_arguments<'a>(
         &self,
-        static_arguments: Option<&'a [LocalNodeId<Argument>]>,
+        generic_arguments: Option<&'a [LocalNodeId<GenericArgument>]>,
         call: &'a CallExpressionResolution,
-    ) -> Option<&'a [LocalNodeId<Argument>]> {
+    ) -> Option<&'a [LocalNodeId<GenericArgument>]> {
         if call.has_static_argument_conflict {
             return None;
         }
 
         if call.call_has_static_arguments {
-            return static_arguments;
+            return generic_arguments;
         }
         None
     }
@@ -2707,15 +2697,15 @@ impl Compiler {
     /// Query effective static arguments for union member-call candidate resolution.
     fn query_union_member_call_static_arguments<'a>(
         &self,
-        static_arguments: Option<&'a [LocalNodeId<Argument>]>,
+        generic_arguments: Option<&'a [LocalNodeId<GenericArgument>]>,
         call: &'a CallExpressionResolution,
-    ) -> Option<&'a [LocalNodeId<Argument>]> {
+    ) -> Option<&'a [LocalNodeId<GenericArgument>]> {
         if call.has_static_argument_conflict {
             return None;
         }
 
         if call.call_has_static_arguments {
-            return static_arguments;
+            return generic_arguments;
         }
 
         call.member_static_arguments.as_deref()
@@ -2727,7 +2717,7 @@ impl Compiler {
         ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         member_call_context: Option<&MemberCallContext>,
-        union_static_arguments: Option<&[LocalNodeId<Argument>]>,
+        union_static_arguments: Option<&[LocalNodeId<GenericArgument>]>,
         dynamic_arguments: &[LocalNodeId<Argument>],
         state: &mut InferState,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
@@ -3168,9 +3158,10 @@ impl Compiler {
 
                 // resolve class members and locate the explicit constructor method
                 let declaration_id = declaration_id.into_typed::<Declaration>();
-                let Declaration::Class { members, .. } = view.tree.get(declaration_id) else {
+                let Declaration::Class(declaration) = view.tree.get(declaration_id) else {
                     return None;
                 };
+                let members = &declaration.members;
 
                 for member_id in members {
                     let member = view.tree.get(*member_id);
@@ -3198,7 +3189,7 @@ impl Compiler {
         ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
-        static_arguments: Option<&[LocalNodeId<Argument>]>,
+        generic_arguments: Option<&[LocalNodeId<GenericArgument>]>,
         dynamic_arguments: &[LocalNodeId<Argument>],
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
@@ -3239,7 +3230,7 @@ impl Compiler {
                 OverloadSelectionContext {
                     expression_id,
                     callee_symbol: target.callee_symbol,
-                    static_arguments,
+                    generic_arguments,
                     prefilled_static_arguments: None,
                     bound_substitutions: None,
                     dynamic_arguments,
@@ -3276,7 +3267,7 @@ impl Compiler {
                     CallSignatureResolutionContext {
                         expression_id,
                         callee_symbol: target.callee_symbol,
-                        static_arguments,
+                        generic_arguments,
                         prefilled_static_arguments: None,
                         bound_substitutions: None,
                         dynamic_arguments: Some(dynamic_arguments),
@@ -3483,7 +3474,7 @@ impl Compiler {
     ) -> AnalyzeResult<Option<ResolvedSignature>> {
         // handle fast paths when there are no static parameters
         let has_static_arguments = context
-            .static_argument_ids
+            .generic_argument_ids
             .is_some_and(|args| !args.is_empty());
 
         if context.static_parameter_type_ids.is_empty() && !has_static_arguments {
@@ -3491,7 +3482,7 @@ impl Compiler {
         }
 
         if context.static_parameter_type_ids.is_empty() {
-            if let Some(argument_ids) = context.static_argument_ids {
+            if let Some(argument_ids) = context.generic_argument_ids {
                 for argument_id in argument_ids {
                     self.error(AnalyzeError::InvalidStaticArgument {
                         node: argument_id
@@ -3517,7 +3508,7 @@ impl Compiler {
         let assigned_arguments = self.assign_signature_static_arguments(
             &mut ctx.reborrow(),
             context.node_id,
-            context.static_argument_ids,
+            context.generic_argument_ids,
             context.prefilled_static_arguments,
             &static_parameters,
             context.bound_substitutions,
@@ -3574,12 +3565,12 @@ impl Compiler {
         &self,
         ctx: &mut InferContext<'_>,
         node_id: LocalNodeIdAny,
-        static_argument_ids: Option<&[LocalNodeId<Argument>]>,
+        generic_argument_ids: Option<&[LocalNodeId<GenericArgument>]>,
         prefilled_static_arguments: Option<&[StaticArgument]>,
         static_parameters: &[StaticParameter],
         bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
     ) -> Vec<Option<StaticArgument>> {
-        let argument_ids = static_argument_ids.unwrap_or(&[]);
+        let argument_ids = generic_argument_ids.unwrap_or(&[]);
         let argument_values = argument_ids
             .iter()
             .map(|argument_id| StaticArgument::Unevaluated {
@@ -4033,7 +4024,7 @@ impl Compiler {
                 SignatureStaticResolutionContext {
                     node_id: expression_id.into_any(),
                     owner_symbol: member_symbol,
-                    static_argument_ids: None,
+                    generic_argument_ids: None,
                     prefilled_static_arguments: None,
                     bound_substitutions: (!resolved_context.substitutions.is_empty())
                         .then_some(&resolved_context.substitutions),
