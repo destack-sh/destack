@@ -112,10 +112,12 @@ pub(crate) fn compute_type_layout(
             length,
             copyability: _,
         } => {
-            let element = element.ty().ok_or_else(|| CodegenCraneliftError::Internal {
-                message: "missing or malformed MIR type in native lowering: array element type"
-                    .into(),
-            })?;
+            let element = element
+                .ty()
+                .ok_or_else(|| CodegenCraneliftError::Internal {
+                    message: "missing or malformed MIR type in native lowering: array element type"
+                        .into(),
+                })?;
             let element_layout = compute_type_layout(tree, element, pointer_bytes)?;
             let size = element_layout.size * (*length as u32);
             Ok(TypeLayout::new(size, element_layout.alignment))
@@ -179,10 +181,13 @@ pub(crate) fn compute_type_layout(
             lanes,
             copyability: _,
         } => {
-            let element = element.ty().ok_or_else(|| CodegenCraneliftError::Internal {
-                message: "missing or malformed MIR type in native lowering: vector element type"
-                    .into(),
-            })?;
+            let element = element
+                .ty()
+                .ok_or_else(|| CodegenCraneliftError::Internal {
+                    message:
+                        "missing or malformed MIR type in native lowering: vector element type"
+                            .into(),
+                })?;
             let element_layout = compute_type_layout(tree, element, pointer_bytes)?;
             let size = element_layout.size * *lanes;
             Ok(TypeLayout::new(size, element_layout.alignment))
@@ -195,10 +200,13 @@ pub(crate) fn compute_type_layout(
             layout,
             copyability: _,
         } => {
-            let element = element.ty().ok_or_else(|| CodegenCraneliftError::Internal {
-                message: "missing or malformed MIR type in native lowering: tensor element type"
-                    .into(),
-            })?;
+            let element = element
+                .ty()
+                .ok_or_else(|| CodegenCraneliftError::Internal {
+                    message:
+                        "missing or malformed MIR type in native lowering: tensor element type"
+                            .into(),
+                })?;
             let element_layout = compute_type_layout(tree, element, pointer_bytes)?;
             let element_count = compute_tensor_element_count(shape, layout);
             if let Some(element_count) = element_count {

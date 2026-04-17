@@ -333,13 +333,10 @@ impl ModuleLowerer<'_> {
         let argument = self.dir_tree.get(argument_id);
 
         match argument {
-            dir::GenericArgument::Positional { value, .. } => self.lower_expression_as_type(*value),
-            dir::GenericArgument::Spread { .. } => Err(CodegenJsError::UnsupportedConstruct {
-                node: argument_id.into_global_any(self.module.id),
-                message: Some(
-                    "spread static arguments are not lowered to js type arguments".to_string(),
-                ),
-            }),
+            dir::GenericArgument::Type { value, .. } => {
+                self.lower_type_annotation_expression(*value)
+            }
+            dir::GenericArgument::Value { value, .. } => self.lower_expression_as_type(*value),
             dir::GenericArgument::Error => Err(CodegenJsError::UnsupportedConstruct {
                 node: argument_id.into_global_any(self.module.id),
                 message: Some(
