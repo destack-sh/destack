@@ -246,7 +246,7 @@ impl<'a> Dumper<'a> {
                     _ => address_space.keyword().map(|name| name.to_string()),
                 };
                 let address_space_label = address_space_label
-                    .map(|label| format!(", addressSpace({label})"))
+                    .map(|label| format!(", space({label})"))
                     .unwrap_or_default();
                 let mutability_label = match mutability {
                     Mutability::Mutable => "",

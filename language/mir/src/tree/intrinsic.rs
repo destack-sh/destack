@@ -116,9 +116,9 @@ pub enum Intrinsic {
     /// `(T, T) -> bool`
     RawEq,
 
-    // garbage collection
-    /// GC write barrier for concurrent marking.
-    /// Called before writing a managed reference to shade the new value grey.
+    // managed heap
+    /// Managed write barrier.
+    /// Called around one managed reference store so the active heap policy can track it.
     /// `(ptr, val) -> ()`
     WriteBarrier,
 
@@ -257,7 +257,7 @@ impl Intrinsic {
 
             // type punning and pointer ops
             Intrinsic::Transmute => "transmute",
-            Intrinsic::AddressSpaceCast => "addressSpace.cast",
+            Intrinsic::AddressSpaceCast => "space.cast",
             Intrinsic::PointerOffsetFrom => "ptrOffsetFrom",
             Intrinsic::RawEq => "rawEq",
 
@@ -420,7 +420,7 @@ impl FromStr for Intrinsic {
             "prefetch.read" => Ok(Intrinsic::PrefetchRead),
             "prefetch.write" => Ok(Intrinsic::PrefetchWrite),
             "transmute" => Ok(Intrinsic::Transmute),
-            "addressSpace.cast" => Ok(Intrinsic::AddressSpaceCast),
+            "space.cast" => Ok(Intrinsic::AddressSpaceCast),
             "ptrOffsetFrom" => Ok(Intrinsic::PointerOffsetFrom),
             "rawEq" => Ok(Intrinsic::RawEq),
             "writeBarrier" => Ok(Intrinsic::WriteBarrier),
@@ -476,7 +476,7 @@ pub enum IntrinsicSignature {
     /// Examples: addOverflow, subOverflow, mulOverflow
     CheckedBinary,
 
-    /// Transmute or addressSpace.cast: (T) -> U (reinterpret bits)
+    /// Transmute or space.cast: (T) -> U (reinterpret bits)
     Transmute,
 
     /// Comparison: (T, T) -> bool
@@ -497,8 +497,8 @@ pub enum IntrinsicSignature {
     /// Prefetch hint (no result)
     Prefetch,
 
-    /// GC barrier (no result)
-    GcBarrier { args: u8 },
+    /// Managed write barrier (no result)
+    WriteBarrier { args: u8 },
 
     /// Reflection (comptime only): () -> usize or (T) -> Type
     Reflection { args: u8 },
@@ -560,8 +560,8 @@ impl Intrinsic {
             Intrinsic::PointerOffsetFrom => IntrinsicSignature::PointerDiff,
             Intrinsic::RawEq => IntrinsicSignature::Comparison,
 
-            // garbage collection
-            Intrinsic::WriteBarrier => IntrinsicSignature::GcBarrier { args: 2 },
+            // managed heap
+            Intrinsic::WriteBarrier => IntrinsicSignature::WriteBarrier { args: 2 },
 
             // float math (unary)
             Intrinsic::Sqrt
@@ -624,7 +624,7 @@ impl Intrinsic {
             IntrinsicSignature::Memory { args } => args,
             IntrinsicSignature::MemoryCompare => 3,
             IntrinsicSignature::Prefetch => 1,
-            IntrinsicSignature::GcBarrier { args } => args,
+            IntrinsicSignature::WriteBarrier { args } => args,
             IntrinsicSignature::Reflection { args } => args,
             IntrinsicSignature::Control { args } => args,
             IntrinsicSignature::BranchHint { args } => args,
@@ -645,7 +645,7 @@ impl Intrinsic {
             IntrinsicSignature::Memory { .. } => false,
             IntrinsicSignature::MemoryCompare => true,
             IntrinsicSignature::Prefetch => false,
-            IntrinsicSignature::GcBarrier { .. } => false,
+            IntrinsicSignature::WriteBarrier { .. } => false,
             IntrinsicSignature::Reflection { .. } => true,
             IntrinsicSignature::Control { .. } => false,
             IntrinsicSignature::BranchHint { .. } => true,
@@ -684,7 +684,7 @@ impl Intrinsic {
             // branch hints: bool (input and output)
             Intrinsic::Expect => IntrinsicResultType::Boolean,
 
-            // transmute and addressSpace cast: explicit target type
+            // transmute and space cast: explicit target type
             Intrinsic::Transmute | Intrinsic::AddressSpaceCast => IntrinsicResultType::Explicit,
 
             // everything else: result type = first argument type
@@ -695,7 +695,7 @@ impl Intrinsic {
     /// Returns indices of arguments that are consumed (moved) by this intrinsic.
     ///
     /// Most intrinsics operate on primitives or through pointers, so nothing is consumed.
-    /// Transmute and addressSpace.cast consume their input to produce a reinterpreted output.
+    /// Transmute and space.cast consume their input to produce a reinterpreted output.
     pub fn consumed_arguments(self) -> &'static [u8] {
         match self {
             Intrinsic::Transmute | Intrinsic::AddressSpaceCast => &[0],

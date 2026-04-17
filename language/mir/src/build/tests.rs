@@ -932,9 +932,9 @@ fn test_build_stack_alloc() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function stackAllocTest(): ref<int32, raw, readonly, addressSpace(stack)> {
+function stackAllocTest(): ref<int32, raw, readonly, space(stack)> {
 entry0:
-    value0: ref<int32, raw, readonly, addressSpace(stack)> = stack.alloc int32
+    value0: ref<int32, raw, readonly, space(stack)> = stack.alloc int32
     return value0
 }";
     assert_eq!(output, expected);

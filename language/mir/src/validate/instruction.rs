@@ -1887,7 +1887,7 @@ impl<'a> Validator<'a> {
         Ok(())
     }
 
-    /// Validate the `addressSpace.cast` intrinsic.
+    /// Validate the `space.cast` intrinsic.
     fn validate_addr_space_cast_intrinsic(
         &self,
         function: &Function,
@@ -1898,44 +1898,39 @@ impl<'a> Validator<'a> {
         // arity and destination
         if arguments.len() != 1 {
             return Err(ValidateError::MetadataInvariantViolation {
-                message: "addressSpace.cast requires one argument".to_string(),
+                message: "space.cast requires one argument".to_string(),
                 anchor,
             });
         }
 
         let destination = destination.ok_or_else(|| ValidateError::MetadataInvariantViolation {
-            message: "addressSpace.cast requires a destination value".to_string(),
+            message: "space.cast requires a destination value".to_string(),
             anchor,
         })?;
 
         // source and destination types
         let source_type =
-            self.value_type_or_error(function, arguments[0], anchor, "addressSpace.cast source")?;
-        let destination_type = self.value_type_or_error(
-            function,
-            destination,
-            anchor,
-            "addressSpace.cast destination",
-        )?;
+            self.value_type_or_error(function, arguments[0], anchor, "space.cast source")?;
+        let destination_type =
+            self.value_type_or_error(function, destination, anchor, "space.cast destination")?;
 
         // reference forms
         if let (Ok(source), Ok(destination)) = (
             self.reference_type(
                 source_type,
                 anchor,
-                "addressSpace.cast requires reference or tensor reference types",
+                "space.cast requires reference or tensor reference types",
             ),
             self.reference_type(
                 destination_type,
                 anchor,
-                "addressSpace.cast requires reference or tensor reference types",
+                "space.cast requires reference or tensor reference types",
             ),
         ) {
             if source.0 != destination.0 || source.1 != destination.1 || source.2 != destination.2 {
                 return Err(ValidateError::MetadataInvariantViolation {
-                    message:
-                        "addressSpace.cast requires matching reference kind, mutability, and pointee"
-                            .to_string(),
+                    message: "space.cast requires matching reference kind, mutability, and pointee"
+                        .to_string(),
                     anchor,
                 });
             }
@@ -1948,12 +1943,12 @@ impl<'a> Validator<'a> {
             self.tensor_reference_type(
                 source_type,
                 anchor,
-                "addressSpace.cast requires reference or tensor reference types",
+                "space.cast requires reference or tensor reference types",
             ),
             self.tensor_reference_type(
                 destination_type,
                 anchor,
-                "addressSpace.cast requires reference or tensor reference types",
+                "space.cast requires reference or tensor reference types",
             ),
         ) {
             if source.0 != destination.0
@@ -1963,7 +1958,7 @@ impl<'a> Validator<'a> {
                 || source.5 != destination.5
             {
                 return Err(ValidateError::MetadataInvariantViolation {
-                    message: "addressSpace.cast requires matching tensor reference kind, mutability, element, shape, and layout".to_string(),
+                    message: "space.cast requires matching tensor reference kind, mutability, element, shape, and layout".to_string(),
                     anchor,
                 });
             }
@@ -1972,7 +1967,7 @@ impl<'a> Validator<'a> {
         }
 
         Err(ValidateError::MetadataInvariantViolation {
-            message: "addressSpace.cast requires reference or tensor reference types".to_string(),
+            message: "space.cast requires reference or tensor reference types".to_string(),
             anchor,
         })
     }

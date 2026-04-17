@@ -829,7 +829,7 @@ pub enum Instruction {
         /// The memory semantics for the operation.
         semantics: MemorySemantics,
     },
-    /// Publish one execution and memory barrier.
+    /// Publish one execution and memory synchronization barrier.
     Barrier {
         /// The execution scope for the operation.
         scope: AtomicScope,

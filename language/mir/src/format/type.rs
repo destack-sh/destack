@@ -230,10 +230,8 @@ fn format_type_inner<'a>(
             // address space clause
             let address_space_token = match address_space {
                 AddressSpace::Generic => None,
-                AddressSpace::Target(id) => Some(format!("addressSpace({id})")),
-                _ => address_space
-                    .keyword()
-                    .map(|name| format!("addressSpace({name})")),
+                AddressSpace::Target(id) => Some(format!("space({id})")),
+                _ => address_space.keyword().map(|name| format!("space({name})")),
             };
 
             // render reference syntax
@@ -465,10 +463,8 @@ fn format_view_header<'a>(
 
     let address_space_token = match address_space {
         AddressSpace::Generic => None,
-        AddressSpace::Target(id) => Some(format!("addressSpace({id})")),
-        _ => address_space
-            .keyword()
-            .map(|name| format!("addressSpace({name})")),
+        AddressSpace::Target(id) => Some(format!("space({id})")),
+        _ => address_space.keyword().map(|name| format!("space({name})")),
     };
 
     format_type_reference(element, f)?;

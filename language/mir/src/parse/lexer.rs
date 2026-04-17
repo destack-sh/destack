@@ -199,7 +199,7 @@ impl<'a> Lexer<'a> {
                     TokenType::TensorReference
                 }
             }
-            "addressSpace" => TokenType::AddressSpace,
+            "space" => TokenType::AddressSpace,
             "struct" => TokenType::Struct,
             "newtype" => TokenType::Newtype,
             "true" | "false" => TokenType::BooleanLiteral,

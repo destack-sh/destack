@@ -126,8 +126,8 @@ Canonical MIR spells checks guard-first: `check int.add.overflow.s left, right -
 
 References are just pointers, of course, and pointer sized integer types are modeled explicitly.
 ```mir
-ref<int32, raw, addressSpace(shared)>
-ref<int32, raw, readonly, addressSpace(7)>
+ref<int32, raw, space(shared)>
+ref<int32, raw, readonly, space(7)>
 ```
 
 In general, we use `ref` to model references with additional side metadata:
@@ -137,7 +137,6 @@ In general, we use `ref` to model references with additional side metadata:
 - `raw` for "unsafe" physical pointers
 
 Reference syntax is payload-first and spells out qualifiers after the payload type.
-Address spaces are optional and appear last.
 
 | Kind | Mutability | Example | Meaning |
 | --- | --- | --- | --- |
