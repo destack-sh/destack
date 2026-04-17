@@ -358,7 +358,7 @@ impl Compiler {
 
         while let Some(current_id) = current {
             // collect overrides for the current node
-            for annotation_id in tree.get_annotations(current_id.id) {
+            for annotation_id in tree.get_decorators(current_id.id) {
                 if let Some(override_info) = self.parse_diagnostic_directive(
                     tree,
                     annotation_id,
@@ -380,15 +380,14 @@ impl Compiler {
     fn parse_diagnostic_directive(
         &self,
         tree: &dir::NodeTree,
-        annotation_id: dir::LocalNodeId<dir::Annotation>,
+        annotation_id: dir::LocalNodeId<dir::Decorator>,
         diagnostic_code: &str,
         decorator_map: &HashMap<dir::GlobalSymbolId, dir::WellKnownDecorator>,
     ) -> Option<DiagnosticDirectiveOverride> {
         let annotation = tree.get(annotation_id);
-        let dir::Annotation::Decorator { expression, .. } = annotation;
 
         // resolve decorator marker symbol
-        let call = self.decorator_call(tree, *expression);
+        let call = self.decorator_call(tree, annotation.expression);
         let callee_expr = tree.get(call.callee);
         let target_symbol = match callee_expr {
             dir::Expression::LocalReference { target_symbol, .. }
