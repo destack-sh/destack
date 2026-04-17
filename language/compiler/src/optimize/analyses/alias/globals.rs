@@ -265,8 +265,8 @@ global g1: int32 = 0int32
 global g2: int32 = 0int32
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(global)> = global.address g1
-    v1: ref<int32, raw, addressSpace(global)> = global.address g2
+    v0: ref<int32, raw, space(global)> = global.address g1
+    v1: ref<int32, raw, space(global)> = global.address g2
     v2: int32 = 1int32
     store v0, v2
     store v1, v2
@@ -291,8 +291,8 @@ b0:
 global g: int32 = 0int32
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(global)> = global.address g
-    v1: ref<int32, raw, addressSpace(global)> = global.address g
+    v0: ref<int32, raw, space(global)> = global.address g
+    v1: ref<int32, raw, space(global)> = global.address g
     return
 }"#,
         );
@@ -314,7 +314,7 @@ b0:
 global g: int32 = 0int32
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(global)> = global.address g
+    v0: ref<int32, raw, space(global)> = global.address g
     v1: int32 = load v0
     return v1
 }"#,
@@ -337,7 +337,7 @@ b0:
 global g: int32 = 0int32
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(global)> = global.address g
+    v0: ref<int32, raw, space(global)> = global.address g
     v1: int32 = 42int32
     store v0, v1
     return
@@ -362,7 +362,7 @@ global g: int32 = 0int32
 extern function external(ref<int32, raw>): void
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(global)> = global.address g
+    v0: ref<int32, raw, space(global)> = global.address g
     call external(v0): (ref<int32, raw>) -> void
     return
 }"#,
@@ -391,7 +391,7 @@ b0:
 global g: int32 = 0int32
 function test(v0: ref<ref<int32, raw>, raw>): void {
 b0(v0: ref<ref<int32, raw>, raw>):
-    v1: ref<int32, raw, addressSpace(global)> = global.address g
+    v1: ref<int32, raw, space(global)> = global.address g
     store v0, v1
     return
 }"#,
@@ -415,7 +415,7 @@ b0(v0: ref<ref<int32, raw>, raw>):
 global g: int32 = 0int32
 function test(v0: ref<int32, raw>): void {
 b0(v0: ref<int32, raw>):
-    v1: ref<int32, raw, addressSpace(global)> = global.address g
+    v1: ref<int32, raw, space(global)> = global.address g
     v2: int32 = 42int32
     store v1, v2
     return
@@ -445,7 +445,7 @@ type Point { int32, int32 }
 global g: Point = { 0int32, 0int32 }
 function test(): void {
 b0:
-    v0: ref<Point, raw, addressSpace(global)> = global.address g
+    v0: ref<Point, raw, space(global)> = global.address g
     v1: ref<int32, borrowed> = field.address v0, 0
     v2: int32 = 42int32
     store v1, v2

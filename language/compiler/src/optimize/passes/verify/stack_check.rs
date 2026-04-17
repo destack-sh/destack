@@ -660,7 +660,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = load v0
@@ -679,7 +679,7 @@ b0:
         let input = r#"
 function test(): ref<int32, raw> {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     return v0
 }"#;
 
@@ -695,7 +695,7 @@ b0:
 function test(): ref<int32, borrowed> {
     local local0: int32, owned
 b0:
-    v0: ref<int32, borrowed, addressSpace(stack)> = local.address local0
+    v0: ref<int32, borrowed, space(stack)> = local.address local0
     return v0
 }"#;
 
@@ -710,7 +710,7 @@ b0:
         let input = r#"
 function test(): ref<int32, raw> {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: ref<int32, borrowed> = field.address v0, 0
     return v1
 }"#;
@@ -726,7 +726,7 @@ b0:
         let input = r#"
 function test(): ref<int32, raw> {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 0int32
     v2: ref<int32, borrowed> = element.address v0, v1
     return v2
@@ -742,7 +742,7 @@ b0:
     fn test_detect_stack_through_call_indirect() {
         let input = r#"
 function test(v0: fn(ref<int32, borrowed>) -> ref<int32, borrowed>): ref<int32, borrowed>  {
-b0(v0: fn(ref<int32, borrowed>) -> ref<int32, borrowed>) -> v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+b0(v0: fn(ref<int32, borrowed>) -> ref<int32, borrowed>) -> v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: ref<int32, borrowed> = call.indirect v0(v1): (ref<int32, borrowed>) -> ref<int32, borrowed>
     return v2
 }"#;
@@ -758,7 +758,7 @@ b0(v0: fn(ref<int32, borrowed>) -> ref<int32, borrowed>) -> v1: ref<int32, raw, 
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = load v0
@@ -776,7 +776,7 @@ b0:
         let input = r#"
 function test(v0: ref<ref<int32, raw>, raw>): void {
 b0(v0: ref<ref<int32, raw>, raw>):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     store v0, v1
     return
 }"#;
@@ -792,8 +792,8 @@ b0(v0: ref<ref<int32, raw>, raw>):
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
-    v1: ref<ref<int32, raw, addressSpace(stack)>, raw, addressSpace(stack)> = stack.alloc ref<int32, raw, addressSpace(stack)>
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<ref<int32, raw, space(stack)>, raw, space(stack)> = stack.alloc ref<int32, raw, space(stack)>
     v2: int32 = 42int32
     store v0, v2
     store v1, v0
@@ -813,7 +813,7 @@ b0:
         let input = r#"
 function test(): ref<int8, raw> {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: ref<int8, raw> = cast.bit v0 -> ref<int8, raw>
     return v1
 }"#;
@@ -858,7 +858,7 @@ b0(v0: ref<int32, raw>):
         let input = r#"
 function test(v0: ref<ref<int32, raw>, raw>): void {
 b0(v0: ref<ref<int32, raw>, raw>):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: ref<ref<int32, raw>, raw> = field.set v0, 0, v1
     return
 }"#;
@@ -874,7 +874,7 @@ b0(v0: ref<ref<int32, raw>, raw>):
         let input = r#"
 function test(v0: ref<ref<int32, raw>, raw>): void {
 b0(v0: ref<ref<int32, raw>, raw>):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 0int32
     v3: ref<ref<int32, raw>, raw> = element.set v0, v2, v1
     return
@@ -891,7 +891,7 @@ b0(v0: ref<ref<int32, raw>, raw>):
         let input = r#"
 function test(): ref<int32, raw> {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: ref<int32, borrowed> = field.address v0, 0
     v2: ref<int32, borrowed> = field.address v1, 0
     return v2
@@ -908,7 +908,7 @@ b0:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     branch v0, b1, b2
 b1:
     v2: int32 = 1int32
@@ -934,8 +934,8 @@ b3:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 10int32
     v3: int32 = 20int32
     store v0, v2
@@ -957,7 +957,7 @@ b0:
         let input = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 42int32
     store v0, v1
     return
@@ -974,7 +974,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 1int32
     yield v1, b1
 b1(v2: int32):
@@ -994,7 +994,7 @@ b1(v2: int32):
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 1int32
     store v0, v1
     yield v1, b1
@@ -1016,7 +1016,7 @@ function test(): int32 {
 b0:
     v0: int32 = 1int32
     local.set local0, v0
-    v1: ref<int32, borrowed, addressSpace(stack)> = local.address local0
+    v1: ref<int32, borrowed, space(stack)> = local.address local0
     yield v0, b1
 b1(v2: int32):
     v3: int32 = load v1
@@ -1034,7 +1034,7 @@ b1(v2: int32):
         let input = r#"
 function test(): ref<int32, raw> {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     jump b1(v0)
 b1(v1: ref<int32, raw>):
     return v1
@@ -1051,7 +1051,7 @@ b1(v1: ref<int32, raw>):
         let input = r#"
 function test(): ref<int32, raw> {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     jump b1(v0)
 b1(v1: ref<int32, raw>):
     jump b2(v1)
@@ -1070,7 +1070,7 @@ b2(v2: ref<int32, raw>):
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 42int32
     store v0, v1
     jump b1(v0)
@@ -1090,7 +1090,7 @@ b1(v2: ref<int32, raw>):
         let input = r#"
 function test(v0: int32): int32 {
 b0(v0: int32):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 0int32
     store v1, v2
     jump b1(v0)
@@ -1123,7 +1123,7 @@ function test(v0: boolean): ref<int32, raw> {
 b0(v0: boolean):
     branch v0, b1, b2
 b1:
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     jump b3(v1)
 b2:
     v2: ref<int32, raw> = raw.alloc int32
@@ -1144,8 +1144,8 @@ b3(v3: ref<int32, raw>):
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
-    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v2: ref<int32, raw, space(stack)> = stack.alloc int32
     v3: int32 = 1int32
     v4: int32 = 2int32
     store v1, v3
@@ -1179,7 +1179,7 @@ b0(v0: ref<int32, borrowed>):
 }
 function test(): ref<int32, borrowed> {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 42int32
     store v0, v1
     v2: ref<int32, borrowed> = call identity(v0): (ref<int32, borrowed>) -> ref<int32, borrowed>
@@ -1208,7 +1208,7 @@ b0(v0: ref<int32, borrowed>):
 }
 function test(): ref<int32, borrowed> {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 42int32
     store v0, v1
     v2: ref<int32, borrowed> = call getStatic(v0): (ref<int32, borrowed>) -> ref<int32, borrowed>
@@ -1239,7 +1239,7 @@ b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
 function test(): ref<int32, borrowed> {
 b0:
     v0: ref<int32, managed> = managed.alloc int32
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 42int32
     store v0, v2
     store v1, v2
@@ -1272,7 +1272,7 @@ b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
 function test(): ref<int32, borrowed> {
 b0:
     v0: ref<int32, managed> = managed.alloc int32
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 42int32
     store v0, v2
     store v1, v2

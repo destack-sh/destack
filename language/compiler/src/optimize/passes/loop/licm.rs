@@ -1111,7 +1111,7 @@ b4:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int64 = 4int64
     jump b1
 b1:
@@ -1124,7 +1124,7 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int64 = 4int64
     v3: int32 = intrinsic.memcmp(v1, v1, v2)
     jump b1
@@ -1193,8 +1193,8 @@ b2:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
-    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v2: ref<int32, raw, space(stack)> = stack.alloc int32
     v3: int32 = 1int32
     store v1, v3
     jump b1
@@ -1209,8 +1209,8 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
-    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v2: ref<int32, raw, space(stack)> = stack.alloc int32
     v3: int32 = 1int32
     store v1, v3
     v4: int32 = 2int32
@@ -1235,7 +1235,7 @@ b2:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 1int32
     store v1, v2
     jump b1
@@ -1250,7 +1250,7 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 1int32
     store v1, v2
     v3: int32 = 2int32
@@ -1275,7 +1275,7 @@ b2:
         let input = r#"
 function test(v0: boolean, v1: boolean): int32 {
 b0(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v2: ref<int32, raw, space(stack)> = stack.alloc int32
     v3: int32 = 1int32
     store v2, v3
     jump b1
@@ -1340,7 +1340,7 @@ b2:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 1int32
     store v1, v2
     jump b1

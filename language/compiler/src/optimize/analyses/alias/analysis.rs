@@ -266,8 +266,8 @@ b0:
             r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 42int32
     store v0, v2
     v3: int32 = load v1
@@ -295,8 +295,8 @@ b0:
             r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 42int32
     store v0, v2
     return
@@ -329,9 +329,9 @@ global g1: int32 = 0int32
 global g2: int32 = 0int32
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(global)> = global.address g1
-    v1: ref<int32, raw, addressSpace(global)> = global.address g2
-    v2: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(global)> = global.address g1
+    v1: ref<int32, raw, space(global)> = global.address g2
+    v2: ref<int32, raw, space(stack)> = stack.alloc int32
     return
 }"#,
         );
@@ -354,8 +354,8 @@ b0:
             r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
-    v1: ref<float64, raw, addressSpace(stack)> = stack.alloc float64
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<float64, raw, space(stack)> = stack.alloc float64
     return
 }"#,
         );
@@ -418,8 +418,8 @@ b0(v0: ref<int32, raw>):
 extern function external(ref<int32, raw>, ref<int32, raw>): void
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     call external(v0, v1): (ref<int32, raw>, ref<int32, raw>) -> void
     return
 }"#,

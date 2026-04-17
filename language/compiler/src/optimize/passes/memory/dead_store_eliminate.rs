@@ -743,7 +743,7 @@ mod tests {
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 1int32
     store v0, v1
     v2: int32 = 2int32
@@ -754,7 +754,7 @@ b0:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 1int32
     v2: int32 = 2int32
     store v0, v2
@@ -775,7 +775,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 1int32
     store v0, v1
     v2: int32 = load v0
@@ -798,7 +798,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = 0int32
@@ -807,7 +807,7 @@ b0:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 42int32
     v2: int32 = 0int32
     return v2
@@ -824,7 +824,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 1int32
     store v0, v1
     v2: int32 = 2int32
@@ -857,7 +857,7 @@ b0:
 extern function external(ref<int32, raw>): void
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 42int32
     store v0, v1
     call external(v0): (ref<int32, raw>) -> void
@@ -876,7 +876,7 @@ b0:
 extern function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 42int32
     store v0, v1
     call external(v0): (ref<int32, raw>) -> void
@@ -887,7 +887,7 @@ b0:
 extern function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 42int32
     call external(v0): (ref<int32, raw>) -> void
     v2: int32 = 0int32
@@ -929,7 +929,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 1int32
     store v0, v1
     v2: int32 = 2int32
@@ -942,7 +942,7 @@ b0:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 1int32
     v2: int32 = 2int32
     v3: int32 = 3int32
@@ -981,8 +981,8 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 1int32
     store v0, v2
     v3: int32 = 2int32
@@ -1008,7 +1008,7 @@ b0:
 extern function readValue(ref<int32, raw>): int32
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = call readValue(v0): (ref<int32, raw>) -> int32
@@ -1030,7 +1030,7 @@ b0:
 extern function sideEffect(): void
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     call sideEffect(): () -> void
     v1: int32 = 1int32
     store v0, v1
@@ -1043,7 +1043,7 @@ b0:
 extern function sideEffect(): void
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     call sideEffect(): () -> void
     v1: int32 = 1int32
     v2: int32 = 2int32
@@ -1065,7 +1065,7 @@ b0:
         let input = r#"
 function test(): ref<int32, raw> {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 42int32
     store v0, v1
     return v0
@@ -1082,7 +1082,7 @@ b0:
         let input = r#"
 function test(): (ref<int32, raw>, int32) {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = 0int32
@@ -1125,7 +1125,7 @@ b0(v0: ref<Pair, raw>):
         let input = r#"
 function test(): ref<int64, raw> {
 b0:
-    v0: ref<int64, raw, addressSpace(stack)> = stack.alloc int64
+    v0: ref<int64, raw, space(stack)> = stack.alloc int64
     v1: int64 = 0int64
     store v0, v1
     v2: int32 = 1int32
@@ -1153,7 +1153,7 @@ b0:
         let input = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int8 = 0int8
     v2: int64 = 4int64
     intrinsic.memset(v0, v1, v2)
@@ -1162,7 +1162,7 @@ b0:
         let expected = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int8 = 0int8
     v2: int64 = 4int64
     return
@@ -1179,7 +1179,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int8 = 0int8
     v2: int64 = 4int64
     intrinsic.memset(v0, v1, v2)
@@ -1200,8 +1200,8 @@ b0:
         let input = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int64 = 4int64
     intrinsic.memcpy(v0, v1, v2)
     return
@@ -1209,8 +1209,8 @@ b0:
         let expected = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int64 = 4int64
     return
 }"#;
@@ -1228,8 +1228,8 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int64 = 4int64
     intrinsic.memcpy(v0, v1, v2)
     v3: int32 = load v0
@@ -1250,8 +1250,8 @@ b0:
         let input = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int64 = 4int64
     intrinsic.memmove(v0, v1, v2)
     return
@@ -1259,8 +1259,8 @@ b0:
         let expected = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int64 = 4int64
     return
 }"#;
@@ -1278,8 +1278,8 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int64 = 4int64
     intrinsic.memmove(v0, v1, v2)
     v3: int32 = load v0
@@ -1468,7 +1468,7 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 1int32
     store v0, v1
     jump b1
@@ -1481,7 +1481,7 @@ b1:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 1int32
     jump b1
 b1:
@@ -1504,7 +1504,7 @@ b1:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 1int32
     store v1, v2
     branch v0, b1, b2
@@ -1532,7 +1532,7 @@ b2:
         let input = r#"
 function test(v0: int32): void {
 b0(v0: int32):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 42int32
     store v1, v2
     switch v0, b1(v1), 0 => b2

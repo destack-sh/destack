@@ -751,7 +751,7 @@ b0:
 function callee(v0: int32): int32 {
     local local0: int32, owned
 b0(v0: int32):
-    v1: ref<int32, borrowed, addressSpace(stack)> = local.address local0
+    v1: ref<int32, borrowed, space(stack)> = local.address local0
     v2: int32 = load v1
     return v2
 }
