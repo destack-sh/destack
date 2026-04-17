@@ -47,17 +47,14 @@ impl Compiler {
             let declaration = state.tree.get(declaration_id).clone();
 
             // function declarations
-            if let Declaration::Function {
-                body: Some(body_id),
-                descriptor,
-                ..
-            } = &declaration
+            if let Declaration::Function(declaration) = &declaration
+                && let Some(body_id) = declaration.body
             {
-                let symbol = descriptor.symbol.into_global(module_id);
+                let symbol = declaration.symbol.into_global(module_id);
                 if self.function_returns_void(state, symbol) {
                     continue;
                 }
-                body_ids.push(*body_id);
+                body_ids.push(body_id);
             }
 
             // method bodies on structured declarations
@@ -102,8 +99,8 @@ impl Compiler {
         let expr = state.tree.get(expr_id).clone();
 
         match expr {
-            Expression::Block { block } => {
-                let block_node = state.tree.get(block).clone();
+            Expression::Block(block) => {
+                let block_node = state.tree.get::<dir::Block>(block).clone();
                 if let Some(last_expr_id) = block_node.tail_expression {
                     // recursively transform the last expression
                     self.make_return_explicit(state, last_expr_id, scope)?;

@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use dir::{
-    BinaryOperator, Block, DeclarationDescriptor, Declarator, Expression, IfCondition, IfKind,
-    LocalNodeId, Mutability, NodeType,
+    Ambientness, BinaryOperator, Block, BlockContext, BlockFormat, Declarator, ExportMode,
+    Expression, IfCondition, IfKind, LocalNodeId, Mutability, NodeType,
 };
 
 use crate::elaborate::common::ElaborateState;
@@ -55,7 +55,8 @@ impl Compiler {
             match &expr {
                 // let x = if (c) { a } else { b }
                 Expression::Let {
-                    descriptor,
+                    export,
+                    ambient,
                     mutability,
                     declarators,
                 } => {
@@ -105,7 +106,8 @@ impl Compiler {
                                 expr_id,
                                 declarator_id,
                                 &declarator,
-                                descriptor.clone(),
+                                *export,
+                                *ambient,
                                 *mutability,
                                 &expressions,
                             )?;
@@ -116,14 +118,15 @@ impl Compiler {
                         }
 
                         // let x = { ... }
-                        Expression::Block { block: inner_block } => {
+                        Expression::Block(inner_block) => {
                             let did_normalize = self.normalize_block_in_let(
                                 state,
                                 scope,
                                 &mut new_leading_expressions,
                                 declarator_id,
                                 &declarator,
-                                descriptor.clone(),
+                                *export,
+                                *ambient,
                                 *mutability,
                                 inner_block,
                             )?;
@@ -232,7 +235,8 @@ impl Compiler {
             match &expr {
                 // let x = if (c) { a } else { b }
                 Expression::Let {
-                    descriptor,
+                    export,
+                    ambient,
                     mutability,
                     declarators,
                 } => {
@@ -272,7 +276,8 @@ impl Compiler {
                                         expr_id,
                                         declarator_id,
                                         &declarator,
-                                        descriptor.clone(),
+                                        *export,
+                                        *ambient,
                                         *mutability,
                                         &expressions,
                                     )?;
@@ -282,14 +287,15 @@ impl Compiler {
                                     }
                                 }
 
-                                Expression::Block { block: inner_block } => {
+                                Expression::Block(inner_block) => {
                                     let did_normalize = self.normalize_block_in_let(
                                         state,
                                         scope,
                                         &mut new_leading_expressions,
                                         declarator_id,
                                         &declarator,
-                                        descriptor.clone(),
+                                        *export,
+                                        *ambient,
                                         *mutability,
                                         inner_block,
                                     )?;
@@ -485,7 +491,8 @@ impl Compiler {
         original_let_id: LocalNodeId<Expression>,
         declarator_id: LocalNodeId<Declarator>,
         declarator: &Declarator,
-        descriptor: DeclarationDescriptor,
+        export: Option<ExportMode>,
+        ambient: Ambientness,
         mutability: Mutability,
         seq_expressions: &[LocalNodeId<Expression>],
     ) -> ElaborateResult<bool> {
@@ -529,7 +536,8 @@ impl Compiler {
         let new_let: LocalNodeId<Expression> = state.tree.insert_as_owner(
             new_let_id,
             Expression::Let {
-                descriptor,
+                export,
+                ambient,
                 mutability,
                 declarators: vec![new_declarator],
             },
@@ -550,7 +558,8 @@ impl Compiler {
         new_expressions: &mut Vec<LocalNodeId<Expression>>,
         declarator_id: LocalNodeId<Declarator>,
         declarator: &Declarator,
-        descriptor: DeclarationDescriptor,
+        export: Option<ExportMode>,
+        ambient: Ambientness,
         mutability: Mutability,
         inner_block_id: LocalNodeId<Block>,
     ) -> ElaborateResult<bool> {
@@ -588,7 +597,8 @@ impl Compiler {
         let uninit_let: LocalNodeId<Expression> = state.tree.insert_as_owner(
             uninit_let_id,
             Expression::Let {
-                descriptor,
+                export,
+                ambient,
                 mutability,
                 declarators: vec![uninit_declarator],
             },
@@ -615,12 +625,9 @@ impl Compiler {
             None,
             Some(dir::ProvenanceReason::Elaborated),
         );
-        let block_expr: LocalNodeId<Expression> = state.tree.insert_as_owner(
-            block_expr_id,
-            Expression::Block {
-                block: inner_block_id,
-            },
-        );
+        let block_expr: LocalNodeId<Expression> = state
+            .tree
+            .insert_as_owner(block_expr_id, Expression::Block(inner_block_id));
         self.set_void_block_expression_type(
             state.types,
             state.ctx.module_id,
@@ -777,7 +784,7 @@ impl Compiler {
         let branch_expr = state.tree.get(branch).clone();
         match branch_expr {
             // for blocks, wrap the last expression in assignment
-            Expression::Block { block: block_id } => {
+            Expression::Block(block_id) => {
                 let block = state.tree.get(block_id).clone();
                 let Some(last_expr_id) = block.tail_expression else {
                     // empty block: just return the branch unchanged
@@ -822,7 +829,7 @@ impl Compiler {
 
         match branch_expr {
             // for blocks, wrap the last expression in return
-            Expression::Block { block: block_id } => {
+            Expression::Block(block_id) => {
                 let block = state.tree.get(block_id).clone();
                 let Some(last_expr_id) = block.tail_expression else {
                     // empty block: just return the branch unchanged
@@ -866,7 +873,7 @@ impl Compiler {
         scope: dir::LocalScope,
     ) -> LocalNodeId<Expression> {
         // don't double wrap blocks
-        if matches!(state.tree.get(body), Expression::Block { .. }) {
+        if matches!(state.tree.get(body), Expression::Block(_)) {
             return body;
         }
 
@@ -881,6 +888,8 @@ impl Compiler {
         let block: LocalNodeId<Block> = state.tree.insert_as_owner(
             block_id,
             Block {
+                context: BlockContext::Expression,
+                format: BlockFormat::Explicit,
                 scope: scope.0,
                 leading_expressions: Vec::new(),
                 tail_expression: Some(body),
@@ -897,7 +906,7 @@ impl Compiler {
         );
         let block_expr_id = state
             .tree
-            .insert_as_owner(block_expr_id, Expression::Block { block });
+            .insert_as_owner(block_expr_id, Expression::Block(block));
         self.set_void_block_expression_type(state.types, state.ctx.module_id, block, block_expr_id);
 
         block_expr_id

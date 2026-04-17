@@ -1,8 +1,7 @@
 use destack_dir as dir;
 use dir::{
-    BindingAnchor, Block, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
-    Declarator, Expression, LocalNodeId, LocalNodeIdAny, LocalSymbolId, Mutability, Name, NodeType,
-    Path, Pattern,
+    Ambientness, Block, Declarator, Expression, LocalNodeId, LocalNodeIdAny, LocalSymbolId,
+    Mutability, NodeType, Path, Pattern,
 };
 
 use super::ElaborateState;
@@ -146,7 +145,7 @@ impl Compiler {
             reference_id,
             Expression::LocalReference {
                 path: Path::from(&[name][..]),
-                static_arguments: None,
+                generic_arguments: Vec::new(),
                 target_symbol,
             },
         );
@@ -209,15 +208,7 @@ impl Compiler {
             },
         );
 
-        // create the descriptor and let expression
-        let descriptor = DeclarationDescriptor {
-            kind: DeclarationKind::Definition,
-            abstraction: DeclarationAbstraction::Concrete,
-            anchor: BindingAnchor::Instance,
-            name: Some(Name::Identifier(name)),
-            export: None,
-            symbol,
-        };
+        // create the let expression
         let let_id = state.tree.reserve_from(
             NodeType::Expression,
             origin_id.into_any(),
@@ -228,7 +219,8 @@ impl Compiler {
         let let_id: LocalNodeId<Expression> = state.tree.insert_as_owner(
             let_id,
             Expression::Let {
-                descriptor,
+                export: None,
+                ambient: Ambientness::Concrete,
                 mutability: let_mutability,
                 declarators: vec![declarator_id],
             },

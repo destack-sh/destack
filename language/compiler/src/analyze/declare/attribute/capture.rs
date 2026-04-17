@@ -201,9 +201,6 @@ impl Compiler {
                 Expression::As { expression, .. } | Expression::Satisfies { expression, .. } => {
                     current = *expression;
                 }
-                Expression::OwnershipCast { value, .. } => {
-                    current = *value;
-                }
                 _ => return current,
             }
         }

@@ -21,7 +21,7 @@ impl Compiler {
             Expression::Member {
                 left,
                 name,
-                static_arguments,
+                generic_arguments,
             } => {
                 let left_expression = state.tree.get(*left).clone();
                 let left = self.clone_resolution_expression(state, *left, &left_expression, scope);
@@ -29,26 +29,26 @@ impl Compiler {
                 Expression::Member {
                     left,
                     name: *name,
-                    static_arguments: static_arguments.clone(),
+                    generic_arguments: generic_arguments.clone(),
                 }
             }
 
             Expression::Call {
                 left,
-                static_arguments,
-                dynamic_arguments,
+                generic_arguments,
+                arguments,
             } => {
                 let left_expression = state.tree.get(*left).clone();
                 let left = self.clone_resolution_expression(state, *left, &left_expression, scope);
-                let dynamic_arguments = dynamic_arguments
+                let arguments = arguments
                     .iter()
                     .map(|argument_id| self.clone_resolution_argument(state, *argument_id, scope))
                     .collect();
 
                 Expression::Call {
                     left,
-                    static_arguments: static_arguments.clone(),
-                    dynamic_arguments,
+                    generic_arguments: generic_arguments.clone(),
+                    arguments,
                 }
             }
 
@@ -140,37 +140,10 @@ impl Compiler {
         );
 
         let cloned_argument = match argument {
-            dir::Argument::Named {
-                modifiers,
-                name,
-                value: _,
-            } => dir::Argument::Named {
-                modifiers,
-                name,
-                value,
-            },
-            dir::Argument::Labeled {
-                modifiers,
-                label,
-                value: _,
-            } => dir::Argument::Labeled {
-                modifiers,
-                label,
-                value,
-            },
-            dir::Argument::Positional {
-                modifiers,
-                value: _,
-            } => dir::Argument::Positional { modifiers, value },
-            dir::Argument::Spread {
-                modifiers,
-                label,
-                value: _,
-            } => dir::Argument::Spread {
-                modifiers,
-                label,
-                value,
-            },
+            dir::Argument::Named { name, value: _ } => dir::Argument::Named { name, value },
+            dir::Argument::Labeled { label, value: _ } => dir::Argument::Labeled { label, value },
+            dir::Argument::Positional { value: _ } => dir::Argument::Positional { value },
+            dir::Argument::Spread { label, value: _ } => dir::Argument::Spread { label, value },
             dir::Argument::Error { value: _ } => dir::Argument::Error { value },
         };
 
@@ -257,7 +230,7 @@ impl Compiler {
             )?;
 
             // build the is check: receiver is Type
-            let is_check = self.build_is_type_check(
+            let is_check = self.build_resolution_type_guard(
                 state,
                 expression_id,
                 receiver_expression_id,
@@ -380,18 +353,15 @@ impl Compiler {
 
         // reify branch local call argument casts after static dispatch split
         let cloned_expression = state.tree.get(cloned_id).clone();
-        if let Expression::Call {
-            dynamic_arguments, ..
-        } = cloned_expression
-        {
-            self.reify_implicit_casts_in_call(state, cloned_id, &dynamic_arguments)?;
+        if let Expression::Call { arguments, .. } = cloned_expression {
+            self.reify_implicit_casts_in_call(state, cloned_id, &arguments)?;
         }
 
         Ok(cloned_id)
     }
 
-    /// Build an `is` type check expression: `value is Type`.
-    fn build_is_type_check(
+    /// Build one runtime type guard: `value is Type`.
+    fn build_resolution_type_guard(
         &self,
         state: &mut ElaborateState<'_>,
         origin_id: LocalNodeId<Expression>,
@@ -399,11 +369,11 @@ impl Compiler {
         check_type_id: LocalTypeId,
         scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
-        // each generated type check needs its own receiver node
+        // each generated type guard needs its own receiver node
         let value_expression = state.tree.get(value_id).clone();
         let value_id = self.clone_resolution_expression(state, value_id, &value_expression, scope);
 
-        // create the type expression for the right side of `is`
+        // create the target type syntax
         let type_expr_id =
             self.insert_type_expression_for_type_id(state, origin_id, check_type_id, scope);
 

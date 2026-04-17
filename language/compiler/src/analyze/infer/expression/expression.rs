@@ -1176,6 +1176,8 @@ impl Compiler {
         let ty_id = match expression {
             // `value as T`: preserve the asserted target type
             Expression::As {
+                operator: _,
+                source: _,
                 expression: value,
                 target_type,
             } => {
@@ -1230,16 +1232,6 @@ impl Compiler {
                 );
 
                 value_ty_id
-            }
-
-            // ownership casts only change the ownership lane
-            Expression::OwnershipCast {
-                operator: _,
-                source: _,
-                value,
-            } => {
-                let mut ownership_ctx = state.fork().with_explicit_ownership();
-                self.infer_expression(&mut ctx.reborrow(), *value, &mut ownership_ctx)?
             }
             _ => unreachable!("cast helper called with non-cast expression"),
         };
@@ -2637,7 +2629,7 @@ impl Compiler {
             | Expression::Using { .. } => self
                 .infer_statement_expression(&mut ctx.reborrow(), expression_id, state)?,
 
-            Expression::As { .. } | Expression::Satisfies { .. } | Expression::OwnershipCast { .. } => self
+            Expression::As { .. } | Expression::Satisfies { .. } => self
                 .infer_cast_expression(&mut ctx.reborrow(), expression_id, expression, state)?,
 
             // expression variants that require table context

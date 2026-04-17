@@ -1,13 +1,178 @@
 use destack_dir as dir;
 use dir::{
-    BinaryOperator, Expression, LocalNodeId, LocalTypeId, NodeType, Type, TypeBinaryOperator,
-    TypeLiteral,
+    BinaryOperator, Expression, GenericArgument, LocalNodeId, LocalTypeId, NodeType, Type,
+    TypeExpression, TypeLiteral,
 };
 
 use super::ElaborateState;
 use crate::Compiler;
 
 impl Compiler {
+    /// Clone one type generic argument into the requested scope.
+    fn clone_type_generic_argument_into_scope(
+        &self,
+        state: &mut ElaborateState<'_>,
+        origin_id: LocalNodeId<Expression>,
+        argument_id: LocalNodeId<GenericArgument>,
+        scope: dir::LocalScope,
+    ) -> LocalNodeId<GenericArgument> {
+        let argument = state.tree.get(argument_id).clone();
+
+        // clone type-only generic arguments and reject value-space ones loudly
+        let cloned_argument = match argument {
+            GenericArgument::Type { value } => {
+                let value = self.clone_type_expression_into_scope(state, origin_id, value, scope);
+                GenericArgument::Type { value }
+            }
+            GenericArgument::Value { .. } => {
+                todo!("FUGU #Incomplete: clone value generic arguments in elaborate guards")
+            }
+            GenericArgument::Error => GenericArgument::Error,
+        };
+
+        // insert the cloned generic argument
+        let cloned_id = state.tree.reserve_from(
+            NodeType::GenericArgument,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
+        state.tree.insert_as_owner(cloned_id, cloned_argument)
+    }
+
+    /// Clone one type expression into the requested scope.
+    fn clone_type_expression_into_scope(
+        &self,
+        state: &mut ElaborateState<'_>,
+        origin_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<TypeExpression>,
+        scope: dir::LocalScope,
+    ) -> LocalNodeId<TypeExpression> {
+        let expression = state.tree.get(expression_id).clone();
+
+        // clone the type-expression shapes used by elaborated type synthesis
+        let cloned_expression = match expression {
+            TypeExpression::Parenthesized { expression } => {
+                let expression =
+                    self.clone_type_expression_into_scope(state, origin_id, expression, scope);
+                TypeExpression::Parenthesized { expression }
+            }
+            TypeExpression::ScalarLiteral { value } => TypeExpression::ScalarLiteral { value },
+            TypeExpression::Literal { value } => TypeExpression::Literal { value },
+            TypeExpression::Intrinsic => TypeExpression::Intrinsic,
+            TypeExpression::Reference {
+                path,
+                generic_arguments,
+                space_order,
+            } => {
+                let generic_arguments = generic_arguments
+                    .into_iter()
+                    .map(|argument_id| {
+                        self.clone_type_generic_argument_into_scope(
+                            state,
+                            origin_id,
+                            argument_id,
+                            scope,
+                        )
+                    })
+                    .collect();
+
+                TypeExpression::Reference {
+                    path,
+                    generic_arguments,
+                    space_order,
+                }
+            }
+            TypeExpression::LocalReference {
+                path,
+                generic_arguments,
+                target_symbol,
+            } => {
+                let generic_arguments = generic_arguments
+                    .into_iter()
+                    .map(|argument_id| {
+                        self.clone_type_generic_argument_into_scope(
+                            state,
+                            origin_id,
+                            argument_id,
+                            scope,
+                        )
+                    })
+                    .collect();
+
+                TypeExpression::LocalReference {
+                    path,
+                    generic_arguments,
+                    target_symbol,
+                }
+            }
+            TypeExpression::ModuleReference {
+                path,
+                generic_arguments,
+                target_symbol,
+            } => {
+                let generic_arguments = generic_arguments
+                    .into_iter()
+                    .map(|argument_id| {
+                        self.clone_type_generic_argument_into_scope(
+                            state,
+                            origin_id,
+                            argument_id,
+                            scope,
+                        )
+                    })
+                    .collect();
+
+                TypeExpression::ModuleReference {
+                    path,
+                    generic_arguments,
+                    target_symbol,
+                }
+            }
+            TypeExpression::GlobalReference {
+                path,
+                generic_arguments,
+                target_symbol,
+            } => {
+                let generic_arguments = generic_arguments
+                    .into_iter()
+                    .map(|argument_id| {
+                        self.clone_type_generic_argument_into_scope(
+                            state,
+                            origin_id,
+                            argument_id,
+                            scope,
+                        )
+                    })
+                    .collect();
+
+                TypeExpression::GlobalReference {
+                    path,
+                    generic_arguments,
+                    target_symbol,
+                }
+            }
+            _ => todo!("FUGU #Incomplete: clone elaborate guard type expressions"),
+        };
+
+        // insert the cloned type expression
+        let cloned_id = state.tree.reserve_from(
+            NodeType::TypeExpression,
+            origin_id.into_any(),
+            scope,
+            None,
+            Some(dir::ProvenanceReason::Elaborated),
+        );
+        let cloned_id = state.tree.insert_as_owner(cloned_id, cloned_expression);
+        state.types.copy_node_analysis(
+            expression_id.into_global_any(state.ctx.module_id),
+            cloned_id.into_global_any(state.ctx.module_id),
+        );
+
+        cloned_id
+    }
+
     /// Insert a type expression for one local type id.
     pub(crate) fn insert_type_expression_for_type_id(
         &self,
@@ -15,34 +180,50 @@ impl Compiler {
         origin_id: LocalNodeId<Expression>,
         type_id: LocalTypeId,
         scope: dir::LocalScope,
-    ) -> LocalNodeId<Expression> {
+    ) -> LocalNodeId<TypeExpression> {
         // choose the compact type expression form
         let expression = match state.types.get_type(type_id) {
-            Type::TypeLiteral { value } => Expression::TypeLiteral {
+            Type::TypeLiteral { value } => TypeExpression::Literal {
                 value: value.clone(),
             },
-            _ => Expression::Type { value: type_id },
+            _ => {
+                let source_id = state.types.get_type_source(type_id);
+                let source_expression_id = match source_id.ty {
+                    // clone one existing type expression source when available
+                    NodeType::TypeExpression => source_id.into_typed::<TypeExpression>(),
+
+                    // unwrap prior type-value expressions back to their type expression
+                    NodeType::Expression => {
+                        let expression = state.tree.get(source_id.into_typed::<Expression>());
+                        let Expression::Type { value, .. } = expression else {
+                            panic!("type value source must be a type expression");
+                        };
+
+                        *value
+                    }
+
+                    // fail loudly on unexpected type sources
+                    _ => panic!("type value source must resolve to type syntax"),
+                };
+
+                return self.clone_type_expression_into_scope(
+                    state,
+                    origin_id,
+                    source_expression_id,
+                    scope,
+                );
+            }
         };
 
-        // insert the type expression node
+        // insert one elaborated type expression
         let expression_id = state.tree.reserve_from(
-            NodeType::Expression,
+            NodeType::TypeExpression,
             origin_id.into_any(),
             scope,
             None,
             Some(dir::ProvenanceReason::Elaborated),
         );
-        let expression_id = state.tree.insert_as_owner(expression_id, expression);
-
-        // annotate with Type::Value(type_id)
-        let type_value = Type::Value { value: type_id };
-        let type_value_id = state.types.insert_type_from(type_value, expression_id);
-        state.types.set_inferred_type(
-            expression_id.into_global_any(state.ctx.module_id),
-            type_value_id,
-        );
-
-        expression_id
+        state.tree.insert_as_owner(expression_id, expression)
     }
 
     /// Insert a type literal expression with inferred type metadata.
@@ -116,8 +297,8 @@ impl Compiler {
         &self,
         state: &mut ElaborateState<'_>,
         origin_id: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
-        right: LocalNodeId<Expression>,
+        value: LocalNodeId<Expression>,
+        target_type: LocalNodeId<TypeExpression>,
         scope: dir::LocalScope,
     ) -> LocalNodeId<Expression> {
         // insert one type check expression
@@ -128,14 +309,9 @@ impl Compiler {
             None,
             Some(dir::ProvenanceReason::Elaborated),
         );
-        let expression_id = state.tree.insert_as_owner(
-            expression_id,
-            Expression::TypeBinary {
-                left,
-                operator: TypeBinaryOperator::Is,
-                right,
-            },
-        );
+        let expression_id = state
+            .tree
+            .insert_as_owner(expression_id, Expression::Is { value, target_type });
 
         // annotate with boolean type
         self.set_boolean_expression_type(state.types, state.tree.module_id, expression_id);

@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use destack_dir as dir;
 use destack_workspace::{Module, ProfileId};
-use dir::{Expression, IfCondition, IfKind, LocalNodeId, MatchKind, TypeBinaryOperator};
+use dir::{Expression, IfCondition, IfKind, LocalNodeId, MatchKind};
 
 use crate::elaborate::common::{ElaborateContext, ElaborateState};
 use crate::{Compiler, CompilerContext, ElaborateResult};
@@ -90,10 +90,11 @@ impl Compiler {
                 self.reify_tree_expression(state, expression_id)?;
             }
 
-            Expression::TypeBinary {
-                left,
-                operator: TypeBinaryOperator::Cast,
-                right,
+            Expression::As {
+                operator: _,
+                source: _,
+                expression: left,
+                target_type: right,
             } => {
                 self.reify_explicit_cast_expression(state, expression_id, left, right)?;
             }
@@ -179,19 +180,19 @@ impl Compiler {
             // nominal constructor calls to tagged expressions
             Expression::Call {
                 left,
-                static_arguments,
-                dynamic_arguments,
+                generic_arguments,
+                arguments,
             } => {
                 let did_reify_constructor = self.reify_tagged_constructor_call(
                     state,
                     expression_id,
                     left,
-                    &static_arguments,
-                    &dynamic_arguments,
+                    &generic_arguments,
+                    &arguments,
                 )?;
                 // only insert call casts when the expression stays as a call
                 if !did_reify_constructor {
-                    self.reify_implicit_casts_in_call(state, expression_id, &dynamic_arguments)?;
+                    self.reify_implicit_casts_in_call(state, expression_id, &arguments)?;
                 }
                 self.reify_resolution(state, expression_id)?;
             }

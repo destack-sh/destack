@@ -113,18 +113,6 @@ impl Compiler {
                     visited,
                 );
             }
-            Expression::OwnershipCast { value, .. } => {
-                return self.evaluate_static_expression_value_inner(
-                    &mut ctx.reborrow(),
-                    *value,
-                    enum_symbol,
-                    mode,
-                    diagnostic_mode,
-                    substitutions,
-                    remote_dependency_artifact,
-                    visited,
-                );
-            }
             Expression::Unary { operator, right } => {
                 let right_value = self.evaluate_static_expression_value_inner(
                     &mut ctx.reborrow(),

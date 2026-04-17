@@ -260,7 +260,7 @@ impl Compiler {
             Expression::Member {
                 left: receiver,
                 name: Some(member_name),
-                static_arguments: None,
+                generic_arguments: Vec::new(),
             },
         );
 
@@ -273,7 +273,7 @@ impl Compiler {
         }
 
         // create call arguments
-        let mut dynamic_arguments = Vec::with_capacity(arguments.len());
+        let mut lowered_arguments = Vec::with_capacity(arguments.len());
         for argument in arguments {
             let argument_id = state.tree.reserve_from(
                 NodeType::Argument,
@@ -282,20 +282,16 @@ impl Compiler {
                 None,
                 Some(dir::ProvenanceReason::Reified),
             );
-            let argument_id = state.tree.insert_as_owner(
-                argument_id,
-                Argument::Positional {
-                    modifiers: None,
-                    value: *argument,
-                },
-            );
-            dynamic_arguments.push(argument_id);
+            let argument_id = state
+                .tree
+                .insert_as_owner(argument_id, Argument::Positional { value: *argument });
+            lowered_arguments.push(argument_id);
         }
 
         Expression::Call {
             left: member_id,
-            static_arguments: None,
-            dynamic_arguments,
+            generic_arguments: Vec::new(),
+            arguments: lowered_arguments,
         }
     }
 
@@ -343,7 +339,7 @@ impl Compiler {
             reference_id,
             Expression::ModuleReference {
                 path: Path::from(&[ordering_name, member_name][..]),
-                static_arguments: None,
+                generic_arguments: vec![],
                 target_symbol: ordering_member_symbol,
             },
         );
