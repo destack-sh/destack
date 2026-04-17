@@ -1704,13 +1704,13 @@ pub fn generic_argument_is_equal(
 
     match (left, right) {
         (
-            ast::GenericArgument::Positional { value: left },
-            ast::GenericArgument::Positional { value: right },
-        )
-        | (
-            ast::GenericArgument::Spread { value: left },
-            ast::GenericArgument::Spread { value: right },
-        ) => expression_is_equal(ctx, *left, *right),
+            ast::GenericArgument::Type { value: left_type },
+            ast::GenericArgument::Type { value: right_type },
+        ) => type_expression_is_equal(ctx, *left_type, *right_type),
+        (
+            ast::GenericArgument::Value { value: left_value },
+            ast::GenericArgument::Value { value: right_value },
+        ) => expression_is_equal(ctx, *left_value, *right_value),
         (ast::GenericArgument::Error, ast::GenericArgument::Error) => true,
         _ => false,
     }
@@ -2027,8 +2027,10 @@ pub fn type_expression_has_side_effects(
                 || generic_arguments.iter().any(|argument_id| {
                     let argument = ctx.tree.get(*argument_id);
                     match argument {
-                        ast::GenericArgument::Positional { value }
-                        | ast::GenericArgument::Spread { value } => {
+                        ast::GenericArgument::Type { value } => {
+                            type_expression_has_side_effects(ctx, *value)
+                        }
+                        ast::GenericArgument::Value { value } => {
                             expression_has_side_effects(ctx, *value)
                         }
                         ast::GenericArgument::Error => true,
@@ -2046,8 +2048,10 @@ pub fn type_expression_has_side_effects(
                 || generic_arguments.iter().any(|argument_id| {
                     let argument = ctx.tree.get(*argument_id);
                     match argument {
-                        ast::GenericArgument::Positional { value }
-                        | ast::GenericArgument::Spread { value } => {
+                        ast::GenericArgument::Type { value } => {
+                            type_expression_has_side_effects(ctx, *value)
+                        }
+                        ast::GenericArgument::Value { value } => {
                             expression_has_side_effects(ctx, *value)
                         }
                         ast::GenericArgument::Error => true,

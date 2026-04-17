@@ -13,15 +13,14 @@ use destack_compiler::{Compiler, CompilerOptions};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::Parser;
-use destack_session::Session;
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, Edit as SourceEdit, File, FileId,
     FileSystem, FileType, LanguageType, ModuleId, OverlayFileSystem, PhysicalFileSystem, Uri,
     print_diff,
 };
 use destack_workspace::{
-    Change, Edit as RepositoryEdit, LintCategory, LintSeverity, LinterOptions, Profile, Ref,
-    Repository, Revision,
+    AmbientSnapshot, Change, Edit as RepositoryEdit, LintCategory, LintSeverity, LinterOptions,
+    Profile, Ref, Repository, Revision,
 };
 use parking_lot::Mutex;
 
@@ -49,8 +48,6 @@ pub(crate) struct TestProgram {
     profile: Profile,
     /// The compiler.
     compiler: Arc<Compiler>,
-    /// The shared session over the workspace root.
-    session: Arc<Session>,
     /// The latest compiler diagnostics for this test harness.
     latest_diagnostics: Mutex<DiagnosticCollection>,
     /// Pending artifact roots for the next compiler run.
@@ -191,9 +188,10 @@ impl TestProgram {
         let fs = Arc::new(OverlayFileSystem::with_inner(Arc::new(
             PhysicalFileSystem::new(),
         )));
+        let ambient = AmbientSnapshot::capture_process();
 
         let repository = Arc::new(
-            Repository::open_root_from_fs(cwd.clone(), fs.clone())
+            Repository::open_root_from_fs(cwd.clone(), fs.clone(), ambient.clone())
                 .expect("failed to import repository from linter test file system")
                 .with_cache(TEST_CACHE_STORE.clone()),
         );
@@ -216,7 +214,7 @@ impl TestProgram {
             EnvironmentStamp::from_env_all(),
             ProfileFlags::default(),
         );
-        let profile = Profile::from_key(profile_key);
+        let profile = Profile::from_key(profile_key, &ambient.environment);
 
         // compiler / runner
         let compiler = Arc::new(Compiler::new(
@@ -227,25 +225,6 @@ impl TestProgram {
                 ..Default::default()
             },
         ));
-
-        let head = Ref::for_workspace_root(repository.workspace_root());
-        let linter = Arc::new(super::Linter::new(repository.clone()));
-        let session = Arc::new(
-            Session::new(
-                repository.workspace_root().to_path_buf(),
-                repository.clone(),
-                head,
-                None,
-                compiler.clone(),
-                linter,
-                None,
-                None,
-            )
-            .expect("failed to initialize linter test session"),
-        );
-        session
-            .scan_filesystem(true)
-            .expect("failed to materialize linter test workspace");
         let runner = LintRunner::new(rules);
 
         Self {
@@ -253,7 +232,6 @@ impl TestProgram {
             repository,
             profile,
             compiler,
-            session,
             latest_diagnostics: Mutex::new(DiagnosticCollection::new()),
             pending_artifact_keys: Mutex::new(Vec::new()),
             runner,
@@ -370,14 +348,16 @@ impl TestProgram {
                 module,
                 profile: self.profile_id(),
             });
-            });
     }
 
     /// Resolve the language environment for the current profile.
     pub(crate) fn resolve_language_environment(&self) {
-        self.session
-            .provide(&[ArtifactKey::language_environment(self.profile_id())])
-            .unwrap_or_else(|error| panic!("failed to resolve language environment: {error}"));
+        self.compiler
+            .provide(
+                self.current_revision(),
+                ArtifactKey::language_environment(self.profile_id()),
+            )
+            .unwrap_or_else(|error| panic!("failed to resolve language environment: {error:?}"));
 
         // publish diagnostics from this compiler operation into the test harness
         self.compiler.flush_diagnostics();
@@ -386,9 +366,12 @@ impl TestProgram {
 
     /// Resolve builtin libs for the current profile.
     pub(crate) fn resolve_libs(&self) {
-        self.session
-            .provide(&[ArtifactKey::library_environment(self.profile_id())])
-            .unwrap_or_else(|error| panic!("failed to resolve libs: {error}"));
+        self.compiler
+            .provide(
+                self.current_revision(),
+                ArtifactKey::library_environment(self.profile_id()),
+            )
+            .unwrap_or_else(|error| panic!("failed to resolve libs: {error:?}"));
 
         // publish diagnostics from this compiler operation into the test harness
         self.compiler.flush_diagnostics();
@@ -416,7 +399,6 @@ impl TestProgram {
                 module,
                 profile: self.profile_id(),
             });
-            });
     }
 
     /// Run all queued tasks.
@@ -426,11 +408,16 @@ impl TestProgram {
             std::mem::take(&mut *pending_artifact_keys)
         };
 
-        self.session
-            .provide(&artifact_keys)
-            .unwrap_or_else(|error| panic!("failed to provide linter test artifacts: {error}"));
+        for artifact_key in artifact_keys {
+            self.compiler
+                .provide(self.current_revision(), artifact_key)
+                .unwrap_or_else(|error| {
+                    panic!("failed to provide linter test artifact: {error:?}")
+                });
+        }
 
         // publish diagnostics from this compiler run into the test harness
+        self.compiler.flush_diagnostics();
         self.replace_latest_diagnostics(self.current_workspace_diagnostics());
     }
 
@@ -713,7 +700,7 @@ impl TestProgram {
             && highest >= min_severity
         {
             self.repository
-                .print_diagnostics(self.current_revision(), &diagnostics);
+                .print_diagnostics(self.current_revision(), &diagnostics, 120);
             let severity_name = min_severity.family_name().to_ascii_lowercase();
             panic!(
                 "repository has {} unexpected {severity_name}s",
@@ -781,7 +768,7 @@ impl<'a> LintResult<'a> {
             collection.insert(d.clone().into_diagnostic());
         }
         self.repository
-            .print_diagnostics(self.revision, &collection);
+            .print_diagnostics(self.revision, &collection, 120);
     }
 
     /// Assert diagnostics contain a lint with the given rule id.

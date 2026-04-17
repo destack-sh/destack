@@ -46,7 +46,7 @@ impl LintRule for NoUnnecessaryTypeArguments {
             if generic_arguments.is_empty() {
                 continue;
             }
-            if !generic_arguments_are_plain_positional(ctx.tree, generic_arguments) {
+            if !generic_arguments_are_explicit(ctx.tree, generic_arguments) {
                 continue;
             }
 
@@ -250,8 +250,7 @@ fn first_redundant_trailing_argument_index(
     // walk trailing arguments backwards while they match parameter defaults
     while index > 0 {
         let argument_id = generic_arguments[index - 1];
-        let Some(argument_expression) = generic_argument_expression_id(ctx.tree, argument_id)
-        else {
+        let Some(argument) = generic_argument_value(ctx.tree, argument_id) else {
             break;
         };
         let parameter_default = generic_parameter_defaults[index - 1];
@@ -260,12 +259,7 @@ fn first_redundant_trailing_argument_index(
         };
 
         // stop once one trailing argument no longer matches its default
-        if !argument_matches_default(
-            ctx,
-            argument_expression,
-            parameter_default.module_id,
-            default_value,
-        ) {
+        if !argument_matches_default(ctx, argument, parameter_default.module_id, default_value) {
             break;
         }
 
@@ -275,68 +269,82 @@ fn first_redundant_trailing_argument_index(
     (index < generic_arguments.len()).then_some(index)
 }
 
-/// Return true when all generic arguments are plain positional arguments.
-fn generic_arguments_are_plain_positional(
+/// Return true when all generic arguments are explicit values or types.
+fn generic_arguments_are_explicit(
     tree: &dir::NodeTree,
     generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
 ) -> bool {
     generic_arguments.iter().all(|argument_id| {
         let argument = tree.get(*argument_id);
-        matches!(argument, dir::GenericArgument::Positional { .. })
+        matches!(
+            argument,
+            dir::GenericArgument::Type { .. } | dir::GenericArgument::Value { .. }
+        )
     })
 }
 
-/// Return one value expression id from one generic argument.
-fn generic_argument_expression_id(
+/// One explicit generic argument value.
+#[derive(Debug, Clone, Copy)]
+enum GenericArgumentValue {
+    /// One type argument.
+    Type(dir::LocalNodeId<dir::TypeExpression>),
+    /// One value argument.
+    Value(dir::LocalNodeId<dir::Expression>),
+}
+
+/// Return one explicit generic argument value.
+fn generic_argument_value(
     tree: &dir::NodeTree,
     argument_id: dir::LocalNodeId<dir::GenericArgument>,
-) -> Option<dir::LocalNodeId<dir::Expression>> {
+) -> Option<GenericArgumentValue> {
     let argument = tree.get(argument_id);
     match argument {
-        dir::GenericArgument::Positional { value } | dir::GenericArgument::Spread { value } => {
-            Some(*value)
-        }
+        dir::GenericArgument::Type { value } => Some(GenericArgumentValue::Type(*value)),
+        dir::GenericArgument::Value { value } => Some(GenericArgumentValue::Value(*value)),
         dir::GenericArgument::Error => None,
     }
 }
 
-/// Return true when one explicit type argument matches one declared default.
+/// Return true when one explicit generic argument matches one declared default.
 fn argument_matches_default(
     ctx: &LintModuleDirContext<'_>,
-    argument_expression: dir::LocalNodeId<dir::Expression>,
+    argument: GenericArgumentValue,
     default_module_id: ModuleId,
     default_value: GenericParameterDefaultValue,
 ) -> bool {
-    match default_value {
-        GenericParameterDefaultValue::Type(default_type_expression) => {
-            type_argument_matches_default(
-                ctx,
-                argument_expression,
-                default_module_id,
-                default_type_expression,
-            )
-        }
-        GenericParameterDefaultValue::Value(default_expression) => {
-            expression_ast_signature_eq_cross_module(
-                ctx,
-                ctx.module_id(),
-                argument_expression,
-                default_module_id,
-                default_expression,
-            )
-        }
+    match (argument, default_value) {
+        (
+            GenericArgumentValue::Type(argument_type),
+            GenericParameterDefaultValue::Type(default_type_expression),
+        ) => type_argument_matches_default(
+            ctx,
+            argument_type,
+            default_module_id,
+            default_type_expression,
+        ),
+        (
+            GenericArgumentValue::Value(argument_expression),
+            GenericParameterDefaultValue::Value(default_expression),
+        ) => expression_ast_signature_eq_cross_module(
+            ctx,
+            ctx.module_id(),
+            argument_expression,
+            default_module_id,
+            default_expression,
+        ),
+        _ => false,
     }
 }
 
 /// Return true when one explicit type argument matches one declared type default.
 fn type_argument_matches_default(
     ctx: &LintModuleDirContext<'_>,
-    argument_expression: dir::LocalNodeId<dir::Expression>,
+    argument_type_expression: dir::LocalNodeId<dir::TypeExpression>,
     default_module_id: ModuleId,
     default_type_expression: dir::LocalNodeId<dir::TypeExpression>,
 ) -> bool {
     let Some(argument_text) =
-        type_argument_source_text_for_module(ctx, ctx.module_id(), argument_expression)
+        type_expression_source_text_for_module(ctx, ctx.module_id(), argument_type_expression)
     else {
         return false;
     };
@@ -455,39 +463,6 @@ fn redundant_type_arguments_fix(
     // delete the redundant trailing type argument segment
     let edits = ctx.edit_builder().delete(remove_span).into_edits();
     Some(LintFix::safe("Remove redundant trailing type arguments").with_edits(edits))
-}
-
-/// Resolve the source text for one type argument expression.
-fn type_argument_source_text_for_module(
-    ctx: &LintModuleDirContext<'_>,
-    module_id: ModuleId,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<String> {
-    let ast = ctx.module_ast(module_id)?;
-    let module = ctx.repository_module(module_id)?;
-    let file = ctx.repository_file(module.file_id)?;
-
-    let source_id = if module_id == ctx.module_id() {
-        ctx.tree.get_source(expression_id.id)
-    } else {
-        let module_dir = ctx.analyzed_dir(module_id)?;
-        module_dir.tree.get_source(expression_id.id)
-    };
-    if ast.tree.get_node_type(source_id) != ast::NodeType::Expression {
-        return None;
-    }
-
-    let ast_expression_id = ast::LocalNodeId::<ast::Expression>::new(source_id);
-    let ast_expression = ast.tree.get(ast_expression_id);
-    let ast::Expression::Type {
-        value: type_expression_id,
-    } = ast_expression
-    else {
-        return None;
-    };
-
-    let span = ast.tree.get_span(*type_expression_id);
-    Some(file.text()[span.start as usize..span.end as usize].to_string())
 }
 
 /// Resolve the source text for one DIR type expression.

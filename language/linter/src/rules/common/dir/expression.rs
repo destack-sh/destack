@@ -972,14 +972,15 @@ fn generic_argument_contains_reference_segment(
 ) -> bool {
     let generic_argument = tree.get(generic_argument_id);
 
-    let value = match generic_argument {
-        dir::GenericArgument::Positional { value } | dir::GenericArgument::Spread { value } => {
-            *value
+    match generic_argument {
+        dir::GenericArgument::Type { value } => {
+            type_expression_contains_reference_segment(tree, *value, target_segment)
+        }
+        dir::GenericArgument::Value { value } => {
+            expression_contains_reference_segment(tree, *value, target_segment)
         }
         dir::GenericArgument::Error => return false,
-    };
-
-    expression_contains_reference_segment(tree, value, target_segment)
+    }
 }
 
 /// Return true when one value expression contains a matching reference segment.
