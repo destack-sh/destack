@@ -54,20 +54,20 @@ fn test_parse_call_postfix() {
         .eat_call(recv, None, PostfixPosition::Direct)
         .unwrap();
 
-    assert_node!(parser.tree, call_id, Expression::Call { position, left, generic_arguments: _, dynamic_arguments } => {
+    assert_node!(parser.tree, call_id, Expression::Call { position, left, generic_arguments: _, arguments } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_eq!(*left, recv);
 
         // (1, 2)
-        assert_eq!(dynamic_arguments.len(), 2);
+        assert_eq!(arguments.len(), 2);
 
         // 1
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value } => {
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
 
         // 2
-        assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { value } => {
+        assert_node!(parser.tree, arguments[1], Argument::Positional { value } => {
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
         });
     });
@@ -152,10 +152,10 @@ fn test_parse_call_postfix_missing_close_parenthesis() {
     test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
 
     // foo(
-    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, dynamic_arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, arguments } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
-        assert!(dynamic_arguments.is_empty());
+        assert!(arguments.is_empty());
     });
 }
 
@@ -169,11 +169,11 @@ fn test_parse_call_postfix_missing_close_parenthesis_after_argument() {
     test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
 
     // foo(1
-    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, dynamic_arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, arguments } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
-        assert_eq!(dynamic_arguments.len(), 1);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
     });
@@ -189,11 +189,11 @@ fn test_parse_indirect_call_postfix_missing_close_parenthesis_after_argument() {
     test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
 
     // foo.(1
-    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, dynamic_arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, arguments } => {
         assert_eq!(*position, PostfixPosition::Indirect);
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
-        assert_eq!(dynamic_arguments.len(), 1);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
     });
@@ -209,14 +209,14 @@ fn test_parse_optional_call_postfix_missing_close_parenthesis_after_argument() {
     test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
 
     // foo?.(1
-    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, dynamic_arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, arguments } => {
         assert_eq!(*position, PostfixPosition::Indirect);
         assert_node!(parser.tree, *left, Expression::Maybe { left, position } => {
             assert_eq!(*position, PostfixPosition::Direct);
             assert_expression_path!(parser, parser.tree.get(*left), "foo");
         });
-        assert_eq!(dynamic_arguments.len(), 1);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
     });
@@ -320,7 +320,7 @@ fn test_parse_call_expression_with_generic_arguments() {
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
     // foo<T>(1, 2)
-    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments, dynamic_arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments, arguments } => {
         assert_eq!(*position, PostfixPosition::Direct);
         // foo
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
@@ -333,11 +333,11 @@ fn test_parse_call_expression_with_generic_arguments() {
                 });
         });
         // (1, 2)
-        assert_eq!(dynamic_arguments.len(), 2);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value } => {
+        assert_eq!(arguments.len(), 2);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
-        assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { value } => {
+        assert_node!(parser.tree, arguments[1], Argument::Positional { value } => {
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
         });
     });
@@ -350,11 +350,11 @@ fn test_parse_new_without_parentheses() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, dynamic_arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
         // Foo
         assert_expression_path!(parser, parser.tree.get(*left), "Foo");
         assert!(generic_arguments.is_empty());
-        assert!(dynamic_arguments.is_empty());
+        assert!(arguments.is_empty());
     });
 }
 
@@ -365,11 +365,11 @@ fn test_parse_new_with_empty_parentheses() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, dynamic_arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
         // Foo
         assert_expression_path!(parser, parser.tree.get(*left), "Foo");
         assert!(generic_arguments.is_empty());
-        assert!(dynamic_arguments.is_empty());
+        assert!(arguments.is_empty());
     });
 }
 
@@ -382,10 +382,10 @@ fn test_parse_new_without_receiver_recovers_missing_constructor() {
     test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
 
     // new
-    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, dynamic_arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
         assert_node!(parser.tree, *left, Expression::Missing);
         assert!(generic_arguments.is_empty());
-        assert!(dynamic_arguments.is_empty());
+        assert!(arguments.is_empty());
     });
 }
 
@@ -396,12 +396,12 @@ fn test_parse_new_with_arguments() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, dynamic_arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
         // Foo
         assert_expression_path!(parser, parser.tree.get(*left), "Foo");
         assert!(generic_arguments.is_empty());
         // (1, 2)
-        assert_eq!(dynamic_arguments.len(), 2);
+        assert_eq!(arguments.len(), 2);
     });
 }
 
@@ -413,7 +413,7 @@ fn test_parse_new_type_arguments_before_if_keyword() {
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
     // new A<T>
-    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, dynamic_arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
         assert_expression_path!(parser, parser.tree.get(*left), "A");
         assert_eq!(generic_arguments.len(), 1);
         assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
@@ -422,7 +422,7 @@ fn test_parse_new_type_arguments_before_if_keyword() {
                     assert!(generic_arguments.is_empty());
                 });
         });
-        assert!(dynamic_arguments.is_empty());
+        assert!(arguments.is_empty());
     });
 }
 
@@ -434,7 +434,7 @@ fn test_parse_new_type_arguments_without_parenthesized_call() {
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
     // new A<T>
-    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, dynamic_arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
         assert_expression_path!(parser, parser.tree.get(*left), "A");
         assert_eq!(generic_arguments.len(), 1);
         assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
@@ -443,7 +443,7 @@ fn test_parse_new_type_arguments_without_parenthesized_call() {
                     assert!(generic_arguments.is_empty());
                 });
         });
-        assert!(dynamic_arguments.is_empty());
+        assert!(arguments.is_empty());
     });
 }
 
@@ -457,10 +457,10 @@ fn test_parse_new_type_arguments_without_parentheses_as_comparison() {
     // new A < T
     assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
         assert_eq!(*operator, BinaryOperator::LessThan);
-        assert_node!(parser.tree, *left, Expression::New { left, generic_arguments, dynamic_arguments } => {
+        assert_node!(parser.tree, *left, Expression::New { left, generic_arguments, arguments } => {
             assert_expression_path!(parser, parser.tree.get(*left), "A");
             assert!(generic_arguments.is_empty());
-            assert!(dynamic_arguments.is_empty());
+            assert!(arguments.is_empty());
         });
         assert_expression_path!(parser, parser.tree.get(*right), "T");
     });
@@ -479,10 +479,10 @@ fn test_parse_new_multiple_comparisons_without_parenthesized_call() {
         assert_expression_path!(parser, parser.tree.get(*right), "C");
         assert_node!(parser.tree, *left, Expression::Binary { left, operator, right } => {
             assert_eq!(*operator, BinaryOperator::LessThan);
-            assert_node!(parser.tree, *left, Expression::New { left, generic_arguments, dynamic_arguments } => {
+            assert_node!(parser.tree, *left, Expression::New { left, generic_arguments, arguments } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "A");
                 assert!(generic_arguments.is_empty());
-                assert!(dynamic_arguments.is_empty());
+                assert!(arguments.is_empty());
             });
             assert_expression_path!(parser, parser.tree.get(*right), "B");
         });
@@ -536,11 +536,11 @@ fn test_parse_new_with_type_identifier_receiver_and_spread_argument() {
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
     // new type(...instances)
-    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, dynamic_arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
         assert_expression_path!(parser, parser.tree.get(*left), "type");
         assert!(generic_arguments.is_empty());
-        assert_eq!(dynamic_arguments.len(), 1);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Spread { label, value } => {
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], Argument::Spread { label, value } => {
             assert!(label.is_none());
             assert_expression_path!(parser, parser.tree.get(*value), "instances");
         });
@@ -556,7 +556,7 @@ fn test_parse_new_parenthesized_cast_receiver_with_generic_arguments() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, dynamic_arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
         assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
             assert_node!(parser.tree, *expression, Expression::As { .. } => {
             });
@@ -568,8 +568,8 @@ fn test_parse_new_parenthesized_cast_receiver_with_generic_arguments() {
                     assert!(generic_arguments.is_empty());
                 });
         });
-        assert_eq!(dynamic_arguments.len(), 1);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Declaration(_));
         });
     });

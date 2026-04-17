@@ -1758,9 +1758,9 @@ port2 = {
                                 assert_node!(parser.tree, *block_id, Block { .. } => {
                                     let expressions = block_expression_ids(parser.tree.get(*block_id));
                                     assert_eq!(expressions.len(), 1);
-                                    assert_node!(parser.tree, expressions[0], Expression::Call { dynamic_arguments, .. } => {
-                                            assert_eq!(dynamic_arguments.len(), 2);
-                                            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                                    assert_node!(parser.tree, expressions[0], Expression::Call { arguments, .. } => {
+                                            assert_eq!(arguments.len(), 2);
+                                            assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
                                                 assert_node!(parser.tree, *value, Expression::Member { left, name, .. } => {
                                                     assert_string!(parser, *name, "onmessage");
                                                     assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {

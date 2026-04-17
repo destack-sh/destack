@@ -91,8 +91,8 @@ fn test_parse_new_unparenthesized_class_expression_with_extends() {
 
     test.assert_no_errors(&parser);
 
-    assert_node!(parser.tree, expr_id, Expression::New { left, dynamic_arguments, .. } => {
-        assert!(dynamic_arguments.is_empty());
+    assert_node!(parser.tree, expr_id, Expression::New { left, arguments, .. } => {
+        assert!(arguments.is_empty());
         assert_node!(parser.tree, *left, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_expression, .. }) => {
                 let extends_expression = extends_expression.expect("expected extends expression");
@@ -170,9 +170,9 @@ fn test_eat_decorator_object_property_named_class_expression_value() {
             parser.eat_expression(parser.options)
         })
         .unwrap();
-    assert_node!(parser.tree, expr_id, Expression::Call { dynamic_arguments, .. } => {
-        assert_eq!(dynamic_arguments.len(), 1);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+    assert_node!(parser.tree, expr_id, Expression::Call { arguments, .. } => {
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
                 assert_eq!(properties.len(), 1);
                 assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
@@ -203,8 +203,8 @@ fn test_parse_new_class_expression_with_generic_implements_clause() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::New { left, dynamic_arguments, .. } => {
-        assert_eq!(dynamic_arguments.len(), 0);
+    assert_node!(parser.tree, expression_id, Expression::New { left, arguments, .. } => {
+        assert_eq!(arguments.len(), 0);
         assert_node!(parser.tree, *left, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { implements_types, members, .. }) => {
                 assert_eq!(implements_types.len(), 1);

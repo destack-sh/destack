@@ -482,10 +482,10 @@ fn test_doc_comment_attaches_to_call_argument() {
     // `run(...)`
     assert_eq!(expressions.len(), 1);
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
-    assert_node!(parser.tree, expression_id, Expression::Call { dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { arguments, .. } => {
         // `value`
-        assert_eq!(dynamic_arguments.len(), 1);
-        let argument_id = dynamic_arguments[0];
+        assert_eq!(arguments.len(), 1);
+        let argument_id = arguments[0];
         let argument_annotations = parser.tree.get_decorators(argument_id.id);
         assert!(argument_annotations.is_empty());
 
@@ -1022,10 +1022,10 @@ fn test_decorator_attaches_to_call_argument() {
     // `run(...)`
     assert_eq!(expressions.len(), 1);
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
-    assert_node!(parser.tree, expression_id, Expression::Call { dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { arguments, .. } => {
         // `@memo value`
-        assert_eq!(dynamic_arguments.len(), 1);
-        let argument_id = dynamic_arguments[0];
+        assert_eq!(arguments.len(), 1);
+        let argument_id = arguments[0];
         let annotations = parser.tree.get_decorators(argument_id.id);
         assert_eq!(annotations.len(), 1);
         assert_node!(parser.tree, annotations[0], Decorator { expression: node, .. } => {
@@ -1485,9 +1485,9 @@ fn test_comments_around_member_decorator_chain_remain_raw_trivia() {
             });
 
             assert_node!(parser.tree, member_annotations[1], Decorator { expression: node, .. } => {
-                    assert_node!(parser.tree, *node, Expression::Call { left, dynamic_arguments, .. } => {
+                    assert_node!(parser.tree, *node, Expression::Call { left, arguments, .. } => {
                         assert_expression_path!(parser, parser.tree.get(*left), "foo");
-                        assert_eq!(dynamic_arguments.len(), 3);
+                        assert_eq!(arguments.len(), 3);
                     });
             });
 

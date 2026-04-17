@@ -966,7 +966,7 @@ const x =
                 });
                 // foo.parse()
                 assert!(value.is_some());
-                assert_node!(parser.tree, value.unwrap(), Expression::Call { position: _,  left, generic_arguments: _, dynamic_arguments: _ } => {
+                assert_node!(parser.tree, value.unwrap(), Expression::Call { position: _,  left, generic_arguments: _, arguments: _ } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "foo.parse");
                 });
             });
@@ -1203,8 +1203,8 @@ const registry: Map<
             });
         });
 
-        assert_node!(parser.tree, expressions[1], Expression::Call { left, dynamic_arguments, .. } => {
-                assert!(dynamic_arguments.is_empty());
+        assert_node!(parser.tree, expressions[1], Expression::Call { left, arguments, .. } => {
+                assert!(arguments.is_empty());
                 assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
                     assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
                         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {

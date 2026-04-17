@@ -3154,14 +3154,14 @@ mod tests {
             assert_eq!(elements.as_ref().unwrap().len(), 1);
             // {foo<T>(x)}
             assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
-                assert_node!(parser.tree, *value, Expression::Call { left, generic_arguments, dynamic_arguments, .. } => {
+                assert_node!(parser.tree, *value, Expression::Call { left, generic_arguments, arguments, .. } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "foo");
                     assert_eq!(generic_arguments.len(), 1);
                     assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_expression_path!(parser, parser.tree.get(*value), "T");
                     });
-                    assert_eq!(dynamic_arguments.len(), 1);
-                    assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value } => {
+                    assert_eq!(arguments.len(), 1);
+                    assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
                         assert_expression_path!(parser, parser.tree.get(*value), "x");
                     });
                 });
@@ -3485,9 +3485,9 @@ mod tests {
             assert_eq!(elements.len(), 2);
 
             assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
-                assert_node!(parser.tree, *value, Expression::Call { dynamic_arguments, .. } => {
-                    assert_eq!(dynamic_arguments.len(), 1);
-                    assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::Call { arguments, .. } => {
+                    assert_eq!(arguments.len(), 1);
+                    assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
                         assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
                                 assert_eq!(signature.kind, FunctionKind::Lambda);

@@ -367,10 +367,10 @@ fn test_parse_override_as_identifier_call() {
         let mut parser = test.prepare();
 
         let expression_id = parser.eat_expression(parser.options).unwrap();
-        assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+        assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "override");
-            assert_eq!(dynamic_arguments.len(), 1);
-            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "value");
             });
         });
@@ -383,10 +383,10 @@ fn test_parse_abstract_as_identifier_call() {
     let mut parser = test.prepare();
 
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "abstract");
-        assert_eq!(dynamic_arguments.len(), 1);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_expression_path!(parser, parser.tree.get(*value), "value");
         });
     });
@@ -398,10 +398,10 @@ fn test_parse_type_as_identifier_call() {
     let mut parser = test.prepare();
 
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "type");
-        assert_eq!(dynamic_arguments.len(), 1);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(123)));
         });
     });
@@ -475,11 +475,11 @@ fn test_parse_callback_parameter_named_type() {
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
     test.assert_no_errors(&parser);
-    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "avplay.setListener");
-        assert_eq!(dynamic_arguments.len(), 1);
+        assert_eq!(arguments.len(), 1);
 
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
                 assert_eq!(properties.len(), 1);
 

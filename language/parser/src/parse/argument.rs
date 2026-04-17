@@ -1908,7 +1908,7 @@ impl Parser {
         // regular dynamic arguments
         let ambient_context = self.options.nested();
         let expression_context = self.options.nested();
-        let dynamic_arguments = self.with_options(
+        let arguments = self.with_options(
             self.options
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
@@ -1921,7 +1921,7 @@ impl Parser {
             NodeType::Expression,
         )?;
 
-        Ok(dynamic_arguments)
+        Ok(arguments)
     }
 
     /// Eat a call argument list (positional/spread only). May be comma or newline separated.
@@ -3105,8 +3105,8 @@ class Test {
         // foo(a,b;
         assert_eq!(expressions.len(), 1);
         let call_id = parser.unwrap_labelled_expression(expressions[0]);
-        assert_node!(parser.tree, call_id, Expression::Call { dynamic_arguments, .. } => {
-            assert_eq!(dynamic_arguments.len(), 2);
+        assert_node!(parser.tree, call_id, Expression::Call { arguments, .. } => {
+            assert_eq!(arguments.len(), 2);
         });
     }
 
@@ -3129,8 +3129,8 @@ class Test {
         // foo(a,b var;
         assert_eq!(expressions.len(), 2);
         let call_id = parser.unwrap_labelled_expression(expressions[0]);
-        assert_node!(parser.tree, call_id, Expression::Call { dynamic_arguments, .. } => {
-            assert_eq!(dynamic_arguments.len(), 2);
+        assert_node!(parser.tree, call_id, Expression::Call { arguments, .. } => {
+            assert_eq!(arguments.len(), 2);
         });
         assert_node!(parser.tree, expressions[1], Expression::Error);
     }
@@ -3147,10 +3147,10 @@ class Test {
         // foo (,,b);
         assert_eq!(expressions.len(), 1);
         let call_id = parser.unwrap_labelled_expression(expressions[0]);
-        assert_node!(parser.tree, call_id, Expression::Call { dynamic_arguments, .. } => {
-            assert_eq!(dynamic_arguments.len(), 3);
-            assert_node!(parser.tree, dynamic_arguments[0], Argument::Error);
-            assert_node!(parser.tree, dynamic_arguments[1], Argument::Error);
+        assert_node!(parser.tree, call_id, Expression::Call { arguments, .. } => {
+            assert_eq!(arguments.len(), 3);
+            assert_node!(parser.tree, arguments[0], Argument::Error);
+            assert_node!(parser.tree, arguments[1], Argument::Error);
         });
     }
 
@@ -3166,9 +3166,9 @@ class Test {
         // foo (a, ...);
         assert_eq!(expressions.len(), 1);
         let call_id = parser.unwrap_labelled_expression(expressions[0]);
-        assert_node!(parser.tree, call_id, Expression::Call { dynamic_arguments, .. } => {
-            assert_eq!(dynamic_arguments.len(), 2);
-            assert_node!(parser.tree, dynamic_arguments[1], Argument::Error);
+        assert_node!(parser.tree, call_id, Expression::Call { arguments, .. } => {
+            assert_eq!(arguments.len(), 2);
+            assert_node!(parser.tree, arguments[1], Argument::Error);
         });
     }
 
@@ -3200,15 +3200,15 @@ foo (,,b);
         assert_eq!(expressions.len(), 3);
 
         let first_call_id = parser.unwrap_labelled_expression(expressions[0]);
-        assert_node!(parser.tree, first_call_id, Expression::Call { dynamic_arguments, .. } => {
-            assert_eq!(dynamic_arguments.len(), 2);
+        assert_node!(parser.tree, first_call_id, Expression::Call { arguments, .. } => {
+            assert_eq!(arguments.len(), 2);
         });
 
         assert_node!(parser.tree, expressions[1], Expression::Error);
 
         let second_call_id = parser.unwrap_labelled_expression(expressions[2]);
-        assert_node!(parser.tree, second_call_id, Expression::Call { dynamic_arguments, .. } => {
-            assert_eq!(dynamic_arguments.len(), 3);
+        assert_node!(parser.tree, second_call_id, Expression::Call { arguments, .. } => {
+            assert_eq!(arguments.len(), 3);
         });
     }
 
@@ -3237,8 +3237,8 @@ foo (a, ...);
 
         // foo(a,b var;
         let first_call_id = parser.unwrap_labelled_expression(expressions[0]);
-        assert_node!(parser.tree, first_call_id, Expression::Call { dynamic_arguments, .. } => {
-            assert_eq!(dynamic_arguments.len(), 2);
+        assert_node!(parser.tree, first_call_id, Expression::Call { arguments, .. } => {
+            assert_eq!(arguments.len(), 2);
         });
 
         // Error
@@ -3246,8 +3246,8 @@ foo (a, ...);
 
         // foo (a, ...);
         let second_call_id = parser.unwrap_labelled_expression(expressions[2]);
-        assert_node!(parser.tree, second_call_id, Expression::Call { dynamic_arguments, .. } => {
-            assert_eq!(dynamic_arguments.len(), 2);
+        assert_node!(parser.tree, second_call_id, Expression::Call { arguments, .. } => {
+            assert_eq!(arguments.len(), 2);
         });
     }
 
@@ -3271,15 +3271,15 @@ bar();
 
         // foo(,
         let first_call_id = parser.unwrap_labelled_expression(expressions[0]);
-        assert_node!(parser.tree, first_call_id, Expression::Call { dynamic_arguments, .. } => {
-            assert_eq!(dynamic_arguments.len(), 1);
-            assert_node!(parser.tree, dynamic_arguments[0], Argument::Error);
+        assert_node!(parser.tree, first_call_id, Expression::Call { arguments, .. } => {
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Error);
         });
 
         // bar();
         let second_call_id = parser.unwrap_labelled_expression(expressions[1]);
-        assert_node!(parser.tree, second_call_id, Expression::Call { dynamic_arguments, .. } => {
-            assert_eq!(dynamic_arguments.len(), 0);
+        assert_node!(parser.tree, second_call_id, Expression::Call { arguments, .. } => {
+            assert_eq!(arguments.len(), 0);
         });
     }
 
@@ -3306,9 +3306,9 @@ const value = 1;
 
         // foo(,
         let first_call_id = parser.unwrap_labelled_expression(expressions[0]);
-        assert_node!(parser.tree, first_call_id, Expression::Call { dynamic_arguments, .. } => {
-            assert_eq!(dynamic_arguments.len(), 1);
-            assert_node!(parser.tree, dynamic_arguments[0], Argument::Error);
+        assert_node!(parser.tree, first_call_id, Expression::Call { arguments, .. } => {
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Error);
         });
 
         // const value = 1;

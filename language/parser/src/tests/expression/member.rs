@@ -58,17 +58,17 @@ fn test_parse_call_chain_with_newline_after_dot() {
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
     // receiver().\nthen(value)
-    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
-        assert_eq!(dynamic_arguments.len(), 1);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_expression_path!(parser, parser.tree.get(*value), "value");
         });
 
         // receiver().then
         assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
             assert_string!(parser, *name, "then");
-            assert_node!(parser.tree, *left, Expression::Call { left, dynamic_arguments, .. } => {
-                assert!(dynamic_arguments.is_empty());
+            assert_node!(parser.tree, *left, Expression::Call { left, arguments, .. } => {
+                assert!(arguments.is_empty());
                 assert_expression_path!(parser, parser.tree.get(*left), "receiver");
             });
         });
@@ -86,15 +86,15 @@ fn test_parse_member_hop_comments_attach_to_boundary_owners() {
     let expression_id = parser.eat_expression(parser.options).unwrap();
     parser.attach_comments();
 
-    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
-        assert!(dynamic_arguments.is_empty());
+    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
+        assert!(arguments.is_empty());
 
         assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
             assert_string!(parser, *name, "second");
 
             let first_call_id = *left;
-            assert_node!(parser.tree, first_call_id, Expression::Call { left, dynamic_arguments, .. } => {
-                assert!(dynamic_arguments.is_empty());
+            assert_node!(parser.tree, first_call_id, Expression::Call { left, arguments, .. } => {
+                assert!(arguments.is_empty());
 
                 assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
                     assert_string!(parser, *name, "first");
@@ -352,9 +352,9 @@ fn test_parse_double_dot_member_call_after_numeric_literal() {
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression(parser.options).unwrap();
 
-        assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
-            assert_eq!(dynamic_arguments.len(), 1);
-            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
 
@@ -424,9 +424,9 @@ fn test_parse_call_argument_this_member_expression_in_variant_context() {
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
     // setTimeout(this.port1.onmessage, 0)
-    assert_node!(parser.tree, expression_id, Expression::Call { dynamic_arguments, .. } => {
-        assert_eq!(dynamic_arguments.len(), 2);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { arguments, .. } => {
+        assert_eq!(arguments.len(), 2);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             // this.port1.onmessage
             assert_node!(parser.tree, *value, Expression::Member { left, name, .. } => {
                 assert_string!(parser, *name, "onmessage");

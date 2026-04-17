@@ -97,9 +97,9 @@ fn test_parse_object_method_body_sequence_expression_statement() {
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
     // objectType({ definition(t) { ... } })
-    assert_node!(parser.tree, expr_id, Expression::Call { dynamic_arguments, .. } => {
-        assert_eq!(dynamic_arguments.len(), 1);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value: object_id, .. } => {
+    assert_node!(parser.tree, expr_id, Expression::Call { arguments, .. } => {
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value: object_id, .. } => {
             assert_node!(parser.tree, *object_id, Expression::ObjectExpression { properties, .. } => {
                 assert_eq!(properties.len(), 1);
                 assert_node!(parser.tree, properties[0], Property::Method { body, .. } => {

@@ -646,10 +646,10 @@ for (const { item } of await fetchList<{ item: string }>(values)) {}
 
             // await fetchList<{ item: string }>(values)
             assert_node!(parser.tree, *iterator, Expression::Await { expression } => {
-                assert_node!(parser.tree, *expression, Expression::Call { left, generic_arguments, dynamic_arguments, .. } => {
+                assert_node!(parser.tree, *expression, Expression::Call { left, generic_arguments, arguments, .. } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "fetchList");
-                    assert_eq!(dynamic_arguments.len(), 1);
-                    assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                    assert_eq!(arguments.len(), 1);
+                    assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
                         assert_expression_path!(parser, parser.tree.get(*value), "values");
                     });
 
@@ -794,8 +794,8 @@ for (using item of items) {
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::Member { left, name, .. } => {
                         assert_string!(parser, *name, "foo");
-                        assert_node!(parser.tree, *left, Expression::Call { left, dynamic_arguments, .. } => {
-                            assert!(dynamic_arguments.is_empty());
+                        assert_node!(parser.tree, *left, Expression::Call { left, arguments, .. } => {
+                            assert!(arguments.is_empty());
                             assert_expression_path!(parser, parser.tree.get(*left), "using");
                         });
                     });
@@ -821,8 +821,8 @@ for (using item of items) {
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::Member { left, name, .. } => {
                         assert_string!(parser, *name, "foo");
-                        assert_node!(parser.tree, *left, Expression::Call { left, dynamic_arguments, .. } => {
-                            assert!(dynamic_arguments.is_empty());
+                        assert_node!(parser.tree, *left, Expression::Call { left, arguments, .. } => {
+                            assert!(arguments.is_empty());
                             assert_expression_path!(parser, parser.tree.get(*left), "using");
                         });
                     });

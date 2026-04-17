@@ -70,8 +70,8 @@ fn test_parse_optional_chain_generic_argument_call() {
 
     test.assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
-    assert_node!(parser.tree, expressions[0], Expression::Call { left, generic_arguments, dynamic_arguments, .. } => {
-        assert!(dynamic_arguments.is_empty());
+    assert_node!(parser.tree, expressions[0], Expression::Call { left, generic_arguments, arguments, .. } => {
+        assert!(arguments.is_empty());
 
         assert_eq!(generic_arguments.len(), 1);
         assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
@@ -110,9 +110,9 @@ const addSpanOperationAttributes = addSpanAttributes("gen_ai.operation", String.
                             assert!(generic_arguments.is_empty());
                         });
                 });
-                assert_node!(parser.tree, *left, Expression::Call { left, dynamic_arguments, .. } => {
+                assert_node!(parser.tree, *left, Expression::Call { left, arguments, .. } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "addSpanAttributes");
-                    assert_eq!(dynamic_arguments.len(), 2);
+                    assert_eq!(arguments.len(), 2);
                 });
             });
         });
@@ -290,8 +290,8 @@ fn test_parse_call_with_string_literal_type_arguments() {
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::Call { left, generic_arguments, dynamic_arguments, .. } => {
-        assert_eq!(dynamic_arguments.len(), 1);
+    assert_node!(parser.tree, expr_id, Expression::Call { left, generic_arguments, arguments, .. } => {
+        assert_eq!(arguments.len(), 1);
         assert!(generic_arguments.is_empty());
         assert_node!(parser.tree, *left, Expression::Instantiation { left, generic_arguments } => {
             assert_eq!(generic_arguments.len(), 1);
@@ -327,15 +327,15 @@ await fetchListResult<{
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Await { expression } => {
-        assert_node!(parser.tree, *expression, Expression::Call { left, generic_arguments, dynamic_arguments, .. } => {
+        assert_node!(parser.tree, *expression, Expression::Call { left, generic_arguments, arguments, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "fetchListResult");
-            assert_eq!(dynamic_arguments.len(), 2);
+            assert_eq!(arguments.len(), 2);
 
-            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "complianceConfig");
             });
 
-            assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, arguments[1], Argument::Positional { value, .. } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "route");
             });
 
@@ -371,9 +371,9 @@ fn test_parse_call_with_shift_left_generic_arguments() {
     let mut test = TestParser::new_with_options("f<<T>(v: T) => void>()", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::Call { left, generic_arguments, dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expr_id, Expression::Call { left, generic_arguments, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "f");
-        assert!(dynamic_arguments.is_empty());
+        assert!(arguments.is_empty());
         let generic_arguments = generic_arguments.as_slice();
         assert_eq!(generic_arguments.len(), 1);
         assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value, .. } => {
@@ -399,9 +399,9 @@ fn test_parse_call_with_shift_left_generic_arguments_in_decorator_context() {
         .not_in_sequence_expression()
         .in_decorator();
     let expr_id = parser.eat_expression(options).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::Call { left, generic_arguments, dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expr_id, Expression::Call { left, generic_arguments, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "f");
-        assert!(dynamic_arguments.is_empty());
+        assert!(arguments.is_empty());
         let generic_arguments = generic_arguments.as_slice();
         assert_eq!(generic_arguments.len(), 1);
     });
@@ -413,15 +413,15 @@ fn test_parse_generic_arguments_disambiguate_relational() {
     let mut test = TestParser::new("fn(x < y, x > y)");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::Call { left, dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expr_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "fn");
-        assert_eq!(dynamic_arguments.len(), 2);
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_eq!(arguments.len(), 2);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
                 assert_eq!(*operator, BinaryOperator::LessThan);
             });
         });
-        assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { value, .. } => {
+        assert_node!(parser.tree, arguments[1], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
                 assert_eq!(*operator, BinaryOperator::GreaterThan);
             });
@@ -437,23 +437,23 @@ fn test_parse_call_arguments_relational_then_shift_right_assign() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expr_id, Expression::Call { left, dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expr_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "fn");
-        assert_eq!(dynamic_arguments.len(), 3);
+        assert_eq!(arguments.len(), 3);
 
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
                 assert_eq!(*operator, BinaryOperator::LessThan);
             });
         });
 
-        assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { value, .. } => {
+        assert_node!(parser.tree, arguments[1], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
                 assert_eq!(*operator, BinaryOperator::LessThan);
             });
         });
 
-        assert_node!(parser.tree, dynamic_arguments[2], Argument::Positional { value, .. } => {
+        assert_node!(parser.tree, arguments[2], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Assign { operator, .. } => {
                 assert_eq!(*operator, AssignOperator::ShiftRightAssign);
             });
@@ -469,23 +469,23 @@ fn test_parse_call_arguments_relational_then_unsigned_shift_right_assign() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expr_id, Expression::Call { left, dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expr_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "fn");
-        assert_eq!(dynamic_arguments.len(), 3);
+        assert_eq!(arguments.len(), 3);
 
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
                 assert_eq!(*operator, BinaryOperator::LessThan);
             });
         });
 
-        assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { value, .. } => {
+        assert_node!(parser.tree, arguments[1], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
                 assert_eq!(*operator, BinaryOperator::LessThan);
             });
         });
 
-        assert_node!(parser.tree, dynamic_arguments[2], Argument::Positional { value, .. } => {
+        assert_node!(parser.tree, arguments[2], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Assign { operator, .. } => {
                 assert_eq!(*operator, AssignOperator::UnsignedShiftRightAssign);
             });
@@ -536,8 +536,8 @@ fn test_parse_call_with_instantiation_callee_and_inline_block_comment() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Call { left, generic_arguments, dynamic_arguments, .. } => {
-        assert_eq!(dynamic_arguments.len(), 1);
+    assert_node!(parser.tree, expression_id, Expression::Call { left, generic_arguments, arguments, .. } => {
+        assert_eq!(arguments.len(), 1);
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
         assert_eq!(generic_arguments.len(), 1);
     });
@@ -550,8 +550,8 @@ fn test_parse_call_with_instantiation_callee_and_newline_block_comment_before_ty
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Call { left, generic_arguments, dynamic_arguments, .. } => {
-        assert_eq!(dynamic_arguments.len(), 1);
+    assert_node!(parser.tree, expression_id, Expression::Call { left, generic_arguments, arguments, .. } => {
+        assert_eq!(arguments.len(), 1);
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
         assert_eq!(generic_arguments.len(), 1);
     });
@@ -565,8 +565,8 @@ fn test_parse_empty_call_with_instantiation_callee_and_newline_block_comment_bef
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Call { left, generic_arguments, dynamic_arguments, .. } => {
-        assert!(dynamic_arguments.is_empty());
+    assert_node!(parser.tree, expression_id, Expression::Call { left, generic_arguments, arguments, .. } => {
+        assert!(arguments.is_empty());
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
         assert_eq!(generic_arguments.len(), 1);
     });
@@ -579,8 +579,8 @@ fn test_parse_call_with_instantiation_callee_and_line_comment_before_arguments()
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Call { left, generic_arguments: _, dynamic_arguments, .. } => {
-        assert_eq!(dynamic_arguments.len(), 1);
+    assert_node!(parser.tree, expression_id, Expression::Call { left, generic_arguments: _, arguments, .. } => {
+        assert_eq!(arguments.len(), 1);
         assert_node!(parser.tree, *left, Expression::Instantiation { left, generic_arguments } => {
             assert_expression_path!(parser, parser.tree.get(*left), "foo");
             assert_eq!(generic_arguments.len(), 1);

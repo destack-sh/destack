@@ -733,8 +733,8 @@ switch (tag.injectTo) {
                     assert_eq!(expressions.len(), 2);
 
                     // first statement: (bodyTags ??= []).push(tag)
-                    assert_node!(parser.tree, expressions[0], Expression::Call { left, dynamic_arguments, .. } => {
-                        assert_eq!(dynamic_arguments.len(), 1);
+                    assert_node!(parser.tree, expressions[0], Expression::Call { left, arguments, .. } => {
+                        assert_eq!(arguments.len(), 1);
                         assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
                             assert_string!(parser, *name, "push");
                             assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {

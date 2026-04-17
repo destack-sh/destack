@@ -50,11 +50,11 @@ fn test_parse_parenthesized_tree_callback_body() {
     let expression_id = parser.eat_expression(parser.options).unwrap();
     test.assert_no_errors(&parser);
 
-    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "items.map");
-        assert_eq!(dynamic_arguments.len(), 1);
+        assert_eq!(arguments.len(), 1);
 
-        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
                     assert_eq!(signature.kind, FunctionKind::Lambda);

@@ -261,10 +261,10 @@ fn test_parse_new_without_parenthesized_type_arguments_in_statement() {
 
     assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
         assert_eq!(*operator, BinaryOperator::LessThan);
-        assert_node!(parser.tree, *left, Expression::New { left, generic_arguments, dynamic_arguments } => {
+        assert_node!(parser.tree, *left, Expression::New { left, generic_arguments, arguments } => {
             assert_expression_path!(parser, parser.tree.get(*left), "A");
             assert!(generic_arguments.is_empty());
-            assert!(dynamic_arguments.is_empty());
+            assert!(arguments.is_empty());
         });
         assert_expression_path!(parser, parser.tree.get(*right), "T");
     });
