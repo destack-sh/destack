@@ -157,9 +157,7 @@ pub fn signature_help(
 
             // check if this is a call expression
             if let Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
+                left, arguments, ..
             } = expression
             {
                 // resolve the call target symbol and name
@@ -181,7 +179,7 @@ pub fn signature_help(
                     &ctx,
                     dir_tree,
                     expression_id,
-                    dynamic_arguments,
+                    arguments,
                     offset,
                     source,
                 );

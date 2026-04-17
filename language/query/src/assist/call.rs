@@ -19,8 +19,8 @@ use super::CompletionContext;
 struct DirCallExpression<'a> {
     /// The callee expression on the left side.
     left: dir::LocalNodeId<dir::Expression>,
-    /// The dynamic argument nodes in source order.
-    dynamic_arguments: &'a [dir::LocalNodeId<dir::Argument>],
+    /// The argument nodes in source order.
+    arguments: &'a [dir::LocalNodeId<dir::Argument>],
 }
 
 /// Detect whether the cursor is in a new expression context.
@@ -150,19 +150,12 @@ fn call_argument_context_for_span(
     let call_span = ast.tree().source_map.get(enc.idx);
 
     // only the argument list belongs to this path
-    if !cursor_in_argument_list(
-        ast,
-        dir_tree,
-        call.dynamic_arguments,
-        left_span,
-        call_span,
-        offset,
-    ) {
+    if !cursor_in_argument_list(ast, dir_tree, call.arguments, left_span, call_span, offset) {
         return None;
     }
 
     let scope = expression_scope_at_offset(ast, dir, expr_id, offset);
-    let active_parameter = active_argument_index(ast, dir_tree, call.dynamic_arguments, offset);
+    let active_parameter = active_argument_index(ast, dir_tree, call.arguments, offset);
     let expected_parameter = expected_parameter_hint(repository, dir, call.left, active_parameter);
 
     Some(CompletionContext::CallArgument {
@@ -196,7 +189,7 @@ fn call_argument_context_after_separator(
         }
 
         let scope = expression_scope_at_offset(ast, dir, expr_id, offset);
-        let active_parameter = call.dynamic_arguments.len();
+        let active_parameter = call.arguments.len();
         let expected_parameter =
             expected_parameter_hint(repository, dir, call.left, active_parameter);
 
@@ -260,17 +253,13 @@ fn dir_call_expression_for_enclosing_span<'a>(
 fn dir_call_expression(expr: &dir::Expression) -> Option<DirCallExpression<'_>> {
     match expr {
         dir::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         }
         | dir::Expression::New {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } => Some(DirCallExpression {
             left: *left,
-            dynamic_arguments: dynamic_arguments.as_slice(),
+            arguments: arguments.as_slice(),
         }),
         _ => None,
     }

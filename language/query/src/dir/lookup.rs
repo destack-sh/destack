@@ -290,8 +290,8 @@ fn find_symbol_at_offset_impl(
 
     let dir_tree = dir.tree();
 
-    // check static parameters first to avoid capturing the enclosing declaration
-    if let Some(result) = static_parameter_symbol_at_offset(repository, ast, dir, offset) {
+    // check generic parameters first to avoid capturing the enclosing declaration
+    if let Some(result) = generic_parameter_symbol_at_offset(repository, ast, dir, offset) {
         return Some(result);
     }
 
@@ -788,8 +788,8 @@ fn is_declaration_target_modifier_keyword(keyword: ast::Keyword) -> bool {
     )
 }
 
-/// Resolve a static parameter symbol at the given offset.
-fn static_parameter_symbol_at_offset(
+/// Resolve a generic parameter symbol at the given offset.
+fn generic_parameter_symbol_at_offset(
     repository: &Repository,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
@@ -816,7 +816,7 @@ fn static_parameter_symbol_at_offset(
             }
 
             if let Some(token_name) = token_name.as_deref()
-                && let Some(parameter_name) = static_parameter_name(repository, parameter)
+                && let Some(parameter_name) = generic_parameter_name(repository, parameter)
                 && parameter_name != token_name
             {
                 continue;
@@ -835,7 +835,7 @@ fn static_parameter_symbol_at_offset(
 }
 
 /// Resolve the declared name for a generic parameter when available.
-fn static_parameter_name(
+fn generic_parameter_name(
     repository: &Repository,
     parameter: &dir::GenericParameter,
 ) -> Option<String> {

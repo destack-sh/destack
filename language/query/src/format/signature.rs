@@ -157,7 +157,7 @@ fn format_function(
         strings,
     );
 
-    // format dynamic parameters
+    // format parameters
     let parameters_text = format_parameters(
         signature.this_parameter,
         &signature.parameters,
@@ -254,7 +254,7 @@ pub fn format_call_signature(
         strings,
     );
 
-    // choose dynamic parameters
+    // choose parameters
     let this_parameter = if include_this {
         signature.this_parameter
     } else {

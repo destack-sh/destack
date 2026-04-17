@@ -5,7 +5,7 @@ use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use crate::core::with_query_context_for_file;
-use crate::dir::{dynamic_parameter_names, resolve_call_target};
+use crate::dir::{parameter_names_for_symbol, resolve_call_target};
 use crate::format::format_type_for_inlay_hint;
 
 /// Kind of inlay hint.
@@ -96,16 +96,14 @@ pub fn inlay_hints(
         for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
             // check if this is a call expression
             let Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
+                left, arguments, ..
             } = expression
             else {
                 continue;
             };
 
             // skip if no arguments
-            if dynamic_arguments.is_empty() {
+            if arguments.is_empty() {
                 continue;
             }
 
@@ -131,7 +129,7 @@ pub fn inlay_hints(
             }
 
             // add parameter hints for each argument
-            for (index, argument_id) in dynamic_arguments.iter().enumerate() {
+            for (index, argument_id) in arguments.iter().enumerate() {
                 // resolve the argument and parameter name
                 let argument = dir_tree.get::<Argument>(*argument_id);
                 let param_name = match param_names.get(index) {
@@ -261,8 +259,8 @@ fn get_parameter_names(
         return Vec::new();
     };
 
-    // resolve dynamic parameter names from the DIR
-    dynamic_parameter_names(repository, revision, symbol_id).unwrap_or_default()
+    // resolve parameter names from the DIR
+    parameter_names_for_symbol(repository, revision, symbol_id).unwrap_or_default()
 }
 
 /// Decide whether a parameter hint should be skipped for an argument.
