@@ -21,7 +21,7 @@ declare_pass! {
     /// ```mir
     /// function before(v0: boolean): int32 {
     /// b0(v0: boolean):
-    ///     v1 = stack.alloc int32 -> ref<int32, raw, addressSpace(stack)>
+    ///     v1 = stack.alloc int32 -> ref<int32, raw, space(stack)>
     ///     v2 = 7int32
     ///     store v1, v2
     ///     branch v0, b1, b2
@@ -36,7 +36,7 @@ declare_pass! {
     /// ```mir
     /// function after(v0: boolean): int32 {
     /// b0(v0: boolean):
-    ///     v1 = stack.alloc int32 -> ref<int32, raw, addressSpace(stack)>
+    ///     v1 = stack.alloc int32 -> ref<int32, raw, space(stack)>
     ///     v2 = 7int32
     ///     branch v0, b1, b2
     /// b1:
@@ -502,7 +502,7 @@ mod tests {
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 7int32
     store v1, v2
     branch v0, b1, b2
@@ -516,7 +516,7 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 7int32
     branch v0, b1, b3
 b1:
@@ -540,7 +540,7 @@ b3:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 7int32
     store v1, v2
     branch v0, b1, b2
@@ -561,8 +561,8 @@ b2:
     #[test]
     fn test_store_sink_skips_escaping_store() {
         let input = r#"
-function test(v0: boolean, v1: ref<int32, raw, addressSpace(global)>): void {
-b0(v0: boolean, v1: ref<int32, raw, addressSpace(global)>):
+function test(v0: boolean, v1: ref<int32, raw, space(global)>): void {
+b0(v0: boolean, v1: ref<int32, raw, space(global)>):
     v2: int32 = 1int32
     store v1, v2
     branch v0, b1, b2

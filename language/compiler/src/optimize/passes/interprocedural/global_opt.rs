@@ -754,15 +754,15 @@ b0:
         test.assert_output(input);
     }
 
-    /// Address space casts that feed stores keep globals mutable.
+    /// Space casts that feed stores keep globals mutable.
     #[test]
-    fn test_global_opt_skips_addrspace_cast_store() {
+    fn test_global_opt_skips_space_cast_store() {
         let input = r#"
 global value: int32 = 0int32
 function root(): void {
 b0:
     v0: ref<int32, raw> = global.address value
-    v1: ref<int32, raw> = intrinsic.addressSpace.cast(v0)
+    v1: ref<int32, raw> = intrinsic.space.cast(v0)
     v2: int32 = 1int32
     store v1, v2
     return

@@ -1297,7 +1297,7 @@ b0(v0: ref<{ int32 }, borrowed>):
         let input = r#"
 function test(): ref<int32, borrowed> {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: ref<int32, borrowed> = field.address v0, 0
     return v1
 }"#;

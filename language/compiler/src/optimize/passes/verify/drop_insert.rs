@@ -556,7 +556,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = load v0

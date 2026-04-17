@@ -528,7 +528,7 @@ b1:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = load v1
     branch v0, b1, b2
 b1:

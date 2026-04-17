@@ -1070,8 +1070,8 @@ b0:
             r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int8 = 0int8
     v3: int64 = 4int64
     intrinsic.memset(v1, v2, v3)
@@ -1208,7 +1208,7 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
 function test(): void {
     local local0: int32, owned
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = local.address local0
+    v0: ref<int32, raw, space(stack)> = local.address local0
     v1: int8 = 0int8
     v2: int64 = 4int64
     intrinsic.memset(v0, v1, v2)
@@ -1324,7 +1324,7 @@ b0:
             r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: ref<int32, managed> = managed.alloc int32
     v2: int32 = 1int32
     store v0, v2
@@ -1350,8 +1350,8 @@ b0:
 global g: int32 = 0int32
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(global)> = global.address g
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(global)> = global.address g
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 1int32
     store v0, v2
     store v1, v2
@@ -1376,7 +1376,7 @@ b0:
 type Arr int32[10]
 function test(): void {
 b0:
-    v0: ref<Arr, raw, addressSpace(stack)> = stack.alloc Arr
+    v0: ref<Arr, raw, space(stack)> = stack.alloc Arr
     v1: int64 = 0int64
     v2: int64 = 1int64
     v3: ref<int32, borrowed> = element.address v0, v1
@@ -1458,7 +1458,7 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
             r#"
 function test(): void {
 b0:
-    v0: ref<int64, raw, addressSpace(stack)> = stack.alloc int64
+    v0: ref<int64, raw, space(stack)> = stack.alloc int64
     return
 }"#,
         );
@@ -1484,7 +1484,7 @@ b0:
             r#"
 function test(): void {
 b0:
-    v0: ref<int64, raw, addressSpace(stack)> = stack.alloc int64
+    v0: ref<int64, raw, space(stack)> = stack.alloc int64
     return
 }"#,
         );
@@ -1533,8 +1533,8 @@ b0:
             r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
-    v1: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: ref<int8, raw> = cast.bit v0 -> ref<int8, raw>
     return
 }"#,
@@ -1564,7 +1564,7 @@ b0:
 type Arr int32[10]
 function test(v0: int64): void {
 b0(v0: int64):
-    v1: ref<Arr, raw, addressSpace(stack)> = stack.alloc Arr
+    v1: ref<Arr, raw, space(stack)> = stack.alloc Arr
     v2: ref<int32, borrowed> = element.address v1, v0
     v3: ref<int32, borrowed> = element.address v1, v0
     return
@@ -1597,7 +1597,7 @@ type Outer {
 }
 function test(): void {
 b0:
-    v0: ref<Outer, raw, addressSpace(stack)> = stack.alloc Outer
+    v0: ref<Outer, raw, space(stack)> = stack.alloc Outer
     v1: ref<Inner, borrowed> = field.address v0, 0
     v2: ref<Inner, borrowed> = field.address v0, 1
     v3: ref<int32, borrowed> = field.address v1, 0
