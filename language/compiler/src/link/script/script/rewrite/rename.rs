@@ -69,7 +69,7 @@ impl ScriptLinker<'_> {
 
         matches!(
             declaration,
-            js::Declaration::Class { .. } | js::Declaration::Function { .. }
+            js::Declaration::Class(_) | js::Declaration::Function(_)
         )
     }
 
@@ -1062,8 +1062,8 @@ impl ScriptLinker<'_> {
 
             let declaration = module.tree.get_mut(declaration_id);
             match declaration {
-                js::Declaration::Class { descriptor, .. }
-                | js::Declaration::Function { descriptor, .. } => {
+                js::Declaration::Class(js::ClassDeclaration { descriptor, .. })
+                | js::Declaration::Function(js::FunctionDeclaration { descriptor, .. }) => {
                     descriptor.name = None;
                 }
                 _ => {}

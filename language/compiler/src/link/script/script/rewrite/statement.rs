@@ -240,11 +240,11 @@ impl Rewriter<'_, '_> {
         for declaration_id in declaration_ids {
             let declaration = module.tree.get(declaration_id).clone();
 
-            let js::Declaration::Function {
+            let js::Declaration::Function(js::FunctionDeclaration {
                 signature,
                 body: Some(body),
                 ..
-            } = declaration
+            }) = declaration
             else {
                 continue;
             };
@@ -424,25 +424,25 @@ pub(super) trait DeclarationDescriptorAccess {
 impl DeclarationDescriptorAccess for js::Declaration {
     fn descriptor(&self) -> &js::DeclarationDescriptor {
         match self {
-            js::Declaration::Global { descriptor, .. }
-            | js::Declaration::Namespace { descriptor, .. }
-            | js::Declaration::Type { descriptor, .. }
-            | js::Declaration::Class { descriptor, .. }
-            | js::Declaration::Interface { descriptor, .. }
-            | js::Declaration::Enum { descriptor, .. }
-            | js::Declaration::Function { descriptor, .. } => descriptor,
+            js::Declaration::Global(js::GlobalDeclaration { descriptor, .. })
+            | js::Declaration::Namespace(js::NamespaceDeclaration { descriptor, .. })
+            | js::Declaration::Type(js::TypeDeclaration { descriptor, .. })
+            | js::Declaration::Class(js::ClassDeclaration { descriptor, .. })
+            | js::Declaration::Interface(js::InterfaceDeclaration { descriptor, .. })
+            | js::Declaration::Enum(js::EnumDeclaration { descriptor, .. })
+            | js::Declaration::Function(js::FunctionDeclaration { descriptor, .. }) => descriptor,
         }
     }
 
     fn descriptor_mut(&mut self) -> &mut js::DeclarationDescriptor {
         match self {
-            js::Declaration::Global { descriptor, .. }
-            | js::Declaration::Namespace { descriptor, .. }
-            | js::Declaration::Type { descriptor, .. }
-            | js::Declaration::Class { descriptor, .. }
-            | js::Declaration::Interface { descriptor, .. }
-            | js::Declaration::Enum { descriptor, .. }
-            | js::Declaration::Function { descriptor, .. } => descriptor,
+            js::Declaration::Global(js::GlobalDeclaration { descriptor, .. })
+            | js::Declaration::Namespace(js::NamespaceDeclaration { descriptor, .. })
+            | js::Declaration::Type(js::TypeDeclaration { descriptor, .. })
+            | js::Declaration::Class(js::ClassDeclaration { descriptor, .. })
+            | js::Declaration::Interface(js::InterfaceDeclaration { descriptor, .. })
+            | js::Declaration::Enum(js::EnumDeclaration { descriptor, .. })
+            | js::Declaration::Function(js::FunctionDeclaration { descriptor, .. }) => descriptor,
         }
     }
 }

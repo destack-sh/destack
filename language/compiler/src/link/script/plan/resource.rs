@@ -237,7 +237,7 @@ fn insert_binary_expression(
             path: js::Path {
                 segments: smallvec::smallvec![strings.intern(UINT8_ARRAY_NAME)],
             },
-            static_arguments: None,
+            generic_arguments: vec![],
         },
         module_id,
         anchor,
@@ -248,8 +248,8 @@ fn insert_binary_expression(
     tree.insert_from_source_any(
         js::Expression::New {
             left: constructor,
-            static_arguments: None,
-            dynamic_arguments: vec![argument],
+            generic_arguments: vec![],
+            arguments: vec![argument],
         },
         module_id,
         anchor,

@@ -1023,14 +1023,14 @@ impl Rewriter<'_, '_> {
             js::Expression::Member {
                 left,
                 name,
-                static_arguments,
+                generic_arguments,
             } => {
                 let left = Self::rewrite_optional_chain_receiver(module, receiver, left)?;
 
                 js::Expression::Member {
                     left,
                     name,
-                    static_arguments,
+                    generic_arguments,
                 }
             }
             js::Expression::Index {
@@ -1054,8 +1054,8 @@ impl Rewriter<'_, '_> {
             js::Expression::Call {
                 position,
                 left,
-                static_arguments,
-                dynamic_arguments,
+                generic_arguments,
+                arguments,
             } => {
                 let left = Self::rewrite_optional_chain_receiver(module, receiver, left)?;
                 let position = if matches!(module.tree.get(left), js::Expression::Maybe { .. }) {
@@ -1067,8 +1067,8 @@ impl Rewriter<'_, '_> {
                 js::Expression::Call {
                     position,
                     left,
-                    static_arguments,
-                    dynamic_arguments,
+                    generic_arguments,
+                    arguments,
                 }
             }
             _ => return None,
