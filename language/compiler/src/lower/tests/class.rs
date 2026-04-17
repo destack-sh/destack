@@ -127,17 +127,17 @@ function readPacketSize(value: int32): int32 {
         "native",
         r#"
 type Struct0 {
-    vtable: ref<void, raw, readonly, addressSpace(global)>;
+    vtable: ref<void, raw, readonly, space(global)>;
     packetSize: int32;
 }
 
-global PacketHeader#vtable: ref?<void, raw, readonly, addressSpace(global)>[2], readonly = zeroInit
-global MessageHeader#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
+global PacketHeader#vtable: ref?<void, raw, readonly, space(global)>[2], readonly = zeroInit
+global MessageHeader#vtable: ref?<void, raw, readonly, space(global)>[3], readonly = zeroInit
 
 function readPacketSize(value0: int32): int32 {
 entry0(value0: int32):
-    value1: ref<ref?<void, raw, readonly, addressSpace(global)>[2], raw, readonly, addressSpace(global)> = global.address PacketHeader#vtable
-    value2: ref<void, raw, readonly, addressSpace(global)> = cast.bit value1 -> ref<void, raw, readonly, addressSpace(global)>
+    value1: ref<ref?<void, raw, readonly, space(global)>[2], raw, readonly, space(global)> = global.address PacketHeader#vtable
+    value2: ref<void, raw, readonly, space(global)> = cast.bit value1 -> ref<void, raw, readonly, space(global)>
     value3: Struct0 = struct Struct0 (value2, value0)
     value4: ref<Struct0, managed, readonly> = managed.alloc Struct0
     store value4, value3
@@ -296,17 +296,17 @@ function useDog(d: Dog): int32 {
         "native",
         r#"
 type Animal {
-    vtable: ref<void, raw, readonly, addressSpace(global)>;
+    vtable: ref<void, raw, readonly, space(global)>;
     name: int32;
 }
 type Dog {
-    vtable: ref<void, raw, readonly, addressSpace(global)>;
+    vtable: ref<void, raw, readonly, space(global)>;
     name: int32;
     breed: int32;
 }
 
-global Animal#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
-global Dog#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
+global Animal#vtable: ref?<void, raw, readonly, space(global)>[3], readonly = zeroInit
+global Dog#vtable: ref?<void, raw, readonly, space(global)>[3], readonly = zeroInit
 
 function useDog(value0: ref<Dog, managed, readonly>): int32 {
 entry0(value0: ref<Dog, managed, readonly>):
@@ -383,11 +383,11 @@ class Car extends Vehicle {
         "native",
         r#"
 type Vehicle {
-    vtable: ref<void, raw, readonly, addressSpace(global)>;
+    vtable: ref<void, raw, readonly, space(global)>;
 }
 
-global Vehicle#vtable: ref?<void, raw, readonly, addressSpace(global)>[4], readonly = zeroInit
-global Car#vtable: ref?<void, raw, readonly, addressSpace(global)>[5], readonly = zeroInit
+global Vehicle#vtable: ref?<void, raw, readonly, space(global)>[4], readonly = zeroInit
+global Car#vtable: ref?<void, raw, readonly, space(global)>[5], readonly = zeroInit
 
 function Vehicle.start(value0: ref<Vehicle, managed, readonly>): int32 {
 entry0(value0: ref<Vehicle, managed, readonly>):
@@ -476,17 +476,17 @@ function callLogger(base: Logger): int32 {
         "native",
         r#"
 type Logger {
-    vtable: ref<void, raw, readonly, addressSpace(global)>;
+    vtable: ref<void, raw, readonly, space(global)>;
     logLevel: int32;
 }
 type FileLogger {
-    vtable: ref<void, raw, readonly, addressSpace(global)>;
+    vtable: ref<void, raw, readonly, space(global)>;
     logLevel: int32;
     fileMode: int32;
 }
 
-global Logger#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
-global FileLogger#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
+global Logger#vtable: ref?<void, raw, readonly, space(global)>[3], readonly = zeroInit
+global FileLogger#vtable: ref?<void, raw, readonly, space(global)>[3], readonly = zeroInit
 
 function callLogger(value0: ref<Logger, managed, readonly>): int32 {
 entry0(value0: ref<Logger, managed, readonly>):
@@ -552,11 +552,11 @@ function callLogger(base: Logger): int32 {
         "native",
         r#"
 type Logger {
-    vtable: ref<void, raw, readonly, addressSpace(global)>;
+    vtable: ref<void, raw, readonly, space(global)>;
 }
 
-global Logger#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
-global FileLogger#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
+global Logger#vtable: ref?<void, raw, readonly, space(global)>[3], readonly = zeroInit
+global FileLogger#vtable: ref?<void, raw, readonly, space(global)>[3], readonly = zeroInit
 
 function callLogger(value0: ref<Logger, managed, readonly>): int32 {
 entry0(value0: ref<Logger, managed, readonly>):

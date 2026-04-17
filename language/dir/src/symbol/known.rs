@@ -179,8 +179,8 @@ pub enum WellKnownDecorator {
     Tag,
     /// The `@lifetime` decorator marker.
     Lifetime,
-    /// The `@addrspace` decorator marker.
-    Addrspace,
+    /// The `@space` decorator marker.
+    Space,
 }
 
 impl WellKnownDecorator {
@@ -226,7 +226,7 @@ impl WellKnownDecorator {
             WellKnownDecorator::Sanitizer => "sanitizer",
             WellKnownDecorator::Tag => "tag",
             WellKnownDecorator::Lifetime => "lifetime",
-            WellKnownDecorator::Addrspace => "addrspace",
+            WellKnownDecorator::Space => "space",
         }
     }
 
@@ -264,7 +264,7 @@ impl WellKnownDecorator {
             WellKnownDecorator::Sanitizer,
             WellKnownDecorator::Tag,
             WellKnownDecorator::Lifetime,
-            WellKnownDecorator::Addrspace,
+            WellKnownDecorator::Space,
         ];
         ALL.iter().copied()
     }

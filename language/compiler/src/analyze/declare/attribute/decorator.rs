@@ -198,8 +198,8 @@ impl Compiler {
             WellKnownDecorator::Lifetime,
         );
         decorators.insert(
-            self.language_symbol(profile, LanguageSymbol::Addrspace),
-            WellKnownDecorator::Addrspace,
+            self.language_symbol(profile, LanguageSymbol::Space),
+            WellKnownDecorator::Space,
         );
 
         decorators
@@ -985,7 +985,7 @@ impl Compiler {
             | WellKnownDecorator::Deny
             | WellKnownDecorator::Forbid
             | WellKnownDecorator::Expect
-            | WellKnownDecorator::Addrspace => {}
+            | WellKnownDecorator::Space => {}
         }
     }
 }

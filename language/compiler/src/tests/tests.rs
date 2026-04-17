@@ -29,7 +29,7 @@ use destack_source::{
     FileType, MemoryFileSystem, ModuleId, ModuleVersion, MultiSpan, PackageId, PhysicalFileSystem,
     TargetId, Uri, print_diff,
 };
-use destack_vm::{Heap, Isolate, IsolateOptions, MemoryContext, SharedSpace, Value};
+use destack_vm::{Heap, Isolate, IsolateOptions, MemoryContext, SharedHeap, Value};
 use destack_workspace::{
     AmbientSnapshot, BoundsCheckPolicy, BundleFormat, BundleMode, CacheMode, Change,
     CheckFailurePolicy, DivisionCheckPolicy, Edit, EsTarget, Module, Package, Profile, ProfileId,
@@ -485,8 +485,8 @@ pub struct TestIsolate {
     isolate: Isolate,
     /// The authoritative heap for the isolate.
     heap: Heap,
-    /// The world-shared memory for the isolate.
-    shared: SharedSpace,
+    /// The world-shared heap for the isolate.
+    shared: SharedHeap,
 }
 
 impl TestIsolate {
@@ -2792,9 +2792,9 @@ impl TestProgram {
         let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
             .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
 
-        let heap = Heap::new();
+        let heap = Heap::new().expect("default heap should build");
         let mut heap = heap;
-        let shared = SharedSpace::new();
+        let shared = SharedHeap::new();
         let mut shared = shared;
         let mut memory = MemoryContext::new(&mut heap, &mut shared);
 
@@ -3304,7 +3304,7 @@ mod tests {
             r#"
 function broken(): void {
 b0():
-    v0: ref<usize1], raw, addressSpace(stack)> = stack.alloc usize[1]
+    v0: ref<usize1], raw, space(stack)> = stack.alloc usize[1]
     return
 }
             "#,

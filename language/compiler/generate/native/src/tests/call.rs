@@ -204,10 +204,10 @@ bb2:
 #[test]
 fn test_function_environment_signature_param() {
     let mir = r#"
-@environment(ref<int32, raw, addressSpace(stack)>)
+@environment(ref<int32, raw, space(stack)>)
 function read_env(): int32 {
 bb0:
-    v0: ref<int32, raw, addressSpace(stack)> = function.environment
+    v0: ref<int32, raw, space(stack)> = function.environment
     v1: int32 = load v0
     return v1
 }"#;
@@ -227,17 +227,17 @@ bb0(v0: int64):
 #[test]
 fn test_call_indirect_with_env_param() {
     let mir = r#"
-@environment(ref<int32, raw, addressSpace(stack)>)
+@environment(ref<int32, raw, space(stack)>)
 function read_env(): int32 {
 bb0:
-    v0: ref<int32, raw, addressSpace(stack)> = function.environment
+    v0: ref<int32, raw, space(stack)> = function.environment
     v1: int32 = load v0
     return v1
 }
 
 function caller(): int32 {
 bb0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = const 7int32
     store v0, v1
     v2: closure() -> int32 = function.bind read_env, v0
