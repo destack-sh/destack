@@ -7,7 +7,7 @@ use crate::{
     VarianceModifier, Visibility,
 };
 
-/// A generic parameter in static parameter position.
+/// A generic parameter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum GenericParameter {
     /// Type parameter.
@@ -101,7 +101,7 @@ impl Parameter {
     }
 }
 
-/// A generic argument in static argument position.
+/// A generic argument.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum GenericArgument {
     /// Type generic argument.
@@ -222,21 +222,21 @@ impl StaticArgument {
     }
 }
 
-/// Describe how a static parameter is interpreted.
+/// Describe how a generic parameter is interpreted.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
-pub enum StaticParameterKind {
+pub enum GenericParameterKind {
     /// Use the parameter as a type argument.
     Type,
     /// Use the parameter as a value argument.
     Value,
 }
 
-/// Metadata for resolving and validating a static parameter.
+/// Metadata for resolving and validating a generic parameter.
 #[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
-pub struct StaticParameter {
+pub struct GenericParameterSpec {
     /// Whether this is a type or value parameter.
-    pub kind: StaticParameterKind,
-    /// Identify the static parameter symbol.
+    pub kind: GenericParameterKind,
+    /// Identify the generic parameter symbol.
     pub symbol: GlobalSymbolId,
     /// Parameter name for mapping and diagnostics.
     pub name: Option<StringId>,

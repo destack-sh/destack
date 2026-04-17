@@ -1081,14 +1081,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Call {
                 left: _,
                 generic_arguments: _,
-                dynamic_arguments: _,
+                arguments: _,
             } => {
                 self.node("Expression::Call", id.id).end();
             }
             Expression::New {
                 left: _,
                 generic_arguments: _,
-                dynamic_arguments: _,
+                arguments: _,
             } => {
                 self.node("Expression::New", id.id).end();
             }

@@ -44,7 +44,7 @@ impl TypeTable {
     /// Insert a new instance.
     pub fn insert_instance(&mut self, instance: Instance) -> LocalInstanceId {
         let interner_key =
-            instance_interner_key(instance.symbol_id, instance.static_arguments.len());
+            instance_interner_key(instance.symbol_id, instance.generic_arguments.len());
 
         // reuse existing exact instances within the compact interner bucket
         if let Some(candidates) = self
@@ -114,9 +114,9 @@ impl TypeTable {
     pub fn query_instance_interner_candidates(
         &self,
         symbol_id: GlobalSymbolId,
-        static_argument_count: usize,
+        generic_argument_count: usize,
     ) -> Vec<LocalInstanceId> {
-        let key = instance_interner_key(symbol_id, static_argument_count);
+        let key = instance_interner_key(symbol_id, generic_argument_count);
         self.instance
             .instance_ids_by_interner_key
             .get(&key)
@@ -178,7 +178,7 @@ impl TypeTable {
         for (index, instance) in self.instance.instances.iter().enumerate() {
             let instance_id = LocalInstanceId::new(index as u32);
             let interner_key =
-                instance_interner_key(instance.symbol_id, instance.static_arguments.len());
+                instance_interner_key(instance.symbol_id, instance.generic_arguments.len());
             self.instance
                 .instance_ids_by_interner_key
                 .entry(interner_key)

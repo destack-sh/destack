@@ -1,13 +1,13 @@
 use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
-use crate::{LocalNodeId, Parameter, TypeExpression, WhereClause};
+use crate::{GenericParameter, LocalNodeId, TypeExpression, WhereClause};
 
 /// The polymorphism of some type or declaration.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, AdaptImage)]
 pub struct Generics {
-    /// The static parameters of the declaration.
-    pub static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
+    /// The generic parameters of the declaration.
+    pub generic_parameters: Option<Vec<LocalNodeId<GenericParameter>>>,
     /// The where clauses of the declaration.
     pub where_clauses: Option<Vec<LocalNodeId<WhereClause>>>,
 }
@@ -15,7 +15,7 @@ pub struct Generics {
 impl Generics {
     /// Check whether the generics contain any clauses.
     pub fn is_empty(&self) -> bool {
-        self.static_parameters.is_none() && self.where_clauses.is_none()
+        self.generic_parameters.is_none() && self.where_clauses.is_none()
     }
 }
 

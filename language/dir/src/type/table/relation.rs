@@ -117,7 +117,7 @@ pub struct TypeNormalizationCache {
     pub(crate) type_reference_cache_by_key: IndexMap<u64, Type>,
     /// Cached resolved static arguments by cache key.
     #[serde(skip)]
-    pub(crate) static_argument_resolution_cache_by_key: IndexMap<u64, Option<Vec<StaticArgument>>>,
+    pub(crate) generic_argument_resolution_cache_by_key: IndexMap<u64, Option<Vec<StaticArgument>>>,
     /// Cached normalization results for assignability.
     pub(crate) normalized_assignability_type_by_id: Vec<IndexMap<u64, NormalizationCacheEntry>>,
     /// Cached normalization results for flow.
@@ -135,7 +135,7 @@ pub struct TypeNormalizationCache {
     /// Expression type evaluation in progress.
     pub(crate) expression_type_in_progress: HashSet<GlobalNodeIdAny>,
     /// Static argument resolution in progress.
-    pub(crate) static_argument_resolution_in_progress: Vec<(GlobalSymbolId, Vec<StaticArgument>)>,
+    pub(crate) generic_argument_resolution_in_progress: Vec<(GlobalSymbolId, Vec<StaticArgument>)>,
 }
 
 /// Rewrite-owned relation cache tables.
@@ -177,7 +177,7 @@ impl TypeNormalizationCache {
             expression_type_id_cache_by_key: IndexMap::new(),
             expression_type_value_cache_by_key: IndexMap::new(),
             type_reference_cache_by_key: IndexMap::new(),
-            static_argument_resolution_cache_by_key: IndexMap::new(),
+            generic_argument_resolution_cache_by_key: IndexMap::new(),
             normalized_assignability_type_by_id: Vec::new(),
             normalized_flow_type_by_id: Vec::new(),
             normalized_alias_entries_by_key: IndexMap::new(),
@@ -185,7 +185,7 @@ impl TypeNormalizationCache {
             assignability_in_progress: HashSet::new(),
             normalization_dependency_stack: Vec::new(),
             expression_type_in_progress: HashSet::new(),
-            static_argument_resolution_in_progress: Vec::new(),
+            generic_argument_resolution_in_progress: Vec::new(),
         }
     }
 }
@@ -314,7 +314,7 @@ impl TypeTable {
     ) -> Option<Option<Vec<StaticArgument>>> {
         self.relation
             .normalization
-            .static_argument_resolution_cache_by_key
+            .generic_argument_resolution_cache_by_key
             .get(&key)
             .cloned()
     }
@@ -327,7 +327,7 @@ impl TypeTable {
     ) {
         self.relation
             .normalization
-            .static_argument_resolution_cache_by_key
+            .generic_argument_resolution_cache_by_key
             .insert(key, resolved);
     }
 
@@ -790,7 +790,7 @@ impl TypeTable {
     ) {
         self.relation
             .normalization
-            .static_argument_resolution_in_progress
+            .generic_argument_resolution_in_progress
             .push((symbol_id, arguments));
     }
 
@@ -803,13 +803,13 @@ impl TypeTable {
         if let Some(index) = self
             .relation
             .normalization
-            .static_argument_resolution_in_progress
+            .generic_argument_resolution_in_progress
             .iter()
             .position(|(symbol, stored)| *symbol == symbol_id && stored == arguments)
         {
             self.relation
                 .normalization
-                .static_argument_resolution_in_progress
+                .generic_argument_resolution_in_progress
                 .swap_remove(index);
         }
     }
@@ -822,7 +822,7 @@ impl TypeTable {
     ) -> bool {
         self.relation
             .normalization
-            .static_argument_resolution_in_progress
+            .generic_argument_resolution_in_progress
             .iter()
             .any(|(symbol, stored)| *symbol == symbol_id && stored == arguments)
     }

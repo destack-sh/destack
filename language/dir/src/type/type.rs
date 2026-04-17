@@ -132,7 +132,7 @@ pub enum Type {
     /// Reference to a declared type (with optional type arguments for generics).
     Reference {
         symbol: GlobalSymbolId,
-        static_arguments: Option<Vec<StaticArgument>>,
+        generic_arguments: Option<Vec<StaticArgument>>,
     },
     /// Unevaluated type expression that resolves to a type.
     Unevaluated(LocalNodeId<TypeExpression>),
@@ -165,7 +165,7 @@ pub enum Type {
     Import {
         target: StringId,
         qualifier: Option<Path>,
-        static_arguments: Option<Vec<StaticArgument>>,
+        generic_arguments: Option<Vec<StaticArgument>>,
     },
     /// Type infer binding.
     Infer {
@@ -249,9 +249,9 @@ pub enum Type {
     Function {
         asynchrony: Asynchrony,
         cardinality: FunctionCardinality,
-        static_parameters: Vec<LocalTypeId>,
+        generic_parameters: Vec<LocalTypeId>,
         this_parameter: Option<LocalTypeId>,
-        dynamic_parameters: Vec<LocalTypeId>,
+        parameters: Vec<LocalTypeId>,
         return_type: Option<LocalTypeId>,
     },
 

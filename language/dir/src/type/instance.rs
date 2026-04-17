@@ -112,10 +112,10 @@ pub struct Instance {
     /// The symbol being instantiated.
     pub symbol_id: GlobalSymbolId,
     /// Static arguments, flattened: `[inherited..., own...]`.
-    pub static_arguments: Vec<StaticArgument>,
-    /// Parameter symbols aligned one-to-one with `static_arguments`.
-    pub static_parameter_symbols: Vec<GlobalSymbolId>,
-    /// Number of inherited arguments at the head of `static_arguments`.
+    pub generic_arguments: Vec<StaticArgument>,
+    /// Parameter symbols aligned one-to-one with `generic_arguments`.
+    pub generic_parameter_symbols: Vec<GlobalSymbolId>,
+    /// Number of inherited arguments at the head of `generic_arguments`.
     pub inherited_static_argument_count: usize,
 }
 
@@ -148,8 +148,8 @@ impl Instance {
 
         Ok(Self {
             symbol_id,
-            static_arguments: arguments,
-            static_parameter_symbols: parameter_symbols,
+            generic_arguments: arguments,
+            generic_parameter_symbols: parameter_symbols,
             inherited_static_argument_count: inherited_argument_count,
         })
     }
@@ -158,20 +158,20 @@ impl Instance {
     pub fn inherited_arguments(&self) -> &[StaticArgument] {
         let split = self.inherited_static_argument_count;
         assert!(
-            split <= self.static_arguments.len(),
+            split <= self.generic_arguments.len(),
             "invalid inherited argument count"
         );
-        &self.static_arguments[..split]
+        &self.generic_arguments[..split]
     }
 
     /// Return own arguments from the canonical flattened list.
     pub fn own_arguments(&self) -> &[StaticArgument] {
         let split = self.inherited_static_argument_count;
         assert!(
-            split <= self.static_arguments.len(),
+            split <= self.generic_arguments.len(),
             "invalid inherited argument count"
         );
-        &self.static_arguments[split..]
+        &self.generic_arguments[split..]
     }
 
     /// Return the argument bound to one parameter symbol when known.
@@ -179,10 +179,10 @@ impl Instance {
         &self,
         symbol_id: GlobalSymbolId,
     ) -> Option<&StaticArgument> {
-        self.static_parameter_symbols
+        self.generic_parameter_symbols
             .iter()
             .position(|parameter| *parameter == symbol_id)
-            .map(|index| &self.static_arguments[index])
+            .map(|index| &self.generic_arguments[index])
     }
 
     /// Merge known environment metadata into this instance.
@@ -191,10 +191,10 @@ impl Instance {
         parameter_symbols: &[GlobalSymbolId],
         inherited_argument_count: usize,
     ) -> Result<(), InstanceEnvironmentError> {
-        if parameter_symbols != self.static_parameter_symbols {
+        if parameter_symbols != self.generic_parameter_symbols {
             return Err(InstanceEnvironmentError::ParameterSymbolMismatch);
         }
-        if inherited_argument_count > self.static_arguments.len() {
+        if inherited_argument_count > self.generic_arguments.len() {
             return Err(InstanceEnvironmentError::InheritedArgumentCountOutOfRange);
         }
         if inherited_argument_count < self.inherited_static_argument_count {

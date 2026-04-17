@@ -107,20 +107,20 @@ pub fn rewrite_type<V: TypeRewriter + ?Sized>(
         }
         Type::Reference {
             symbol,
-            static_arguments,
+            generic_arguments,
         } => {
-            let Some(static_arguments) = static_arguments.as_ref() else {
+            let Some(generic_arguments) = generic_arguments.as_ref() else {
                 return type_id;
             };
             let (mapped_arguments, changed) =
-                rewrite_static_arguments(rewriter, types, static_arguments);
+                rewrite_static_arguments(rewriter, types, generic_arguments);
             if !changed {
                 type_id
             } else {
                 types.insert_type_from_type(
                     Type::Reference {
                         symbol: *symbol,
-                        static_arguments: Some(mapped_arguments),
+                        generic_arguments: Some(mapped_arguments),
                     },
                     type_id,
                 )
@@ -129,13 +129,13 @@ pub fn rewrite_type<V: TypeRewriter + ?Sized>(
         Type::Import {
             target,
             qualifier,
-            static_arguments,
+            generic_arguments,
         } => {
-            let Some(static_arguments) = static_arguments.as_ref() else {
+            let Some(generic_arguments) = generic_arguments.as_ref() else {
                 return type_id;
             };
             let (mapped_arguments, changed) =
-                rewrite_static_arguments(rewriter, types, static_arguments);
+                rewrite_static_arguments(rewriter, types, generic_arguments);
             if !changed {
                 type_id
             } else {
@@ -143,7 +143,7 @@ pub fn rewrite_type<V: TypeRewriter + ?Sized>(
                     Type::Import {
                         target: *target,
                         qualifier: qualifier.clone(),
-                        static_arguments: Some(mapped_arguments),
+                        generic_arguments: Some(mapped_arguments),
                     },
                     type_id,
                 )
@@ -507,29 +507,29 @@ pub fn rewrite_type<V: TypeRewriter + ?Sized>(
         Type::Function {
             asynchrony,
             cardinality,
-            static_parameters,
+            generic_parameters,
             this_parameter,
-            dynamic_parameters,
+            parameters,
             return_type,
         } => {
             let (mapped_static, static_changed) =
-                rewrite_type_ids(rewriter, types, static_parameters);
+                rewrite_type_ids(rewriter, types, generic_parameters);
             let (mapped_this, this_changed) =
                 rewrite_type_id_option(rewriter, types, *this_parameter);
-            let (mapped_dynamic, dynamic_changed) =
-                rewrite_type_ids(rewriter, types, dynamic_parameters);
+            let (mapped_parameters, parameters_changed) =
+                rewrite_type_ids(rewriter, types, parameters);
             let (mapped_return, return_changed) =
                 rewrite_type_id_option(rewriter, types, *return_type);
-            if !static_changed && !this_changed && !dynamic_changed && !return_changed {
+            if !static_changed && !this_changed && !parameters_changed && !return_changed {
                 type_id
             } else {
                 types.insert_type_from_type(
                     Type::Function {
                         asynchrony: *asynchrony,
                         cardinality: *cardinality,
-                        static_parameters: mapped_static,
+                        generic_parameters: mapped_static,
                         this_parameter: mapped_this,
-                        dynamic_parameters: mapped_dynamic,
+                        parameters: mapped_parameters,
                         return_type: mapped_return,
                     },
                     type_id,
@@ -822,20 +822,20 @@ fn rewrite_static_expression_inner<V: TypeRewriter + ?Sized>(
         | StaticExpression::TypeLiteral { .. } => (expression.clone(), false),
         StaticExpression::Declaration {
             declaration,
-            static_arguments,
+            generic_arguments,
         } => {
-            let Some(static_arguments) = static_arguments.as_ref() else {
+            let Some(generic_arguments) = generic_arguments.as_ref() else {
                 return (expression.clone(), false);
             };
             let (mapped_arguments, changed) =
-                rewrite_static_arguments(rewriter, types, static_arguments);
+                rewrite_static_arguments(rewriter, types, generic_arguments);
             if !changed {
                 (expression.clone(), false)
             } else {
                 (
                     StaticExpression::Declaration {
                         declaration: *declaration,
-                        static_arguments: Some(mapped_arguments),
+                        generic_arguments: Some(mapped_arguments),
                     },
                     true,
                 )

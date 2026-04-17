@@ -4,57 +4,58 @@ use std::collections::HashSet;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalSymbolId, LocalTypeId, StaticParameterKind, VarianceModifier};
+use crate::{GenericParameterKind, GlobalSymbolId, LocalTypeId, VarianceModifier};
 
 use super::TypeTable;
-use super::core::{StaticParameterSymbolKey, static_parameter_symbol_key};
+use super::core::{GenericParameterSymbolKey, generic_parameter_symbol_key};
 
-/// Static parameter metadata ownership.
+/// Generic parameter metadata ownership.
 #[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
 pub struct GenericTable {
-    /// Cached constraint types by static parameter symbol.
-    pub(crate) static_parameter_constraint_by_symbol_id:
-        IndexMap<StaticParameterSymbolKey, LocalTypeId>,
+    /// Cached constraint types by generic parameter symbol.
+    pub(crate) generic_parameter_constraint_by_symbol_id:
+        IndexMap<GenericParameterSymbolKey, LocalTypeId>,
     /// Declare-published constraint types by static parameter symbol.
     pub(crate) published_static_parameter_constraint_by_symbol_id:
-        IndexMap<StaticParameterSymbolKey, LocalTypeId>,
+        IndexMap<GenericParameterSymbolKey, LocalTypeId>,
     /// Static parameter constraint resolution in progress.
-    pub(crate) static_parameter_constraint_in_progress: HashSet<StaticParameterSymbolKey>,
-    /// Cached static parameter kinds by symbol.
-    pub(crate) static_parameter_kind_by_symbol_id:
-        IndexMap<StaticParameterSymbolKey, StaticParameterKind>,
+    pub(crate) generic_parameter_constraint_in_progress: HashSet<GenericParameterSymbolKey>,
+    /// Cached generic parameter kinds by symbol.
+    pub(crate) generic_parameter_kind_by_symbol_id:
+        IndexMap<GenericParameterSymbolKey, GenericParameterKind>,
     /// Declare-published static parameter kinds by symbol.
     pub(crate) published_static_parameter_kind_by_symbol_id:
-        IndexMap<StaticParameterSymbolKey, StaticParameterKind>,
-    /// Cached static parameter variances by symbol.
-    pub(crate) static_parameter_variance_by_symbol_id:
-        IndexMap<StaticParameterSymbolKey, Option<VarianceModifier>>,
+        IndexMap<GenericParameterSymbolKey, GenericParameterKind>,
+    /// Cached generic parameter variances by symbol.
+    pub(crate) generic_parameter_variance_by_symbol_id:
+        IndexMap<GenericParameterSymbolKey, Option<VarianceModifier>>,
     /// Declare-published static parameter variances by symbol.
     pub(crate) published_static_parameter_variance_by_symbol_id:
-        IndexMap<StaticParameterSymbolKey, Option<VarianceModifier>>,
-    /// Cached static parameter symbols by declaration symbol.
-    pub(crate) static_parameter_symbols_by_symbol_id: IndexMap<GlobalSymbolId, Vec<GlobalSymbolId>>,
+        IndexMap<GenericParameterSymbolKey, Option<VarianceModifier>>,
+    /// Cached generic parameter symbols by declaration symbol.
+    pub(crate) generic_parameter_symbols_by_symbol_id:
+        IndexMap<GlobalSymbolId, Vec<GlobalSymbolId>>,
     /// Declare-published static parameter symbols by declaration symbol.
     pub(crate) published_static_parameter_symbols_by_symbol_id:
         IndexMap<GlobalSymbolId, Vec<GlobalSymbolId>>,
     /// Static parameter kind inference in progress.
-    pub(crate) static_parameter_kind_in_progress: HashSet<StaticParameterSymbolKey>,
+    pub(crate) generic_parameter_kind_in_progress: HashSet<GenericParameterSymbolKey>,
 }
 
 impl GenericTable {
     /// Create an empty generic metadata table.
     pub fn new() -> Self {
         Self {
-            static_parameter_constraint_by_symbol_id: IndexMap::new(),
+            generic_parameter_constraint_by_symbol_id: IndexMap::new(),
             published_static_parameter_constraint_by_symbol_id: IndexMap::new(),
-            static_parameter_constraint_in_progress: HashSet::new(),
-            static_parameter_kind_by_symbol_id: IndexMap::new(),
+            generic_parameter_constraint_in_progress: HashSet::new(),
+            generic_parameter_kind_by_symbol_id: IndexMap::new(),
             published_static_parameter_kind_by_symbol_id: IndexMap::new(),
-            static_parameter_variance_by_symbol_id: IndexMap::new(),
+            generic_parameter_variance_by_symbol_id: IndexMap::new(),
             published_static_parameter_variance_by_symbol_id: IndexMap::new(),
-            static_parameter_symbols_by_symbol_id: IndexMap::new(),
+            generic_parameter_symbols_by_symbol_id: IndexMap::new(),
             published_static_parameter_symbols_by_symbol_id: IndexMap::new(),
-            static_parameter_kind_in_progress: HashSet::new(),
+            generic_parameter_kind_in_progress: HashSet::new(),
         }
     }
 }
@@ -72,9 +73,9 @@ impl TypeTable {
         symbol_id: GlobalSymbolId,
         ty: LocalTypeId,
     ) {
-        let key = static_parameter_symbol_key(symbol_id);
+        let key = generic_parameter_symbol_key(symbol_id);
         self.generic
-            .static_parameter_constraint_by_symbol_id
+            .generic_parameter_constraint_by_symbol_id
             .insert(key, ty);
     }
 
@@ -84,7 +85,7 @@ impl TypeTable {
         symbol_id: GlobalSymbolId,
         ty: LocalTypeId,
     ) {
-        let key = static_parameter_symbol_key(symbol_id);
+        let key = generic_parameter_symbol_key(symbol_id);
         self.generic
             .published_static_parameter_constraint_by_symbol_id
             .insert(key, ty);
@@ -95,9 +96,9 @@ impl TypeTable {
         &self,
         symbol_id: GlobalSymbolId,
     ) -> Option<LocalTypeId> {
-        let key = static_parameter_symbol_key(symbol_id);
+        let key = generic_parameter_symbol_key(symbol_id);
         self.generic
-            .static_parameter_constraint_by_symbol_id
+            .generic_parameter_constraint_by_symbol_id
             .get(&key)
             .copied()
     }
@@ -107,7 +108,7 @@ impl TypeTable {
         &self,
         symbol_id: GlobalSymbolId,
     ) -> Option<LocalTypeId> {
-        let key = static_parameter_symbol_key(symbol_id);
+        let key = generic_parameter_symbol_key(symbol_id);
         self.generic
             .published_static_parameter_constraint_by_symbol_id
             .get(&key)
@@ -116,25 +117,25 @@ impl TypeTable {
 
     /// Mark a static parameter constraint as in progress.
     pub fn mark_static_parameter_constraint_in_progress(&mut self, symbol_id: GlobalSymbolId) {
-        let key = static_parameter_symbol_key(symbol_id);
+        let key = generic_parameter_symbol_key(symbol_id);
         self.generic
-            .static_parameter_constraint_in_progress
+            .generic_parameter_constraint_in_progress
             .insert(key);
     }
 
     /// Clear the in progress marker for a static parameter constraint.
     pub fn clear_static_parameter_constraint_in_progress(&mut self, symbol_id: GlobalSymbolId) {
-        let key = static_parameter_symbol_key(symbol_id);
+        let key = generic_parameter_symbol_key(symbol_id);
         self.generic
-            .static_parameter_constraint_in_progress
+            .generic_parameter_constraint_in_progress
             .remove(&key);
     }
 
     /// Check whether a static parameter constraint is in progress.
     pub fn is_static_parameter_constraint_in_progress(&self, symbol_id: GlobalSymbolId) -> bool {
-        let key = static_parameter_symbol_key(symbol_id);
+        let key = generic_parameter_symbol_key(symbol_id);
         self.generic
-            .static_parameter_constraint_in_progress
+            .generic_parameter_constraint_in_progress
             .contains(&key)
     }
 
@@ -142,11 +143,11 @@ impl TypeTable {
     pub fn set_static_parameter_kind(
         &mut self,
         symbol_id: GlobalSymbolId,
-        kind: StaticParameterKind,
+        kind: GenericParameterKind,
     ) {
-        let key = static_parameter_symbol_key(symbol_id);
+        let key = generic_parameter_symbol_key(symbol_id);
         self.generic
-            .static_parameter_kind_by_symbol_id
+            .generic_parameter_kind_by_symbol_id
             .insert(key, kind);
     }
 
@@ -154,9 +155,9 @@ impl TypeTable {
     pub fn set_artifact_static_parameter_kind(
         &mut self,
         symbol_id: GlobalSymbolId,
-        kind: StaticParameterKind,
+        kind: GenericParameterKind,
     ) {
-        let key = static_parameter_symbol_key(symbol_id);
+        let key = generic_parameter_symbol_key(symbol_id);
         self.generic
             .published_static_parameter_kind_by_symbol_id
             .insert(key, kind);
@@ -166,10 +167,10 @@ impl TypeTable {
     pub fn get_static_parameter_kind(
         &self,
         symbol_id: GlobalSymbolId,
-    ) -> Option<StaticParameterKind> {
-        let key = static_parameter_symbol_key(symbol_id);
+    ) -> Option<GenericParameterKind> {
+        let key = generic_parameter_symbol_key(symbol_id);
         self.generic
-            .static_parameter_kind_by_symbol_id
+            .generic_parameter_kind_by_symbol_id
             .get(&key)
             .copied()
     }
@@ -178,8 +179,8 @@ impl TypeTable {
     pub fn query_artifact_static_parameter_kind(
         &self,
         symbol_id: GlobalSymbolId,
-    ) -> Option<StaticParameterKind> {
-        let key = static_parameter_symbol_key(symbol_id);
+    ) -> Option<GenericParameterKind> {
+        let key = generic_parameter_symbol_key(symbol_id);
         self.generic
             .published_static_parameter_kind_by_symbol_id
             .get(&key)
@@ -192,9 +193,9 @@ impl TypeTable {
         symbol_id: GlobalSymbolId,
         variance: Option<VarianceModifier>,
     ) {
-        let key = static_parameter_symbol_key(symbol_id);
+        let key = generic_parameter_symbol_key(symbol_id);
         self.generic
-            .static_parameter_variance_by_symbol_id
+            .generic_parameter_variance_by_symbol_id
             .insert(key, variance);
     }
 
@@ -204,7 +205,7 @@ impl TypeTable {
         symbol_id: GlobalSymbolId,
         variance: Option<VarianceModifier>,
     ) {
-        let key = static_parameter_symbol_key(symbol_id);
+        let key = generic_parameter_symbol_key(symbol_id);
         self.generic
             .published_static_parameter_variance_by_symbol_id
             .insert(key, variance);
@@ -215,9 +216,9 @@ impl TypeTable {
         &self,
         symbol_id: GlobalSymbolId,
     ) -> Option<Option<VarianceModifier>> {
-        let key = static_parameter_symbol_key(symbol_id);
+        let key = generic_parameter_symbol_key(symbol_id);
         self.generic
-            .static_parameter_variance_by_symbol_id
+            .generic_parameter_variance_by_symbol_id
             .get(&key)
             .copied()
     }
@@ -227,7 +228,7 @@ impl TypeTable {
         &self,
         symbol_id: GlobalSymbolId,
     ) -> Option<Option<VarianceModifier>> {
-        let key = static_parameter_symbol_key(symbol_id);
+        let key = generic_parameter_symbol_key(symbol_id);
         self.generic
             .published_static_parameter_variance_by_symbol_id
             .get(&key)
@@ -241,7 +242,7 @@ impl TypeTable {
         symbols: Vec<GlobalSymbolId>,
     ) {
         self.generic
-            .static_parameter_symbols_by_symbol_id
+            .generic_parameter_symbols_by_symbol_id
             .insert(symbol_id, symbols);
     }
 
@@ -262,7 +263,7 @@ impl TypeTable {
         symbol_id: GlobalSymbolId,
     ) -> Option<Vec<GlobalSymbolId>> {
         self.generic
-            .static_parameter_symbols_by_symbol_id
+            .generic_parameter_symbols_by_symbol_id
             .get(&symbol_id)
             .cloned()
     }
@@ -280,21 +281,21 @@ impl TypeTable {
 
     /// Mark a static parameter kind as in progress.
     pub fn mark_static_parameter_kind_in_progress(&mut self, symbol_id: GlobalSymbolId) {
-        let key = static_parameter_symbol_key(symbol_id);
-        self.generic.static_parameter_kind_in_progress.insert(key);
+        let key = generic_parameter_symbol_key(symbol_id);
+        self.generic.generic_parameter_kind_in_progress.insert(key);
     }
 
     /// Clear the in progress marker for a static parameter kind.
     pub fn clear_static_parameter_kind_in_progress(&mut self, symbol_id: GlobalSymbolId) {
-        let key = static_parameter_symbol_key(symbol_id);
-        self.generic.static_parameter_kind_in_progress.remove(&key);
+        let key = generic_parameter_symbol_key(symbol_id);
+        self.generic.generic_parameter_kind_in_progress.remove(&key);
     }
 
     /// Check whether a static parameter kind is in progress.
     pub fn is_static_parameter_kind_in_progress(&self, symbol_id: GlobalSymbolId) -> bool {
-        let key = static_parameter_symbol_key(symbol_id);
+        let key = generic_parameter_symbol_key(symbol_id);
         self.generic
-            .static_parameter_kind_in_progress
+            .generic_parameter_kind_in_progress
             .contains(&key)
     }
 }

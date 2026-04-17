@@ -31,7 +31,7 @@ pub struct TypeTable {
     pub(crate) symbol_version_by_id: IndexMap<GlobalSymbolId, u64>,
     /// The relation and normalization caches.
     pub(crate) relation: TypeRelationCache,
-    /// The static parameter metadata table.
+    /// The generic parameter metadata table.
     pub(crate) generic: GenericTable,
     /// The type attribution table.
     pub(crate) attribution: AttributionTable,
@@ -86,34 +86,34 @@ pub(super) struct InstanceInternerKey {
     /// The symbol that owns the instance.
     symbol_id: GlobalSymbolId,
     /// The number of static arguments.
-    static_argument_count: usize,
+    generic_argument_count: usize,
 }
 
 /// Build one compact key for instance interning.
 pub(super) fn instance_interner_key(
     symbol_id: GlobalSymbolId,
-    static_argument_count: usize,
+    generic_argument_count: usize,
 ) -> InstanceInternerKey {
     InstanceInternerKey {
         symbol_id,
-        static_argument_count,
+        generic_argument_count,
     }
 }
 
-/// Canonical key for one static-parameter declaration slot.
+/// Canonical key for one generic-parameter declaration slot.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
 )]
-pub(crate) struct StaticParameterSymbolKey {
-    /// The defining module id for this static-parameter slot.
+pub(crate) struct GenericParameterSymbolKey {
+    /// The defining module id for this generic-parameter slot.
     module_id: ModuleId,
-    /// The local symbol id for this static-parameter slot.
+    /// The local symbol id for this generic-parameter slot.
     local_symbol_id: u32,
 }
 
-/// Build one canonical key for static-parameter metadata.
-pub(super) fn static_parameter_symbol_key(symbol_id: GlobalSymbolId) -> StaticParameterSymbolKey {
-    StaticParameterSymbolKey {
+/// Build one canonical key for generic-parameter metadata.
+pub(super) fn generic_parameter_symbol_key(symbol_id: GlobalSymbolId) -> GenericParameterSymbolKey {
+    GenericParameterSymbolKey {
         module_id: symbol_id.module_id,
         local_symbol_id: symbol_id.local_id.id,
     }
