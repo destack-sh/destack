@@ -351,12 +351,12 @@ impl ModuleLowerer<'_> {
         &mut self,
         arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     ) -> CodegenJsResult<Vec<js::LocalNodeId<js::Type>>> {
-        let static_arguments = arguments
+        let generic_arguments = arguments
             .iter()
             .map(|argument| self.lower_static_type_argument(*argument))
             .collect::<Result<Vec<_>, CodegenJsError>>()?;
 
-        Ok(static_arguments)
+        Ok(generic_arguments)
     }
 
     /// Lower one semantic static expression into one JS type argument.
@@ -393,7 +393,7 @@ impl ModuleLowerer<'_> {
             dir::StaticExpression::Type { ty } => self.lower_type(*ty),
             dir::StaticExpression::Declaration {
                 declaration,
-                static_arguments,
+                generic_arguments,
             } => {
                 let declaration = self.dir_tree.get(*declaration);
                 let symbol = declaration.symbol().into_global(self.module.id);
@@ -401,7 +401,7 @@ impl ModuleLowerer<'_> {
                 self.lower_reference_type_from_symbol(
                     source_id,
                     symbol,
-                    static_arguments.as_deref(),
+                    generic_arguments.as_deref(),
                 )
             }
             dir::StaticExpression::ArrayExpression { .. }
@@ -470,7 +470,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         symbol_id: dir::GlobalSymbolId,
-        static_arguments: Option<&[dir::StaticArgument]>,
+        generic_arguments: Option<&[dir::StaticArgument]>,
     ) -> CodegenJsResult<js::LocalNodeId<js::Type>> {
         if symbol_id.module_id != self.module.id {
             return Err(CodegenJsError::UnsupportedConstruct {
@@ -496,7 +496,7 @@ impl ModuleLowerer<'_> {
         let path = js::Path {
             segments: smallvec::smallvec![segment],
         };
-        let generic_arguments = static_arguments
+        let generic_arguments = generic_arguments
             .map(|arguments| self.lower_semantic_static_type_arguments(source_id, arguments))
             .transpose()?
             .unwrap_or_default();
@@ -657,9 +657,9 @@ impl ModuleLowerer<'_> {
         let dir::Type::Function {
             asynchrony,
             cardinality,
-            static_parameters,
+            generic_parameters,
             this_parameter,
-            dynamic_parameters,
+            parameters,
             return_type,
         } = self.types.get_type(ty_id)
         else {
@@ -672,7 +672,7 @@ impl ModuleLowerer<'_> {
         };
 
         // generic parameters
-        let generic_parameters = static_parameters
+        let generic_parameters = generic_parameters
             .iter()
             .enumerate()
             .map(|(index, parameter_type_id)| {
@@ -692,7 +692,7 @@ impl ModuleLowerer<'_> {
             .transpose()?;
 
         // runtime parameters
-        let parameters = dynamic_parameters
+        let parameters = parameters
             .iter()
             .enumerate()
             .map(|(index, parameter_type_id)| {
@@ -784,7 +784,7 @@ impl ModuleLowerer<'_> {
             }
             dir::Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             } => {
                 let type_id = self
                     .try_lower_reference_type_from_source(source_id)?
@@ -793,7 +793,7 @@ impl ModuleLowerer<'_> {
                             self.lower_reference_type_from_symbol(
                                 source_id,
                                 *symbol,
-                                static_arguments.as_deref(),
+                                generic_arguments.as_deref(),
                             )
                         },
                         Ok,
@@ -874,14 +874,14 @@ impl ModuleLowerer<'_> {
             dir::Type::Import {
                 target,
                 qualifier,
-                static_arguments,
+                generic_arguments,
             } => {
                 let target = self.strings.intern_from(self.source_strings, *target);
                 let qualifier = qualifier
                     .as_ref()
                     .map(|path| self.lower_path(source_id, path))
                     .transpose()?;
-                let generic_arguments = static_arguments
+                let generic_arguments = generic_arguments
                     .as_ref()
                     .map(|arguments| {
                         self.lower_semantic_static_type_arguments(source_id, arguments)

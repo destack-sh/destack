@@ -61,7 +61,7 @@ impl ModuleLowerer<'_> {
                     position: js::PostfixPosition::Direct,
                     left: callee,
                     generic_arguments: vec![],
-                    dynamic_arguments: vec![argument_id],
+                    arguments: vec![argument_id],
                 };
                 self.tree
                     .insert_from_source_any(call, self.module.id, source_id)

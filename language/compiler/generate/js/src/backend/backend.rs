@@ -119,16 +119,14 @@ impl ScriptLinkageCollector {
                 ..
             } => (*target, *target_module),
             js::Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
+                left, arguments, ..
             } => {
                 let receiver = tree.get(*left);
                 if !Self::is_import_receiver(strings, receiver) {
                     return None;
                 }
 
-                let first_argument = dynamic_arguments.first()?;
+                let first_argument = arguments.first()?;
                 let first_argument = tree.get(*first_argument);
                 let js::Argument::Positional { value } = first_argument else {
                     return Some((None, None));

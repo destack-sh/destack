@@ -496,7 +496,7 @@ impl ModuleLowerer<'_> {
                         }
                     };
 
-                    let dynamic_arguments = if let Some(arguments) = arguments {
+                    let arguments = if let Some(arguments) = arguments {
                         arguments
                             .iter()
                             .map(|argument| self.lower_argument(*argument))
@@ -509,7 +509,7 @@ impl ModuleLowerer<'_> {
                             js::Expression::ImportCall {
                                 target: target_expression,
                                 target_module: None,
-                                arguments: dynamic_arguments,
+                                arguments: arguments,
                             },
                             self.module.id,
                             expression_id,
@@ -572,7 +572,7 @@ impl ModuleLowerer<'_> {
                         self.module.id,
                         expression_id,
                     );
-                    let dynamic_arguments = if let Some(arguments) = arguments {
+                    let arguments = if let Some(arguments) = arguments {
                         arguments
                             .iter()
                             .map(|argument| self.lower_argument(*argument))
@@ -586,7 +586,7 @@ impl ModuleLowerer<'_> {
                             js::Expression::ImportCall {
                                 target: target_expression,
                                 target_module: target_module.module_id(),
-                                arguments: dynamic_arguments,
+                                arguments: arguments,
                             },
                             self.module.id,
                             expression_id,
@@ -1227,14 +1227,14 @@ impl ModuleLowerer<'_> {
             dir::Expression::Call {
                 left,
                 generic_arguments,
-                dynamic_arguments,
+                arguments,
             } => {
                 let left_id = self
                     .lower_expression(*left)
                     .expect_node::<js::Expression>(left.into_global_any(self.module.id), self)?;
                 let position = self.get_postfix_expression_position(left_id);
                 let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
-                let dynamic_arguments = dynamic_arguments
+                let arguments = arguments
                     .iter()
                     .map(|argument| self.lower_argument(*argument))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
@@ -1242,7 +1242,7 @@ impl ModuleLowerer<'_> {
                     position,
                     left: left_id,
                     generic_arguments,
-                    dynamic_arguments,
+                    arguments,
                 };
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
@@ -1251,20 +1251,20 @@ impl ModuleLowerer<'_> {
             dir::Expression::New {
                 left,
                 generic_arguments,
-                dynamic_arguments,
+                arguments,
             } => {
                 let left_id = self
                     .lower_expression(*left)
                     .expect_node::<js::Expression>(left.into_global_any(self.module.id), self)?;
                 let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
-                let dynamic_arguments = dynamic_arguments
+                let arguments = arguments
                     .iter()
                     .map(|argument| self.lower_argument(*argument))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 let expression = js::Expression::New {
                     left: left_id,
                     generic_arguments,
-                    dynamic_arguments,
+                    arguments,
                 };
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
