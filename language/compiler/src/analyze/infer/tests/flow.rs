@@ -257,16 +257,10 @@ fn test_build_flow_graph_short_circuit_guard() {
         panic!("expected binary left guard");
     };
 
-    let Expression::Call {
-        dynamic_arguments, ..
-    } = tree.get(*right)
-    else {
+    let Expression::Call { arguments, .. } = tree.get(*right) else {
         panic!("expected call expression");
     };
-    let argument_id = dynamic_arguments
-        .first()
-        .copied()
-        .expect("expected call argument");
+    let argument_id = arguments.first().copied().expect("expected call argument");
     let argument = tree.get(argument_id);
     let argument_value_id = argument.value();
 
@@ -607,7 +601,7 @@ fn test_analyze_preserves_computed_member_assignment_shape() {
     };
     let Expression::Call {
         left: callee,
-        dynamic_arguments,
+        arguments,
         ..
     } = tree.get(*index_expression)
     else {
@@ -649,7 +643,7 @@ fn test_analyze_preserves_computed_member_assignment_shape() {
     assert_eq!(test.program.strings.get(indexed_name).as_ref(), "cookies");
     assert_eq!(test.program.strings.get(key_name).as_ref(), "key");
     assert_eq!(test.program.strings.get(value_name).as_ref(), "value");
-    assert_eq!(dynamic_arguments.len(), 0);
+    assert_eq!(arguments.len(), 0);
 
     let Some(member_name) = *name else {
         panic!("expected trim member name");

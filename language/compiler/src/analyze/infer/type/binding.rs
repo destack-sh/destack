@@ -211,26 +211,26 @@ impl Compiler {
         let ty = types.get_type(ty_id);
 
         // unwrap type operator annotations to reach the underlying reference
-        let (symbol, static_arguments) = match ty {
+        let (symbol, generic_arguments) = match ty {
             Type::Reference {
                 symbol,
-                static_arguments,
-            } => (*symbol, static_arguments.clone()),
+                generic_arguments,
+            } => (*symbol, generic_arguments.clone()),
             Type::Value { value } => {
                 let value_ty = types.get_type(*value);
                 let Type::Reference {
                     symbol,
-                    static_arguments,
+                    generic_arguments,
                 } = value_ty
                 else {
                     return None;
                 };
-                (*symbol, static_arguments.clone())
+                (*symbol, generic_arguments.clone())
             }
             _ => return None,
         };
 
         // keep the outer type source id for node registration
-        Some((symbol, static_arguments, types.get_type_source(ty_id)))
+        Some((symbol, generic_arguments, types.get_type_source(ty_id)))
     }
 }

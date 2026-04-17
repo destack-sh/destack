@@ -216,14 +216,14 @@ let boxed = builder.box();
         Type::Value { value } => match view.types().get_type(value).clone() {
             Type::Reference {
                 symbol,
-                static_arguments,
-            } => (symbol, static_arguments),
+                generic_arguments,
+            } => (symbol, generic_arguments),
             other => panic!("expected boxed reference type, got {other:?}"),
         },
         Type::Reference {
             symbol,
-            static_arguments,
-        } => (symbol, static_arguments),
+            generic_arguments,
+        } => (symbol, generic_arguments),
         other => panic!("expected boxed value type, got {other:?}"),
     };
 
@@ -291,10 +291,10 @@ let result = getContainer().map<string>(1);
 
     // instance targets Container.map with inherited T and explicit U
     assert_eq!(instance.symbol_id, map_symbol);
-    assert_eq!(instance.static_arguments.len(), 2);
+    assert_eq!(instance.generic_arguments.len(), 2);
 
     // first static argument is inherited Container T = number
-    match &instance.static_arguments[0] {
+    match &instance.generic_arguments[0] {
         StaticArgument::Evaluated { value, .. } => match value {
             StaticExpression::Type { ty } => {
                 assert_type!(
@@ -311,7 +311,7 @@ let result = getContainer().map<string>(1);
     }
 
     // second static argument is explicit U = string
-    match &instance.static_arguments[1] {
+    match &instance.generic_arguments[1] {
         StaticArgument::Evaluated { value, .. } => match value {
             StaticExpression::Type { ty } => {
                 assert_type!(
@@ -372,10 +372,10 @@ mapper(1);
 
     // instance targets Container.map with inherited T and explicit U
     assert_eq!(instance.symbol_id, map_symbol);
-    assert_eq!(instance.static_arguments.len(), 2);
+    assert_eq!(instance.generic_arguments.len(), 2);
 
     // first static argument is inherited Container T = number
-    match &instance.static_arguments[0] {
+    match &instance.generic_arguments[0] {
         StaticArgument::Evaluated { value, .. } => match value {
             StaticExpression::Type { ty } => {
                 assert_type!(
@@ -392,7 +392,7 @@ mapper(1);
     }
 
     // second static argument is explicit U = string
-    match &instance.static_arguments[1] {
+    match &instance.generic_arguments[1] {
         StaticArgument::Evaluated { value, .. } => match value {
             StaticExpression::Type { ty } => {
                 assert_type!(
@@ -445,7 +445,7 @@ let box = new Box("ok");
 
     match view.types().get_type(box_type_id) {
         Type::Reference {
-            static_arguments: Some(arguments),
+            generic_arguments: Some(arguments),
             ..
         } => {
             let first_argument = arguments
@@ -508,17 +508,17 @@ let result = wrap(1);
         result_ty_id,
         Type::Reference {
             symbol,
-            static_arguments,
+            generic_arguments,
         } => {
             // type reference targets Box
             assert_eq!(*symbol, box_symbol);
-            let static_arguments = static_arguments.as_ref().expect("expected arguments");
+            let generic_arguments = generic_arguments.as_ref().expect("expected arguments");
 
             // type reference carries one static argument
-            assert_eq!(static_arguments.len(), 1);
+            assert_eq!(generic_arguments.len(), 1);
 
             // static argument is the inferred literal type
-            match &static_arguments[0] {
+            match &generic_arguments[0] {
                 StaticArgument::Evaluated { value, .. } => match value {
                     StaticExpression::Type { ty } => {
                         assert_type!(

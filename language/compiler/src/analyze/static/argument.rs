@@ -98,14 +98,14 @@ struct ResolvedStaticArgument<'a> {
 impl<'a> StaticArgumentResolver<'a> {
     /// Build a resolver for evaluated static arguments.
     pub(crate) fn new(
-        static_arguments: &'a [StaticArgument],
+        generic_arguments: &'a [StaticArgument],
         context: &'a str,
     ) -> Result<Self, StaticArgumentError> {
         // collect evaluated arguments
-        let mut arguments = Vec::with_capacity(static_arguments.len());
+        let mut arguments = Vec::with_capacity(generic_arguments.len());
         let mut has_named = false;
         let mut has_positional = false;
-        for argument in static_arguments {
+        for argument in generic_arguments {
             let StaticArgument::Evaluated { name, value } = argument else {
                 return Err(StaticArgumentError::new(
                     context,

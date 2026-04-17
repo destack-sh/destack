@@ -19,11 +19,11 @@ impl Compiler {
             Type::This => this_ty_id,
             Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             } => {
-                if let Some(static_arguments) = static_arguments {
+                if let Some(generic_arguments) = generic_arguments {
                     let mut changed = false;
-                    let mapped_arguments = static_arguments
+                    let mapped_arguments = generic_arguments
                         .iter()
                         .map(|argument| {
                             let mapped = self.substitute_this_static_argument(
@@ -40,7 +40,7 @@ impl Compiler {
                         types.insert_type_from_type(
                             Type::Reference {
                                 symbol,
-                                static_arguments: Some(mapped_arguments),
+                                generic_arguments: Some(mapped_arguments),
                             },
                             ty_id,
                         )
@@ -518,13 +518,13 @@ impl Compiler {
             Type::Function {
                 asynchrony,
                 cardinality,
-                static_parameters,
+                generic_parameters,
                 this_parameter,
-                dynamic_parameters,
+                parameters,
                 return_type,
             } => {
                 let mut changed = false;
-                let mapped_static_parameters = static_parameters
+                let mapped_static_parameters = generic_parameters
                     .iter()
                     .map(|parameter| {
                         let mapped =
@@ -543,7 +543,7 @@ impl Compiler {
                     }
                     mapped
                 });
-                let mapped_parameters = dynamic_parameters
+                let mapped_parameters = parameters
                     .iter()
                     .map(|parameter| {
                         let mapped =
@@ -566,9 +566,9 @@ impl Compiler {
                         Type::Function {
                             asynchrony,
                             cardinality,
-                            static_parameters: mapped_static_parameters,
+                            generic_parameters: mapped_static_parameters,
                             this_parameter: mapped_this,
-                            dynamic_parameters: mapped_parameters,
+                            parameters: mapped_parameters,
                             return_type: mapped_return,
                         },
                         ty_id,
@@ -667,9 +667,9 @@ impl Compiler {
             },
             StaticExpression::Declaration {
                 declaration,
-                static_arguments,
+                generic_arguments,
             } => {
-                let mapped_arguments = static_arguments.as_ref().map(|arguments| {
+                let mapped_arguments = generic_arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
                         .map(|argument| {
@@ -679,7 +679,7 @@ impl Compiler {
                 });
                 StaticExpression::Declaration {
                     declaration: *declaration,
-                    static_arguments: mapped_arguments,
+                    generic_arguments: mapped_arguments,
                 }
             }
             StaticExpression::ArrayExpression { elements } => {

@@ -465,10 +465,10 @@ impl Compiler {
     pub(super) fn has_non_simple_dynamic_parameters(
         &self,
         tree: &NodeTree,
-        dynamic_parameters: &[LocalNodeId<Parameter>],
+        parameters: &[LocalNodeId<Parameter>],
     ) -> bool {
         // detect defaults, patterns, and variadics in the parameter list
-        dynamic_parameters.iter().any(|parameter_id| {
+        parameters.iter().any(|parameter_id| {
             let parameter = tree.get(*parameter_id);
             match parameter {
                 Parameter::Named { default, .. } => default.is_some(),

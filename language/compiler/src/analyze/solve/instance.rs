@@ -34,9 +34,9 @@ impl Compiler {
             // build type substitutions from the committed obligation environment
             let mut substitutions = HashMap::<GlobalSymbolId, LocalTypeId>::new();
             for (parameter_symbol, argument) in obligation
-                .static_parameter_symbols
+                .generic_parameter_symbols
                 .iter()
-                .zip(obligation.static_arguments.iter())
+                .zip(obligation.generic_arguments.iter())
             {
                 let StaticArgument::Evaluated {
                     value: StaticExpression::Type { ty },

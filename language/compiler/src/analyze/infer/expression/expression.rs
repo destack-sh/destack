@@ -564,16 +564,16 @@ impl Compiler {
             return Some((yield_ty_id, Some(return_ty_id)));
         }
 
-        let (symbol, static_arguments) = {
+        let (symbol, generic_arguments) = {
             let Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             } = ctx.types.get_type(value_ty_id)
             else {
                 return None;
             };
 
-            (*symbol, static_arguments.clone())
+            (*symbol, generic_arguments.clone())
         };
         let source_id = ctx.types.get_type_source(value_ty_id);
 
@@ -594,7 +594,7 @@ impl Compiler {
             },
             source_id,
         );
-        let yield_ty_id = static_arguments
+        let yield_ty_id = generic_arguments
             .as_ref()
             .and_then(|arguments| arguments.first())
             .map(|argument| self.convert_static_argument_type(argument, source_id, ctx.types))
@@ -648,11 +648,11 @@ impl Compiler {
         let reference = match ctx.types.get_type(iterator_ty_id).clone() {
             Type::Reference {
                 symbol,
-                static_arguments,
-            } => Some((symbol, static_arguments)),
+                generic_arguments,
+            } => Some((symbol, generic_arguments)),
             _ => None,
         };
-        if let Some((symbol, static_arguments)) = reference {
+        if let Some((symbol, generic_arguments)) = reference {
             let canonical_symbol = self.canonical_symbol_id(
                 ctx.module_symbol_view(),
                 symbol,
@@ -677,14 +677,14 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         source_id,
                         symbol,
-                        static_arguments.as_deref(),
+                        generic_arguments.as_deref(),
                         true,
                     )
                     .ok()
                     .flatten();
                 let arguments = resolved_arguments
                     .as_ref()
-                    .or(static_arguments.as_ref())
+                    .or(generic_arguments.as_ref())
                     .map(|arguments| arguments.as_slice())
                     .unwrap_or(&[]);
                 if let Some(argument) = arguments.first() {
@@ -1421,7 +1421,7 @@ impl Compiler {
                     ctx.types.insert_type_from(
                         Type::Reference {
                             symbol: import_meta_symbol,
-                            static_arguments: None,
+                            generic_arguments: None,
                         },
                         expression_id,
                     )
@@ -1558,9 +1558,9 @@ impl Compiler {
         let Type::Function {
             asynchrony,
             cardinality,
-            static_parameters,
+            generic_parameters,
             this_parameter,
-            dynamic_parameters,
+            parameters,
             return_type,
         } = ctx.types.get_type(signature_ty_id).clone()
         else {
@@ -1574,7 +1574,7 @@ impl Compiler {
         };
 
         // ensure owner generic metadata is consistent when no signature static params are present
-        if static_parameters.is_empty()
+        if generic_parameters.is_empty()
             && let Some(owner_symbol) = owner_symbol
         {
             let owner_parameter_symbols = self
@@ -1598,9 +1598,9 @@ impl Compiler {
                     generic_argument_ids: Some(generic_argument_ids),
                     prefilled_static_arguments: None,
                     bound_substitutions: None,
-                    dynamic_argument_ids: None,
-                    static_parameter_type_ids: &static_parameters,
-                    dynamic_parameter_type_ids: &dynamic_parameters,
+                    argument_ids: None,
+                    generic_parameter_type_ids: &generic_parameters,
+                    parameter_type_ids: &parameters,
                     return_type,
                     expected_return_type: None,
                     mode: super::SignatureResolutionMode::Check,
@@ -1608,17 +1608,17 @@ impl Compiler {
                 },
             )?
             .unwrap_or(ResolvedSignature {
-                dynamic_parameters,
+                parameters,
                 return_type,
-                static_arguments: Vec::new(),
+                generic_arguments: Vec::new(),
             });
 
         let instantiated_fn = Type::Function {
             asynchrony,
             cardinality,
-            static_parameters: Vec::new(),
+            generic_parameters: Vec::new(),
             this_parameter,
-            dynamic_parameters: resolved.dynamic_parameters,
+            parameters: resolved.parameters,
             return_type: resolved.return_type,
         };
         let instantiated_ty_id = ctx.types.insert_type_from(instantiated_fn, expression_id);
@@ -1628,7 +1628,7 @@ impl Compiler {
             let signature_parameter_symbols =
                 self.query_signature_static_parameter_symbols(signature_ty_id, ctx.types);
             let environment = StaticSubstitutionEnvironment::from_parameter_symbols(
-                resolved.static_arguments.clone(),
+                resolved.generic_arguments.clone(),
                 signature_parameter_symbols,
                 0,
             )
@@ -1636,7 +1636,7 @@ impl Compiler {
                 self.instance_environment_for_symbol_arguments(
                     &ctx.reborrow(),
                     owner_symbol,
-                    resolved.static_arguments.clone(),
+                    resolved.generic_arguments.clone(),
                     0,
                 )
             });
@@ -2046,14 +2046,14 @@ impl Compiler {
         if let Some(expected_ty_id) = expected_ty_id
             && let Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             } = ctx.types.get_type(expected_ty_id).clone()
             && let Some(well_known) = self.well_known_array_kind(ctx.profile, symbol)
             && let Some(Type::Array { element, .. }) = self.normalize_well_known_type_reference(
                 &mut ctx.type_context_reborrow(),
                 expression_id.into_any(),
                 well_known,
-                static_arguments.as_deref(),
+                generic_arguments.as_deref(),
             )
         {
             if expected_array_element_type.is_none() {
@@ -2415,14 +2415,14 @@ impl Compiler {
             Expression::Call {
                 left,
                 generic_arguments,
-                dynamic_arguments,
+                arguments,
             } => {
                 let return_ty_id = self.infer_call_expression(
                     &mut ctx.reborrow(),
                     expression_id,
                     *left,
                     Some(generic_arguments.as_slice()),
-                    dynamic_arguments,
+                    arguments,
                     state,
                 )?;
 
@@ -2506,13 +2506,13 @@ impl Compiler {
             Expression::New {
                 left,
                 generic_arguments,
-                dynamic_arguments,
+                arguments,
             } => self.infer_new_expression(
                 &mut ctx.reborrow(),
                 expression_id,
                 *left,
                 Some(generic_arguments.as_slice()),
-                dynamic_arguments,
+                arguments,
                 state,
             ),
             Expression::TaggedTemplateExpression { tag, value } => {
@@ -3846,7 +3846,7 @@ impl Compiler {
                 if let Some(target_symbol) = extends_expression.target_symbol() {
                     let super_type = Type::Reference {
                         symbol: target_symbol,
-                        static_arguments: None,
+                        generic_arguments: None,
                     };
                     let super_ty_id = ctx.types.insert_type_from(super_type, expression_id);
 
@@ -3871,7 +3871,7 @@ impl Compiler {
         // build a nominal reference to the base type
         let super_type = Type::Reference {
             symbol: base_symbol,
-            static_arguments: None,
+            generic_arguments: None,
         };
         let super_ty_id = ctx.types.insert_type_from(super_type, expression_id);
 
@@ -4678,7 +4678,7 @@ impl Compiler {
             }
             Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             } => {
                 let instance_ty_id = self.resolve_instance_type_for_symbol(
                     &mut ctx.type_context_reborrow(),
@@ -4689,13 +4689,13 @@ impl Compiler {
                     let mut candidate_id = instance_ty_id;
 
                     // specialize instance types with explicit static arguments
-                    if let Some(static_arguments) = static_arguments.as_ref()
+                    if let Some(generic_arguments) = generic_arguments.as_ref()
                         && let Some(resolved_arguments) = self
                             .resolve_type_reference_static_arguments(
                                 &mut ctx.type_context_reborrow(),
                                 node_id,
                                 symbol,
-                                Some(static_arguments.as_slice()),
+                                Some(generic_arguments.as_slice()),
                                 true,
                             )?
                         && !resolved_arguments.is_empty()

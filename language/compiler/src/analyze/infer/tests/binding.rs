@@ -152,14 +152,11 @@ foo(1, , 3);
     // the call shape and its error slot still survive in DIR
     let view = test.view(module_id);
     let expression_id = view.root_expression_id(1);
-    let Expression::Call {
-        dynamic_arguments, ..
-    } = view.tree().get(expression_id)
-    else {
+    let Expression::Call { arguments, .. } = view.tree().get(expression_id) else {
         panic!("expected call expression");
     };
-    assert_eq!(dynamic_arguments.len(), 3);
-    match view.tree().get(dynamic_arguments[1]) {
+    assert_eq!(arguments.len(), 3);
+    match view.tree().get(arguments[1]) {
         Argument::Error { .. } => {}
         other => panic!("expected argument error slot, got {other:?}"),
     }

@@ -108,7 +108,7 @@ impl Compiler {
                 self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol);
             if is_static_parameter
                 && let Some(constraint_id) =
-                    self.static_parameter_constraint_type(&mut ctx.reborrow(), symbol, source_id)
+                    self.generic_parameter_constraint_type(&mut ctx.reborrow(), symbol, source_id)
                 && matches!(
                     ctx.types.get_type(constraint_id),
                     Type::TypeLiteral {
@@ -209,7 +209,7 @@ impl Compiler {
             }
             Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             } => {
                 let symbol = self.canonical_symbol_id(
                     ctx.module_symbol_view(),
@@ -219,14 +219,14 @@ impl Compiler {
 
                 // expand alias references with arguments when available
                 if matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
-                    && let Some(static_arguments) = static_arguments.as_ref()
+                    && let Some(generic_arguments) = generic_arguments.as_ref()
                 {
                     let source_id = ctx.types.get_type_source(type_id);
                     if let Some(expanded_id) = self.normalize_type_alias_reference_with_arguments(
                         &mut ctx.reborrow(),
                         source_id,
                         symbol,
-                        static_arguments,
+                        generic_arguments,
                         mode,
                         relation_mode,
                         visited,
@@ -1278,16 +1278,16 @@ impl Compiler {
                 }
                 Type::Reference {
                     symbol,
-                    static_arguments,
+                    generic_arguments,
                 } => {
                     let source_id = ctx.types.get_type_source(current_id);
 
                     // expand alias references with static arguments before apparent lookup
-                    if static_arguments.is_some()
+                    if generic_arguments.is_some()
                         && matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
                     {
                         let mut visited_alias = Vec::new();
-                        let arguments = static_arguments.as_deref().unwrap_or(&[]);
+                        let arguments = generic_arguments.as_deref().unwrap_or(&[]);
                         if let Some(expanded_id) = self
                             .normalize_type_alias_reference_with_arguments(
                                 &mut ctx.reborrow(),
@@ -1383,16 +1383,16 @@ impl Compiler {
                 }
                 Type::Reference {
                     symbol,
-                    static_arguments,
+                    generic_arguments,
                 } => {
                     let source_id = ctx.types.get_type_source(current_id);
 
                     // expand alias references with static arguments before apparent lookup
-                    if static_arguments.is_some()
+                    if generic_arguments.is_some()
                         && matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
                     {
                         let mut visited_alias = Vec::new();
-                        let arguments = static_arguments.as_deref().unwrap_or(&[]);
+                        let arguments = generic_arguments.as_deref().unwrap_or(&[]);
                         if let Some(expanded_id) = self
                             .normalize_type_alias_reference_with_arguments(
                                 &mut ctx.reborrow(),
@@ -1962,13 +1962,13 @@ impl Compiler {
             }
             Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             } => {
                 // follow constraint bounds for static parameter references
                 if self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol) {
                     let mut ctx = ctx.reborrow();
                     if let Some(constraint_id) =
-                        self.static_parameter_constraint_type(&mut ctx, symbol, source_id)
+                        self.generic_parameter_constraint_type(&mut ctx, symbol, source_id)
                     {
                         self.collect_mapped_keys_for_type_inner(
                             &mut ctx.reborrow(),
@@ -1978,7 +1978,7 @@ impl Compiler {
                             visited,
                         );
                     }
-                } else if static_arguments.is_none()
+                } else if generic_arguments.is_none()
                     && let Some(instance_id) =
                         self.apparent_instance_type(&mut ctx.reborrow(), source_id, symbol)
                 {
@@ -1991,16 +1991,16 @@ impl Compiler {
                         visited,
                     );
                 } else if symbol.ty() == SymbolType::TypeAlias {
-                    let static_arguments = static_arguments
+                    let generic_arguments = generic_arguments
                         .clone()
                         .map(|arguments| self.canonicalize_instance_arguments_for_key(arguments));
-                    let static_arguments = static_arguments.unwrap_or_default();
+                    let generic_arguments = generic_arguments.unwrap_or_default();
 
                     if ctx.types.is_normalization_alias_in_progress(
                         symbol,
                         NormalizationMode::Assign,
                         relation_mode.cache_key(),
-                        &static_arguments,
+                        &generic_arguments,
                     ) {
                         return;
                     }
@@ -2011,7 +2011,7 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         source_id,
                         symbol,
-                        &static_arguments,
+                        &generic_arguments,
                         NormalizationMode::Assign,
                         relation_mode,
                         &mut normalize_visited,
@@ -2248,16 +2248,16 @@ impl Compiler {
                 }
                 Type::Reference {
                     symbol,
-                    static_arguments,
+                    generic_arguments,
                 } => {
                     let source_id = ctx.types.get_type_source(current_id);
 
                     // expand alias references with static arguments before apparent lookup
-                    if static_arguments.is_some()
+                    if generic_arguments.is_some()
                         && matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
                     {
                         let mut visited_alias = Vec::new();
-                        let arguments = static_arguments.as_deref().unwrap_or(&[]);
+                        let arguments = generic_arguments.as_deref().unwrap_or(&[]);
                         if let Some(expanded_id) = self
                             .normalize_type_alias_reference_with_arguments(
                                 &mut ctx.reborrow(),
@@ -2330,16 +2330,16 @@ impl Compiler {
                 }
                 Type::Reference {
                     symbol,
-                    static_arguments,
+                    generic_arguments,
                 } => {
                     let source_id = ctx.types.get_type_source(current_id);
 
                     // expand alias references with static arguments before apparent lookup
-                    if static_arguments.is_some()
+                    if generic_arguments.is_some()
                         && matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
                     {
                         let mut visited_alias = Vec::new();
-                        let arguments = static_arguments.as_deref().unwrap_or(&[]);
+                        let arguments = generic_arguments.as_deref().unwrap_or(&[]);
                         if let Some(expanded_id) = self
                             .normalize_type_alias_reference_with_arguments(
                                 &mut ctx.reborrow(),

@@ -11,7 +11,7 @@ impl Compiler {
     ) -> AnalyzeResult<Type> {
         let Type::Reference {
             symbol,
-            static_arguments,
+            generic_arguments,
         } = reference_ty
         else {
             return Ok(reference_ty);
@@ -26,7 +26,7 @@ impl Compiler {
 
         Ok(Type::Reference {
             symbol,
-            static_arguments,
+            generic_arguments,
         })
     }
 
@@ -108,17 +108,17 @@ impl Compiler {
             // reference to a nominal type: expand alias arguments before member lookup
             Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             } => {
                 // prefer the specialized instance surface for instantiated references
-                if static_arguments
+                if generic_arguments
                     .as_ref()
                     .is_some_and(|arguments| !arguments.is_empty())
                     && let Some(instance_id) = self.specialized_instance_type_for_reference(
                         &mut ctx.reborrow(),
                         node_id,
                         *symbol,
-                        static_arguments.as_deref(),
+                        generic_arguments.as_deref(),
                     )
                 {
                     let instance_ty = ctx.types.get_type(instance_id).clone();
@@ -132,13 +132,13 @@ impl Compiler {
                     );
                 }
 
-                if static_arguments.is_some() && matches!(symbol.ty(), SymbolType::TypeAlias) {
+                if generic_arguments.is_some() && matches!(symbol.ty(), SymbolType::TypeAlias) {
                     let mut normalize_visited = Vec::new();
                     if let Some(expanded_id) = self.normalize_type_alias_reference_with_arguments(
                         &mut ctx.reborrow(),
                         node_id,
                         *symbol,
-                        static_arguments.as_deref().unwrap_or(&[]),
+                        generic_arguments.as_deref().unwrap_or(&[]),
                         NormalizationMode::Assign,
                         RelationMode::ASSIGN,
                         &mut normalize_visited,
@@ -451,9 +451,9 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         let Type::Function {
-            static_parameters,
+            generic_parameters,
             this_parameter,
-            dynamic_parameters,
+            parameters,
             return_type,
             ..
         } = receiver_ty
@@ -484,7 +484,7 @@ impl Compiler {
             non_strict_arg
         };
         let call_parameters = if is_strict_bind_call_apply {
-            dynamic_parameters.clone()
+            parameters.clone()
         } else {
             vec![non_strict_arg]
         };
@@ -504,9 +504,9 @@ impl Compiler {
                 Type::Function {
                     asynchrony,
                     cardinality,
-                    static_parameters: static_parameters.clone(),
+                    generic_parameters: generic_parameters.clone(),
                     this_parameter: None,
-                    dynamic_parameters: params,
+                    parameters: params,
                     return_type: *return_type,
                 }
             }
@@ -525,9 +525,9 @@ impl Compiler {
                 Type::Function {
                     asynchrony,
                     cardinality,
-                    static_parameters: static_parameters.clone(),
+                    generic_parameters: generic_parameters.clone(),
                     this_parameter: None,
-                    dynamic_parameters: vec![this_arg, tuple_ty_id],
+                    parameters: vec![this_arg, tuple_ty_id],
                     return_type: *return_type,
                 }
             }
@@ -540,9 +540,9 @@ impl Compiler {
                 let bound_function = Type::Function {
                     asynchrony,
                     cardinality,
-                    static_parameters: static_parameters.clone(),
+                    generic_parameters: generic_parameters.clone(),
                     this_parameter: None,
-                    dynamic_parameters: call_parameters,
+                    parameters: call_parameters,
                     return_type: *return_type,
                 };
                 let bound_function_id = types.insert_type_from_any(bound_function, node_id);
@@ -550,9 +550,9 @@ impl Compiler {
                 Type::Function {
                     asynchrony,
                     cardinality,
-                    static_parameters: static_parameters.clone(),
+                    generic_parameters: generic_parameters.clone(),
                     this_parameter: None,
-                    dynamic_parameters: params,
+                    parameters: params,
                     return_type: Some(bound_function_id),
                 }
             }

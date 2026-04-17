@@ -184,9 +184,9 @@ impl TypeRewriter for InferSubstitutionRewriter<'_> {
         // substitute local infer binding references without static arguments
         if let Type::Reference {
             symbol,
-            static_arguments,
+            generic_arguments,
         } = ty
-            && static_arguments.is_none()
+            && generic_arguments.is_none()
             && let Some(mapped) = self.compiler.infer_binding_substitution(
                 self.module,
                 *symbol,
@@ -220,9 +220,9 @@ impl Compiler {
         match ctx.types.get_type(type_id) {
             Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             } => {
-                if static_arguments.is_none() && self.symbol_is_static_parameter(ctx, *symbol) {
+                if generic_arguments.is_none() && self.symbol_is_static_parameter(ctx, *symbol) {
                     Some(*symbol)
                 } else {
                     None
@@ -275,11 +275,11 @@ impl Compiler {
         if let (
             Type::Reference {
                 symbol,
-                static_arguments: left_arguments,
+                generic_arguments: left_arguments,
             },
             Type::Reference {
                 symbol: right_symbol,
-                static_arguments: right_arguments,
+                generic_arguments: right_arguments,
             },
         ) = (&left_type, &right_type)
             && symbol == right_symbol
@@ -358,7 +358,7 @@ impl Compiler {
                 && self.symbol_is_static_parameter(ctx.symbol_type_view(), *symbol)
             {
                 let constraint_id =
-                    self.static_parameter_constraint_type(&mut ctx.reborrow(), *symbol, source_id);
+                    self.generic_parameter_constraint_type(&mut ctx.reborrow(), *symbol, source_id);
                 if let Some(constraint_id) = constraint_id {
                     return self.infer_conditional_type_substitutions_inner(
                         &mut ctx.reborrow(),
@@ -375,7 +375,7 @@ impl Compiler {
                 && self.symbol_is_static_parameter(ctx.symbol_type_view(), *symbol)
             {
                 let constraint_id =
-                    self.static_parameter_constraint_type(&mut ctx.reborrow(), *symbol, source_id);
+                    self.generic_parameter_constraint_type(&mut ctx.reborrow(), *symbol, source_id);
                 if let Some(constraint_id) = constraint_id {
                     return self.infer_conditional_type_substitutions_inner(
                         &mut ctx.reborrow(),
@@ -408,15 +408,15 @@ impl Compiler {
         if let (
             Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             },
             Type::Reference {
                 symbol: right_symbol,
-                static_arguments: right_arguments,
+                generic_arguments: right_arguments,
             },
         ) = (&left_type, &right_type)
             && symbol == right_symbol
-            && static_arguments
+            && generic_arguments
                 .as_ref()
                 .is_none_or(|arguments| arguments.is_empty())
             && right_arguments
@@ -439,11 +439,11 @@ impl Compiler {
         if let (
             Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             },
             _,
         ) = (&left_type, &right_type)
-            && static_arguments
+            && generic_arguments
                 .as_ref()
                 .is_none_or(|arguments| arguments.is_empty())
             && let Some(left_instance_id) =
@@ -464,10 +464,10 @@ impl Compiler {
             _,
             Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             },
         ) = (&left_type, &right_type)
-            && static_arguments
+            && generic_arguments
                 .as_ref()
                 .is_none_or(|arguments| arguments.is_empty())
             && let Some(right_instance_id) =
@@ -780,29 +780,30 @@ impl Compiler {
             }
             (
                 Type::Function {
-                    static_parameters,
+                    generic_parameters,
                     this_parameter,
-                    dynamic_parameters,
+                    parameters,
                     return_type,
                     ..
                 },
                 Type::Function {
-                    static_parameters: right_static_parameters,
+                    generic_parameters: right_static_parameters,
                     this_parameter: right_this_parameter,
-                    dynamic_parameters: right_dynamic_parameters,
+                    parameters: right_dynamic_parameters,
                     return_type: right_return_type,
                     ..
                 },
             ) => {
                 // ensure static parameter counts match
-                if static_parameters.len() != right_static_parameters.len() {
+                if generic_parameters.len() != right_static_parameters.len() {
                     return None;
                 }
 
                 // infer static parameter substitutions
                 let mut combined = InferSubstitutionsBuilder::new();
-                for (left_parameter, right_parameter) in
-                    static_parameters.iter().zip(right_static_parameters.iter())
+                for (left_parameter, right_parameter) in generic_parameters
+                    .iter()
+                    .zip(right_static_parameters.iter())
                 {
                     let inferred = self.infer_conditional_type_substitutions_inner(
                         &mut ctx.reborrow(),
@@ -842,10 +843,9 @@ impl Compiler {
 
                 // check dynamic parameter matching
                 let mut matched_dynamic = false;
-                if dynamic_parameters.len() == right_dynamic_parameters.len() {
-                    for (left_parameter, right_parameter) in dynamic_parameters
-                        .iter()
-                        .zip(right_dynamic_parameters.iter())
+                if parameters.len() == right_dynamic_parameters.len() {
+                    for (left_parameter, right_parameter) in
+                        parameters.iter().zip(right_dynamic_parameters.iter())
                     {
                         let inferred = self.infer_conditional_type_substitutions_inner(
                             &mut ctx.reborrow(),
@@ -867,7 +867,7 @@ impl Compiler {
                     let only = right_dynamic_parameters[0];
                     let tuple_type = ctx.types.insert_type_from_any(
                         Type::Tuple {
-                            elements: dynamic_parameters
+                            elements: parameters
                                 .iter()
                                 .map(|parameter| TypeElement::new(*parameter))
                                 .collect(),
@@ -1313,12 +1313,12 @@ impl Compiler {
                 names.insert(*name);
             }
             Type::Reference {
-                static_arguments, ..
+                generic_arguments, ..
             }
             | Type::Import {
-                static_arguments, ..
+                generic_arguments, ..
             } => {
-                if let Some(arguments) = static_arguments {
+                if let Some(arguments) = generic_arguments {
                     for argument in arguments {
                         self.collect_infer_names_from_static_argument(
                             argument, types, visited, names,
@@ -1390,19 +1390,19 @@ impl Compiler {
                 }
             }
             Type::Function {
-                static_parameters,
+                generic_parameters,
                 this_parameter,
-                dynamic_parameters,
+                parameters,
                 return_type,
                 ..
             } => {
-                for parameter in static_parameters {
+                for parameter in generic_parameters {
                     self.collect_infer_names_from_type(*parameter, types, visited, names);
                 }
                 if let Some(parameter) = this_parameter {
                     self.collect_infer_names_from_type(*parameter, types, visited, names);
                 }
-                for parameter in dynamic_parameters {
+                for parameter in parameters {
                     self.collect_infer_names_from_type(*parameter, types, visited, names);
                 }
                 if let Some(return_type) = return_type {
@@ -1477,9 +1477,9 @@ impl Compiler {
                 self.collect_infer_names_from_type(*ty, types, visited, names);
             }
             StaticExpression::Declaration {
-                static_arguments, ..
+                generic_arguments, ..
             } => {
-                if let Some(arguments) = static_arguments {
+                if let Some(arguments) = generic_arguments {
                     for argument in arguments {
                         self.collect_infer_names_from_static_argument(
                             argument, types, visited, names,

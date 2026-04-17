@@ -351,13 +351,13 @@ impl Compiler {
             (
                 Type::Reference {
                     symbol: target_symbol,
-                    static_arguments,
+                    generic_arguments,
                 },
                 source_type,
             ) if let Some(index_signature) = self.record_like_index_signature_for_target(
                 &mut ctx.type_context_reborrow(),
                 target_symbol,
-                static_arguments.as_deref(),
+                generic_arguments.as_deref(),
                 target_id,
             ) =>
             {
@@ -368,7 +368,7 @@ impl Compiler {
                 // accept record-like references when static arguments align
                 if let Type::Reference {
                     symbol: source_symbol,
-                    static_arguments: ref source_arguments,
+                    generic_arguments: ref source_arguments,
                 } = source_type
                 {
                     let record_symbol =
@@ -384,7 +384,7 @@ impl Compiler {
                             target_id,
                             source_id,
                             target_symbol,
-                            static_arguments.as_ref(),
+                            generic_arguments.as_ref(),
                             source_arguments.as_ref(),
                         )
                     {
@@ -1207,13 +1207,13 @@ impl Compiler {
             // functions: contravariant params, covariant return
             (
                 Type::Function {
-                    dynamic_parameters: target_params,
+                    parameters: target_params,
                     this_parameter: target_this,
                     return_type: target_return,
                     ..
                 },
                 Type::Function {
-                    dynamic_parameters: source_params,
+                    parameters: source_params,
                     this_parameter: source_this,
                     return_type: source_return,
                     ..
@@ -1242,7 +1242,7 @@ impl Compiler {
                     index_signatures: target_index_signatures,
                 },
                 Type::Function {
-                    dynamic_parameters: source_params,
+                    parameters: source_params,
                     this_parameter: source_this,
                     return_type: source_return,
                     ..
@@ -1269,7 +1269,7 @@ impl Compiler {
             // functions: callable object sources must provide a compatible signature
             (
                 Type::Function {
-                    dynamic_parameters: target_params,
+                    parameters: target_params,
                     this_parameter: target_this,
                     return_type: target_return,
                     ..
@@ -1295,7 +1295,7 @@ impl Compiler {
             (
                 Type::Reference {
                     symbol: target_symbol,
-                    static_arguments: target_static_arguments,
+                    generic_arguments: target_static_arguments,
                     ..
                 },
                 Type::Object {
@@ -1347,7 +1347,7 @@ impl Compiler {
                 },
                 Type::Reference {
                     symbol: source_symbol,
-                    static_arguments: source_static_arguments,
+                    generic_arguments: source_static_arguments,
                     ..
                 },
             ) => {
@@ -1387,11 +1387,11 @@ impl Compiler {
             (
                 Type::Reference {
                     symbol: target_symbol,
-                    static_arguments: target_static_arguments,
+                    generic_arguments: target_static_arguments,
                     ..
                 },
                 Type::Function {
-                    dynamic_parameters: source_params,
+                    parameters: source_params,
                     this_parameter: source_this,
                     return_type: source_return,
                     ..
@@ -1431,14 +1431,14 @@ impl Compiler {
             // function target: accept callable interface sources
             (
                 Type::Function {
-                    dynamic_parameters: target_params,
+                    parameters: target_params,
                     this_parameter: target_this,
                     return_type: target_return,
                     ..
                 },
                 Type::Reference {
                     symbol: source_symbol,
-                    static_arguments: source_static_arguments,
+                    generic_arguments: source_static_arguments,
                     ..
                 },
             ) => {
@@ -1489,11 +1489,11 @@ impl Compiler {
         let (
             Type::Reference {
                 symbol: target_symbol,
-                static_arguments: target_arguments,
+                generic_arguments: target_arguments,
             },
             Type::Reference {
                 symbol: source_symbol,
-                static_arguments: source_arguments,
+                generic_arguments: source_arguments,
             },
         ) = (target, source)
         else {

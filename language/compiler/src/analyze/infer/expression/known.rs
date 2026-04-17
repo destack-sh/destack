@@ -98,7 +98,7 @@ impl Compiler {
             let argument = StaticArgument::value(StaticExpression::Type { ty: *value });
             return Some(Type::Reference {
                 symbol,
-                static_arguments: Some(vec![argument]),
+                generic_arguments: Some(vec![argument]),
             });
         }
 
@@ -115,7 +115,7 @@ impl Compiler {
             };
 
         // build static arguments for array like receivers
-        let static_arguments = match receiver_ty {
+        let generic_arguments = match receiver_ty {
             Type::Array { element, .. } => element.map(|element| {
                 vec![StaticArgument::value(StaticExpression::Type {
                     ty: element,
@@ -144,7 +144,7 @@ impl Compiler {
 
         Some(Type::Reference {
             symbol,
-            static_arguments,
+            generic_arguments,
         })
     }
 }

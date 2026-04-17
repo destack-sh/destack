@@ -30,17 +30,17 @@ add(1, 2)
         .expect("expected function type");
 
     // function type uses literal argument types and a number return type
-    assert_type!(view.types(), fn_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
+    assert_type!(view.types(), fn_ty_id, Type::Function { parameters, return_type, .. } => {
         // two parameters inferred from call arguments
-        assert_eq!(dynamic_parameters.len(), 2);
+        assert_eq!(parameters.len(), 2);
 
         // first parameter matches literal 1
-        assert_type!(view.types(), dynamic_parameters[0], Type::TypeLiteral {
+        assert_type!(view.types(), parameters[0], Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1))
         });
 
         // second parameter matches literal 2
-        assert_type!(view.types(), dynamic_parameters[1], Type::TypeLiteral {
+        assert_type!(view.types(), parameters[1], Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(2))
         });
 
@@ -80,12 +80,12 @@ function greet(name = "hi") {
         .expect("expected function type");
 
     // function type uses default value literal and returns a string
-    assert_type!(view.types(), fn_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
+    assert_type!(view.types(), fn_ty_id, Type::Function { parameters, return_type, .. } => {
         // one parameter inferred from default value
-        assert_eq!(dynamic_parameters.len(), 1);
+        assert_eq!(parameters.len(), 1);
 
         // parameter widens the default literal
-        assert_type!(view.types(), dynamic_parameters[0], Type::TypeLiteral {
+        assert_type!(view.types(), parameters[0], Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::String)
         });
 
@@ -207,12 +207,12 @@ let as_number = identity<number>;
     let value_ty_id = view.expect_inferred_type_id(value_id);
 
     // specialized function reference uses number parameter and return type
-    assert_type!(view.types(), value_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
+    assert_type!(view.types(), value_ty_id, Type::Function { parameters, return_type, .. } => {
         // single parameter is number
-        assert_eq!(dynamic_parameters.len(), 1);
+        assert_eq!(parameters.len(), 1);
 
         // parameter uses the explicit number type argument
-        assert_type!(view.types(), dynamic_parameters[0], Type::TypeLiteral {
+        assert_type!(view.types(), parameters[0], Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
 
@@ -264,10 +264,10 @@ let value: Box<number> = makeBox();
 
     // instance targets Box with a single static type argument
     assert_eq!(instance.symbol_id, box_symbol);
-    assert_eq!(instance.static_arguments.len(), 1);
+    assert_eq!(instance.generic_arguments.len(), 1);
 
     // static argument is the explicit number type
-    match &instance.static_arguments[0] {
+    match &instance.generic_arguments[0] {
         StaticArgument::Evaluated { value, .. } => match value {
             StaticExpression::Type { ty } => {
                 assert_type!(
@@ -323,10 +323,10 @@ let buffer: Buffer<string> = makeBuffer();
 
     // instance targets Buffer with explicit T and default N value
     assert_eq!(instance.symbol_id, buffer_symbol);
-    assert_eq!(instance.static_arguments.len(), 2);
+    assert_eq!(instance.generic_arguments.len(), 2);
 
     // first static argument is the explicit string type
-    match &instance.static_arguments[0] {
+    match &instance.generic_arguments[0] {
         StaticArgument::Evaluated { value, .. } => match value {
             StaticExpression::Type { ty } => {
                 assert_type!(
@@ -343,7 +343,7 @@ let buffer: Buffer<string> = makeBuffer();
     }
 
     // second static argument is the default value N = 4
-    match &instance.static_arguments[1] {
+    match &instance.generic_arguments[1] {
         StaticArgument::Evaluated { value, .. } => match value {
             StaticExpression::ScalarLiteral { value } => {
                 assert_eq!(*value, ScalarLiteral::Integer(4));
@@ -400,8 +400,8 @@ let boxed: Box<Node> = value;
 
     // instance targets Use with Node as the static argument
     assert_eq!(use_instance.symbol_id, use_symbol);
-    assert_eq!(use_instance.static_arguments.len(), 1);
-    match &use_instance.static_arguments[0] {
+    assert_eq!(use_instance.generic_arguments.len(), 1);
+    match &use_instance.generic_arguments[0] {
         StaticArgument::Evaluated { value, .. } => match value {
             StaticExpression::Type { ty } => {
                 assert_type!(
@@ -409,10 +409,10 @@ let boxed: Box<Node> = value;
                     *ty,
                     Type::Reference {
                         symbol,
-                        static_arguments
+                        generic_arguments
                     } => {
                         assert_eq!(*symbol, node_symbol);
-                        assert!(static_arguments.is_none());
+                        assert!(generic_arguments.is_none());
                     }
                 );
             }
@@ -496,8 +496,8 @@ let number_value: number = value;
 
     // instance targets Pick with a string literal argument
     assert_eq!(pick_instance.symbol_id, pick_symbol);
-    assert_eq!(pick_instance.static_arguments.len(), 1);
-    match &pick_instance.static_arguments[0] {
+    assert_eq!(pick_instance.generic_arguments.len(), 1);
+    match &pick_instance.generic_arguments[0] {
         StaticArgument::Evaluated { value, .. } => match value {
             StaticExpression::ScalarLiteral { value } => {
                 assert_eq!(*value, ScalarLiteral::String(foo_name));
@@ -735,12 +735,12 @@ let result = project(counter);
         .get_instance_for_node(result_initializer_id.into_global_any(module_id))
         .expect("expected call instance");
     let result_instance = view.types().get_instance(result_instance_id);
-    assert_eq!(result_instance.static_arguments.len(), 1);
-    assert_eq!(result_instance.static_parameter_symbols.len(), 1);
+    assert_eq!(result_instance.generic_arguments.len(), 1);
+    assert_eq!(result_instance.generic_parameter_symbols.len(), 1);
     let counter_symbol = test
         .resolve_to_symbol("test.ds", "Counter")
         .expect("expected counter symbol");
-    match &result_instance.static_arguments[0] {
+    match &result_instance.generic_arguments[0] {
         StaticArgument::Evaluated {
             value: StaticExpression::Type { ty },
             ..

@@ -2,11 +2,11 @@ use std::collections::{HashMap, HashSet};
 
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    Block, Expression, Freshness, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId,
-    NodeTree, NodeType, PrimitiveType, RuntimeCheckKind, ScalarLiteral, StaticArgument,
-    StaticExpression, StaticKey, StaticParameterKind, SymbolType, Type, TypeLiteral, TypeTable,
-    TypeVisitor, TypeVisitorOptions, are_types_equal, walk_static_argument, walk_static_expression,
-    walk_type,
+    Block, Expression, Freshness, GenericParameterKind, GlobalSymbolId, LocalNodeId,
+    LocalNodeIdAny, LocalTypeId, NodeTree, NodeType, PrimitiveType, RuntimeCheckKind,
+    ScalarLiteral, StaticArgument, StaticExpression, StaticKey, SymbolType, Type, TypeLiteral,
+    TypeTable, TypeVisitor, TypeVisitorOptions, are_types_equal, walk_static_argument,
+    walk_static_expression, walk_type,
 };
 use destack_source::ModuleId;
 use destack_workspace::Module;
@@ -53,7 +53,7 @@ enum TypeContainmentKind<'a> {
         ctx: TypeView<'a>,
     },
     /// Detect static parameter usage.
-    StaticParameter {
+    GenericParameterSpec {
         /// The compiler instance.
         compiler: &'a Compiler,
         /// The symbol-and-type ctx view for the current module.
@@ -256,7 +256,7 @@ impl<'a> TypeContainmentVisitor<'a> {
         visited: &'a mut HashSet<LocalTypeId>,
     ) -> Self {
         Self::new(
-            TypeContainmentKind::StaticParameter { compiler, ctx },
+            TypeContainmentKind::GenericParameterSpec { compiler, ctx },
             visited,
             None,
         )
@@ -387,7 +387,7 @@ impl<'a> TypeContainmentVisitor<'a> {
             TypeContainmentKind::UnevaluatedTypeState => VisitedMode::Stack,
             TypeContainmentKind::UnevaluatedStaticArgument => VisitedMode::Stack,
             TypeContainmentKind::UnevaluatedValueStaticArgument { .. } => VisitedMode::Stack,
-            TypeContainmentKind::StaticParameter { .. } => VisitedMode::Set,
+            TypeContainmentKind::GenericParameterSpec { .. } => VisitedMode::Set,
             TypeContainmentKind::FreeStaticParameter { .. } => VisitedMode::Set,
             TypeContainmentKind::InferBinding => VisitedMode::Set,
             TypeContainmentKind::InferVar => VisitedMode::Set,
@@ -477,13 +477,13 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
             TypeContainmentKind::UnevaluatedValueStaticArgument { compiler, ctx } => {
                 if let Type::Reference {
                     symbol,
-                    static_arguments,
+                    generic_arguments,
                 } = ty
                 {
                     if compiler.reference_has_unevaluated_value_arguments(
                         *ctx,
                         *symbol,
-                        static_arguments.as_deref(),
+                        generic_arguments.as_deref(),
                         self.visited,
                     ) {
                         self.found = true;
@@ -491,7 +491,7 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                     return;
                 }
             }
-            TypeContainmentKind::StaticParameter { compiler, ctx } => match ty {
+            TypeContainmentKind::GenericParameterSpec { compiler, ctx } => match ty {
                 Type::Reference { symbol, .. } => {
                     if compiler.symbol_is_static_parameter(*ctx, *symbol) {
                         self.found = true;
@@ -509,13 +509,13 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
             TypeContainmentKind::FreeStaticParameter { compiler, ctx } => match ty {
                 Type::Reference {
                     symbol,
-                    static_arguments,
+                    generic_arguments,
                 } => {
                     let Some(bound) = self.free_static_bound.as_ref() else {
                         self.found = true;
                         return;
                     };
-                    if static_arguments.is_none()
+                    if generic_arguments.is_none()
                         && compiler.symbol_is_static_parameter(*ctx, *symbol)
                         && !bound.contains(symbol)
                     {
@@ -697,7 +697,7 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
         }
 
         match &self.kind {
-            TypeContainmentKind::StaticParameter { .. } => match argument {
+            TypeContainmentKind::GenericParameterSpec { .. } => match argument {
                 StaticArgument::Unevaluated { .. } => {
                     self.found = true;
                 }
@@ -728,7 +728,7 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
         match &self.kind {
             TypeContainmentKind::ErrorType => {}
             TypeContainmentKind::FreeStaticParameter { .. }
-            | TypeContainmentKind::StaticParameter { .. }
+            | TypeContainmentKind::GenericParameterSpec { .. }
             | TypeContainmentKind::UnevaluatedTypeState
             | TypeContainmentKind::UnevaluatedStaticArgument
             | TypeContainmentKind::UnevaluatedValueStaticArgument { .. } => {
@@ -1336,11 +1336,11 @@ impl Compiler {
         }
 
         // unevaluated static arguments are not stable yet
-        let mut static_argument_visited = HashSet::new();
+        let mut generic_argument_visited = HashSet::new();
         if self.type_has_unevaluated_static_arguments(
             type_id,
             ctx.types,
-            &mut static_argument_visited,
+            &mut generic_argument_visited,
         ) {
             return true;
         }
@@ -1503,12 +1503,12 @@ impl Compiler {
     }
 
     /// Collect static parameter symbols from one static-parameter type-id sequence.
-    pub(crate) fn static_parameter_symbols_for_type_ids(
+    pub(crate) fn generic_parameter_symbols_for_type_ids(
         &self,
-        static_parameter_type_ids: &[LocalTypeId],
+        generic_parameter_type_ids: &[LocalTypeId],
         types: &TypeTable,
     ) -> Vec<GlobalSymbolId> {
-        static_parameter_type_ids
+        generic_parameter_type_ids
             .iter()
             .filter_map(|parameter_type_id| {
                 self.unwrap_type_value_symbol(types, *parameter_type_id)
@@ -1847,7 +1847,7 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
-        static_arguments: Option<&[StaticArgument]>,
+        generic_arguments: Option<&[StaticArgument]>,
     ) -> Option<LocalTypeId> {
         // preserve alias identity while resolving the underlying surface
         let symbol = if symbol.ty() == SymbolType::Extension {
@@ -1868,7 +1868,7 @@ impl Compiler {
                 source_id,
                 symbol,
                 apparent,
-                static_arguments,
+                generic_arguments,
             );
             return Some(apparent);
         }
@@ -1880,7 +1880,7 @@ impl Compiler {
             source_id,
             symbol,
             instance_id,
-            static_arguments,
+            generic_arguments,
         );
 
         Some(instance_id)
@@ -1893,27 +1893,27 @@ impl Compiler {
         source_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         instance_id: LocalTypeId,
-        static_arguments: Option<&[StaticArgument]>,
+        generic_arguments: Option<&[StaticArgument]>,
     ) -> LocalTypeId {
-        let Some(static_arguments) = static_arguments else {
+        let Some(generic_arguments) = generic_arguments else {
             return instance_id;
         };
-        if static_arguments.is_empty() {
+        if generic_arguments.is_empty() {
             return instance_id;
         }
 
         // resolve static arguments before substitution
-        let resolved_arguments = if static_arguments
+        let resolved_arguments = if generic_arguments
             .iter()
             .all(|argument| matches!(argument, StaticArgument::Evaluated { .. }))
         {
-            Some(static_arguments.to_vec())
+            Some(generic_arguments.to_vec())
         } else {
             self.resolve_type_reference_static_arguments(
                 &mut ctx.reborrow(),
                 source_id,
                 symbol,
-                Some(static_arguments),
+                Some(generic_arguments),
                 true,
             )
             .unwrap_or_else(|error| {
@@ -2483,7 +2483,7 @@ impl Compiler {
                         ctx.symbols,
                         destack_artifact::ArtifactKey::dir_declared,
                         |view| {
-                            self.static_parameter_metadata_for_symbol_in_module(
+                            self.generic_parameter_metadata_for_symbol_in_module(
                                 view,
                                 *parameter_symbol,
                             )
@@ -2491,12 +2491,12 @@ impl Compiler {
                         },
                     )
                     .ok()
-                    .unwrap_or(StaticParameterKind::Type)
+                    .unwrap_or(GenericParameterKind::Type)
                 })
-                .unwrap_or(StaticParameterKind::Type);
+                .unwrap_or(GenericParameterKind::Type);
 
             // only value parameters require unevaluated materialization
-            if kind != StaticParameterKind::Value {
+            if kind != GenericParameterKind::Value {
                 continue;
             }
 

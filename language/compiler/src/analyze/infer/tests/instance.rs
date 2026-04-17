@@ -3,9 +3,9 @@ use destack_dir::{Instance, Key, LocalInstanceId, Member, Node, Resolution};
 
 #[derive(Debug, Clone, PartialEq)]
 struct ExpectedInstanceShape {
-    static_parameter_symbols: Vec<GlobalSymbolId>,
+    generic_parameter_symbols: Vec<GlobalSymbolId>,
     inherited_static_argument_count: usize,
-    static_argument_primitives: Vec<PrimitiveType>,
+    generic_argument_primitives: Vec<PrimitiveType>,
 }
 
 impl TestModuleView<'_> {
@@ -52,7 +52,7 @@ impl TestModuleView<'_> {
             .expect("expected instance for node");
         let instance = self.types().get_instance(instance_id);
 
-        (instance.symbol_id, instance.static_arguments.clone())
+        (instance.symbol_id, instance.generic_arguments.clone())
     }
 
     /// Resolve one committed instance id attached to one expression node.
@@ -66,7 +66,7 @@ impl TestModuleView<'_> {
     }
 
     /// Resolve declaration-ordered static parameter symbols for one declaration or member symbol.
-    fn static_parameter_symbols_for_symbol(&self, symbol: GlobalSymbolId) -> Vec<GlobalSymbolId> {
+    fn generic_parameter_symbols_for_symbol(&self, symbol: GlobalSymbolId) -> Vec<GlobalSymbolId> {
         for declaration_id in self.tree().iter_node_ids_of_type::<Declaration>() {
             let declaration = self.tree().get(declaration_id);
             let declaration_symbol = declaration.symbol().into_global(self.module_id);
@@ -145,15 +145,15 @@ impl TestModuleView<'_> {
                     return None;
                 }
 
-                let static_argument_primitives = instance
-                    .static_arguments
+                let generic_argument_primitives = instance
+                    .generic_arguments
                     .iter()
                     .map(|argument| self.primitive_for_static_argument(argument))
                     .collect::<Vec<_>>();
                 Some(ExpectedInstanceShape {
-                    static_parameter_symbols: instance.static_parameter_symbols.clone(),
+                    generic_parameter_symbols: instance.generic_parameter_symbols.clone(),
                     inherited_static_argument_count: instance.inherited_static_argument_count,
-                    static_argument_primitives,
+                    generic_argument_primitives,
                 })
             })
             .collect::<Vec<_>>();
@@ -291,11 +291,11 @@ let value: Wrap<number> = 1;
     let wrap_symbol = test
         .resolve_to_symbol("test.ds", "Wrap")
         .expect("expected Wrap symbol");
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(type_expression_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(type_expression_id);
     // Wrap
     assert_eq!(instance_symbol, wrap_symbol);
     // <number>
-    view.assert_static_argument_primitive_sequence(&static_arguments, &[PrimitiveType::Number]);
+    view.assert_static_argument_primitive_sequence(&generic_arguments, &[PrimitiveType::Number]);
 }
 
 /// Verify annotation instances attach to the type-expression node and not declaration nodes.
@@ -328,11 +328,11 @@ declare let value: Box<number>;
     let box_symbol = test
         .resolve_to_symbol("test.ds", "Box")
         .expect("expected Box symbol");
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(type_expression_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(type_expression_id);
     // Box
     assert_eq!(instance_symbol, box_symbol);
     // <number>
-    view.assert_static_argument_primitive_sequence(&static_arguments, &[PrimitiveType::Number]);
+    view.assert_static_argument_primitive_sequence(&generic_arguments, &[PrimitiveType::Number]);
 
     // declare let value: Box<number>
     view.expect_no_instance_for_node(declarator_id.into_global(module_id).into_any());
@@ -370,11 +370,11 @@ declare let value: Container<string>;
     let container_symbol = test
         .resolve_to_symbol("test.ds", "Container")
         .expect("expected Container symbol");
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(type_expression_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(type_expression_id);
     // Container
     assert_eq!(instance_symbol, container_symbol);
     // <string>
-    view.assert_static_argument_primitive_sequence(&static_arguments, &[PrimitiveType::String]);
+    view.assert_static_argument_primitive_sequence(&generic_arguments, &[PrimitiveType::String]);
 }
 
 /// Verify struct annotations commit node instances and keep non-generic calls instance-free.
@@ -409,11 +409,11 @@ let boxed: Box<number> = makeBox();
     let box_symbol = test
         .resolve_to_symbol("test.ds", "Box")
         .expect("expected Box symbol");
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(type_expression_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(type_expression_id);
     // Box
     assert_eq!(instance_symbol, box_symbol);
     // <number>
-    view.assert_static_argument_primitive_sequence(&static_arguments, &[PrimitiveType::Number]);
+    view.assert_static_argument_primitive_sequence(&generic_arguments, &[PrimitiveType::Number]);
 
     // makeBox()
     assert!(
@@ -456,13 +456,13 @@ let boxed = new Box<string>("hi");
     let box_symbol = test
         .resolve_to_symbol("test.ds", "Box")
         .expect("expected Box symbol");
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(value_id);
 
     // Box
     assert_eq!(instance_symbol, box_symbol);
 
     // <string>
-    view.assert_static_argument_primitive_sequence(&static_arguments, &[PrimitiveType::String]);
+    view.assert_static_argument_primitive_sequence(&generic_arguments, &[PrimitiveType::String]);
 }
 
 /// Keep class constructor shapes available after implicit-any field diagnostics.
@@ -539,14 +539,14 @@ let value = box.map<string>(1);
     let map_symbol = view.expect_member_symbol_for_owner(box_symbol, map_name);
 
     // box.map<string>(1)
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(value_id);
 
     // Box.map
     assert_eq!(instance_symbol, map_symbol);
 
     // <number, string>
     view.assert_static_argument_primitive_sequence(
-        &static_arguments,
+        &generic_arguments,
         &[PrimitiveType::Number, PrimitiveType::String],
     );
 }
@@ -586,14 +586,14 @@ let value = box.map(text);
     let map_symbol = view.expect_member_symbol_for_owner(box_symbol, map_name);
 
     // box.map(text)
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(value_id);
 
     // Box.map
     assert_eq!(instance_symbol, map_symbol);
 
     // <number, string>
     view.assert_static_argument_primitive_sequence(
-        &static_arguments,
+        &generic_arguments,
         &[PrimitiveType::Number, PrimitiveType::String],
     );
 
@@ -602,9 +602,9 @@ let value = box.map(text);
     view.assert_instances_for_symbol(
         map_symbol,
         &[ExpectedInstanceShape {
-            static_parameter_symbols: view.static_parameter_symbols_for_symbol(map_symbol),
+            generic_parameter_symbols: view.generic_parameter_symbols_for_symbol(map_symbol),
             inherited_static_argument_count: 1,
-            static_argument_primitives: vec![PrimitiveType::Number, PrimitiveType::String],
+            generic_argument_primitives: vec![PrimitiveType::Number, PrimitiveType::String],
         }],
     );
 }
@@ -645,14 +645,14 @@ let value = box.map(narrowed);
     let map_symbol = view.expect_member_symbol_for_owner(box_symbol, map_name);
 
     // box.map(valueOrCount)
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(value_id);
 
     // Box.map
     assert_eq!(instance_symbol, map_symbol);
 
     // <number, string>
     view.assert_static_argument_primitive_sequence(
-        &static_arguments,
+        &generic_arguments,
         &[PrimitiveType::Number, PrimitiveType::String],
     );
 }
@@ -688,13 +688,13 @@ let value = identity(text);
 
     // identity(text)
     let instance_id = view.expect_instance_id_for_expression(value_id);
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(value_id);
 
     // identity
     assert_eq!(instance_symbol, identity_symbol);
 
     // <string>
-    view.assert_static_argument_primitive_sequence(&static_arguments, &[PrimitiveType::String]);
+    view.assert_static_argument_primitive_sequence(&generic_arguments, &[PrimitiveType::String]);
     assert_eq!(view.types().instance_count(), 1);
 
     // identity
@@ -702,9 +702,9 @@ let value = identity(text);
     view.assert_instances_for_symbol(
         identity_symbol,
         &[ExpectedInstanceShape {
-            static_parameter_symbols: view.static_parameter_symbols_for_symbol(identity_symbol),
+            generic_parameter_symbols: view.generic_parameter_symbols_for_symbol(identity_symbol),
             inherited_static_argument_count: 0,
-            static_argument_primitives: vec![PrimitiveType::String],
+            generic_argument_primitives: vec![PrimitiveType::String],
         }],
     );
 
@@ -749,22 +749,22 @@ let head = mapOne(tuple, input => input[0]);
     let map_one_symbol = test
         .resolve_to_symbol("test.ds", "mapOne")
         .expect("expected mapOne symbol");
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(value_id);
     assert_eq!(instance_symbol, map_one_symbol);
-    assert_eq!(static_arguments.len(), 2);
+    assert_eq!(generic_arguments.len(), 2);
 
     // mapOne<T, U>
     let StaticArgument::Evaluated {
         value: StaticExpression::Type { ty: t_ty_id },
         ..
-    } = static_arguments[0]
+    } = generic_arguments[0]
     else {
         panic!("expected evaluated type argument for T");
     };
     let StaticArgument::Evaluated {
         value: StaticExpression::Type { ty: u_ty_id },
         ..
-    } = static_arguments[1]
+    } = generic_arguments[1]
     else {
         panic!("expected evaluated type argument for U");
     };
@@ -834,13 +834,13 @@ let value = identity(narrowed);
     let identity_symbol = test
         .resolve_to_symbol("test.ds", "identity")
         .expect("expected identity symbol");
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(value_id);
 
     // identity
     assert_eq!(instance_symbol, identity_symbol);
 
     // <string>
-    view.assert_static_argument_primitive_sequence(&static_arguments, &[PrimitiveType::String]);
+    view.assert_static_argument_primitive_sequence(&generic_arguments, &[PrimitiveType::String]);
 }
 
 /// Verify non-generic calls commit no instance and keep resolution instance empty.
@@ -913,14 +913,14 @@ let value = container.map<string>(1);
     let map_symbol = view.expect_member_symbol_for_owner(container_symbol, map_name);
 
     // container.map<string>(1)
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(value_id);
 
     // Container.map
     assert_eq!(instance_symbol, map_symbol);
 
     // <number, string>
     view.assert_static_argument_primitive_sequence(
-        &static_arguments,
+        &generic_arguments,
         &[PrimitiveType::Number, PrimitiveType::String],
     );
 }
@@ -960,14 +960,14 @@ let value = container.map(text);
     let map_symbol = view.expect_member_symbol_for_owner(container_symbol, map_name);
 
     // container.map(text)
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(value_id);
 
     // Container.map
     assert_eq!(instance_symbol, map_symbol);
 
     // <number, string>
     view.assert_static_argument_primitive_sequence(
-        &static_arguments,
+        &generic_arguments,
         &[PrimitiveType::Number, PrimitiveType::String],
     );
 }
@@ -1009,14 +1009,14 @@ let value = derived.map<string>();
     let base_map_symbol = view.expect_member_symbol_for_owner(base_symbol, map_name);
 
     // derived.map<string>()
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(value_id);
 
     // Base.map
     assert_eq!(instance_symbol, base_map_symbol);
 
     // <number, string>
     view.assert_static_argument_primitive_sequence(
-        &static_arguments,
+        &generic_arguments,
         &[PrimitiveType::Number, PrimitiveType::String],
     );
 }
@@ -1058,14 +1058,14 @@ let value = derived.map(text);
     let base_map_symbol = view.expect_member_symbol_for_owner(base_symbol, map_name);
 
     // derived.map(text)
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(value_id);
 
     // Base.map
     assert_eq!(instance_symbol, base_map_symbol);
 
     // <number, string>
     view.assert_static_argument_primitive_sequence(
-        &static_arguments,
+        &generic_arguments,
         &[PrimitiveType::Number, PrimitiveType::String],
     );
 }
@@ -1252,14 +1252,14 @@ let value = derived.map<string>();
     let base_map_symbol = lib_view.expect_member_symbol_for_owner(base_symbol, map_name);
 
     // derived.map<string>()
-    let (instance_symbol, static_arguments) = main_view.expect_instance_for_node(value_id);
+    let (instance_symbol, generic_arguments) = main_view.expect_instance_for_node(value_id);
 
     // Base.map
     assert_eq!(instance_symbol, base_map_symbol);
 
     // <number, string>
     main_view.assert_static_argument_primitive_sequence(
-        &static_arguments,
+        &generic_arguments,
         &[PrimitiveType::Number, PrimitiveType::String],
     );
 }
@@ -1314,14 +1314,14 @@ let value = derived.map(text);
     let base_map_symbol = lib_view.expect_member_symbol_for_owner(base_symbol, map_name);
 
     // derived.map(text)
-    let (instance_symbol, static_arguments) = main_view.expect_instance_for_node(value_id);
+    let (instance_symbol, generic_arguments) = main_view.expect_instance_for_node(value_id);
 
     // Base.map
     assert_eq!(instance_symbol, base_map_symbol);
 
     // <number, string>
     main_view.assert_static_argument_primitive_sequence(
-        &static_arguments,
+        &generic_arguments,
         &[PrimitiveType::Number, PrimitiveType::String],
     );
 }
@@ -1363,12 +1363,12 @@ let value = identity(text);
         .expect("expected identity symbol");
 
     // identity(text)
-    let (instance_symbol, static_arguments) = main_view.expect_instance_for_node(value_id);
+    let (instance_symbol, generic_arguments) = main_view.expect_instance_for_node(value_id);
     // identity
     assert_eq!(instance_symbol, identity_symbol);
     // <string>
     main_view
-        .assert_static_argument_primitive_sequence(&static_arguments, &[PrimitiveType::String]);
+        .assert_static_argument_primitive_sequence(&generic_arguments, &[PrimitiveType::String]);
 
     // identity(text) resolution
     let (resolution_symbol, resolution_instance_id) =
@@ -1390,7 +1390,7 @@ let value = identity(text);
     let committed_instance = committed[0].1;
     assert_eq!(committed_instance.inherited_static_argument_count, 0);
     main_view.assert_static_argument_primitive_sequence(
-        &committed_instance.static_arguments,
+        &committed_instance.generic_arguments,
         &[PrimitiveType::String],
     );
 
@@ -1516,14 +1516,14 @@ let value = derived.map<string>();
     let base_map_symbol = view.expect_member_symbol_for_owner(base_symbol, map_name);
 
     // derived.map<string>()
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(value_id);
 
     // Base.map
     assert_eq!(instance_symbol, base_map_symbol);
 
     // <number, string>
     view.assert_static_argument_primitive_sequence(
-        &static_arguments,
+        &generic_arguments,
         &[PrimitiveType::Number, PrimitiveType::String],
     );
 }
@@ -1564,14 +1564,14 @@ let value = (derived.map<string>)();
     let base_map_symbol = view.expect_member_symbol_for_owner(base_symbol, map_name);
 
     // (derived.map<string>)()
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(value_id);
 
     // Base.map
     assert_eq!(instance_symbol, base_map_symbol);
 
     // <number, string>
     view.assert_static_argument_primitive_sequence(
-        &static_arguments,
+        &generic_arguments,
         &[PrimitiveType::Number, PrimitiveType::String],
     );
 }
@@ -1617,14 +1617,14 @@ let value = pair.map<boolean>(true);
     let map_symbol = view.expect_member_symbol_for_owner(extension_symbol, map_name);
 
     // pair.map<boolean>(true)
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(value_id);
 
     // PairOps.map
     assert_eq!(instance_symbol, map_symbol);
 
     // <string, number, boolean>
     view.assert_static_argument_primitive_sequence(
-        &static_arguments,
+        &generic_arguments,
         &[
             PrimitiveType::String,
             PrimitiveType::Number,
@@ -1637,9 +1637,9 @@ let value = pair.map<boolean>(true);
     view.assert_instances_for_symbol(
         map_symbol,
         &[ExpectedInstanceShape {
-            static_parameter_symbols: view.static_parameter_symbols_for_symbol(map_symbol),
+            generic_parameter_symbols: view.generic_parameter_symbols_for_symbol(map_symbol),
             inherited_static_argument_count: 2,
-            static_argument_primitives: vec![
+            generic_argument_primitives: vec![
                 PrimitiveType::String,
                 PrimitiveType::Number,
                 PrimitiveType::Boolean,
@@ -1717,14 +1717,14 @@ let value = both.map<boolean>();
     // Left<string>.map<boolean>
     let left_candidate_instance = view.types().get_instance(left_candidate_instance_id);
     view.assert_static_argument_primitive_sequence(
-        &left_candidate_instance.static_arguments,
+        &left_candidate_instance.generic_arguments,
         &[PrimitiveType::String, PrimitiveType::Boolean],
     );
 
     // Right<number>.map<boolean>
     let right_candidate_instance = view.types().get_instance(right_candidate_instance_id);
     view.assert_static_argument_primitive_sequence(
-        &right_candidate_instance.static_arguments,
+        &right_candidate_instance.generic_arguments,
         &[PrimitiveType::Number, PrimitiveType::Boolean],
     );
 
@@ -1733,9 +1733,9 @@ let value = both.map<boolean>();
     view.assert_instances_for_symbol(
         left_map_symbol,
         &[ExpectedInstanceShape {
-            static_parameter_symbols: view.static_parameter_symbols_for_symbol(left_map_symbol),
+            generic_parameter_symbols: view.generic_parameter_symbols_for_symbol(left_map_symbol),
             inherited_static_argument_count: 1,
-            static_argument_primitives: vec![PrimitiveType::String, PrimitiveType::Boolean],
+            generic_argument_primitives: vec![PrimitiveType::String, PrimitiveType::Boolean],
         }],
     );
 
@@ -1744,9 +1744,9 @@ let value = both.map<boolean>();
     view.assert_instances_for_symbol(
         right_map_symbol,
         &[ExpectedInstanceShape {
-            static_parameter_symbols: view.static_parameter_symbols_for_symbol(right_map_symbol),
+            generic_parameter_symbols: view.generic_parameter_symbols_for_symbol(right_map_symbol),
             inherited_static_argument_count: 1,
-            static_argument_primitives: vec![PrimitiveType::Number, PrimitiveType::Boolean],
+            generic_argument_primitives: vec![PrimitiveType::Number, PrimitiveType::Boolean],
         }],
     );
 }
@@ -1804,9 +1804,10 @@ let inferred = identity(text);
     main_view.assert_instances_for_symbol(
         identity_symbol,
         &[ExpectedInstanceShape {
-            static_parameter_symbols: lib_view.static_parameter_symbols_for_symbol(identity_symbol),
+            generic_parameter_symbols: lib_view
+                .generic_parameter_symbols_for_symbol(identity_symbol),
             inherited_static_argument_count: 0,
-            static_argument_primitives: vec![PrimitiveType::String],
+            generic_argument_primitives: vec![PrimitiveType::String],
         }],
     );
 }
@@ -1913,14 +1914,14 @@ let value = box.map<boolean>(1, true);
     let map_symbol = view.expect_member_symbol_for_owner(box_symbol, map_name);
 
     // box.map<boolean>(1, true)
-    let (instance_symbol, static_arguments) = view.expect_instance_for_node(value_id);
+    let (instance_symbol, generic_arguments) = view.expect_instance_for_node(value_id);
 
     // Box.map
     assert_eq!(instance_symbol, map_symbol);
 
     // Box<number>.map<boolean>
     view.assert_static_argument_primitive_sequence(
-        &static_arguments,
+        &generic_arguments,
         &[PrimitiveType::Number, PrimitiveType::Boolean],
     );
 }
@@ -2016,9 +2017,9 @@ let second = both.map(flag);
     view.assert_instances_for_symbol(
         left_map_symbol,
         &[ExpectedInstanceShape {
-            static_parameter_symbols: view.static_parameter_symbols_for_symbol(left_map_symbol),
+            generic_parameter_symbols: view.generic_parameter_symbols_for_symbol(left_map_symbol),
             inherited_static_argument_count: 1,
-            static_argument_primitives: vec![PrimitiveType::String, PrimitiveType::Boolean],
+            generic_argument_primitives: vec![PrimitiveType::String, PrimitiveType::Boolean],
         }],
     );
 
@@ -2027,9 +2028,9 @@ let second = both.map(flag);
     view.assert_instances_for_symbol(
         right_map_symbol,
         &[ExpectedInstanceShape {
-            static_parameter_symbols: view.static_parameter_symbols_for_symbol(right_map_symbol),
+            generic_parameter_symbols: view.generic_parameter_symbols_for_symbol(right_map_symbol),
             inherited_static_argument_count: 1,
-            static_argument_primitives: vec![PrimitiveType::Number, PrimitiveType::Boolean],
+            generic_argument_primitives: vec![PrimitiveType::Number, PrimitiveType::Boolean],
         }],
     );
 }

@@ -9,8 +9,8 @@ use crate::analyze::common::{
 use crate::timing::tags;
 use crate::{AnalyzeResult, Compiler, CompilerContext};
 use destack_dir::{
-    Argument, Expression, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, MappedTypeParameter,
-    NodeTree, StaticArgument, StaticExpression, StaticKey, StaticParameterKind, StaticProperty,
+    Argument, Expression, GenericParameterKind, GlobalSymbolId, LocalNodeIdAny, LocalTypeId,
+    MappedTypeParameter, NodeTree, StaticArgument, StaticExpression, StaticKey, StaticProperty,
     SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeRewriter, TypeRewriterOptions,
     TypeTable, rewrite_type,
 };
@@ -55,7 +55,7 @@ impl<'a> StaticArgumentMaterializer<'a> {
         // derive rewrite options from the materialization mode
         let walk_context = TypeWalkContext::for_materialization(mode)
             .with_rewriter_tag(REWRITER_TAG_STATIC_ARGUMENT);
-        let context_key = static_argument_context_key(argument_module, profile);
+        let context_key = generic_argument_context_key(argument_module, profile);
         let walk_context = walk_context.with_context_key(context_key);
         let rewrite_options = walk_context.rewriter_options();
         let cache_key = rewrite_options.cache_key();
@@ -101,7 +101,7 @@ impl<'a> StaticArgumentMaterializer<'a> {
 }
 
 /// Return a cache key for static argument materialization.
-fn static_argument_context_key(argument_module: &Module, profile: ProfileId) -> u64 {
+fn generic_argument_context_key(argument_module: &Module, profile: ProfileId) -> u64 {
     // base module key
     // NOTE #Architecture: this key currently omits substitution context
     let module_id = argument_module.id;
@@ -167,7 +167,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
         // only materialize references with static arguments
         let Type::Reference {
             symbol,
-            static_arguments,
+            generic_arguments,
         } = ty
         else {
             return rewrite_type(self, types, id, ty);
@@ -185,7 +185,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
         );
 
         // skip when no static arguments exist
-        let Some(static_arguments) = static_arguments.as_ref() else {
+        let Some(generic_arguments) = generic_arguments.as_ref() else {
             return id;
         };
 
@@ -209,7 +209,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
                 &mut ctx.reborrow(),
                 symbol,
                 source_id,
-                static_arguments,
+                generic_arguments,
             )
         } else {
             let reference_module = self.compiler_context.module(symbol.module_id);
@@ -239,14 +239,14 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
                 &mut ctx.reborrow(),
                 symbol,
                 source_id,
-                static_arguments,
+                generic_arguments,
             )
         };
 
         // rewrite nested static arguments
         let (mapped_arguments, nested_changed) =
             self.rewrite_static_arguments(types, &resolved_arguments);
-        let changed = nested_changed || resolved_arguments != *static_arguments;
+        let changed = nested_changed || resolved_arguments != *generic_arguments;
 
         // return the original type when nothing changed
         if !changed {
@@ -257,7 +257,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
         types.insert_type_from_type(
             Type::Reference {
                 symbol,
-                static_arguments: Some(mapped_arguments),
+                generic_arguments: Some(mapped_arguments),
             },
             id,
         )
@@ -285,13 +285,13 @@ impl Compiler {
         let mapped = match ty {
             Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             } => {
                 if let Some(mapped) = self.substitution_type_id_for_symbol(symbol, substitutions) {
                     mapped
-                } else if let Some(static_arguments) = static_arguments {
+                } else if let Some(generic_arguments) = generic_arguments {
                     let mut changed = false;
-                    let mapped_arguments = static_arguments
+                    let mapped_arguments = generic_arguments
                         .iter()
                         .map(|argument| {
                             let mapped = self.substitute_static_argument(
@@ -311,7 +311,7 @@ impl Compiler {
                         types.insert_type_from_type(
                             Type::Reference {
                                 symbol,
-                                static_arguments: Some(mapped_arguments),
+                                generic_arguments: Some(mapped_arguments),
                             },
                             ty_id,
                         )
@@ -469,13 +469,13 @@ impl Compiler {
                     Some(symbol) => match types.get_type(left).clone() {
                         Type::Reference {
                             symbol: reference_symbol,
-                            static_arguments: None,
+                            generic_arguments: None,
                         } if reference_symbol == symbol => {
                             if let Some(substitution) = substitutions.get(&symbol) {
                                 let mut union_source = *substitution;
                                 if let Type::Reference {
                                     symbol: union_symbol,
-                                    static_arguments: None,
+                                    generic_arguments: None,
                                 } = types.get_type(union_source)
                                     && union_symbol.ty() == SymbolType::TypeAlias
                                     && let Some(instance_id) =
@@ -669,14 +669,14 @@ impl Compiler {
             Type::Import {
                 target,
                 qualifier,
-                static_arguments,
+                generic_arguments,
             } => {
-                let Some(static_arguments) = static_arguments else {
+                let Some(generic_arguments) = generic_arguments else {
                     return ty_id;
                 };
 
                 let mut changed = false;
-                let mapped_arguments = static_arguments
+                let mapped_arguments = generic_arguments
                     .iter()
                     .map(|argument| {
                         let mapped =
@@ -693,7 +693,7 @@ impl Compiler {
                         Type::Import {
                             target,
                             qualifier,
-                            static_arguments: Some(mapped_arguments),
+                            generic_arguments: Some(mapped_arguments),
                         },
                         ty_id,
                     )
@@ -977,9 +977,9 @@ impl Compiler {
             Type::Function {
                 asynchrony,
                 cardinality,
-                static_parameters,
+                generic_parameters,
                 this_parameter,
-                dynamic_parameters,
+                parameters,
                 return_type,
             } => {
                 let mut changed = false;
@@ -995,7 +995,7 @@ impl Compiler {
                     }
                     mapped
                 });
-                let mapped_parameters = dynamic_parameters
+                let mapped_parameters = parameters
                     .iter()
                     .map(|parameter| {
                         let mapped = self.substitute_static_parameters(
@@ -1023,9 +1023,9 @@ impl Compiler {
                         Type::Function {
                             asynchrony,
                             cardinality,
-                            static_parameters,
+                            generic_parameters,
                             this_parameter: mapped_this,
-                            dynamic_parameters: mapped_parameters,
+                            parameters: mapped_parameters,
                             return_type: mapped_return,
                         },
                         ty_id,
@@ -1176,7 +1176,7 @@ impl Compiler {
                 continue;
             }
 
-            let Some(constraint_type_id) = self.static_parameter_constraint_type(
+            let Some(constraint_type_id) = self.generic_parameter_constraint_type(
                 &mut ctx.reborrow(),
                 *parameter_symbol,
                 source_id,
@@ -1377,7 +1377,7 @@ impl Compiler {
         let explicit_member_arguments = projected_arguments.clone();
         let projected_member_type = Type::Reference {
             symbol: projected_symbol,
-            static_arguments: explicit_member_arguments.clone(),
+            generic_arguments: explicit_member_arguments.clone(),
         };
 
         // first materialize the projected member directly if it already resolves to a concrete alias
@@ -1461,7 +1461,7 @@ impl Compiler {
             .ok()??;
         let member_type = Type::Reference {
             symbol: target_symbol,
-            static_arguments: explicit_member_arguments.clone(),
+            generic_arguments: explicit_member_arguments.clone(),
         };
         let projected_type = self
             .materialize_associated_member_projection(
@@ -1483,20 +1483,20 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         symbol: GlobalSymbolId,
         source_id: LocalNodeIdAny,
-        static_arguments: &[StaticArgument],
+        generic_arguments: &[StaticArgument],
     ) -> Vec<StaticArgument> {
         // collect parameter symbols for the reference
         let Some(parameter_symbols) =
             self.collect_static_parameter_symbols(ctx.type_view(), symbol)
         else {
-            return static_arguments.to_vec();
+            return generic_arguments.to_vec();
         };
         if parameter_symbols.is_empty() {
-            return static_arguments.to_vec();
+            return generic_arguments.to_vec();
         }
 
         // select a source node for parameter inference
-        let source_id = static_arguments
+        let source_id = generic_arguments
             .iter()
             .find_map(|argument| match argument {
                 StaticArgument::Unevaluated { node }
@@ -1523,8 +1523,8 @@ impl Compiler {
         }
 
         // evaluate arguments based on the referenced parameter kinds
-        let mut resolved_arguments = Vec::with_capacity(static_arguments.len());
-        for (index, argument) in static_arguments.iter().enumerate() {
+        let mut resolved_arguments = Vec::with_capacity(generic_arguments.len());
+        for (index, argument) in generic_arguments.iter().enumerate() {
             let (argument_name, argument_node) = match argument {
                 StaticArgument::Evaluated { name, .. } => (*name, None),
                 StaticArgument::Unevaluated { node } => {
@@ -1552,7 +1552,7 @@ impl Compiler {
             };
 
             let Some(argument_node) = argument_node else {
-                let resolved = if parameter_kind == StaticParameterKind::Value {
+                let resolved = if parameter_kind == GenericParameterKind::Value {
                     self.normalize_value_static_argument(argument.clone(), ctx.types)
                 } else {
                     argument.clone()
@@ -1572,14 +1572,17 @@ impl Compiler {
                 };
                 let expression_id = argument.value();
                 evaluated = match parameter_kind {
-                    StaticParameterKind::Type => {
+                    GenericParameterKind::Type => {
                         // preserve static parameter references during materialization
                         if let Some(parameter_symbol) = self
-                            .static_parameter_symbol_for_reference(ctx.type_view(), expression_id)?
+                            .generic_parameter_symbol_for_reference(
+                                ctx.type_view(),
+                                expression_id,
+                            )?
                         {
                             let reference_ty = Type::Reference {
                                 symbol: parameter_symbol,
-                                static_arguments: None,
+                                generic_arguments: None,
                             };
                             let ty_id = ctx
                                 .types
@@ -1599,7 +1602,7 @@ impl Compiler {
                             None
                         }
                     }
-                    StaticParameterKind::Value => self
+                    GenericParameterKind::Value => self
                         .evaluate_static_expression_value(&mut ctx.reborrow(), expression_id, None)
                         .ok()
                         .flatten(),
@@ -1617,7 +1620,7 @@ impl Compiler {
                     node: argument_node,
                 }
             };
-            let resolved = if parameter_kind == StaticParameterKind::Value {
+            let resolved = if parameter_kind == GenericParameterKind::Value {
                 self.normalize_value_static_argument(resolved, ctx.types)
             } else {
                 resolved
@@ -1666,9 +1669,9 @@ impl Compiler {
             },
             StaticExpression::Declaration {
                 declaration,
-                static_arguments,
+                generic_arguments,
             } => {
-                let mapped_arguments = static_arguments.as_ref().map(|arguments| {
+                let mapped_arguments = generic_arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
                         .map(|argument| {
@@ -1678,7 +1681,7 @@ impl Compiler {
                 });
                 StaticExpression::Declaration {
                     declaration: *declaration,
-                    static_arguments: mapped_arguments,
+                    generic_arguments: mapped_arguments,
                 }
             }
             StaticExpression::ArrayExpression { elements } => {

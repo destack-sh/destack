@@ -107,8 +107,8 @@ impl Compiler {
         let mut instance_by_obligation = vec![None; obligation_count];
         for (obligation_id, obligation) in infer.iter_instance_commit_obligations() {
             let environment = StaticSubstitutionEnvironment::from_parameter_symbols(
-                obligation.static_arguments.clone(),
-                obligation.static_parameter_symbols.clone(),
+                obligation.generic_arguments.clone(),
+                obligation.generic_parameter_symbols.clone(),
                 obligation.inherited_static_argument_count,
             )
             .ok_or_else(|| AnalyzeError::Internal {

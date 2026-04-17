@@ -114,7 +114,7 @@ impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
         // only rewrite nominal references
         let Type::Reference {
             symbol,
-            static_arguments,
+            generic_arguments,
         } = ty
         else {
             return None;
@@ -250,7 +250,7 @@ impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
         )?;
 
         // map explicit member arguments onto alias static parameters
-        if let Some(member_arguments) = static_arguments.as_deref() {
+        if let Some(member_arguments) = generic_arguments.as_deref() {
             let member_substitutions = self.compiler.build_type_parameter_substitutions_for_symbol(
                 &mut ctx.reborrow(),
                 symbol,
@@ -439,11 +439,11 @@ impl Compiler {
             if let Some(constraint_ty_id) = constraint_ty_id
                 && let Type::Reference {
                     symbol,
-                    static_arguments,
+                    generic_arguments,
                 } = ctx.types.get_type(constraint_ty_id)
             {
                 receiver_symbol = *symbol;
-                receiver_arguments = static_arguments.clone().unwrap_or_default();
+                receiver_arguments = generic_arguments.clone().unwrap_or_default();
             }
         }
 
@@ -479,11 +479,11 @@ impl Compiler {
                 mapped_alias_target,
                 &mut materialize_cache,
             );
-            if let Some((alias_symbol, static_arguments, _)) =
+            if let Some((alias_symbol, generic_arguments, _)) =
                 self.unwrap_type_symbol(ctx.types, mapped_alias_target)
             {
                 receiver_symbol = alias_symbol;
-                receiver_arguments = static_arguments.unwrap_or_default();
+                receiver_arguments = generic_arguments.unwrap_or_default();
             }
         }
 
@@ -945,13 +945,13 @@ impl Compiler {
         let left_ty = ctx.types.get_type(left_ty_id).clone();
         let receiver_reference = self
             .unwrap_type_symbol(ctx.types, left_ty_id)
-            .map(|(symbol, static_arguments, _)| (symbol, static_arguments.unwrap_or_default()))
+            .map(|(symbol, generic_arguments, _)| (symbol, generic_arguments.unwrap_or_default()))
             .or_else(|| match left_ty {
                 Type::Intersection { elements } | Type::Union { elements } => {
                     elements.iter().find_map(|element_id| {
                         self.unwrap_type_symbol(ctx.types, *element_id).map(
-                            |(symbol, static_arguments, _)| {
-                                (symbol, static_arguments.unwrap_or_default())
+                            |(symbol, generic_arguments, _)| {
+                                (symbol, generic_arguments.unwrap_or_default())
                             },
                         )
                     })
@@ -1073,13 +1073,13 @@ impl Compiler {
         let left_ty = ctx.types.get_type(left_ty_id).clone();
         let receiver_reference = self
             .unwrap_type_symbol(ctx.types, left_ty_id)
-            .map(|(symbol, static_arguments, _)| (symbol, static_arguments.unwrap_or_default()))
+            .map(|(symbol, generic_arguments, _)| (symbol, generic_arguments.unwrap_or_default()))
             .or_else(|| match left_ty {
                 Type::Intersection { elements } | Type::Union { elements } => {
                     elements.iter().find_map(|element_id| {
                         self.unwrap_type_symbol(ctx.types, *element_id).map(
-                            |(symbol, static_arguments, _)| {
-                                (symbol, static_arguments.unwrap_or_default())
+                            |(symbol, generic_arguments, _)| {
+                                (symbol, generic_arguments.unwrap_or_default())
                             },
                         )
                     })
@@ -1258,16 +1258,16 @@ impl Compiler {
 
         // preserve and resolve explicit static arguments from syntax
         let generic_argument_nodes = expression.generic_arguments();
-        let static_arguments =
+        let generic_arguments =
             self.evaluate_generic_arguments(&mut ctx.reborrow(), generic_argument_nodes)?;
-        let static_arguments = self.resolve_type_reference_static_arguments(
+        let generic_arguments = self.resolve_type_reference_static_arguments(
             &mut ctx.reborrow(),
             expression_id.into_any(),
             target_symbol,
-            static_arguments.as_deref(),
+            generic_arguments.as_deref(),
             false,
         )?;
-        let static_arguments = static_arguments.unwrap_or_default();
+        let generic_arguments = generic_arguments.unwrap_or_default();
 
         let mut target_symbol = self.canonical_symbol_id(
             ctx.module_symbol_view(),
@@ -1279,7 +1279,7 @@ impl Compiler {
             .declaration_symbol_id(ctx.module_symbol_view(), target_symbol)
             .unwrap_or(target_symbol);
 
-        Ok(Some((target_symbol, static_arguments)))
+        Ok(Some((target_symbol, generic_arguments)))
     }
 
     /// Build a projection receiver from one type expression when type evaluation is unavailable.
@@ -1299,16 +1299,16 @@ impl Compiler {
 
         // preserve and resolve explicit static arguments from syntax
         let generic_argument_nodes = expression.generic_arguments();
-        let static_arguments =
+        let generic_arguments =
             self.evaluate_generic_arguments(&mut ctx.reborrow(), generic_argument_nodes)?;
-        let static_arguments = self.resolve_type_reference_static_arguments(
+        let generic_arguments = self.resolve_type_reference_static_arguments(
             &mut ctx.reborrow(),
             expression_id.into_any(),
             target_symbol,
-            static_arguments.as_deref(),
+            generic_arguments.as_deref(),
             false,
         )?;
-        let static_arguments = static_arguments.unwrap_or_default();
+        let generic_arguments = generic_arguments.unwrap_or_default();
 
         let mut target_symbol = self.canonical_symbol_id(
             ctx.module_symbol_view(),
@@ -1320,7 +1320,7 @@ impl Compiler {
             .declaration_symbol_id(ctx.module_symbol_view(), target_symbol)
             .unwrap_or(target_symbol);
 
-        Ok(Some((target_symbol, static_arguments)))
+        Ok(Some((target_symbol, generic_arguments)))
     }
 
     /// Query one owner member symbol for one key and one static-member kind.
@@ -1675,7 +1675,7 @@ impl Compiler {
                 ctx.types.insert_type_from_any(
                     Type::Reference {
                         symbol: parameter_symbol,
-                        static_arguments: None,
+                        generic_arguments: None,
                     },
                     source_id,
                 )

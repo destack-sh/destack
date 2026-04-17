@@ -22,14 +22,14 @@ impl Compiler {
         });
 
         // make promise type
-        let static_arguments = vec![StaticArgument::Evaluated {
+        let generic_arguments = vec![StaticArgument::Evaluated {
             name: None,
             value: StaticExpression::Type { ty: value_type },
         }];
         Some(types.insert_type_from_any(
             Type::Reference {
                 symbol: promise_symbol,
-                static_arguments: Some(static_arguments),
+                generic_arguments: Some(generic_arguments),
             },
             source_id,
         ))
@@ -69,10 +69,10 @@ impl Compiler {
     ) -> Option<LocalTypeId> {
         let ty = ctx.types.get_type(type_id);
         let symbol = ty.symbol()?;
-        let static_arguments = match ty {
+        let generic_arguments = match ty {
             Type::Reference {
-                static_arguments, ..
-            } => static_arguments.clone(),
+                generic_arguments, ..
+            } => generic_arguments.clone(),
             _ => return None,
         };
 
@@ -89,8 +89,8 @@ impl Compiler {
         }
 
         // resolve unevaluated promise arguments when possible
-        let static_arguments = if let Some(static_arguments) = static_arguments.as_ref()
-            && static_arguments
+        let generic_arguments = if let Some(generic_arguments) = generic_arguments.as_ref()
+            && generic_arguments
                 .iter()
                 .any(|arg| matches!(arg, StaticArgument::Unevaluated { .. }))
         {
@@ -99,17 +99,17 @@ impl Compiler {
                 &mut ctx.reborrow(),
                 source_id,
                 symbol,
-                Some(static_arguments.as_slice()),
+                Some(generic_arguments.as_slice()),
                 true,
             )
             .ok()
             .flatten()
-            .or_else(|| Some(static_arguments.clone()))
+            .or_else(|| Some(generic_arguments.clone()))
         } else {
-            static_arguments
+            generic_arguments
         };
 
-        let Some(first_argument) = static_arguments
+        let Some(first_argument) = generic_arguments
             .as_ref()
             .and_then(|arguments| arguments.first())
         else {
@@ -141,16 +141,16 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
     ) -> Option<(LocalTypeId, LocalTypeId, LocalTypeId)> {
-        let (symbol, static_arguments) = {
+        let (symbol, generic_arguments) = {
             let Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             } = ctx.types.get_type(type_id)
             else {
                 return None;
             };
 
-            (*symbol, static_arguments.clone())
+            (*symbol, generic_arguments.clone())
         };
         let source_id = ctx.types.get_type_source(type_id);
 
@@ -180,14 +180,14 @@ impl Compiler {
                 &mut ctx.reborrow(),
                 source_id,
                 symbol,
-                static_arguments.as_deref(),
+                generic_arguments.as_deref(),
                 true,
             )
             .ok()
             .flatten();
         let arguments = resolved_arguments
             .as_ref()
-            .or(static_arguments.as_ref())
+            .or(generic_arguments.as_ref())
             .map(|arguments| arguments.as_slice())
             .unwrap_or(&[]);
 
@@ -243,7 +243,7 @@ impl Compiler {
         loop {
             let Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             } = ctx.types.get_type(expanded_id).clone()
             else {
                 break;
@@ -256,7 +256,7 @@ impl Compiler {
                 break;
             }
 
-            let arguments = static_arguments.as_deref().unwrap_or(&[]);
+            let arguments = generic_arguments.as_deref().unwrap_or(&[]);
             let mut normalize_visited = Vec::new();
             let source_id = ctx.types.get_type_source(expanded_id);
             let Some(next_id) = self.normalize_type_alias_reference_with_arguments(

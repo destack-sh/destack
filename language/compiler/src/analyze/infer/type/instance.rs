@@ -392,13 +392,13 @@ impl Compiler {
                 Ok(())
             }
             Type::Function {
-                static_parameters,
+                generic_parameters,
                 this_parameter,
-                dynamic_parameters,
+                parameters,
                 return_type,
                 ..
             } => {
-                for parameter in static_parameters {
+                for parameter in generic_parameters {
                     self.ensure_reference_instance_types_for_type_inner(
                         &mut ctx.reborrow(),
                         node_id,
@@ -418,7 +418,7 @@ impl Compiler {
                     )?;
                 }
 
-                for parameter in dynamic_parameters {
+                for parameter in parameters {
                     self.ensure_reference_instance_types_for_type_inner(
                         &mut ctx.reborrow(),
                         node_id,

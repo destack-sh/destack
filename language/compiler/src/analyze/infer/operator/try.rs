@@ -384,7 +384,7 @@ impl Compiler {
             Type::Union { elements } => elements,
             Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             } => {
                 let canonical_symbol = self.canonical_symbol_id(
                     ctx.module_symbol_view(),
@@ -398,12 +398,12 @@ impl Compiler {
                         &mut ctx.type_context_reborrow(),
                         expression_id.into_any(),
                         canonical_symbol,
-                        static_arguments.as_deref(),
+                        generic_arguments.as_deref(),
                         true,
                     )?;
                     let arguments = resolved_arguments
                         .as_deref()
-                        .or(static_arguments.as_deref())
+                        .or(generic_arguments.as_deref())
                         .unwrap_or(&[]);
                     let Some(value_argument) = arguments.first() else {
                         return Ok(None);
@@ -441,12 +441,12 @@ impl Compiler {
                     &mut ctx.type_context_reborrow(),
                     expression_id.into_any(),
                     canonical_symbol,
-                    static_arguments.as_deref(),
+                    generic_arguments.as_deref(),
                     true,
                 )?;
                 let arguments = resolved_arguments
                     .as_deref()
-                    .or(static_arguments.as_deref())
+                    .or(generic_arguments.as_deref())
                     .unwrap_or(&[]);
 
                 let alias_ty_id = if arguments.is_empty() {
@@ -675,9 +675,9 @@ impl Compiler {
             return Ok(TryBranchMember {
                 resolved: ResolvedMemberFunction {
                     signature: ResolvedSignature {
-                        dynamic_parameters: Vec::new(),
+                        parameters: Vec::new(),
                         return_type: None,
-                        static_arguments: Vec::new(),
+                        generic_arguments: Vec::new(),
                     },
                     member_resolution: MemberResolution::None,
                     member_symbol: None,
@@ -699,7 +699,7 @@ impl Compiler {
         }
 
         // branch expects no dynamic parameters
-        if !resolved.signature.dynamic_parameters.is_empty() {
+        if !resolved.signature.parameters.is_empty() {
             self.emit_no_overload_for_receiver_type(
                 ctx.module_type_view(),
                 expression_id.into_any(),
@@ -1029,7 +1029,7 @@ impl Compiler {
         let error_reference_id = ctx.types.insert_type_from_any(
             Type::Reference {
                 symbol: error_symbol,
-                static_arguments: None,
+                generic_arguments: None,
             },
             expression_id.into_any(),
         );

@@ -429,20 +429,20 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
         well_known: WellKnownSymbol,
-        static_arguments: Option<&[StaticArgument]>,
+        generic_arguments: Option<&[StaticArgument]>,
     ) -> Option<Type> {
-        let element = static_arguments
+        let element = generic_arguments
             .and_then(|arguments| arguments.first())
-            .map(|argument| self.static_argument_type(argument, source_id, ctx.types));
+            .map(|argument| self.generic_argument_type(argument, source_id, ctx.types));
 
         match well_known {
             WellKnownSymbol::FixedArray => {
-                let arguments = static_arguments?;
+                let arguments = generic_arguments?;
                 let element_argument = arguments.first()?;
                 let count_argument = arguments.get(1)?;
 
-                let element = self.static_argument_type(element_argument, source_id, ctx.types);
-                let count = self.static_argument_type(count_argument, source_id, ctx.types);
+                let element = self.generic_argument_type(element_argument, source_id, ctx.types);
+                let count = self.generic_argument_type(count_argument, source_id, ctx.types);
                 Some(Type::ArraySized {
                     element,
                     count,
@@ -462,7 +462,7 @@ impl Compiler {
     }
 
     /// Convert a static argument into a type id for type evaluation.
-    fn static_argument_type(
+    fn generic_argument_type(
         &self,
         argument: &StaticArgument,
         source_id: LocalNodeIdAny,

@@ -72,8 +72,8 @@ impl Compiler {
 
         Ok(ResolvedMemberAccessType {
             type_id: resolved_member_ty_id,
-            static_arguments: resolved_static_arguments,
-            static_parameter_symbols: resolved_static_parameter_symbols,
+            generic_arguments: resolved_static_arguments,
+            generic_parameter_symbols: resolved_static_parameter_symbols,
         })
     }
 
@@ -99,8 +99,8 @@ impl Compiler {
                 )?;
                 Ok((
                     instantiated.type_id,
-                    instantiated.static_arguments,
-                    instantiated.static_parameter_symbols,
+                    instantiated.generic_arguments,
+                    instantiated.generic_parameter_symbols,
                 ))
             }
             Type::Object {
@@ -124,9 +124,9 @@ impl Compiler {
                         substitutions,
                     )?;
                     if resolved_static_arguments.is_empty() {
-                        resolved_static_arguments = instantiated.static_arguments.clone();
+                        resolved_static_arguments = instantiated.generic_arguments.clone();
                         resolved_static_parameter_symbols =
-                            instantiated.static_parameter_symbols.clone();
+                            instantiated.generic_parameter_symbols.clone();
                     }
                     resolved_signatures.push(instantiated.type_id);
                 }
@@ -246,21 +246,21 @@ impl Compiler {
         let Type::Function {
             asynchrony,
             cardinality,
-            static_parameters,
+            generic_parameters,
             this_parameter,
-            dynamic_parameters,
+            parameters,
             return_type,
         } = ctx.types.get_type(signature_ty_id).clone()
         else {
             self.error_invalid_member_static_arguments(ctx.module, ctx.profile, expression_id);
             return Ok(InstantiatedMemberSignature {
                 type_id: signature_ty_id,
-                static_arguments: Vec::new(),
-                static_parameter_symbols: Vec::new(),
+                generic_arguments: Vec::new(),
+                generic_parameter_symbols: Vec::new(),
             });
         };
 
-        if static_parameters.is_empty()
+        if generic_parameters.is_empty()
             && let Some(member_symbol) = member_symbol
         {
             let parameter_symbols = self
@@ -275,8 +275,8 @@ impl Compiler {
             }
         }
 
-        let static_parameter_symbols =
-            self.static_parameter_symbols_for_type_ids(&static_parameters, ctx.types);
+        let generic_parameter_symbols =
+            self.generic_parameter_symbols_for_type_ids(&generic_parameters, ctx.types);
 
         let resolved = self
             .resolve_function_static_arguments(
@@ -287,9 +287,9 @@ impl Compiler {
                     generic_argument_ids: Some(generic_argument_ids),
                     prefilled_static_arguments: None,
                     bound_substitutions: (!substitutions.is_empty()).then_some(substitutions),
-                    dynamic_argument_ids: None,
-                    static_parameter_type_ids: &static_parameters,
-                    dynamic_parameter_type_ids: &dynamic_parameters,
+                    argument_ids: None,
+                    generic_parameter_type_ids: &generic_parameters,
+                    parameter_type_ids: &parameters,
                     return_type,
                     expected_return_type: None,
                     mode: SignatureResolutionMode::Check,
@@ -297,15 +297,15 @@ impl Compiler {
                 },
             )?
             .unwrap_or(ResolvedSignature {
-                dynamic_parameters,
+                parameters,
                 return_type,
-                static_arguments: Vec::new(),
+                generic_arguments: Vec::new(),
             });
 
-        let (resolved_this_parameter, resolved_dynamic_parameters, resolved_return_type) = self
+        let (resolved_this_parameter, resolved_parameters, resolved_return_type) = self
             .substitute_member_signature_parts(
                 this_parameter,
-                resolved.dynamic_parameters,
+                resolved.parameters,
                 resolved.return_type,
                 substitutions,
                 ctx.types,
@@ -314,17 +314,17 @@ impl Compiler {
         let instantiated_fn = Type::Function {
             asynchrony,
             cardinality,
-            static_parameters: Vec::new(),
+            generic_parameters: Vec::new(),
             this_parameter: resolved_this_parameter,
-            dynamic_parameters: resolved_dynamic_parameters,
+            parameters: resolved_parameters,
             return_type: resolved_return_type,
         };
         let instantiated_type_id = ctx.types.insert_type_from(instantiated_fn, expression_id);
 
         Ok(InstantiatedMemberSignature {
             type_id: instantiated_type_id,
-            static_arguments: resolved.static_arguments,
-            static_parameter_symbols,
+            generic_arguments: resolved.generic_arguments,
+            generic_parameter_symbols,
         })
     }
 
@@ -332,20 +332,20 @@ impl Compiler {
     pub(crate) fn substitute_member_signature_parts(
         &self,
         this_parameter: Option<LocalTypeId>,
-        dynamic_parameters: Vec<LocalTypeId>,
+        parameters: Vec<LocalTypeId>,
         return_type: Option<LocalTypeId>,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
         types: &mut TypeTable,
     ) -> (Option<LocalTypeId>, Vec<LocalTypeId>, Option<LocalTypeId>) {
         if substitutions.is_empty() {
-            return (this_parameter, dynamic_parameters, return_type);
+            return (this_parameter, parameters, return_type);
         }
 
         let mut cache = HashMap::new();
         let resolved_this_parameter = this_parameter.map(|parameter| {
             self.substitute_static_parameters(parameter, substitutions, types, &mut cache)
         });
-        let resolved_dynamic_parameters = dynamic_parameters
+        let resolved_parameters = parameters
             .iter()
             .map(|parameter| {
                 self.substitute_static_parameters(*parameter, substitutions, types, &mut cache)
@@ -357,7 +357,7 @@ impl Compiler {
 
         (
             resolved_this_parameter,
-            resolved_dynamic_parameters,
+            resolved_parameters,
             resolved_return_type,
         )
     }

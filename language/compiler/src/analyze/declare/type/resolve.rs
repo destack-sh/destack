@@ -7,10 +7,10 @@ use crate::analyze::{AssociatedProjectionSelection, StaticMemberSymbolKind};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    DependencyItem, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
-    NodeType, NormalizationMode, ScalarLiteral, StaticArgument, StaticExpression, StaticKey,
-    StaticParameterKind, SymbolKind, SymbolSpace, Type, TypeExpression, TypeLiteral, TypeTable,
-    are_types_equal,
+    DependencyItem, Expression, GenericParameterKind, GlobalSymbolId, LocalNodeId, LocalNodeIdAny,
+    LocalTypeId, NodeTree, NodeType, NormalizationMode, ScalarLiteral, StaticArgument,
+    StaticExpression, StaticKey, SymbolKind, SymbolSpace, Type, TypeExpression, TypeLiteral,
+    TypeTable, are_types_equal,
 };
 use destack_source::{ModuleId, SourcePartKey};
 use destack_workspace::Module;
@@ -57,11 +57,11 @@ impl Compiler {
         expression_id: LocalNodeId<TypeExpression>,
         candidate_expression_id: LocalNodeId<TypeExpression>,
         symbol: GlobalSymbolId,
-        static_arguments: Option<Vec<StaticArgument>>,
+        generic_arguments: Option<Vec<StaticArgument>>,
     ) -> LocalTypeId {
         let reference_type = Type::Reference {
             symbol,
-            static_arguments,
+            generic_arguments,
         };
         let reference_type_id = ctx
             .types
@@ -135,8 +135,8 @@ impl Compiler {
             self.unwrap_as_comptime_type_expression(expression_id, ctx.tree);
 
         // skip expressions that are not static value references
-        let kind = if let Some(kind) =
-            self.static_parameter_type_reference_kind(&mut ctx.reborrow(), candidate_expression_id)?
+        let kind = if let Some(kind) = self
+            .generic_parameter_type_reference_kind(&mut ctx.reborrow(), candidate_expression_id)?
         {
             kind
         } else {
@@ -198,14 +198,14 @@ impl Compiler {
                     ) {
                         let generic_arguments =
                             ctx.tree.get(candidate_expression_id).generic_arguments();
-                        let static_arguments = self
+                        let generic_arguments = self
                             .evaluate_generic_arguments(&mut ctx.reborrow(), generic_arguments)?;
                         inferred_id = self.publish_symbolic_array_size_type(
                             &mut ctx.reborrow(),
                             expression_id,
                             candidate_expression_id,
                             symbol,
-                            static_arguments,
+                            generic_arguments,
                         );
                     }
                     return Ok(Some(inferred_id));
@@ -269,11 +269,11 @@ impl Compiler {
                 return Ok(Some(materialized_type_id));
             }
 
-            self.static_parameter_kind_for_symbol(&mut ctx.reborrow(), symbol)
+            self.generic_parameter_kind_for_symbol(&mut ctx.reborrow(), symbol)
         };
 
         // require comptime for value usage
-        if kind != StaticParameterKind::Value {
+        if kind != GenericParameterKind::Value {
             self.error(AnalyzeError::StaticParameterRequiresComptime {
                 node: expression_id
                     .into_global_any(ctx.module.id)
@@ -474,7 +474,7 @@ impl Compiler {
                     // follow static parameter constraints when available
                     if self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol) {
                         let source_id = ctx.types.get_type_source(receiver_type_id);
-                        if let Some(constraint_type_id) = self.static_parameter_constraint_type(
+                        if let Some(constraint_type_id) = self.generic_parameter_constraint_type(
                             &mut ctx.reborrow(),
                             symbol,
                             source_id,
@@ -542,7 +542,7 @@ impl Compiler {
         }
         let parameter_kind =
             if target_symbol.module_id == ctx.module.id && ctx.types.module_id == ctx.module.id {
-                Some(self.static_parameter_kind_for_symbol(&mut ctx.reborrow(), target_symbol))
+                Some(self.generic_parameter_kind_for_symbol(&mut ctx.reborrow(), target_symbol))
             } else {
                 self.with_module_types_or_local_for_artifact(
                     ctx.compiler_context,
@@ -561,7 +561,7 @@ impl Compiler {
         let Some(parameter_kind) = parameter_kind else {
             return Ok(false);
         };
-        if parameter_kind != StaticParameterKind::Type {
+        if parameter_kind != GenericParameterKind::Type {
             return Ok(false);
         }
 
@@ -651,9 +651,11 @@ impl Compiler {
             return false;
         }
 
-        let Some(constraint_id) =
-            self.static_parameter_constraint_type(&mut ctx.reborrow(), parameter_symbol, source_id)
-        else {
+        let Some(constraint_id) = self.generic_parameter_constraint_type(
+            &mut ctx.reborrow(),
+            parameter_symbol,
+            source_id,
+        ) else {
             return false;
         };
 
@@ -758,7 +760,7 @@ impl Compiler {
     }
 
     /// Return whether one static parameter has a declared `keyof` constraint for the receiver symbol.
-    fn static_parameter_declared_keyof_matches_left_symbol(
+    fn generic_parameter_declared_keyof_matches_left_symbol(
         &self,
         ctx: &mut TypeContext<'_>,
         parameter_symbol: GlobalSymbolId,
@@ -814,7 +816,7 @@ impl Compiler {
                 if !self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol) {
                     return false;
                 }
-                self.static_parameter_declared_keyof_matches_left_symbol(
+                self.generic_parameter_declared_keyof_matches_left_symbol(
                     &mut ctx.reborrow(),
                     symbol,
                     left_symbol,
@@ -862,7 +864,7 @@ impl Compiler {
                     return false;
                 }
 
-                self.static_parameter_declared_keyof_matches_left_symbol(
+                self.generic_parameter_declared_keyof_matches_left_symbol(
                     &mut ctx.reborrow(),
                     *target_symbol,
                     left_symbol,
@@ -1280,7 +1282,7 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<TypeExpression>,
         target_symbol: GlobalSymbolId,
-        static_arguments: Option<Vec<StaticArgument>>,
+        generic_arguments: Option<Vec<StaticArgument>>,
         resolve_static_arguments: bool,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
@@ -1288,7 +1290,7 @@ impl Compiler {
         // check cached reference types first
         let reference_cache_key = self.type_reference_cache_key(
             target_symbol,
-            static_arguments.as_deref(),
+            generic_arguments.as_deref(),
             validate_static_argument_bounds,
             enforce_implicit_managed,
             resolve_static_arguments,
@@ -1303,14 +1305,14 @@ impl Compiler {
         if !resolve_static_arguments {
             let ty = Type::Reference {
                 symbol: target_symbol,
-                static_arguments,
+                generic_arguments,
             };
             self.cache_type_reference_maybe(reference_cache_key, &ty, ctx.types);
             return Ok(ty);
         }
 
         // resolve static arguments against declared bounds
-        let has_explicit_arguments = static_arguments
+        let has_explicit_arguments = generic_arguments
             .as_ref()
             .is_some_and(|arguments| !arguments.is_empty());
         let parameter_symbols =
@@ -1325,14 +1327,14 @@ impl Compiler {
                 &mut ctx.reborrow(),
                 expression_id.into_any(),
                 target_symbol,
-                static_arguments.as_deref(),
+                generic_arguments.as_deref(),
                 validate_static_argument_bounds,
             )?
         };
-        let static_arguments = resolved_arguments.or(static_arguments);
+        let generic_arguments = resolved_arguments.or(generic_arguments);
 
         // return errors directly when static arguments failed to resolve
-        let has_error_argument = static_arguments.as_deref().is_some_and(|arguments| {
+        let has_error_argument = generic_arguments.as_deref().is_some_and(|arguments| {
             arguments.iter().any(|argument| match argument {
                 StaticArgument::Evaluated {
                     value: StaticExpression::Type { ty },
@@ -1359,7 +1361,7 @@ impl Compiler {
             ) {
                 let ty = Type::Reference {
                     symbol: target_symbol,
-                    static_arguments,
+                    generic_arguments,
                 };
                 self.cache_type_reference_maybe(reference_cache_key, &ty, ctx.types);
                 return Ok(ty);
@@ -1399,7 +1401,7 @@ impl Compiler {
                     &mut ctx.reborrow(),
                     expression_id.into_any(),
                     well_known,
-                    static_arguments.as_deref(),
+                    generic_arguments.as_deref(),
                 )
             } else {
                 None
@@ -1412,7 +1414,7 @@ impl Compiler {
         // fall back to a nominal reference
         let ty = Type::Reference {
             symbol: target_symbol,
-            static_arguments,
+            generic_arguments,
         };
         self.cache_type_reference_maybe(reference_cache_key, &ty, ctx.types);
         Ok(ty)

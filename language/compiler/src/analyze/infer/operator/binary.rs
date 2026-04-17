@@ -339,8 +339,8 @@ impl Compiler {
         }
 
         // binary operators expect one dynamic parameter
-        let parameter_ty_id = resolved.signature.dynamic_parameters.first().copied();
-        if resolved.signature.dynamic_parameters.len() != 1 {
+        let parameter_ty_id = resolved.signature.parameters.first().copied();
+        if resolved.signature.parameters.len() != 1 {
             self.record_member_call_resolution(
                 &mut ctx.reborrow(),
                 expression_id,

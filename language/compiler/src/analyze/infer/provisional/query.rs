@@ -19,11 +19,11 @@ impl Compiler {
         {
             return None;
         }
-        if instance.static_arguments.is_empty() {
+        if instance.generic_arguments.is_empty() {
             return None;
         }
 
-        Some(instance.static_arguments.clone())
+        Some(instance.generic_arguments.clone())
     }
 
     /// Look up non-empty instance arguments attached to a node in infer state.
@@ -47,11 +47,11 @@ impl Compiler {
             {
                 return None;
             }
-            if instance.static_arguments.is_empty() {
+            if instance.generic_arguments.is_empty() {
                 return None;
             }
 
-            return Some(instance.static_arguments.clone());
+            return Some(instance.generic_arguments.clone());
         }
 
         self.query_instance_arguments_for_node(node_id, symbol_id, types)
@@ -71,20 +71,20 @@ impl Compiler {
 
         if let Some(instance_id) = infer.provisional_instance_for_node(node_id) {
             let instance = types.get_instance(instance_id);
-            if instance.static_arguments.is_empty() {
+            if instance.generic_arguments.is_empty() {
                 return None;
             }
 
-            return Some((instance.symbol_id, instance.static_arguments.clone()));
+            return Some((instance.symbol_id, instance.generic_arguments.clone()));
         }
 
         let instance_id = types.get_instance_for_node(node_id)?;
         let instance = types.get_instance(instance_id);
-        if instance.static_arguments.is_empty() {
+        if instance.generic_arguments.is_empty() {
             return None;
         }
 
-        Some((instance.symbol_id, instance.static_arguments.clone()))
+        Some((instance.symbol_id, instance.generic_arguments.clone()))
     }
 
     /// Look up one resolution attached to a node in infer state.
@@ -117,10 +117,10 @@ impl Compiler {
         {
             return None;
         }
-        if obligation.static_arguments.is_empty() {
+        if obligation.generic_arguments.is_empty() {
             return None;
         }
 
-        Some((obligation.symbol_id, obligation.static_arguments.clone()))
+        Some((obligation.symbol_id, obligation.generic_arguments.clone()))
     }
 }

@@ -12,7 +12,7 @@ pub(crate) struct ExpectedFunctionSignature {
     /// Expected `this` parameter type.
     pub(crate) this_parameter: Option<LocalTypeId>,
     /// Expected dynamic parameter types.
-    pub(crate) dynamic_parameters: Vec<LocalTypeId>,
+    pub(crate) parameters: Vec<LocalTypeId>,
     /// Expected return type.
     pub(crate) return_type: Option<LocalTypeId>,
 }
@@ -29,12 +29,12 @@ impl Compiler {
         match types.get_type(expected_ty_id) {
             Type::Function {
                 this_parameter,
-                dynamic_parameters,
+                parameters,
                 return_type,
                 ..
             } => Some(ExpectedFunctionSignature {
                 this_parameter: *this_parameter,
-                dynamic_parameters: dynamic_parameters.clone(),
+                parameters: parameters.clone(),
                 return_type: *return_type,
             }),
             _ => None,
@@ -88,11 +88,11 @@ impl Compiler {
         let expected_type = ctx.types.get_type(expected_ty_id).clone();
 
         // resolve the canonical reference target behind the expected type
-        let (symbol, static_arguments) = match expected_type {
+        let (symbol, generic_arguments) = match expected_type {
             Type::Reference {
                 symbol,
-                static_arguments,
-            } => (symbol, static_arguments),
+                generic_arguments,
+            } => (symbol, generic_arguments),
             _ => {
                 let Some(symbol) = expected_type.symbol() else {
                     return Ok(None);
@@ -129,7 +129,7 @@ impl Compiler {
             &mut ctx.type_context_reborrow(),
             source_id,
             symbol,
-            static_arguments.as_deref(),
+            generic_arguments.as_deref(),
         ) else {
             return Ok(None);
         };
@@ -390,14 +390,14 @@ impl Compiler {
         // resolve reference symbols for the tag and expected types
         let Type::Reference {
             symbol: tag_symbol,
-            static_arguments: _,
+            generic_arguments: _,
         } = types.get_type(tag_ty_id)
         else {
             return tag_ty_id;
         };
         let Type::Reference {
             symbol: expected_symbol,
-            static_arguments: expected_arguments,
+            generic_arguments: expected_arguments,
         } = types.get_type(expected_ty_id)
         else {
             return tag_ty_id;

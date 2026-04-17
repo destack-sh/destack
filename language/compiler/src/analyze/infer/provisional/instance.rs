@@ -30,7 +30,7 @@ impl Compiler {
         ctx: &mut InferContext<'_>,
         node_id: GlobalNodeIdAny,
         symbol: GlobalSymbolId,
-        static_arguments: Option<&[StaticArgument]>,
+        generic_arguments: Option<&[StaticArgument]>,
     ) -> AnalyzeResult<Option<LocalInstanceId>> {
         // skip non-instantiable symbols
         if !self.query_symbol_is_instantiable(symbol) {
@@ -38,10 +38,10 @@ impl Compiler {
         }
 
         // skip references without static arguments
-        let Some(static_arguments) = static_arguments else {
+        let Some(generic_arguments) = generic_arguments else {
             return Ok(None);
         };
-        if static_arguments.is_empty() {
+        if generic_arguments.is_empty() {
             return Ok(None);
         }
 
@@ -49,7 +49,7 @@ impl Compiler {
         let Some(environment) = self.instance_environment_for_symbol_arguments(
             ctx,
             symbol,
-            static_arguments.to_vec(),
+            generic_arguments.to_vec(),
             0,
         ) else {
             return Ok(None);
@@ -65,13 +65,13 @@ impl Compiler {
         types: &TypeTable,
     ) -> Vec<GlobalSymbolId> {
         let Type::Function {
-            static_parameters, ..
+            generic_parameters, ..
         } = types.get_type(signature_ty_id)
         else {
             return Vec::new();
         };
 
-        self.static_parameter_symbols_for_type_ids(static_parameters, types)
+        self.generic_parameter_symbols_for_type_ids(generic_parameters, types)
     }
 
     /// Query owner static parameter symbols for one member symbol.
@@ -97,7 +97,7 @@ impl Compiler {
         &self,
         ctx: &InferContext<'_>,
         symbol_id: GlobalSymbolId,
-        static_arguments: Vec<StaticArgument>,
+        generic_arguments: Vec<StaticArgument>,
         inherited_arity: usize,
     ) -> Option<StaticSubstitutionEnvironment> {
         let parameter_symbols = self
@@ -105,7 +105,7 @@ impl Compiler {
             .unwrap_or_default();
 
         StaticSubstitutionEnvironment::from_parameter_symbols(
-            static_arguments,
+            generic_arguments,
             parameter_symbols,
             inherited_arity,
         )
@@ -237,8 +237,8 @@ impl Compiler {
 
         let obligation = InstanceCommitObligation {
             symbol_id,
-            static_arguments: environment.arguments.clone(),
-            static_parameter_symbols: environment.parameter_symbols.clone(),
+            generic_arguments: environment.arguments.clone(),
+            generic_parameter_symbols: environment.parameter_symbols.clone(),
             inherited_static_argument_count: environment.inherited_arity,
         };
         let obligation_id = infer.upsert_instance_commit_obligation(obligation);
@@ -269,8 +269,8 @@ impl Compiler {
 
         let obligation = InstanceCommitObligation {
             symbol_id,
-            static_arguments: environment.arguments.clone(),
-            static_parameter_symbols: environment.parameter_symbols.clone(),
+            generic_arguments: environment.arguments.clone(),
+            generic_parameter_symbols: environment.parameter_symbols.clone(),
             inherited_static_argument_count: environment.inherited_arity,
         };
         let obligation_id = infer.upsert_instance_commit_obligation(obligation);

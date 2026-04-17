@@ -243,7 +243,7 @@ impl TypeRewriter for OverrideAssociatedTypeRewriter<'_> {
     ) -> Option<LocalTypeId> {
         let Type::Reference {
             symbol,
-            static_arguments,
+            generic_arguments,
         } = ty
         else {
             return None;
@@ -324,7 +324,7 @@ impl TypeRewriter for OverrideAssociatedTypeRewriter<'_> {
         Some(types.insert_type_from_type(
             Type::Reference {
                 symbol: mapped_symbol,
-                static_arguments: static_arguments.clone(),
+                generic_arguments: generic_arguments.clone(),
             },
             type_id,
         ))
@@ -625,7 +625,7 @@ impl Compiler {
         let this_ty_id = Some(ctx.types.insert_type_from(
             Type::Reference {
                 symbol,
-                static_arguments: None,
+                generic_arguments: None,
             },
             declaration_id,
         ));
@@ -675,7 +675,7 @@ impl Compiler {
         let this_ty_id = Some(ctx.types.insert_type_from(
             Type::Reference {
                 symbol,
-                static_arguments: None,
+                generic_arguments: None,
             },
             declaration_id,
         ));
@@ -874,7 +874,7 @@ impl Compiler {
         let this_ty_id = Some(ctx.types.insert_type_from(
             Type::Reference {
                 symbol: enum_symbol,
-                static_arguments: None,
+                generic_arguments: None,
             },
             declaration_id,
         ));
@@ -913,10 +913,10 @@ impl Compiler {
                 true,
                 true,
             )?;
-            let static_arguments = self.unwrap_type_symbol(ctx.types, target_ty_id).and_then(
-                |(symbol, static_arguments, _)| {
+            let generic_arguments = self.unwrap_type_symbol(ctx.types, target_ty_id).and_then(
+                |(symbol, generic_arguments, _)| {
                     if symbol == target {
-                        static_arguments
+                        generic_arguments
                     } else {
                         None
                     }
@@ -926,7 +926,7 @@ impl Compiler {
             Some(ctx.types.insert_type_from(
                 Type::Reference {
                     symbol: target,
-                    static_arguments,
+                    generic_arguments,
                 },
                 declaration_id,
             ))
@@ -975,7 +975,7 @@ impl Compiler {
         let this_ty_id = Some(ctx.types.insert_type_from(
             Type::Reference {
                 symbol,
-                static_arguments: None,
+                generic_arguments: None,
             },
             declaration_id,
         ));
@@ -1846,7 +1846,7 @@ impl Compiler {
         }
 
         // unwrap direct type references first
-        if let Some((symbol, static_arguments, _)) = self.unwrap_type_symbol(ctx.types, type_id) {
+        if let Some((symbol, generic_arguments, _)) = self.unwrap_type_symbol(ctx.types, type_id) {
             let declaration_symbol = self
                 .declaration_symbol_id(ctx.module_symbol_view(), symbol)
                 .unwrap_or(symbol);
@@ -1855,7 +1855,7 @@ impl Compiler {
                 declaration_symbol.ty(),
                 SymbolType::Interface | SymbolType::Class
             ) {
-                return Some((declaration_symbol, static_arguments.unwrap_or_default()));
+                return Some((declaration_symbol, generic_arguments.unwrap_or_default()));
             }
 
             // follow alias targets when contract references are imported through aliases
@@ -1939,7 +1939,7 @@ impl Compiler {
         let required_kinds = requirement_parameter_symbols
             .iter()
             .map(|parameter_symbol| {
-                self.static_parameter_kind_for_symbol(&mut ctx.reborrow(), *parameter_symbol)
+                self.generic_parameter_kind_for_symbol(&mut ctx.reborrow(), *parameter_symbol)
             })
             .collect::<Vec<_>>();
         let member_kinds = member_parameters
@@ -1950,7 +1950,7 @@ impl Compiler {
                     .get(*parameter_id)
                     .symbol()
                     .into_global(ctx.module.id);
-                self.static_parameter_kind_for_symbol(&mut ctx.reborrow(), parameter_symbol)
+                self.generic_parameter_kind_for_symbol(&mut ctx.reborrow(), parameter_symbol)
             })
             .collect::<Vec<_>>();
 
@@ -3442,7 +3442,7 @@ impl Compiler {
         )?;
 
         // collect static parameter placeholders
-        let static_parameters = self.static_parameter_placeholders_for_signature(
+        let generic_parameters = self.generic_parameter_placeholders_for_signature(
             &mut ctx.type_context_reborrow(),
             signature,
         );
@@ -3547,7 +3547,7 @@ impl Compiler {
         };
 
         // dynamic parameters
-        let mut dynamic_param_types = Vec::with_capacity(signature.parameters.len());
+        let mut parameter_types = Vec::with_capacity(signature.parameters.len());
         for (index, parameter_id) in signature.parameters.iter().enumerate() {
             // resolve declared, contextual, and default metadata
             let declared_ty_id = ctx
@@ -3555,7 +3555,7 @@ impl Compiler {
                 .get_declared_type_id(parameter_id.into_global_any(ctx.module.id));
             let expected_param_ty_id = expected_signature
                 .as_ref()
-                .and_then(|signature| signature.dynamic_parameters.get(index).copied());
+                .and_then(|signature| signature.parameters.get(index).copied());
             let has_default = match ctx.tree.get(*parameter_id) {
                 Parameter::Named { default, .. } => default.is_some(),
                 Parameter::Pattern { default, .. } => default.is_some(),
@@ -3604,7 +3604,7 @@ impl Compiler {
                 .get_value_type_id(param_symbol)
                 .unwrap_or(param_ty_id);
             ctx.types.set_value_type(param_symbol, resolved_param_ty_id);
-            dynamic_param_types.push(resolved_param_ty_id);
+            parameter_types.push(resolved_param_ty_id);
         }
 
         // return type
@@ -3649,7 +3649,7 @@ impl Compiler {
                 &mut ctx.type_context_reborrow(),
                 signature,
                 this_parameter,
-                &dynamic_param_types,
+                &parameter_types,
                 return_type,
                 return_type_node_id,
             )?;
@@ -3659,8 +3659,8 @@ impl Compiler {
         let ty = Type::Function {
             asynchrony: signature.asynchrony,
             cardinality: signature.cardinality,
-            dynamic_parameters: dynamic_param_types,
-            static_parameters,
+            parameters: parameter_types,
+            generic_parameters,
             this_parameter,
             return_type,
         };
@@ -3720,7 +3720,7 @@ impl Compiler {
             None
         };
 
-        let mut dynamic_param_types = Vec::with_capacity(signature.parameters.len());
+        let mut parameter_types = Vec::with_capacity(signature.parameters.len());
         for parameter_id in signature.parameters.iter() {
             let declared_ty_id = ctx
                 .types
@@ -3747,7 +3747,7 @@ impl Compiler {
                 )?;
             }
 
-            dynamic_param_types.push(declared_ty_id);
+            parameter_types.push(declared_ty_id);
         }
 
         // resolve return type
@@ -3767,7 +3767,7 @@ impl Compiler {
                 &mut ctx.type_context_reborrow(),
                 signature,
                 this_parameter,
-                &dynamic_param_types,
+                &parameter_types,
                 return_type,
                 return_type_node_id,
             )?;
@@ -3870,7 +3870,7 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         signature: &FunctionSignature,
         this_parameter: Option<LocalTypeId>,
-        dynamic_param_types: &[LocalTypeId],
+        parameter_types: &[LocalTypeId],
         return_type: Option<LocalTypeId>,
         return_type_node_id: Option<LocalNodeId<TypeExpression>>,
     ) -> AnalyzeResult<()> {
@@ -3893,7 +3893,7 @@ impl Compiler {
 
         // enforce dynamic parameter types
         for (index, parameter_id) in signature.parameters.iter().enumerate() {
-            let Some(param_ty_id) = dynamic_param_types.get(index).copied() else {
+            let Some(param_ty_id) = parameter_types.get(index).copied() else {
                 continue;
             };
             self.check_no_managed_signature_type(
@@ -4218,7 +4218,7 @@ impl Compiler {
             true,
         )?;
         let Some(parameter_symbol) =
-            self.static_parameter_symbol_for_where_clause(ctx.tree_symbol_view(), clause_id)
+            self.generic_parameter_symbol_for_where_clause(ctx.tree_symbol_view(), clause_id)
         else {
             self.error(AnalyzeError::InvalidStaticArgument {
                 node: clause_id
@@ -4273,7 +4273,7 @@ impl Compiler {
         let parameter_ty_id = ctx.types.insert_type_from(
             Type::Reference {
                 symbol: parameter_symbol,
-                static_arguments: None,
+                generic_arguments: None,
             },
             clause_id,
         );
@@ -4287,7 +4287,7 @@ impl Compiler {
     }
 
     /// Resolve a where clause parameter to a static parameter symbol.
-    fn static_parameter_symbol_for_where_clause(
+    fn generic_parameter_symbol_for_where_clause(
         &self,
         ctx: TreeSymbolView<'_>,
         clause_id: LocalNodeId<WhereClause>,
@@ -4377,7 +4377,7 @@ impl Compiler {
             )?;
 
             // register annotation-level instances on the reference type node
-            if let Some((symbol, static_arguments, source_id)) =
+            if let Some((symbol, generic_arguments, source_id)) =
                 self.unwrap_type_symbol(ctx.types, initial_declared_ty_id)
             {
                 let source_node_id = source_id.into_global(ctx.module.id);
@@ -4385,7 +4385,7 @@ impl Compiler {
                     &mut ctx.reborrow(),
                     source_node_id,
                     symbol,
-                    static_arguments.as_deref(),
+                    generic_arguments.as_deref(),
                 )?;
             }
 
@@ -4623,13 +4623,13 @@ impl Compiler {
                 .get(tag_expression_id)
                 .generic_arguments()
                 .map(|arguments| arguments.to_vec());
-            let static_arguments = self.evaluate_generic_arguments(
+            let generic_arguments = self.evaluate_generic_arguments(
                 &mut ctx.reborrow(),
                 generic_argument_nodes.as_deref(),
             )?;
             let authored_type = Type::Reference {
                 symbol: target_symbol,
-                static_arguments,
+                generic_arguments,
             };
             let authored_type_id = ctx
                 .types
@@ -4672,11 +4672,9 @@ impl Compiler {
 
         // setters expose their first dynamic parameter type
         if signature.mode == Some(FunctionMode::Setter)
-            && let Type::Function {
-                dynamic_parameters, ..
-            } = types.get_type(method_ty_id)
+            && let Type::Function { parameters, .. } = types.get_type(method_ty_id)
         {
-            return dynamic_parameters.first().copied();
+            return parameters.first().copied();
         }
 
         None

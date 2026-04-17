@@ -65,7 +65,7 @@ impl Compiler {
     }
 
     /// Return whether two optional static-argument lists are equivalent for instance-key matching.
-    fn static_argument_list_eq_for_instance_key(
+    fn generic_argument_list_eq_for_instance_key(
         &self,
         left: &Option<Vec<StaticArgument>>,
         right: &Option<Vec<StaticArgument>>,
@@ -74,7 +74,7 @@ impl Compiler {
         match (left, right) {
             (None, None) => true,
             (Some(left), Some(right)) => {
-                self.static_arguments_equal_for_instance_key(left, right, types)
+                self.generic_arguments_equal_for_instance_key(left, right, types)
             }
             _ => false,
         }
@@ -186,15 +186,15 @@ impl Compiler {
             (
                 StaticExpression::Declaration {
                     declaration: left_declaration,
-                    static_arguments: left_arguments,
+                    generic_arguments: left_arguments,
                 },
                 StaticExpression::Declaration {
                     declaration: right_declaration,
-                    static_arguments: right_arguments,
+                    generic_arguments: right_arguments,
                 },
             ) => {
                 left_declaration == right_declaration
-                    && self.static_argument_list_eq_for_instance_key(
+                    && self.generic_argument_list_eq_for_instance_key(
                         left_arguments,
                         right_arguments,
                         types,
@@ -225,7 +225,7 @@ impl Compiler {
     }
 
     /// Return whether two static arguments are equivalent for instance-key matching.
-    fn static_argument_equal_for_instance_key(
+    fn generic_argument_equal_for_instance_key(
         &self,
         left: &StaticArgument,
         right: &StaticArgument,
@@ -245,7 +245,7 @@ impl Compiler {
     }
 
     /// Return whether two static-argument vectors are equivalent for instance-key matching.
-    fn static_arguments_equal_for_instance_key(
+    fn generic_arguments_equal_for_instance_key(
         &self,
         left: &[StaticArgument],
         right: &[StaticArgument],
@@ -257,39 +257,39 @@ impl Compiler {
 
         left.iter()
             .zip(right.iter())
-            .all(|(left, right)| self.static_argument_equal_for_instance_key(left, right, types))
+            .all(|(left, right)| self.generic_argument_equal_for_instance_key(left, right, types))
     }
 
     /// Look up an existing instance id for one full canonical environment.
     pub(crate) fn query_instance_for_symbol_environment(
         &self,
         symbol_id: GlobalSymbolId,
-        static_arguments: &[StaticArgument],
+        generic_arguments: &[StaticArgument],
         parameter_symbols: &[GlobalSymbolId],
         inherited_arity: usize,
         types: &TypeTable,
     ) -> AnalyzeResult<Option<LocalInstanceId>> {
         let candidate_ids =
-            types.query_instance_interner_candidates(symbol_id, static_arguments.len());
+            types.query_instance_interner_candidates(symbol_id, generic_arguments.len());
 
         for instance_id in candidate_ids {
             let instance = types.get_instance(instance_id);
-            if !self.static_arguments_equal_for_instance_key(
-                &instance.static_arguments,
-                static_arguments,
+            if !self.generic_arguments_equal_for_instance_key(
+                &instance.generic_arguments,
+                generic_arguments,
                 types,
             ) {
                 continue;
             }
 
-            if instance.static_parameter_symbols == parameter_symbols
+            if instance.generic_parameter_symbols == parameter_symbols
                 && instance.inherited_static_argument_count == inherited_arity
             {
                 return Ok(Some(instance_id));
             }
 
             return Err(self.internal_analyze_error(format!(
-                "query_instance_for_symbol_environment: conflicting canonical instance environment for symbol {symbol_id:?}: arguments={static_arguments:?}, parameters={parameter_symbols:?}, inherited_arity={inherited_arity}"
+                "query_instance_for_symbol_environment: conflicting canonical instance environment for symbol {symbol_id:?}: arguments={generic_arguments:?}, parameters={parameter_symbols:?}, inherited_arity={inherited_arity}"
             )));
         }
 
@@ -313,9 +313,9 @@ impl Compiler {
     /// Normalize static arguments for canonical instance-key usage.
     pub(crate) fn canonicalize_instance_arguments_for_key(
         &self,
-        static_arguments: Vec<StaticArgument>,
+        generic_arguments: Vec<StaticArgument>,
     ) -> Vec<StaticArgument> {
-        static_arguments
+        generic_arguments
             .iter()
             .map(|argument| self.canonicalize_instance_argument_for_key(argument))
             .collect()

@@ -66,7 +66,7 @@ impl Compiler {
         loop {
             let Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             } = types.get_type(current_id)
             else {
                 break;
@@ -76,7 +76,7 @@ impl Compiler {
                 break;
             }
             // avoid unwrapping alias instances with explicit static arguments
-            if static_arguments
+            if generic_arguments
                 .as_ref()
                 .is_some_and(|arguments| !arguments.is_empty())
             {
@@ -158,7 +158,7 @@ impl Compiler {
                 matches!(
                     types.get_type(*before_count),
                     Type::Reference {
-                        static_arguments: Some(arguments),
+                        generic_arguments: Some(arguments),
                         ..
                     } if !arguments.is_empty()
                 ) && matches!(types.get_type(*after_count), Type::Unevaluated(_))
@@ -175,7 +175,7 @@ impl Compiler {
                 matches!(
                     types.get_type(*before_index),
                     Type::Reference {
-                        static_arguments: Some(arguments),
+                        generic_arguments: Some(arguments),
                         ..
                     } if !arguments.is_empty()
                 ) && matches!(
@@ -197,7 +197,7 @@ impl Compiler {
             ) => matches!(
                 types.get_type(*before_index),
                 Type::Reference {
-                    static_arguments: Some(arguments),
+                    generic_arguments: Some(arguments),
                     ..
                 } if !arguments.is_empty()
             ),
@@ -224,7 +224,7 @@ impl Compiler {
         // resolve the declared constraint type
         let source_id = ctx.types.get_type_source(type_id);
         let constraint_id =
-            self.static_parameter_constraint_type(&mut ctx.reborrow(), symbol, source_id);
+            self.generic_parameter_constraint_type(&mut ctx.reborrow(), symbol, source_id);
         let Some(constraint_id) = constraint_id else {
             return type_id;
         };
@@ -318,7 +318,7 @@ impl Compiler {
                     ctx.types.get_type(count_ty_id),
                     Type::Reference {
                         symbol,
-                        static_arguments: Some(arguments),
+                        generic_arguments: Some(arguments),
                     } if symbol.ty() == SymbolType::TypeAlias && !arguments.is_empty()
                 ) && matches!(ctx.types.get_type(normalized_count), Type::Unevaluated(_));
             if preserves_reference_context {
@@ -330,7 +330,7 @@ impl Compiler {
         }
         let Type::Reference {
             symbol,
-            static_arguments,
+            generic_arguments,
         } = ctx.types.get_type(count_ty_id).clone()
         else {
             return Ok(None);
@@ -358,7 +358,7 @@ impl Compiler {
                 count_ty_id,
                 source_id,
                 symbol,
-                static_arguments.as_ref(),
+                generic_arguments.as_ref(),
             );
         }
 
@@ -367,7 +367,7 @@ impl Compiler {
             count_ty_id,
             source_id,
             symbol,
-            static_arguments.as_ref(),
+            generic_arguments.as_ref(),
         )
     }
 
@@ -416,7 +416,7 @@ impl Compiler {
         count_ty_id: LocalTypeId,
         source_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
-        static_arguments: Option<&Vec<StaticArgument>>,
+        generic_arguments: Option<&Vec<StaticArgument>>,
     ) -> AnalyzeResult<Option<i64>> {
         // expand one already-instantiated alias when possible
         let expanded = self
@@ -442,7 +442,7 @@ impl Compiler {
         )?;
 
         // build substitutions from the resolved static arguments
-        let resolved_arguments = if let Some(arguments) = static_arguments {
+        let resolved_arguments = if let Some(arguments) = generic_arguments {
             self.resolve_type_reference_static_arguments(
                 &mut ctx.type_context_reborrow(),
                 source_id,
@@ -455,7 +455,7 @@ impl Compiler {
         };
         let arguments = resolved_arguments
             .as_deref()
-            .or(static_arguments.map(Vec::as_slice));
+            .or(generic_arguments.map(Vec::as_slice));
         let substitutions = if let Some(arguments) = arguments {
             self.build_type_parameter_substitutions_for_symbol(
                 &mut ctx.type_context_reborrow(),
@@ -505,7 +505,7 @@ impl Compiler {
         count_ty_id: LocalTypeId,
         source_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
-        static_arguments: Option<&Vec<StaticArgument>>,
+        generic_arguments: Option<&Vec<StaticArgument>>,
     ) -> AnalyzeResult<Option<i64>> {
         // collect substitutions from the reference surface
         let member_kind = {
@@ -516,7 +516,7 @@ impl Compiler {
         if member_kind == Some(StaticMemberSymbolKind::AssociatedComptimeConst) {
             match self.query_owner_symbol_for_member_symbol(ctx.module_symbol_view(), symbol) {
                 Ok(Some(receiver_symbol)) => {
-                    let receiver_arguments = static_arguments.cloned().unwrap_or_default();
+                    let receiver_arguments = generic_arguments.cloned().unwrap_or_default();
                     let count_ty = ctx.types.get_type(count_ty_id).clone();
                     if !receiver_arguments.is_empty() {
                         let environment = self.projection_environment_for_member(
@@ -536,7 +536,7 @@ impl Compiler {
                 Err(error) => return Err(error),
             }
         } else {
-            let resolved_arguments = if let Some(arguments) = static_arguments {
+            let resolved_arguments = if let Some(arguments) = generic_arguments {
                 self.resolve_type_reference_static_arguments(
                     &mut ctx.type_context_reborrow(),
                     source_id,
@@ -549,7 +549,7 @@ impl Compiler {
             };
             let arguments = resolved_arguments
                 .as_deref()
-                .or(static_arguments.map(Vec::as_slice));
+                .or(generic_arguments.map(Vec::as_slice));
             if let Some(arguments) = arguments.filter(|arguments| !arguments.is_empty()) {
                 substitutions.extend(self.build_type_parameter_substitutions_for_symbol(
                     &mut ctx.type_context_reborrow(),
@@ -662,7 +662,7 @@ impl Compiler {
                 .and_then(|symbols| symbols.get(index))
                 .copied();
             let (parameter_kind, parameter_variance) = if let Some(symbol) = parameter_symbol {
-                self.static_parameter_metadata_for_symbol(&mut ctx.reborrow(), symbol)
+                self.generic_parameter_metadata_for_symbol(&mut ctx.reborrow(), symbol)
             } else {
                 (None, None)
             };
@@ -706,7 +706,7 @@ impl Compiler {
                 .is_type_assignable(&mut ctx.reborrow(), source_ty_id, target_ty_id)
                 .is_assignable();
 
-            let use_variance = matches!(parameter_kind, Some(StaticParameterKind::Type));
+            let use_variance = matches!(parameter_kind, Some(GenericParameterKind::Type));
             let variance = if use_variance {
                 parameter_variance
             } else {
@@ -740,10 +740,10 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
-        static_arguments: Option<&Vec<StaticArgument>>,
+        generic_arguments: Option<&Vec<StaticArgument>>,
         resolve_defaults: bool,
     ) -> Vec<StaticArgument> {
-        let has_arguments = static_arguments.is_some_and(|args| !args.is_empty());
+        let has_arguments = generic_arguments.is_some_and(|args| !args.is_empty());
         if !has_arguments && !resolve_defaults {
             return Vec::new();
         }
@@ -751,7 +751,7 @@ impl Compiler {
         // reuse explicit evaluated positional arguments without re-resolving defaults
         let can_use_explicit_arguments = has_arguments
             && !resolve_defaults
-            && static_arguments.is_some_and(|arguments| {
+            && generic_arguments.is_some_and(|arguments| {
                 arguments.iter().all(|argument| {
                     matches!(
                         argument,
@@ -763,7 +763,7 @@ impl Compiler {
                 })
             });
         if can_use_explicit_arguments {
-            return static_arguments.cloned().unwrap_or_default();
+            return generic_arguments.cloned().unwrap_or_default();
         }
 
         // query one resolved argument list, then fall back to the explicit surface on failure
@@ -771,7 +771,7 @@ impl Compiler {
             &mut ctx.reborrow(),
             node_id,
             symbol,
-            static_arguments.map(|arguments| arguments.as_slice()),
+            generic_arguments.map(|arguments| arguments.as_slice()),
             false,
         ) {
             Ok(arguments) => arguments,
@@ -782,7 +782,7 @@ impl Compiler {
         };
 
         resolved
-            .or_else(|| static_arguments.cloned())
+            .or_else(|| generic_arguments.cloned())
             .unwrap_or_default()
     }
 
@@ -794,11 +794,11 @@ impl Compiler {
         type_id: LocalTypeId,
     ) -> LocalTypeId {
         // extract the alias reference and static arguments
-        let (symbol, static_arguments) = match ctx.types.get_type(type_id) {
+        let (symbol, generic_arguments) = match ctx.types.get_type(type_id) {
             Type::Reference {
                 symbol,
-                static_arguments,
-            } => (*symbol, static_arguments.clone()),
+                generic_arguments,
+            } => (*symbol, generic_arguments.clone()),
             _ => return type_id,
         };
         let symbol = self.canonical_symbol_id(
@@ -830,7 +830,7 @@ impl Compiler {
         }
 
         // normalize directly for aliases without explicit static arguments
-        let Some(arguments) = static_arguments.as_ref() else {
+        let Some(arguments) = generic_arguments.as_ref() else {
             let mut materialize_cache = HashMap::new();
             return self.materialize_static_arguments_in_type(
                 &mut ctx.reborrow(),

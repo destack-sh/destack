@@ -446,7 +446,7 @@ impl Compiler {
         {
             let symbol = *symbol;
             let mut ctx = ctx.reborrow();
-            let constraint_id = self.static_parameter_constraint_type(&mut ctx, symbol, source_id);
+            let constraint_id = self.generic_parameter_constraint_type(&mut ctx, symbol, source_id);
             let Some(constraint_id) = constraint_id else {
                 return TemplateSpanMatch::Any;
             };

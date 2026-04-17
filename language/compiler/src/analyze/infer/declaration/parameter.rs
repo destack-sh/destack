@@ -1,9 +1,9 @@
 use crate::analyze::common::{TreeSymbolView, TypeContext, TypeView};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Declaration, FunctionSignature, GenericParameter, GlobalSymbolId, LocalNodeIdAny, LocalTypeId,
-    Member, NodeType, StaticArgument, StaticExpression, StaticParameter, StaticParameterKind,
-    StaticProperty, Type, TypeLiteral, TypeTable, VarianceModifier,
+    Declaration, FunctionSignature, GenericParameter, GenericParameterKind, GenericParameterSpec,
+    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Member, NodeType, StaticArgument,
+    StaticExpression, StaticProperty, Type, TypeLiteral, TypeTable, VarianceModifier,
 };
 use std::collections::HashSet;
 
@@ -51,7 +51,7 @@ impl Compiler {
     }
 
     /// Build and cache one static-parameter-constraint cycle error type.
-    fn static_parameter_constraint_cycle_error_type(
+    fn generic_parameter_constraint_cycle_error_type(
         &self,
         ctx: &mut TypeContext<'_>,
         symbol: GlobalSymbolId,
@@ -73,24 +73,24 @@ impl Compiler {
     }
 
     /// Resolve local static parameter metadata from one module tree symbol.
-    pub(crate) fn static_parameter_metadata_for_symbol_in_module(
+    pub(crate) fn generic_parameter_metadata_for_symbol_in_module(
         &self,
         ctx: TreeSymbolView<'_>,
         symbol: GlobalSymbolId,
-    ) -> (StaticParameterKind, Option<VarianceModifier>) {
+    ) -> (GenericParameterKind, Option<VarianceModifier>) {
         let symbol_entry = ctx.symbols.get_symbol(symbol.local_id);
         if !symbol_entry.is_static_parameter() {
-            return (StaticParameterKind::Type, None);
+            return (GenericParameterKind::Type, None);
         }
 
         let Some(primary) = symbol_entry.primary_declaration else {
-            return (StaticParameterKind::Type, None);
+            return (GenericParameterKind::Type, None);
         };
         let Ok(parameter_id) = primary.local_id.try_into_typed::<GenericParameter>() else {
-            return (StaticParameterKind::Type, None);
+            return (GenericParameterKind::Type, None);
         };
         let parameter = ctx.tree.get(parameter_id);
-        let kind = self.static_parameter_kind_for_generic_parameter(parameter);
+        let kind = self.generic_parameter_kind_for_generic_parameter(parameter);
         let variance = match parameter {
             GenericParameter::Type { variance, .. } => *variance,
             GenericParameter::Value { .. } | GenericParameter::Error { .. } => None,
@@ -100,11 +100,11 @@ impl Compiler {
     }
 
     /// Resolve the static parameter kind for a symbol.
-    pub(crate) fn static_parameter_kind_for_symbol(
+    pub(crate) fn generic_parameter_kind_for_symbol(
         &self,
         ctx: &mut TypeContext<'_>,
         symbol: GlobalSymbolId,
-    ) -> StaticParameterKind {
+    ) -> GenericParameterKind {
         // reuse cached kinds when available
         if let Some(kind) = ctx.types.get_static_parameter_kind(symbol) {
             return kind;
@@ -126,12 +126,12 @@ impl Compiler {
 
         // remote symbols consume only published declare entries
         if symbol.module_id != ctx.module.id || ctx.types.module_id != ctx.module.id {
-            return StaticParameterKind::Type;
+            return GenericParameterKind::Type;
         }
 
         // derive from local declaration metadata
         let (kind, _) =
-            self.static_parameter_metadata_for_symbol_in_module(ctx.tree_symbol_view(), symbol);
+            self.generic_parameter_metadata_for_symbol_in_module(ctx.tree_symbol_view(), symbol);
 
         // cache resolved kinds
         ctx.types.set_static_parameter_kind(symbol, kind);
@@ -139,7 +139,7 @@ impl Compiler {
     }
 
     /// Resolve the static parameter variance for a symbol.
-    pub(crate) fn static_parameter_variance_for_symbol(
+    pub(crate) fn generic_parameter_variance_for_symbol(
         &self,
         ctx: &mut TypeContext<'_>,
         symbol: GlobalSymbolId,
@@ -175,7 +175,7 @@ impl Compiler {
 
         // derive from local declaration metadata
         let (_, variance) =
-            self.static_parameter_metadata_for_symbol_in_module(ctx.tree_symbol_view(), symbol);
+            self.generic_parameter_metadata_for_symbol_in_module(ctx.tree_symbol_view(), symbol);
 
         // cache resolved variance
         ctx.types.set_static_parameter_variance(symbol, variance);
@@ -183,13 +183,13 @@ impl Compiler {
     }
 
     /// Resolve static parameter kind and variance for one symbol.
-    pub(crate) fn static_parameter_metadata_for_symbol(
+    pub(crate) fn generic_parameter_metadata_for_symbol(
         &self,
         ctx: &mut TypeContext<'_>,
         symbol: GlobalSymbolId,
-    ) -> (Option<StaticParameterKind>, Option<VarianceModifier>) {
-        let kind = self.static_parameter_kind_for_symbol(&mut ctx.reborrow(), symbol);
-        let variance = self.static_parameter_variance_for_symbol(&mut ctx.reborrow(), symbol);
+    ) -> (Option<GenericParameterKind>, Option<VarianceModifier>) {
+        let kind = self.generic_parameter_kind_for_symbol(&mut ctx.reborrow(), symbol);
+        let variance = self.generic_parameter_variance_for_symbol(&mut ctx.reborrow(), symbol);
         (Some(kind), variance)
     }
 
@@ -207,7 +207,7 @@ impl Compiler {
                 .types
                 .set_artifact_static_parameter_symbols(symbol, parameters.clone());
             for parameter_symbol in parameters {
-                let (kind, variance) = self.static_parameter_metadata_for_symbol_in_module(
+                let (kind, variance) = self.generic_parameter_metadata_for_symbol_in_module(
                     state.tree_symbol_view(),
                     parameter_symbol,
                 );
@@ -265,20 +265,20 @@ impl Compiler {
     }
 
     /// Resolve the static parameter kind from one generic parameter node.
-    fn static_parameter_kind_for_generic_parameter(
+    fn generic_parameter_kind_for_generic_parameter(
         &self,
         parameter: &GenericParameter,
-    ) -> StaticParameterKind {
+    ) -> GenericParameterKind {
         match parameter {
             GenericParameter::Type { .. } | GenericParameter::Error { .. } => {
-                StaticParameterKind::Type
+                GenericParameterKind::Type
             }
-            GenericParameter::Value { .. } => StaticParameterKind::Value,
+            GenericParameter::Value { .. } => GenericParameterKind::Value,
         }
     }
 
     /// Build static parameter placeholders for a function signature.
-    pub(crate) fn static_parameter_placeholders_for_signature(
+    pub(crate) fn generic_parameter_placeholders_for_signature(
         &self,
         ctx: &mut TypeContext<'_>,
         signature: &FunctionSignature,
@@ -298,7 +298,7 @@ impl Compiler {
                 .into_global(ctx.module.id);
             let ty = Type::Reference {
                 symbol,
-                static_arguments: None,
+                generic_arguments: None,
             };
             let type_id = ctx.types.insert_type_from(ty, *parameter_id);
             placeholders.push(type_id);
@@ -471,7 +471,7 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         symbol_id: GlobalSymbolId,
         source_id: LocalNodeIdAny,
-    ) -> StaticParameter {
+    ) -> GenericParameterSpec {
         // prefer parameter metadata from the owning module
         let parameter = self
             .with_module_tree_symbol_view_or_local_for_artifact(
@@ -504,7 +504,7 @@ impl Compiler {
 
         // recover with error metadata when declaration lookup does not resolve
         parameter.unwrap_or_else(|| {
-            let kind = self.static_parameter_kind_for_symbol(&mut ctx.reborrow(), symbol_id);
+            let kind = self.generic_parameter_kind_for_symbol(&mut ctx.reborrow(), symbol_id);
             self.synthesize_error_static_parameter(symbol_id, kind, source_id, ctx.types)
         })
     }
@@ -513,13 +513,13 @@ impl Compiler {
     pub(crate) fn synthesize_error_static_parameter(
         &self,
         symbol: GlobalSymbolId,
-        kind: StaticParameterKind,
+        kind: GenericParameterKind,
         source_id: LocalNodeIdAny,
         types: &mut TypeTable,
-    ) -> StaticParameter {
+    ) -> GenericParameterSpec {
         let error_ty_id = self.synthesize_semantic_error_type_for_source(source_id, types);
 
-        StaticParameter {
+        GenericParameterSpec {
             symbol,
             name: None,
             declared_type_id: error_ty_id,
@@ -599,7 +599,7 @@ impl Compiler {
     }
 
     /// Resolve a static parameter constraint into the local type table.
-    pub(crate) fn static_parameter_constraint_type(
+    pub(crate) fn generic_parameter_constraint_type(
         &self,
         ctx: &mut TypeContext<'_>,
         symbol: GlobalSymbolId,
@@ -614,7 +614,7 @@ impl Compiler {
         let resolved = if symbol.module_id == ctx.module.id && ctx.types.module_id == ctx.module.id
         {
             if ctx.types.is_static_parameter_constraint_in_progress(symbol) {
-                return Some(self.static_parameter_constraint_cycle_error_type(
+                return Some(self.generic_parameter_constraint_cycle_error_type(
                     &mut ctx.reborrow(),
                     symbol,
                     source_id,
@@ -697,7 +697,7 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         symbol_id: GlobalSymbolId,
         source_id: LocalNodeIdAny,
-    ) -> Option<StaticParameter> {
+    ) -> Option<GenericParameterSpec> {
         // read the parameter declaration
         let symbol = ctx.symbols.get_symbol(symbol_id.local_id);
         let primary_declaration = symbol.primary_declaration?;
@@ -760,7 +760,7 @@ impl Compiler {
         };
 
         // resolve the static parameter kind from the generic parameter
-        let kind = self.static_parameter_kind_for_generic_parameter(parameter);
+        let kind = self.generic_parameter_kind_for_generic_parameter(parameter);
 
         // derive the parameter name for mapping
         let name = match parameter {
@@ -778,7 +778,7 @@ impl Compiler {
             GenericParameter::Type { .. } | GenericParameter::Error { .. } => None,
         };
 
-        Some(StaticParameter {
+        Some(GenericParameterSpec {
             symbol: symbol_id,
             name,
             declared_type_id,
@@ -805,11 +805,11 @@ impl Compiler {
             }
             Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             } => {
                 symbols.insert(*symbol);
-                if let Some(static_arguments) = static_arguments {
-                    for argument in static_arguments {
+                if let Some(generic_arguments) = generic_arguments {
+                    for argument in generic_arguments {
                         self.collect_type_reference_symbols_from_static_argument(
                             argument, types, symbols, visited,
                         );
@@ -921,14 +921,14 @@ impl Compiler {
             }
             Type::Function {
                 this_parameter,
-                dynamic_parameters,
+                parameters,
                 return_type,
                 ..
             } => {
                 if let Some(this_parameter) = this_parameter {
                     self.collect_type_reference_symbols(*this_parameter, types, symbols, visited);
                 }
-                for parameter in dynamic_parameters {
+                for parameter in parameters {
                     self.collect_type_reference_symbols(*parameter, types, symbols, visited);
                 }
                 if let Some(return_type) = return_type {
@@ -977,10 +977,10 @@ impl Compiler {
                 self.collect_type_reference_symbols(*ty, types, symbols, visited);
             }
             StaticExpression::Declaration {
-                static_arguments, ..
+                generic_arguments, ..
             } => {
-                if let Some(static_arguments) = static_arguments {
-                    for argument in static_arguments {
+                if let Some(generic_arguments) = generic_arguments {
+                    for argument in generic_arguments {
                         self.collect_type_reference_symbols_from_static_argument(
                             argument, types, symbols, visited,
                         );

@@ -76,7 +76,7 @@ impl Compiler {
         if resolved_symbol != base_symbol {
             return HashMap::new();
         }
-        let static_arguments = match self.resolve_declared_type_reference_static_arguments(
+        let generic_arguments = match self.resolve_declared_type_reference_static_arguments(
             &mut ctx.reborrow(),
             extends_expression_id.into_any(),
             base_symbol,
@@ -91,7 +91,7 @@ impl Compiler {
             &mut ctx.reborrow(),
             base_symbol,
             extends_expression_id.into_any(),
-            &static_arguments,
+            &generic_arguments,
         )
     }
 
@@ -131,16 +131,16 @@ impl Compiler {
         let Type::Function {
             asynchrony,
             cardinality,
-            static_parameters,
+            generic_parameters,
             this_parameter,
-            dynamic_parameters,
+            parameters,
             return_type,
         } = ctx.types.get_type(type_id).clone()
         else {
             return type_id;
         };
 
-        let static_parameters = static_parameters
+        let generic_parameters = generic_parameters
             .into_iter()
             .filter(|parameter_type_id| {
                 if let Type::Reference { symbol, .. } = ctx.types.get_type(*parameter_type_id)
@@ -159,9 +159,9 @@ impl Compiler {
         let normalized = Type::Function {
             asynchrony,
             cardinality,
-            static_parameters,
+            generic_parameters,
             this_parameter,
-            dynamic_parameters,
+            parameters,
             return_type,
         };
         ctx.types.insert_type_from_type(normalized, type_id)
