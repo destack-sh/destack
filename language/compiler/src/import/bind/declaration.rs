@@ -2,17 +2,13 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    BindingAnchor, BindingCategory, Declaration, DeclarationAbstraction, DeclarationDescriptor,
-    DeclarationKind, DependencyItem, DependencyKind, DependencyMode, DependencySource, EnumField,
-    EnumKind, Expression, ImportAliasTarget, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, LocalSymbolId, ModuleBinding, Name, NamespaceKind, NodeTree, NodeType,
-    ProvenanceReason, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable,
-};
-use destack_dir::{
-    ClassDeclaration, EnumDeclaration, ExportMode, ExtensionDeclaration, FunctionDeclaration,
-    GlobalDeclaration, ImportAliasDeclaration, ImportSource, InterfaceDeclaration,
-    NamespaceDeclaration, StructDeclaration, TypeDeclaration,
+    BindingCategory, ClassDeclaration, Declaration, DependencyItem, EnumDeclaration, EnumField,
+    EnumKind, ExportMode, Expression, ExtensionDeclaration, FunctionDeclaration, GlobalDeclaration,
+    ImportAliasDeclaration, ImportAliasTarget, ImportSource, InterfaceDeclaration, LocalNodeId,
+    LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalSymbolId, ModuleBinding, Name,
+    NamespaceDeclaration, NamespaceKind, NodeTree, NodeType, ProvenanceReason, ScopeKind,
+    StaticKey, StructDeclaration, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder,
+    SymbolTable, SymbolType, TypeDeclaration, TypeTable,
 };
 use destack_workspace::Module;
 

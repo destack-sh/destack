@@ -38,8 +38,8 @@ impl Compiler {
         );
 
         match ast_argument {
-            ast::GenericArgument::Positional { value } => {
-                let value = self.bind_expression(
+            ast::GenericArgument::Type { value } => {
+                let value = self.bind_type_expression(
                     module,
                     ast,
                     namespace_scope,
@@ -54,9 +54,9 @@ impl Compiler {
                     space_order,
                 );
 
-                tree.insert(argument_id, GenericArgument::Positional { value })
+                tree.insert(argument_id, GenericArgument::Type { value })
             }
-            ast::GenericArgument::Spread { value } => {
+            ast::GenericArgument::Value { value } => {
                 let value = self.bind_expression(
                     module,
                     ast,
@@ -72,7 +72,7 @@ impl Compiler {
                     space_order,
                 );
 
-                tree.insert(argument_id, GenericArgument::Spread { value })
+                tree.insert(argument_id, GenericArgument::Value { value })
             }
             ast::GenericArgument::Error => tree.insert(argument_id, GenericArgument::Error),
         }

@@ -2,11 +2,9 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    AbstractionModifier, AccessorKind, Argument, BindingAnchor, BindingCategory, BindingKind,
-    BindingModifier, BindingOperator, DeclarationKind, Expression, LocalNodeId, LocalNodeIdAny,
-    LocalScopeId, LocalScopeMark, ModuleBinding, Mutability, NodeTree, NodeType, Parameter,
-    ProvenanceReason, StaticKey, SymbolBinding, SymbolSpace, SymbolSpaceOrder, SymbolTable, Timing,
-    Type, TypeTable, VarianceModifier, Visibility,
+    Argument, BindingCategory, Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, ModuleBinding, NodeTree, NodeType, Parameter, ProvenanceReason, SymbolBinding,
+    SymbolSpace, SymbolSpaceOrder, SymbolTable, Type, TypeTable,
 };
 use destack_workspace::Module;
 
