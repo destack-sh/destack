@@ -93,20 +93,20 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
-        static_parameter_symbol: GlobalSymbolId,
+        generic_parameter_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         if let Some(constraint_type_id) = self.query_declared_static_parameter_constraint(
             &mut ctx.reborrow(),
-            static_parameter_symbol,
+            generic_parameter_symbol,
             source_id,
         ) {
             return Ok(Some(constraint_type_id));
         }
 
-        if static_parameter_symbol.module_id == ctx.module.id {
-            let constraint_type_id = self.static_parameter_constraint_type(
+        if generic_parameter_symbol.module_id == ctx.module.id {
+            let constraint_type_id = self.generic_parameter_constraint_type(
                 &mut ctx.reborrow(),
-                static_parameter_symbol,
+                generic_parameter_symbol,
                 source_id,
             );
             return Ok(constraint_type_id);
@@ -1312,14 +1312,14 @@ impl Compiler {
         }
 
         // map direct reference substitutions for projected symbols
-        let (symbol, static_arguments) = match ctx.types.get_type(local_type_id).clone() {
+        let (symbol, generic_arguments) = match ctx.types.get_type(local_type_id).clone() {
             Type::Reference {
                 symbol,
-                static_arguments,
-            } => (symbol, static_arguments),
+                generic_arguments,
+            } => (symbol, generic_arguments),
             _ => return Ok(local_type_id),
         };
-        if static_arguments.is_none() {
+        if generic_arguments.is_none() {
             return self.substitute_projection_reference_without_arguments(
                 &mut ctx.reborrow(),
                 expression_id,
@@ -1334,7 +1334,7 @@ impl Compiler {
             &mut ctx.reborrow(),
             expression_id,
             symbol,
-            static_arguments,
+            generic_arguments,
             local_type_id,
             substitutions,
         )
@@ -1792,11 +1792,11 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<TypeExpression>,
         symbol: GlobalSymbolId,
-        static_arguments: Option<Vec<StaticArgument>>,
+        generic_arguments: Option<Vec<StaticArgument>>,
         local_type_id: LocalTypeId,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
     ) -> AnalyzeResult<LocalTypeId> {
-        let Some(static_arguments) = static_arguments else {
+        let Some(generic_arguments) = generic_arguments else {
             return Ok(local_type_id);
         };
         let Some(argument_nodes) = ctx.tree.get(expression_id).generic_arguments() else {
@@ -1805,7 +1805,7 @@ impl Compiler {
 
         // walk static arguments in lock-step with the alias expression arguments
         let mut changed = false;
-        let mut mapped_arguments = static_arguments;
+        let mut mapped_arguments = generic_arguments;
         for (argument_index, argument_node) in argument_nodes.iter().enumerate() {
             let Some(current_argument) = mapped_arguments.get(argument_index).cloned() else {
                 continue;
@@ -1872,7 +1872,7 @@ impl Compiler {
             ctx.types.insert_type_from_type(
                 Type::Reference {
                     symbol,
-                    static_arguments: Some(mapped_arguments.clone()),
+                    generic_arguments: Some(mapped_arguments.clone()),
                 },
                 local_type_id,
             )
@@ -1969,7 +1969,7 @@ impl Compiler {
         // otherwise use reference carried arguments from the projected member type
         if let Some(Type::Reference {
             symbol,
-            static_arguments: Some(arguments),
+            generic_arguments: Some(arguments),
         }) = member_ty
             && !arguments.is_empty()
         {

@@ -80,11 +80,11 @@ impl Compiler {
         }
 
         // unevaluated static arguments are not stable yet
-        let mut static_argument_visited = HashSet::new();
+        let mut generic_argument_visited = HashSet::new();
         if self.type_has_unevaluated_static_arguments(
             type_id,
             ctx.types,
-            &mut static_argument_visited,
+            &mut generic_argument_visited,
         ) {
             return true;
         }

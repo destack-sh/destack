@@ -12,11 +12,11 @@ use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferState};
 use destack_dir::{
     Argument, Constraint, Declaration, DispatchKey, DynamicResolutionCandidateSlotId, Expression,
-    FunctionKind, FunctionMode, GenericArgument, GlobalSymbolId, InferOrigin, InferTable,
-    LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType,
-    Parameter, Property, ResolutionCandidate, ResolvedSignature, StaticArgument, StaticExpression,
-    StaticKey, StaticParameter, StaticParameterKind, StringId, SymbolType, Type, TypeExpression,
-    TypeLiteral, TypeTable,
+    FunctionKind, FunctionMode, GenericArgument, GenericParameterKind, GenericParameterSpec,
+    GlobalSymbolId, InferOrigin, InferTable, LocalInstanceId, LocalNodeId, LocalNodeIdAny,
+    LocalTypeId, Member, NodeTree, NodeType, Parameter, Property, ResolutionCandidate,
+    ResolvedSignature, StaticArgument, StaticExpression, StaticKey, StringId, SymbolType, Type,
+    TypeExpression, TypeLiteral, TypeTable,
 };
 use destack_workspace::ModuleSource;
 
@@ -154,7 +154,7 @@ struct UnionMemberCallResolutionContext<'a> {
     /// Static arguments used for member-call signature resolution.
     generic_arguments: Option<&'a [LocalNodeId<GenericArgument>]>,
     /// Dynamic arguments used for overload selection.
-    dynamic_arguments: &'a [LocalNodeId<Argument>],
+    arguments: &'a [LocalNodeId<Argument>],
 }
 
 /// Call-site context for resolving one function signature's static arguments.
@@ -171,11 +171,11 @@ pub(crate) struct SignatureStaticResolutionContext<'a> {
     /// Existing substitutions that must be applied before assigning call arguments.
     pub(crate) bound_substitutions: Option<&'a HashMap<GlobalSymbolId, LocalTypeId>>,
     /// Dynamic argument ids used for value-parameter inference.
-    pub(crate) dynamic_argument_ids: Option<&'a [LocalNodeId<Argument>]>,
+    pub(crate) argument_ids: Option<&'a [LocalNodeId<Argument>]>,
     /// Static parameter type ids of the signature.
-    pub(crate) static_parameter_type_ids: &'a [LocalTypeId],
+    pub(crate) generic_parameter_type_ids: &'a [LocalTypeId],
     /// Dynamic parameter type ids of the signature.
-    pub(crate) dynamic_parameter_type_ids: &'a [LocalTypeId],
+    pub(crate) parameter_type_ids: &'a [LocalTypeId],
     /// Return type of the signature before substitution.
     pub(crate) return_type: Option<LocalTypeId>,
     /// Expected return type used for reverse static inference.
@@ -200,7 +200,7 @@ pub(crate) struct CallSignatureResolutionContext<'a> {
     /// Existing substitutions applied before static-argument resolution.
     pub(crate) bound_substitutions: Option<&'a HashMap<GlobalSymbolId, LocalTypeId>>,
     /// Dynamic arguments for argument-guided static inference.
-    pub(crate) dynamic_arguments: Option<&'a [LocalNodeId<Argument>]>,
+    pub(crate) arguments: Option<&'a [LocalNodeId<Argument>]>,
     /// Receiver type for `this` substitution in member calls.
     pub(crate) call_receiver_ty_id: Option<LocalTypeId>,
     /// Expected return type used for reverse static inference.
@@ -225,7 +225,7 @@ struct OverloadSelectionContext<'a> {
     /// Existing substitutions applied before static-argument resolution.
     bound_substitutions: Option<&'a HashMap<GlobalSymbolId, LocalTypeId>>,
     /// Dynamic arguments used for overload applicability checks.
-    dynamic_arguments: &'a [LocalNodeId<Argument>],
+    arguments: &'a [LocalNodeId<Argument>],
     /// Receiver type for `this` substitution in member calls.
     call_receiver_ty_id: Option<LocalTypeId>,
     /// Resolution mode controlling diagnostics and recovery behavior.
@@ -392,7 +392,7 @@ impl Compiler {
             generic_arguments,
             prefilled_static_arguments,
             bound_substitutions,
-            dynamic_arguments,
+            arguments,
             call_receiver_ty_id,
             expected_return_type,
             mode,
@@ -400,8 +400,8 @@ impl Compiler {
         } = context;
 
         let Type::Function {
-            static_parameters,
-            dynamic_parameters,
+            generic_parameters,
+            parameters,
             return_type,
             ..
         } = ctx.types.get_type(signature_ty_id).clone()
@@ -412,7 +412,7 @@ impl Compiler {
         let has_explicit_static_arguments =
             generic_arguments.is_some_and(|arguments| !arguments.is_empty());
         if has_explicit_static_arguments
-            && static_parameters.is_empty()
+            && generic_parameters.is_empty()
             && let Some(callee_symbol) = callee_symbol
         {
             let parameter_symbols = self
@@ -436,9 +436,9 @@ impl Compiler {
                     generic_argument_ids: generic_arguments,
                     prefilled_static_arguments,
                     bound_substitutions,
-                    dynamic_argument_ids: dynamic_arguments,
-                    static_parameter_type_ids: &static_parameters,
-                    dynamic_parameter_type_ids: &dynamic_parameters,
+                    argument_ids: arguments,
+                    generic_parameter_type_ids: &generic_parameters,
+                    parameter_type_ids: &parameters,
                     return_type,
                     expected_return_type,
                     mode,
@@ -446,16 +446,16 @@ impl Compiler {
                 },
             )?
             .unwrap_or(ResolvedSignature {
-                dynamic_parameters,
+                parameters,
                 return_type,
-                static_arguments: Vec::new(),
+                generic_arguments: Vec::new(),
             });
 
         // substitute `this` for member calls
         if let Some(receiver_ty_id) = call_receiver_ty_id {
             let mut cache = HashMap::new();
-            let mut mapped_parameters = Vec::with_capacity(resolved.dynamic_parameters.len());
-            for parameter in resolved.dynamic_parameters.iter() {
+            let mut mapped_parameters = Vec::with_capacity(resolved.parameters.len());
+            for parameter in resolved.parameters.iter() {
                 mapped_parameters.push(self.substitute_this_type(
                     *parameter,
                     receiver_ty_id,
@@ -468,9 +468,9 @@ impl Compiler {
             });
 
             return Ok(Some(ResolvedSignature {
-                dynamic_parameters: mapped_parameters,
+                parameters: mapped_parameters,
                 return_type: mapped_return,
-                static_arguments: resolved.static_arguments,
+                generic_arguments: resolved.generic_arguments,
             }));
         }
 
@@ -490,7 +490,7 @@ impl Compiler {
             generic_arguments,
             prefilled_static_arguments,
             bound_substitutions,
-            dynamic_arguments,
+            arguments,
             call_receiver_ty_id,
             mode,
         } = context;
@@ -514,7 +514,7 @@ impl Compiler {
                     generic_arguments,
                     prefilled_static_arguments,
                     bound_substitutions,
-                    dynamic_arguments: Some(dynamic_arguments),
+                    arguments: Some(arguments),
                     call_receiver_ty_id,
                     expected_return_type: None,
                     mode,
@@ -525,7 +525,7 @@ impl Compiler {
                 continue;
             };
 
-            if !self.is_signature_applicable(&mut ctx.reborrow(), &resolved, dynamic_arguments)? {
+            if !self.is_signature_applicable(&mut ctx.reborrow(), &resolved, arguments)? {
                 continue;
             }
 
@@ -574,16 +574,12 @@ impl Compiler {
         right: &ResolvedSignature,
     ) -> bool {
         // compare parameter counts first
-        if left.dynamic_parameters.len() != right.dynamic_parameters.len() {
+        if left.parameters.len() != right.parameters.len() {
             return false;
         }
 
         // compare parameter shapes bi-directionally
-        for (left_ty_id, right_ty_id) in left
-            .dynamic_parameters
-            .iter()
-            .zip(right.dynamic_parameters.iter())
-        {
+        for (left_ty_id, right_ty_id) in left.parameters.iter().zip(right.parameters.iter()) {
             let left_assignable = self.is_type_assignable(
                 &mut ctx.type_context_reborrow(),
                 *left_ty_id,
@@ -626,14 +622,14 @@ impl Compiler {
     pub(crate) fn infer_invocation_arguments(
         &self,
         ctx: &mut InferContext<'_>,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
         parameter_types: &[LocalTypeId],
         bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         state: &mut InferState,
     ) -> AnalyzeResult<Vec<LocalTypeId>> {
         // infer arguments left to right, adding constraints eagerly so later contextual typing
-        let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
-        for (index, argument_id) in dynamic_arguments.iter().enumerate() {
+        let mut argument_ty_ids = Vec::with_capacity(arguments.len());
+        for (index, argument_id) in arguments.iter().enumerate() {
             let parameter_ty_id = parameter_types.get(index).copied();
 
             // materialize contextual expectation from the current inferred state
@@ -677,7 +673,7 @@ impl Compiler {
         // capture template literal inference constraints
         self.add_template_literal_inference_constraints(
             &mut ctx.reborrow(),
-            dynamic_arguments,
+            arguments,
             &argument_ty_ids,
             parameter_types,
         );
@@ -695,7 +691,7 @@ impl Compiler {
         let expected_ty_id = self.expected_value_type(Some(parameter_ty_id), &*ctx.types)?;
         if let Type::Reference {
             symbol,
-            static_arguments: None,
+            generic_arguments: None,
         } = ctx.types.get_type(expected_ty_id)
             && self.symbol_is_static_parameter(ctx.symbol_type_view(), *symbol)
         {
@@ -735,7 +731,7 @@ impl Compiler {
 
         // resolve the static parameter constraint
         let argument_value_id = ctx.tree.get(argument_id).value();
-        let constraint_id = self.static_parameter_constraint_type(
+        let constraint_id = self.generic_parameter_constraint_type(
             &mut ctx.type_context_reborrow(),
             parameter_symbol,
             argument_value_id.into_any(),
@@ -810,7 +806,7 @@ impl Compiler {
         &self,
         ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
         argument_ty_ids: &[LocalTypeId],
         parameter_types: &[LocalTypeId],
         options: &AnalyzeOptions,
@@ -822,7 +818,7 @@ impl Compiler {
             .enumerate()
         {
             // enforce explicit ownership when implicit managed values are disabled
-            if let Some(argument) = dynamic_arguments.get(index) {
+            if let Some(argument) = arguments.get(index) {
                 let argument_value = ctx.tree.get(*argument).value();
                 self.check_no_implicit_managed_value(
                     ctx.module_type_view(),
@@ -843,7 +839,7 @@ impl Compiler {
             ) != Assignability::NotAssignable;
             if !has_unresolved_infer && !is_assignable {
                 // allow static literal arguments to flow to literal parameter types
-                if let Some(argument) = dynamic_arguments.get(index)
+                if let Some(argument) = arguments.get(index)
                     && {
                         let argument_value_id = ctx.tree.get(*argument).value();
 
@@ -863,7 +859,7 @@ impl Compiler {
                     continue;
                 }
 
-                let argument_node = dynamic_arguments
+                let argument_node = arguments
                     .get(index)
                     .map(|id| id.into_any())
                     .unwrap_or_else(|| expression_id.into_any());
@@ -886,14 +882,14 @@ impl Compiler {
         &self,
         ctx: &mut InferContext<'_>,
         resolved: &ResolvedSignature,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
     ) -> AnalyzeResult<bool> {
-        if dynamic_arguments.len() > resolved.dynamic_parameters.len() {
+        if arguments.len() > resolved.parameters.len() {
             return Ok(false);
         }
 
-        for (index, argument_id) in dynamic_arguments.iter().enumerate() {
-            let Some(param_ty_id) = resolved.dynamic_parameters.get(index).copied() else {
+        for (index, argument_id) in arguments.iter().enumerate() {
+            let Some(param_ty_id) = resolved.parameters.get(index).copied() else {
                 return Ok(false);
             };
 
@@ -978,14 +974,14 @@ impl Compiler {
                 return true;
             };
             let Type::Function {
-                dynamic_parameters,
+                parameters,
                 return_type,
                 ..
             } = types.get_type(signature_id)
             else {
                 return true;
             };
-            let expected_params = dynamic_parameters.as_slice();
+            let expected_params = parameters.as_slice();
             let expected_return = *return_type;
 
             if declaration.signature.parameters.len() > expected_params.len() {
@@ -1221,7 +1217,7 @@ impl Compiler {
         element_ids: &[LocalTypeId],
         member_key: &StaticKey,
         generic_arguments: Option<&[LocalNodeId<GenericArgument>]>,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
     ) -> AnalyzeResult<Option<Vec<UnionMemberCallCandidate>>> {
         // query receiver context used by per element lookup filtering
         let receiver_context = self.query_member_receiver_context_for_expression(
@@ -1238,7 +1234,7 @@ impl Compiler {
             receiver_nominal_symbol: receiver_context.nominal_symbol,
             member_key,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
         };
 
         // resolve one candidate per union element
@@ -1322,7 +1318,7 @@ impl Compiler {
             member_symbol,
             &resolved_context.instance_arguments,
             &resolved_context.substitutions,
-            &resolved_signature.static_arguments,
+            &resolved_signature.generic_arguments,
             &signature_parameter_symbols,
         );
 
@@ -1417,7 +1413,7 @@ impl Compiler {
                     generic_arguments: context.generic_arguments,
                     prefilled_static_arguments: resolved_context.extension_arguments.as_deref(),
                     bound_substitutions,
-                    dynamic_arguments: context.dynamic_arguments,
+                    arguments: context.arguments,
                     call_receiver_ty_id: Some(element_id),
                     mode: SignatureResolutionMode::Synthesize,
                 },
@@ -1445,7 +1441,7 @@ impl Compiler {
                 generic_arguments: context.generic_arguments,
                 prefilled_static_arguments: resolved_context.extension_arguments.as_deref(),
                 bound_substitutions,
-                dynamic_arguments: Some(context.dynamic_arguments),
+                arguments: Some(context.arguments),
                 call_receiver_ty_id: Some(element_id),
                 expected_return_type: None,
                 mode: SignatureResolutionMode::Synthesize,
@@ -1492,7 +1488,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         generic_arguments: Option<&[LocalNodeId<GenericArgument>]>,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_CALL);
@@ -1520,12 +1516,8 @@ impl Compiler {
         };
 
         // malformed argument slots poison the whole invocation
-        if self.dynamic_arguments_have_error_slots(ctx.tree, dynamic_arguments) {
-            self.infer_call_arguments_without_context(
-                &mut ctx.reborrow(),
-                dynamic_arguments,
-                state,
-            )?;
+        if self.arguments_have_error_slots(ctx.tree, arguments) {
+            self.infer_call_arguments_without_context(&mut ctx.reborrow(), arguments, state)?;
 
             let type_id = self.synthesize_call_error_result_type(expression_id, &mut *ctx.types);
             return Ok(finish_result(type_id, &mut *ctx.types));
@@ -1554,13 +1546,13 @@ impl Compiler {
         let union_static_arguments =
             self.query_union_member_call_static_arguments(generic_arguments, &call);
 
-        // handle union receiver member calls with dynamic resolution
+        // handle union receiver member calls
         let union_return_type_id = self.infer_union_member_call_expression(
             &mut ctx.reborrow(),
             expression_id,
             call.member_call_context.as_ref(),
             union_static_arguments,
-            dynamic_arguments,
+            arguments,
             state,
         )?;
         if let Some(union_return_type_id) = union_return_type_id {
@@ -1587,7 +1579,7 @@ impl Compiler {
                 left_id,
                 callee.callee_ty_id,
                 &call,
-                dynamic_arguments,
+                arguments,
                 state,
             )?
         } else {
@@ -1603,7 +1595,7 @@ impl Compiler {
                     generic_arguments: effective_static_arguments,
                     prefilled_static_arguments: call.prefilled_static_arguments.as_deref(),
                     bound_substitutions,
-                    dynamic_arguments,
+                    arguments,
                     call_receiver_ty_id: call.call_receiver_ty_id,
                     mode: SignatureResolutionMode::Synthesize,
                 },
@@ -1612,7 +1604,7 @@ impl Compiler {
                 self.infer_resolved_call_expression(
                     &mut ctx.reborrow(),
                     expression_id,
-                    dynamic_arguments,
+                    arguments,
                     &call,
                     signature_ty_id,
                     resolved_signature,
@@ -1624,11 +1616,7 @@ impl Compiler {
                     expression_id.into_any(),
                     callee.callee_ty_id,
                 );
-                self.infer_call_arguments_without_context(
-                    &mut ctx.reborrow(),
-                    dynamic_arguments,
-                    state,
-                )?;
+                self.infer_call_arguments_without_context(&mut ctx.reborrow(), arguments, state)?;
                 self.synthesize_call_error_result_type(expression_id, &mut *ctx.types)
             } else {
                 let signature_ty_id = call_signatures[0];
@@ -1641,7 +1629,7 @@ impl Compiler {
                         generic_arguments: effective_static_arguments,
                         prefilled_static_arguments: call.prefilled_static_arguments.as_deref(),
                         bound_substitutions,
-                        dynamic_arguments: Some(dynamic_arguments),
+                        arguments: Some(arguments),
                         call_receiver_ty_id: call.call_receiver_ty_id,
                         expected_return_type: state.expected_type,
                         mode: SignatureResolutionMode::Synthesize,
@@ -1652,7 +1640,7 @@ impl Compiler {
                     self.infer_resolved_call_expression(
                         &mut ctx.reborrow(),
                         expression_id,
-                        dynamic_arguments,
+                        arguments,
                         &call,
                         signature_ty_id,
                         resolved_signature,
@@ -1672,7 +1660,7 @@ impl Compiler {
         &self,
         ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
         call: &CallExpressionResolution,
         signature_ty_id: LocalTypeId,
         resolved_signature: ResolvedSignature,
@@ -1684,42 +1672,34 @@ impl Compiler {
             resolved_signature,
             &call.inherited_substitutions,
         );
-        let resolved_dynamic_parameters = &resolved_signature.dynamic_parameters;
+        let resolved_parameters = &resolved_signature.parameters;
 
         // enforce strict call arity for synthetic call wrappers
         if self.should_enforce_strict_call_member_arity(ctx, call)
             && let Some(minimum_arguments) =
-                self.minimum_required_dynamic_argument_count_for_strict_call_member(ctx, call)
-            && dynamic_arguments.len() < minimum_arguments
+                self.minimum_required_argument_count_for_strict_call_member(ctx, call)
+            && arguments.len() < minimum_arguments
         {
             self.error(AnalyzeError::InvalidArgumentArity {
                 node: expression_id
                     .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),
                 expected: minimum_arguments,
-                actual: dynamic_arguments.len(),
+                actual: arguments.len(),
             });
-            self.infer_call_arguments_without_context(
-                &mut ctx.reborrow(),
-                dynamic_arguments,
-                state,
-            )?;
+            self.infer_call_arguments_without_context(&mut ctx.reborrow(), arguments, state)?;
 
             return Ok(self.synthesize_call_error_result_type(expression_id, &mut *ctx.types));
         }
 
         // enforce static-expression requirements for comptime dynamic parameters
-        if !self.comptime_dynamic_arguments_are_static(
+        if !self.comptime_arguments_are_static(
             &mut ctx.reborrow(),
             signature_ty_id,
-            dynamic_arguments,
+            arguments,
             call.callee_symbol,
         )? {
-            self.infer_call_arguments_without_context(
-                &mut ctx.reborrow(),
-                dynamic_arguments,
-                state,
-            )?;
+            self.infer_call_arguments_without_context(&mut ctx.reborrow(), arguments, state)?;
 
             return Ok(self.synthesize_call_error_result_type(expression_id, &mut *ctx.types));
         }
@@ -1727,8 +1707,8 @@ impl Compiler {
         // infer argument types and constraints
         let argument_ty_ids = self.infer_invocation_arguments(
             &mut ctx.reborrow(),
-            dynamic_arguments,
-            resolved_dynamic_parameters,
+            arguments,
+            resolved_parameters,
             (!call.inherited_substitutions.is_empty()).then_some(&call.inherited_substitutions),
             state,
         )?;
@@ -1737,9 +1717,9 @@ impl Compiler {
         self.check_invocation_assignability(
             &mut ctx.reborrow(),
             expression_id,
-            dynamic_arguments,
+            arguments,
             &argument_ty_ids,
-            resolved_dynamic_parameters,
+            resolved_parameters,
             &state.options,
         )?;
 
@@ -1791,25 +1771,19 @@ impl Compiler {
             .is_empty()
     }
 
-    /// Return the minimum required dynamic argument count for one resolved signature.
-    fn minimum_required_dynamic_argument_count(
+    /// Return the minimum required argument count for one resolved signature.
+    fn minimum_required_argument_count(
         &self,
         ctx: TypeView<'_>,
         signature_ty_id: LocalTypeId,
     ) -> Option<usize> {
-        let dynamic_parameters =
-            self.dynamic_parameters_for_signature_source(ctx, signature_ty_id, None)?;
+        let parameters = self.parameters_for_signature_source(ctx, signature_ty_id, None)?;
 
-        Some(
-            self.minimum_required_dynamic_argument_count_for_parameters(
-                ctx.tree,
-                dynamic_parameters,
-            ),
-        )
+        Some(self.minimum_required_argument_count_for_parameters(ctx.tree, parameters))
     }
 
     /// Return strict `call` minimum arity from receiver signatures, plus `thisArg`.
-    fn minimum_required_dynamic_argument_count_for_strict_call_member(
+    fn minimum_required_argument_count_for_strict_call_member(
         &self,
         ctx: &InferContext<'_>,
         call: &CallExpressionResolution,
@@ -1820,7 +1794,7 @@ impl Compiler {
         let mut minimum_required_receiver_arguments: Option<usize> = None;
         for signature_ty_id in receiver_signatures {
             let Some(required_receiver_arguments) =
-                self.minimum_required_dynamic_argument_count(ctx.type_view(), signature_ty_id)
+                self.minimum_required_argument_count(ctx.type_view(), signature_ty_id)
             else {
                 continue;
             };
@@ -1835,13 +1809,13 @@ impl Compiler {
     }
 
     /// Return the minimum required argument count for one parameter list.
-    fn minimum_required_dynamic_argument_count_for_parameters(
+    fn minimum_required_argument_count_for_parameters(
         &self,
         tree: &NodeTree,
-        dynamic_parameters: &[LocalNodeId<Parameter>],
+        parameters: &[LocalNodeId<Parameter>],
     ) -> usize {
         let mut minimum = 0;
-        for parameter_id in dynamic_parameters {
+        for parameter_id in parameters {
             let parameter = tree.get(*parameter_id);
             let is_optional = match parameter {
                 Parameter::Named {
@@ -1866,15 +1840,15 @@ impl Compiler {
         minimum
     }
 
-    /// Validate comptime dynamic arguments are static expressions for this signature.
-    fn comptime_dynamic_arguments_are_static(
+    /// Validate comptime arguments are static expressions for this signature.
+    fn comptime_arguments_are_static(
         &self,
         ctx: &mut InferContext<'_>,
         signature_ty_id: LocalTypeId,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
         expected_owner_symbol: Option<GlobalSymbolId>,
     ) -> AnalyzeResult<bool> {
-        let comptime_indexes = self.comptime_dynamic_parameter_indexes_for_signature(
+        let comptime_indexes = self.comptime_parameter_indexes_for_signature(
             ctx.type_view(),
             signature_ty_id,
             expected_owner_symbol,
@@ -1885,7 +1859,7 @@ impl Compiler {
 
         let mut all_static = true;
         for index in comptime_indexes {
-            let Some(argument_id) = dynamic_arguments.get(index).copied() else {
+            let Some(argument_id) = arguments.get(index).copied() else {
                 continue;
             };
             let argument_expression_id = ctx.tree.get(argument_id).value();
@@ -1912,8 +1886,8 @@ impl Compiler {
         Ok(all_static)
     }
 
-    /// Return dynamic-parameter indexes marked as comptime on one signature source.
-    fn comptime_dynamic_parameter_indexes_for_signature(
+    /// Return parameter indexes marked as comptime on one signature source.
+    fn comptime_parameter_indexes_for_signature(
         &self,
         ctx: TypeView<'_>,
         signature_ty_id: LocalTypeId,
@@ -1926,8 +1900,8 @@ impl Compiler {
         Vec::new()
     }
 
-    /// Return dynamic-parameter ids for one signature source when syntax metadata is available.
-    fn dynamic_parameters_for_signature_source<'a>(
+    /// Return parameter ids for one signature source when syntax metadata is available.
+    fn parameters_for_signature_source<'a>(
         &self,
         ctx: TypeView<'a>,
         signature_ty_id: LocalTypeId,
@@ -2030,12 +2004,13 @@ impl Compiler {
         parameters: &[LocalNodeId<Parameter>],
     ) -> bool {
         let Type::Function {
-            dynamic_parameters, ..
+            parameters: signature_parameters,
+            ..
         } = ctx.types.get_type(signature_ty_id)
         else {
             return false;
         };
-        if dynamic_parameters.len() != parameters.len() {
+        if signature_parameters.len() != parameters.len() {
             return false;
         }
 
@@ -2062,7 +2037,7 @@ impl Compiler {
 
             let source_parameter_type_id = self.unwrap_type_value(parameter_type_id, ctx.types);
             let signature_parameter_type_id =
-                self.unwrap_type_value(dynamic_parameters[index], ctx.types);
+                self.unwrap_type_value(signature_parameters[index], ctx.types);
             if source_parameter_type_id != signature_parameter_type_id {
                 return false;
             }
@@ -2131,8 +2106,8 @@ impl Compiler {
 
         let mut materialize_cache = HashMap::new();
         let mut substitute_cache = HashMap::new();
-        let dynamic_parameters = resolved_signature
-            .dynamic_parameters
+        let parameters = resolved_signature
+            .parameters
             .iter()
             .map(|parameter| {
                 let materialized = self.materialize_static_arguments_in_type(
@@ -2163,9 +2138,9 @@ impl Compiler {
         });
 
         ResolvedSignature {
-            dynamic_parameters,
+            parameters,
             return_type,
-            static_arguments: resolved_signature.static_arguments,
+            generic_arguments: resolved_signature.generic_arguments,
         }
     }
 
@@ -2184,7 +2159,7 @@ impl Compiler {
                 let signature_parameter_symbols =
                     self.query_signature_static_parameter_symbols(signature_ty_id, &*ctx.types);
                 let environment = StaticSubstitutionEnvironment::from_parameter_symbols(
-                    resolved_signature.static_arguments.clone(),
+                    resolved_signature.generic_arguments.clone(),
                     signature_parameter_symbols,
                     0,
                 )
@@ -2192,7 +2167,7 @@ impl Compiler {
                     self.instance_environment_for_symbol_arguments(
                         &ctx.reborrow(),
                         callee_symbol,
-                        resolved_signature.static_arguments.clone(),
+                        resolved_signature.generic_arguments.clone(),
                         0,
                     )
                 });
@@ -2220,7 +2195,7 @@ impl Compiler {
                     callee_symbol,
                     base_instance_arguments,
                     &call.inherited_substitutions,
-                    &resolved_signature.static_arguments,
+                    &resolved_signature.generic_arguments,
                     &signature_parameter_symbols,
                 );
                 if let Some(environment) = environment {
@@ -2278,7 +2253,7 @@ impl Compiler {
         call_target_id: LocalNodeId<Expression>,
         callee_ty_id: LocalTypeId,
         call: &CallExpressionResolution,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         // suppress secondary diagnostics when member lookup already failed
@@ -2294,7 +2269,7 @@ impl Compiler {
             self.type_blocks_cascading_diagnostic(callee_ty_id, &*ctx.types);
 
         // report non-callable callee types unless they are dynamic placeholders
-        let is_dynamic_callee = has_missing_member
+        let suppress_non_callable_diagnostic = has_missing_member
             || (callee_has_primary_error && !is_super_call)
             || matches!(
                 ctx.types.get_type(callee_ty_id),
@@ -2303,7 +2278,7 @@ impl Compiler {
                 }
             )
             || ctx.types.get_type(callee_ty_id).is_infer();
-        if !is_dynamic_callee {
+        if !suppress_non_callable_diagnostic {
             if is_super_call {
                 self.error(AnalyzeError::NonCallable {
                     node: expression_id
@@ -2319,8 +2294,8 @@ impl Compiler {
             }
         }
 
-        // infer dynamic arguments without expected types
-        self.infer_call_arguments_without_context(&mut ctx.reborrow(), dynamic_arguments, state)?;
+        // infer arguments without expected types
+        self.infer_call_arguments_without_context(&mut ctx.reborrow(), arguments, state)?;
 
         if callee_has_primary_error {
             return Ok(ctx.types.insert_type_from(Type::Error, expression_id));
@@ -2333,23 +2308,23 @@ impl Compiler {
     fn infer_call_arguments_without_context(
         &self,
         ctx: &mut InferContext<'_>,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
         state: &mut InferState,
     ) -> AnalyzeResult<()> {
-        for argument_id in dynamic_arguments {
+        for argument_id in arguments {
             self.infer_argument(&mut ctx.reborrow(), *argument_id, None, state)?;
         }
 
         Ok(())
     }
 
-    /// Return true when one dynamic argument list contains malformed slots.
-    fn dynamic_arguments_have_error_slots(
+    /// Return true when one argument list contains malformed slots.
+    fn arguments_have_error_slots(
         &self,
         tree: &NodeTree,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
     ) -> bool {
-        dynamic_arguments
+        arguments
             .iter()
             .any(|argument_id| matches!(tree.get(*argument_id), Argument::Error { .. }))
     }
@@ -2718,7 +2693,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         member_call_context: Option<&MemberCallContext>,
         union_static_arguments: Option<&[LocalNodeId<GenericArgument>]>,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
         state: &mut InferState,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         let Some(context) = member_call_context else {
@@ -2739,14 +2714,10 @@ impl Compiler {
             &element_ids,
             &context.member_key,
             union_static_arguments,
-            dynamic_arguments,
+            arguments,
         )?;
         let Some(candidates) = candidates else {
-            self.infer_call_arguments_without_context(
-                &mut ctx.reborrow(),
-                dynamic_arguments,
-                state,
-            )?;
+            self.infer_call_arguments_without_context(&mut ctx.reborrow(), arguments, state)?;
             self.record_provisional_unresolved_resolution(
                 expression_id.into_global_any(ctx.module.id),
                 Some(context.receiver_ty_id),
@@ -2764,7 +2735,7 @@ impl Compiler {
 
         let argument_ty_ids = self.infer_union_member_call_argument_types(
             &mut ctx.reborrow(),
-            dynamic_arguments,
+            arguments,
             &candidates,
             state,
         )?;
@@ -2830,8 +2801,7 @@ impl Compiler {
             let mut expected = None;
             let mut is_uniform = true;
             for candidate in candidates {
-                let Some(param_ty_id) = candidate.signature.dynamic_parameters.get(index).copied()
-                else {
+                let Some(param_ty_id) = candidate.signature.parameters.get(index).copied() else {
                     is_uniform = false;
                     break;
                 };
@@ -2854,15 +2824,15 @@ impl Compiler {
     fn infer_union_member_call_argument_types(
         &self,
         ctx: &mut InferContext<'_>,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
         candidates: &[UnionMemberCallCandidate],
         state: &mut InferState,
     ) -> AnalyzeResult<Vec<LocalTypeId>> {
-        let expected_argument_types = self
-            .query_union_member_call_expected_argument_types(candidates, dynamic_arguments.len());
+        let expected_argument_types =
+            self.query_union_member_call_expected_argument_types(candidates, arguments.len());
 
-        let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
-        for (index, argument_id) in dynamic_arguments.iter().enumerate() {
+        let mut argument_ty_ids = Vec::with_capacity(arguments.len());
+        for (index, argument_id) in arguments.iter().enumerate() {
             let expected_arg_ty_id = expected_argument_types.get(index).copied().flatten();
             self.infer_argument(&mut ctx.reborrow(), *argument_id, expected_arg_ty_id, state)?;
 
@@ -2898,7 +2868,7 @@ impl Compiler {
         for candidate in candidates {
             for (argument_ty_id, param_ty_id) in argument_ty_ids
                 .iter()
-                .zip(candidate.signature.dynamic_parameters.iter())
+                .zip(candidate.signature.parameters.iter())
             {
                 infer.push_constraint(Constraint::Subtype {
                     sub_type: *argument_ty_id,
@@ -2919,7 +2889,7 @@ impl Compiler {
         for candidate in candidates {
             for (argument_ty_id, param_ty_id) in argument_ty_ids
                 .iter()
-                .zip(candidate.signature.dynamic_parameters.iter())
+                .zip(candidate.signature.parameters.iter())
             {
                 if !self.is_signature_candidate_argument_assignable(
                     &mut ctx.reborrow(),
@@ -3190,7 +3160,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         generic_arguments: Option<&[LocalNodeId<GenericArgument>]>,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         // enforce constructor restrictions from options
@@ -3201,12 +3171,8 @@ impl Compiler {
             self.infer_new_expression_target(&mut ctx.reborrow(), expression_id, left_id, state)?;
 
         // malformed argument slots poison the whole construction
-        if self.dynamic_arguments_have_error_slots(ctx.tree, dynamic_arguments) {
-            self.infer_call_arguments_without_context(
-                &mut ctx.reborrow(),
-                dynamic_arguments,
-                state,
-            )?;
+        if self.arguments_have_error_slots(ctx.tree, arguments) {
+            self.infer_call_arguments_without_context(&mut ctx.reborrow(), arguments, state)?;
 
             return Ok(self.synthesize_call_error_result_type(expression_id, &mut *ctx.types));
         }
@@ -3219,7 +3185,7 @@ impl Compiler {
                 &mut ctx.reborrow(),
                 expression_id,
                 &target,
-                dynamic_arguments,
+                arguments,
                 state,
             )?
         } else {
@@ -3233,7 +3199,7 @@ impl Compiler {
                     generic_arguments,
                     prefilled_static_arguments: None,
                     bound_substitutions: None,
-                    dynamic_arguments,
+                    arguments,
                     call_receiver_ty_id: None,
                     mode: SignatureResolutionMode::Synthesize,
                 },
@@ -3243,7 +3209,7 @@ impl Compiler {
                     &mut ctx.reborrow(),
                     expression_id,
                     &target,
-                    dynamic_arguments,
+                    arguments,
                     resolved_signature,
                     state,
                 )?
@@ -3253,11 +3219,7 @@ impl Compiler {
                     expression_id.into_any(),
                     target.callee_ty_id,
                 );
-                self.infer_call_arguments_without_context(
-                    &mut ctx.reborrow(),
-                    dynamic_arguments,
-                    state,
-                )?;
+                self.infer_call_arguments_without_context(&mut ctx.reborrow(), arguments, state)?;
                 self.synthesize_call_error_result_type(expression_id, &mut *ctx.types)
             } else {
                 let signature_ty_id = construct_signatures[0];
@@ -3270,7 +3232,7 @@ impl Compiler {
                         generic_arguments,
                         prefilled_static_arguments: None,
                         bound_substitutions: None,
-                        dynamic_arguments: Some(dynamic_arguments),
+                        arguments: Some(arguments),
                         call_receiver_ty_id: None,
                         expected_return_type: state.expected_type,
                         mode: SignatureResolutionMode::Synthesize,
@@ -3282,7 +3244,7 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         expression_id,
                         &target,
-                        dynamic_arguments,
+                        arguments,
                         resolved_signature,
                         state,
                     )?
@@ -3351,26 +3313,20 @@ impl Compiler {
         ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         target: &NewExpressionResolution,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
         resolved_signature: ResolvedSignature,
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
-        let resolved_dynamic_parameters = &resolved_signature.dynamic_parameters;
+        let resolved_parameters = &resolved_signature.parameters;
 
         // enforce exact arity for struct constructors
-        if target.is_struct_constructor
-            && dynamic_arguments.len() != resolved_dynamic_parameters.len()
-        {
+        if target.is_struct_constructor && arguments.len() != resolved_parameters.len() {
             self.emit_no_overload_for_receiver_type(
                 ctx.module_type_view(),
                 expression_id.into_any(),
                 target.callee_ty_id,
             );
-            self.infer_call_arguments_without_context(
-                &mut ctx.reborrow(),
-                dynamic_arguments,
-                state,
-            )?;
+            self.infer_call_arguments_without_context(&mut ctx.reborrow(), arguments, state)?;
 
             return Ok(self.synthesize_call_error_result_type(expression_id, &mut *ctx.types));
         }
@@ -3378,8 +3334,8 @@ impl Compiler {
         // infer argument types and constraints
         let argument_ty_ids = self.infer_invocation_arguments(
             &mut ctx.reborrow(),
-            dynamic_arguments,
-            resolved_dynamic_parameters,
+            arguments,
+            resolved_parameters,
             None,
             state,
         )?;
@@ -3388,9 +3344,9 @@ impl Compiler {
         self.check_invocation_assignability(
             &mut ctx.reborrow(),
             expression_id,
-            dynamic_arguments,
+            arguments,
             &argument_ty_ids,
-            resolved_dynamic_parameters,
+            resolved_parameters,
             &state.options,
         )?;
 
@@ -3401,7 +3357,7 @@ impl Compiler {
             let environment = self.instance_environment_for_symbol_arguments(
                 &ctx.reborrow(),
                 callee_symbol,
-                resolved_signature.static_arguments.clone(),
+                resolved_signature.generic_arguments.clone(),
                 0,
             );
             if let Some(environment) = environment {
@@ -3443,7 +3399,7 @@ impl Compiler {
         ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         target: &NewExpressionResolution,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         // reuse the instance type for class and struct constructors without signatures
@@ -3451,17 +3407,13 @@ impl Compiler {
             && matches!(callee_symbol.ty(), SymbolType::Struct | SymbolType::Class)
             && let Some(instance_type_id) = ctx.types.get_instance_type_id(callee_symbol)
         {
-            self.infer_call_arguments_without_context(
-                &mut ctx.reborrow(),
-                dynamic_arguments,
-                state,
-            )?;
+            self.infer_call_arguments_without_context(&mut ctx.reborrow(), arguments, state)?;
 
             return Ok(instance_type_id);
         }
 
         // infer arguments and return an error type when no constructor target is available
-        self.infer_call_arguments_without_context(&mut ctx.reborrow(), dynamic_arguments, state)?;
+        self.infer_call_arguments_without_context(&mut ctx.reborrow(), arguments, state)?;
 
         Ok(self.synthesize_call_error_result_type(expression_id, &mut *ctx.types))
     }
@@ -3477,11 +3429,11 @@ impl Compiler {
             .generic_argument_ids
             .is_some_and(|args| !args.is_empty());
 
-        if context.static_parameter_type_ids.is_empty() && !has_static_arguments {
+        if context.generic_parameter_type_ids.is_empty() && !has_static_arguments {
             return Ok(None);
         }
 
-        if context.static_parameter_type_ids.is_empty() {
+        if context.generic_parameter_type_ids.is_empty() {
             if let Some(argument_ids) = context.generic_argument_ids {
                 for argument_id in argument_ids {
                     self.error(AnalyzeError::InvalidStaticArgument {
@@ -3494,48 +3446,48 @@ impl Compiler {
             }
 
             return Ok(Some(ResolvedSignature {
-                dynamic_parameters: context.dynamic_parameter_type_ids.to_vec(),
+                parameters: context.parameter_type_ids.to_vec(),
                 return_type: context.return_type,
-                static_arguments: Vec::new(),
+                generic_arguments: Vec::new(),
             }));
         }
 
-        let static_parameters = self.collect_signature_static_parameters(
+        let generic_parameters = self.collect_signature_static_parameters(
             &mut ctx.reborrow(),
             context.node_id,
-            context.static_parameter_type_ids,
+            context.generic_parameter_type_ids,
         );
         let assigned_arguments = self.assign_signature_static_arguments(
             &mut ctx.reborrow(),
             context.node_id,
             context.generic_argument_ids,
             context.prefilled_static_arguments,
-            &static_parameters,
+            &generic_parameters,
             context.bound_substitutions,
         );
         let Some(resolved_state) = self.resolve_signature_static_argument_state(
             ctx,
             &context,
-            &static_parameters,
+            &generic_parameters,
             assigned_arguments,
         )?
         else {
             return Ok(None);
         };
-        let (resolved_dynamic_parameters, resolved_return_type) = self
+        let (resolved_parameters, resolved_return_type) = self
             .instantiate_signature_from_resolved_state(
                 &mut ctx.reborrow(),
                 context.node_id,
                 context.owner_symbol,
-                context.dynamic_parameter_type_ids,
+                context.parameter_type_ids,
                 context.return_type,
                 &resolved_state,
             );
 
         Ok(Some(ResolvedSignature {
-            dynamic_parameters: resolved_dynamic_parameters,
+            parameters: resolved_parameters,
             return_type: resolved_return_type,
-            static_arguments: resolved_state.resolved_arguments,
+            generic_arguments: resolved_state.resolved_arguments,
         }))
     }
 
@@ -3544,12 +3496,12 @@ impl Compiler {
         &self,
         ctx: &mut InferContext<'_>,
         node_id: LocalNodeIdAny,
-        static_parameter_type_ids: &[LocalTypeId],
-    ) -> Vec<StaticParameter> {
-        let static_parameter_symbols =
-            self.static_parameter_symbols_for_type_ids(static_parameter_type_ids, ctx.types);
-        let mut parameters = Vec::with_capacity(static_parameter_symbols.len());
-        for symbol_id in static_parameter_symbols {
+        generic_parameter_type_ids: &[LocalTypeId],
+    ) -> Vec<GenericParameterSpec> {
+        let generic_parameter_symbols =
+            self.generic_parameter_symbols_for_type_ids(generic_parameter_type_ids, ctx.types);
+        let mut parameters = Vec::with_capacity(generic_parameter_symbols.len());
+        for symbol_id in generic_parameter_symbols {
             parameters.push(self.resolve_static_parameter(
                 &mut ctx.type_context_reborrow(),
                 symbol_id,
@@ -3567,7 +3519,7 @@ impl Compiler {
         node_id: LocalNodeIdAny,
         generic_argument_ids: Option<&[LocalNodeId<GenericArgument>]>,
         prefilled_static_arguments: Option<&[StaticArgument]>,
-        static_parameters: &[StaticParameter],
+        generic_parameters: &[GenericParameterSpec],
         bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
     ) -> Vec<Option<StaticArgument>> {
         let argument_ids = generic_argument_ids.unwrap_or(&[]);
@@ -3584,9 +3536,9 @@ impl Compiler {
         } else {
             prefilled_static_arguments.unwrap_or(&[])
         };
-        let prefilled_count = prefilled_arguments.len().min(static_parameters.len());
+        let prefilled_count = prefilled_arguments.len().min(generic_parameters.len());
         let mut assigned_arguments: Vec<Option<StaticArgument>> =
-            vec![None; static_parameters.len()];
+            vec![None; generic_parameters.len()];
 
         // assign explicitly prefilled arguments first
         for (index, argument) in prefilled_arguments.iter().take(prefilled_count).enumerate() {
@@ -3595,7 +3547,7 @@ impl Compiler {
 
         // reserve already bound substitution slots before assigning call-site arguments
         if let Some(bound_substitutions) = bound_substitutions {
-            for (index, parameter) in static_parameters.iter().enumerate() {
+            for (index, parameter) in generic_parameters.iter().enumerate() {
                 if assigned_arguments[index].is_some() {
                     continue;
                 }
@@ -3614,7 +3566,7 @@ impl Compiler {
         // map call-site arguments onto the remaining unbound static parameter slots
         let mut call_slot_indexes = Vec::new();
         let mut parameters_for_call = Vec::new();
-        for (index, parameter) in static_parameters.iter().enumerate() {
+        for (index, parameter) in generic_parameters.iter().enumerate() {
             if assigned_arguments[index].is_some() {
                 continue;
             }
@@ -3651,15 +3603,15 @@ impl Compiler {
         &self,
         ctx: &mut InferContext<'_>,
         context: &SignatureStaticResolutionContext<'_>,
-        static_parameters: &[StaticParameter],
+        generic_parameters: &[GenericParameterSpec],
         assigned_arguments: Vec<Option<StaticArgument>>,
     ) -> AnalyzeResult<Option<ResolvedStaticArgumentState>> {
         let SignatureStaticResolutionContext {
             node_id,
             owner_symbol,
             bound_substitutions,
-            dynamic_argument_ids,
-            dynamic_parameter_type_ids,
+            argument_ids,
+            parameter_type_ids,
             return_type,
             expected_return_type,
             mode,
@@ -3672,7 +3624,7 @@ impl Compiler {
             if let (Some(return_type), Some(expected_return_type)) =
                 (*return_type, *expected_return_type)
             {
-                self.static_arguments_from_expected_return_type(
+                self.generic_arguments_from_expected_return_type(
                     &mut ctx.type_context_reborrow(),
                     return_type,
                     expected_return_type,
@@ -3687,21 +3639,21 @@ impl Compiler {
         // resolve one static argument slot at a time
         let mut substitutions = HashMap::new();
         let mut bound_substitutions = bound_substitutions.cloned().unwrap_or_default();
-        let mut resolved_arguments = Vec::with_capacity(static_parameters.len());
+        let mut resolved_arguments = Vec::with_capacity(generic_parameters.len());
         let mut has_missing_value_argument = false;
         let mut has_value_substitution = false;
-        for (index, static_parameter) in static_parameters.iter().enumerate() {
+        for (index, generic_parameter) in generic_parameters.iter().enumerate() {
             let assigned_argument = assigned_arguments.get(index).cloned().flatten();
 
             // query inferred value arguments from dynamic argument positions
             let inferred_argument = if assigned_argument.is_some() {
                 None
-            } else if let Some(dynamic_argument_ids) = *dynamic_argument_ids {
+            } else if let Some(argument_ids) = *argument_ids {
                 self.infer_static_argument_from_dynamic_arguments(
                     &mut ctx.reborrow(),
-                    static_parameter,
-                    dynamic_parameter_type_ids,
-                    dynamic_argument_ids,
+                    generic_parameter,
+                    parameter_type_ids,
+                    argument_ids,
                 )?
             } else {
                 None
@@ -3709,12 +3661,12 @@ impl Compiler {
 
             // query expected argument backfill from return type compatibility
             let expected_argument = if assigned_argument.is_some()
-                || static_parameter.kind != StaticParameterKind::Type
+                || generic_parameter.kind != GenericParameterKind::Type
             {
                 None
             } else if let Some(expected_argument) = expected_return_mapping
                 .as_ref()
-                .and_then(|mapping| mapping.get(&static_parameter.symbol))
+                .and_then(|mapping| mapping.get(&generic_parameter.symbol))
                 .cloned()
             {
                 let call_site = TreeSymbolView::new(
@@ -3729,7 +3681,7 @@ impl Compiler {
                     &mut ctx.type_context_reborrow(),
                     call_site,
                     call_site_options,
-                    static_parameter,
+                    generic_parameter,
                     Some(expected_argument),
                     true,
                 )?
@@ -3750,7 +3702,7 @@ impl Compiler {
                 &mut ctx.type_context_reborrow(),
                 call_site,
                 call_site_options,
-                static_parameter,
+                generic_parameter,
                 assigned_argument,
                 true,
             )?;
@@ -3762,14 +3714,14 @@ impl Compiler {
             } else if let Some(expected_argument) = expected_argument {
                 expected_argument
             } else {
-                if static_parameter.kind == StaticParameterKind::Value
+                if generic_parameter.kind == GenericParameterKind::Value
                     && *mode == SignatureResolutionMode::Synthesize
                     && *allow_missing_value_arguments
                 {
                     return Ok(None);
                 }
 
-                if static_parameter.kind == StaticParameterKind::Value {
+                if generic_parameter.kind == GenericParameterKind::Value {
                     has_missing_value_argument = true;
                 }
 
@@ -3777,7 +3729,7 @@ impl Compiler {
                     &mut ctx.reborrow(),
                     *node_id,
                     *owner_symbol,
-                    static_parameter,
+                    generic_parameter,
                 )?
             };
 
@@ -3788,11 +3740,12 @@ impl Compiler {
             };
 
             // validate and collect substitutions for this argument
-            let materialized_substitution = if static_parameter.kind == StaticParameterKind::Type {
+            let materialized_substitution = if generic_parameter.kind == GenericParameterKind::Type
+            {
                 Some(self.materialize_static_type_argument(
                     &mut ctx.type_context_reborrow(),
                     error_node,
-                    static_parameter,
+                    generic_parameter,
                     &resolved_argument,
                     StaticArgumentValidationMode::Analyze,
                 )?)
@@ -3803,30 +3756,30 @@ impl Compiler {
             let substitution = self.validate_static_argument(
                 &mut ctx,
                 error_node,
-                static_parameter,
+                generic_parameter,
                 &resolved_argument,
                 materialized_substitution,
                 &bound_substitutions,
                 Some(infer),
             )?;
             if let Some(substitution_ty_id) = substitution {
-                substitutions.insert(static_parameter.symbol, substitution_ty_id);
-                bound_substitutions.insert(static_parameter.symbol, substitution_ty_id);
+                substitutions.insert(generic_parameter.symbol, substitution_ty_id);
+                bound_substitutions.insert(generic_parameter.symbol, substitution_ty_id);
                 resolved_argument = self.normalize_signature_static_argument_substitution(
-                    static_parameter,
+                    generic_parameter,
                     substitution_ty_id,
                     resolved_argument,
                     &mut has_value_substitution,
                     ctx.types,
                 );
-            } else if static_parameter.kind == StaticParameterKind::Type
+            } else if generic_parameter.kind == GenericParameterKind::Type
                 && let StaticArgument::Evaluated {
                     value: StaticExpression::Type { ty },
                     ..
                 } = &resolved_argument
             {
-                substitutions.insert(static_parameter.symbol, *ty);
-                bound_substitutions.insert(static_parameter.symbol, *ty);
+                substitutions.insert(generic_parameter.symbol, *ty);
+                bound_substitutions.insert(generic_parameter.symbol, *ty);
             }
 
             resolved_arguments.push(resolved_argument);
@@ -3843,13 +3796,13 @@ impl Compiler {
     /// Normalize value static arguments when substitution produced a concrete type.
     fn normalize_signature_static_argument_substitution(
         &self,
-        static_parameter: &StaticParameter,
+        generic_parameter: &GenericParameterSpec,
         substitution_ty_id: LocalTypeId,
         resolved_argument: StaticArgument,
         has_value_substitution: &mut bool,
         types: &mut TypeTable,
     ) -> StaticArgument {
-        if static_parameter.kind != StaticParameterKind::Value {
+        if generic_parameter.kind != GenericParameterKind::Value {
             return resolved_argument;
         }
         if matches!(types.get_type(substitution_ty_id), Type::Error) {
@@ -3877,21 +3830,18 @@ impl Compiler {
         ctx: &mut InferContext<'_>,
         node_id: LocalNodeIdAny,
         owner_symbol: Option<GlobalSymbolId>,
-        dynamic_parameters: &[LocalTypeId],
+        parameters: &[LocalTypeId],
         return_type: Option<LocalTypeId>,
         state: &ResolvedStaticArgumentState,
     ) -> (Vec<LocalTypeId>, Option<LocalTypeId>) {
         // apply substitutions to the dynamic signature
         let mut materialize_cache = HashMap::new();
         let mut substitute_cache = HashMap::new();
-        let resolved_dynamic_parameters = if state.has_missing_value_argument {
+        let resolved_parameters = if state.has_missing_value_argument {
             let error_ty_id = ctx.types.insert_type_from_any(Type::Error, node_id);
-            dynamic_parameters
-                .iter()
-                .map(|_| error_ty_id)
-                .collect::<Vec<_>>()
+            parameters.iter().map(|_| error_ty_id).collect::<Vec<_>>()
         } else {
-            dynamic_parameters
+            parameters
                 .iter()
                 .map(|parameter| {
                     self.instantiate_type_with_substitutions(
@@ -3925,7 +3875,7 @@ impl Compiler {
         // normalize substituted value arguments for downstream assignability
         if state.has_value_substitution {
             let mut normalize_cache = HashMap::new();
-            let normalized_dynamic_parameters = resolved_dynamic_parameters
+            let normalized_dynamic_parameters = resolved_parameters
                 .iter()
                 .map(|parameter| {
                     self.materialize_static_arguments_in_type(
@@ -3944,7 +3894,7 @@ impl Compiler {
             });
             (normalized_dynamic_parameters, normalized_return_type)
         } else {
-            (resolved_dynamic_parameters, resolved_return_type)
+            (resolved_parameters, resolved_return_type)
         }
     }
 
@@ -3993,9 +3943,9 @@ impl Compiler {
         let Some(member_ty_id) = resolved_context.member_ty_id else {
             return Ok(Some(ResolvedMemberFunction {
                 signature: ResolvedSignature {
-                    dynamic_parameters: Vec::new(),
+                    parameters: Vec::new(),
                     return_type: None,
-                    static_arguments: Vec::new(),
+                    generic_arguments: Vec::new(),
                 },
                 member_resolution,
                 member_symbol,
@@ -4008,8 +3958,8 @@ impl Compiler {
 
         // resolve function signature
         let Type::Function {
-            static_parameters,
-            dynamic_parameters,
+            generic_parameters,
+            parameters,
             return_type,
             ..
         } = ctx.types.get_type(member_ty_id).clone()
@@ -4017,7 +3967,7 @@ impl Compiler {
             return Ok(None);
         };
         let signature_static_parameter_symbols =
-            self.static_parameter_symbols_for_type_ids(&static_parameters, &*ctx.types);
+            self.generic_parameter_symbols_for_type_ids(&generic_parameters, &*ctx.types);
         let signature = self
             .resolve_function_static_arguments(
                 &mut ctx.reborrow(),
@@ -4028,9 +3978,9 @@ impl Compiler {
                     prefilled_static_arguments: None,
                     bound_substitutions: (!resolved_context.substitutions.is_empty())
                         .then_some(&resolved_context.substitutions),
-                    dynamic_argument_ids: None,
-                    static_parameter_type_ids: &static_parameters,
-                    dynamic_parameter_type_ids: &dynamic_parameters,
+                    argument_ids: None,
+                    generic_parameter_type_ids: &generic_parameters,
+                    parameter_type_ids: &parameters,
                     return_type,
                     expected_return_type: None,
                     mode: SignatureResolutionMode::Check,
@@ -4038,9 +3988,9 @@ impl Compiler {
                 },
             )?
             .unwrap_or(ResolvedSignature {
-                dynamic_parameters,
+                parameters,
                 return_type,
-                static_arguments: Vec::new(),
+                generic_arguments: Vec::new(),
             });
 
         Ok(Some(ResolvedMemberFunction {
@@ -4070,7 +4020,7 @@ impl Compiler {
             member_symbol,
             &resolved.instance_arguments,
             &resolved.bound_substitutions,
-            &resolved.signature.static_arguments,
+            &resolved.signature.generic_arguments,
             &resolved.signature_static_parameter_symbols,
         );
         let Some(environment) = environment else {

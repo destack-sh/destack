@@ -12,10 +12,10 @@ use crate::{
 };
 use destack_dir::{
     AnchoredGlobalNodeId, Argument, Constraint, Declaration, DependencyItem, Expression, Freshness,
-    GenericArgument, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope,
-    InferTable, Key, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, Name, NodeTree,
-    ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StaticParameter,
-    StaticParameterKind, StaticProperty, StringId, SymbolTable, SymbolType, Type, TypeElement,
+    GenericArgument, GenericParameterKind, GenericParameterSpec, GlobalNodeId, GlobalNodeIdAny,
+    GlobalSymbolId, InferOrigin, InferScope, InferTable, Key, LocalNodeId, LocalNodeIdAny,
+    LocalSymbolId, LocalTypeId, Name, NodeTree, ScalarLiteral, StaticArgument, StaticExpression,
+    StaticKey, StaticProperty, StringId, SymbolTable, SymbolType, Type, TypeElement,
     TypeExpression, TypeField, TypeLiteral, TypeTable,
 };
 use destack_source::ModuleId;
@@ -89,7 +89,7 @@ impl Compiler {
     }
 
     /// Resolve a static parameter symbol for a reference expression.
-    pub(crate) fn static_parameter_symbol_for_reference(
+    pub(crate) fn generic_parameter_symbol_for_reference(
         &self,
         ctx: TypeView<'_>,
         expression_id: LocalNodeId<Expression>,
@@ -252,13 +252,13 @@ impl Compiler {
         &self,
         call_site: TreeSymbolView<'_>,
         node_id: LocalNodeIdAny,
-        static_arguments: &[StaticArgument],
-        parameters: &[StaticParameter],
+        generic_arguments: &[StaticArgument],
+        parameters: &[GenericParameterSpec],
     ) -> Vec<Option<StaticArgument>> {
         // precompute argument names and detect mixed styles
         let mut has_named_arguments = false;
-        let mut argument_infos = Vec::with_capacity(static_arguments.len());
-        for argument in static_arguments {
+        let mut argument_infos = Vec::with_capacity(generic_arguments.len());
+        for argument in generic_arguments {
             let (argument_name, is_spread) = match argument {
                 StaticArgument::Evaluated { name, .. } => (*name, false),
                 StaticArgument::Unevaluated { node } => {
@@ -386,14 +386,14 @@ impl Compiler {
             match self.well_known_type(ctx.profile, receiver_ty, ctx.types) {
                 Some(Type::Reference {
                     symbol,
-                    static_arguments,
+                    generic_arguments,
                 }) => {
                     let symbol = self.remap_typevalue_symbol_to_type_space(
                         ctx.module_symbol_view(),
                         &ctx.index,
                         symbol,
                     )?;
-                    Some((symbol, static_arguments))
+                    Some((symbol, generic_arguments))
                 }
                 _ => None,
             }
@@ -467,7 +467,7 @@ impl Compiler {
             reference = Some((instance_reference.0, Some(instance_reference.1)));
         }
 
-        let Some((symbol, static_arguments)) = reference else {
+        let Some((symbol, generic_arguments)) = reference else {
             return Ok(InheritedStaticArguments {
                 arguments: Vec::new(),
                 substitutions: HashMap::new(),
@@ -475,7 +475,7 @@ impl Compiler {
         };
 
         // skip resolution when no explicit static arguments exist
-        let has_arguments = static_arguments
+        let has_arguments = generic_arguments
             .as_ref()
             .is_some_and(|arguments| !arguments.is_empty());
         if !has_arguments {
@@ -486,7 +486,7 @@ impl Compiler {
         }
 
         // prefer static argument nodes or type sources to avoid node instance collisions
-        let argument_node = static_arguments.as_ref().and_then(|arguments| {
+        let argument_node = generic_arguments.as_ref().and_then(|arguments| {
             arguments.iter().find_map(|argument| match argument {
                 StaticArgument::Unevaluated { node } if node.module_id == ctx.module.id => {
                     Some(node.local_id)
@@ -503,19 +503,19 @@ impl Compiler {
             &mut ctx.type_context_reborrow(),
             resolution_node_id,
             symbol,
-            static_arguments.as_deref(),
+            generic_arguments.as_deref(),
             true,
         )?;
         let mut resolved_arguments = match resolved {
             Some(resolved) => resolved,
             None => {
-                let Some(static_arguments) = static_arguments.as_ref() else {
+                let Some(generic_arguments) = generic_arguments.as_ref() else {
                     return Ok(InheritedStaticArguments {
                         arguments: Vec::new(),
                         substitutions: HashMap::new(),
                     });
                 };
-                if static_arguments.is_empty() {
+                if generic_arguments.is_empty() {
                     return Ok(InheritedStaticArguments {
                         arguments: Vec::new(),
                         substitutions: HashMap::new(),
@@ -527,7 +527,7 @@ impl Compiler {
                         &mut ctx.type_context_reborrow(),
                         symbol,
                         resolution_node_id,
-                        static_arguments,
+                        generic_arguments,
                     )
                 } else {
                     self.with_declared_type_context_for_module(
@@ -538,7 +538,7 @@ impl Compiler {
                                 remote_ctx,
                                 symbol,
                                 resolution_node_id,
-                                static_arguments,
+                                generic_arguments,
                             ))
                         },
                     )?
@@ -588,7 +588,7 @@ impl Compiler {
     }
 
     /// Infer static arguments for a generic return type from an expected return type.
-    pub(crate) fn static_arguments_from_expected_return_type(
+    pub(crate) fn generic_arguments_from_expected_return_type(
         &self,
         ctx: &mut TypeContext<'_>,
         return_type: LocalTypeId,
@@ -602,15 +602,15 @@ impl Compiler {
         let (return_symbol, mut return_arguments) = match ctx.types.get_type(return_type) {
             Type::Reference {
                 symbol,
-                static_arguments,
-            } => (*symbol, static_arguments.clone()),
+                generic_arguments,
+            } => (*symbol, generic_arguments.clone()),
             _ => return Ok(None),
         };
         let (expected_symbol, mut expected_arguments) =
             match ctx.types.get_type(expected_return_type) {
                 Type::Reference {
                     symbol,
-                    static_arguments: Some(arguments),
+                    generic_arguments: Some(arguments),
                 } => (*symbol, arguments.clone()),
                 _ => return Ok(None),
             };
@@ -736,8 +736,8 @@ impl Compiler {
         let mut candidate = match receiver_ty {
             Type::Reference {
                 symbol,
-                static_arguments,
-            } => Some((*symbol, static_arguments.clone())),
+                generic_arguments,
+            } => Some((*symbol, generic_arguments.clone())),
             Type::Value { value } => {
                 let value_ty = types.get_type(*value);
                 return self.receiver_reference_for_inherited_arguments(value_ty, types);
@@ -857,7 +857,7 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         call_site: TreeSymbolView<'_>,
         call_site_options: &AnalyzeOptions,
-        static_parameter: &StaticParameter,
+        generic_parameter: &GenericParameterSpec,
         assigned_argument: Option<StaticArgument>,
         treat_type_arguments_as_types: bool,
     ) -> AnalyzeResult<Option<StaticArgument>> {
@@ -867,13 +867,13 @@ impl Compiler {
                 &mut ctx.reborrow(),
                 call_site,
                 call_site_options,
-                static_parameter,
+                generic_parameter,
                 argument,
                 treat_type_arguments_as_types,
             )?;
 
             // normalize value arguments back into value expressions
-            let resolved_argument = if static_parameter.kind == StaticParameterKind::Value {
+            let resolved_argument = if generic_parameter.kind == GenericParameterKind::Value {
                 self.normalize_value_static_argument(resolved_argument, ctx.types)
             } else {
                 resolved_argument
@@ -883,16 +883,16 @@ impl Compiler {
         }
 
         // default expression
-        if let Some(default_expression) = static_parameter.default_expression.as_ref() {
+        if let Some(default_expression) = generic_parameter.default_expression.as_ref() {
             let resolved_argument = self.resolve_default_static_argument(
                 &mut ctx.reborrow(),
-                static_parameter,
+                generic_parameter,
                 default_expression,
                 treat_type_arguments_as_types,
             )?;
 
             // normalize value defaults back into value expressions
-            let resolved_argument = if static_parameter.kind == StaticParameterKind::Value {
+            let resolved_argument = if generic_parameter.kind == GenericParameterKind::Value {
                 self.normalize_value_static_argument(resolved_argument, ctx.types)
             } else {
                 resolved_argument
@@ -911,13 +911,13 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         call_site: TreeSymbolView<'_>,
         call_site_options: &AnalyzeOptions,
-        static_parameter: &StaticParameter,
+        generic_parameter: &GenericParameterSpec,
         argument: StaticArgument,
         treat_type_arguments_as_types: bool,
     ) -> AnalyzeResult<StaticArgument> {
         // resolve explicit arguments based on parameter kind
-        let resolved_argument = match (static_parameter.kind, argument) {
-            (StaticParameterKind::Type, StaticArgument::Unevaluated { node }) => {
+        let resolved_argument = match (generic_parameter.kind, argument) {
+            (GenericParameterKind::Type, StaticArgument::Unevaluated { node }) => {
                 let mut call_site_ctx = TypeContext::new(
                     ctx.compiler_context,
                     call_site.module,
@@ -941,7 +941,7 @@ impl Compiler {
                     self.evaluate_static_argument_as_type(&mut call_site_ctx.reborrow(), node)?;
                 resolved.unwrap_or(StaticArgument::Unevaluated { node })
             }
-            (StaticParameterKind::Value, StaticArgument::Unevaluated { node }) => {
+            (GenericParameterKind::Value, StaticArgument::Unevaluated { node }) => {
                 let mut call_site_ctx = TypeContext::new(
                     ctx.compiler_context,
                     call_site.module,
@@ -954,7 +954,7 @@ impl Compiler {
                 );
                 self.resolve_value_static_argument(&mut call_site_ctx.reborrow(), node)?
             }
-            (StaticParameterKind::Type, StaticArgument::Evaluated { name, value }) => {
+            (GenericParameterKind::Type, StaticArgument::Evaluated { name, value }) => {
                 // preserve explicit values when type arguments stay unconverted
                 if !treat_type_arguments_as_types {
                     StaticArgument::Evaluated {
@@ -968,7 +968,8 @@ impl Compiler {
                     };
                     let ty_id = self.convert_static_argument_type(
                         &argument,
-                        ctx.types.get_type_source(static_parameter.declared_type_id),
+                        ctx.types
+                            .get_type_source(generic_parameter.declared_type_id),
                         ctx.types,
                     );
 
@@ -1052,7 +1053,7 @@ impl Compiler {
 
             let reference_ty = Type::Reference {
                 symbol,
-                static_arguments: None,
+                generic_arguments: None,
             };
             let ty_id = ctx
                 .types
@@ -1280,7 +1281,7 @@ impl Compiler {
     fn resolve_default_static_argument(
         &self,
         ctx: &mut TypeContext<'_>,
-        static_parameter: &StaticParameter,
+        generic_parameter: &GenericParameterSpec,
         default_expression: &GlobalNodeId<Expression>,
         treat_type_arguments_as_types: bool,
     ) -> AnalyzeResult<StaticArgument> {
@@ -1288,8 +1289,8 @@ impl Compiler {
         if default_expression.module_id == ctx.module.id {
             return self.evaluate_static_default_argument(
                 &mut ctx.reborrow(),
-                static_parameter.kind,
-                static_parameter.name,
+                generic_parameter.kind,
+                generic_parameter.name,
                 default_expression.local_id,
                 treat_type_arguments_as_types,
             );
@@ -1302,8 +1303,8 @@ impl Compiler {
             |ctx| {
                 self.evaluate_static_default_argument(
                     ctx,
-                    static_parameter.kind,
-                    static_parameter.name,
+                    generic_parameter.kind,
+                    generic_parameter.name,
                     default_expression.local_id,
                     treat_type_arguments_as_types,
                 )
@@ -1316,25 +1317,25 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         error_node: GlobalNodeIdAny,
-        static_parameter: &StaticParameter,
+        generic_parameter: &GenericParameterSpec,
         resolved_static_argument: &StaticArgument,
         validation_mode: StaticArgumentValidationMode,
     ) -> AnalyzeResult<LocalTypeId> {
         // pre-evaluate local type aliases used as bounds
         if let Type::Reference { symbol, .. } =
-            ctx.types.get_type(static_parameter.declared_type_id)
+            ctx.types.get_type(generic_parameter.declared_type_id)
             && symbol.ty() == SymbolType::TypeAlias
         {
             self.unwrap_type_alias_reference(
                 &mut ctx.reborrow(),
-                static_parameter.declared_type_id,
+                generic_parameter.declared_type_id,
             )?;
         }
 
         // evaluate the declared bound when needed
         self.ensure_static_parameter_bound_evaluated(
             &mut ctx.reborrow(),
-            static_parameter.declared_type_id,
+            generic_parameter.declared_type_id,
         )?;
 
         // re-evaluate unevaluated arguments before building the substitution type
@@ -1355,7 +1356,7 @@ impl Compiler {
             self.ensure_reference_instance_types_for_type(
                 &mut ctx.reborrow(),
                 error_node.local_id,
-                static_parameter.declared_type_id,
+                generic_parameter.declared_type_id,
             )?;
             self.ensure_reference_instance_types_for_type(
                 &mut ctx.reborrow(),
@@ -1366,7 +1367,7 @@ impl Compiler {
             self.ensure_local_reference_instance_types_for_type(
                 &mut ctx.reborrow(),
                 error_node.local_id,
-                static_parameter.declared_type_id,
+                generic_parameter.declared_type_id,
             )?;
             self.ensure_local_reference_instance_types_for_type(
                 &mut ctx.reborrow(),
@@ -1394,7 +1395,7 @@ impl Compiler {
             let enum_type_id = ctx.types.insert_type_from_any(
                 Type::Reference {
                     symbol: enum_symbol,
-                    static_arguments: None,
+                    generic_arguments: None,
                 },
                 error_node.local_id,
             );
@@ -1409,7 +1410,7 @@ impl Compiler {
             };
             if let Some(symbol) = symbol
                 && self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol)
-                && let Some(constraint_id) = self.static_parameter_constraint_type(
+                && let Some(constraint_id) = self.generic_parameter_constraint_type(
                     &mut ctx.reborrow(),
                     symbol,
                     error_node.local_id,
@@ -1661,14 +1662,14 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         error_node: GlobalNodeIdAny,
-        static_parameter: &StaticParameter,
+        generic_parameter: &GenericParameterSpec,
         resolved_static_argument: &StaticArgument,
         prepared_substitution: Option<LocalTypeId>,
         bound_substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
         infer: Option<&mut InferTable>,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // validate type arguments against the declared bound
-        if static_parameter.kind == StaticParameterKind::Type {
+        if generic_parameter.kind == GenericParameterKind::Type {
             // coerce the argument into a type
             let substitution_ty_id = prepared_substitution.unwrap_or_else(|| {
                 self.convert_static_argument_type(
@@ -1684,7 +1685,7 @@ impl Compiler {
             }
 
             // resolve bounds via constraint lookup when the declared slot is not concrete
-            let mut declared_bound_id = static_parameter.declared_type_id;
+            let mut declared_bound_id = generic_parameter.declared_type_id;
             let declared_bound_needs_constraint = matches!(
                 ctx.types.get_type(declared_bound_id),
                 Type::Unevaluated(_)
@@ -1694,10 +1695,10 @@ impl Compiler {
                     }
             );
             if declared_bound_needs_constraint
-                && self.symbol_is_static_parameter(ctx.symbol_type_view(), static_parameter.symbol)
-                && let Some(constraint_id) = self.static_parameter_constraint_type(
+                && self.symbol_is_static_parameter(ctx.symbol_type_view(), generic_parameter.symbol)
+                && let Some(constraint_id) = self.generic_parameter_constraint_type(
                     &mut ctx.reborrow(),
-                    static_parameter.symbol,
+                    generic_parameter.symbol,
                     error_node.local_id,
                 )
             {
@@ -1706,7 +1707,7 @@ impl Compiler {
 
             // substitute the argument into self referential bounds
             let mut substitutions = bound_substitutions.clone();
-            substitutions.insert(static_parameter.symbol, substitution_ty_id);
+            substitutions.insert(generic_parameter.symbol, substitution_ty_id);
             let mut cache = HashMap::new();
             let mut expected_ty_id = self.substitute_static_parameters(
                 declared_bound_id,
@@ -1721,10 +1722,11 @@ impl Compiler {
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown | TypeLiteral::Any
                 }
-            ) && self.symbol_is_static_parameter(ctx.symbol_type_view(), static_parameter.symbol)
-                && let Some(constraint_id) = self.static_parameter_constraint_type(
+            ) && self
+                .symbol_is_static_parameter(ctx.symbol_type_view(), generic_parameter.symbol)
+                && let Some(constraint_id) = self.generic_parameter_constraint_type(
                     &mut ctx.reborrow(),
-                    static_parameter.symbol,
+                    generic_parameter.symbol,
                     error_node.local_id,
                 )
             {
@@ -1777,7 +1779,7 @@ impl Compiler {
                 };
                 if let Some(symbol) = symbol
                     && self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol)
-                    && let Some(constraint_ty_id) = self.static_parameter_constraint_type(
+                    && let Some(constraint_ty_id) = self.generic_parameter_constraint_type(
                         &mut ctx.reborrow(),
                         symbol,
                         error_node.local_id,
@@ -1827,7 +1829,7 @@ impl Compiler {
         }
 
         // validate value arguments against the declared type
-        if static_parameter.kind == StaticParameterKind::Value
+        if generic_parameter.kind == GenericParameterKind::Value
             && let StaticArgument::Unevaluated { node } = resolved_static_argument
         {
             if self.unevaluated_static_value_argument_requires_convergence(
@@ -1851,7 +1853,7 @@ impl Compiler {
         };
 
         // keep symbolic static values deferred until substitution convergence
-        if static_parameter.kind == StaticParameterKind::Value
+        if generic_parameter.kind == GenericParameterKind::Value
             && let StaticExpression::Unevaluated { node } = value
             && self.static_value_expression_requires_convergence(ctx.type_view(), *node)
         {
@@ -1859,14 +1861,14 @@ impl Compiler {
         }
 
         // evaluated unevaluated values represent symbolic static expressions
-        if static_parameter.kind == StaticParameterKind::Value
+        if generic_parameter.kind == GenericParameterKind::Value
             && matches!(value, StaticExpression::Unevaluated { .. })
         {
             return Ok(None);
         }
 
         // reject non static value arguments
-        if static_parameter.kind == StaticParameterKind::Value
+        if generic_parameter.kind == GenericParameterKind::Value
             && !self.static_value_argument_is_static(value, ctx.type_view())
         {
             self.error(AnalyzeError::NonStaticArgument {
@@ -1886,17 +1888,17 @@ impl Compiler {
         if let StaticExpression::ScalarLiteral { value: literal } = value
             && self.enum_constraint_accepts_literal(
                 &mut ctx.reborrow(),
-                static_parameter.declared_type_id,
+                generic_parameter.declared_type_id,
                 literal,
             )?
         {
             return Ok(Some(value_ty_id));
         }
 
-        if !self.is_infer_var_type(static_parameter.declared_type_id, ctx.types)
+        if !self.is_infer_var_type(generic_parameter.declared_type_id, ctx.types)
             && self.is_type_assignable(
                 &mut ctx.reborrow(),
-                static_parameter.declared_type_id,
+                generic_parameter.declared_type_id,
                 value_ty_id,
             ) == Assignability::NotAssignable
         {
@@ -1904,7 +1906,7 @@ impl Compiler {
             self.emit_unassignable_type_for_types(
                 ctx.module_type_view(),
                 error_node.local_id,
-                static_parameter.declared_type_id,
+                generic_parameter.declared_type_id,
                 value_ty_id,
             );
             return Ok(Some(
@@ -1948,8 +1950,8 @@ impl Compiler {
                 )
             }
             StaticExpression::Declaration {
-                static_arguments, ..
-            } => static_arguments.as_ref().is_none_or(|arguments| {
+                generic_arguments, ..
+            } => generic_arguments.as_ref().is_none_or(|arguments| {
                 arguments.iter().all(|argument| match argument {
                     StaticArgument::Unevaluated { .. } => false,
                     StaticArgument::Evaluated { value, .. } => {
@@ -2145,8 +2147,11 @@ impl Compiler {
             visiting.remove(&symbol);
             return None;
         }
-        let constraint_id =
-            self.static_parameter_constraint_type(&mut ctx.reborrow(), symbol, error_node.local_id);
+        let constraint_id = self.generic_parameter_constraint_type(
+            &mut ctx.reborrow(),
+            symbol,
+            error_node.local_id,
+        );
         let Some(constraint_id) = constraint_id else {
             visiting.remove(&symbol);
             return None;
@@ -2203,7 +2208,7 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
-        static_arguments: Option<&[StaticArgument]>,
+        generic_arguments: Option<&[StaticArgument]>,
         validate_static_argument_bounds: bool,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_STATIC_RESOLVE);
@@ -2219,7 +2224,7 @@ impl Compiler {
             ctx,
             node_id,
             symbol,
-            static_arguments,
+            generic_arguments,
             validate_static_argument_bounds,
             None,
             StaticArgumentValidationMode::Analyze,
@@ -2232,7 +2237,7 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
-        static_arguments: Option<&[StaticArgument]>,
+        generic_arguments: Option<&[StaticArgument]>,
         validate_static_argument_bounds: bool,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_STATIC_RESOLVE);
@@ -2247,7 +2252,7 @@ impl Compiler {
             ctx,
             node_id,
             symbol,
-            static_arguments,
+            generic_arguments,
             validate_static_argument_bounds,
             None,
             StaticArgumentValidationMode::Declare,
@@ -2260,7 +2265,7 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
-        static_arguments: Option<&[StaticArgument]>,
+        generic_arguments: Option<&[StaticArgument]>,
         validate_static_argument_bounds: bool,
         bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         validation_mode: StaticArgumentValidationMode,
@@ -2269,7 +2274,7 @@ impl Compiler {
             ctx,
             node_id,
             symbol,
-            static_arguments,
+            generic_arguments,
             validate_static_argument_bounds,
             bound_substitutions,
             validation_mode,
@@ -2282,7 +2287,7 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
-        static_arguments: Option<&[StaticArgument]>,
+        generic_arguments: Option<&[StaticArgument]>,
         validate_static_argument_bounds: bool,
         bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
@@ -2290,7 +2295,7 @@ impl Compiler {
             ctx,
             node_id,
             symbol,
-            static_arguments,
+            generic_arguments,
             validate_static_argument_bounds,
             bound_substitutions,
             StaticArgumentValidationMode::Analyze,
@@ -2303,7 +2308,7 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
-        static_arguments: Option<&[StaticArgument]>,
+        generic_arguments: Option<&[StaticArgument]>,
         validate_static_argument_bounds: bool,
         bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         validation_mode: StaticArgumentValidationMode,
@@ -2314,9 +2319,9 @@ impl Compiler {
         // check for cached resolved static arguments
         let options_cache_key = ctx.options.cache_key();
         let cache_key = if bound_substitutions.is_none() {
-            self.static_argument_resolution_cache_key(
+            self.generic_argument_resolution_cache_key(
                 symbol,
-                static_arguments,
+                generic_arguments,
                 validate_static_argument_bounds,
                 treat_type_arguments_as_types,
                 options_cache_key,
@@ -2336,7 +2341,7 @@ impl Compiler {
         }
 
         // reuse resolved arguments when an instance is already registered for this node
-        let has_explicit_arguments = static_arguments.is_some_and(|args| !args.is_empty());
+        let has_explicit_arguments = generic_arguments.is_some_and(|args| !args.is_empty());
         let node_global_id = node_id.into_global(ctx.module.id);
         if !has_explicit_arguments
             && let Some(arguments) =
@@ -2346,7 +2351,7 @@ impl Compiler {
         }
 
         // guard against recursive resolution on the same reference
-        let argument_slice = static_arguments.unwrap_or(&[]);
+        let argument_slice = generic_arguments.unwrap_or(&[]);
         if ctx
             .types
             .is_static_argument_resolution_in_progress(symbol, argument_slice)
@@ -2387,7 +2392,7 @@ impl Compiler {
             ctx,
             node_id,
             symbol,
-            static_arguments,
+            generic_arguments,
             validate_static_argument_bounds,
             bound_substitutions,
             treat_type_arguments_as_types,
@@ -2419,7 +2424,7 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
-        static_arguments: Option<&[StaticArgument]>,
+        generic_arguments: Option<&[StaticArgument]>,
         validate_static_argument_bounds: bool,
         bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         treat_type_arguments_as_types: bool,
@@ -2453,7 +2458,7 @@ impl Compiler {
                 call_site_options,
                 node_id,
                 symbol,
-                static_arguments,
+                generic_arguments,
                 validate_static_argument_bounds,
                 bound_substitutions,
                 treat_type_arguments_as_types,
@@ -2468,7 +2473,7 @@ impl Compiler {
                 call_site_options,
                 node_id,
                 symbol,
-                static_arguments,
+                generic_arguments,
                 validate_static_argument_bounds,
                 bound_substitutions,
                 treat_type_arguments_as_types,
@@ -2485,7 +2490,7 @@ impl Compiler {
         call_site_options: &AnalyzeOptions,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
-        static_arguments: Option<&[StaticArgument]>,
+        generic_arguments: Option<&[StaticArgument]>,
         validate_static_argument_bounds: bool,
         bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         treat_type_arguments_as_types: bool,
@@ -2497,10 +2502,10 @@ impl Compiler {
             Some(parameter_symbols) => parameter_symbols,
             None => {
                 // keep explicit arguments when the declaration is unavailable
-                if let Some(static_arguments) = static_arguments
-                    && !static_arguments.is_empty()
+                if let Some(generic_arguments) = generic_arguments
+                    && !generic_arguments.is_empty()
                 {
-                    return Ok(Some(static_arguments.to_vec()));
+                    return Ok(Some(generic_arguments.to_vec()));
                 }
                 return Ok(None);
             }
@@ -2508,19 +2513,19 @@ impl Compiler {
 
         // keep explicit arguments when no parameters exist
         if parameter_symbols.is_empty() {
-            if let Some(static_arguments) = static_arguments
-                && !static_arguments.is_empty()
+            if let Some(generic_arguments) = generic_arguments
+                && !generic_arguments.is_empty()
             {
-                return Ok(Some(static_arguments.to_vec()));
+                return Ok(Some(generic_arguments.to_vec()));
             }
 
             return Ok(None);
         }
 
         // gather static parameter metadata for the declaration
-        let mut static_parameters = Vec::with_capacity(parameter_symbols.len());
+        let mut generic_parameters = Vec::with_capacity(parameter_symbols.len());
         for symbol_id in &parameter_symbols {
-            static_parameters.push(self.resolve_static_parameter(
+            generic_parameters.push(self.resolve_static_parameter(
                 &mut ctx.reborrow(),
                 *symbol_id,
                 node_id,
@@ -2528,25 +2533,25 @@ impl Compiler {
         }
 
         // map arguments to parameter slots
-        let argument_values = static_arguments.unwrap_or(&[]);
+        let argument_values = generic_arguments.unwrap_or(&[]);
         let assigned_arguments = self.assign_static_argument_values(
             call_site,
             node_id,
             argument_values,
-            &static_parameters,
+            &generic_parameters,
         );
 
         // resolve arguments with defaults and error-type recovery
-        let mut resolved_arguments = Vec::with_capacity(static_parameters.len());
+        let mut resolved_arguments = Vec::with_capacity(generic_parameters.len());
         let mut resolved_argument_map = HashMap::new();
-        for (index, static_parameter) in static_parameters.iter().enumerate() {
+        for (index, generic_parameter) in generic_parameters.iter().enumerate() {
             let assigned_argument = assigned_arguments.get(index).cloned().flatten();
             let error_node = if let Some(argument) = &assigned_argument {
                 match argument {
                     StaticArgument::Unevaluated { node } => *node,
                     StaticArgument::Evaluated { .. } => node_id.into_global(call_site.module.id),
                 }
-            } else if let Some(default_expression) = static_parameter.default_expression.as_ref() {
+            } else if let Some(default_expression) = generic_parameter.default_expression.as_ref() {
                 default_expression
                     .local_id
                     .into_global_any(default_expression.module_id)
@@ -2559,16 +2564,16 @@ impl Compiler {
                 &mut ctx.reborrow(),
                 call_site,
                 call_site_options,
-                static_parameter,
+                generic_parameter,
                 assigned_argument,
                 treat_type_arguments_as_types,
             )?;
             let mut resolved_argument = resolved_argument.unwrap_or_else(|| {
                 // unresolved references synthesize error recovery values by parameter kind
                 let error_ty_id = ctx.types.insert_type_from_any(Type::Error, node_id);
-                let synthesized_value = match static_parameter.kind {
-                    StaticParameterKind::Type => StaticExpression::Type { ty: error_ty_id },
-                    StaticParameterKind::Value => node_id
+                let synthesized_value = match generic_parameter.kind {
+                    GenericParameterKind::Type => StaticExpression::Type { ty: error_ty_id },
+                    GenericParameterKind::Value => node_id
                         .try_into_typed::<Expression>()
                         .map(|expression_id| StaticExpression::Unevaluated {
                             node: expression_id,
@@ -2576,13 +2581,13 @@ impl Compiler {
                         .unwrap_or(StaticExpression::Type { ty: error_ty_id }),
                 };
                 StaticArgument::Evaluated {
-                    name: static_parameter.name,
+                    name: generic_parameter.name,
                     value: synthesized_value,
                 }
             });
 
             // substitute earlier value parameters in defaults
-            if static_parameter.kind == StaticParameterKind::Value {
+            if generic_parameter.kind == GenericParameterKind::Value {
                 resolved_argument = self.substitute_value_parameter_reference(
                     resolved_argument,
                     &resolved_argument_map,
@@ -2592,7 +2597,7 @@ impl Compiler {
             }
 
             // inherit value constraints when passing a static parameter through
-            if static_parameter.kind == StaticParameterKind::Value {
+            if generic_parameter.kind == GenericParameterKind::Value {
                 let referenced_symbol = match &resolved_argument {
                     StaticArgument::Evaluated {
                         value: StaticExpression::Type { ty },
@@ -2605,7 +2610,7 @@ impl Compiler {
                     let constraint_id = if self
                         .symbol_is_static_parameter(ctx.symbol_type_view(), referenced_symbol)
                     {
-                        self.static_parameter_constraint_type(
+                        self.generic_parameter_constraint_type(
                             &mut ctx.reborrow(),
                             referenced_symbol,
                             error_node.local_id,
@@ -2623,24 +2628,24 @@ impl Compiler {
                         )
                     {
                         if matches!(
-                            ctx.types.get_type(static_parameter.declared_type_id),
+                            ctx.types.get_type(generic_parameter.declared_type_id),
                             Type::Unevaluated(_)
                         ) {
                             self.resolve_declared_type(
                                 &mut ctx.reborrow(),
-                                static_parameter.declared_type_id,
+                                generic_parameter.declared_type_id,
                             )?;
                         }
 
                         if !matches!(
-                            ctx.types.get_type(static_parameter.declared_type_id),
+                            ctx.types.get_type(generic_parameter.declared_type_id),
                             Type::TypeLiteral {
                                 value: TypeLiteral::Unknown
                             }
                         ) {
                             ctx.types.set_static_parameter_constraint_type(
                                 referenced_symbol,
-                                static_parameter.declared_type_id,
+                                generic_parameter.declared_type_id,
                             );
                         }
                     }
@@ -2649,13 +2654,13 @@ impl Compiler {
 
             // materialized type argument validation when needed
             let materialized_substitution = if validate_static_argument_bounds
-                && static_parameter.kind == StaticParameterKind::Type
+                && generic_parameter.kind == GenericParameterKind::Type
             {
                 let mut ctx = ctx.reborrow();
                 Some(self.materialize_static_type_argument(
                     &mut ctx,
                     error_node,
-                    static_parameter,
+                    generic_parameter,
                     &resolved_argument,
                     validation_mode,
                 )?)
@@ -2664,8 +2669,8 @@ impl Compiler {
             };
 
             // collect resolved substitutions for prior static parameters
-            let local_bound_substitutions = self.static_argument_substitutions_for_bounds(
-                &static_parameters[..resolved_arguments.len()],
+            let local_bound_substitutions = self.generic_argument_substitutions_for_bounds(
+                &generic_parameters[..resolved_arguments.len()],
                 &resolved_arguments,
             );
             let mut bound_substitutions = bound_substitutions.cloned().unwrap_or_else(HashMap::new);
@@ -2686,7 +2691,7 @@ impl Compiler {
                 self.validate_static_argument(
                     &mut ctx,
                     error_node,
-                    static_parameter,
+                    generic_parameter,
                     &resolved_argument,
                     materialized_substitution,
                     &bound_substitutions,
@@ -2715,7 +2720,7 @@ impl Compiler {
                     _ => false,
                 };
                 if matches!(ctx.types.get_type(substitution_ty_id), Type::Error)
-                    || static_parameter.kind == StaticParameterKind::Type
+                    || generic_parameter.kind == GenericParameterKind::Type
                 {
                     resolved_argument = StaticArgument::Evaluated {
                         name: argument_name,
@@ -2723,7 +2728,7 @@ impl Compiler {
                             ty: substitution_ty_id,
                         },
                     };
-                } else if static_parameter.kind == StaticParameterKind::Value
+                } else if generic_parameter.kind == GenericParameterKind::Value
                     && !preserves_reference
                 {
                     let replacement = StaticArgument::Evaluated {
@@ -2737,7 +2742,7 @@ impl Compiler {
                 }
             }
 
-            resolved_argument_map.insert(static_parameter.symbol, resolved_argument.clone());
+            resolved_argument_map.insert(generic_parameter.symbol, resolved_argument.clone());
             resolved_arguments.push(resolved_argument);
         }
 
@@ -2745,14 +2750,14 @@ impl Compiler {
     }
 
     /// Collect static parameter substitutions for bound evaluation.
-    fn static_argument_substitutions_for_bounds(
+    fn generic_argument_substitutions_for_bounds(
         &self,
-        static_parameters: &[StaticParameter],
+        generic_parameters: &[GenericParameterSpec],
         resolved_arguments: &[StaticArgument],
     ) -> HashMap<GlobalSymbolId, LocalTypeId> {
         // collect resolved type substitutions for prior parameters
         let mut substitutions = HashMap::new();
-        for (parameter, argument) in static_parameters.iter().zip(resolved_arguments.iter()) {
+        for (parameter, argument) in generic_parameters.iter().zip(resolved_arguments.iter()) {
             let resolved_type = match argument {
                 StaticArgument::Evaluated {
                     value: StaticExpression::Type { ty },
@@ -2789,9 +2794,9 @@ impl Compiler {
         }
 
         // collect static parameters for the declaration
-        let mut static_parameters = Vec::with_capacity(parameter_symbols.len());
+        let mut generic_parameters = Vec::with_capacity(parameter_symbols.len());
         for symbol_id in &parameter_symbols {
-            static_parameters.push(self.resolve_static_parameter(
+            generic_parameters.push(self.resolve_static_parameter(
                 &mut ctx.reborrow(),
                 *symbol_id,
                 source_id,
@@ -2800,14 +2805,16 @@ impl Compiler {
 
         // build substitutions for type and value parameters
         let mut substitutions = HashMap::new();
-        for (static_parameter, argument) in static_parameters.iter().zip(resolved_arguments.iter())
+        for (generic_parameter, argument) in
+            generic_parameters.iter().zip(resolved_arguments.iter())
         {
             let ty_id = self.convert_static_argument_type(
                 argument,
-                ctx.types.get_type_source(static_parameter.declared_type_id),
+                ctx.types
+                    .get_type_source(generic_parameter.declared_type_id),
                 ctx.types,
             );
-            substitutions.insert(static_parameter.symbol, ty_id);
+            substitutions.insert(generic_parameter.symbol, ty_id);
         }
 
         substitutions
@@ -2833,11 +2840,11 @@ impl Compiler {
 
             // preserve static parameter references in type arguments
             if let Some(parameter_symbol) =
-                self.static_parameter_symbol_for_reference(ctx.type_view(), expression_id)?
+                self.generic_parameter_symbol_for_reference(ctx.type_view(), expression_id)?
             {
                 let reference_ty = Type::Reference {
                     symbol: parameter_symbol,
-                    static_arguments: None,
+                    generic_arguments: None,
                 };
                 let ty_id = ctx
                     .types
@@ -2887,7 +2894,7 @@ impl Compiler {
                 let ty = ctx.types.insert_type_from_any(
                     Type::Reference {
                         symbol: enum_symbol,
-                        static_arguments: None,
+                        generic_arguments: None,
                     },
                     expression_id.into_any(),
                 );
@@ -3043,30 +3050,30 @@ impl Compiler {
         ctx: &mut InferContext<'_>,
         node_id: LocalNodeIdAny,
         owner_symbol: Option<GlobalSymbolId>,
-        static_parameter: &StaticParameter,
+        generic_parameter: &GenericParameterSpec,
     ) -> AnalyzeResult<StaticArgument> {
-        match static_parameter.kind {
-            StaticParameterKind::Type => {
+        match generic_parameter.kind {
+            GenericParameterKind::Type => {
                 // build a fresh inference variable for this call site
-                let scope_owner = owner_symbol.unwrap_or(static_parameter.symbol);
+                let scope_owner = owner_symbol.unwrap_or(generic_parameter.symbol);
                 let scope = InferScope {
                     owner: scope_owner,
                     function_id: Some(node_id.into_global(ctx.module.id)),
                 };
                 let var_id = ctx
                     .infer
-                    .new_var(InferOrigin::TypeParameter(static_parameter.symbol), scope);
+                    .new_var(InferOrigin::TypeParameter(generic_parameter.symbol), scope);
                 let inferred_ty_id = ctx
                     .types
                     .insert_type_from_any(Type::InferVar { id: var_id }, node_id);
                 ctx.infer.bind_type(var_id, inferred_ty_id);
 
                 Ok(StaticArgument::Evaluated {
-                    name: static_parameter.name,
+                    name: generic_parameter.name,
                     value: StaticExpression::Type { ty: inferred_ty_id },
                 })
             }
-            StaticParameterKind::Value => {
+            GenericParameterKind::Value => {
                 self.error(AnalyzeError::MissingStaticArgument {
                     node: node_id
                         .into_global(ctx.module.id)
@@ -3074,7 +3081,7 @@ impl Compiler {
                 });
                 let inferred_ty_id = ctx.types.insert_type_from_any(Type::Error, node_id);
                 Ok(StaticArgument::Evaluated {
-                    name: static_parameter.name,
+                    name: generic_parameter.name,
                     value: StaticExpression::Type { ty: inferred_ty_id },
                 })
             }
@@ -3085,24 +3092,22 @@ impl Compiler {
     pub(crate) fn infer_static_argument_from_dynamic_arguments(
         &self,
         ctx: &mut InferContext<'_>,
-        static_parameter: &StaticParameter,
-        dynamic_parameters: &[LocalTypeId],
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        generic_parameter: &GenericParameterSpec,
+        parameters: &[LocalTypeId],
+        arguments: &[LocalNodeId<Argument>],
     ) -> AnalyzeResult<Option<StaticArgument>> {
         // infer direct type-parameter arguments from positional dynamic arguments
-        if static_parameter.kind == StaticParameterKind::Type {
-            for (param_ty_id, argument_id) in
-                dynamic_parameters.iter().zip(dynamic_arguments.iter())
-            {
+        if generic_parameter.kind == GenericParameterKind::Type {
+            for (param_ty_id, argument_id) in parameters.iter().zip(arguments.iter()) {
                 let param_ty_id = self.unwrap_type_value(*param_ty_id, ctx.types);
                 let Type::Reference {
                     symbol,
-                    static_arguments: None,
+                    generic_arguments: None,
                 } = ctx.types.get_type(param_ty_id)
                 else {
                     continue;
                 };
-                if *symbol != static_parameter.symbol {
+                if *symbol != generic_parameter.symbol {
                     continue;
                 }
 
@@ -3118,28 +3123,28 @@ impl Compiler {
                 let argument_source_id = ctx.tree.get(*argument_id).value().into_any();
                 let argument_ty_id = self.regularize_constrained_type_argument_literal(
                     &mut ctx.type_context_reborrow(),
-                    static_parameter,
+                    generic_parameter,
                     argument_ty_id,
                     argument_source_id,
                 );
 
                 return Ok(Some(StaticArgument::Evaluated {
-                    name: static_parameter.name,
+                    name: generic_parameter.name,
                     value: StaticExpression::Type { ty: argument_ty_id },
                 }));
             }
         }
 
         // value inference from dynamic arguments is value-only
-        if static_parameter.kind != StaticParameterKind::Value {
+        if generic_parameter.kind != GenericParameterKind::Value {
             return Ok(None);
         }
-        if dynamic_parameters.len() != dynamic_arguments.len() {
+        if parameters.len() != arguments.len() {
             return Ok(None);
         }
 
         // scan positional arguments for direct static parameter references
-        for (param_ty_id, argument_id) in dynamic_parameters.iter().zip(dynamic_arguments.iter()) {
+        for (param_ty_id, argument_id) in parameters.iter().zip(arguments.iter()) {
             let param_ty_id = self.unwrap_type_value(*param_ty_id, ctx.types);
             let param_ty = ctx.types.get_type(param_ty_id).clone();
 
@@ -3159,7 +3164,7 @@ impl Compiler {
                 let ty = ctx.types.insert_type_from_any(
                     Type::Reference {
                         symbol: enum_symbol,
-                        static_arguments: None,
+                        generic_arguments: None,
                     },
                     expression_id.into_any(),
                 );
@@ -3174,10 +3179,10 @@ impl Compiler {
 
             // handle direct static parameter references
             if let Type::Reference { symbol, .. } = &param_ty
-                && *symbol == static_parameter.symbol
+                && *symbol == generic_parameter.symbol
             {
                 return Ok(Some(StaticArgument::Evaluated {
-                    name: static_parameter.name,
+                    name: generic_parameter.name,
                     value,
                 }));
             }
@@ -3185,7 +3190,7 @@ impl Compiler {
             // infer array sizes from literal arguments
             if let Type::ArraySized { count, .. } = &param_ty
                 && let Some(target_symbol) = self.unwrap_type_value_symbol(ctx.types, *count)
-                && target_symbol == static_parameter.symbol
+                && target_symbol == generic_parameter.symbol
             {
                 let elements = match &value {
                     StaticExpression::ArrayExpression { elements }
@@ -3196,7 +3201,7 @@ impl Compiler {
                     value: ScalarLiteral::Integer(elements.len() as i64),
                 };
                 return Ok(Some(StaticArgument::Evaluated {
-                    name: static_parameter.name,
+                    name: generic_parameter.name,
                     value: count_value,
                 }));
             }
@@ -3204,7 +3209,7 @@ impl Compiler {
             // infer array sizes when indexed access types reference the static parameter
             if let Type::Index { index, .. } = &param_ty
                 && let Type::Reference { symbol, .. } = ctx.types.get_type(*index)
-                && *symbol == static_parameter.symbol
+                && *symbol == generic_parameter.symbol
             {
                 let elements = match &value {
                     StaticExpression::ArrayExpression { elements }
@@ -3215,7 +3220,7 @@ impl Compiler {
                     value: ScalarLiteral::Integer(elements.len() as i64),
                 };
                 return Ok(Some(StaticArgument::Evaluated {
-                    name: static_parameter.name,
+                    name: generic_parameter.name,
                     value: count_value,
                 }));
             }
@@ -3224,7 +3229,7 @@ impl Compiler {
         }
 
         // infer from argument reference types that carry explicit static arguments
-        for (param_ty_id, argument_id) in dynamic_parameters.iter().zip(dynamic_arguments.iter()) {
+        for (param_ty_id, argument_id) in parameters.iter().zip(arguments.iter()) {
             let Some(argument_ty_id) =
                 self.argument_type_for_static_inference(&ctx.reborrow(), *argument_id)
             else {
@@ -3233,7 +3238,7 @@ impl Compiler {
 
             if let Some(argument) = self.infer_static_argument_from_argument_type(
                 &mut ctx.type_context_reborrow(),
-                static_parameter,
+                generic_parameter,
                 *param_ty_id,
                 argument_ty_id,
             )? {
@@ -3334,12 +3339,12 @@ impl Compiler {
     fn regularize_constrained_type_argument_literal(
         &self,
         ctx: &mut TypeContext<'_>,
-        static_parameter: &StaticParameter,
+        generic_parameter: &GenericParameterSpec,
         argument_ty_id: LocalTypeId,
         source_id: LocalNodeIdAny,
     ) -> LocalTypeId {
         // resolve the constraint when the declared type is still symbolic
-        let mut constraint_ty_id = static_parameter.declared_type_id;
+        let mut constraint_ty_id = generic_parameter.declared_type_id;
         if matches!(
             ctx.types.get_type(constraint_ty_id),
             Type::Unevaluated(_)
@@ -3347,12 +3352,12 @@ impl Compiler {
                 | Type::TypeLiteral {
                     value: TypeLiteral::Unknown | TypeLiteral::Any,
                 }
-        ) && self.symbol_is_static_parameter(ctx.symbol_type_view(), static_parameter.symbol)
+        ) && self.symbol_is_static_parameter(ctx.symbol_type_view(), generic_parameter.symbol)
         {
             let argument_source_id = ctx.types.get_type_source(argument_ty_id);
-            if let Some(resolved_constraint_ty_id) = self.static_parameter_constraint_type(
+            if let Some(resolved_constraint_ty_id) = self.generic_parameter_constraint_type(
                 &mut ctx.reborrow(),
-                static_parameter.symbol,
+                generic_parameter.symbol,
                 argument_source_id,
             ) {
                 constraint_ty_id = resolved_constraint_ty_id;
@@ -3400,7 +3405,7 @@ impl Compiler {
     fn infer_static_argument_from_argument_type(
         &self,
         ctx: &mut TypeContext<'_>,
-        static_parameter: &StaticParameter,
+        generic_parameter: &GenericParameterSpec,
         param_ty_id: LocalTypeId,
         argument_ty_id: LocalTypeId,
     ) -> AnalyzeResult<Option<StaticArgument>> {
@@ -3412,14 +3417,14 @@ impl Compiler {
         let (param_symbol, param_arguments) = match ctx.types.get_type(param_ty_id) {
             Type::Reference {
                 symbol,
-                static_arguments: Some(arguments),
+                generic_arguments: Some(arguments),
             } => (*symbol, arguments.clone()),
             _ => return Ok(None),
         };
         let (argument_symbol, argument_arguments) = match ctx.types.get_type(argument_ty_id) {
             Type::Reference {
                 symbol,
-                static_arguments: Some(arguments),
+                generic_arguments: Some(arguments),
             } => (*symbol, arguments.clone()),
             _ => return Ok(None),
         };
@@ -3453,10 +3458,10 @@ impl Compiler {
 
         // map explicit static arguments when the parameter and argument share a reference
         for (index, param_argument) in param_arguments.iter().enumerate() {
-            if !self.static_argument_references_symbol(
+            if !self.generic_argument_references_symbol(
                 ctx.type_view(),
                 param_argument,
-                static_parameter.symbol,
+                generic_parameter.symbol,
             ) {
                 continue;
             }
@@ -3472,7 +3477,7 @@ impl Compiler {
             }
 
             return Ok(Some(StaticArgument::Evaluated {
-                name: static_parameter.name,
+                name: generic_parameter.name,
                 value: value.clone(),
             }));
         }
@@ -3526,7 +3531,7 @@ impl Compiler {
     }
 
     /// Check whether a static argument expression references a target symbol.
-    fn static_argument_references_symbol(
+    fn generic_argument_references_symbol(
         &self,
         ctx: TypeView<'_>,
         argument: &StaticArgument,
@@ -3594,7 +3599,7 @@ impl Compiler {
     pub(crate) fn evaluate_static_default_argument(
         &self,
         ctx: &mut TypeContext<'_>,
-        parameter_kind: StaticParameterKind,
+        parameter_kind: GenericParameterKind,
         name: Option<StringId>,
         default_expression: LocalNodeId<Expression>,
         treat_type_arguments_as_types: bool,
@@ -3612,7 +3617,7 @@ impl Compiler {
             }
         }
 
-        if parameter_kind == StaticParameterKind::Value && is_explicit_comptime {
+        if parameter_kind == GenericParameterKind::Value && is_explicit_comptime {
             let error_type = ctx
                 .types
                 .insert_type_from_any(Type::Error, default_expression.into_any());
@@ -3635,7 +3640,7 @@ impl Compiler {
 
         // evaluate default value based on the parameter kind
         let value = match parameter_kind {
-            StaticParameterKind::Type => {
+            GenericParameterKind::Type => {
                 let Expression::Type {
                     value: type_expression_id,
                     ..
@@ -3673,7 +3678,7 @@ impl Compiler {
                 let ty_id = ctx.types.insert_type_from(resolved, default_expression);
                 StaticExpression::Type { ty: ty_id }
             }
-            StaticParameterKind::Value => {
+            GenericParameterKind::Value => {
                 if let Some(value) = self.evaluate_static_expression_value(
                     &mut ctx.reborrow(),
                     default_expression,
@@ -3686,7 +3691,7 @@ impl Compiler {
                     let ty = ctx.types.insert_type_from_any(
                         Type::Reference {
                             symbol: enum_symbol,
-                            static_arguments: None,
+                            generic_arguments: None,
                         },
                         default_expression.into_any(),
                     );

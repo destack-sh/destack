@@ -19,7 +19,7 @@ impl Compiler {
         target_symbol: GlobalSymbolId,
         receiver_symbol: Option<GlobalSymbolId>,
         receiver_arguments: &[StaticArgument],
-        static_arguments: Option<&[StaticArgument]>,
+        generic_arguments: Option<&[StaticArgument]>,
         member_ty: Type,
     ) -> AnalyzeResult<Type> {
         // suppress cascading projection diagnostics when the receiver already failed
@@ -41,7 +41,7 @@ impl Compiler {
             target_symbol,
             receiver_symbol,
             receiver_arguments,
-            static_arguments,
+            generic_arguments,
             Some(&member_ty),
             None,
         )?;
@@ -50,7 +50,7 @@ impl Compiler {
         let projection_receiver_symbol = projection_environment.receiver_symbol;
         let projection_receiver_arguments = projection_environment.receiver_arguments;
         // reject explicit static arguments on non-parameterized members
-        if let Some(member_arguments) = static_arguments
+        if let Some(member_arguments) = generic_arguments
             && !member_arguments.is_empty()
         {
             let parameter_count = self

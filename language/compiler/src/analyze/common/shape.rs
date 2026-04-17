@@ -178,11 +178,11 @@ struct SignatureShape {
     /// The function cardinality.
     cardinality: FunctionCardinality,
     /// The static parameter type ids.
-    static_parameters: Vec<LocalTypeId>,
+    generic_parameters: Vec<LocalTypeId>,
     /// The optional `this` parameter type id.
     this_parameter: Option<LocalTypeId>,
     /// The dynamic parameter type ids.
-    dynamic_parameters: Vec<LocalTypeId>,
+    parameters: Vec<LocalTypeId>,
     /// The optional return type id.
     return_type: Option<LocalTypeId>,
 }
@@ -230,7 +230,7 @@ impl Compiler {
             let target_parameter_type = ctx.types.insert_type_from_any(
                 Type::Reference {
                     symbol: *target_parameter,
-                    static_arguments: None,
+                    generic_arguments: None,
                 },
                 source_id,
             );
@@ -406,7 +406,7 @@ impl Compiler {
         // always include the nominal type descriptor
         let nominal_reference = Type::Reference {
             symbol,
-            static_arguments: None,
+            generic_arguments: None,
         };
         let nominal_reference_id = source.insert_type(types, nominal_reference);
         let descriptor_ty_id = source.insert_type(
@@ -926,12 +926,12 @@ impl Compiler {
         }
 
         // compare static parameter arity
-        if left.static_parameters.len() != right.static_parameters.len() {
+        if left.generic_parameters.len() != right.generic_parameters.len() {
             return false;
         }
 
         // compare dynamic parameter arity
-        if left.dynamic_parameters.len() != right.dynamic_parameters.len() {
+        if left.parameters.len() != right.parameters.len() {
             return false;
         }
 
@@ -948,9 +948,9 @@ impl Compiler {
 
         // compare static parameter shapes
         for (left_param, right_param) in left
-            .static_parameters
+            .generic_parameters
             .iter()
-            .zip(right.static_parameters.iter())
+            .zip(right.generic_parameters.iter())
         {
             if !self.signature_type_ids_equivalent(&mut ctx.reborrow(), *left_param, *right_param) {
                 return false;
@@ -958,11 +958,7 @@ impl Compiler {
         }
 
         // compare dynamic parameter shapes
-        for (left_param, right_param) in left
-            .dynamic_parameters
-            .iter()
-            .zip(right.dynamic_parameters.iter())
-        {
+        for (left_param, right_param) in left.parameters.iter().zip(right.parameters.iter()) {
             if !self.signature_type_ids_equivalent(&mut ctx.reborrow(), *left_param, *right_param) {
                 return false;
             }
@@ -1001,9 +997,9 @@ impl Compiler {
         let Type::Function {
             asynchrony,
             cardinality,
-            static_parameters,
+            generic_parameters,
             this_parameter,
-            dynamic_parameters,
+            parameters,
             return_type,
         } = types.get_type(ty_id)
         else {
@@ -1013,9 +1009,9 @@ impl Compiler {
         Some(SignatureShape {
             asynchrony: *asynchrony,
             cardinality: *cardinality,
-            static_parameters: static_parameters.clone(),
+            generic_parameters: generic_parameters.clone(),
             this_parameter: *this_parameter,
-            dynamic_parameters: dynamic_parameters.clone(),
+            parameters: parameters.clone(),
             return_type: *return_type,
         })
     }

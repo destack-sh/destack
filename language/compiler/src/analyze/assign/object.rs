@@ -89,7 +89,7 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         target_symbol: GlobalSymbolId,
-        static_arguments: Option<&[StaticArgument]>,
+        generic_arguments: Option<&[StaticArgument]>,
         target_id: LocalTypeId,
     ) -> Option<TypeIndexSignature> {
         // resolve record and map symbols
@@ -102,17 +102,17 @@ impl Compiler {
         }
 
         // resolve key and value arguments when available
-        let static_arguments = static_arguments.unwrap_or(&[]);
+        let generic_arguments = generic_arguments.unwrap_or(&[]);
         let unknown_literal_type_id = ctx
             .types
             .intern_literal_type(target_id, TypeLiteral::Unknown);
-        let key_type_id = static_arguments
+        let key_type_id = generic_arguments
             .first()
             .and_then(|argument| {
                 self.record_like_type_id_for_static_argument(argument, ctx.types, target_id)
             })
             .unwrap_or(unknown_literal_type_id);
-        let value_type_id = static_arguments
+        let value_type_id = generic_arguments
             .get(1)
             .and_then(|argument| {
                 self.record_like_type_id_for_static_argument(argument, ctx.types, target_id)
@@ -215,13 +215,13 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
-        static_arguments: Option<&[StaticArgument]>,
+        generic_arguments: Option<&[StaticArgument]>,
     ) -> Option<RecordLikeObjectParts> {
         let instance_id = self.specialized_instance_type_for_reference(
             &mut ctx.reborrow(),
             source_id,
             symbol,
-            static_arguments,
+            generic_arguments,
         )?;
         let instance = ctx.types.get_type(instance_id);
 
@@ -245,7 +245,7 @@ impl Compiler {
         for source_signature in source_call_signatures {
             let signature = ctx.types.get_type(*source_signature).clone();
             let Type::Function {
-                dynamic_parameters: source_params,
+                parameters: source_params,
                 this_parameter: source_this,
                 return_type: source_return,
                 ..

@@ -1333,7 +1333,7 @@ impl Compiler {
         // return non-reference tag types directly
         let Type::Reference {
             symbol,
-            static_arguments,
+            generic_arguments,
         } = ctx.types.get_type(ty_id).clone()
         else {
             return Ok(ty_id);
@@ -1382,13 +1382,13 @@ impl Compiler {
         let mut declared_ty_id = declared_ty_id;
 
         // apply static arguments when provided
-        if let Some(static_arguments) = static_arguments {
+        if let Some(generic_arguments) = generic_arguments {
             let source_id = ctx.types.get_type_source(ty_id);
             let resolved_arguments = self.resolve_type_reference_static_arguments(
                 &mut ctx.reborrow(),
                 source_id,
                 symbol,
-                Some(static_arguments.as_slice()),
+                Some(generic_arguments.as_slice()),
                 true,
             )?;
             if let Some(resolved_arguments) = resolved_arguments

@@ -128,7 +128,7 @@ impl Compiler {
         // return the nominal enum reference type
         let enum_reference = Type::Reference {
             symbol: enum_symbol,
-            static_arguments: None,
+            generic_arguments: None,
         };
         Ok(Some(
             ctx.types.insert_type_from(enum_reference, expression_id),

@@ -30,17 +30,17 @@ const add: (a: number, b: number) => number = (a, b) => a + b;
     let value_ty_id = view.expect_inferred_type_id(value_id);
 
     // contextual annotation yields number, number to number
-    assert_type!(view.types(), value_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
+    assert_type!(view.types(), value_ty_id, Type::Function { parameters, return_type, .. } => {
         // two parameters inherited from annotation
-        assert_eq!(dynamic_parameters.len(), 2);
+        assert_eq!(parameters.len(), 2);
 
         // first parameter is number
-        assert_type!(view.types(), dynamic_parameters[0], Type::TypeLiteral {
+        assert_type!(view.types(), parameters[0], Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
 
         // second parameter is number
-        assert_type!(view.types(), dynamic_parameters[1], Type::TypeLiteral {
+        assert_type!(view.types(), parameters[1], Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
 
@@ -76,26 +76,23 @@ apply((a) => a + 1);
     // locate the call expression
     let call_expression_id = view.root_expression_id(1);
     let call_expression = view.tree().get(call_expression_id);
-    let Expression::Call {
-        dynamic_arguments, ..
-    } = call_expression
-    else {
+    let Expression::Call { arguments, .. } = call_expression else {
         panic!("expected call expression");
     };
 
     // resolve the argument type
-    let argument_id = dynamic_arguments.first().expect("expected argument");
+    let argument_id = arguments.first().expect("expected argument");
     let argument = view.tree().get(*argument_id);
     let argument_value_id = argument.value();
     let argument_ty_id = view.expect_inferred_type_id(argument_value_id);
 
     // contextual argument yields number to number function type
-    assert_type!(view.types(), argument_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
+    assert_type!(view.types(), argument_ty_id, Type::Function { parameters, return_type, .. } => {
         // one parameter inherited from argument context
-        assert_eq!(dynamic_parameters.len(), 1);
+        assert_eq!(parameters.len(), 1);
 
         // parameter is number
-        assert_type!(view.types(), dynamic_parameters[0], Type::TypeLiteral {
+        assert_type!(view.types(), parameters[0], Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
 
@@ -154,7 +151,7 @@ const add: (this: Counter, delta: number) => number = function(this, delta) {
         .resolve_to_symbol("test.ds", "Counter")
         .expect("expected Counter symbol");
 
-    assert_type!(view.types(), signature_ty_id, Type::Function { this_parameter, dynamic_parameters, return_type, .. } => {
+    assert_type!(view.types(), signature_ty_id, Type::Function { this_parameter, parameters, return_type, .. } => {
         // contextual this parameter uses the declared Counter type
         let this_parameter = this_parameter.expect("expected this parameter");
         assert_type!(view.types(), this_parameter, Type::Reference { symbol, .. } => {
@@ -162,8 +159,8 @@ const add: (this: Counter, delta: number) => number = function(this, delta) {
         });
 
         // delta parameter stays number
-        assert_eq!(dynamic_parameters.len(), 1);
-        assert_type!(view.types(), dynamic_parameters[0], Type::TypeLiteral {
+        assert_eq!(parameters.len(), 1);
+        assert_type!(view.types(), parameters[0], Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
 
@@ -214,7 +211,7 @@ const add: (this: Counter, delta: number) => number = (delta) => this.value + de
         .resolve_to_symbol("test.ds", "Counter")
         .expect("expected Counter symbol");
 
-    assert_type!(view.types(), value_ty_id, Type::Function { this_parameter, dynamic_parameters, return_type, .. } => {
+    assert_type!(view.types(), value_ty_id, Type::Function { this_parameter, parameters, return_type, .. } => {
         // contextual this parameter uses the declared Counter type
         let this_parameter = this_parameter.expect("expected this parameter");
         assert_type!(view.types(), this_parameter, Type::Reference { symbol, .. } => {
@@ -222,8 +219,8 @@ const add: (this: Counter, delta: number) => number = (delta) => this.value + de
         });
 
         // delta parameter stays number
-        assert_eq!(dynamic_parameters.len(), 1);
-        assert_type!(view.types(), dynamic_parameters[0], Type::TypeLiteral {
+        assert_eq!(parameters.len(), 1);
+        assert_type!(view.types(), parameters[0], Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
 
@@ -296,8 +293,8 @@ fn test_analyze_type_mapped_parameter_scope() {
     assert_type!(view.types(), map_instance_id, Type::Mapped { parameter, value, .. } => {
         assert_string!(test.program, parameter.name, "K");
         assert_type!(view.types(), parameter.constraint, Type::KeyOf { target_type: right } => {
-            assert_type!(view.types(), *right, Type::Reference { symbol, static_arguments } => {
-                assert!(static_arguments.is_none());
+            assert_type!(view.types(), *right, Type::Reference { symbol, generic_arguments } => {
+                assert!(generic_arguments.is_none());
                 let symbol = view.symbols().get_symbol(symbol.into_local());
                 assert_string!(test.program, symbol.name().expect("expected symbol name"), "T");
             });

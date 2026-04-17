@@ -457,7 +457,7 @@ impl Compiler {
                     {
                         let ty = Type::Reference {
                             symbol,
-                            static_arguments: None,
+                            generic_arguments: None,
                         };
                         ctx.types.insert_type_from(ty, declaration_id)
                     }
@@ -468,7 +468,7 @@ impl Compiler {
 
                 // register the value type for this symbol
                 if declaration.is_nominal {
-                    let static_parameters = self.static_parameter_placeholders_for_declaration(
+                    let generic_parameters = self.generic_parameter_placeholders_for_declaration(
                         &mut ctx.reborrow(),
                         Some(&declaration.generic_parameters),
                     );
@@ -478,7 +478,7 @@ impl Compiler {
                         declaration.value,
                         declared_ty_id,
                         instance_ty_id,
-                        static_parameters,
+                        generic_parameters,
                     )?;
                     let mut shape = ObjectShape::default();
                     shape.call_signatures.push(constructor_id);
@@ -531,13 +531,13 @@ impl Compiler {
 
                 // nominal reference for constructors
                 let symbol = self.declaration_symbol(ctx, declaration.symbol);
-                let static_arguments = self.self_type_static_arguments_for_declaration(
+                let generic_arguments = self.self_type_static_arguments_for_declaration(
                     &mut ctx.reborrow(),
                     Some(&declaration.generic_parameters),
                 );
                 let nominal_reference = Type::Reference {
                     symbol,
-                    static_arguments,
+                    generic_arguments,
                 };
                 let nominal_reference_id = ctx
                     .types
@@ -633,13 +633,13 @@ impl Compiler {
 
                 // prepare nominal reference for constructors
                 let symbol = self.declaration_symbol(ctx, declaration.symbol);
-                let static_arguments = self.self_type_static_arguments_for_declaration(
+                let generic_arguments = self.self_type_static_arguments_for_declaration(
                     &mut ctx.reborrow(),
                     Some(&declaration.generic_parameters),
                 );
                 let nominal_reference = Type::Reference {
                     symbol,
-                    static_arguments,
+                    generic_arguments,
                 };
                 let nominal_reference_id = ctx
                     .types
@@ -734,13 +734,13 @@ impl Compiler {
 
                 // prepare the nominal reference for enum values
                 let symbol = self.declaration_symbol(ctx, declaration.symbol);
-                let static_arguments = self.self_type_static_arguments_for_declaration(
+                let generic_arguments = self.self_type_static_arguments_for_declaration(
                     &mut ctx.reborrow(),
                     Some(&declaration.generic_parameters),
                 );
                 let nominal_reference = Type::Reference {
                     symbol,
-                    static_arguments,
+                    generic_arguments,
                 };
                 let nominal_reference_id = ctx
                     .types
@@ -863,7 +863,7 @@ impl Compiler {
                 // register the nominal type as the value type
                 let nominal_ty = Type::Reference {
                     symbol: self.declaration_symbol(ctx, declaration.symbol),
-                    static_arguments: None,
+                    generic_arguments: None,
                 };
                 let nominal_ty_id = ctx.types.insert_type_from(nominal_ty, declaration_id);
                 let value_ty = Type::Value {
@@ -1263,9 +1263,9 @@ impl Compiler {
         let Type::Function {
             asynchrony,
             cardinality,
-            static_parameters,
+            generic_parameters,
             this_parameter,
-            dynamic_parameters,
+            parameters,
             ..
         } = types.get_type(ty_id).clone()
         else {
@@ -1275,9 +1275,9 @@ impl Compiler {
         let rebuilt = Type::Function {
             asynchrony,
             cardinality,
-            static_parameters,
+            generic_parameters,
             this_parameter,
-            dynamic_parameters,
+            parameters,
             return_type: Some(return_type),
         };
         types.insert_type_from_any(rebuilt, source_id)
@@ -1301,10 +1301,7 @@ impl Compiler {
         tree: &NodeTree,
         types: &TypeTable,
     ) {
-        let Type::Function {
-            dynamic_parameters, ..
-        } = types.get_type(signature_ty_id)
-        else {
+        let Type::Function { parameters, .. } = types.get_type(signature_ty_id) else {
             return;
         };
 
@@ -1326,7 +1323,7 @@ impl Compiler {
                 continue;
             }
 
-            let Some(parameter_ty_id) = dynamic_parameters.get(index).copied() else {
+            let Some(parameter_ty_id) = parameters.get(index).copied() else {
                 continue;
             };
 
@@ -1346,7 +1343,7 @@ impl Compiler {
     }
 
     /// Build static parameter placeholders for a declaration.
-    fn static_parameter_placeholders_for_declaration(
+    fn generic_parameter_placeholders_for_declaration(
         &self,
         ctx: &mut TypeContext<'_>,
         generic_parameters: Option<&[LocalNodeId<GenericParameter>]>,
@@ -1366,7 +1363,7 @@ impl Compiler {
                 .into_global(ctx.module.id);
             let ty = Type::Reference {
                 symbol,
-                static_arguments: None,
+                generic_arguments: None,
             };
             let type_id = ctx.types.insert_type_from(ty, *generic_parameter_id);
             placeholders.push(type_id);
@@ -1382,8 +1379,10 @@ impl Compiler {
         generic_parameters: Option<&[LocalNodeId<GenericParameter>]>,
     ) -> Option<Vec<StaticArgument>> {
         // build placeholder type references for static parameters
-        let placeholders = self
-            .static_parameter_placeholders_for_declaration(&mut ctx.reborrow(), generic_parameters);
+        let placeholders = self.generic_parameter_placeholders_for_declaration(
+            &mut ctx.reborrow(),
+            generic_parameters,
+        );
         if placeholders.is_empty() {
             return None;
         }
@@ -1415,16 +1414,16 @@ impl Compiler {
         let Type::Function {
             asynchrony,
             cardinality,
-            static_parameters,
+            generic_parameters,
             this_parameter,
-            dynamic_parameters,
+            parameters,
             return_type,
         } = ty
         else {
             return ty;
         };
 
-        let owner_placeholders = self.static_parameter_placeholders_for_declaration(
+        let owner_placeholders = self.generic_parameter_placeholders_for_declaration(
             &mut ctx.reborrow(),
             Some(owner_generic_parameters),
         );
@@ -1432,22 +1431,22 @@ impl Compiler {
             return Type::Function {
                 asynchrony,
                 cardinality,
-                static_parameters,
+                generic_parameters,
                 this_parameter,
-                dynamic_parameters,
+                parameters,
                 return_type,
             };
         }
 
         let mut combined = owner_placeholders;
-        combined.extend(static_parameters);
+        combined.extend(generic_parameters);
 
         Type::Function {
             asynchrony,
             cardinality,
-            static_parameters: combined,
+            generic_parameters: combined,
             this_parameter,
-            dynamic_parameters,
+            parameters,
             return_type,
         }
     }
@@ -1765,13 +1764,13 @@ impl Compiler {
         value_expression_id: LocalNodeId<TypeExpression>,
         declared_ty_id: LocalTypeId,
         nominal_reference_id: LocalTypeId,
-        static_parameters: Vec<LocalTypeId>,
+        generic_parameters: Vec<LocalTypeId>,
     ) -> AnalyzeResult<LocalTypeId> {
         // derive positional parameters from tuple aliases
-        let mut dynamic_parameters = Vec::new();
+        let mut parameters = Vec::new();
         if let Type::Tuple { elements, .. } = ctx.types.get_type(declared_ty_id) {
             for element in elements {
-                dynamic_parameters.push(element.ty);
+                parameters.push(element.ty);
             }
         } else {
             let defer_type_evaluation =
@@ -1789,11 +1788,11 @@ impl Compiler {
                             argument_value,
                             defer_type_evaluation,
                         )?;
-                        dynamic_parameters.push(parameter_type_id);
+                        parameters.push(parameter_type_id);
                     }
                 }
                 _ => {
-                    dynamic_parameters.push(declared_ty_id);
+                    parameters.push(declared_ty_id);
                 }
             }
         }
@@ -1802,9 +1801,9 @@ impl Compiler {
         let signature = Type::Function {
             asynchrony: Asynchrony::Sync,
             cardinality: FunctionCardinality::Scalar,
-            static_parameters,
+            generic_parameters,
             this_parameter: None,
-            dynamic_parameters,
+            parameters,
             return_type: Some(nominal_reference_id),
         };
         Ok(ctx.types.insert_type_from(signature, declaration_id))
@@ -2410,16 +2409,16 @@ impl Compiler {
 
         // fall back to a default constructor
         let owner_generic_parameters = ctx.tree.get(declaration_id).generic_parameters();
-        let static_parameters = self.static_parameter_placeholders_for_declaration(
+        let generic_parameters = self.generic_parameter_placeholders_for_declaration(
             &mut ctx.reborrow(),
             owner_generic_parameters,
         );
         let signature = Type::Function {
             asynchrony: Asynchrony::Sync,
             cardinality: FunctionCardinality::Scalar,
-            static_parameters,
+            generic_parameters,
             this_parameter: None,
-            dynamic_parameters: Vec::new(),
+            parameters: Vec::new(),
             return_type: Some(nominal_reference_id),
         };
         let signature_id = ctx.types.insert_type_from(signature, declaration_id);
@@ -2453,7 +2452,7 @@ impl Compiler {
             self.should_defer_declaration_types(ctx.compiler_context, ctx.module);
 
         // collect field types in source order
-        let mut dynamic_parameters = Vec::new();
+        let mut parameters = Vec::new();
         for member_id in members {
             let member = ctx.tree.get(*member_id);
             let Member::Field {
@@ -2489,20 +2488,20 @@ impl Compiler {
                     error,
                 )
             };
-            dynamic_parameters.push(field_ty_id);
+            parameters.push(field_ty_id);
         }
 
         // build the constructor signature
-        let static_parameters = self.static_parameter_placeholders_for_declaration(
+        let generic_parameters = self.generic_parameter_placeholders_for_declaration(
             &mut ctx.reborrow(),
             owner_generic_parameters,
         );
         let signature = Type::Function {
             asynchrony: Asynchrony::Sync,
             cardinality: FunctionCardinality::Scalar,
-            static_parameters,
+            generic_parameters,
             this_parameter: None,
-            dynamic_parameters,
+            parameters,
             return_type: Some(nominal_reference_id),
         };
         Ok(ctx.types.insert_type_from(signature, declaration_id))

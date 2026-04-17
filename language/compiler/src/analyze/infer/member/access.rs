@@ -12,7 +12,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         member_name: StringId,
-        static_arguments: Option<&[LocalNodeId<GenericArgument>]>,
+        generic_arguments: Option<&[LocalNodeId<GenericArgument>]>,
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_MEMBER);
@@ -74,7 +74,7 @@ impl Compiler {
         let resolved_member_ty_id = self.infer_member_access_type_from_lookup(
             &mut ctx.reborrow(),
             expression_id,
-            static_arguments,
+            generic_arguments,
             &receiver,
             &lookup,
             state,
@@ -183,7 +183,7 @@ impl Compiler {
         Ok(Some(ctx.types.insert_type_from(
             Type::Reference {
                 symbol: import_meta_symbol,
-                static_arguments: None,
+                generic_arguments: None,
             },
             receiver_id,
         )))
@@ -803,7 +803,7 @@ impl Compiler {
         &self,
         ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        static_arguments: Option<&[LocalNodeId<GenericArgument>]>,
+        generic_arguments: Option<&[LocalNodeId<GenericArgument>]>,
         receiver: &MemberAccessReceiver,
         lookup: &MemberAccessLookup,
         state: &mut InferState,
@@ -864,10 +864,10 @@ impl Compiler {
                 projection_receiver_symbol,
                 &projection_receiver_arguments,
                 member_ty_id,
-                static_arguments,
+                generic_arguments,
                 &lookup.substitutions,
             )?;
-            let member_instance_id = if static_arguments.is_some() {
+            let member_instance_id = if generic_arguments.is_some() {
                 if let Some(member_symbol) = lookup.member_symbol {
                     self.record_member_instance_for_arguments(
                         &mut ctx.reborrow(),
@@ -875,8 +875,8 @@ impl Compiler {
                         member_symbol,
                         &lookup.inherited,
                         lookup.extension_context.as_ref(),
-                        &resolved_member.static_arguments,
-                        &resolved_member.static_parameter_symbols,
+                        &resolved_member.generic_arguments,
+                        &resolved_member.generic_parameter_symbols,
                     )?
                 } else {
                     None

@@ -405,9 +405,7 @@ impl Compiler {
 
         let expression = ctx.tree.get(expression_id);
         let Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
         else {
             return Ok(None);
@@ -417,7 +415,7 @@ impl Compiler {
             &mut ctx.reborrow(),
             expression_id,
             *left,
-            dynamic_arguments,
+            arguments,
             environment,
             context,
         )
@@ -429,7 +427,7 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         call_id: LocalNodeId<Expression>,
         callee_id: LocalNodeId<Expression>,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
         environment: &FlowEnvironment,
         context: &InferState,
     ) -> AnalyzeResult<Option<FlowEnvironment>> {
@@ -491,12 +489,8 @@ impl Compiler {
         let Some((parameter_index, parameter_name)) = parameter else {
             return Ok(None);
         };
-        let argument_value = self.guard_argument_for_parameter(
-            ctx,
-            parameter_index,
-            parameter_name,
-            dynamic_arguments,
-        );
+        let argument_value =
+            self.guard_argument_for_parameter(ctx, parameter_index, parameter_name, arguments);
         let Some(argument_value) = argument_value else {
             return Ok(None);
         };
@@ -978,11 +972,9 @@ impl Compiler {
                 Ok(self.unchanged_guard_environments(environment))
             }
             Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
+                left, arguments, ..
             } => {
-                let _ = (left, dynamic_arguments);
+                let _ = (left, arguments);
                 Ok(self.unchanged_guard_environments(environment))
             }
             _ => Ok(self.unchanged_guard_environments(environment)),

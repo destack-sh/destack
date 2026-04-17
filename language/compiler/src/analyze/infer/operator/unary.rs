@@ -98,7 +98,7 @@ impl Compiler {
         }
 
         // unary operators expect no dynamic parameters
-        if !resolved.signature.dynamic_parameters.is_empty() {
+        if !resolved.signature.parameters.is_empty() {
             self.record_member_call_resolution(
                 &mut ctx.reborrow(),
                 expression_id,

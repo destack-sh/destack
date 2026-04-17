@@ -158,7 +158,7 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
         source_id,
         Type::Reference {
             symbol: array_buffer_symbol,
-            static_arguments: None,
+            generic_arguments: None,
         },
     );
     let array_buffer_like_ty = insert_test_type(
@@ -166,7 +166,7 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
         source_id,
         Type::Reference {
             symbol: array_buffer_like_symbol,
-            static_arguments: None,
+            generic_arguments: None,
         },
     );
 
@@ -851,9 +851,9 @@ fn test_analyze_assignability_object_call_signatures() {
         Type::Function {
             asynchrony: Asynchrony::Sync,
             cardinality: FunctionCardinality::Scalar,
-            static_parameters: Vec::new(),
+            generic_parameters: Vec::new(),
             this_parameter: None,
-            dynamic_parameters: vec![number_ty],
+            parameters: vec![number_ty],
             return_type: Some(string_ty),
         },
     );
@@ -954,9 +954,9 @@ fn test_analyze_assignability_function_param_count() {
         Type::Function {
             asynchrony: Asynchrony::Sync,
             cardinality: FunctionCardinality::Scalar,
-            static_parameters: Vec::new(),
+            generic_parameters: Vec::new(),
             this_parameter: None,
-            dynamic_parameters: vec![number_ty, string_ty],
+            parameters: vec![number_ty, string_ty],
             return_type: Some(number_ty),
         },
     );
@@ -966,9 +966,9 @@ fn test_analyze_assignability_function_param_count() {
         Type::Function {
             asynchrony: Asynchrony::Sync,
             cardinality: FunctionCardinality::Scalar,
-            static_parameters: Vec::new(),
+            generic_parameters: Vec::new(),
             this_parameter: None,
-            dynamic_parameters: vec![number_ty],
+            parameters: vec![number_ty],
             return_type: Some(number_ty),
         },
     );
@@ -978,9 +978,9 @@ fn test_analyze_assignability_function_param_count() {
         Type::Function {
             asynchrony: Asynchrony::Sync,
             cardinality: FunctionCardinality::Scalar,
-            static_parameters: Vec::new(),
+            generic_parameters: Vec::new(),
             this_parameter: None,
-            dynamic_parameters: vec![number_ty, string_ty, number_ty],
+            parameters: vec![number_ty, string_ty, number_ty],
             return_type: Some(number_ty),
         },
     );
@@ -1086,9 +1086,9 @@ fn test_analyze_assignability_function_this_parameter() {
         Type::Function {
             asynchrony: Asynchrony::Sync,
             cardinality: FunctionCardinality::Scalar,
-            static_parameters: Vec::new(),
+            generic_parameters: Vec::new(),
             this_parameter: Some(this_small),
-            dynamic_parameters: Vec::new(),
+            parameters: Vec::new(),
             return_type: None,
         },
     );
@@ -1098,9 +1098,9 @@ fn test_analyze_assignability_function_this_parameter() {
         Type::Function {
             asynchrony: Asynchrony::Sync,
             cardinality: FunctionCardinality::Scalar,
-            static_parameters: Vec::new(),
+            generic_parameters: Vec::new(),
             this_parameter: Some(this_large),
-            dynamic_parameters: Vec::new(),
+            parameters: Vec::new(),
             return_type: None,
         },
     );
@@ -1110,9 +1110,9 @@ fn test_analyze_assignability_function_this_parameter() {
         Type::Function {
             asynchrony: Asynchrony::Sync,
             cardinality: FunctionCardinality::Scalar,
-            static_parameters: Vec::new(),
+            generic_parameters: Vec::new(),
             this_parameter: Some(this_small),
-            dynamic_parameters: Vec::new(),
+            parameters: Vec::new(),
             return_type: None,
         },
     );
@@ -2307,7 +2307,7 @@ y: this.y + other.y,
         source_id,
         Type::Reference {
             symbol: add_vec2_symbol,
-            static_arguments: None,
+            generic_arguments: None,
         },
     );
     let source_ty = insert_test_type(
@@ -2315,7 +2315,7 @@ y: this.y + other.y,
         source_id,
         Type::Reference {
             symbol: vec2_symbol,
-            static_arguments: None,
+            generic_arguments: None,
         },
     );
 
@@ -2392,7 +2392,7 @@ y: this.y + other.y,
         source_id,
         Type::Reference {
             symbol: vec2_symbol,
-            static_arguments: None,
+            generic_arguments: None,
         },
     );
     let target_ty = insert_test_type(
@@ -2400,7 +2400,7 @@ y: this.y + other.y,
         source_id,
         Type::Reference {
             symbol: add_symbol,
-            static_arguments: Some(vec![StaticArgument::Evaluated {
+            generic_arguments: Some(vec![StaticArgument::Evaluated {
                 name: None,
                 value: StaticExpression::Type {
                     ty: vec2_reference_ty,
@@ -2622,9 +2622,9 @@ fn test_analyze_assignability_function_to_object() {
         Type::Function {
             asynchrony: Asynchrony::Sync,
             cardinality: FunctionCardinality::Scalar,
-            static_parameters: vec![],
+            generic_parameters: vec![],
             this_parameter: None,
-            dynamic_parameters: vec![],
+            parameters: vec![],
             return_type: Some(void_ty),
         },
     );

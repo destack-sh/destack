@@ -6,9 +6,9 @@ use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_artifact::ArtifactKey;
 use destack_dir::{
-    BinaryOperator, DependencyItem, EnumFieldValue, Expression, GlobalSymbolId, IfCondition,
-    IfKind, LocalNodeId, LocalTypeId, NodeType, Property, Resolution, ScalarLiteral,
-    StaticExpression, StaticKey, StaticParameterKind, StaticProperty, Type, UnaryOperator,
+    BinaryOperator, DependencyItem, EnumFieldValue, Expression, GenericParameterKind,
+    GlobalSymbolId, IfCondition, IfKind, LocalNodeId, LocalTypeId, NodeType, Property, Resolution,
+    ScalarLiteral, StaticExpression, StaticKey, StaticProperty, Type, UnaryOperator,
 };
 use destack_source::ModuleId;
 use destack_workspace::ProfileId;
@@ -247,9 +247,9 @@ impl Compiler {
             | Expression::GlobalReference { target_symbol, .. } => {
                 // static parameter references
                 if let Some((parameter_symbol, kind)) =
-                    self.static_parameter_expression_reference(&mut ctx.reborrow(), expression_id)?
+                    self.generic_parameter_expression_reference(&mut ctx.reborrow(), expression_id)?
                 {
-                    if kind == StaticParameterKind::Value {
+                    if kind == GenericParameterKind::Value {
                         // use substitution values when available
                         if let Some(substitutions) = substitutions
                             && let Some(type_id) = self.substitution_type_id_for_static_parameter(
@@ -269,7 +269,7 @@ impl Compiler {
 
                         let reference_type = Type::Reference {
                             symbol: parameter_symbol,
-                            static_arguments: None,
+                            generic_arguments: None,
                         };
                         let ty = ctx.types.insert_type_from(reference_type, expression_id);
                         return Ok(Some(StaticExpression::Type { ty }));
@@ -343,7 +343,7 @@ impl Compiler {
                 {
                     let reference_type = Type::Reference {
                         symbol: lookup_symbol,
-                        static_arguments: None,
+                        generic_arguments: None,
                     };
                     let ty = ctx.types.insert_type_from(reference_type, expression_id);
                     return Ok(Some(StaticExpression::Type { ty }));
@@ -421,7 +421,7 @@ impl Compiler {
                         };
                         let reference_type = Type::Reference {
                             symbol: selection.target_symbol,
-                            static_arguments: receiver_arguments,
+                            generic_arguments: receiver_arguments,
                         };
                         let ty = ctx.types.insert_type_from(reference_type, expression_id);
                         return Ok(Some(StaticExpression::Type { ty }));
@@ -484,7 +484,7 @@ impl Compiler {
                     };
                     let reference_type = Type::Reference {
                         symbol: selection.target_symbol,
-                        static_arguments: receiver_arguments,
+                        generic_arguments: receiver_arguments,
                     };
                     let ty = ctx.types.insert_type_from(reference_type, expression_id);
                     return Ok(Some(StaticExpression::Type { ty }));

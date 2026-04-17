@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use destack_artifact::ArtifactKey;
 use destack_dir::{
-    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType, NormalizationMode,
-    PrimitiveType, ScalarLiteral, StaticArgument, StaticParameterKind, Symbol, SymbolSpace,
+    GenericParameterKind, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType,
+    NormalizationMode, PrimitiveType, ScalarLiteral, StaticArgument, Symbol, SymbolSpace,
     SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
     TypeTable, WellKnownSymbol,
 };
@@ -260,7 +260,7 @@ impl Compiler {
         // expand alias targets when the return type stays wrapped
         let Type::Reference {
             symbol,
-            static_arguments,
+            generic_arguments,
         } = ctx.types.get_type(type_id).clone()
         else {
             return normalized;
@@ -268,7 +268,7 @@ impl Compiler {
         if symbol.ty() != SymbolType::TypeAlias {
             return normalized;
         }
-        let Some(arguments) = static_arguments.as_ref() else {
+        let Some(arguments) = generic_arguments.as_ref() else {
             return normalized;
         };
 
@@ -398,7 +398,7 @@ impl Compiler {
             ),
             Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             } => {
                 // normalize reference ctx.symbols to their declared type
                 let normalized_symbol =
@@ -406,7 +406,7 @@ impl Compiler {
                 if normalized_symbol != symbol {
                     let normalized = Type::Reference {
                         symbol: normalized_symbol,
-                        static_arguments,
+                        generic_arguments,
                     };
                     let normalized_id = ctx.types.insert_type_from_any(normalized, source_id);
                     self.normalize_type_inner(
@@ -432,7 +432,7 @@ impl Compiler {
                             &mut ctx.reborrow(),
                             source_id,
                             well_known,
-                            static_arguments.as_deref(),
+                            generic_arguments.as_deref(),
                         )
                     {
                         let normalized_id = ctx.types.insert_type_from_any(normalized, source_id);
@@ -457,7 +457,7 @@ impl Compiler {
                         ) {
                             type_id
                         } else {
-                            let arguments = static_arguments.as_deref().unwrap_or(&[]);
+                            let arguments = generic_arguments.as_deref().unwrap_or(&[]);
                             let expanded = self.normalize_type_alias_reference_with_arguments(
                                 &mut ctx.reborrow(),
                                 source_id,
@@ -694,9 +694,9 @@ impl Compiler {
             Type::Function {
                 asynchrony,
                 cardinality,
-                static_parameters,
+                generic_parameters,
                 this_parameter,
-                dynamic_parameters,
+                parameters,
                 return_type,
             } => {
                 // track function member changes
@@ -704,7 +704,7 @@ impl Compiler {
                 // normalize type parameter and parameter lists
                 let normalized_static = self.normalize_type_list(
                     &mut ctx.reborrow(),
-                    &static_parameters,
+                    &generic_parameters,
                     mode,
                     relation_mode,
                     visited,
@@ -712,7 +712,7 @@ impl Compiler {
                 );
                 let normalized_dynamic = self.normalize_type_list(
                     &mut ctx.reborrow(),
-                    &dynamic_parameters,
+                    &parameters,
                     mode,
                     relation_mode,
                     visited,
@@ -759,9 +759,9 @@ impl Compiler {
                     let normalized = Type::Function {
                         asynchrony,
                         cardinality,
-                        static_parameters: normalized_static,
+                        generic_parameters: normalized_static,
                         this_parameter: normalized_this,
-                        dynamic_parameters: normalized_dynamic,
+                        parameters: normalized_dynamic,
                         return_type: normalized_return,
                     };
                     ctx.types.insert_type_from_any(normalized, source_id)
@@ -852,14 +852,14 @@ impl Compiler {
             Type::Import {
                 target,
                 qualifier,
-                static_arguments,
+                generic_arguments,
             } => {
                 let resolved = self.query_import_type_reference(
                     &mut ctx.reborrow(),
                     source_id,
                     target,
                     qualifier.as_ref(),
-                    static_arguments.as_deref(),
+                    generic_arguments.as_deref(),
                 );
                 if let Some(resolved) = resolved {
                     self.normalize_type_inner(
@@ -1746,11 +1746,11 @@ impl Compiler {
             return false;
         };
         let has_value_parameters = parameters.iter().any(|parameter_symbol| {
-            self.static_parameter_metadata_for_symbol_in_module(
+            self.generic_parameter_metadata_for_symbol_in_module(
                 ctx.tree_symbol_view(),
                 *parameter_symbol,
             )
-            .0 == StaticParameterKind::Value
+            .0 == GenericParameterKind::Value
         });
         if !has_value_parameters {
             return false;
@@ -2175,18 +2175,18 @@ impl Compiler {
         let mut visited = Vec::new();
         while let Type::Reference {
             symbol,
-            static_arguments,
+            generic_arguments,
         } = types.get_type(current_id)
         {
             let symbol = *symbol;
-            let static_arguments = static_arguments.clone();
+            let generic_arguments = generic_arguments.clone();
 
             // exit when this is not a type alias
             if symbol.ty() != SymbolType::TypeAlias {
                 break;
             };
             // avoid unwrapping aliases with explicit static arguments
-            if static_arguments
+            if generic_arguments
                 .as_ref()
                 .is_some_and(|arguments| !arguments.is_empty())
             {
@@ -2258,7 +2258,7 @@ impl Compiler {
         let ty = ctx.types.get_type(type_id).clone();
         if let Type::Reference {
             symbol,
-            static_arguments: Some(static_arguments),
+            generic_arguments: Some(generic_arguments),
         } = ty
             && matches!(symbol.ty(), SymbolType::TypeAlias)
         {
@@ -2268,7 +2268,7 @@ impl Compiler {
                 &mut ctx.reborrow(),
                 source_id,
                 symbol,
-                &static_arguments,
+                &generic_arguments,
                 NormalizationMode::Assign,
                 relation_mode,
                 &mut visited,

@@ -1,6 +1,6 @@
 pub(crate) use destack_dir::{
-    GlobalSymbolId, IntType, Lineage, LocalNodeIdAny, LocalTypeId, PrimitiveType, ScalarLiteral,
-    StaticArgument, StaticExpression, StaticParameterKind, SymbolType, Type, TypeField,
+    GenericParameterKind, GlobalSymbolId, IntType, Lineage, LocalNodeIdAny, LocalTypeId,
+    PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, SymbolType, Type, TypeField,
     TypeIndexSignature, TypeLiteral, TypeTable, VarianceModifier, WellKnownSymbol,
 };
 pub(crate) use destack_workspace::{ImplicitCollectionConversionPolicy, Module, ProfileId};

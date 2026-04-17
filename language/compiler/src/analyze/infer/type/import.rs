@@ -148,10 +148,10 @@ impl Compiler {
             Type::Import {
                 target,
                 qualifier,
-                static_arguments,
+                generic_arguments,
             } => {
                 // map embedded type ids inside static arguments
-                let local_arguments = static_arguments.as_ref().map(|arguments| {
+                let local_arguments = generic_arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
                         .map(|argument| {
@@ -168,7 +168,7 @@ impl Compiler {
                     Type::Import {
                         target: *target,
                         qualifier: qualifier.clone(),
-                        static_arguments: local_arguments,
+                        generic_arguments: local_arguments,
                     },
                     node_id,
                 )
@@ -339,12 +339,12 @@ impl Compiler {
             Type::Function {
                 asynchrony,
                 cardinality,
-                static_parameters,
+                generic_parameters,
                 this_parameter,
-                dynamic_parameters,
+                parameters,
                 return_type,
             } => {
-                let local_static_params: Vec<_> = static_parameters
+                let local_static_params: Vec<_> = generic_parameters
                     .iter()
                     .map(|id| {
                         let ty = remote_types.get_type(*id);
@@ -355,7 +355,7 @@ impl Compiler {
                     let ty = remote_types.get_type(this_parameter);
                     self.import_remote_type_for_node(node_id, ty, remote_types, types)
                 });
-                let local_dynamic_params: Vec<_> = dynamic_parameters
+                let local_dynamic_params: Vec<_> = parameters
                     .iter()
                     .map(|id| {
                         let ty = remote_types.get_type(*id);
@@ -370,9 +370,9 @@ impl Compiler {
                     Type::Function {
                         asynchrony: *asynchrony,
                         cardinality: *cardinality,
-                        static_parameters: local_static_params,
+                        generic_parameters: local_static_params,
                         this_parameter: local_this,
-                        dynamic_parameters: local_dynamic_params,
+                        parameters: local_dynamic_params,
                         return_type: local_return,
                     },
                     node_id,
@@ -568,10 +568,10 @@ impl Compiler {
             // nominal/reference types: keep as Type::Reference to the original symbol
             Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             } => {
                 // map embedded type ids inside static arguments
-                let local_arguments = static_arguments.as_ref().map(|arguments| {
+                let local_arguments = generic_arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
                         .map(|argument| {
@@ -587,7 +587,7 @@ impl Compiler {
                 types.insert_imported_type_from_any(
                     Type::Reference {
                         symbol: *symbol,
-                        static_arguments: local_arguments,
+                        generic_arguments: local_arguments,
                     },
                     node_id,
                 )
@@ -671,10 +671,10 @@ impl Compiler {
             }
             StaticExpression::Declaration {
                 declaration,
-                static_arguments,
+                generic_arguments,
             } => {
                 // remap static arguments for declarations
-                let local_arguments = static_arguments.as_ref().map(|arguments| {
+                let local_arguments = generic_arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
                         .map(|argument| {
@@ -689,7 +689,7 @@ impl Compiler {
                 });
                 StaticExpression::Declaration {
                     declaration: *declaration,
-                    static_arguments: local_arguments,
+                    generic_arguments: local_arguments,
                 }
             }
             StaticExpression::ArrayExpression { elements } => {

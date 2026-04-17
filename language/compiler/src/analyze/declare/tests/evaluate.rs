@@ -691,7 +691,7 @@ declare const lane: F32Kernel.Lane;
 
     let Type::Reference {
         symbol: _,
-        static_arguments: Some(arguments),
+        generic_arguments: Some(arguments),
     } = types.get_type(lane_type_id)
     else {
         panic!(

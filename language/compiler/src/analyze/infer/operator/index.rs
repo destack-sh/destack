@@ -228,8 +228,8 @@ impl Compiler {
         }
 
         // resolve index parameter type
-        let parameter_ty_id = resolved.signature.dynamic_parameters.first().copied();
-        if resolved.signature.dynamic_parameters.len() != 1 {
+        let parameter_ty_id = resolved.signature.parameters.first().copied();
+        if resolved.signature.parameters.len() != 1 {
             self.record_member_call_resolution(
                 &mut ctx.reborrow(),
                 expression_id,
@@ -513,9 +513,9 @@ impl Compiler {
         }
 
         // resolve index set parameter types
-        let key_param_ty_id = resolved.signature.dynamic_parameters.first().copied();
-        let value_param_ty_id = resolved.signature.dynamic_parameters.get(1).copied();
-        if resolved.signature.dynamic_parameters.len() != 2 {
+        let key_param_ty_id = resolved.signature.parameters.first().copied();
+        let value_param_ty_id = resolved.signature.parameters.get(1).copied();
+        if resolved.signature.parameters.len() != 2 {
             self.record_member_call_resolution(
                 &mut ctx.reborrow(),
                 expression_id,

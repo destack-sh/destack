@@ -199,9 +199,7 @@ impl Compiler {
 
         // resolve Symbol.for("name") keys
         if let Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
         {
             let Expression::Member { left, name, .. } = tree.get(*left) else {
@@ -221,7 +219,7 @@ impl Compiler {
                 return None;
             }
 
-            let argument_id = dynamic_arguments.first()?;
+            let argument_id = arguments.first()?;
             let argument = tree.get(*argument_id);
             let value_id = argument.value();
             let Expression::ScalarLiteral {

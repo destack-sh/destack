@@ -1,17 +1,17 @@
 use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, StaticParameterKind, SymbolSpace,
+    Expression, GenericParameterKind, GlobalSymbolId, LocalNodeId, LocalTypeId, SymbolSpace,
     TypeExpression,
 };
 use std::collections::HashMap;
 
 impl Compiler {
-    pub(crate) fn static_parameter_expression_reference(
+    pub(crate) fn generic_parameter_expression_reference(
         &self,
         ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,
-    ) -> AnalyzeResult<Option<(GlobalSymbolId, StaticParameterKind)>> {
+    ) -> AnalyzeResult<Option<(GlobalSymbolId, GenericParameterKind)>> {
         // only treat references as static parameters in Destack modules
         if !ctx.module.language_type.is_destack() {
             return Ok(None);
@@ -20,7 +20,7 @@ impl Compiler {
         // unwrap one embedded type expression when the value is spelled in type space
         let expression_id = self.unwrap_parenthesized_expression(expression_id, ctx.tree);
         if let Expression::Type { value, .. } = ctx.tree.get(expression_id) {
-            return self.static_parameter_type_reference(&mut ctx.reborrow(), *value);
+            return self.generic_parameter_type_reference(&mut ctx.reborrow(), *value);
         }
 
         // resolve the referenced symbol first
@@ -53,18 +53,18 @@ impl Compiler {
                     ctx.types,
                     AnalyzeIndex::default(),
                 );
-                self.static_parameter_reference_in_symbols(&mut ctx.reborrow(), *target_symbol)
+                self.generic_parameter_reference_in_symbols(&mut ctx.reborrow(), *target_symbol)
             },
         )
         .map_err(AnalyzeError::from)
     }
 
     /// Resolve the static parameter symbol and kind for a reference type expression.
-    pub(crate) fn static_parameter_type_reference(
+    pub(crate) fn generic_parameter_type_reference(
         &self,
         ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<TypeExpression>,
-    ) -> AnalyzeResult<Option<(GlobalSymbolId, StaticParameterKind)>> {
+    ) -> AnalyzeResult<Option<(GlobalSymbolId, GenericParameterKind)>> {
         // only treat references as static parameters in Destack modules
         if !ctx.module.language_type.is_destack() {
             return Ok(None);
@@ -103,32 +103,32 @@ impl Compiler {
                     ctx.types,
                     AnalyzeIndex::default(),
                 );
-                self.static_parameter_reference_in_symbols(&mut ctx.reborrow(), *target_symbol)
+                self.generic_parameter_reference_in_symbols(&mut ctx.reborrow(), *target_symbol)
             },
         )
         .map_err(AnalyzeError::from)
     }
 
     /// Resolve the static parameter kind for a reference type expression.
-    pub(crate) fn static_parameter_type_reference_kind(
+    pub(crate) fn generic_parameter_type_reference_kind(
         &self,
         ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<TypeExpression>,
-    ) -> AnalyzeResult<Option<StaticParameterKind>> {
+    ) -> AnalyzeResult<Option<GenericParameterKind>> {
         Ok(self
-            .static_parameter_type_reference(&mut ctx.reborrow(), expression_id)?
+            .generic_parameter_type_reference(&mut ctx.reborrow(), expression_id)?
             .map(|(_, kind)| kind))
     }
 
     /// Resolve the static parameter symbol and kind for a symbol within a symbol table.
-    pub(crate) fn static_parameter_reference_in_symbols(
+    pub(crate) fn generic_parameter_reference_in_symbols(
         &self,
         ctx: &mut TypeContext<'_>,
         target_symbol: GlobalSymbolId,
-    ) -> Option<(GlobalSymbolId, StaticParameterKind)> {
+    ) -> Option<(GlobalSymbolId, GenericParameterKind)> {
         // resolve direct static parameter references
         if self.symbol_is_static_parameter(ctx.symbol_type_view(), target_symbol) {
-            let kind = self.static_parameter_kind_for_symbol(&mut ctx.reborrow(), target_symbol);
+            let kind = self.generic_parameter_kind_for_symbol(&mut ctx.reborrow(), target_symbol);
             return Some((target_symbol, kind));
         }
 
@@ -153,7 +153,7 @@ impl Compiler {
                 }
                 let candidate_global = candidate_symbol_id.into_global(ctx.module.id);
                 let kind =
-                    self.static_parameter_kind_for_symbol(&mut ctx.reborrow(), candidate_global);
+                    self.generic_parameter_kind_for_symbol(&mut ctx.reborrow(), candidate_global);
                 return Some((candidate_global, kind));
             }
 

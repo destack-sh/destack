@@ -50,7 +50,7 @@ impl Compiler {
         for target_signature in target_signatures {
             let signature = ctx.types.get_type(*target_signature).clone();
             let Type::Function {
-                dynamic_parameters: target_params,
+                parameters: target_params,
                 this_parameter: target_this,
                 return_type: target_return,
                 ..

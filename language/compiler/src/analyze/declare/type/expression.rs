@@ -4,12 +4,12 @@ use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, DependencyItem, Expression, FunctionMode, FunctionSignature, GenericArgument,
-    GlobalSymbolId, IntrinsicType, LocalNodeId, LocalNodeIdAny, LocalTypeId, MappedTypeModifier,
-    MappedTypeModifiers, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, NormalizationMode,
-    Parameter, Path, PredicateSubject, PrimitiveType, ScalarLiteral, StaticKey,
-    StaticParameterKind, SymbolSpace, SymbolSpaceOrder, TupleElement, Type, TypeElement,
-    TypeExpression, TypeField, TypeIndexSignature, TypeLiteral, TypeMember, TypeModifier,
-    TypePredicateSubject, walk_type_expression,
+    GenericParameterKind, GlobalSymbolId, IntrinsicType, LocalNodeId, LocalNodeIdAny, LocalTypeId,
+    MappedTypeModifier, MappedTypeModifiers, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions,
+    NormalizationMode, Parameter, Path, PredicateSubject, PrimitiveType, ScalarLiteral, StaticKey,
+    SymbolSpace, SymbolSpaceOrder, TupleElement, Type, TypeElement, TypeExpression, TypeField,
+    TypeIndexSignature, TypeLiteral, TypeMember, TypeModifier, TypePredicateSubject,
+    walk_type_expression,
 };
 use destack_workspace::ModuleSource;
 use std::collections::HashSet;
@@ -555,11 +555,11 @@ impl Compiler {
         let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_SIGNATURE);
 
         // collect static parameter placeholders
-        let static_parameters =
-            self.static_parameter_placeholders_for_signature(&mut ctx.reborrow(), signature);
+        let generic_parameters =
+            self.generic_parameter_placeholders_for_signature(&mut ctx.reborrow(), signature);
 
         // evaluate parameter types
-        let mut dynamic_parameters = Vec::with_capacity(signature.parameters.len());
+        let mut parameters = Vec::with_capacity(signature.parameters.len());
         for parameter_id in signature.parameters.iter() {
             let declared_type_id = ctx
                 .types
@@ -581,12 +581,12 @@ impl Compiler {
             ) && let Type::Tuple { elements, .. } = ctx.types.get_type(declared_type_id)
             {
                 for element in elements {
-                    dynamic_parameters.push(element.ty);
+                    parameters.push(element.ty);
                 }
                 continue;
             }
 
-            dynamic_parameters.push(declared_type_id);
+            parameters.push(declared_type_id);
         }
 
         // evaluate this parameter when present
@@ -646,9 +646,9 @@ impl Compiler {
         Ok(Type::Function {
             asynchrony: signature.asynchrony,
             cardinality: signature.cardinality,
-            static_parameters,
+            generic_parameters,
             this_parameter,
-            dynamic_parameters,
+            parameters,
             return_type,
         })
     }
@@ -787,8 +787,8 @@ impl Compiler {
 
         // reject value static parameters in template spans
         if self.symbol_is_static_parameter(ctx.symbol_type_view(), target_symbol) {
-            let kind = self.static_parameter_kind_for_symbol(&mut ctx.reborrow(), target_symbol);
-            if kind == StaticParameterKind::Value {
+            let kind = self.generic_parameter_kind_for_symbol(&mut ctx.reborrow(), target_symbol);
+            if kind == GenericParameterKind::Value {
                 self.error(AnalyzeError::StaticParameterRequiresComptime {
                     node: span_id
                         .into_global_any(ctx.module.id)
@@ -803,19 +803,19 @@ impl Compiler {
         }
 
         // resolve generic arguments for the referenced span
-        let static_arguments =
+        let generic_arguments =
             self.evaluate_generic_arguments(&mut ctx.reborrow(), generic_arguments)?;
         let resolved_arguments = self.resolve_declared_type_reference_static_arguments(
             &mut ctx.reborrow(),
             span_id.into_any(),
             target_symbol,
-            static_arguments.as_deref(),
+            generic_arguments.as_deref(),
             validate_static_argument_bounds,
         )?;
 
         let ty = Type::Reference {
             symbol: target_symbol,
-            static_arguments: resolved_arguments,
+            generic_arguments: resolved_arguments,
         };
         Ok(ctx.types.insert_type_from(ty, span_id))
     }
@@ -1163,7 +1163,7 @@ impl Compiler {
                 }
 
                 // evaluate static arguments for the referenced symbol
-                let static_arguments = self.evaluate_generic_arguments(
+                let generic_arguments = self.evaluate_generic_arguments(
                     &mut ctx.reborrow(),
                     Some(generic_arguments.as_slice()),
                 )?;
@@ -1175,7 +1175,7 @@ impl Compiler {
                     &mut ctx.reborrow(),
                     expression_id,
                     target_symbol,
-                    static_arguments.clone(),
+                    generic_arguments.clone(),
                     resolve_static_arguments,
                     validate_member_static_argument_bounds,
                     enforce_implicit_managed,
@@ -1187,7 +1187,7 @@ impl Compiler {
                     target_symbol,
                     receiver_symbol,
                     &receiver_arguments,
-                    static_arguments.as_deref(),
+                    generic_arguments.as_deref(),
                     member_ty,
                 )?
             }
@@ -1211,14 +1211,14 @@ impl Compiler {
             } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE);
                 let target_symbol = if let Some((parameter_symbol, _)) =
-                    self.static_parameter_type_reference(&mut ctx.reborrow(), expression_id)?
+                    self.generic_parameter_type_reference(&mut ctx.reborrow(), expression_id)?
                 {
                     parameter_symbol
                 } else {
                     self.resolve_type_reference_symbol(ctx, target_symbol)
                 };
 
-                let static_arguments = {
+                let generic_arguments = {
                     let _timing =
                         self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE_ARGUMENTS);
                     self.evaluate_generic_arguments(
@@ -1232,7 +1232,7 @@ impl Compiler {
                     &mut ctx.reborrow(),
                     expression_id,
                     target_symbol,
-                    static_arguments,
+                    generic_arguments,
                     resolve_static_arguments,
                     validate_static_argument_bounds,
                     enforce_implicit_managed,
@@ -1595,7 +1595,7 @@ impl Compiler {
                 generic_arguments,
             } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                let static_arguments = self.evaluate_generic_arguments(
+                let generic_arguments = self.evaluate_generic_arguments(
                     &mut ctx.reborrow(),
                     Some(generic_arguments.as_slice()),
                 )?;
@@ -1606,7 +1606,7 @@ impl Compiler {
                     Type::Import {
                         target: *target,
                         qualifier: qualifier.clone(),
-                        static_arguments,
+                        generic_arguments,
                     }
                 } else {
                     Type::TypeLiteral {

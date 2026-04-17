@@ -370,10 +370,10 @@ const status = Status.Active;
         status_ty_id,
         Type::Reference {
             symbol,
-            static_arguments
+            generic_arguments
         } => {
             assert_eq!(*symbol, enum_symbol);
-            assert!(static_arguments.is_none());
+            assert!(generic_arguments.is_none());
         }
     );
     let enum_value_ty_id = view.expect_value_type_id(enum_symbol);
@@ -390,10 +390,10 @@ const status = Status.Active;
         active_field.ty,
         Type::Reference {
             symbol,
-            static_arguments
+            generic_arguments
         } => {
             assert_eq!(*symbol, enum_symbol);
-            assert!(static_arguments.is_none());
+            assert!(generic_arguments.is_none());
         }
     );
     let active_field_ty = active_field.ty;

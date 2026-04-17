@@ -88,13 +88,10 @@ function parse(value: int32): int32 {
             let mut has_string = false;
             let mut has_int32 = false;
             for signature_id in call_signatures {
-                let Type::Function {
-                    dynamic_parameters, ..
-                } = view.types().get_type(*signature_id)
-                else {
+                let Type::Function { parameters, .. } = view.types().get_type(*signature_id) else {
                     panic!("expected function signature");
                 };
-                let param_ty_id = *dynamic_parameters.first().expect("expected parameter type");
+                let param_ty_id = *parameters.first().expect("expected parameter type");
                 match view.types().get_type(param_ty_id) {
                     Type::TypeLiteral {
                         value: TypeLiteral::Primitive(PrimitiveType::String),

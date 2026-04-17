@@ -93,7 +93,7 @@ impl Compiler {
 
         // prepare callee metadata for overload resolution
         let callee_symbol = self.reference_symbol_for_expression(ctx.tree_symbol_view(), tag_id);
-        let static_arguments = match ctx.tree.get(tag_id) {
+        let generic_arguments = match ctx.tree.get(tag_id) {
             Expression::LocalReference {
                 generic_arguments, ..
             }
@@ -121,10 +121,10 @@ impl Compiler {
                     super::call::CallSignatureResolutionContext {
                         expression_id,
                         callee_symbol,
-                        generic_arguments: static_arguments,
+                        generic_arguments: generic_arguments,
                         prefilled_static_arguments: None,
                         bound_substitutions: None,
-                        dynamic_arguments: None,
+                        arguments: None,
                         call_receiver_ty_id: None,
                         expected_return_type: None,
                         mode: SignatureResolutionMode::Synthesize,
@@ -182,10 +182,10 @@ impl Compiler {
                 super::call::CallSignatureResolutionContext {
                     expression_id,
                     callee_symbol,
-                    generic_arguments: static_arguments,
+                    generic_arguments: generic_arguments,
                     prefilled_static_arguments: None,
                     bound_substitutions: None,
-                    dynamic_arguments: None,
+                    arguments: None,
                     call_receiver_ty_id: None,
                     expected_return_type: None,
                     mode: SignatureResolutionMode::Synthesize,
@@ -210,7 +210,7 @@ impl Compiler {
         };
 
         // infer argument types and emit invocation constraints
-        let parameter_types = resolved.dynamic_parameters.clone();
+        let parameter_types = resolved.parameters.clone();
         let argument_ty_ids = self.infer_invocation_arguments(
             &mut ctx.reborrow(),
             template_arguments,
@@ -270,7 +270,7 @@ impl Compiler {
             return types.insert_type_from_any(
                 Type::Reference {
                     symbol,
-                    static_arguments: None,
+                    generic_arguments: None,
                 },
                 source_id,
             );
@@ -301,7 +301,7 @@ impl Compiler {
         require_assignable: bool,
     ) -> AnalyzeResult<Option<ResolvedSignature>> {
         // read the template strings parameter when present
-        let Some(strings_param_ty_id) = resolved.dynamic_parameters.first().copied() else {
+        let Some(strings_param_ty_id) = resolved.parameters.first().copied() else {
             return Ok(None);
         };
         let strings_source_id = ctx.types.get_type_source(strings_param_ty_id);
@@ -333,16 +333,11 @@ impl Compiler {
         }
 
         // drop the template strings parameter and normalize the signature
-        let parameters = resolved
-            .dynamic_parameters
-            .iter()
-            .skip(1)
-            .copied()
-            .collect();
+        let parameters = resolved.parameters.iter().skip(1).copied().collect();
         Ok(Some(ResolvedSignature {
-            dynamic_parameters: parameters,
+            parameters: parameters,
             return_type: resolved.return_type,
-            static_arguments: resolved.static_arguments,
+            generic_arguments: resolved.generic_arguments,
         }))
     }
 
@@ -656,12 +651,12 @@ impl Compiler {
     pub(crate) fn add_template_literal_inference_constraints(
         &self,
         ctx: &mut InferContext<'_>,
-        dynamic_arguments: &[LocalNodeId<Argument>],
+        arguments: &[LocalNodeId<Argument>],
         argument_ty_ids: &[LocalTypeId],
         parameter_types: &[LocalTypeId],
     ) {
         // scan argument pairs for template literal inference
-        for ((argument_id, argument_ty_id), param_ty_id) in dynamic_arguments
+        for ((argument_id, argument_ty_id), param_ty_id) in arguments
             .iter()
             .zip(argument_ty_ids.iter())
             .zip(parameter_types.iter())
@@ -890,7 +885,7 @@ impl Compiler {
         if let InferOrigin::TypeParameter(symbol) = var.origin
             && self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol)
         {
-            return self.static_parameter_constraint_type(
+            return self.generic_parameter_constraint_type(
                 &mut ctx.type_context_reborrow(),
                 symbol,
                 source_id,

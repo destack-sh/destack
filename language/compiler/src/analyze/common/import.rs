@@ -110,7 +110,7 @@ impl Compiler {
         source_id: LocalNodeIdAny,
         target: StringId,
         qualifier: Option<&Path>,
-        static_arguments: Option<&[StaticArgument]>,
+        generic_arguments: Option<&[StaticArgument]>,
     ) -> Option<LocalTypeId> {
         let symbol = self.query_import_type_symbol(
             ctx.compiler_context.revision(),
@@ -121,10 +121,10 @@ impl Compiler {
             qualifier,
         )?;
 
-        let static_arguments = static_arguments.map(|arguments| arguments.to_vec());
+        let generic_arguments = generic_arguments.map(|arguments| arguments.to_vec());
         let reference = Type::Reference {
             symbol,
-            static_arguments,
+            generic_arguments,
         };
         Some(ctx.types.insert_type_from_any(reference, source_id))
     }
