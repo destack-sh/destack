@@ -327,7 +327,6 @@ pub struct OwnershipAnalysis {
     /// Type information for values (for determining copy vs move semantics).
     value_types: ValueTypeMap,
     /// Values allocated on the stack (from StackAlloc).
-    /// Used to determine whether to emit StackDrop vs RawDrop.
     stack_allocated: HashSet<Value>,
     /// Values allocated with managed allocation instructions.
     managed_allocated: HashSet<Value>,
@@ -452,9 +451,6 @@ impl OwnershipAnalysis {
     }
 
     /// Check if a value was allocated on the stack.
-    ///
-    /// Stack-allocated values use StackDrop (no-op, frame handles cleanup)
-    /// instead of RawDrop (explicit deallocation).
     pub fn is_stack_allocated(&self, value: Value) -> bool {
         self.stack_allocated.contains(&value)
     }
@@ -482,11 +478,11 @@ impl OwnershipAnalysis {
                 panic!("recovered MIR instruction reached optimizer");
             }
 
-            // raw.drop/stack.drop/raw.free always consume
-            Instruction::RawDrop { value } => {
-                state.mark_moved_with_source(*value, at);
-            }
-            Instruction::StackDrop { value } => {
+            // explicit dispose hooks do not end ownership on their own
+            Instruction::Dispose { .. } | Instruction::AsyncDispose { .. } => {}
+
+            // drop marks ownership end and raw.free consumes explicit raw storage
+            Instruction::Drop { value } | Instruction::AsyncDrop { value } => {
                 state.mark_moved_with_source(*value, at);
             }
             Instruction::RawFree { pointer } => {
@@ -1304,11 +1300,11 @@ fn process_instruction(
             panic!("recovered MIR instruction reached optimizer");
         }
 
-        // raw.drop/stack.drop/raw.free always consume
-        Instruction::RawDrop { value } => {
-            state.mark_moved_with_source(*value, at);
-        }
-        Instruction::StackDrop { value } => {
+        // explicit dispose hooks do not end ownership on their own
+        Instruction::Dispose { .. } | Instruction::AsyncDispose { .. } => {}
+
+        // drop marks ownership end and raw.free consumes explicit raw storage
+        Instruction::Drop { value } | Instruction::AsyncDrop { value } => {
             state.mark_moved_with_source(*value, at);
         }
         Instruction::RawFree { pointer } => {
@@ -1915,7 +1911,7 @@ b0:
 function test(): int32 {
 b0:
     v0: int32 = 42int32
-    raw.drop v0
+    drop v0
     v1: int32 = 0int32
     return v1
 }"#,
@@ -1943,7 +1939,7 @@ function test(v0: boolean, v1: int32): int32 {
 b0(v0: boolean, v1: int32):
     branch v0, b1, b2
 b1:
-    raw.drop v1
+    drop v1
     jump b3
 b2:
     jump b3
@@ -1980,7 +1976,7 @@ b0:
     local.set local0, v0
     v1: ref<int32, managed> = local.get local0
     v2: ref<int32, managed> = local.get local0
-    raw.drop v1
+    drop v1
     return
 }"#,
         );

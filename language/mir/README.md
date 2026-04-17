@@ -91,7 +91,7 @@ Instructions perform "operations" and may produce SSA `Value`s.
 | Local variables | `local.get`, `local.set`, `local.address` |
 | Globals | `global.address`, `global.const` |
 | Functions | `function.address`, `function.bind`, `function.environment` |
-| Memory | `load`, `store`, `raw.drop`, `stack.drop` |
+| Memory | `load`, `store`, `raw.free`, `dispose`, `dispose.async`, `drop`, `drop.async` |
 | Aggregates | `struct`, `tuple`, `array`, `field.get`, `field.set`, `field.address`, `element.get`, `element.set`, `element.address` |
 | Vector | `vector.*` (splat, extract, insert, shuffle, select, reduce, compare, convert) |
 | Tensor | `tensor.*` (load, store, fill, copy, reshape, broadcast, transpose, cast, view, slice, pad, concat, compare, select, reduce, dot, convolution, gather, scatter, convert) |
@@ -147,6 +147,17 @@ Reference syntax is payload-first and spells out qualifiers after the payload ty
 | raw | mutable | `ref<int32, raw>` | raw pointer (mutable) |
 | raw | readonly | `ref<int32, raw, readonly>` | raw pointer (readonly) |
 
+### Borrow Regions and Cleanup
+
+Borrow regions are not spelled on every MIR reference type.
+Instead, function boundaries preserve the relevant relations through `BorrowRegion` metadata on borrowed returns and borrowed aggregates.
+Conceptually, that metadata is a region set saying which parameters one returned borrow may depend on.
+Most internal regions are inferred and erased before codegen.
+
+Cleanup placement is a MIR responsibility.
+Ownership end, `using`, `await using`, and last use analysis must lower to explicit cleanup edges in MIR rather than being rediscovered later by the VM or native backend.
+MIR therefore separates explicit cleanup hooks (`dispose`, `dispose.async`) from ownership end (`drop`, `drop.async`) and from raw storage release (`raw.free`).
+Drop glue can call dispose hooks and then perform storage specific release when needed.
 
 Field names are optional in MIR types and are only for readability:
 

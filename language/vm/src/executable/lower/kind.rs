@@ -760,8 +760,10 @@ fn infer_instruction_kind(
         | mir::Instruction::AtomicFence { .. }
         | mir::Instruction::Barrier { .. }
         | mir::Instruction::RawFree { .. }
-        | mir::Instruction::RawDrop { .. }
-        | mir::Instruction::StackDrop { .. }
+        | mir::Instruction::Dispose { .. }
+        | mir::Instruction::AsyncDispose { .. }
+        | mir::Instruction::Drop { .. }
+        | mir::Instruction::AsyncDrop { .. }
         | mir::Instruction::Assume { .. } => None,
     }
 }

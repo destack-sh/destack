@@ -103,8 +103,11 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         | Instruction::AtomicFence { .. }
         | Instruction::Barrier { .. } => false,
 
-        // drops run destructors / deallocate
-        Instruction::RawDrop { .. } | Instruction::StackDrop { .. } => false,
+        // cleanup and drops run user hooks / deallocate
+        Instruction::Dispose { .. }
+        | Instruction::AsyncDispose { .. }
+        | Instruction::Drop { .. }
+        | Instruction::AsyncDrop { .. } => false,
 
         // calls may have side effects
         Instruction::Call { .. }
@@ -265,8 +268,11 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         // side effects if the result is unused (they produce new values, not mutate)
         Instruction::FieldSet { .. } | Instruction::ElementSet { .. } => false,
 
-        // drops have side effects (deallocate, run destructors)
-        Instruction::RawDrop { .. } | Instruction::StackDrop { .. } => true,
+        // cleanup and drops have side effects
+        Instruction::Dispose { .. }
+        | Instruction::AsyncDispose { .. }
+        | Instruction::Drop { .. }
+        | Instruction::AsyncDrop { .. } => true,
 
         // calls may have side effects
         Instruction::Call { .. }
@@ -337,9 +343,11 @@ pub fn instruction_may_affect_memory(instruction: &Instruction) -> bool {
             | Instruction::ManagedAllocArray { .. }
             | Instruction::RawAlloc { .. }
             | Instruction::RawFree { .. }
-            | Instruction::RawDrop { .. }
+            | Instruction::Dispose { .. }
+            | Instruction::AsyncDispose { .. }
+            | Instruction::Drop { .. }
+            | Instruction::AsyncDrop { .. }
             | Instruction::StackAlloc { .. }
-            | Instruction::StackDrop { .. }
     )
 }
 
@@ -642,10 +650,16 @@ pub fn instruction_substitute_uses(
             memory_scope: *memory_scope,
             semantics: *semantics,
         },
-        mir::Instruction::RawDrop { value } => mir::Instruction::RawDrop {
+        mir::Instruction::Dispose { value } => mir::Instruction::Dispose {
             value: substitute(value),
         },
-        mir::Instruction::StackDrop { value } => mir::Instruction::StackDrop {
+        mir::Instruction::AsyncDispose { value } => mir::Instruction::AsyncDispose {
+            value: substitute(value),
+        },
+        mir::Instruction::Drop { value } => mir::Instruction::Drop {
+            value: substitute(value),
+        },
+        mir::Instruction::AsyncDrop { value } => mir::Instruction::AsyncDrop {
             value: substitute(value),
         },
         mir::Instruction::FieldGet {
@@ -2092,10 +2106,16 @@ pub fn instruction_map(
             pointer: remap(*pointer),
             value: remap(*value),
         },
-        mir::Instruction::RawDrop { value } => mir::Instruction::RawDrop {
+        mir::Instruction::Dispose { value } => mir::Instruction::Dispose {
             value: remap(*value),
         },
-        mir::Instruction::StackDrop { value } => mir::Instruction::StackDrop {
+        mir::Instruction::AsyncDispose { value } => mir::Instruction::AsyncDispose {
+            value: remap(*value),
+        },
+        mir::Instruction::Drop { value } => mir::Instruction::Drop {
+            value: remap(*value),
+        },
+        mir::Instruction::AsyncDrop { value } => mir::Instruction::AsyncDrop {
             value: remap(*value),
         },
         mir::Instruction::FieldGet {
@@ -3307,7 +3327,16 @@ pub fn instruction_map_with_locals(
         mir::Instruction::RawFree { pointer } => mir::Instruction::RawFree {
             pointer: remap(*pointer),
         },
-        mir::Instruction::RawDrop { value } => mir::Instruction::RawDrop {
+        mir::Instruction::Dispose { value } => mir::Instruction::Dispose {
+            value: remap(*value),
+        },
+        mir::Instruction::AsyncDispose { value } => mir::Instruction::AsyncDispose {
+            value: remap(*value),
+        },
+        mir::Instruction::Drop { value } => mir::Instruction::Drop {
+            value: remap(*value),
+        },
+        mir::Instruction::AsyncDrop { value } => mir::Instruction::AsyncDrop {
             value: remap(*value),
         },
         mir::Instruction::StackAlloc {
@@ -3318,9 +3347,6 @@ pub fn instruction_map_with_locals(
             destination: remap(*destination),
             layout: *layout,
             result_type: *result_type,
-        },
-        mir::Instruction::StackDrop { value } => mir::Instruction::StackDrop {
-            value: remap(*value),
         },
         mir::Instruction::Call {
             destination,

@@ -557,7 +557,10 @@ fn process_block(
                 available.clear();
             }
 
-            mir::Instruction::RawDrop { .. } | mir::Instruction::StackDrop { .. } => {
+            mir::Instruction::Dispose { .. }
+            | mir::Instruction::AsyncDispose { .. }
+            | mir::Instruction::Drop { .. }
+            | mir::Instruction::AsyncDrop { .. } => {
                 // clear across destructor boundaries
                 available.clear();
             }

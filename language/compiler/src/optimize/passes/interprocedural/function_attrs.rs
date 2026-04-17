@@ -731,16 +731,22 @@ fn effects_for_instruction(
             let behavior = alloc_behavior(mir::MemoryRegionSet::RAW_HEAP, None);
             (effect, behavior)
         }
-        mir::Instruction::RawFree { .. } | mir::Instruction::RawDrop { .. } => {
+        mir::Instruction::RawFree { .. } => {
             let effect = heap_effect(mir::MemoryEffect::write_only(
                 mir::MemoryRegionSet::RAW_HEAP,
             ));
             let behavior = free_behavior(mir::MemoryRegionSet::RAW_HEAP, None);
             (effect, behavior)
         }
-        mir::Instruction::StackAlloc { .. } | mir::Instruction::StackDrop { .. } => {
+        mir::Instruction::StackAlloc { .. } => {
             let effect = stack_effect(mir::MemoryEffect::write_only(mir::MemoryRegionSet::STACK));
             (effect, mir::CallBehavior::none())
+        }
+        mir::Instruction::Dispose { .. }
+        | mir::Instruction::AsyncDispose { .. }
+        | mir::Instruction::Drop { .. }
+        | mir::Instruction::AsyncDrop { .. } => {
+            (mir::MemoryEffect::unknown(), mir::CallBehavior::unknown())
         }
         mir::Instruction::Intrinsic { intrinsic, .. } => {
             let effect = memory_effect_for_intrinsic(*intrinsic);

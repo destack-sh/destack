@@ -3,7 +3,7 @@ use std::fmt;
 use {destack_engine as engine, destack_mir as mir};
 
 use crate::diagnostic::Error;
-use destack_heap::{LayoutId, ReferenceMeta, Value};
+use destack_heap::{ReferenceMeta, StorageLayoutId, Value};
 
 use super::{ArgumentRange, CallTarget, CopyRange, SwitchRange};
 
@@ -350,8 +350,14 @@ pub(crate) enum InstructionOperation {
     OrUint,
     /// Dispatch operation for `raw_alloc`.
     RawAlloc,
-    /// Dispatch operation for `raw_drop`.
-    RawDrop,
+    /// Dispatch operation for `dispose`.
+    Dispose,
+    /// Dispatch operation for `dispose_async`.
+    AsyncDispose,
+    /// Dispatch operation for `drop`.
+    Drop,
+    /// Dispatch operation for `drop_async`.
+    AsyncDrop,
     /// Dispatch operation for `raw_free`.
     RawFree,
     /// Dispatch operation for `return`.
@@ -368,8 +374,6 @@ pub(crate) enum InstructionOperation {
     ShrUint,
     /// Dispatch operation for `stack_alloc`.
     StackAlloc,
-    /// Dispatch operation for `stack_drop`.
-    StackDrop,
     /// Dispatch operation for `store`.
     Store,
     /// Dispatch operation for `store_global`.
@@ -800,7 +804,7 @@ pub(crate) enum InstructionData {
         composite: mir::Value,
         index: u32,
         reference: ReferenceMeta,
-        field_count: u32,
+        field_count: Option<u32>,
         field: Option<FieldAccess>,
     },
 
@@ -809,7 +813,7 @@ pub(crate) enum InstructionData {
         dest: mir::Value,
         composite: mir::Value,
         index: u32,
-        field_count: u32,
+        field_count: Option<u32>,
         field: Option<FieldAccess>,
     },
 
@@ -827,7 +831,7 @@ pub(crate) enum InstructionData {
         index: u32,
         value: mir::Value,
         reference: ReferenceMeta,
-        field_count: u32,
+        field_count: Option<u32>,
         field: Option<FieldAccess>,
     },
 
@@ -860,7 +864,7 @@ pub(crate) enum InstructionData {
         array: mir::Value,
         index: mir::Value,
         reference: ReferenceMeta,
-        array_length: u64,
+        array_length: Option<u64>,
         element: Option<ElementAccess>,
     },
 
@@ -869,7 +873,7 @@ pub(crate) enum InstructionData {
         dest: mir::Value,
         array: mir::Value,
         index: mir::Value,
-        array_length: u64,
+        array_length: Option<u64>,
         element: Option<ElementAccess>,
     },
 
@@ -1157,7 +1161,7 @@ pub(crate) enum InstructionData {
         index: mir::Value,
         value: mir::Value,
         reference: ReferenceMeta,
-        array_length: u64,
+        array_length: Option<u64>,
         element: Option<ElementAccess>,
     },
 
@@ -1166,7 +1170,7 @@ pub(crate) enum InstructionData {
         dest: mir::Value,
         reference: ReferenceMeta,
         storage_type: mir::LocalNodeId<mir::Type>,
-        layout_id: Option<LayoutId>,
+        layout_id: Option<StorageLayoutId>,
         byte_len: usize,
     },
 
@@ -1188,8 +1192,17 @@ pub(crate) enum InstructionData {
     /// Free raw memory.
     RawFree { pointer: mir::Value },
 
-    /// Drop raw memory.
-    RawDrop { value: mir::Value },
+    /// Run explicit synchronous cleanup.
+    Dispose { value: mir::Value },
+
+    /// Run explicit asynchronous cleanup.
+    AsyncDispose { value: mir::Value },
+
+    /// End ownership synchronously.
+    Drop { value: mir::Value },
+
+    /// End ownership asynchronously.
+    AsyncDrop { value: mir::Value },
 
     /// Allocate stack memory.
     StackAlloc {
@@ -1197,9 +1210,6 @@ pub(crate) enum InstructionData {
         reference: ReferenceMeta,
         storage_type: mir::LocalNodeId<mir::Type>,
     },
-
-    /// Mark stack value lifetime ended.
-    StackDrop { value: mir::Value },
 
     /// Assume a condition is true.
     Assume,
@@ -1447,9 +1457,11 @@ impl InstructionData {
             InstructionData::ManagedAllocArray { .. } => "managed_alloc_array",
             InstructionData::RawAlloc { .. } => "raw_alloc",
             InstructionData::RawFree { .. } => "raw_free",
-            InstructionData::RawDrop { .. } => "raw_drop",
+            InstructionData::Dispose { .. } => "dispose",
+            InstructionData::AsyncDispose { .. } => "dispose_async",
+            InstructionData::Drop { .. } => "drop",
+            InstructionData::AsyncDrop { .. } => "drop_async",
             InstructionData::StackAlloc { .. } => "stack_alloc",
-            InstructionData::StackDrop { .. } => "stack_drop",
             InstructionData::Assume => "assume",
             InstructionData::Intrinsic { .. } => "intrinsic",
             InstructionData::AtomicLoad { .. } => "atomic_load",

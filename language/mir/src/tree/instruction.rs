@@ -703,9 +703,9 @@ pub enum Instruction {
         result_type: TypeReference,
     },
 
-    // allocation (raw - manual memory management: raw.alloc, raw.free, raw.drop)
+    // allocation (raw - manual memory management: raw.alloc, raw.free)
     /// Allocate raw memory on the heap (raw.alloc).
-    /// Returns a raw or owned reference type. Caller must free with `raw.free` or `raw.drop`.
+    /// Returns a raw or owned reference type. Caller must free with `raw.free`.
     RawAlloc {
         /// The SSA value to define with the allocated pointer.
         destination: ValueReference,
@@ -720,14 +720,8 @@ pub enum Instruction {
         /// The pointer to free.
         pointer: ValueReference,
     },
-    /// Drop an owned heap value (raw.drop).
-    /// Compiler-inserted at ownership end to run owned cleanup and deallocate heap memory.
-    RawDrop {
-        /// The value to drop.
-        value: ValueReference,
-    },
 
-    // allocation (stack, automatic, scoped to function: stack.alloc, stack.drop)
+    // allocation (stack, automatic, scoped to function: stack.alloc)
     /// Allocate on the stack (lives until function returns) (stack.alloc).
     /// Returns a raw stack reference type. Freed automatically when frame exits.
     StackAlloc {
@@ -738,10 +732,27 @@ pub enum Instruction {
         /// The result type of the allocation.
         result_type: TypeReference,
     },
-    /// Mark a stack value's lifetime as ended (stack.drop).
-    /// Compiler-inserted for NLL owned cleanup. No deallocation (frame handles it).
-    StackDrop {
+
+    // cleanup
+    /// Run explicit synchronous cleanup (`dispose`).
+    Dispose {
+        /// The value to dispose.
+        value: ValueReference,
+    },
+    /// Run explicit asynchronous cleanup (`dispose.async`).
+    AsyncDispose {
+        /// The value to dispose asynchronously.
+        value: ValueReference,
+    },
+    /// End ownership here (`drop`).
+    /// Compiler-inserted at ownership end to run drop glue and storage-specific cleanup.
+    Drop {
         /// The value to drop.
+        value: ValueReference,
+    },
+    /// End ownership asynchronously (`drop.async`).
+    AsyncDrop {
+        /// The value to drop asynchronously.
         value: ValueReference,
     },
 
@@ -932,9 +943,11 @@ impl Instruction {
             Instruction::ManagedAllocArray { destination, .. } => Some(*destination),
             Instruction::RawAlloc { destination, .. } => Some(*destination),
             Instruction::RawFree { .. } => None,
-            Instruction::RawDrop { .. } => None,
+            Instruction::Dispose { .. } => None,
+            Instruction::AsyncDispose { .. } => None,
+            Instruction::Drop { .. } => None,
+            Instruction::AsyncDrop { .. } => None,
             Instruction::StackAlloc { destination, .. } => Some(*destination),
-            Instruction::StackDrop { .. } => None,
             Instruction::AtomicLoad { destination, .. } => Some(*destination),
             Instruction::AtomicStore { .. } => None,
             Instruction::AtomicCompareExchange { destination, .. } => Some(*destination),
@@ -1054,9 +1067,11 @@ impl Instruction {
             Instruction::ManagedAllocArray { length, .. } => smallvec![*length],
             Instruction::RawAlloc { .. } => smallvec![],
             Instruction::RawFree { pointer } => smallvec![*pointer],
-            Instruction::RawDrop { value } => smallvec![*value],
+            Instruction::Dispose { value } => smallvec![*value],
+            Instruction::AsyncDispose { value } => smallvec![*value],
+            Instruction::Drop { value } => smallvec![*value],
+            Instruction::AsyncDrop { value } => smallvec![*value],
             Instruction::StackAlloc { .. } => smallvec![],
-            Instruction::StackDrop { value } => smallvec![*value],
             Instruction::AtomicLoad { pointer, .. } => smallvec![*pointer],
             Instruction::AtomicStore { pointer, value, .. } => smallvec![*pointer, *value],
             Instruction::AtomicCompareExchange {

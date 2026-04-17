@@ -24,7 +24,7 @@ fn expected_stack_scratch(iterations: i64) -> i64 {
 }
 
 declare_program! {
-    /// Stack allocations with stack.drop cleanup.
+    /// Stack allocations with drop cleanup.
     pub const STACK_SCRATCH,
     name: "stack_scratch",
     source: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/mirbench/memory/stack_scratch.mir")),

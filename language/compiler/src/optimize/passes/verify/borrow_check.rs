@@ -992,17 +992,8 @@ fn check_instruction(
             checker.add_local_borrow(destination, local, is_mutable, instruction_id);
         }
 
-        // raw.drop invalidates any borrows from this value
-        Instruction::RawDrop { value } => {
-            let Some(value) = value.value() else {
-                return;
-            };
-
-            checker.check_drop_while_borrowed(value, instruction_id, context);
-        }
-
-        // stack.drop invalidates any borrows from this value
-        Instruction::StackDrop { value } => {
+        // drop invalidates any borrows from this value
+        Instruction::Drop { value } | Instruction::AsyncDrop { value } => {
             let Some(value) = value.value() else {
                 return;
             };
@@ -1270,7 +1261,7 @@ function test(): int32 {
 b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: ref<int32, borrowed> = field.address v0, 0
-    raw.drop v0
+    drop v0
     v2: int32 = load v1
     return v2
 }"#;
@@ -1429,7 +1420,7 @@ b0:
     v1: int32 = 42int32
     store v0, v1
     v2: ref<int32, borrowed> = field.address v0, 0
-    raw.drop v0
+    drop v0
     v3: int32 = load v2
     return v3
 }"#;
@@ -1451,7 +1442,7 @@ b0:
     v1: int32 = 42int32
     store v0, v1
     v2: ref<int32, borrowed> = field.address v0, 0
-    raw.drop v0
+    drop v0
     v3: int32 = load v2
     return v3
 }"#;
@@ -1524,7 +1515,7 @@ b0:
     store v0, v1
     v2: ref<int32, borrowed> = field.address v0, 0
     v3: int32 = load v2
-    raw.drop v0
+    drop v0
     return v3
 }"#;
 
@@ -1545,7 +1536,7 @@ b0:
     v1: int32 = 42int32
     store v0, v1
     v2: ref<int32, borrowed> = field.address v0, 0
-    raw.drop v0
+    drop v0
     v3: int32 = load v2
     return v3
 }"#;
@@ -1569,7 +1560,7 @@ b0:
     v2: int32 = 0int32
     v3: ref<int32, borrowed> = element.address v0, v2
     v4: int32 = load v3
-    raw.drop v0
+    drop v0
     return v4
 }"#;
 
@@ -1590,7 +1581,7 @@ b0:
     store v0, v1
     v2: ref<int32, borrowed> = field.address v0, 0
     v3: int32 = 10int32
-    raw.drop v0
+    drop v0
     v4: int32 = load v2
     return v4
 }"#;
@@ -1615,7 +1606,7 @@ b0:
     store v0, v1
     v2: ref<int32, borrowed> = field.address v0, 0
     v3: ref<int32, borrowed> = field.address v2, 0
-    raw.drop v0
+    drop v0
     v4: int32 = load v3
     return v4
 }"#;
@@ -1638,7 +1629,7 @@ b0:
     v2: ref<int32, borrowed> = field.address v0, 0
     v3: ref<int32, borrowed> = field.address v2, 0
     v4: ref<int32, borrowed> = field.address v3, 0
-    raw.drop v0
+    drop v0
     v5: int32 = load v4
     return v5
 }"#;
@@ -1661,7 +1652,7 @@ b0:
     v2: ref<int32, borrowed> = field.address v0, 0
     v3: ref<int32, borrowed> = field.address v2, 0
     v4: int32 = load v3
-    raw.drop v0
+    drop v0
     return v4
 }"#;
 
@@ -1683,7 +1674,7 @@ b0:
     store v0, v1
     v2: ref<int32, borrowed> = field.address v0, 0
     v3: ref<int32, borrowed> = field.address v2, 0
-    raw.drop v2
+    drop v2
     v4: int32 = load v3
     return v4
 }"#;
@@ -1753,7 +1744,7 @@ b1:
 b2:
     jump b3
 b3:
-    raw.drop v1
+    drop v1
     v4: int32 = load v3
     return v4
 }"#;
@@ -1786,9 +1777,9 @@ b2:
     v5: ref<int32, borrowed> = field.address v2, 0
     jump b3(v5)
 b3(v6: ref<int32, raw>):
-    raw.drop v1
+    drop v1
     v7: int32 = load v6
-    raw.drop v2
+    drop v2
     return v7
 }"#;
 
@@ -1820,7 +1811,7 @@ b2:
     v6: int32 = load v5
     jump b3(v6)
 b3(v7: int32):
-    raw.drop v1
+    drop v1
     return v7
 }"#;
 
@@ -1853,7 +1844,7 @@ b2:
     jump b1
 b3:
     v8: int32 = load v1
-    raw.drop v1
+    drop v1
     return v8
 }"#;
 
@@ -1913,8 +1904,8 @@ b0:
     v6: int32 = load v4
     v7: int32 = load v5
     v8: int32 = int.add v6, v7
-    raw.drop v0
-    raw.drop v1
+    drop v0
+    drop v1
     return v8
 }"#;
 
@@ -1944,8 +1935,8 @@ b0:
     v4: int32 = 99int32
     store v1, v4
     v5: int32 = load v3
-    raw.drop v0
-    raw.drop v1
+    drop v0
+    drop v1
     return v5
 }"#;
 
@@ -1998,9 +1989,9 @@ b0:
     store v0, v2
     store v1, v2
     v3: ref<int32, borrowed> = field.address v0, 0
-    raw.drop v1
+    drop v1
     v4: int32 = load v3
-    raw.drop v0
+    drop v0
     return v4
 }"#;
 
@@ -2028,7 +2019,7 @@ b0:
     v4: ref<int32, borrowed> = field.address v1, 0
     v5: int32 = load v3
     v6: int32 = load v4
-    raw.drop v1
+    drop v1
     v7: int32 = int.add v5, v6
     return v7
 }"#;
@@ -2097,9 +2088,9 @@ b0:
     v11: int32 = load v8
     v12: int32 = int.add v9, v10
     v13: int32 = int.add v12, v11
-    raw.drop v0
-    raw.drop v1
-    raw.drop v2
+    drop v0
+    drop v1
+    drop v2
     return v13
 }"#;
 
@@ -2174,7 +2165,7 @@ b0:
     store v0, v1
     v2: ref<int32, borrowed> = field.address v0, 0
     v3: ref<int32, borrowed> = field.address v0, 0
-    raw.drop v0
+    drop v0
     v4: int32 = load v2
     v5: int32 = load v3
     v6: int32 = int.add v4, v5
@@ -2200,7 +2191,7 @@ b0:
     store v0, v1
     v2: ref<int32, raw> = cast.bit v0 -> ref<int32, raw>
     v3: ref<int32, borrowed> = field.address v2, 0
-    raw.drop v0
+    drop v0
     v4: int32 = load v3
     return v4
 }"#;
@@ -2227,7 +2218,7 @@ b0(v0: boolean):
     v5: ref<int32, borrowed> = field.address v1, 0
     v6: ref<int32, borrowed> = field.address v2, 0
     v7: ref<int32, borrowed> = select v0, v5, v6
-    raw.drop v1
+    drop v1
     v8: int32 = load v7
     return v8
 }"#;
@@ -2253,7 +2244,7 @@ b0:
     jump b1(v2)
 b1(v3: ref<int32, borrowed>):
     v4: ref<int32, borrowed> = cast.bit v3 -> ref<int32, borrowed>
-    raw.drop v0
+    drop v0
     v5: int32 = load v4
     return v5
 }"#;
@@ -2328,7 +2319,7 @@ b0:
     store v0, v1
     v2: ref<int32, borrowed> = field.address v0, 0
     v3: ref<int32, borrowed> = call identity(v2): (ref<int32, borrowed>) -> ref<int32, borrowed>
-    raw.drop v0
+    drop v0
     v4: int32 = load v3
     return v4
 }"#;
@@ -2359,13 +2350,13 @@ b0:
     store v0, v1
     v2: ref<int32, borrowed> = field.address v0, 0
     v3: ref<int32, borrowed> = call getStatic(v2): (ref<int32, borrowed>) -> ref<int32, borrowed>
-    raw.drop v0
+    drop v0
     v4: int32 = load v3
     return v4
 }"#;
 
         let mut test = TestProgram::new(input);
-        test.set_function_lifetime("getStatic", mir::Lifetime::Static);
+        test.set_function_lifetime("getStatic", mir::BorrowRegion::Static);
         test.run_pass(&BorrowCheck);
 
         // with static lifetime, v3 doesn't borrow from v2
@@ -2395,14 +2386,14 @@ b0:
     v3: ref<int32, borrowed> = field.address v0, 0
     v4: ref<int32, borrowed> = field.address v1, 0
     v5: ref<int32, borrowed> = call pickFirst(v3, v4): (ref<int32, borrowed>, ref<int32, borrowed>) -> ref<int32, borrowed>
-    raw.drop v1
+    drop v1
     v6: int32 = load v5
-    raw.drop v0
+    drop v0
     return v6
 }"#;
 
         let mut test = TestProgram::new(input);
-        test.set_function_lifetime("pickFirst", mir::Lifetime::param(0));
+        test.set_function_lifetime("pickFirst", mir::BorrowRegion::param(0));
         test.run_pass(&BorrowCheck);
 
         // v5 only borrows from v3 (param 0), not v4 (param 1)
@@ -2431,9 +2422,9 @@ b0:
     v3: ref<int32, borrowed> = field.address v0, 0
     v4: ref<int32, borrowed> = field.address v1, 0
     v5: ref<int32, borrowed> = call pickAny(v3, v4): (ref<int32, borrowed>, ref<int32, borrowed>) -> ref<int32, borrowed>
-    raw.drop v1
+    drop v1
     v6: int32 = load v5
-    raw.drop v0
+    drop v0
     return v6
 }"#;
 
@@ -2464,7 +2455,7 @@ b0:
     store v0, v1
     v2: ref<int32, borrowed> = field.address v0, 0
     v3: int32 = call deref(v2): (ref<int32, borrowed>) -> int32
-    raw.drop v0
+    drop v0
     return v3
 }"#;
 
@@ -2495,7 +2486,7 @@ b0:
     v2: ref<int32, borrowed> = field.address v0, 0
     v3: ref<int32, borrowed> = call identity(v2): (ref<int32, borrowed>) -> ref<int32, borrowed>
     v4: int32 = load v3
-    raw.drop v0
+    drop v0
     return v4
 }"#;
 
@@ -2528,16 +2519,16 @@ b0:
     v3: ref<int32, borrowed> = field.address v0, 0
     v4: ref<int32, borrowed> = field.address v1, 0
     v5: ref<int32, borrowed> = call pickEither(v3, v4): (ref<int32, borrowed>, ref<int32, borrowed>) -> ref<int32, borrowed>
-    raw.drop v0
+    drop v0
     v6: int32 = load v5
-    raw.drop v1
+    drop v1
     return v6
 }"#;
 
         let mut test = TestProgram::new(input);
 
         // explicit lifetime: borrows from both param 0 and param 1
-        test.set_function_lifetime("pickEither", mir::Lifetime::params([0, 1]));
+        test.set_function_lifetime("pickEither", mir::BorrowRegion::params([0, 1]));
         test.run_pass(&BorrowCheck);
 
         // v5 may borrow from v3 (param 0), dropping v0 while v5 is live is an error
@@ -2566,16 +2557,16 @@ b0:
     v3: ref<int32, borrowed> = field.address v0, 0
     v4: ref<int32, borrowed> = field.address v1, 0
     v5: ref<int32, borrowed> = call pickSecond(v3, v4): (ref<int32, borrowed>, ref<int32, borrowed>) -> ref<int32, borrowed>
-    raw.drop v0
+    drop v0
     v6: int32 = load v5
-    raw.drop v1
+    drop v1
     return v6
 }"#;
 
         let mut test = TestProgram::new(input);
 
         // explicit lifetime: borrows only from param 1
-        test.set_function_lifetime("pickSecond", mir::Lifetime::param(1));
+        test.set_function_lifetime("pickSecond", mir::BorrowRegion::param(1));
         test.run_pass(&BorrowCheck);
 
         // v5 borrows from v4 (param 1), not v3 (param 0)
@@ -2669,7 +2660,7 @@ b0:
     v4: int32 = load v2
     v5: int32 = load v3
     v6: int32 = int.add v4, v5
-    raw.drop v0
+    drop v0
     return v6
 }"#;
 

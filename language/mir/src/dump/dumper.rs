@@ -588,13 +588,23 @@ impl<'a> Dumper<'a> {
                 self.write(&self.format_value(*value));
             }
 
-            Instruction::RawDrop { value } => {
-                self.write("raw.drop ");
+            Instruction::Dispose { value } => {
+                self.write("dispose ");
                 self.write(&self.format_value(*value));
             }
 
-            Instruction::StackDrop { value } => {
-                self.write("stack.drop ");
+            Instruction::AsyncDispose { value } => {
+                self.write("dispose.async ");
+                self.write(&self.format_value(*value));
+            }
+
+            Instruction::Drop { value } => {
+                self.write("drop ");
+                self.write(&self.format_value(*value));
+            }
+
+            Instruction::AsyncDrop { value } => {
+                self.write("drop.async ");
                 self.write(&self.format_value(*value));
             }
 

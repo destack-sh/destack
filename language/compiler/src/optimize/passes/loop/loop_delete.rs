@@ -715,7 +715,7 @@ b0(v0: int32):
     v1: boolean = false
     jump b1
 b1:
-    raw.drop v0
+    drop v0
     branch v1, b1, b2
 b2:
     return

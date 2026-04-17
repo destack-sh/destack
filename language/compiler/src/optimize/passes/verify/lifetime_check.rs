@@ -167,8 +167,8 @@ impl FunctionPass for LifetimeCheck {
         tree: &mut mir::NodeTree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
-        // resolve the declared return lifetime
-        let return_lifetime = function.return_lifetime.clone();
+        // resolve the declared return region
+        let return_region = function.return_region.clone();
 
         // warn on annotations for non borrowed returns
         let Some(return_type) = function.return_type.ty() else {
@@ -176,7 +176,7 @@ impl FunctionPass for LifetimeCheck {
         };
         let return_type = tree.get(return_type);
         if !type_contains_borrowed_refs(return_type, tree) {
-            if !matches!(return_lifetime, mir::Lifetime::Inferred)
+            if !matches!(return_region, mir::BorrowRegion::Inferred)
                 && let Some(block_id) = function.blocks.first()
             {
                 ctx.emit_warning(OptimizeWarning::LifetimeAnnotationIgnored {
@@ -256,7 +256,7 @@ impl FunctionPass for LifetimeCheck {
 
             // report disallowed origins
             // inferred lifetimes only reject local or unknown origins
-            if matches!(return_lifetime, mir::Lifetime::Inferred) {
+            if matches!(return_region, mir::BorrowRegion::Inferred) {
                 let has_invalid_origin = origins
                     .iter()
                     .any(|origin| matches!(origin, BorrowOrigin::Local | BorrowOrigin::Unknown));
@@ -276,7 +276,7 @@ impl FunctionPass for LifetimeCheck {
 
             let Some(disallowed) = disallowed_origins(
                 &origins,
-                &return_lifetime,
+                &return_region,
                 &function.parameter_names,
                 ctx.strings,
             ) else {
@@ -1090,8 +1090,10 @@ fn apply_instruction_effects(
         // stores and drops do not change borrow origins
         Instruction::Store { .. }
         | Instruction::RawFree { .. }
-        | Instruction::RawDrop { .. }
-        | Instruction::StackDrop { .. }
+        | Instruction::Dispose { .. }
+        | Instruction::AsyncDispose { .. }
+        | Instruction::Drop { .. }
+        | Instruction::AsyncDrop { .. }
         | Instruction::Assume { .. } => {}
     }
 }
@@ -1187,20 +1189,20 @@ fn origins_for_signature(
 
 fn disallowed_origins(
     origins: &BorrowOriginSet,
-    lifetime: &mir::Lifetime,
+    region: &mir::BorrowRegion,
     parameter_names: &[Option<destack_core::StringId>],
     strings: &StringPool,
 ) -> Option<String> {
     // collect disallowed origins
     let mut disallowed = Vec::new();
     for origin in origins.iter() {
-        let allowed = match lifetime {
-            mir::Lifetime::Static => matches!(origin, BorrowOrigin::Static),
-            mir::Lifetime::Parameters(params) => match origin {
+        let allowed = match region {
+            mir::BorrowRegion::Static => matches!(origin, BorrowOrigin::Static),
+            mir::BorrowRegion::Parameters(params) => match origin {
                 BorrowOrigin::Parameter(index) => params.contains(index),
                 _ => false,
             },
-            mir::Lifetime::Inferred => true,
+            mir::BorrowRegion::Inferred => true,
         };
 
         if !allowed {
@@ -1268,7 +1270,7 @@ b0(v0: ref<int32, borrowed>):
         let options = strict_options();
 
         let mut test = TestProgram::new(input);
-        test.set_function_lifetime("test", mir::Lifetime::Parameters(vec![0]));
+        test.set_function_lifetime("test", mir::BorrowRegion::Parameters(vec![0]));
         test.run_pass_with_options(&LifetimeCheck, options);
         test.assert_no_errors();
     }
@@ -1286,7 +1288,7 @@ b0(v0: ref<{ int32 }, borrowed>):
         let options = strict_options();
 
         let mut test = TestProgram::new(input);
-        test.set_function_lifetime("test", mir::Lifetime::Parameters(vec![0]));
+        test.set_function_lifetime("test", mir::BorrowRegion::Parameters(vec![0]));
         test.run_pass_with_options(&LifetimeCheck, options);
         test.assert_no_errors();
     }
@@ -1305,7 +1307,7 @@ b0:
         let options = strict_options();
 
         let mut test = TestProgram::new(input);
-        test.set_function_lifetime("test", mir::Lifetime::Parameters(vec![0]));
+        test.set_function_lifetime("test", mir::BorrowRegion::Parameters(vec![0]));
         test.run_pass_with_options(&LifetimeCheck, options);
         test.assert_error(|e| matches!(e, OptimizeError::LifetimeAnnotationMismatch { .. }));
     }
@@ -1322,7 +1324,7 @@ b0(v0: ref<int32, borrowed>):
         let options = strict_options();
 
         let mut test = TestProgram::new(input);
-        test.set_function_lifetime("test", mir::Lifetime::Static);
+        test.set_function_lifetime("test", mir::BorrowRegion::Static);
         test.run_pass_with_options(&LifetimeCheck, options);
         test.assert_error(|e| matches!(e, OptimizeError::LifetimeAnnotationMismatch { .. }));
     }
@@ -1337,7 +1339,7 @@ b0(v0: ref<int32, borrowed>):
 }"#;
 
         let mut test = TestProgram::new(input);
-        test.set_function_lifetime("test", mir::Lifetime::Static);
+        test.set_function_lifetime("test", mir::BorrowRegion::Static);
         test.run_pass(&LifetimeCheck);
         test.assert_no_errors();
         test.assert_warning(|w| {
@@ -1359,7 +1361,7 @@ b0:
 }"#;
 
         let mut test = TestProgram::new(input);
-        test.set_function_lifetime("test", mir::Lifetime::Static);
+        test.set_function_lifetime("test", mir::BorrowRegion::Static);
         test.run_pass(&LifetimeCheck);
         test.assert_no_errors();
         test.assert_warning(|w| matches!(w, OptimizeWarning::LifetimeAnnotationIgnored { .. }));
@@ -1377,7 +1379,7 @@ b0(v0: fn(ref<int32, borrowed>) -> ref<int32, borrowed>, v1: ref<int32, borrowed
         let options = strict_options();
 
         let mut test = TestProgram::new(input);
-        test.set_function_lifetime("test", mir::Lifetime::Parameters(vec![1]));
+        test.set_function_lifetime("test", mir::BorrowRegion::Parameters(vec![1]));
         test.run_pass_with_options(&LifetimeCheck, options);
         test.assert_no_errors();
     }

@@ -439,7 +439,7 @@ b2:
 function test(v0: int32, v1: boolean): int32 {
 b0(v0: int32, v1: boolean):
     v2: int32 = 1int32
-    raw.drop v0
+    drop v0
     branch v1, b1, b2
 b1:
     return v2
@@ -454,7 +454,7 @@ b2:
         let expected = r#"
 function test(v0: int32, v1: boolean): int32 {
 b0(v0: int32, v1: boolean):
-    raw.drop v0
+    drop v0
     branch v1, b1, b2
 b1:
     v2: int32 = 1int32

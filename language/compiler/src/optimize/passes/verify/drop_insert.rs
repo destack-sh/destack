@@ -371,22 +371,15 @@ fn last_use_moves_value(
     state.is_moved(value)
 }
 
-/// Emit the drop instruction for a value.
+/// Emit one ownership-end marker for a value.
 fn emit_drop_sequence(
     tree: &mut mir::NodeTree,
-    ownership: &OwnershipAnalysis,
     value: Value,
     instructions: &mut Vec<mir::LocalNodeId<Instruction>>,
 ) {
-    // emit the drop instruction based on allocation kind
-    let drop_instruction = if ownership.is_stack_allocated(value) {
-        Instruction::StackDrop {
-            value: value.into(),
-        }
-    } else {
-        Instruction::RawDrop {
-            value: value.into(),
-        }
+    // insert one semantic drop and let later stages choose storage behavior
+    let drop_instruction = Instruction::Drop {
+        value: value.into(),
     };
     let drop_id = tree.insert(drop_instruction);
     instructions.push(drop_id);
@@ -397,7 +390,7 @@ fn insert_drops(
     _function: &mut mir::Function,
     tree: &mut mir::NodeTree,
     drops: &[DropInsertionPoint],
-    ownership: &OwnershipAnalysis,
+    _ownership: &OwnershipAnalysis,
 ) {
     // group by block for efficient insertion
     let mut by_block: HashMap<mir::LocalNodeId<mir::Block>, Vec<&DropInsertionPoint>> =
@@ -445,14 +438,14 @@ fn insert_drops(
             // insert drops after this instruction
             if let Some(values) = drops_after.get(&idx) {
                 for &value in values {
-                    emit_drop_sequence(tree, ownership, value, &mut new_instructions);
+                    emit_drop_sequence(tree, value, &mut new_instructions);
                 }
             }
         }
 
         // insert drops before terminator
         for value in drops_before_terminator {
-            emit_drop_sequence(tree, ownership, value, &mut new_instructions);
+            emit_drop_sequence(tree, value, &mut new_instructions);
         }
 
         // update block
@@ -819,7 +812,7 @@ b0(v0: ref<int32, owned>):
 function test(v0: ref<int32, owned>): int32 {
 b0(v0: ref<int32, owned>):
     v1: int32 = load v0
-    raw.drop v0
+    drop v0
     return v1
 }"#;
 
