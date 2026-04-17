@@ -1,6 +1,5 @@
 mod allocate;
 mod bytes;
-mod collect;
 mod free;
 mod image;
 mod large;
@@ -9,18 +8,15 @@ mod location;
 mod map;
 mod space;
 mod span;
-mod state;
 mod table;
 mod young;
 
-pub use collect::*;
 pub(crate) use image::*;
 pub(crate) use large::*;
-pub(crate) use layout::*;
+pub use layout::*;
 pub(crate) use location::*;
 pub use map::*;
 pub use space::*;
 pub(crate) use span::*;
-pub use state::*;
 pub(crate) use table::*;
 pub(crate) use young::*;

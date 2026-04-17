@@ -1,64 +1,78 @@
-use destack_mir::LayoutId;
 use serde::{Deserialize, Serialize};
 
-use super::{ReferenceMapId, StoredLayoutId};
-use crate::alloc::{CardSet, PageMap};
+use super::MapId;
+use crate::StorageLayoutId;
+use crate::alloc::PageView;
+use crate::gc::CardSet;
 
-/// One frozen managed allocation root.
+/// One frozen managed large-entry root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct AllocationImage {
-    /// Whether this allocation slot is currently allocated.
-    pub is_allocated: bool,
-    /// The logical byte length of this allocation.
+pub(crate) struct LargeEntryImage {
+    /// Whether this entry slot is live.
+    pub is_live: bool,
+    /// The logical byte length of this entry.
     pub len: usize,
-    /// The arena pages for this allocation.
-    pub pages: PageMap,
-    /// The interned reference map for this allocation.
-    pub trace_id: ReferenceMapId,
-    /// The durable layout id for this allocation, if any.
-    pub layout_id: Option<LayoutId>,
+    /// The arena pages for this entry.
+    pub pages: PageView,
+    /// The interned reference map for this entry.
+    pub map_id: MapId,
+    /// The durable layout id for this entry, if any.
+    pub layout_id: Option<StorageLayoutId>,
 }
 
-/// One stable managed allocation identifier.
+/// One stable managed large-entry identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct AllocationId(u64);
+pub(crate) struct LargeEntryId(u64);
 
-impl AllocationId {
-    /// Create one managed allocation identifier.
+impl LargeEntryId {
+    /// Create one managed large-entry identifier.
     pub(crate) const fn new(id: u64) -> Self {
         Self(id)
     }
 
-    /// Return the managed allocation identifier value.
+    /// Return the managed large-entry identifier value.
     pub(crate) const fn id(self) -> u64 {
         self.0
     }
 
-    /// Return the zero-based allocation slot index.
-    pub(crate) const fn index(self) -> usize {
-        self.0.saturating_sub(1) as usize
+    /// Return the zero-based large-entry slot index.
+    pub(crate) fn index(self) -> crate::HeapResult<usize> {
+        let Some(index) = self.0.checked_sub(1) else {
+            return Err(crate::HeapError::InvalidLargeEntryId { id: self.0 });
+        };
+
+        Ok(index as usize)
     }
 }
 
-/// One live managed allocation.
+/// One live managed large entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Allocation {
-    /// Whether this allocation slot is currently allocated.
-    pub(crate) is_allocated: bool,
-    /// The logical byte length of this allocation.
+pub(crate) struct LargeEntry {
+    /// Whether this large-entry slot is live.
+    pub(crate) is_live: bool,
+    /// The logical byte length of this entry.
     pub(crate) len: usize,
-    /// The arena pages for this allocation.
-    pub(crate) pages: PageMap,
-    /// The interned reference map for this allocation.
-    pub(crate) trace_id: ReferenceMapId,
-    /// The durable layout id for this allocation, if any.
-    pub(crate) layout_id: StoredLayoutId,
-    /// The live mark state for this allocation.
-    pub(crate) marked: bool,
-    /// The active pin count for this allocation.
-    pub(crate) pin_count: u16,
+    /// The arena pages for this entry.
+    pub(crate) pages: PageView,
+    /// The interned reference map for this entry.
+    pub(crate) map_id: MapId,
+    /// The durable layout id for this entry, if any.
+    pub(crate) layout_id: Option<StorageLayoutId>,
     /// The dirty cards remembered for young tracing.
     pub(crate) dirty_cards: CardSet,
-    /// Whether this allocation is already queued for dirty-card scanning.
+    /// Whether this entry is already queued for dirty-card scanning.
     pub(crate) is_dirty_queued: bool,
+}
+
+impl LargeEntry {
+    /// Retire this managed large-entry slot.
+    pub(crate) fn retire(&mut self) {
+        self.is_live = false;
+        self.len = 0;
+        self.pages = PageView::empty();
+        self.map_id = MapId::empty();
+        self.layout_id = None;
+        self.dirty_cards.clear();
+        self.is_dirty_queued = false;
+    }
 }

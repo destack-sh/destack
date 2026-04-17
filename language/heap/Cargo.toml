@@ -16,6 +16,7 @@ doctest = false
 destack_core = { workspace = true }
 destack_mir = { workspace = true }
 libc = { workspace = true }
+parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 
 [lints]

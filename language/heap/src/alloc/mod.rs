@@ -1,7 +1,6 @@
 mod arena;
 mod bitmap;
 mod bytes;
-mod card;
 mod class;
 mod cow;
 mod image;
@@ -11,7 +10,6 @@ mod slot;
 
 pub use arena::*;
 pub use bitmap::*;
-pub(crate) use card::*;
 pub use class::*;
 pub use image::*;
 pub use page::*;

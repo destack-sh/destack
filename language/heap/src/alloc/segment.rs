@@ -3,7 +3,7 @@ use std::slice;
 use super::{allocate_page_segment_bytes, free_page_segment_bytes};
 use crate::HeapResult;
 
-/// One contiguous arena segment of fixed-width pages.
+/// One contiguous arena memory segment of fixed-width pages.
 #[derive(Debug)]
 pub(crate) struct Segment {
     /// The allocated bytes for this segment.
@@ -44,7 +44,7 @@ impl Segment {
     }
 
     /// Return one mutable page slice.
-    pub(crate) fn page_mut(&self, page_index: usize, page_bytes: usize) -> &mut [u8] {
+    pub(crate) fn page_mut(&mut self, page_index: usize, page_bytes: usize) -> &mut [u8] {
         let start = page_index.saturating_mul(page_bytes);
         let data = unsafe { self.data.add(start) };
 

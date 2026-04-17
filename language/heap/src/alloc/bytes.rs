@@ -6,7 +6,7 @@ use crate::{HeapError, HeapResult};
 
 impl Arena {
     /// Return one byte vector for one logical byte range over one page view.
-    pub fn bytes_to_vec(&self, page_view: &PageView, byte_len: usize) -> HeapResult<Vec<u8>> {
+    pub fn read_bytes(&self, page_view: &PageView, byte_len: usize) -> HeapResult<Vec<u8>> {
         self.bytes_to_vec_from(page_view, 0, byte_len)
     }
 
@@ -23,7 +23,7 @@ impl Arena {
         self.byte_range_end(page_view, start, target.len())?;
 
         // stream the requested range into the caller buffer
-        self.for_each_bytes_from(page_view, start, target.len(), |chunk| {
+        self.visit_bytes_from(page_view, start, target.len(), |chunk| {
             let chunk_end = copied_bytes.saturating_add(chunk.len());
 
             target[copied_bytes..chunk_end].copy_from_slice(chunk);
@@ -60,7 +60,7 @@ impl Arena {
         for page_view in page_views {
             for page_index in 0..page_view.len() {
                 let Some(slot) = page_view.slot(page_index) else {
-                    return Err(HeapError::CorruptMissingLogicalPage { page_index });
+                    return Err(HeapError::MissingLogicalPage { page_index });
                 };
 
                 let is_shared = self.run_is_shared(slot.run)?;
@@ -69,7 +69,7 @@ impl Arena {
                 }
 
                 let Some(page_id) = slot.run.page(slot.run_page_index) else {
-                    return Err(HeapError::CorruptInvalidPatchedRun {
+                    return Err(HeapError::InvalidPatchedRun {
                         page_index,
                         page_count: slot.run.len(),
                     });
@@ -83,7 +83,7 @@ impl Arena {
     }
 
     /// Visit visible byte chunks for one logical byte range starting at one offset.
-    pub fn for_each_bytes_from(
+    pub fn visit_bytes_from(
         &self,
         page_view: &PageView,
         start: usize,
@@ -98,21 +98,20 @@ impl Arena {
         // visit the requested visible page slices in order
         for page_index in start_page..end_page {
             let Some(page_id) = page_view.page(page_index) else {
-                return Err(HeapError::CorruptMissingLogicalPage { page_index });
-            };
-            let Some(page) = self.page_bytes_from_id(page_id) else {
-                return Err(HeapError::CorruptMissingPage { page_id });
+                return Err(HeapError::MissingLogicalPage { page_index });
             };
 
             let page_start = page_index.saturating_mul(page_bytes);
             let slice_start = start.saturating_sub(page_start).min(page_bytes);
             let slice_end = end.saturating_sub(page_start).min(page_bytes);
-
             if slice_start >= slice_end {
                 continue;
             }
 
-            callback(&page[slice_start..slice_end]);
+            let page = self.page_slice(page_id)?;
+            let chunk = &page[slice_start..slice_end];
+
+            callback(chunk);
         }
 
         Ok(())
@@ -128,7 +127,7 @@ impl Arena {
         let mut bytes = Vec::with_capacity(byte_len);
 
         // materialize the requested range into one owned buffer
-        self.for_each_bytes_from(page_view, start, byte_len, |chunk| {
+        self.visit_bytes_from(page_view, start, byte_len, |chunk| {
             bytes.extend_from_slice(chunk);
         })?;
 
@@ -177,7 +176,9 @@ impl Arena {
         let page_index = index / page_bytes;
         let byte_index = index % page_bytes;
         let page = page_view.page(page_index)?;
-        let page = self.page_bytes_from_id(page)?;
+        let Ok(page) = self.page_slice(page) else {
+            return None;
+        };
 
         page.get(byte_index).copied()
     }
@@ -189,10 +190,15 @@ impl Arena {
         start: usize,
         byte_len: usize,
     ) -> HeapResult<usize> {
-        let capacity = page_view
-            .len()
-            .checked_mul(self.page_bytes())
-            .unwrap_or(usize::MAX);
+        let capacity =
+            page_view
+                .len()
+                .checked_mul(self.page_bytes())
+                .ok_or(HeapError::InvalidByteRange {
+                    start,
+                    len: byte_len,
+                    capacity: usize::MAX,
+                })?;
 
         // allow empty ranges only when the start stays in bounds
         if byte_len == 0 {

@@ -90,18 +90,6 @@ impl HeapImage {
         &self.arena
     }
 
-    /// Return a copy of this image rebound onto one explicit arena.
-    pub fn with_arena(&self, arena: Arc<Arena>) -> Result<Self, HeapError> {
-        self.options.validate_arena(&arena)?;
-
-        Ok(Self {
-            arena,
-            options: self.options.clone(),
-            managed: self.managed.clone(),
-            raw: self.raw.clone(),
-        })
-    }
-
     /// Return the heap options for this image.
     pub fn options(&self) -> &HeapOptions {
         &self.options

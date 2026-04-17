@@ -60,7 +60,7 @@ impl std::fmt::Debug for Value {
                 write!(f, "Char('{char_val}')")
             }
             ValueTag::ManagedReference => {
-                let reference = self.as_managed_reference().unwrap();
+                let reference = ManagedReference::from_bits(self.data);
                 if reference.slot_offset() == 0 {
                     write!(f, "ManagedReference({})", reference.id())
                 } else {
@@ -73,7 +73,7 @@ impl std::fmt::Debug for Value {
                 }
             }
             ValueTag::RawPointer => {
-                let pointer = self.as_raw_pointer().unwrap();
+                let pointer = RawPointer::from_bits(self.data);
                 if pointer.slot_offset() == 0 {
                     write!(f, "RawPointer({})", pointer.id())
                 } else {
@@ -86,7 +86,7 @@ impl std::fmt::Debug for Value {
                 }
             }
             ValueTag::SharedPointer => {
-                let pointer = self.as_shared_pointer().unwrap();
+                let pointer = SharedPointer::from_bits(self.data);
                 if pointer.byte_offset() == 0 {
                     write!(f, "SharedPointer({})", pointer.id())
                 } else {
@@ -99,7 +99,7 @@ impl std::fmt::Debug for Value {
                 }
             }
             ValueTag::StackPointer => {
-                let pointer = self.as_stack_pointer().unwrap();
+                let pointer = self.stack_pointer_parts();
                 if pointer.slot_offset == 0 {
                     write!(f, "StackPointer({}, {})", pointer.frame_idx, pointer.slot)
                 } else {
@@ -111,7 +111,7 @@ impl std::fmt::Debug for Value {
                 }
             }
             ValueTag::LocalPointer => {
-                let pointer = self.as_local_pointer().unwrap();
+                let pointer = self.local_pointer_parts();
                 if pointer.slot_offset == 0 {
                     write!(f, "LocalPointer({}, {})", pointer.frame_idx, pointer.local)
                 } else {
@@ -123,7 +123,7 @@ impl std::fmt::Debug for Value {
                 }
             }
             ValueTag::GlobalPointer => {
-                let pointer = self.as_global_pointer().unwrap();
+                let pointer = self.global_pointer_parts();
                 if pointer.slot_offset == 0 {
                     write!(f, "GlobalPointer({})", pointer.id.id)
                 } else {
@@ -194,8 +194,42 @@ impl Value {
     /// Get the value tag.
     #[inline(always)]
     pub fn tag(&self) -> ValueTag {
-        // SAFETY: we only construct valid tags
-        unsafe { std::mem::transmute((self.meta & 0xFF) as u8) }
+        match self.checked_tag() {
+            Some(tag) => tag,
+            None => ValueTag::Void,
+        }
+    }
+
+    /// Get the value tag when the packed tag byte is valid.
+    #[inline(always)]
+    pub fn checked_tag(&self) -> Option<ValueTag> {
+        ValueTag::from_byte(self.tag_byte())
+    }
+
+    /// Return the raw packed tag byte.
+    #[inline(always)]
+    fn tag_byte(&self) -> u8 {
+        (self.meta & 0xFF) as u8
+    }
+
+    /// Pack one stack pointer index field.
+    #[inline]
+    fn packed_stack_index(index: usize) -> Option<u64> {
+        if index > STACK_INDEX_MASK as usize {
+            return None;
+        }
+
+        Some(index as u64)
+    }
+
+    /// Pack one pointer offset field.
+    #[inline]
+    fn packed_pointer_offset(offset: usize) -> Option<u64> {
+        if offset > POINTER_BASE_MASK as usize {
+            return None;
+        }
+
+        Some(offset as u64)
     }
 
     /// Get the width (for Int/UInt).
@@ -353,45 +387,47 @@ impl Value {
 
     /// Create a stack pointer value.
     #[inline]
-    pub fn stack_pointer(ptr: StackPointer) -> Self {
-        let base = (ptr.frame_idx as u64) & STACK_INDEX_MASK;
-        let slot = (ptr.slot as u64) & STACK_INDEX_MASK;
-        let offset = (ptr.slot_offset as u64) & POINTER_BASE_MASK;
+    pub fn stack_pointer(ptr: StackPointer) -> Option<Self> {
+        let base = Self::packed_stack_index(ptr.frame_idx)?;
+        let slot = Self::packed_stack_index(ptr.slot)?;
+        let offset = Self::packed_pointer_offset(ptr.slot_offset)?;
         let packed = base | (slot << STACK_SLOT_SHIFT) | (offset << POINTER_SLOT_SHIFT);
-        Self {
+
+        Some(Self {
             data: packed,
             meta: Self::make_meta(ValueTag::StackPointer, 0),
-        }
+        })
     }
 
     /// Create a stack pointer value with explicit metadata.
     #[inline]
-    pub fn stack_pointer_with_meta(ptr: StackPointer, meta: ReferenceMeta) -> Self {
-        Self::stack_pointer(ptr).with_reference_meta(meta)
+    pub fn stack_pointer_with_meta(ptr: StackPointer, meta: ReferenceMeta) -> Option<Self> {
+        Some(Self::stack_pointer(ptr)?.with_reference_meta(meta))
     }
 
     /// Create a local pointer value.
     #[inline]
-    pub fn local_pointer(ptr: LocalPointer) -> Self {
-        let base = (ptr.frame_idx as u64) & STACK_INDEX_MASK;
-        let slot = (ptr.local as u64) & STACK_INDEX_MASK;
-        let offset = (ptr.slot_offset as u64) & POINTER_BASE_MASK;
+    pub fn local_pointer(ptr: LocalPointer) -> Option<Self> {
+        let base = Self::packed_stack_index(ptr.frame_idx)?;
+        let slot = Self::packed_stack_index(ptr.local)?;
+        let offset = Self::packed_pointer_offset(ptr.slot_offset)?;
         let packed = base | (slot << STACK_SLOT_SHIFT) | (offset << POINTER_SLOT_SHIFT);
-        Self {
+
+        Some(Self {
             data: packed,
             meta: Self::make_meta(ValueTag::LocalPointer, 0),
-        }
+        })
     }
 
     /// Create a local pointer value with explicit metadata.
     #[inline]
-    pub fn local_pointer_with_meta(ptr: LocalPointer, meta: ReferenceMeta) -> Self {
-        Self::local_pointer(ptr).with_reference_meta(meta)
+    pub fn local_pointer_with_meta(ptr: LocalPointer, meta: ReferenceMeta) -> Option<Self> {
+        Some(Self::local_pointer(ptr)?.with_reference_meta(meta))
     }
 
     /// Create a global pointer value.
     #[inline]
-    pub fn global_pointer(id: mir::LocalNodeId<mir::Global>) -> Self {
+    pub fn global_pointer(id: mir::LocalNodeId<mir::Global>) -> Option<Self> {
         Self::global_pointer_with_offset(id, 0)
     }
 
@@ -400,13 +436,14 @@ impl Value {
     pub fn global_pointer_with_offset(
         id: mir::LocalNodeId<mir::Global>,
         slot_offset: usize,
-    ) -> Self {
-        let base = (id.id as u64) & POINTER_BASE_MASK;
-        let slot = ((slot_offset as u64) & POINTER_BASE_MASK) << POINTER_SLOT_SHIFT;
-        Self {
+    ) -> Option<Self> {
+        let base = id.id as u64;
+        let slot = Self::packed_pointer_offset(slot_offset)? << POINTER_SLOT_SHIFT;
+
+        Some(Self {
             data: base | slot,
             meta: Self::make_meta(ValueTag::GlobalPointer, 0),
-        }
+        })
     }
 
     /// Create a global pointer value with explicit metadata.
@@ -415,8 +452,8 @@ impl Value {
         id: mir::LocalNodeId<mir::Global>,
         slot_offset: usize,
         meta: ReferenceMeta,
-    ) -> Self {
-        Self::global_pointer_with_offset(id, slot_offset).with_reference_meta(meta)
+    ) -> Option<Self> {
+        Some(Self::global_pointer_with_offset(id, slot_offset)?.with_reference_meta(meta))
     }
 
     /// Create a function pointer value.
@@ -534,14 +571,7 @@ impl Value {
     #[inline]
     pub fn as_stack_pointer(&self) -> Option<StackPointer> {
         if self.tag() == ValueTag::StackPointer {
-            let frame_idx = (self.data & STACK_INDEX_MASK) as usize;
-            let slot = ((self.data >> STACK_SLOT_SHIFT) & STACK_INDEX_MASK) as usize;
-            let slot_offset = ((self.data >> POINTER_SLOT_SHIFT) & POINTER_BASE_MASK) as usize;
-            return Some(StackPointer {
-                frame_idx,
-                slot,
-                slot_offset,
-            });
+            return Some(self.stack_pointer_parts());
         }
         None
     }
@@ -550,14 +580,7 @@ impl Value {
     #[inline]
     pub fn as_local_pointer(&self) -> Option<LocalPointer> {
         if self.tag() == ValueTag::LocalPointer {
-            let frame_idx = (self.data & STACK_INDEX_MASK) as usize;
-            let local = ((self.data >> STACK_SLOT_SHIFT) & STACK_INDEX_MASK) as usize;
-            let slot_offset = ((self.data >> POINTER_SLOT_SHIFT) & POINTER_BASE_MASK) as usize;
-            return Some(LocalPointer {
-                frame_idx,
-                local,
-                slot_offset,
-            });
+            return Some(self.local_pointer_parts());
         }
         None
     }
@@ -566,10 +589,7 @@ impl Value {
     #[inline]
     pub fn as_global_pointer(&self) -> Option<GlobalPointer> {
         if self.tag() == ValueTag::GlobalPointer {
-            let base = (self.data & POINTER_BASE_MASK) as u32;
-            let slot_offset = ((self.data >> POINTER_SLOT_SHIFT) & POINTER_BASE_MASK) as usize;
-            let id = mir::LocalNodeId::new(base);
-            return Some(GlobalPointer { id, slot_offset });
+            return Some(self.global_pointer_parts());
         }
         None
     }
@@ -646,9 +666,51 @@ impl Value {
         data.copy_from_slice(&bytes[..8]);
         meta.copy_from_slice(&bytes[8..]);
 
-        Some(Self {
+        let value = Self {
             data: u64::from_le_bytes(data),
             meta: u64::from_le_bytes(meta),
-        })
+        };
+
+        value.checked_tag()?;
+
+        Some(value)
+    }
+
+    /// Decode one stack pointer from the packed value payload.
+    #[inline]
+    fn stack_pointer_parts(&self) -> StackPointer {
+        let frame_idx = (self.data & STACK_INDEX_MASK) as usize;
+        let slot = ((self.data >> STACK_SLOT_SHIFT) & STACK_INDEX_MASK) as usize;
+        let slot_offset = ((self.data >> POINTER_SLOT_SHIFT) & POINTER_BASE_MASK) as usize;
+
+        StackPointer {
+            frame_idx,
+            slot,
+            slot_offset,
+        }
+    }
+
+    /// Decode one local pointer from the packed value payload.
+    #[inline]
+    fn local_pointer_parts(&self) -> LocalPointer {
+        let frame_idx = (self.data & STACK_INDEX_MASK) as usize;
+        let local = ((self.data >> STACK_SLOT_SHIFT) & STACK_INDEX_MASK) as usize;
+        let slot_offset = ((self.data >> POINTER_SLOT_SHIFT) & POINTER_BASE_MASK) as usize;
+
+        LocalPointer {
+            frame_idx,
+            local,
+            slot_offset,
+        }
+    }
+
+    /// Decode one global pointer from the packed value payload.
+    #[inline]
+    fn global_pointer_parts(&self) -> GlobalPointer {
+        let base = (self.data & POINTER_BASE_MASK) as u32;
+        let slot_offset = ((self.data >> POINTER_SLOT_SHIFT) & POINTER_BASE_MASK) as usize;
+        let id = mir::LocalNodeId::new(base);
+
+        GlobalPointer { id, slot_offset }
     }
 }
