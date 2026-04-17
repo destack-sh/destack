@@ -366,9 +366,6 @@ pub fn expression_unwrap_transparent(
             | dir::Expression::Satisfies { expression, .. } => {
                 expression_id = *expression;
             }
-            dir::Expression::OwnershipCast { value, .. } => {
-                expression_id = *value;
-            }
             dir::Expression::ValueOf { right, .. }
             | dir::Expression::ReferenceOf { right, .. }
             | dir::Expression::PointerOf { right, .. } => {

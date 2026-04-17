@@ -280,14 +280,15 @@ fn expression_name_hint(
         | dir::Expression::GlobalReference { path, .. } => path.last_segment(),
         dir::Expression::Member { name, .. } | dir::Expression::PrivateMember { name, .. } => *name,
         dir::Expression::As {
+            operator: _,
+            source: _,
             expression: value,
             target_type: _,
         }
         | dir::Expression::Satisfies {
             expression: value,
             target_type: _,
-        }
-        | dir::Expression::OwnershipCast { value, .. } => expression_name_hint(tree, *value),
+        } => expression_name_hint(tree, *value),
         dir::Expression::ValueOf { right, .. }
         | dir::Expression::ReferenceOf { right, .. }
         | dir::Expression::PointerOf { right, .. } => expression_name_hint(tree, *right),

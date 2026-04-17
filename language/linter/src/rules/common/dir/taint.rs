@@ -217,14 +217,15 @@ impl<'a> TaintAnalysis<'a> {
                 }
             }
             dir::Expression::As {
+                operator: _,
+                source: _,
                 expression: value,
                 target_type: _,
             }
             | dir::Expression::Satisfies {
                 expression: value,
                 target_type: _,
-            }
-            | dir::Expression::OwnershipCast { value, .. } => {
+            } => {
                 // casts do not sanitize by default
                 let value_labels =
                     self.expression_taint_labels_inner(*value, expression_stack, symbol_stack);
