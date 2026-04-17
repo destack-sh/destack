@@ -29,9 +29,9 @@ pub fn walk_type<V: TypeVisitor + ?Sized>(
         }
         Type::This => {}
         Type::Reference {
-            static_arguments, ..
+            generic_arguments, ..
         } => {
-            if let Some(arguments) = static_arguments.as_ref() {
+            if let Some(arguments) = generic_arguments.as_ref() {
                 walk_static_arguments(visitor, types, arguments);
             }
         }
@@ -64,9 +64,9 @@ pub fn walk_type<V: TypeVisitor + ?Sized>(
             }
         }
         Type::Import {
-            static_arguments, ..
+            generic_arguments, ..
         } => {
-            if let Some(arguments) = static_arguments.as_ref() {
+            if let Some(arguments) = generic_arguments.as_ref() {
                 walk_static_arguments(visitor, types, arguments);
             }
         }
@@ -136,19 +136,19 @@ pub fn walk_type<V: TypeVisitor + ?Sized>(
             }
         }
         Type::Function {
-            static_parameters,
+            generic_parameters,
             this_parameter,
-            dynamic_parameters,
+            parameters,
             return_type,
             ..
         } => {
-            for parameter in static_parameters {
+            for parameter in generic_parameters {
                 visitor.visit_type_id(types, *parameter);
             }
             if let Some(this_parameter) = this_parameter.as_ref() {
                 visitor.visit_type_id(types, *this_parameter);
             }
-            for parameter in dynamic_parameters {
+            for parameter in parameters {
                 visitor.visit_type_id(types, *parameter);
             }
             if let Some(return_type) = return_type.as_ref() {
@@ -205,9 +205,9 @@ pub fn walk_static_expression<V: TypeVisitor + ?Sized>(
         StaticExpression::ScalarLiteral { .. } => {}
         StaticExpression::TypeLiteral { .. } => {}
         StaticExpression::Declaration {
-            static_arguments, ..
+            generic_arguments, ..
         } => {
-            if let Some(arguments) = static_arguments.as_ref() {
+            if let Some(arguments) = generic_arguments.as_ref() {
                 walk_static_arguments(visitor, types, arguments);
             }
         }

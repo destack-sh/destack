@@ -1702,12 +1702,12 @@ impl<'tree> FlowGraphBuilder<'tree> {
             Expression::Call {
                 left,
                 generic_arguments,
-                dynamic_arguments,
+                arguments,
             } => {
                 let left_block_id = self.build_expression(*left, current_block_id)?;
                 let generic_block_id =
                     self.build_generic_arguments(generic_arguments.as_slice(), left_block_id)?;
-                self.build_arguments(Some(dynamic_arguments.as_slice()), generic_block_id)
+                self.build_arguments(Some(arguments.as_slice()), generic_block_id)
             }
             Expression::Index { left, right } => {
                 let left_block_id = self.build_expression(*left, current_block_id)?;
@@ -1719,12 +1719,12 @@ impl<'tree> FlowGraphBuilder<'tree> {
             Expression::New {
                 left,
                 generic_arguments,
-                dynamic_arguments,
+                arguments,
             } => {
                 let left_block_id = self.build_expression(*left, current_block_id)?;
                 let generic_block_id =
                     self.build_generic_arguments(generic_arguments.as_slice(), left_block_id)?;
-                self.build_arguments(Some(dynamic_arguments.as_slice()), generic_block_id)
+                self.build_arguments(Some(arguments.as_slice()), generic_block_id)
             }
             Expression::Delete { value } => self.build_expression(*value, current_block_id),
             Expression::Await { expression }

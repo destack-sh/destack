@@ -181,7 +181,7 @@ pub enum Expression {
     Call {
         left: LocalNodeId<Expression>,
         generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        dynamic_arguments: Vec<LocalNodeId<Argument>>,
+        arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Index into an array or slice.
     Index {
@@ -201,7 +201,7 @@ pub enum Expression {
     New {
         left: LocalNodeId<Expression>,
         generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        dynamic_arguments: Vec<LocalNodeId<Argument>>,
+        arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Delete expression.
     Delete { value: LocalNodeId<Expression> },
@@ -639,7 +639,7 @@ pub enum StaticExpression {
     /// Declaration reference with optional static arguments.
     Declaration {
         declaration: LocalNodeId<Declaration>,
-        static_arguments: Option<Vec<StaticArgument>>,
+        generic_arguments: Option<Vec<StaticArgument>>,
     },
     /// Type.
     Type { ty: LocalTypeId },
@@ -660,8 +660,8 @@ impl StaticExpression {
             StaticExpression::TypeLiteral { .. } => true,
             StaticExpression::Type { .. } => true,
             StaticExpression::Declaration {
-                static_arguments, ..
-            } => static_arguments
+                generic_arguments, ..
+            } => generic_arguments
                 .as_ref()
                 .map(|args| args.iter().all(StaticArgument::is_evaluated))
                 .unwrap_or(true),

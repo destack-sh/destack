@@ -165,11 +165,11 @@ impl Resolution {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct ResolvedSignature {
     /// The dynamic parameter types after static substitutions.
-    pub dynamic_parameters: Vec<LocalTypeId>,
+    pub parameters: Vec<LocalTypeId>,
     /// The return type after static substitutions.
     pub return_type: Option<LocalTypeId>,
     /// The resolved static arguments in declared order.
-    pub static_arguments: Vec<StaticArgument>,
+    pub generic_arguments: Vec<StaticArgument>,
 }
 
 /// A resolved target symbol, optionally with dispatch information.

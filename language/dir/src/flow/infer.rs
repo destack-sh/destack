@@ -124,7 +124,7 @@ pub enum Constraint {
         /// Identify the generic type.
         generic_type: LocalTypeId,
         /// Store static arguments for instantiation.
-        static_arguments: Vec<LocalTypeId>,
+        generic_arguments: Vec<LocalTypeId>,
     },
     /// Require a type based on a guard condition.
     Conditional {
@@ -301,10 +301,10 @@ pub struct InstanceCommitObligation {
     /// The target symbol for the instance.
     pub symbol_id: GlobalSymbolId,
     /// Canonical static arguments in declaration order.
-    pub static_arguments: Vec<StaticArgument>,
-    /// Canonical static parameter symbols aligned with arguments.
-    pub static_parameter_symbols: Vec<GlobalSymbolId>,
-    /// Number of inherited arguments at the front of `static_arguments`.
+    pub generic_arguments: Vec<StaticArgument>,
+    /// Canonical generic parameter symbols aligned with arguments.
+    pub generic_parameter_symbols: Vec<GlobalSymbolId>,
+    /// Number of inherited arguments at the front of `generic_arguments`.
     pub inherited_static_argument_count: usize,
 }
 

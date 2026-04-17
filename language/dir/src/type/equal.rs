@@ -13,11 +13,11 @@ pub fn are_types_semantically_equal(source: &Type, target: &Type, types: &TypeTa
         (
             Type::Reference {
                 symbol: s1,
-                static_arguments: a1,
+                generic_arguments: a1,
             },
             Type::Reference {
                 symbol: s2,
-                static_arguments: a2,
+                generic_arguments: a2,
             },
         ) => s1 == s2 && are_static_arguments_equal(a1, a2, types),
 
@@ -85,17 +85,17 @@ pub fn are_types_semantically_equal(source: &Type, target: &Type, types: &TypeTa
             Type::Function {
                 asynchrony: a1,
                 cardinality: c1,
-                static_parameters: sp1,
+                generic_parameters: sp1,
                 this_parameter: tp1,
-                dynamic_parameters: dp1,
+                parameters: dp1,
                 return_type: rt1,
             },
             Type::Function {
                 asynchrony: a2,
                 cardinality: c2,
-                static_parameters: sp2,
+                generic_parameters: sp2,
                 this_parameter: tp2,
-                dynamic_parameters: dp2,
+                parameters: dp2,
                 return_type: rt2,
             },
         ) => {
