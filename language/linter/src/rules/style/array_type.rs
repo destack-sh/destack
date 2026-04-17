@@ -186,19 +186,11 @@ fn generic_argument_value_type_expression(
     argument_id: ast::LocalNodeId<ast::GenericArgument>,
 ) -> Option<ast::LocalNodeId<ast::TypeExpression>> {
     let argument = tree.get(argument_id);
-    let value_expression_id = match argument {
-        ast::GenericArgument::Positional { value } | ast::GenericArgument::Spread { value } => {
-            *value
-        }
+    match argument {
+        ast::GenericArgument::Type { value } => Some(*value),
+        ast::GenericArgument::Value { .. } => None,
         ast::GenericArgument::Error => return None,
-    };
-
-    let value_expression = tree.get(value_expression_id);
-    let ast::Expression::Type { value } = value_expression else {
-        return None;
-    };
-
-    Some(*value)
+    }
 }
 
 /// Return true when the array form matches the configured preference.
