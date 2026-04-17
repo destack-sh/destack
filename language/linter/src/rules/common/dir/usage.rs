@@ -295,17 +295,14 @@ pub fn expression_reference_is_read(
                 current_id = parent_id;
             }
             dir::Expression::As {
+                operator: _,
+                source: _,
                 expression: value,
                 target_type: _,
             }
             | dir::Expression::Satisfies {
                 expression: value,
                 target_type: _,
-            }
-            | dir::Expression::OwnershipCast {
-                operator: _,
-                source: _,
-                value,
             } if *value == current_id => {
                 current_id = parent_id;
             }

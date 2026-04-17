@@ -230,6 +230,8 @@ fn assertion_expression_operands(
     let expression = tree.get(expression_id);
     match expression {
         dir::Expression::As {
+            operator: _,
+            source: _,
             expression,
             target_type,
         } => Some(AssertionExpressionOperands {

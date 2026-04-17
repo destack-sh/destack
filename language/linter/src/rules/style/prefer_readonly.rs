@@ -228,7 +228,6 @@ fn expression_is_this_reference(
         dir::Expression::As { expression, .. } | dir::Expression::Satisfies { expression, .. } => {
             expression_is_this_reference(tree, *expression)
         }
-        dir::Expression::OwnershipCast { value, .. } => expression_is_this_reference(tree, *value),
         dir::Expression::ValueOf { right, .. }
         | dir::Expression::ReferenceOf { right, .. }
         | dir::Expression::PointerOf { right, .. } => expression_is_this_reference(tree, *right),

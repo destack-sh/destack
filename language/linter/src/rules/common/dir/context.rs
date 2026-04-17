@@ -369,9 +369,6 @@ fn expression_is_transparent_parent_of(
         dir::Expression::Satisfies { expression, .. } if *expression == child_expression_id
     ) || matches!(
         parent_expression,
-        dir::Expression::OwnershipCast { value, .. } if *value == child_expression_id
-    ) || matches!(
-        parent_expression,
         dir::Expression::ValueOf { right, .. } if *right == child_expression_id
     ) || matches!(
         parent_expression,

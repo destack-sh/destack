@@ -238,16 +238,15 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                     current_id = parent_id;
                 }
                 dir::Expression::As {
+                    operator: _,
+                    source: _,
                     expression: value,
                     target_type: _,
                 }
                 | dir::Expression::Satisfies {
                     expression: value,
                     target_type: _,
-                }
-                | dir::Expression::OwnershipCast { value, .. }
-                    if *value == current_id =>
-                {
+                } if *value == current_id => {
                     current_id = parent_id;
                 }
                 dir::Expression::ValueOf { right, .. }
