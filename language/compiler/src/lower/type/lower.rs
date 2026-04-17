@@ -264,7 +264,7 @@ impl TypeLowerer {
         }
 
         let dir::Type::Function {
-            dynamic_parameters,
+            parameters,
             return_type,
             ..
         } = types.get_type(type_id)
@@ -277,10 +277,10 @@ impl TypeLowerer {
         };
 
         // lower the declared parameters
-        let mut parameters = Vec::with_capacity(dynamic_parameters.len());
-        for parameter in dynamic_parameters {
+        let mut lowered_parameters = Vec::with_capacity(parameters.len());
+        for parameter in parameters {
             let parameter_type = self.lower_type(types, *parameter, module_id, node, builder)?;
-            parameters.push(parameter_type);
+            lowered_parameters.push(parameter_type);
         }
 
         // lower the return type
@@ -290,7 +290,7 @@ impl TypeLowerer {
         };
 
         // cache the signature type
-        let signature = builder.type_function_pointer(parameters, result);
+        let signature = builder.type_function_pointer(lowered_parameters, result);
         self.function_signature_types.insert(type_id, signature);
 
         Ok(signature)
@@ -333,12 +333,12 @@ impl TypeLowerer {
         let mir_type = match dir_type {
             dir::Type::Reference {
                 symbol,
-                static_arguments,
+                generic_arguments,
             } => self.lower_reference_type(
                 types,
                 type_id,
                 *symbol,
-                static_arguments.as_deref(),
+                generic_arguments.as_deref(),
                 module_id,
                 node,
                 builder,
@@ -391,7 +391,7 @@ impl TypeLowerer {
                 self.lower_array_sized_type(types, *element, *count, module_id, node, builder)?
             }
             dir::Type::Function {
-                dynamic_parameters: _,
+                parameters: _,
                 return_type: _,
                 ..
             } => self.lower_function_type(types, type_id, module_id, node, builder)?,
@@ -469,7 +469,7 @@ impl TypeLowerer {
         types: &dir::TypeTable,
         type_id: dir::LocalTypeId,
         symbol: dir::GlobalSymbolId,
-        static_arguments: Option<&[dir::StaticArgument]>,
+        generic_arguments: Option<&[dir::StaticArgument]>,
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
@@ -497,7 +497,7 @@ impl TypeLowerer {
                 type_id,
                 module_id,
                 node,
-                static_arguments,
+                generic_arguments,
                 builder,
             );
         }

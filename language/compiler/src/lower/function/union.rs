@@ -310,19 +310,19 @@ impl FunctionLowerer<'_> {
         let (dir::Expression::Member {
             left: receiver_id,
             name,
-            static_arguments,
+            generic_arguments,
         }
         | dir::Expression::PrivateMember {
             left: receiver_id,
             name,
-            static_arguments,
+            generic_arguments,
         }) = self.context.dir_tree.get(member_id)
         else {
             return Ok(None);
         };
 
-        // reject static arguments on discriminant access
-        if static_arguments.is_some() {
+        // reject generic arguments on discriminant access
+        if !generic_arguments.is_empty() {
             return Ok(None);
         }
 

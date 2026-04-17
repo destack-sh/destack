@@ -42,14 +42,14 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: &dir::LocalNodeId<dir::Expression>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
-        static_arguments: &Option<Vec<dir::LocalNodeId<dir::Argument>>>,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let (value, result_type) = self.lower_call(
             expression_id,
             left,
-            dynamic_arguments,
-            static_arguments,
+            arguments,
+            generic_arguments,
             CallKind::Expression,
         )?;
         let value = value.ok_or_else(|| LowerError::UnsupportedConstruct {
@@ -67,14 +67,14 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: &dir::LocalNodeId<dir::Expression>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
-        static_arguments: &Option<Vec<dir::LocalNodeId<dir::Argument>>>,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     ) -> LowerResult<()> {
         self.lower_call(
             expression_id,
             left,
-            dynamic_arguments,
-            static_arguments,
+            arguments,
+            generic_arguments,
             CallKind::Statement,
         )?;
 
@@ -86,8 +86,8 @@ impl FunctionLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: &dir::LocalNodeId<dir::Expression>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
-        static_arguments: &Option<Vec<dir::LocalNodeId<dir::Argument>>>,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         kind: CallKind,
     ) -> LowerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
         // resolve call resolution (lower requires static resolution)
@@ -119,18 +119,18 @@ impl FunctionLowerer<'_> {
             expression_id,
             target_symbol,
             resolution_receiver,
-            dynamic_arguments,
+            arguments,
         )? {
             return Ok(result);
         }
 
         // TODO #Incomplete: lower/monomorphize generic functions
-        if static_arguments.is_some() {
+        if !generic_arguments.is_empty() {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.context.module_id)
                     .into_anchored(Some(self.context.profile)),
-                message: "static arguments are only supported for intrinsic calls".to_string(),
+                message: "generic arguments are only supported for intrinsic calls".to_string(),
             })?;
         }
 
@@ -148,7 +148,7 @@ impl FunctionLowerer<'_> {
                 expression_id,
                 closure_value,
                 closure_type,
-                dynamic_arguments,
+                arguments,
                 kind,
             );
         }
@@ -167,7 +167,7 @@ impl FunctionLowerer<'_> {
                 expression_id,
                 closure_value,
                 closure_type,
-                dynamic_arguments,
+                arguments,
                 kind,
             );
         }
@@ -228,12 +228,12 @@ impl FunctionLowerer<'_> {
         };
 
         // build arguments: receiver (if method call) + declared arguments
-        let mut arguments =
-            Vec::with_capacity(dynamic_arguments.len() + call_receiver.is_some() as usize);
+        let mut argument_values =
+            Vec::with_capacity(arguments.len() + call_receiver.is_some() as usize);
         if let Some(receiver) = call_receiver {
-            arguments.push(receiver);
+            argument_values.push(receiver);
         }
-        for argument_id in dynamic_arguments {
+        for argument_id in arguments {
             let argument = self.context.dir_tree.get(*argument_id);
             if !matches!(argument, dir::Argument::Positional { .. }) {
                 return Err(LowerError::UnsupportedConstruct {
@@ -244,7 +244,7 @@ impl FunctionLowerer<'_> {
                 })?;
             }
             let (value, _) = self.lower_value_expression(argument.value())?;
-            arguments.push(value);
+            argument_values.push(value);
         }
 
         // emit call when we have a static resolution
@@ -266,7 +266,7 @@ impl FunctionLowerer<'_> {
                 expression_id,
                 function_id,
                 signature,
-                arguments,
+                argument_values,
                 result_type,
             )?;
             return Ok((Some(value), lowered_type));
@@ -296,7 +296,7 @@ impl FunctionLowerer<'_> {
                                 slot_id,
                                 Some(function_id),
                                 signature,
-                                arguments,
+                                argument_values,
                             );
                             None
                         } else {
@@ -306,7 +306,7 @@ impl FunctionLowerer<'_> {
                                 slot_id,
                                 Some(function_id),
                                 signature,
-                                arguments,
+                                argument_values,
                             )
                         }
                     }
@@ -322,7 +322,7 @@ impl FunctionLowerer<'_> {
                                 slot_id,
                                 Some(function_id),
                                 signature,
-                                arguments,
+                                argument_values,
                             );
                             None
                         } else {
@@ -332,7 +332,7 @@ impl FunctionLowerer<'_> {
                                 slot_id,
                                 Some(function_id),
                                 signature,
-                                arguments,
+                                argument_values,
                             )
                         }
                     }
@@ -340,20 +340,24 @@ impl FunctionLowerer<'_> {
             } else if returns_void {
                 self.state
                     .builder
-                    .call_void(function_id, signature, arguments);
+                    .call_void(function_id, signature, argument_values);
                 None
             } else {
-                self.state.builder.call(function_id, signature, arguments)
+                self.state
+                    .builder
+                    .call(function_id, signature, argument_values)
             }
         }
         // direct call when no receiver dispatch is needed
         else if returns_void {
             self.state
                 .builder
-                .call_void(function_id, signature, arguments);
+                .call_void(function_id, signature, argument_values);
             None
         } else {
-            self.state.builder.call(function_id, signature, arguments)
+            self.state
+                .builder
+                .call(function_id, signature, argument_values)
         };
 
         // reject void calls for expression results (void is not a value)
@@ -634,7 +638,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         closure_value: mir::Value,
         closure_type: mir::LocalNodeId<mir::Type>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
         kind: CallKind,
     ) -> LowerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
         let anchor = expression_id
@@ -646,8 +650,8 @@ impl FunctionLowerer<'_> {
             .layout_for_type_or_error(closure_type, anchor)?;
 
         // build arguments for the indirect call
-        let mut arguments = Vec::with_capacity(dynamic_arguments.len());
-        for argument_id in dynamic_arguments {
+        let mut argument_values = Vec::with_capacity(arguments.len());
+        for argument_id in arguments {
             let argument = self.context.dir_tree.get(*argument_id);
             if !matches!(argument, dir::Argument::Positional { .. }) {
                 return Err(LowerError::UnsupportedConstruct {
@@ -658,7 +662,7 @@ impl FunctionLowerer<'_> {
                 })?;
             }
             let (value, _) = self.lower_value_expression(argument.value())?;
-            arguments.push(value);
+            argument_values.push(value);
         }
 
         // call indirect
@@ -667,13 +671,13 @@ impl FunctionLowerer<'_> {
         let value = if returns_void {
             self.state
                 .builder
-                .call_indirect_void(closure_value, closure_type, arguments);
+                .call_indirect_void(closure_value, closure_type, argument_values);
             None
         } else {
             Some(
                 self.state
                     .builder
-                    .call_indirect(closure_value, closure_type, arguments),
+                    .call_indirect(closure_value, closure_type, argument_values),
             )
         };
 

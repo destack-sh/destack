@@ -78,6 +78,7 @@ impl TypeLowerer {
             dir::Type::TypeLiteral {
                 value: dir::TypeLiteral::ScalarLiteral(literal),
             } => match literal {
+                dir::ScalarLiteral::Null => None,
                 dir::ScalarLiteral::Boolean(_) => Some(self.ty_bool),
                 dir::ScalarLiteral::Integer(_) => Some(self.ty_i32),
                 dir::ScalarLiteral::Float(_) => Some(self.ty_f64),

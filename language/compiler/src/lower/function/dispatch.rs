@@ -227,7 +227,7 @@ impl FunctionLowerer<'_> {
 
         // resolve the method name
         let method_name = match (dynamic_key, signature.mode) {
-            (Some(dir::DynamicKey::Name(name)), _) => *name,
+            (Some(dir::Key::Name(name)), _) => name.string(),
             (None, Some(dir::FunctionMode::Call)) => self.context.dispatch_call_name,
             (None, Some(dir::FunctionMode::Constructor | dir::FunctionMode::New)) => {
                 self.context.dispatch_construct_name

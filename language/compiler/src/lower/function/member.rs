@@ -182,37 +182,21 @@ impl FunctionLowerer<'_> {
         // inspect member declarations for static modifiers
         if let Ok(member_id) = primary.local_id.try_into_typed::<dir::Member>() {
             let member = tree.get(member_id);
-            let (modifiers, kind) = match member {
-                dir::Member::Field { modifiers, .. } => (modifiers, StaticMemberKind::Field),
-                dir::Member::Method { modifiers, .. } => (modifiers, StaticMemberKind::Method),
-                dir::Member::Type { modifiers, .. } => (modifiers, StaticMemberKind::Type),
+            let (is_static, kind) = match member {
+                dir::Member::Field { is_static, .. } => (*is_static, StaticMemberKind::Field),
+                dir::Member::Method { is_static, .. } => (*is_static, StaticMemberKind::Method),
+                dir::Member::AssociatedType { is_static, .. } => {
+                    (*is_static, StaticMemberKind::Type)
+                }
                 _ => return None,
             };
 
-            if modifiers
-                .is_some_and(|modifiers| modifiers.anchor == Some(dir::BindingAnchor::Static))
-            {
+            if is_static {
                 return Some(kind);
             }
         }
 
-        // inspect property declarations for static modifiers
-        if let Ok(property_id) = primary.local_id.try_into_typed::<dir::Property>() {
-            let property = tree.get(property_id);
-            let (modifiers, kind) = match property {
-                dir::Property::Field { modifiers, .. } => (modifiers, StaticMemberKind::Field),
-                dir::Property::Method { modifiers, .. } => (modifiers, StaticMemberKind::Method),
-                dir::Property::Spread { .. } => return None,
-                dir::Property::Error { .. } => return None,
-            };
-
-            if modifiers
-                .is_some_and(|modifiers| modifiers.anchor == Some(dir::BindingAnchor::Static))
-            {
-                return Some(kind);
-            }
-        }
-
+        // only member declarations can be static
         None
     }
 

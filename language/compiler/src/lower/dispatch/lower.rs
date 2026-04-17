@@ -15,10 +15,10 @@ impl ModuleLowerer<'_> {
         let mut class_symbols = Vec::new();
         for (_declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
         {
-            let dir::Declaration::Class { descriptor, .. } = declaration else {
+            let dir::Declaration::Class(declaration) = declaration else {
                 continue;
             };
-            class_symbols.push(descriptor.symbol.into_global(self.module_id));
+            class_symbols.push(declaration.symbol.into_global(self.module_id));
         }
 
         // deduplicate and sort for determinism
@@ -74,10 +74,10 @@ impl ModuleLowerer<'_> {
         let mut interface_symbols = Vec::new();
         for (_declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
         {
-            let dir::Declaration::Interface { descriptor, .. } = declaration else {
+            let dir::Declaration::Interface(declaration) = declaration else {
                 continue;
             };
-            interface_symbols.push(descriptor.symbol.into_global(self.module_id));
+            interface_symbols.push(declaration.symbol.into_global(self.module_id));
         }
 
         // deduplicate and sort for determinism

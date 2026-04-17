@@ -831,7 +831,10 @@ impl FunctionLowerer<'_> {
             dir::Expression::Parenthesized { expression } => {
                 self.concrete_symbol_for_expression(*expression)
             }
-            dir::Expression::Cast { value, .. } => self.concrete_symbol_for_expression(*value),
+            dir::Expression::As { expression, .. }
+            | dir::Expression::Satisfies { expression, .. } => {
+                self.concrete_symbol_for_expression(*expression)
+            }
             dir::Expression::New { left, .. } => self.concrete_symbol_for_expression(*left),
             dir::Expression::TaggedScalarExpression { ty, .. }
             | dir::Expression::TaggedTupleExpression { ty, .. }

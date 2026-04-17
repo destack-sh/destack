@@ -14,7 +14,7 @@ impl ModuleLowerer<'_> {
 
         // route the root expression by kind
         match expression {
-            dir::Expression::Declaration { declaration } => {
+            dir::Expression::Declaration(declaration) => {
                 // lower declaration roots
                 let declaration_id = *declaration;
                 let declaration = self.dir_tree.get(declaration_id);

@@ -179,7 +179,7 @@ impl ModuleLowerer<'_> {
     fn function_type_metadata_name(&self, type_id: dir::LocalTypeId) -> Option<String> {
         let dir::Type::Function {
             this_parameter,
-            dynamic_parameters,
+            parameters,
             return_type,
             ..
         } = self.types.get_type(type_id)
@@ -200,7 +200,7 @@ impl ModuleLowerer<'_> {
         }
 
         // record dynamic parameter names
-        for parameter in dynamic_parameters {
+        for parameter in parameters {
             let param_name = self
                 .metadata_base_name_for_type(*parameter)
                 .unwrap_or_else(|| "unknown".to_string());
@@ -640,6 +640,9 @@ impl ModuleLowerer<'_> {
         let strings = &self.compiler.repository.strings;
 
         match literal {
+            dir::ScalarLiteral::Null => {
+                format!("{LITERAL_METADATA_PREFIX}null")
+            }
             dir::ScalarLiteral::Boolean(value) => {
                 format!("{LITERAL_METADATA_PREFIX}bool:{value}")
             }
@@ -701,13 +704,9 @@ impl ModuleLowerer<'_> {
 
     /// Collect naming context from a type source node.
     fn type_name_context(&self, type_id: dir::LocalTypeId) -> Option<TypeNameContext> {
-        // resolve the source node and expression id
+        // resolve the source node and tracked type node
         let source = self.types.get_type_source(type_id);
-        let expression_id = if source.ty == dir::NodeType::Expression {
-            Some(dir::LocalNodeId::new(source.id))
-        } else {
-            None
-        };
+        let source_id = Some(source);
 
         // seed context and traversal cursor
         let mut context = TypeNameContext::default();
@@ -721,7 +720,7 @@ impl ModuleLowerer<'_> {
                 dir::NodeType::Expression => {
                     let expression_id = dir::LocalNodeId::<dir::Expression>::new(node_id.id);
                     let expression = self.dir_tree.get(expression_id);
-                    if let dir::Expression::Declaration { declaration } = expression {
+                    if let dir::Expression::Declaration(declaration) = expression {
                         let declaration = self.dir_tree.get(*declaration);
                         if context.declaration_symbol.is_none() {
                             context.declaration_symbol =
@@ -729,11 +728,7 @@ impl ModuleLowerer<'_> {
                         }
 
                         // apply declaration naming context
-                        self.apply_declaration_context(
-                            declaration,
-                            Some(expression_id),
-                            &mut context,
-                        );
+                        self.apply_declaration_context(declaration, source_id, &mut context);
                     }
                 }
                 // handle parameter nodes
@@ -768,7 +763,7 @@ impl ModuleLowerer<'_> {
                     }
 
                     // apply member naming context
-                    self.apply_member_context(member, expression_id, &mut context);
+                    self.apply_member_context(member, source_id, &mut context);
                 }
                 // handle property nodes
                 dir::NodeType::Property => {
@@ -783,7 +778,7 @@ impl ModuleLowerer<'_> {
                     }
 
                     // apply property naming context
-                    self.apply_property_context(property, expression_id, &mut context);
+                    self.apply_property_context(property, source_id, &mut context);
                 }
                 // handle declarator nodes
                 dir::NodeType::Declarator => {
@@ -816,7 +811,7 @@ impl ModuleLowerer<'_> {
                     }
 
                     // apply declaration naming context
-                    self.apply_declaration_context(declaration, expression_id, &mut context);
+                    self.apply_declaration_context(declaration, source_id, &mut context);
                 }
                 // ignore other node kinds
                 _ => {}
@@ -837,27 +832,31 @@ impl ModuleLowerer<'_> {
     fn apply_declaration_context(
         &self,
         declaration: &dir::Declaration,
-        expression_id: Option<dir::LocalNodeId<dir::Expression>>,
+        source_id: Option<dir::LocalNodeIdAny>,
         context: &mut TypeNameContext,
     ) {
-        // exit when no expression id is available
-        let Some(expression_id) = expression_id else {
+        // exit when no source id is available
+        let Some(source_id) = source_id else {
             return;
         };
 
         // check declaration kinds for naming context
         match declaration {
             // handle function declarations
-            dir::Declaration::Function { signature, .. } => {
+            dir::Declaration::Function(declaration) => {
                 // mark function return types
-                if signature.return_type == Some(expression_id) {
+                if declaration
+                    .signature
+                    .return_type
+                    .is_some_and(|return_type| return_type.into_any() == source_id)
+                {
                     context.is_return_type = true;
                 }
             }
             // handle type alias declarations
-            dir::Declaration::Type { value, .. } => {
+            dir::Declaration::Type(declaration) => {
                 // mark type alias values
-                if *value == expression_id {
+                if declaration.value.into_any() == source_id {
                     context.is_type_alias = true;
                 }
             }
@@ -869,7 +868,7 @@ impl ModuleLowerer<'_> {
     fn apply_member_context(
         &self,
         member: &dir::Member,
-        expression_id: Option<dir::LocalNodeId<dir::Expression>>,
+        source_id: Option<dir::LocalNodeIdAny>,
         context: &mut TypeNameContext,
     ) {
         // check member kinds for naming context
@@ -878,7 +877,7 @@ impl ModuleLowerer<'_> {
             dir::Member::Field { key, .. } => {
                 // capture field name when missing
                 if context.field_name.is_none() {
-                    context.field_name = self.member_name_from_key(*key);
+                    context.field_name = self.member_name_from_key(Some(*key));
                 }
             }
             // handle method members
@@ -889,8 +888,10 @@ impl ModuleLowerer<'_> {
                 }
 
                 // mark method return types
-                if let Some(expression_id) = expression_id
-                    && signature.return_type == Some(expression_id)
+                if let Some(source_id) = source_id
+                    && signature
+                        .return_type
+                        .is_some_and(|return_type| return_type.into_any() == source_id)
                 {
                     context.is_return_type = true;
                 }
@@ -903,7 +904,7 @@ impl ModuleLowerer<'_> {
     fn apply_property_context(
         &self,
         property: &dir::Property,
-        expression_id: Option<dir::LocalNodeId<dir::Expression>>,
+        source_id: Option<dir::LocalNodeIdAny>,
         context: &mut TypeNameContext,
     ) {
         // check property kinds for naming context
@@ -912,7 +913,7 @@ impl ModuleLowerer<'_> {
             dir::Property::Field { key, .. } => {
                 // capture field name when missing
                 if context.field_name.is_none() {
-                    context.field_name = self.member_name_from_key(*key);
+                    context.field_name = self.member_name_from_key(Some(*key));
                 }
             }
             // handle method properties
@@ -923,8 +924,10 @@ impl ModuleLowerer<'_> {
                 }
 
                 // mark method return types
-                if let Some(expression_id) = expression_id
-                    && signature.return_type == Some(expression_id)
+                if let Some(source_id) = source_id
+                    && signature
+                        .return_type
+                        .is_some_and(|return_type| return_type.into_any() == source_id)
                 {
                     context.is_return_type = true;
                 }
@@ -1053,12 +1056,12 @@ impl ModuleLowerer<'_> {
     }
 
     /// Resolve a name string from a member key.
-    pub(crate) fn member_name_from_key(&self, key: Option<dir::DynamicKey>) -> Option<String> {
+    pub(crate) fn member_name_from_key(&self, key: Option<dir::Key>) -> Option<String> {
         // require a key for name resolution
         let key = key?;
 
         // resolve the key into a static key
-        let key = self.compiler.static_key_from_dynamic_key(
+        let key = self.compiler.static_key_from_key(
             self.context.revision(),
             self.profile,
             self.dir_tree,
@@ -1080,7 +1083,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn static_member_name(
         &self,
         owner_symbol: dir::GlobalSymbolId,
-        key: Option<dir::DynamicKey>,
+        key: Option<dir::Key>,
     ) -> Option<String> {
         let owner = self.symbol_path_name(owner_symbol)?;
         let member = self.member_name_from_key(key)?;

@@ -162,20 +162,21 @@ impl FunctionLowerer<'_> {
             dir::Expression::Member {
                 left,
                 name,
-                static_arguments,
+                generic_arguments,
             }
             | dir::Expression::PrivateMember {
                 left,
                 name,
-                static_arguments,
+                generic_arguments,
             } => {
-                // reject static arguments on member borrows
-                if static_arguments.is_some() {
+                // reject generic arguments on member borrows
+                if !generic_arguments.is_empty() {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
                             .into_global_any(self.context.module_id)
                             .into_anchored(Some(self.context.profile)),
-                        message: "static arguments on member borrows are not supported".to_string(),
+                        message: "generic arguments on member borrows are not supported"
+                            .to_string(),
                     });
                 }
 

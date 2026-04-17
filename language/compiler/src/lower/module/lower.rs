@@ -799,19 +799,23 @@ impl<'a> ModuleLowerer<'a> {
         for (declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
         {
             let symbol = match declaration {
-                dir::Declaration::Struct { descriptor, .. }
-                | dir::Declaration::Class { descriptor, .. }
-                | dir::Declaration::Enum { descriptor, .. }
-                | dir::Declaration::Interface { descriptor, .. } => {
-                    descriptor.symbol.into_global(self.module_id)
+                dir::Declaration::Struct(declaration) => {
+                    declaration.symbol.into_global(self.module_id)
                 }
-                dir::Declaration::Type {
-                    descriptor, kind, ..
-                } => {
-                    if !matches!(kind, dir::TypeKind::Nominal) {
+                dir::Declaration::Class(declaration) => {
+                    declaration.symbol.into_global(self.module_id)
+                }
+                dir::Declaration::Enum(declaration) => {
+                    declaration.symbol.into_global(self.module_id)
+                }
+                dir::Declaration::Interface(declaration) => {
+                    declaration.symbol.into_global(self.module_id)
+                }
+                dir::Declaration::Type(declaration) => {
+                    if !declaration.is_nominal {
                         continue;
                     }
-                    descriptor.symbol.into_global(self.module_id)
+                    declaration.symbol.into_global(self.module_id)
                 }
                 _ => continue,
             };

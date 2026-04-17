@@ -35,16 +35,16 @@ impl ModuleLowerer<'_> {
                 dir::Type::Function {
                     asynchrony: left_async,
                     cardinality: left_cardinality,
-                    static_parameters: left_static,
-                    dynamic_parameters: left_dynamic,
+                    generic_parameters: left_static,
+                    parameters: left_dynamic,
                     return_type: left_return,
                     ..
                 },
                 dir::Type::Function {
                     asynchrony: right_async,
                     cardinality: right_cardinality,
-                    static_parameters: right_static,
-                    dynamic_parameters: right_dynamic,
+                    generic_parameters: right_static,
+                    parameters: right_dynamic,
                     return_type: right_return,
                     ..
                 },

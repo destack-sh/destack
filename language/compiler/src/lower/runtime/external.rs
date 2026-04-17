@@ -150,8 +150,8 @@ impl ModuleLowerer<'_> {
             .into_anchored(Some(self.profile));
 
         // lower parameter types
-        let mut parameter_types = Vec::with_capacity(signature.dynamic_parameters.len());
-        for type_id in &signature.dynamic_parameters {
+        let mut parameter_types = Vec::with_capacity(signature.parameters.len());
+        for type_id in &signature.parameters {
             // lower the parameter type
             let parameter_type = self.lower_type(*type_id, anchor)?;
             parameter_types.push(parameter_type);

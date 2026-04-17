@@ -5,21 +5,18 @@ use crate::{LowerError, LowerResult, ScalarType};
 use super::{FunctionLowerer, RUNTIME_CHECK_MESSAGES};
 
 impl FunctionLowerer<'_> {
-    /// Strip parenthesized expressions and implicit casts.
+    /// Strip transparent value wrappers around one expression.
     pub(crate) fn unwrap_expression(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> dir::LocalNodeId<dir::Expression> {
-        // walk implicit wrappers to the underlying expression
+        // walk through wrappers that preserve the same runtime base value
         let mut current_id = expression_id;
         loop {
             match self.context.dir_tree.get(current_id) {
                 dir::Expression::Parenthesized { expression } => current_id = *expression,
-                dir::Expression::Cast {
-                    value,
-                    source: dir::CastSource::Implicit,
-                    ..
-                } => current_id = *value,
+                dir::Expression::As { expression, .. }
+                | dir::Expression::Satisfies { expression, .. } => current_id = *expression,
                 _ => return current_id,
             }
         }
@@ -174,29 +171,13 @@ impl FunctionLowerer<'_> {
         Ok((value, ty))
     }
 
-    /// Lower a type binary expression.
-    ///
-    /// `value is Type` becomes a runtime tag check when needed.
-    pub(super) fn lower_type_binary_expression(
+    /// Lower one runtime type guard expression.
+    pub(super) fn lower_runtime_type_guard_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
-        operator: dir::TypeBinaryOperator,
-        right: dir::LocalNodeId<dir::Expression>,
+        target_type_id: dir::LocalTypeId,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // only support runtime type checks for now
-        if !matches!(
-            operator,
-            dir::TypeBinaryOperator::Is | dir::TypeBinaryOperator::InstanceOf
-        ) {
-            return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.context.module_id)
-                    .into_anchored(Some(self.context.profile)),
-                message: "unsupported type binary operator".to_string(),
-            });
-        }
-
         // require runtime check metadata from Analyze
         let runtime_check_kind = self
             .context
@@ -230,7 +211,6 @@ impl FunctionLowerer<'_> {
         let left_type_id = self.type_for_expression_or_error(left)?;
         let left_type_id = self.unwrap_value_type_id(left_type_id);
 
-        let target_type_id = self.type_check_target_type_id(right)?;
         let target_type_id = self.unwrap_value_type_id(target_type_id);
 
         // exact or nominally equivalent matches are always true
@@ -319,24 +299,17 @@ impl FunctionLowerer<'_> {
         })
     }
 
-    /// Resolve the target type id for runtime type checks.
-    fn type_check_target_type_id(
+    /// Resolve the target type id for one `is` guard.
+    pub(crate) fn is_target_type_id(
         &self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
+        expression_id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> LowerResult<dir::LocalTypeId> {
-        // prefer nominal newtype references over instance types
-        let expression = self.context.dir_tree.get(expression_id);
-        if let dir::Expression::LocalReference { target_symbol, .. }
-        | dir::Expression::ModuleReference { target_symbol, .. }
-        | dir::Expression::GlobalReference { target_symbol, .. } = expression
-            && target_symbol.ty() == dir::SymbolType::Newtype
-        {
-            return self
-                .instance_type_id_for_symbol_or_error(expression_id.into_any(), *target_symbol);
-        }
-
         self.type_id_for_type_expression(expression_id)
-            .ok_or_else(|| self.missing_type_error(expression_id))
+            .ok_or_else(|| {
+                self.missing_type_error_for_node(
+                    expression_id.into_global_any(self.context.module_id),
+                )
+            })
     }
 
     /// Check whether two type ids refer to the same nominal type.
