@@ -1916,9 +1916,8 @@ impl<'tree> FlowGraphBuilder<'tree> {
 
         // evaluate the argument payload
         match argument {
-            GenericArgument::Positional { value } | GenericArgument::Spread { value } => {
-                self.build_expression(*value, current_block_id)
-            }
+            GenericArgument::Type { value } => self.build_type_expression(*value, current_block_id),
+            GenericArgument::Value { value } => self.build_expression(*value, current_block_id),
             GenericArgument::Error => Some(current_block_id),
         }
     }

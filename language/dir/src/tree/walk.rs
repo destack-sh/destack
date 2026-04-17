@@ -178,7 +178,11 @@ pub fn walk_generic_argument<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::GenericArgument, id.id);
 
     match generic_argument {
-        GenericArgument::Positional { value } | GenericArgument::Spread { value } => {
+        GenericArgument::Type { value } => {
+            let value_node = tree.get(*value);
+            visitor.visit_type_expression(tree, *value, value_node);
+        }
+        GenericArgument::Value { value } => {
             let value_node = tree.get(*value);
             visitor.visit_expression(tree, *value, value_node);
         }

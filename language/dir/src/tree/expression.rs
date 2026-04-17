@@ -404,7 +404,7 @@ pub enum Expression {
     /// Missing expression child.
     Missing,
 
-    /// Stub placeholder for decorator-only files.
+    /// Stub placeholder.
     Stub,
 
     /// Error expression.
