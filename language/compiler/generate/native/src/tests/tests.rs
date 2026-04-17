@@ -15,9 +15,10 @@ fn test_target_id(package_id: PackageId, name: &str) -> TargetId {
 
 /// Helper to compile MIR text to CLIF text.
 pub(crate) fn compile_mir_to_clif(source: &str) -> String {
-    let (tree, strings) = mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
-        .validate()
-        .expect("failed to parse MIR");
+    let (tree, strings) =
+        mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
+            .validate()
+            .expect("failed to parse MIR");
 
     // create a base MIR payload and populate it
     let mut module = MirBase::new(
