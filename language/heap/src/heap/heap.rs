@@ -27,18 +27,6 @@ impl Heap {
         Self::with_limits_and_options(HeapLimits::default(), HeapOptions::default())
     }
 
-    /// Create one heap with one explicit shared arena, limits, and options.
-    pub fn with_arena_limits_and_options(
-        arena: Arc<Arena>,
-        limits: HeapLimits,
-        options: HeapOptions,
-    ) -> HeapResult<Self> {
-        options.validate()?;
-        options.validate_arena(&arena)?;
-
-        Self::build_with_options(arena, limits, options)
-    }
-
     /// Create one heap with explicit limits and options.
     pub fn with_limits_and_options(limits: HeapLimits, options: HeapOptions) -> HeapResult<Self> {
         let arena = Arc::new(Arena::try_new(
@@ -46,7 +34,10 @@ impl Heap {
             options.arena_segment_bytes,
         )?);
 
-        Self::with_arena_limits_and_options(arena, limits, options)
+        options.validate()?;
+        options.validate_arena(&arena)?;
+
+        Self::build_with_options(arena, limits, options)
     }
 
     /// Create one heap from one checked shared arena, limits, and options.

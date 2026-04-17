@@ -21,6 +21,7 @@ pub struct ArenaImage {
     pub page_bytes: u32,
     /// The fixed segment width for the image.
     pub segment_bytes: u32,
+
     /// The serialized page leaves reachable from one frozen root.
     pub pages: Box<[ArenaPage]>,
 }
@@ -30,13 +31,20 @@ impl Arena {
     pub fn from_image(image: &ArenaImage) -> HeapResult<Self> {
         let arena = Self::try_new(image.page_bytes as usize, image.segment_bytes as usize)?;
         let page_bytes = arena.page_bytes();
-        let page_count = image
-            .pages
-            .iter()
-            .map(|page| page.id.index().saturating_add(1))
-            .max()
-            .unwrap_or(0);
         let mut segment_high_watermarks = BTreeMap::<usize, usize>::new();
+        let mut page_count = 0;
+
+        // resolve the reachable page range up front
+        for page in &image.pages {
+            let next_page_count =
+                page.id
+                    .index()
+                    .checked_add(1)
+                    .ok_or(HeapError::InvalidPageId {
+                        index: page.id.index(),
+                    })?;
+            page_count = page_count.max(next_page_count);
+        }
 
         // publish enough segment capacity first
         arena.ensure_page_capacity(page_count)?;
@@ -51,22 +59,34 @@ impl Arena {
                 });
             }
 
-            let Some(target_page) = arena.page_bytes_mut(page.id) else {
-                return Err(HeapError::ImageMissingPage { page_id: page.id });
-            };
+            let target_page = arena
+                .page_slice_mut(page.id)
+                .map_err(|_| HeapError::ImageMissingPage { page_id: page.id })?;
+
             target_page.copy_from_slice(&page.bytes);
 
             let (segment_index, segment_page_index) = arena.page_position(page.id);
             let segment_high_watermark = segment_high_watermarks.entry(segment_index).or_default();
-            *segment_high_watermark =
-                (*segment_high_watermark).max(segment_page_index.saturating_add(1));
+            let next_high_watermark =
+                segment_page_index
+                    .checked_add(1)
+                    .ok_or(HeapError::InvalidPageId {
+                        index: page.id.index(),
+                    })?;
+            *segment_high_watermark = (*segment_high_watermark).max(next_high_watermark);
         }
 
         // restore the per-segment fresh-allocation cursors
         for (segment_index, high_watermark) in segment_high_watermarks {
-            if arena.segment(segment_index).is_none() {
+            if !arena.has_published_segment(segment_index) {
+                let first_page_index = segment_index.checked_mul(arena.pages_per_segment()).ok_or(
+                    HeapError::InvalidPageId {
+                        index: segment_index,
+                    },
+                )?;
+
                 return Err(HeapError::ImageMissingPage {
-                    page_id: PageId::new(segment_index.saturating_mul(arena.pages_per_segment()))?,
+                    page_id: PageId::new(first_page_index)?,
                 });
             }
 
@@ -77,19 +97,18 @@ impl Arena {
     }
 
     /// Capture one page view into serialized arena pages.
-    pub fn image_pages(&self, page_view: &PageView) -> HeapResult<Box<[ArenaPage]>> {
+    pub fn capture_page_view_pages(&self, page_view: &PageView) -> HeapResult<Box<[ArenaPage]>> {
         let mut pages = Vec::with_capacity(page_view.len());
 
         // capture the exact bytes for each reachable arena page
         for page in page_view.page_ids() {
-            let Some(bytes) = self.page_bytes_from_id(page) else {
-                return Err(HeapError::ImageMissingPage { page_id: page });
-            };
+            let bytes = self
+                .page_slice(page)
+                .map_err(|_| HeapError::ImageMissingPage { page_id: page })?
+                .to_vec()
+                .into_boxed_slice();
 
-            pages.push(ArenaPage {
-                id: page,
-                bytes: bytes.to_vec().into_boxed_slice(),
-            });
+            pages.push(ArenaPage { id: page, bytes });
         }
 
         Ok(pages.into_boxed_slice())
@@ -101,14 +120,13 @@ impl Arena {
 
         // capture the exact bytes for each explicit arena page
         for page in pages {
-            let Some(bytes) = self.page_bytes_from_id(*page) else {
-                return Err(HeapError::ImageMissingPage { page_id: *page });
-            };
+            let bytes = self
+                .page_slice(*page)
+                .map_err(|_| HeapError::ImageMissingPage { page_id: *page })?
+                .to_vec()
+                .into_boxed_slice();
 
-            image_pages.push(ArenaPage {
-                id: *page,
-                bytes: bytes.to_vec().into_boxed_slice(),
-            });
+            image_pages.push(ArenaPage { id: *page, bytes });
         }
 
         Ok(ArenaImage {
@@ -123,7 +141,7 @@ impl Arena {
         Ok(ArenaImage {
             page_bytes: self.page_bytes() as u32,
             segment_bytes: self.segment_bytes() as u32,
-            pages: self.image_pages(page_view)?,
+            pages: self.capture_page_view_pages(page_view)?,
         })
     }
 }

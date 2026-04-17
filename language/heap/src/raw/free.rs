@@ -1,62 +1,73 @@
-use super::{RawLocation, RawPointerRecord, RawSpace};
+use super::{RawLocation, RawSpace};
 use crate::value::RawPointer;
+use crate::{HeapError, HeapResult};
 
 impl RawSpace {
-    /// Free one raw allocation.
-    pub fn free(&mut self, pointer: RawPointer) -> bool {
-        // resolve the live allocation first
+    /// Free one raw entry.
+    pub fn free(&mut self, pointer: RawPointer) -> HeapResult<bool> {
+        // resolve the live entry first
         let pointer_id = pointer.id();
         let Some(record) = self.pointer(pointer).copied() else {
-            return false;
+            return Err(HeapError::InvalidRawPointer { pointer });
         };
+        let Some(location) = record.location() else {
+            return Err(HeapError::InvalidRawPointer { pointer });
+        };
+        let freed_bytes = record.byte_len as u64;
+        self.totals
+            .check_free(freed_bytes, crate::HeapDomain::Raw)?;
 
-        match record.location {
+        match location {
             // release one small-span slot
             RawLocation::Small(slot) => {
-                self.release_small_slot(slot);
+                self.release_small_slot(slot)?;
 
-                // update heap accounting
-                self.allocated_count = self.allocated_count.saturating_sub(1);
-                self.allocated_bytes = self.allocated_bytes.saturating_sub(record.byte_len as u64);
+                // update heap usage
+                self.totals.free(freed_bytes, crate::HeapDomain::Raw)?;
 
                 // clear the stable pointer slot
-                if let Some(entry) = self.pointers.get_mut(pointer_id.saturating_sub(1) as usize) {
-                    *entry = RawPointerRecord::vacant();
-                }
+                self.retire_pointer(pointer_id)?;
 
-                self.free_pointer_ids.push(pointer_id);
-
-                true
+                Ok(true)
             }
-            // release one allocation in large space and its arena pages
-            RawLocation::Large(allocation_id) => {
+            // release one entry in large space and its arena pages
+            RawLocation::Large(entry_id) => {
                 let arena = self.arena().clone();
-                let Some(allocation) = self.allocation_mut(allocation_id) else {
-                    return false;
+                let Some(entry) = self.large_entry(entry_id) else {
+                    return Err(HeapError::MissingLargeEntry {
+                        entry_id: entry_id.id(),
+                    });
                 };
 
-                if !allocation.is_allocated {
-                    return false;
+                if !entry.is_live {
+                    return Err(HeapError::MissingLargeEntry {
+                        entry_id: entry_id.id(),
+                    });
                 }
 
-                allocation.is_allocated = false;
-                let pages = allocation.pages.clone();
-                arena.release_pages(&pages);
+                let pages = entry.pages;
 
-                // update heap accounting
-                self.allocated_count = self.allocated_count.saturating_sub(1);
-                self.allocated_bytes = self.allocated_bytes.saturating_sub(record.byte_len as u64);
+                let Some(entry) = self.large_entry_mut(entry_id) else {
+                    return Err(HeapError::MissingLargeEntry {
+                        entry_id: entry_id.id(),
+                    });
+                };
+
+                // retire the live large-entry slot before releasing its pages
+                entry.retire();
+                self.large.free_large_entry_ids.push(entry_id.id());
+
+                // update heap usage
+                self.totals.free(freed_bytes, crate::HeapDomain::Raw)?;
 
                 // clear the stable pointer slot
-                if let Some(entry) = self.pointers.get_mut(pointer_id.saturating_sub(1) as usize) {
-                    *entry = RawPointerRecord::vacant();
-                }
+                self.retire_pointer(pointer_id)?;
 
-                self.free_pointer_ids.push(pointer_id);
+                // release the old physical pages after the live slot is gone
+                arena.release_page_view(&pages)?;
 
-                true
+                Ok(true)
             }
-            RawLocation::Vacant => false,
         }
     }
 }

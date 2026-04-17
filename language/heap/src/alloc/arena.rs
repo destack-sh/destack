@@ -1,15 +1,15 @@
 use std::alloc::{Layout, alloc_zeroed, dealloc};
+use std::cell::UnsafeCell;
 use std::collections::BTreeMap;
 use std::ptr::null_mut;
-use std::sync::{Mutex, MutexGuard};
 
 use super::{PageId, PageRun, PageView, Segment};
-use crate::{
-    DEFAULT_ARENA_SEGMENT_BYTES, DEFAULT_PAGE_BYTES, HeapError, HeapOptions, HeapResult,
-    MAX_ARENA_SEGMENTS,
-};
+use crate::{HeapError, HeapOptions, HeapResult};
 
-/// One branchable arena of fixed-width pages.
+/// The maximum number of arena segments in one heap arena.
+const MAX_ARENA_SEGMENTS: usize = 1 << 16;
+
+/// One runtime-local branchable arena of fixed-width pages.
 #[derive(Debug)]
 pub struct Arena {
     /// The fixed page width for every page.
@@ -18,9 +18,15 @@ pub struct Arena {
     segment_bytes: u32,
     /// The number of pages stored in each arena segment.
     pages_per_segment: u32,
-    /// The shared arena publication and reuse state.
-    state: Mutex<ArenaState>,
+    /// The runtime-local arena publication and reuse state.
+    state: UnsafeCell<ArenaState>,
 }
+
+// arena access is synchronized by the owning runtime or agent
+unsafe impl Send for Arena {}
+
+// arena access is synchronized by the owning runtime or agent
+unsafe impl Sync for Arena {}
 
 /// One mutable arena directory and reusable-run state.
 #[derive(Debug)]
@@ -35,9 +41,6 @@ struct ArenaState {
     free_runs_by_start: BTreeMap<usize, PageRun>,
 }
 
-// arena state is only accessed through the arena mutex
-unsafe impl Send for ArenaState {}
-
 impl Default for Arena {
     fn default() -> Self {
         Self::new()
@@ -46,7 +49,7 @@ impl Default for Arena {
 
 impl Drop for Arena {
     fn drop(&mut self) {
-        let state = self.lock_state();
+        let state = self.state.get_mut();
         let segment_count = state.segment_count;
         for segment_index in 0..segment_count {
             let Some(&segment_ptr) = state.segments.get(segment_index) else {
@@ -66,16 +69,15 @@ impl Drop for Arena {
 impl Arena {
     /// Create one empty arena with default page and segment widths.
     pub fn new() -> Self {
+        let options = HeapOptions::default();
+        let page_bytes = options.page_bytes;
+        let segment_bytes = options.arena_segment_bytes;
+
         Self {
-            page_bytes: DEFAULT_PAGE_BYTES as u32,
-            segment_bytes: DEFAULT_ARENA_SEGMENT_BYTES as u32,
-            pages_per_segment: (DEFAULT_ARENA_SEGMENT_BYTES / DEFAULT_PAGE_BYTES) as u32,
-            state: Mutex::new(ArenaState {
-                segment_count: 0,
-                segments: Vec::new(),
-                free_runs: BTreeMap::new(),
-                free_runs_by_start: BTreeMap::new(),
-            }),
+            page_bytes: page_bytes as u32,
+            segment_bytes: segment_bytes as u32,
+            pages_per_segment: (segment_bytes / page_bytes) as u32,
+            state: UnsafeCell::new(ArenaState::new()),
         }
     }
 
@@ -89,12 +91,7 @@ impl Arena {
             page_bytes: page_bytes as u32,
             segment_bytes: segment_bytes as u32,
             pages_per_segment,
-            state: Mutex::new(ArenaState {
-                segment_count: 0,
-                segments: Vec::new(),
-                free_runs: BTreeMap::new(),
-                free_runs_by_start: BTreeMap::new(),
-            }),
+            state: UnsafeCell::new(ArenaState::new()),
         })
     }
 
@@ -126,7 +123,7 @@ impl Arena {
     }
 
     /// Retain one logical page view for another live root.
-    pub fn retain_pages(&self, page_view: &PageView) -> HeapResult<()> {
+    pub fn retain_page_view(&self, page_view: &PageView) -> HeapResult<()> {
         // retain the base run when it still contributes visible pages
         if page_view.has_base_pages() {
             self.retain_run(page_view.base_run())?;
@@ -141,14 +138,14 @@ impl Arena {
     }
 
     /// Return one cloned page view retained for another live root.
-    pub fn clone_pages(&self, page_view: &PageView) -> HeapResult<PageView> {
-        self.retain_pages(page_view)?;
+    pub fn clone_page_view(&self, page_view: &PageView) -> HeapResult<PageView> {
+        self.retain_page_view(page_view)?;
 
         Ok(*page_view)
     }
 
     /// Release one logical page view after one root drops it.
-    pub fn release_pages(&self, page_view: &PageView) -> HeapResult<()> {
+    pub fn release_page_view(&self, page_view: &PageView) -> HeapResult<()> {
         // release the base run when it still contributes visible pages
         if page_view.has_base_pages() {
             self.release_run(page_view.base_run())?;
@@ -178,7 +175,7 @@ impl Arena {
         }
 
         // reuse an existing run when possible
-        if let Some(run) = self.take_free_run(page_count) {
+        if let Some(run) = self.take_free_run(page_count)? {
             self.zero_run(run)?;
             self.initialize_run_refcount(run)?;
 
@@ -207,10 +204,16 @@ impl Arena {
             return Ok(());
         }
 
-        let mut state = self.lock_state();
-        let refcount = self.run_refcount_mut(&mut state, run)?;
+        let state = self.state_mut();
+        let refcount = self.run_refcount_mut(state, run)?;
+        let Some(next_refcount) = (*refcount).checked_add(1) else {
+            return Err(HeapError::InvalidRunRefcount {
+                first_page: run.first_page,
+                refcount: *refcount,
+            });
+        };
 
-        *refcount = refcount.saturating_add(1);
+        *refcount = next_refcount;
 
         Ok(())
     }
@@ -222,16 +225,24 @@ impl Arena {
         }
 
         // stop once another root still retains the run
-        let mut state = self.lock_state();
-        let refcount = self.run_refcount_mut(&mut state, run)?;
+        let state = self.state_mut();
+        let refcount = self.run_refcount_mut(state, run)?;
+        if *refcount == 0 {
+            return Err(HeapError::InvalidRunRefcount {
+                first_page: run.first_page,
+                refcount: *refcount,
+            });
+        }
+
         if *refcount > 1 {
-            *refcount = refcount.saturating_sub(1);
+            *refcount -= 1;
+
             return Ok(());
         }
 
         // return the fully released run to the global free-run pool
         *refcount = 0;
-        self.insert_free_run(&mut state, run);
+        self.insert_free_run(state, run)?;
 
         Ok(())
     }
@@ -242,9 +253,8 @@ impl Arena {
             return Ok(false);
         }
 
-        let mut state = self.lock_state();
-
-        let refcount = self.run_refcount_mut(&mut state, run)?;
+        let state = self.state_mut();
+        let refcount = self.run_refcount_mut(state, run)?;
 
         Ok(*refcount > 1)
     }
@@ -259,25 +269,22 @@ impl Arena {
             });
         }
 
-        let current_segments = {
-            let mut state = self.lock_state();
-            let current_segments = state.segment_count;
+        let state = self.state_mut();
+        let current_segments = state.segment_count;
 
-            // reserve the required directory range before publishing segments
-            if required_segments > state.segment_count {
-                state.segment_count = required_segments;
-                state.segments.resize(required_segments, null_mut());
-            }
+        // reserve the required directory range before publishing segments
+        if required_segments > state.segment_count {
+            state.segment_count = required_segments;
+            state.segments.resize(required_segments, null_mut());
+        }
 
-            current_segments
-        };
         if required_segments <= current_segments {
             return Ok(());
         }
 
         // publish any newly required segments
         for segment_index in current_segments..required_segments {
-            if self.publish_segment(segment_index)?.is_none() {
+            if !self.publish_segment(segment_index)? {
                 return Err(HeapError::ArenaSegmentDirectoryExhausted {
                     required_segments,
                     max_segments: MAX_ARENA_SEGMENTS,
@@ -292,9 +299,7 @@ impl Arena {
     fn zero_run(&self, run: PageRun) -> HeapResult<()> {
         // reset each page in the reused run
         for page_id in run.page_ids() {
-            let Some(page) = self.page_bytes_mut(page_id) else {
-                return Err(HeapError::CorruptMissingPage { page_id });
-            };
+            let page = self.page_slice_mut(page_id)?;
 
             page.fill(0);
         }
@@ -303,14 +308,14 @@ impl Arena {
     }
 
     /// Return one free run large enough for the requested size.
-    fn take_free_run(&self, page_count: usize) -> Option<PageRun> {
-        let mut state = self.lock_state();
+    fn take_free_run(&self, page_count: usize) -> HeapResult<Option<PageRun>> {
+        let state = self.state_mut();
         let Some((run_len, run)) = state
             .free_runs
             .range_mut(page_count..)
             .find_map(|(&run_len, runs)| runs.pop().map(|run| (run_len, run)))
         else {
-            return None;
+            return Ok(None);
         };
 
         // drop the selected extent from both free-run indexes
@@ -321,28 +326,34 @@ impl Arena {
             state.free_runs.remove(&run_len);
         }
 
-        let (allocation, remainder) = run.split_prefix(page_count)?;
+        let Some((allocation, remainder)) = run.split_prefix(page_count) else {
+            return Ok(None);
+        };
 
         // return any remainder to the free-run indexes
         if !remainder.is_empty() {
-            self.insert_free_run(&mut state, remainder);
+            self.insert_free_run(state, remainder)?;
         }
 
-        Some(allocation)
+        Ok(Some(allocation))
     }
 
     /// Return one fresh run that fits inside one existing or new segment.
     fn take_fresh_single_segment_run(&self, page_count: usize) -> HeapResult<Option<PageRun>> {
-        let segment_count = {
-            let state = self.lock_state();
-            state.segment_count
-        };
+        let segment_count = self.state().segment_count;
 
         // first try already published segments
         for segment_index in 0..segment_count {
-            if self.publish_segment(segment_index)?.is_none() {
+            if !self.publish_segment(segment_index)? {
+                let required_segments =
+                    segment_index
+                        .checked_add(1)
+                        .ok_or(HeapError::CountOverflow {
+                            current: segment_index,
+                            added: 1,
+                        })?;
                 return Err(HeapError::ArenaSegmentDirectoryExhausted {
-                    required_segments: segment_index.saturating_add(1),
+                    required_segments,
                     max_segments: MAX_ARENA_SEGMENTS,
                 });
             }
@@ -354,9 +365,16 @@ impl Arena {
 
         // otherwise publish one new segment and allocate from it
         let segment_index = self.reserve_segment_range(1)?;
-        if self.publish_segment(segment_index)?.is_none() {
+        if !self.publish_segment(segment_index)? {
+            let required_segments =
+                segment_index
+                    .checked_add(1)
+                    .ok_or(HeapError::CountOverflow {
+                        current: segment_index,
+                        added: 1,
+                    })?;
             return Err(HeapError::ArenaSegmentDirectoryExhausted {
-                required_segments: segment_index.saturating_add(1),
+                required_segments,
                 max_segments: MAX_ARENA_SEGMENTS,
             });
         }
@@ -372,10 +390,22 @@ impl Arena {
 
         // mark each newly reserved segment run as consumed
         for segment_offset in 0..required_segments {
-            let segment_index = first_segment_index.saturating_add(segment_offset);
-            if self.publish_segment(segment_index)?.is_none() {
+            let segment_index = first_segment_index.checked_add(segment_offset).ok_or(
+                HeapError::CountOverflow {
+                    current: first_segment_index,
+                    added: segment_offset,
+                },
+            )?;
+            if !self.publish_segment(segment_index)? {
+                let required_segments =
+                    segment_index
+                        .checked_add(1)
+                        .ok_or(HeapError::CountOverflow {
+                            current: segment_index,
+                            added: 1,
+                        })?;
                 return Err(HeapError::ArenaSegmentDirectoryExhausted {
-                    required_segments: segment_index.saturating_add(1),
+                    required_segments,
                     max_segments: MAX_ARENA_SEGMENTS,
                 });
             }
@@ -385,26 +415,44 @@ impl Arena {
                 self.pages_per_segment()
             };
 
-            let mut state = self.lock_state();
-            let Some(segment) = self.segment_with_state(&mut state, segment_index) else {
+            let state = self.state_mut();
+            let Some(segment) = self.segment_with_state(state, segment_index) else {
+                let required_segments =
+                    segment_index
+                        .checked_add(1)
+                        .ok_or(HeapError::CountOverflow {
+                            current: segment_index,
+                            added: 1,
+                        })?;
                 return Err(HeapError::ArenaSegmentDirectoryExhausted {
-                    required_segments: segment_index.saturating_add(1),
+                    required_segments,
                     max_segments: MAX_ARENA_SEGMENTS,
                 });
             };
             segment.next_unused_page = used_pages as u32;
         }
 
-        let first_page = PageId::new(first_segment_index.saturating_mul(self.pages_per_segment()))?;
+        let first_page_index = first_segment_index
+            .checked_mul(self.pages_per_segment())
+            .ok_or(HeapError::InvalidPageId {
+                index: first_segment_index,
+            })?;
+        let first_page = PageId::new(first_page_index)?;
 
         PageRun::new(first_page, page_count)
     }
 
     /// Return one newly reserved segment range start.
     fn reserve_segment_range(&self, segment_count: usize) -> HeapResult<usize> {
-        let mut state = self.lock_state();
+        let state = self.state_mut();
         let first_segment_index = state.segment_count;
-        let end_segment_index = first_segment_index.saturating_add(segment_count);
+        let end_segment_index =
+            first_segment_index
+                .checked_add(segment_count)
+                .ok_or(HeapError::CountOverflow {
+                    current: first_segment_index,
+                    added: segment_count,
+                })?;
 
         if end_segment_index > MAX_ARENA_SEGMENTS {
             return Err(HeapError::ArenaSegmentDirectoryExhausted {
@@ -419,15 +467,15 @@ impl Arena {
         Ok(first_segment_index)
     }
 
-    /// Publish one segment and return it.
-    fn publish_segment(&self, segment_index: usize) -> HeapResult<Option<&Segment>> {
-        let mut state = self.lock_state();
+    /// Publish one segment and report whether it is addressable.
+    fn publish_segment(&self, segment_index: usize) -> HeapResult<bool> {
+        let state = self.state_mut();
         if segment_index >= state.segment_count {
-            return Ok(None);
+            return Ok(false);
         }
 
         let Some(slot) = state.segments.get_mut(segment_index) else {
-            return Ok(None);
+            return Ok(false);
         };
         if slot.is_null() {
             let segment = Box::new(Segment::zeroed(
@@ -439,7 +487,7 @@ impl Arena {
             *slot = Box::into_raw(segment);
         }
 
-        Ok(Some(unsafe { &**slot }))
+        Ok(true)
     }
 
     /// Allocate one fresh run from one specific segment.
@@ -448,12 +496,14 @@ impl Arena {
         segment_index: usize,
         page_count: usize,
     ) -> HeapResult<Option<PageRun>> {
-        let mut state = self.lock_state();
-        let Some(segment) = self.segment_with_state(&mut state, segment_index) else {
+        let state = self.state_mut();
+        let Some(segment) = self.segment_with_state(state, segment_index) else {
             return Ok(None);
         };
         let start_page = segment.next_unused_page as usize;
-        let end_page = start_page.saturating_add(page_count);
+        let end_page = start_page
+            .checked_add(page_count)
+            .ok_or(HeapError::InvalidPageId { index: start_page })?;
 
         // stop once this segment is exhausted
         if end_page > self.pages_per_segment() {
@@ -464,8 +514,11 @@ impl Arena {
         segment.next_unused_page = end_page as u32;
 
         let first_page = segment_index
-            .saturating_mul(self.pages_per_segment())
-            .saturating_add(start_page);
+            .checked_mul(self.pages_per_segment())
+            .and_then(|first_page| first_page.checked_add(start_page))
+            .ok_or(HeapError::InvalidPageId {
+                index: segment_index,
+            })?;
 
         let first_page = PageId::new(first_page)?;
         let run = PageRun::new(first_page, page_count)?;
@@ -481,13 +534,13 @@ impl Arena {
     ) -> HeapResult<&'a mut u32> {
         let (segment_index, segment_page_index) = self.page_position(run.first_page);
         let Some(segment) = self.segment_with_state(state, segment_index) else {
-            return Err(HeapError::CorruptMissingRunRefcount {
+            return Err(HeapError::MissingRunRefcount {
                 first_page: run.first_page,
             });
         };
 
         let Some(refcount) = segment.run_refcounts.get_mut(segment_page_index) else {
-            return Err(HeapError::CorruptMissingRunRefcount {
+            return Err(HeapError::MissingRunRefcount {
                 first_page: run.first_page,
             });
         };
@@ -497,39 +550,49 @@ impl Arena {
 
     /// Initialize one fresh run refcount before publishing it.
     fn initialize_run_refcount(&self, run: PageRun) -> HeapResult<()> {
-        let mut state = self.lock_state();
-        let refcount = self.run_refcount_mut(&mut state, run)?;
+        let state = self.state_mut();
+        let refcount = self.run_refcount_mut(state, run)?;
 
         *refcount = 1;
 
         Ok(())
     }
 
-    /// Return one immutable page slice for one page id.
-    pub(crate) fn page_bytes_from_id(&self, page_id: PageId) -> Option<&[u8]> {
+    /// Return one immutable physical page slice.
+    pub(crate) fn page_slice(&self, page_id: PageId) -> HeapResult<&[u8]> {
         let (segment_index, segment_page_index) = self.page_position(page_id);
-        let segment = self.segment(segment_index)?;
+        let Some(segment) = self.segment(segment_index) else {
+            return Err(HeapError::MissingPage { page_id });
+        };
 
-        Some(segment.page(segment_page_index, self.page_bytes()))
+        Ok(segment.page(segment_page_index, self.page_bytes()))
     }
 
-    /// Return one mutable page slice for one page id.
-    pub(crate) fn page_bytes_mut(&self, page_id: PageId) -> Option<&mut [u8]> {
+    /// Return one mutable physical page slice.
+    pub(crate) fn page_slice_mut(&self, page_id: PageId) -> HeapResult<&mut [u8]> {
         let (segment_index, segment_page_index) = self.page_position(page_id);
-        let segment = self.segment(segment_index)?;
+        let Some(segment) = self.segment_mut(segment_index) else {
+            return Err(HeapError::MissingPage { page_id });
+        };
 
-        Some(segment.page_mut(segment_page_index, self.page_bytes()))
+        Ok(segment.page_mut(segment_page_index, self.page_bytes()))
     }
 
-    /// Return one published arena segment by segment index.
-    pub(super) fn segment(&self, segment_index: usize) -> Option<&Segment> {
-        let state = self.lock_state();
-        let segment_ptr = *state.segments.get(segment_index)?;
-        if segment_ptr.is_null() {
-            return None;
-        }
+    /// Return one physical page as owned bytes.
+    pub(crate) fn read_page_bytes(&self, page_id: PageId) -> HeapResult<Box<[u8]>> {
+        let page = self.page_slice(page_id)?;
 
-        Some(unsafe { &*segment_ptr })
+        Ok(page.to_vec().into_boxed_slice())
+    }
+
+    /// Report whether one segment has been published.
+    pub(super) fn has_published_segment(&self, segment_index: usize) -> bool {
+        let state = self.state();
+        state
+            .segments
+            .get(segment_index)
+            .copied()
+            .is_some_and(|segment| !segment.is_null())
     }
 
     /// Return the segment and page index for one page id.
@@ -548,34 +611,47 @@ impl Arena {
     }
 
     /// Insert one free run and coalesce it with adjacent free runs.
-    fn insert_free_run(&self, state: &mut ArenaState, run: PageRun) {
+    fn insert_free_run(&self, state: &mut ArenaState, run: PageRun) -> HeapResult<()> {
         let mut run = run;
 
         // merge the immediate predecessor when it touches this run
-        if let Some(previous_run) = self.find_previous_free_run(state, run) {
-            if previous_run.is_immediately_before(run) {
-                self.remove_free_run(state, previous_run);
-                run = PageRun::from_raw_parts(
-                    previous_run.first_page,
-                    previous_run.page_count.saturating_add(run.page_count),
-                );
-            }
+        if let Some(previous_run) = self.find_previous_free_run(state, run)
+            && previous_run.is_immediately_before(run)
+        {
+            self.remove_free_run(state, previous_run);
+            run = PageRun::new(
+                previous_run.first_page,
+                previous_run
+                    .len()
+                    .checked_add(run.len())
+                    .ok_or(HeapError::CountOverflow {
+                        current: previous_run.len(),
+                        added: run.len(),
+                    })?,
+            )?;
         }
 
         // merge the immediate successor when it touches this run
-        if let Some(next_run) = self.find_next_free_run(state, run) {
-            if run.is_immediately_before(next_run) {
-                self.remove_free_run(state, next_run);
-                run = PageRun::from_raw_parts(
-                    run.first_page,
-                    run.page_count.saturating_add(next_run.page_count),
-                );
-            }
+        if let Some(next_run) = self.find_next_free_run(state, run)
+            && run.is_immediately_before(next_run)
+        {
+            self.remove_free_run(state, next_run);
+            run = PageRun::new(
+                run.first_page,
+                run.len()
+                    .checked_add(next_run.len())
+                    .ok_or(HeapError::CountOverflow {
+                        current: run.len(),
+                        added: next_run.len(),
+                    })?,
+            )?;
         }
 
         // publish the merged run into both indexes
         state.free_runs.entry(run.len()).or_default().push(run);
         state.free_runs_by_start.insert(run.first_page.index(), run);
+
+        Ok(())
     }
 
     /// Remove one free run from both free-run indexes.
@@ -619,10 +695,17 @@ impl Arena {
         segment_index: usize,
         high_watermark: usize,
     ) -> HeapResult<()> {
-        let mut state = self.lock_state();
-        let Some(segment) = self.segment_with_state(&mut state, segment_index) else {
+        let state = self.state_mut();
+        let Some(segment) = self.segment_with_state(state, segment_index) else {
+            let required_segments =
+                segment_index
+                    .checked_add(1)
+                    .ok_or(HeapError::CountOverflow {
+                        current: segment_index,
+                        added: 1,
+                    })?;
             return Err(HeapError::ArenaSegmentDirectoryExhausted {
-                required_segments: segment_index.saturating_add(1),
+                required_segments,
                 max_segments: MAX_ARENA_SEGMENTS,
             });
         };
@@ -632,15 +715,19 @@ impl Arena {
         Ok(())
     }
 
-    /// Return the locked mutable arena state.
-    fn lock_state(&self) -> MutexGuard<'_, ArenaState> {
-        match self.state.lock() {
-            Ok(state) => state,
-            Err(poisoned) => poisoned.into_inner(),
-        }
+    /// Return the runtime-local arena state immutably.
+    fn state(&self) -> &ArenaState {
+        // arena access is synchronized by the owning runtime, not internally
+        unsafe { &*self.state.get() }
     }
 
-    /// Return one published segment through one locked arena state.
+    /// Return the runtime-local arena state mutably.
+    fn state_mut(&self) -> &mut ArenaState {
+        // arena access is synchronized by the owning runtime, not internally
+        unsafe { &mut *self.state.get() }
+    }
+
+    /// Return one published segment through one arena state.
     fn segment_with_state<'a>(
         &self,
         state: &'a mut ArenaState,
@@ -653,6 +740,38 @@ impl Arena {
 
         Some(unsafe { &mut *segment_ptr })
     }
+
+    /// Return one published segment immutably.
+    fn segment(&self, segment_index: usize) -> Option<&Segment> {
+        let segment_ptr = *self.state().segments.get(segment_index)?;
+        if segment_ptr.is_null() {
+            return None;
+        }
+
+        Some(unsafe { &*segment_ptr })
+    }
+
+    /// Return one published segment mutably.
+    fn segment_mut(&self, segment_index: usize) -> Option<&mut Segment> {
+        let segment_ptr = *self.state().segments.get(segment_index)?;
+        if segment_ptr.is_null() {
+            return None;
+        }
+
+        Some(unsafe { &mut *segment_ptr })
+    }
+}
+
+impl ArenaState {
+    /// Create one empty arena state.
+    fn new() -> Self {
+        Self {
+            segment_count: 0,
+            segments: Vec::new(),
+            free_runs: BTreeMap::new(),
+            free_runs_by_start: BTreeMap::new(),
+        }
+    }
 }
 
 /// Allocate one zeroed page-aligned segment for arena page storage.
@@ -661,8 +780,9 @@ pub(crate) fn allocate_page_segment_bytes(
     page_bytes: usize,
 ) -> HeapResult<*mut u8> {
     let layout = page_segment_layout(byte_len, page_bytes)?;
-    let data = unsafe { alloc_zeroed(layout) };
 
+    // actually allocate
+    let data = unsafe { alloc_zeroed(layout) };
     if data.is_null() {
         return Err(HeapError::ArenaSegmentAllocationFailed {
             byte_len,
@@ -678,11 +798,11 @@ pub(crate) fn free_page_segment_bytes(data: *mut u8, byte_len: usize, page_bytes
     if data.is_null() {
         return;
     }
-
     let Ok(layout) = page_segment_layout(byte_len, page_bytes) else {
         return;
     };
 
+    // actually deallocate
     unsafe {
         dealloc(data, layout);
     }
@@ -691,7 +811,6 @@ pub(crate) fn free_page_segment_bytes(data: *mut u8, byte_len: usize, page_bytes
 /// Return one page-aligned allocation layout for one segment.
 fn page_segment_layout(byte_len: usize, page_bytes: usize) -> HeapResult<Layout> {
     let byte_len = byte_len.max(1);
-
     Layout::from_size_align(byte_len, page_bytes).map_err(|_| {
         HeapError::InvalidArenaSegmentLayout {
             byte_len,

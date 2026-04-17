@@ -185,7 +185,7 @@ impl Bitmap {
     }
 
     /// Visit each contiguous set-bit range.
-    pub fn for_each_set_range(&self, mut callback: impl FnMut(usize, usize)) {
+    pub fn visit_set_ranges(&self, mut callback: impl FnMut(usize, usize)) {
         let mut start = 0usize;
 
         // walk each retained set-bit run in order

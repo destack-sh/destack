@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{HeapError, HeapResult, INLINE_PAGE_PATCH_COUNT};
+use crate::{HeapError, HeapResult};
+
+/// The number of inline page patches per logical page view.
+const INLINE_PAGE_PATCH_COUNT: usize = 3;
 
 /// One stable arena page identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -62,7 +65,7 @@ impl PageRun {
             },
         )?;
 
-        if end_page_index > (u32::MAX as usize).saturating_add(1) {
+        if end_page_index > (u32::MAX as usize) + 1 {
             return Err(HeapError::InvalidPageRun {
                 first_page,
                 page_count: page_count as usize,
@@ -73,6 +76,14 @@ impl PageRun {
             first_page,
             page_count,
         })
+    }
+
+    /// Return one trusted page run from encoded parts.
+    pub(crate) const fn from_raw_parts(first_page: PageId, page_count: u32) -> Self {
+        Self {
+            first_page,
+            page_count,
+        }
     }
 
     /// Return the number of pages in this run.
@@ -87,7 +98,7 @@ impl PageRun {
 
     /// Return the zero-based exclusive end page index in this run.
     pub fn end_page_index(self) -> usize {
-        self.start_page_index().saturating_add(self.len())
+        self.start_page_index() + self.len()
     }
 
     /// Report whether this run is empty.
@@ -116,8 +127,8 @@ impl PageRun {
 
         let prefix = Self::from_raw_parts(self.first_page, page_count as u32);
         let suffix = Self::from_raw_parts(
-            PageId::from_raw(self.first_page.raw().saturating_add(page_count as u32)),
-            self.page_count.saturating_sub(page_count as u32),
+            PageId::from_raw(self.first_page.raw() + page_count as u32),
+            self.page_count - page_count as u32,
         );
 
         Some((prefix, suffix))
@@ -129,25 +140,15 @@ impl PageRun {
             return None;
         }
 
-        Some(PageId::from_raw(
-            self.first_page.raw().saturating_add(index as u32),
-        ))
+        Some(PageId::from_raw(self.first_page.raw() + index as u32))
     }
 
     /// Return every page id in this run.
     pub fn page_ids(self) -> impl Iterator<Item = PageId> {
         let start = self.first_page.index();
-        let end = start.saturating_add(self.len());
+        let end = start + self.len();
 
         (start..end).map(|page_index| PageId::from_raw(page_index as u32))
-    }
-
-    /// Return one trusted page run from encoded parts.
-    pub(crate) const fn from_raw_parts(first_page: PageId, page_count: u32) -> Self {
-        Self {
-            first_page,
-            page_count,
-        }
     }
 }
 
@@ -227,14 +228,20 @@ impl PageView {
     }
 
     /// Return the number of active inline patches.
+    #[inline]
     pub fn patch_count(&self) -> usize {
-        patch_count(&self.patches)
+        for (patch_index, patch) in self.patches.iter().enumerate() {
+            if patch.is_empty() {
+                return patch_index;
+            }
+        }
+
+        INLINE_PAGE_PATCH_COUNT
     }
 
     /// Report whether this view can record one more distinct patch inline.
     pub fn can_patch(&self, page_index: usize) -> bool {
-        patch_at(self.patches(), page_index).is_some()
-            || self.patch_count() < INLINE_PAGE_PATCH_COUNT
+        self.patch_at(page_index).is_some() || self.patch_count() < INLINE_PAGE_PATCH_COUNT
     }
 
     /// Return the effective page id by logical page index.
@@ -249,9 +256,7 @@ impl PageView {
             return None;
         }
 
-        let patches = self.patches();
-
-        if let Some(patch) = patch_at(patches, index) {
+        if let Some(patch) = self.patch_at(index) {
             return Some(PageSlot {
                 run: PageRun::single_page(patch.page_id),
                 run_page_index: 0,
@@ -275,11 +280,11 @@ impl PageView {
     pub(crate) fn set_patch(&mut self, page_index: usize, page_id: PageId) -> HeapResult<()> {
         // reject patch indices outside the logical page range
         if page_index >= self.len() {
-            return Err(HeapError::CorruptMissingLogicalPage { page_index });
+            return Err(HeapError::MissingLogicalPage { page_index });
         }
 
         let page_index = page_index as u32;
-        let active_count = patch_count(&self.patches);
+        let active_count = self.patch_count();
         let active = &self.patches[..active_count];
         let result = active.binary_search_by_key(&page_index, |patch| patch.page_index);
 
@@ -292,7 +297,7 @@ impl PageView {
 
         // reject new patches once the inline patch set is full
         if active_count >= INLINE_PAGE_PATCH_COUNT {
-            return Err(HeapError::CorruptPagePatchCapacityExceeded {
+            return Err(HeapError::PagePatchCapacityExceeded {
                 page_count: self.len(),
                 patch_capacity: INLINE_PAGE_PATCH_COUNT,
             });
@@ -314,6 +319,17 @@ impl PageView {
         };
 
         Ok(())
+    }
+
+    /// Return one patch by logical page index.
+    fn patch_at(&self, page_index: usize) -> Option<PagePatch> {
+        let page_index = page_index as u32;
+        let patch_index = self
+            .patches()
+            .binary_search_by_key(&page_index, |patch| patch.page_index);
+        let patch_index = patch_index.ok()?;
+
+        self.patches.get(patch_index).copied()
     }
 }
 
@@ -361,13 +377,13 @@ impl Iterator for PageViewIter<'_> {
         // advance the logical cursor first
         let patches = self.page_view.patches();
         let current_index = self.page_index;
-        self.page_index = self.page_index.saturating_add(1);
+        self.page_index += 1;
 
         // yield one patched page when present
         if let Some(patch) = patches.get(self.patch_index)
             && patch.page_index as usize == current_index
         {
-            self.patch_index = self.patch_index.saturating_add(1);
+            self.patch_index += 1;
 
             return Some(patch.page_id);
         }
@@ -375,24 +391,4 @@ impl Iterator for PageViewIter<'_> {
         // otherwise fall back to the base run
         self.page_view.base_run.page(current_index)
     }
-}
-
-/// Return one patch by logical page index.
-fn patch_at(patches: &[PagePatch], page_index: usize) -> Option<PagePatch> {
-    let page_index = page_index as u32;
-    let patch_index = patches.binary_search_by_key(&page_index, |patch| patch.page_index);
-    let patch_index = patch_index.ok()?;
-
-    patches.get(patch_index).copied()
-}
-
-/// Return the number of active inline patches.
-fn patch_count(patches: &[PagePatch; INLINE_PAGE_PATCH_COUNT]) -> usize {
-    for (patch_index, patch) in patches.iter().enumerate() {
-        if patch.page_index == u32::MAX {
-            return patch_index;
-        }
-    }
-
-    INLINE_PAGE_PATCH_COUNT
 }

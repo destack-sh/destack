@@ -18,7 +18,7 @@ impl ManagedReference {
 
     /// Create a new managed reference from a raw id.
     #[inline]
-    pub fn new(id: u64) -> Self {
+    pub fn new(id: u32) -> Self {
         ManagedReference::with_slot_offset(id, 0)
     }
 
@@ -30,8 +30,8 @@ impl ManagedReference {
 
     /// Return the raw id of this reference.
     #[inline]
-    pub fn id(&self) -> u64 {
-        self.0 & POINTER_BASE_MASK
+    pub fn id(&self) -> u32 {
+        (self.0 & POINTER_BASE_MASK) as u32
     }
 
     /// Return the raw bits for this reference.
@@ -60,15 +60,15 @@ impl ManagedReference {
 
     /// Create a new reference with an aggregate slot offset.
     #[inline]
-    pub fn with_slot_offset(id: u64, slot_offset: u32) -> Self {
-        let base = id & POINTER_BASE_MASK;
+    pub fn with_slot_offset(id: u32, slot_offset: u32) -> Self {
+        let base = id as u64;
         let slot = (slot_offset as u64) << POINTER_SLOT_SHIFT;
         ManagedReference(base | slot)
     }
 
     /// Create a new reference with a byte offset.
     #[inline]
-    pub fn with_byte_offset(id: u64, byte_offset: u32) -> Self {
+    pub fn with_byte_offset(id: u32, byte_offset: u32) -> Self {
         Self::with_slot_offset(id, byte_offset)
     }
 }
@@ -83,7 +83,7 @@ impl RawPointer {
 
     /// Create a new raw pointer from an id.
     #[inline]
-    pub fn new(id: u64) -> Self {
+    pub fn new(id: u32) -> Self {
         RawPointer::with_slot_offset(id, 0)
     }
 
@@ -95,8 +95,8 @@ impl RawPointer {
 
     /// Return the raw id of this pointer.
     #[inline]
-    pub fn id(&self) -> u64 {
-        self.0 & POINTER_BASE_MASK
+    pub fn id(&self) -> u32 {
+        (self.0 & POINTER_BASE_MASK) as u32
     }
 
     /// Return the raw bits for this pointer.
@@ -125,31 +125,31 @@ impl RawPointer {
 
     /// Create a new raw pointer with an aggregate slot offset.
     #[inline]
-    pub fn with_slot_offset(id: u64, slot_offset: u32) -> Self {
-        let base = id & POINTER_BASE_MASK;
+    pub fn with_slot_offset(id: u32, slot_offset: u32) -> Self {
+        let base = id as u64;
         let slot = (slot_offset as u64) << POINTER_SLOT_SHIFT;
         RawPointer(base | slot)
     }
 
     /// Create a new raw pointer with a byte offset.
     #[inline]
-    pub fn with_byte_offset(id: u64, byte_offset: u32) -> Self {
+    pub fn with_byte_offset(id: u32, byte_offset: u32) -> Self {
         Self::with_slot_offset(id, byte_offset)
     }
 }
 
-/// Pointer to one shared-memory region.
+/// Pointer to a world-shared space allocation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SharedPointer(pub(crate) u64);
 
 impl SharedPointer {
-    /// The null shared pointer.
+    /// The null pointer.
     pub const NULL: Self = SharedPointer(0);
 
-    /// Create a new shared pointer from one id.
+    /// Create a new shared pointer from an id.
     #[inline]
-    pub fn new(id: u64) -> Self {
-        Self::with_byte_offset(id, 0)
+    pub fn new(id: u32) -> Self {
+        SharedPointer::with_byte_offset(id, 0)
     }
 
     /// Check if this pointer is null.
@@ -158,10 +158,10 @@ impl SharedPointer {
         self.id() == 0
     }
 
-    /// Return the shared region id.
+    /// Return the raw id of this pointer.
     #[inline]
-    pub fn id(&self) -> u64 {
-        self.0 & POINTER_BASE_MASK
+    pub fn id(&self) -> u32 {
+        (self.0 & POINTER_BASE_MASK) as u32
     }
 
     /// Return the raw bits for this pointer.
@@ -184,8 +184,8 @@ impl SharedPointer {
 
     /// Create a new shared pointer with a byte offset.
     #[inline]
-    pub fn with_byte_offset(id: u64, byte_offset: u32) -> Self {
-        let base = id & POINTER_BASE_MASK;
+    pub fn with_byte_offset(id: u32, byte_offset: u32) -> Self {
+        let base = id as u64;
         let offset = (byte_offset as u64) << POINTER_SLOT_SHIFT;
         SharedPointer(base | offset)
     }

@@ -1,53 +1,54 @@
-use super::{ManagedLocation, ManagedReferenceRecord, ManagedSpace, ReferenceMapId};
+use super::{ManagedLocation, ManagedSpace, MapId};
 use crate::value::ManagedReference;
+use crate::{HeapDomain, HeapError, HeapResult};
 
 impl ManagedSpace {
-    /// Free one managed allocation.
-    pub fn free(&mut self, reference: ManagedReference) -> bool {
-        // resolve the live allocation first
+    /// Free one managed entry.
+    pub fn free(&mut self, reference: ManagedReference) -> HeapResult<bool> {
+        // resolve the live entry first
         let reference_id = reference.id();
         let Some(record) = self.reference(reference).copied() else {
-            return false;
+            return Err(HeapError::InvalidManagedReference { reference });
         };
-        let location = record.location();
+        let Some(location) = record.location() else {
+            return Err(HeapError::InvalidManagedReference { reference });
+        };
+        let freed_bytes = record.byte_len() as u64;
+        self.totals.check_free(freed_bytes, HeapDomain::Managed)?;
 
         match location {
-            // release one young allocation in place
+            // release one young entry in place
             ManagedLocation::Young(young_id) => {
-                let Some(allocation) = self.young_allocation_mut(young_id) else {
-                    return false;
+                let Some(entry) = self.young_entry_mut(young_id) else {
+                    return Err(HeapError::MissingYoungEntry {
+                        generation: young_id.generation(),
+                        entry_index: young_id.index(),
+                    });
                 };
 
-                if !allocation.is_allocated {
-                    return false;
+                if !entry.is_live {
+                    return Err(HeapError::MissingYoungEntry {
+                        generation: young_id.generation(),
+                        entry_index: young_id.index(),
+                    });
                 }
 
-                allocation.is_allocated = false;
-                allocation.marked = false;
-                self.young.free_ids = self.push_boxed_u32(&self.young.free_ids, young_id.index());
+                entry.is_live = false;
 
-                // update heap accounting
-                self.allocated_count = self.allocated_count.saturating_sub(1);
-                self.allocated_bytes = self
-                    .allocated_bytes
-                    .saturating_sub(record.byte_len() as u64);
+                // update heap usage
+                self.totals.free(freed_bytes, HeapDomain::Managed)?;
 
                 // clear the stable reference slot
-                self.free_reference_ids.push(reference_id);
+                self.retire_reference(reference_id)?;
 
-                if let Some(entry) = self
-                    .references
-                    .get_mut(reference_id.saturating_sub(1) as usize)
-                {
-                    *entry = ManagedReferenceRecord::vacant();
-                }
-
-                true
+                Ok(true)
             }
             // release one small-span slot
             ManagedLocation::Small(slot) => {
                 let Some(span) = self.span_mut(slot.span_index()) else {
-                    return false;
+                    return Err(HeapError::MissingSpan {
+                        span_index: slot.span_index(),
+                    });
                 };
 
                 let slot_index = slot.slot_index();
@@ -55,14 +56,23 @@ impl ManagedSpace {
                 let size_class = span.size_class;
 
                 if !span.occupied.contains(slot_index) {
-                    return false;
+                    return Err(HeapError::MissingSmallSlot {
+                        span_index: slot.span_index(),
+                        slot_index,
+                    });
+                }
+                if span.occupied_count == 0 {
+                    return Err(HeapError::MissingSmallSlot {
+                        span_index: slot.span_index(),
+                        slot_index,
+                    });
                 }
 
                 span.occupied.clear(slot_index);
-                span.occupied_count = span.occupied_count.saturating_sub(1);
+                span.occupied_count -= 1;
                 span.next_free_slot = span.next_free_slot.min(slot_index);
-                Self::set_span_trace_id(span, slot_index, ReferenceMapId::new(0));
-                Self::set_span_layout_id(span, slot_index, None);
+                span.set_map_id(slot_index, MapId::empty());
+                span.set_layout_id(slot_index, None);
 
                 // requeue the span if it was full before the free
                 let should_requeue = was_full && span.occupied_count < span.slot_count;
@@ -75,58 +85,52 @@ impl ManagedSpace {
                     }
                 }
 
-                // update heap accounting
-                self.allocated_count = self.allocated_count.saturating_sub(1);
-                self.allocated_bytes = self
-                    .allocated_bytes
-                    .saturating_sub(record.byte_len() as u64);
+                // update heap usage
+                self.totals.free(freed_bytes, HeapDomain::Managed)?;
 
                 // clear the stable reference slot
-                self.free_reference_ids.push(reference_id);
+                self.retire_reference(reference_id)?;
 
-                if let Some(entry) = self
-                    .references
-                    .get_mut(reference_id.saturating_sub(1) as usize)
-                {
-                    *entry = ManagedReferenceRecord::vacant();
-                }
-
-                true
+                Ok(true)
             }
-            // release one allocation in large space and its arena pages
-            ManagedLocation::Large(allocation_id) => {
+            // release one entry in large space and its arena pages
+            ManagedLocation::Large(entry_id) => {
                 let arena = self.arena().clone();
-                let Some(allocation) = self.allocation_mut(allocation_id) else {
-                    return false;
+                let Some(entry) = self.large_entry(entry_id) else {
+                    return Err(HeapError::MissingLargeEntry {
+                        entry_id: entry_id.id(),
+                    });
                 };
 
-                if !allocation.is_allocated {
-                    return false;
+                if !entry.is_live {
+                    return Err(HeapError::MissingLargeEntry {
+                        entry_id: entry_id.id(),
+                    });
                 }
 
-                allocation.is_allocated = false;
-                let pages = allocation.pages.clone();
-                arena.release_pages(&pages);
+                let pages = entry.pages;
 
-                // update heap accounting
-                self.allocated_count = self.allocated_count.saturating_sub(1);
-                self.allocated_bytes = self
-                    .allocated_bytes
-                    .saturating_sub(record.byte_len() as u64);
+                let Some(entry) = self.large_entry_mut(entry_id) else {
+                    return Err(HeapError::MissingLargeEntry {
+                        entry_id: entry_id.id(),
+                    });
+                };
+
+                // retire the live large-entry slot before releasing its pages
+                entry.retire();
+                self.large.free_large_entry_ids.push(entry_id.id());
+
+                // update heap usage
+                self.totals.free(freed_bytes, HeapDomain::Managed)?;
 
                 // clear the stable reference slot
-                self.free_reference_ids.push(reference_id);
+                self.retire_reference(reference_id)?;
 
-                if let Some(entry) = self
-                    .references
-                    .get_mut(reference_id.saturating_sub(1) as usize)
-                {
-                    *entry = ManagedReferenceRecord::vacant();
-                }
+                // release the old physical pages after the live slot is gone
+                arena.release_page_view(&pages)?;
 
-                true
+                Ok(true)
             }
-            ManagedLocation::Vacant => false,
         }
     }
 }

@@ -1,19 +1,20 @@
 use serde::{Deserialize, Serialize};
 
-use super::{ReferenceMapId, StoredLayoutId};
-use crate::alloc::{Arena, PageMap};
+use super::MapId;
+use crate::alloc::{Arena, PageView};
+use crate::{HeapError, HeapResult, StorageLayoutId};
 
-/// One stable managed young-allocation identifier.
+/// One stable managed young-entry identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct ManagedYoungId {
-    /// The young-space generation that owns this allocation.
+    /// The young-space generation that owns this entry.
     generation: u32,
-    /// The zero-based allocation index inside that generation.
+    /// The zero-based entry index inside that generation.
     index: u32,
 }
 
 impl ManagedYoungId {
-    /// Create one managed young-allocation identifier.
+    /// Create one managed young-entry identifier.
     pub(crate) const fn new(generation: u32, index: u32) -> Self {
         Self { generation, index }
     }
@@ -23,35 +24,31 @@ impl ManagedYoungId {
         self.generation
     }
 
-    /// Return the zero-based young-allocation index.
+    /// Return the zero-based young-entry index.
     pub(crate) const fn index(self) -> u32 {
         self.index
     }
 }
 
-/// One live young-allocation metadata entry.
+/// One live young-entry metadata entry.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct YoungAllocation {
-    /// The first page touched by this allocation.
+pub(crate) struct YoungEntry {
+    /// The first page touched by this entry.
     pub(crate) first_page: u32,
     /// The first byte offset inside the first page.
     pub(crate) first_offset: u32,
-    /// The logical byte length for this allocation.
+    /// The logical byte length for this entry.
     pub(crate) byte_len: usize,
-    /// The interned reference map for this allocation.
-    pub(crate) trace_id: ReferenceMapId,
-    /// The durable layout id for this allocation, if any.
-    pub(crate) layout_id: StoredLayoutId,
-    /// The survivor age for this allocation.
-    pub(crate) age: u8,
-    /// Whether this young allocation is still live.
-    pub(crate) is_allocated: bool,
-    /// Whether this young allocation is marked in the current collection.
-    pub(crate) marked: bool,
+    /// The interned reference map for this entry.
+    pub(crate) map_id: MapId,
+    /// The durable layout id for this entry, if any.
+    pub(crate) layout_id: Option<StorageLayoutId>,
+    /// Whether this young entry is still live.
+    pub(crate) is_live: bool,
 }
 
 /// One frozen young-space root.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct YoungImage {
     /// The generation number for this young space.
     generation: u32,
@@ -62,33 +59,12 @@ pub(crate) struct YoungImage {
     /// The bump-allocation cursor inside the logical young byte space.
     next_offset: usize,
     /// The arena pages backing this young space.
-    pages: PageMap,
-    /// The captured young-allocation metadata entries.
-    allocations: Box<[YoungAllocation]>,
-    /// The reusable metadata entry ids.
-    free_ids: Box<[u32]>,
+    pages: PageView,
+    /// The captured young-entry metadata entries.
+    entries: Box<[YoungEntry]>,
 }
 
-/// One serialized young-space snapshot.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct YoungSnapshot {
-    /// The generation number for this young space.
-    pub generation: u32,
-    /// The configured byte capacity for the young space.
-    pub capacity_bytes: usize,
-    /// The fixed page width for young storage.
-    pub page_bytes: usize,
-    /// The bump-allocation cursor inside the logical young byte space.
-    pub next_offset: usize,
-    /// The arena pages backing this young space.
-    pub pages: PageMap,
-    /// The serialized young-allocation metadata entries.
-    pub allocations: Box<[YoungAllocation]>,
-    /// The reusable metadata entry ids.
-    pub free_ids: Box<[u32]>,
-}
-
-/// One live managed young-allocation space.
+/// One live managed young space.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct YoungSpace {
     /// The generation number for this young space.
@@ -100,35 +76,45 @@ pub(crate) struct YoungSpace {
     /// The bump-allocation cursor inside the logical young byte space.
     pub(crate) next_offset: usize,
     /// The arena pages backing this young space.
-    pub(crate) pages: PageMap,
-    /// The live young-allocation metadata entries.
-    pub(crate) allocations: Box<[YoungAllocation]>,
-    /// The reusable metadata entry ids.
-    pub(crate) free_ids: Box<[u32]>,
+    pub(crate) pages: PageView,
+    /// The live young-entry metadata entries.
+    pub(crate) entries: Vec<YoungEntry>,
 }
 
 impl YoungSpace {
-    /// Create one empty young space with its full nursery reservation.
-    pub(crate) fn new(arena: &Arena, capacity_bytes: usize, page_bytes: usize) -> Self {
-        Self {
+    /// Create one empty young space with its full page run.
+    pub(crate) fn new(arena: &Arena, capacity_bytes: usize, page_bytes: usize) -> HeapResult<Self> {
+        Ok(Self {
             generation: 0,
             capacity_bytes,
             page_bytes,
             next_offset: 0,
-            pages: arena.allocate_zeroed(capacity_bytes),
-            allocations: Box::new([]),
-            free_ids: Box::new([]),
-        }
+            pages: arena.allocate_zeroed(capacity_bytes)?,
+            entries: Vec::new(),
+        })
     }
 
-    /// Reset this young space with a fresh nursery reservation.
-    pub(crate) fn reset(&mut self, arena: &Arena) {
-        arena.release_pages(&self.pages);
-        self.generation = self.generation.saturating_add(1);
+    /// Reset this young space with a fresh page run.
+    pub(crate) fn reset(&mut self, arena: &Arena) -> HeapResult<()> {
+        let pages = arena.allocate_zeroed(self.capacity_bytes)?;
+
+        if let Err(error) = arena.release_page_view(&self.pages) {
+            arena.release_page_view(&pages)?;
+
+            return Err(error);
+        }
+
+        self.generation =
+            self.generation
+                .checked_add(1)
+                .ok_or(HeapError::ManagedYoungGenerationOverflow {
+                    generation: self.generation,
+                })?;
         self.next_offset = 0;
-        self.pages = arena.allocate_zeroed(self.capacity_bytes);
-        self.allocations = Box::new([]);
-        self.free_ids = Box::new([]);
+        self.pages = pages;
+        self.entries.clear();
+
+        Ok(())
     }
 }
 
@@ -139,9 +125,8 @@ impl YoungImage {
         capacity_bytes: usize,
         page_bytes: usize,
         next_offset: usize,
-        pages: PageMap,
-        allocations: Box<[YoungAllocation]>,
-        free_ids: Box<[u32]>,
+        pages: PageView,
+        entries: Box<[YoungEntry]>,
     ) -> Self {
         Self {
             generation,
@@ -149,34 +134,7 @@ impl YoungImage {
             page_bytes,
             next_offset,
             pages,
-            allocations,
-            free_ids,
-        }
-    }
-
-    /// Build one frozen young-space root from one serialized snapshot.
-    pub(crate) fn from_snapshot(snapshot: &YoungSnapshot) -> Self {
-        Self {
-            generation: snapshot.generation,
-            capacity_bytes: snapshot.capacity_bytes,
-            page_bytes: snapshot.page_bytes,
-            next_offset: snapshot.next_offset,
-            pages: snapshot.pages.clone(),
-            allocations: snapshot.allocations.clone(),
-            free_ids: snapshot.free_ids.clone(),
-        }
-    }
-
-    /// Flatten one frozen young-space root into one serialized snapshot.
-    pub(crate) fn snapshot(&self) -> YoungSnapshot {
-        YoungSnapshot {
-            generation: self.generation,
-            capacity_bytes: self.capacity_bytes,
-            page_bytes: self.page_bytes,
-            next_offset: self.next_offset,
-            pages: self.pages.clone(),
-            allocations: self.allocations.clone(),
-            free_ids: self.free_ids.clone(),
+            entries,
         }
     }
 
@@ -201,17 +159,12 @@ impl YoungImage {
     }
 
     /// Return the arena pages for this young root.
-    pub(crate) fn pages(&self) -> &PageMap {
+    pub(crate) fn pages(&self) -> &PageView {
         &self.pages
     }
 
-    /// Return the allocation table.
-    pub(crate) fn allocations(&self) -> &[YoungAllocation] {
-        &self.allocations
-    }
-
-    /// Return the reusable young ids.
-    pub(crate) fn free_ids(&self) -> &[u32] {
-        &self.free_ids
+    /// Return the entry table.
+    pub(crate) fn entries(&self) -> &[YoungEntry] {
+        &self.entries
     }
 }

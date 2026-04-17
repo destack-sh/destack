@@ -26,7 +26,7 @@ impl HeapDomain {
         match self {
             Self::Managed => "managed heap",
             Self::Raw => "raw heap",
-            Self::Shared => "shared-memory",
+            Self::Shared => "shared-space",
             Self::Total => "total heap",
         }
     }
