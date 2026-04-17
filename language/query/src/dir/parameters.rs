@@ -47,7 +47,7 @@ pub(crate) fn parameter_display_name(repository: &Repository, parameter: &Parame
     }
 }
 
-/// Collect parameter display names from dynamic parameter nodes.
+/// Collect parameter display names from parameter nodes.
 pub(crate) fn parameter_display_names(
     repository: &Repository,
     tree: &NodeTree,
@@ -63,8 +63,8 @@ pub(crate) fn parameter_display_names(
         .collect()
 }
 
-/// Get dynamic parameter names for a function symbol.
-pub(crate) fn dynamic_parameter_names(
+/// Get parameter names for a function symbol.
+pub(crate) fn parameter_names_for_symbol(
     repository: &Repository,
     revision: Revision,
     symbol_id: GlobalSymbolId,
@@ -311,14 +311,14 @@ fn collect_expected_type_symbols_inner(
 /// Resolve the parameter node that should guide one argument index.
 fn resolve_expected_parameter_id(
     dir_tree: &NodeTree,
-    dynamic_parameters: &[LocalNodeId<Parameter>],
+    parameters: &[LocalNodeId<Parameter>],
     parameter_index: usize,
 ) -> Option<LocalNodeId<Parameter>> {
-    if let Some(parameter_id) = dynamic_parameters.get(parameter_index) {
+    if let Some(parameter_id) = parameters.get(parameter_index) {
         return Some(*parameter_id);
     }
 
-    let last_parameter_id = *dynamic_parameters.last()?;
+    let last_parameter_id = *parameters.last()?;
     let last_parameter = dir_tree.get::<Parameter>(last_parameter_id);
     match last_parameter {
         Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => {

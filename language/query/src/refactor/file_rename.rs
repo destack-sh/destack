@@ -265,12 +265,13 @@ mod tests {
         SpecifierPolicy, SpecifierRenameMatch, apply_rename_to_specifier, match_specifier_rename,
     };
     use destack_source::PathExt;
-    use destack_workspace::Repository;
+    use destack_workspace::{AmbientSnapshot, Repository};
 
     /// Match absolute target paths against workspace relative rename entries.
     #[test]
     fn test_match_path_rename_entry_for_absolute_target() {
-        let repository = Repository::open_root(PathBuf::from("/test"));
+        let repository =
+            Repository::open_root(PathBuf::from("/test"), AmbientSnapshot::capture_process());
         let workspace_root = repository.workspace_root().to_path_buf().normalize();
         let policy = SpecifierPolicy {
             fs: &**repository.file_system(),

@@ -321,7 +321,7 @@ fn overload_definition_span_for_call_site(
     }
 
     // resolve the selected call candidate signature
-    let (target_symbol, dynamic_parameters) = {
+    let (target_symbol, parameters) = {
         let types = ctx.dir().types();
         let node_id = GlobalNodeIdAny {
             module_id: ctx.module_id(),
@@ -332,11 +332,7 @@ fn overload_definition_span_for_call_site(
         match resolution {
             Resolution::Static { candidate, .. } => Some((
                 get_canonical_symbol(repository, revision, candidate.target_symbol),
-                candidate
-                    .resolved_signature
-                    .as_ref()?
-                    .dynamic_parameters
-                    .clone(),
+                candidate.resolved_signature.as_ref()?.parameters.clone(),
             )),
             _ => None,
         }
@@ -347,20 +343,15 @@ fn overload_definition_span_for_call_site(
         return None;
     }
 
-    overload_declaration_span_for_signature(
-        repository,
-        revision,
-        target_symbol,
-        &dynamic_parameters,
-    )
+    overload_declaration_span_for_signature(repository, revision, target_symbol, &parameters)
 }
 
-/// Resolve an overload declaration span by matching dynamic parameter type ids.
+/// Resolve an overload declaration span by matching parameter type ids.
 fn overload_declaration_span_for_signature(
     repository: &Repository,
     revision: Revision,
     symbol_id: dir::GlobalSymbolId,
-    dynamic_parameter_types: &[dir::LocalTypeId],
+    parameter_types: &[dir::LocalTypeId],
 ) -> Option<Span> {
     // resolve the symbol context and declarations
     let ctx = query_context(repository, revision, symbol_id.module_id)?;
@@ -383,18 +374,19 @@ fn overload_declaration_span_for_signature(
 
     // find the declaration whose parameter type ids match the resolved signature
     for declaration in declarations {
-        let Some(parameter_types) = declaration_parameter_type_ids(&ctx, declaration.local_id)
+        let Some(declaration_parameter_types) =
+            declaration_parameter_type_ids(&ctx, declaration.local_id)
         else {
             continue;
         };
 
-        if parameter_types.len() != dynamic_parameter_types.len() {
+        if declaration_parameter_types.len() != parameter_types.len() {
             continue;
         }
 
-        if parameter_types
+        if declaration_parameter_types
             .iter()
-            .zip(dynamic_parameter_types.iter())
+            .zip(parameter_types.iter())
             .all(|(left, right)| left == right)
         {
             return Some(get_node_tree_main_span(

@@ -61,10 +61,10 @@ pub fn format_type(
         dir::Type::This => "this".to_string(),
         dir::Type::Reference {
             symbol,
-            static_arguments,
+            generic_arguments,
         } => format_type_reference(
             *symbol,
-            static_arguments.as_deref(),
+            generic_arguments.as_deref(),
             types,
             repository,
             revision,
@@ -132,7 +132,7 @@ pub fn format_type(
         dir::Type::Import {
             target,
             qualifier,
-            static_arguments,
+            generic_arguments,
         } => {
             let target = strings.get(*target);
             let mut result = format!("import(\"{}\")", target.as_ref());
@@ -141,8 +141,8 @@ pub fn format_type(
                 result.push('.');
                 result.push_str(&path);
             }
-            if let Some(static_arguments) = static_arguments {
-                let formatted_arguments = static_arguments
+            if let Some(generic_arguments) = generic_arguments {
+                let formatted_arguments = generic_arguments
                     .iter()
                     .map(|argument| {
                         format_static_argument(argument, types, repository, revision, strings)
@@ -358,9 +358,9 @@ pub fn format_type(
         dir::Type::Function {
             asynchrony,
             cardinality: _,
-            static_parameters,
+            generic_parameters,
             this_parameter,
-            dynamic_parameters,
+            parameters,
             return_type,
         } => {
             let async_str = if *asynchrony == dir::Asynchrony::Async {
@@ -368,23 +368,23 @@ pub fn format_type(
             } else {
                 ""
             };
-            let static_params_str = if static_parameters.is_empty() {
+            let static_params_str = if generic_parameters.is_empty() {
                 String::new()
             } else {
-                let params: Vec<_> = static_parameters
+                let params: Vec<_> = generic_parameters
                     .iter()
                     .map(|p| format_local_type(*p, types, repository, revision, strings))
                     .collect();
                 format!("<{}>", params.join(", "))
             };
-            let mut dynamic_params: Vec<String> = Vec::new();
+            let mut formatted_parameters: Vec<String> = Vec::new();
             if let Some(this_parameter) = this_parameter {
                 let this_type =
                     format_local_type(*this_parameter, types, repository, revision, strings);
-                dynamic_params.push(format!("this: {this_type}"));
+                formatted_parameters.push(format!("this: {this_type}"));
             }
-            dynamic_params.extend(
-                dynamic_parameters
+            formatted_parameters.extend(
+                parameters
                     .iter()
                     .map(|p| format_local_type(*p, types, repository, revision, strings)),
             );
@@ -398,7 +398,7 @@ pub fn format_type(
             };
             format!(
                 "{async_str}{static_params_str}({}){ret}",
-                dynamic_params.join(", ")
+                formatted_parameters.join(", ")
             )
         }
         dir::Type::Union { elements } => {
@@ -543,14 +543,14 @@ pub fn widened_scalar_literal_name(value: &dir::ScalarLiteral) -> &'static str {
 /// Format a type reference (symbol with optional static arguments).
 pub fn format_type_reference(
     symbol: dir::GlobalSymbolId,
-    static_arguments: Option<&[dir::StaticArgument]>,
+    generic_arguments: Option<&[dir::StaticArgument]>,
     types: &dir::TypeTable,
     repository: &Repository,
     revision: Revision,
     strings: &StringPool,
 ) -> String {
     let name = format_symbol_name(symbol, repository, revision, strings);
-    if let Some(arguments) = static_arguments
+    if let Some(arguments) = generic_arguments
         && !arguments.is_empty()
     {
         let argument_strs: Vec<_> = arguments

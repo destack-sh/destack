@@ -21,9 +21,9 @@ use crate::core::{
 };
 use crate::dir::{
     ImportEditMode, MemberInfo, MemberKind, MemberName, build_import_display_path,
-    build_import_edits_with_mode, doc_text_for_symbol, dynamic_parameter_names,
-    get_canonical_symbol, matches_import_clause_space_filter, matches_symbol_space_filter,
-    module_name_from_path, resolve_extension_members_for_symbol, resolve_reference_members,
+    build_import_edits_with_mode, doc_text_for_symbol, get_canonical_symbol,
+    matches_import_clause_space_filter, matches_symbol_space_filter, module_name_from_path,
+    parameter_names_for_symbol, resolve_extension_members_for_symbol, resolve_reference_members,
     resolve_type_members, search_importable_symbols, visible_symbols,
 };
 use crate::format::format_local_type;
@@ -1624,7 +1624,7 @@ fn get_function_param_names(
     revision: Revision,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<Vec<String>> {
-    let param_names = dynamic_parameter_names(repository, revision, symbol_id)?;
+    let param_names = parameter_names_for_symbol(repository, revision, symbol_id)?;
 
     if param_names.is_empty() {
         return None;

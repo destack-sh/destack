@@ -685,13 +685,10 @@ fn build_arguments_for_call(
 ) -> Option<String> {
     // resolve argument texts from the call expression
     let expr = dir_tree.get::<dir::Expression>(expr_id);
-    let dynamic_arguments = match expr {
-        dir::Expression::Call {
-            dynamic_arguments, ..
+    let arguments = match expr {
+        dir::Expression::Call { arguments, .. } | dir::Expression::New { arguments, .. } => {
+            arguments.as_slice()
         }
-        | dir::Expression::New {
-            dynamic_arguments, ..
-        } => dynamic_arguments.as_slice(),
         _ => return None,
     };
 
@@ -702,7 +699,7 @@ fn build_arguments_for_call(
     let mut named_args: HashMap<String, String> = HashMap::new();
     let mut positional_args: Vec<String> = Vec::new();
 
-    for argument_id in dynamic_arguments.iter() {
+    for argument_id in arguments.iter() {
         let argument = dir_tree.get::<dir::Argument>(*argument_id);
         let arg_span = span_for_dir_node(ctx.ast(), dir_tree, (*argument_id).into());
         let arg_text = source_file.span_str(arg_span).trim().to_string();
