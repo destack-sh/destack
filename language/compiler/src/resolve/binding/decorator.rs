@@ -1,4 +1,4 @@
-use destack_dir::{Annotation, Argument, Expression, LocalNodeId, NodeTree, StringId};
+use destack_dir::{Argument, Decorator, Expression, LocalNodeId, NodeTree, StringId};
 
 use crate::Compiler;
 
@@ -36,12 +36,10 @@ impl Compiler {
         let expression_id = self.unwrap_decorator_expression(tree, expression_id);
         match tree.get(expression_id) {
             Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
+                left, arguments, ..
             } => DecoratorCall {
                 callee: self.unwrap_decorator_expression(tree, *left),
-                arguments: Some(dynamic_arguments.as_slice()),
+                arguments: Some(arguments.as_slice()),
             },
             _ => DecoratorCall {
                 callee: expression_id,
@@ -50,21 +48,21 @@ impl Compiler {
         }
     }
 
-    /// Resolve a decorator call for an annotation.
+    /// Resolve a decorator call for a decorator node.
     pub(crate) fn decorator_call_for_annotation<'a>(
         &self,
         tree: &'a NodeTree,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
     ) -> Option<DecoratorCall<'a>> {
-        let Annotation::Decorator { expression, .. } = tree.get(annotation_id);
-        Some(self.decorator_call(tree, *expression))
+        let decorator = tree.get(annotation_id);
+        Some(self.decorator_call(tree, decorator.expression))
     }
 
-    /// Resolve a named decorator call for an annotation.
+    /// Resolve a named decorator call for a decorator node.
     pub(crate) fn decorator_call_named<'a>(
         &self,
         tree: &'a NodeTree,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
         name: StringId,
     ) -> Option<DecoratorCall<'a>> {
         let call = self.decorator_call_for_annotation(tree, annotation_id)?;

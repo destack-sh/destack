@@ -1,5 +1,5 @@
 use destack_dir::{
-    Argument, Expression, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark,
+    Expression, GenericArgument, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark,
     LocalSymbolId, NodeTree, NodeType, Path, ProvenanceReason, Scope, ScopeKind, StaticKey,
     StringId, SymbolSpace, SymbolTable, SymbolType,
 };
@@ -13,7 +13,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         root_expr: Expression,
         remaining_path: &Path,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
         tree: &mut NodeTree,
     ) -> Expression {
         let original_scope = tree.get_scope(expression_id);
@@ -33,15 +33,15 @@ impl Compiler {
         let segments = &remaining_path.segments;
         for (i, &segment) in segments.iter().enumerate() {
             let is_last = i == segments.len() - 1;
-            let member_static_args = if is_last {
-                static_arguments.clone()
+            let member_generic_arguments = if is_last {
+                generic_arguments.clone().unwrap_or_default()
             } else {
-                None
+                Vec::new()
             };
             let member_expression = Expression::Member {
                 left: current_id,
                 name: Some(segment),
-                static_arguments: member_static_args,
+                generic_arguments: member_generic_arguments,
             };
 
             // return the final member expression
@@ -71,7 +71,7 @@ impl Compiler {
         module: &Module,
         symbol_id: LocalSymbolId,
         path: &Path,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
         symbols: &SymbolTable,
     ) -> Expression {
         let symbol = symbols.get_symbol(symbol_id);
@@ -80,13 +80,13 @@ impl Compiler {
         if scope.kind == ScopeKind::Block {
             Expression::LocalReference {
                 path: path.clone(),
-                static_arguments,
+                generic_arguments: generic_arguments.unwrap_or_default(),
                 target_symbol: global_id,
             }
         } else {
             Expression::ModuleReference {
                 path: path.clone(),
-                static_arguments,
+                generic_arguments: generic_arguments.unwrap_or_default(),
                 target_symbol: global_id,
             }
         }

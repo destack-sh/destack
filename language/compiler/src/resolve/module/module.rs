@@ -1,4 +1,4 @@
-use crate::resolve::binding::cache::ResolveExpressionCache;
+use crate::resolve::binding::cache::{ResolveExpressionCache, ResolveScopeIndexCache};
 use crate::resolve::dependency::cache::ResolveDependencyItemCache;
 use crate::timing::tags;
 use crate::{Compiler, CompilerContext, RequirementCollector, ResolveError, ResolveResult};
@@ -7,7 +7,7 @@ use destack_artifact::{
 };
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, Expression, GlobalSymbolId, LocalNodeId,
-    LocalScopeId, NamespaceExport, NodeTree, SymbolSpace, SymbolTable, TypeTable,
+    LocalScopeId, NamespaceExport, NodeTree, SymbolSpace, SymbolTable, TypeExpression, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 use rustc_hash::FxHashMap;
@@ -18,6 +18,8 @@ pub(crate) struct ResolveModuleWorklist {
     pub(crate) resolve_expression_ids: Vec<LocalNodeId<Expression>>,
     /// Expressions that define dependency items.
     pub(crate) dependency_expression_ids: Vec<LocalNodeId<Expression>>,
+    /// Type expressions to resolve after value-space paths settle.
+    pub(crate) resolve_type_expression_ids: Vec<LocalNodeId<TypeExpression>>,
     /// Declarations that require resolve passes.
     pub(crate) declaration_ids: Vec<LocalNodeId<Declaration>>,
     /// Dependency items grouped by declaring scope.
@@ -63,6 +65,14 @@ impl ResolveModuleWorklist {
             }
         }
 
+        // collect type references for type-space resolution
+        let mut resolve_type_expression_ids = Vec::new();
+        for expression_id in tree.iter_node_ids_of_type::<TypeExpression>() {
+            if matches!(tree.get(expression_id), TypeExpression::Reference { .. }) {
+                resolve_type_expression_ids.push(expression_id);
+            }
+        }
+
         // group dependency items by scope for export resolution
         let mut dependency_items_by_scope = FxHashMap::default();
         for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
@@ -76,6 +86,7 @@ impl ResolveModuleWorklist {
         Self {
             resolve_expression_ids,
             dependency_expression_ids,
+            resolve_type_expression_ids,
             declaration_ids,
             dependency_items_by_scope,
         }
@@ -121,6 +132,52 @@ impl Compiler {
                     exported_symbols,
                     *expression_id,
                     expression_cache,
+                ),
+            );
+        }
+
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(ResolveError::Yield { requirement });
+        }
+
+        Ok(())
+    }
+
+    /// Resolve one batch of active type expressions for one module.
+    fn resolve_type_expression_ids(
+        &self,
+        revision: destack_workspace::Revision,
+        module: &Module,
+        profile: ProfileId,
+        prepared: &DirPrepared,
+        tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
+        types: &mut TypeTable,
+        exported_symbols: &mut ExportedSymbolTable,
+        expression_ids: &[LocalNodeId<TypeExpression>],
+    ) -> ResolveResult<()> {
+        let mut collector = RequirementCollector::new();
+        let mut scope_cache = ResolveScopeIndexCache::default();
+        for expression_id in expression_ids {
+            if !self.is_node_active(tree, symbols, (*expression_id).into_any()) {
+                continue;
+            }
+
+            self.collect(
+                &mut collector,
+                self.resolve_type_reference_expression(
+                    revision,
+                    module,
+                    profile,
+                    tree,
+                    symbols,
+                    types,
+                    prepared.namespace_symbol,
+                    prepared.namespace_scope,
+                    prepared.global_augmentation_scope,
+                    exported_symbols,
+                    *expression_id,
+                    &mut scope_cache,
                 ),
             );
         }
@@ -219,6 +276,25 @@ impl Compiler {
             }
         }
 
+        // type expressions
+        {
+            let _timing = self.timing_scope(tags::RESOLVE_MODULE_EXPRESSIONS);
+
+            if !skip_builtin_declaration_expressions {
+                self.resolve_type_expression_ids(
+                    revision,
+                    module,
+                    profile,
+                    prepared,
+                    tree,
+                    symbols,
+                    types,
+                    exported_symbols,
+                    &worklist.resolve_type_expression_ids,
+                )?;
+            }
+        }
+
         // declarations
         {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_DECLARATIONS);
@@ -236,8 +312,6 @@ impl Compiler {
                         profile,
                         tree,
                         symbols,
-                        types,
-                        imported_modules,
                         prepared.namespace_symbol,
                         prepared.namespace_scope,
                         prepared.global_augmentation_scope,

@@ -9,6 +9,7 @@ use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId, Revision};
 use indexmap::IndexMap;
 
+use crate::resolve::binding::ResolveState;
 use crate::resolve::dependency::cache::{
     BindingExportCacheKey, ExportAssignmentTarget, ReexportChainCacheKey, RemoteSymbolCacheKey,
     ResolveDependencyItemCache,
@@ -631,32 +632,47 @@ impl Compiler {
 
                 // try resolving in the local scope first, fall back to global augmentation scope
                 // (for types defined in `global { }` blocks within module declarations)
+                let pass = ResolveState::artifact(
+                    revision,
+                    module,
+                    profile,
+                    item_node,
+                    space_order,
+                    symbols,
+                    dir.namespace_symbol,
+                    dir.namespace_scope,
+                    dir.global_augmentation_scope,
+                    &dir.exported_symbols,
+                    Some(&dir.tree),
+                );
                 let symbol_id = self
-                    .resolve_absolute_symbol_from_artifact(
-                        revision,
-                        module,
-                        dir,
-                        profile,
-                        item_node,
+                    .resolve_absolute_symbol(
+                        pass,
                         (scope_id, scope, LocalScopeMark::end()),
                         key,
-                        space_order,
-                        symbols,
                         cache.as_deref_mut().map(|cache| cache.scope_indices()),
                     )
                     .or_else(|_| {
                         let global_scope_id = dir.global_augmentation_scope;
                         let global_scope = symbols.get_scope_by_id(global_scope_id);
-                        self.resolve_absolute_symbol_from_artifact(
+                        let pass = ResolveState::artifact(
                             revision,
                             module,
-                            dir,
                             profile,
                             item_node,
-                            (global_scope_id, global_scope, LocalScopeMark::end()),
-                            key,
                             space_order,
                             symbols,
+                            dir.namespace_symbol,
+                            dir.namespace_scope,
+                            dir.global_augmentation_scope,
+                            &dir.exported_symbols,
+                            Some(&dir.tree),
+                        );
+
+                        self.resolve_absolute_symbol(
+                            pass,
+                            (global_scope_id, global_scope, LocalScopeMark::end()),
+                            key,
                             cache.as_deref_mut().map(|cache| cache.scope_indices()),
                         )
                     })?;

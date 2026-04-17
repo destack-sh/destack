@@ -1167,14 +1167,14 @@ Box.missing;
     test.check_has_diagnostic("ER101");
 }
 
-/// Resolve TypeScript angle bracket const assertions without unresolved `const` names.
+/// Resolve `as const` assertions without unresolved `const` names.
 #[test]
-fn test_resolve_typescript_angle_const_assertion_expression() {
+fn test_resolve_typescript_as_const_assertion_expression() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
         "test.ts",
         r#"
-const events = <const>["connect", "disconnect"];
+const events = ["connect", "disconnect"] as const;
 
 events;
 "#,
@@ -1777,7 +1777,6 @@ fn test_resolve_extension_target_symbol() {
 struct Foo {}
 extension for Foo {
     bar() {}
-}
 "#,
     );
     test.resolve_module(module_id);
@@ -1791,7 +1790,7 @@ extension for Foo {
         .iter_node_ids_of_type::<Declaration>()
         .into_iter()
         .filter_map(|id| match tree.get(id) {
-            Declaration::Extension { target_symbol, .. } => Some(*target_symbol),
+            Declaration::Extension(declaration) => Some(declaration.target_symbol),
             _ => None,
         })
         .collect();
@@ -1806,6 +1805,93 @@ extension for Foo {
         extension_target.unwrap(),
         foo_symbol_id,
         "extension should point to Foo struct"
+    );
+}
+
+/// Extension declarations resolve namespace-qualified target types.
+#[test]
+fn test_resolve_extension_target_symbol_through_namespace_path() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+namespace Foo {
+    export struct Bar {}
+}
+
+extension for Foo.Bar {
+    baz() {}
+}
+"#,
+    );
+    test.resolve_module(module_id);
+    test.compile_check_clean();
+
+    let bar_symbol_id = test.resolve_to_symbol("test.ds", "Foo.Bar").unwrap();
+
+    let dir = test.dir_resolved(module_id);
+    let tree = &dir.tree;
+    let extension_target = tree
+        .iter_node_ids_of_type::<Declaration>()
+        .into_iter()
+        .find_map(|id| match tree.get(id) {
+            Declaration::Extension(declaration) => declaration.target_symbol,
+            _ => None,
+        });
+
+    assert_eq!(
+        extension_target,
+        Some(bar_symbol_id),
+        "extension should point to Foo.Bar"
+    );
+}
+
+/// Import aliases resolve namespace-qualified path targets.
+#[test]
+fn test_resolve_import_alias_target_symbol_through_namespace_path() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+namespace Foo {
+    export class Bar {}
+}
+
+import Alias = Foo.Bar;
+"#,
+    );
+    test.resolve_module(module_id);
+    test.compile_check_clean();
+
+    let alias_symbol_id = test.resolve_to_symbol("test.ds", "Alias").unwrap();
+    let alias_symbol = test.symbol_by_id(alias_symbol_id);
+
+    let bar_name = test.program.strings.intern("Bar");
+    let dir = test.dir_resolved(module_id);
+    let tree = &dir.tree;
+    let bar_symbol_id = tree
+        .iter_node_ids_of_type::<Declaration>()
+        .into_iter()
+        .find_map(|id| match tree.get(id) {
+            Declaration::Class(declaration)
+                if declaration
+                    .name
+                    .is_some_and(|name| name.string() == bar_name) =>
+            {
+                Some(declaration.symbol.into_global(module_id))
+            }
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("expected namespace class Bar declaration"));
+
+    assert!(
+        alias_symbol.target_symbol.is_some(),
+        "import alias target symbol should be set"
+    );
+    assert_eq!(
+        alias_symbol.target_symbol.unwrap(),
+        bar_symbol_id,
+        "import alias should point to namespace class Bar"
     );
 }
 

@@ -4,7 +4,7 @@ use destack_artifact::{
 };
 use destack_ast::StringId;
 use destack_builtin::resolve_profile_builtin_library_name;
-use destack_dir::{DependencyKind, DependencySource, ModuleResolution, ModuleTarget};
+use destack_dir::{DependencyKind, ImportSource, ModuleResolution, ModuleTarget};
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId, Target};
 
@@ -228,41 +228,40 @@ impl Compiler {
 
     /// Select import edge semantics from dependency source and source module kind.
     pub(crate) fn import_edge_kind_for_dependency(
-        source: DependencySource,
+        source: ImportSource,
         is_typescript_commonjs: bool,
     ) -> ModuleEdgeRelation {
         // preserve require style edges from source syntax
         match source {
-            DependencySource::ImportEquals | DependencySource::RequireCall => {
-                ModuleEdgeRelation::Require
-            }
+            ImportSource::ImportEquals | ImportSource::RequireCall => ModuleEdgeRelation::Require,
 
             // lower static ts commonjs imports through require conditions
-            DependencySource::ImportStatement | DependencySource::ExportStatement
+            ImportSource::ImportStatement | ImportSource::ExportStatement
                 if is_typescript_commonjs =>
             {
                 ModuleEdgeRelation::Require
             }
 
             // keep esm edges, directives, and runtime imports as import conditions
-            DependencySource::ImportStatement
-            | DependencySource::ReferencePathDirective
-            | DependencySource::ReferenceTypesDirective
-            | DependencySource::ReferenceLibDirective
-            | DependencySource::ExportStatement
-            | DependencySource::ImportCall
-            | DependencySource::ValueExpression => ModuleEdgeRelation::Import,
+            ImportSource::ImportStatement
+            | ImportSource::ReferencePathDirective
+            | ImportSource::ReferenceTypesDirective
+            | ImportSource::ReferenceLibDirective
+            | ImportSource::ReferenceNoDefaultLibDirective
+            | ImportSource::ExportStatement
+            | ImportSource::ImportCall
+            | ImportSource::ValueExpression => ModuleEdgeRelation::Import,
         }
     }
 
     /// Normalize one dependency target specifier for source-specific semantics.
     pub(crate) fn resolve_target_for_dependency_source(
         &self,
-        source: DependencySource,
+        source: ImportSource,
         target: StringId,
     ) -> StringId {
         // normalize bare reference path directives to same directory relative paths
-        if source == DependencySource::ReferencePathDirective {
+        if source == ImportSource::ReferencePathDirective {
             return self.normalize_reference_path_directive_target(target);
         }
 
@@ -322,7 +321,7 @@ impl Compiler {
     pub(super) fn import_edge_kind(
         &self,
         module: &Module,
-        source: DependencySource,
+        source: ImportSource,
     ) -> ModuleEdgeRelation {
         let is_typescript_commonjs =
             module.module_format.is_commonjs() && module.language_type.is_typescript();
@@ -382,7 +381,7 @@ impl Compiler {
         imported_modules: &mut ImportedModuleTable,
         profile: ProfileId,
         node: destack_dir::GlobalNodeIdAny,
-        source: DependencySource,
+        source: ImportSource,
         target: StringId,
         kind: DependencyKind,
         loader_override: Option<destack_artifact::Loader>,
@@ -429,7 +428,7 @@ impl Compiler {
         dir: &DirPrepared,
         profile: ProfileId,
         node: destack_dir::GlobalNodeIdAny,
-        source: DependencySource,
+        source: ImportSource,
         target: StringId,
         kind: DependencyKind,
         loader_override: Option<destack_artifact::Loader>,
@@ -469,7 +468,7 @@ impl Compiler {
         imported_modules: &mut ImportedModuleTable,
         profile: ProfileId,
         node: destack_dir::GlobalNodeIdAny,
-        source: DependencySource,
+        source: ImportSource,
         target: StringId,
         kind: DependencyKind,
     ) -> ResolveResult<ModuleTarget> {
@@ -494,7 +493,7 @@ impl Compiler {
         dir: &DirPrepared,
         profile: ProfileId,
         node: destack_dir::GlobalNodeIdAny,
-        source: DependencySource,
+        source: ImportSource,
         target: StringId,
         kind: DependencyKind,
     ) -> ResolveResult<ModuleTarget> {
@@ -511,7 +510,7 @@ impl Compiler {
         dir: &DirResolved,
         profile: ProfileId,
         node: destack_dir::GlobalNodeIdAny,
-        source: DependencySource,
+        source: ImportSource,
         target: StringId,
         kind: DependencyKind,
     ) -> ResolveResult<ModuleTarget> {
@@ -540,7 +539,7 @@ impl Compiler {
         imported_modules: &mut ImportedModuleTable,
         profile: ProfileId,
         node: destack_dir::GlobalNodeIdAny,
-        source: DependencySource,
+        source: ImportSource,
         target: StringId,
         kind: DependencyKind,
         loader_override: Option<destack_artifact::Loader>,
@@ -579,7 +578,7 @@ impl Compiler {
         dir: &DirPrepared,
         profile: ProfileId,
         node: destack_dir::GlobalNodeIdAny,
-        source: DependencySource,
+        source: ImportSource,
         target: StringId,
         kind: DependencyKind,
         loader_override: Option<destack_artifact::Loader>,
@@ -616,7 +615,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         node: destack_dir::GlobalNodeIdAny,
-        source: DependencySource,
+        source: ImportSource,
         target: StringId,
         kind: DependencyKind,
         loader_override: Option<destack_artifact::Loader>,
@@ -625,7 +624,7 @@ impl Compiler {
         let edge_relation = self.import_edge_kind(module, source);
 
         // resolve reference lib directives through builtin library loading
-        if source == DependencySource::ReferenceLibDirective {
+        if source == ImportSource::ReferenceLibDirective {
             let target = self.resolve_reference_lib_target(revision, profile, node, target)?;
             return Ok(ImportResolutionResult {
                 target,

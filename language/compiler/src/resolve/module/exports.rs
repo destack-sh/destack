@@ -6,7 +6,7 @@ use crate::{Compiler, CompilerContext, ImportError};
 use destack_artifact::{ExportedSymbolTable, ModuleBindingExportTable};
 use destack_builtin::builtin_library;
 use destack_dir::{
-    DependencyItem, DependencyKind, DependencyMode, Export, ExportKind, Expression,
+    DependencyItem, DependencyKind, DependencyMode, Export, ExportKind, ExportMode, Expression,
     GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, ModuleBinding,
     ModuleBindingExports, NodeTree, NodeVisitor, NodeVisitorOptions, StaticKey, Symbol, SymbolKind,
     SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, walk_expression,
@@ -104,14 +104,14 @@ impl NodeVisitor for ExportDependencyCollector<'_> {
         if let Expression::Member {
             left,
             name,
-            static_arguments,
+            generic_arguments,
         } = expression
             && let Some(name) = *name
         {
             let left_expression = tree.get(*left);
             let member_key = StaticKey::Name(name);
 
-            if static_arguments.is_none()
+            if generic_arguments.is_empty()
                 && let Some(target_symbol) = left_expression.target_symbol()
                 && let Some(namespace_target) = self.namespace_target_symbol_maybe(target_symbol)
             {
@@ -142,20 +142,20 @@ impl NodeVisitor for ExportDependencyCollector<'_> {
         // encoded path member access
         if let Expression::LocalReference {
             path,
-            static_arguments,
+            generic_arguments,
             target_symbol,
         }
         | Expression::ModuleReference {
             path,
-            static_arguments,
+            generic_arguments,
             target_symbol,
         }
         | Expression::GlobalReference {
             path,
-            static_arguments,
+            generic_arguments,
             target_symbol,
         } = expression
-            && static_arguments.is_none()
+            && generic_arguments.is_empty()
             && path.segments.len() > 1
         {
             let mut current_symbol = *target_symbol;
@@ -331,8 +331,8 @@ impl Compiler {
 
             // resolve the export key
             let key = match export_mode {
-                DependencyMode::Default => StaticKey::Name(default_name),
-                _ => {
+                ExportMode::Default => StaticKey::Name(default_name),
+                ExportMode::Named => {
                     let Some(name) = symbol.name() else {
                         continue;
                     };
@@ -362,7 +362,7 @@ impl Compiler {
             }
 
             // align the binding default symbol with default export declarations
-            if export_mode == DependencyMode::Default
+            if export_mode == ExportMode::Default
                 && symbols
                     .get_symbol(binding.default_symbol)
                     .target_symbol
@@ -405,8 +405,8 @@ impl Compiler {
 
             // resolve the export key
             let key = match export_mode {
-                DependencyMode::Default => StaticKey::Name(default_name),
-                _ => {
+                ExportMode::Default => StaticKey::Name(default_name),
+                ExportMode::Named => {
                     let Some(name) = symbol.name() else {
                         continue;
                     };
@@ -436,7 +436,7 @@ impl Compiler {
             }
 
             // align the binding default symbol with default export declarations
-            if export_mode == DependencyMode::Default
+            if export_mode == ExportMode::Default
                 && symbols
                     .get_symbol(binding.default_symbol)
                     .target_symbol
@@ -884,8 +884,8 @@ impl Compiler {
 
             // resolve the export key
             let key = match export_mode {
-                DependencyMode::Default => StaticKey::Name(default_name),
-                _ => {
+                ExportMode::Default => StaticKey::Name(default_name),
+                ExportMode::Named => {
                     let Some(name) = symbol.name() else {
                         continue;
                     };
@@ -905,7 +905,7 @@ impl Compiler {
             );
 
             // align the module default symbol with default export declarations
-            if export_mode == DependencyMode::Default
+            if export_mode == ExportMode::Default
                 && symbols.get_symbol(default_symbol).target_symbol.is_none()
             {
                 symbols
@@ -945,8 +945,8 @@ impl Compiler {
 
             // resolve the export key
             let key = match export_mode {
-                DependencyMode::Default => StaticKey::Name(default_name),
-                _ => {
+                ExportMode::Default => StaticKey::Name(default_name),
+                ExportMode::Named => {
                     let Some(name) = symbol.name() else {
                         continue;
                     };
@@ -966,7 +966,7 @@ impl Compiler {
             );
 
             // align the module default symbol with default export declarations
-            if export_mode == DependencyMode::Default
+            if export_mode == ExportMode::Default
                 && symbols.get_symbol(default_symbol).target_symbol.is_none()
             {
                 symbols

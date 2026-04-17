@@ -1,6 +1,4 @@
-use destack_dir::{
-    Declaration, EnumField, LocalNodeIdAny, Member, NodeTree, NodeType, SymbolTable,
-};
+use destack_dir::{Declaration, LocalNodeIdAny, Member, NodeTree, NodeType, SymbolTable};
 
 use crate::Compiler;
 
@@ -33,15 +31,6 @@ impl Compiler {
                 let member_id = node_id.into_typed::<Member>();
                 let member = tree.get(member_id);
                 let symbol = symbols.get_symbol(member.symbol());
-                if !symbol.is_active {
-                    return false;
-                }
-            }
-            NodeType::EnumField => {
-                // resolve enum field symbols
-                let field_id = node_id.into_typed::<EnumField>();
-                let field = tree.get(field_id);
-                let symbol = symbols.get_symbol(field.symbol);
                 if !symbol.is_active {
                     return false;
                 }

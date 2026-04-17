@@ -80,14 +80,14 @@ impl TestProgram {
         // scan declarations for a matching function name
         let name_id = self.program.strings.intern(name);
         for (_, declaration) in tree.iter_nodes_of_type::<Declaration>() {
-            let Declaration::Function { descriptor, .. } = declaration else {
+            let Declaration::Function(declaration) = declaration else {
                 continue;
             };
-            let Some(declaration_name) = descriptor.name else {
+            let Some(declaration_name) = declaration.name else {
                 continue;
             };
             if declaration_name.string() == name_id {
-                return Some(descriptor.symbol.into_global(module.id));
+                return Some(declaration.symbol.into_global(module.id));
             }
         }
 
@@ -100,26 +100,8 @@ impl TestProgram {
         module_uri: &str,
         name: &str,
     ) -> Option<GlobalSymbolId> {
-        // load module state
-        let module = self.module(module_uri);
-        let module = module.as_ref();
-        let profile = self.default_profile_id(module.id);
-        let dir = self.artifact_dir(module.id, profile);
-        let tree = &dir.tree;
-
-        // scan declarations for a matching name
-        let name_id = self.program.strings.intern(name);
-        for (_, declaration) in tree.iter_nodes_of_type::<Declaration>() {
-            let descriptor = declaration.descriptor();
-            let Some(declaration_name) = descriptor.name else {
-                continue;
-            };
-            if declaration_name.string() == name_id {
-                return Some(descriptor.symbol.into_global(module.id));
-            }
-        }
-
-        None
+        // declaration names resolve through the same top level symbol path lookup
+        self.resolve_to_symbol(module_uri, name)
     }
 
     /// Resolve an absolute symbol by walking up scopes.

@@ -1,5 +1,5 @@
 use destack_artifact::Loader;
-use destack_dir::{Argument, Expression, LocalNodeId, NodeTree, ScalarLiteral};
+use destack_dir::{ImportAttribute, ImportAttributeValue};
 
 use crate::Compiler;
 
@@ -24,26 +24,22 @@ impl Compiler {
     /// ```
     pub(crate) fn loader_from_import_attributes(
         &self,
-        arguments: Option<&Vec<LocalNodeId<Argument>>>,
-        tree: &NodeTree,
+        attributes: Option<&[ImportAttribute]>,
     ) -> LoaderAttribute {
-        let Some(arguments) = arguments else {
+        let Some(attributes) = attributes else {
             return LoaderAttribute::None;
         };
         let type_key = self.repository.strings.intern("type");
-        for arg_id in arguments {
-            let Argument::Named { name, value, .. } = tree.get(*arg_id) else {
-                continue;
-            };
-            if *name != type_key {
+        for attribute in attributes {
+            if attribute.key.string() != type_key {
                 continue;
             }
 
-            // get string value from expression
-            let value = match tree.get(*value) {
-                Expression::ScalarLiteral {
-                    value: ScalarLiteral::String(s),
-                } => self.repository.strings.get(*s).to_string(),
+            // get string value from the static attribute payload
+            let value = match &attribute.value {
+                ImportAttributeValue::ScalarLiteral(destack_dir::ScalarLiteral::String(value)) => {
+                    self.repository.strings.get(*value).to_string()
+                }
                 _ => {
                     return LoaderAttribute::InvalidType {
                         value: "<non-string>".to_string(),

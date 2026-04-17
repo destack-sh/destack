@@ -50,7 +50,7 @@ impl OperatorLanguageSymbolExt for BinaryOperator {
             BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce => None,
 
             // container
-            BinaryOperator::In | BinaryOperator::InstanceOf => None,
+            BinaryOperator::In => None,
         }
     }
 }

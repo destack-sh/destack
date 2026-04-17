@@ -2,9 +2,9 @@ use destack_artifact::DirPrepared;
 use destack_builtin::builtin_library;
 use destack_core::StringId;
 use destack_dir::{
-    Argument, DependencyKind, DependencySource, Expression, GlobalNodeIdAny, GlobalSymbolId,
-    LocalNodeId, ModuleResolution, ModuleTarget, NodeTree, Path, ScalarLiteral, StaticKey,
-    SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    DependencyKind, Expression, GenericArgument, GlobalNodeIdAny, GlobalSymbolId, ImportSource,
+    LocalNodeId, ModuleResolution, ModuleTarget, NodeTree, Path, StaticKey, SymbolKind,
+    SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -12,8 +12,8 @@ use indexmap::{IndexMap, IndexSet};
 use std::collections::VecDeque;
 use std::sync::Arc;
 
-use crate::resolve::binding::ResolvedPathSymbolTargets;
 use crate::resolve::binding::cache::ResolveScopeIndexCache;
+use crate::resolve::binding::{ResolveState, ResolvedPathSymbolTargets};
 use crate::{Compiler, RequirementError, ResolveError, ResolveResult};
 
 /// Key for grouping global symbols by name and space.
@@ -85,7 +85,7 @@ impl GlobalSymbolTable {
 #[derive(Debug, Clone, Copy)]
 struct DependencyTarget {
     /// The dependency source syntax.
-    source: DependencySource,
+    source: ImportSource,
     /// The module specifier.
     target: StringId,
     /// The node that referenced the module.
@@ -156,7 +156,7 @@ impl Compiler {
         node: GlobalNodeIdAny,
         profile_id: ProfileId,
         path: &Path,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
         space_order: SymbolSpaceOrder,
         mut scope_cache: Option<&mut ResolveScopeIndexCache>,
         tree: &mut NodeTree,
@@ -232,7 +232,7 @@ impl Compiler {
             return Ok(Some((
                 Expression::GlobalReference {
                     path: path.clone(),
-                    static_arguments,
+                    generic_arguments: generic_arguments.unwrap_or_default(),
                     target_symbol,
                 },
                 receiver_targets,
@@ -255,16 +255,24 @@ impl Compiler {
         // resolve namespace members when the root is a namespace
         if symbol.kind == SymbolKind::Namespace {
             let remaining_path = path.slice(1..);
-            match self.resolve_relative_symbol_with_ambient_merge_from_artifact(
+            let pass = ResolveState::artifact(
                 revision,
                 &target_context,
-                &target_dir,
                 profile_id,
                 node,
-                local_symbol_id,
-                &remaining_path,
                 space_order,
                 symbols,
+                target_dir.namespace_symbol,
+                target_dir.namespace_scope,
+                target_dir.global_augmentation_scope,
+                &target_dir.exported_symbols,
+                Some(&target_dir.tree),
+            );
+
+            match self.resolve_relative_symbol_with_ambient_merge(
+                pass,
+                local_symbol_id,
+                &remaining_path,
                 scope_cache,
             ) {
                 // resolve namespace members directly when the local scope has the full path
@@ -272,7 +280,7 @@ impl Compiler {
                     return Ok(Some((
                         Expression::GlobalReference {
                             path: path.clone(),
-                            static_arguments,
+                            generic_arguments: generic_arguments.unwrap_or_default(),
                             target_symbol: resolved_id,
                         },
                         resolved_targets,
@@ -297,7 +305,9 @@ impl Compiler {
                             return Ok(Some((
                                 Expression::GlobalReference {
                                     path: resolved_path,
-                                    static_arguments,
+                                    generic_arguments: generic_arguments
+                                        .clone()
+                                        .unwrap_or_default(),
                                     target_symbol: export_symbol,
                                 },
                                 receiver_targets.clone(),
@@ -306,7 +316,7 @@ impl Compiler {
 
                         let root_expr = Expression::GlobalReference {
                             path: resolved_path,
-                            static_arguments: None,
+                            generic_arguments: vec![],
                             target_symbol: export_symbol,
                         };
                         return Ok(Some((
@@ -314,7 +324,7 @@ impl Compiler {
                                 expression_id,
                                 root_expr,
                                 &export_remaining,
-                                static_arguments,
+                                generic_arguments.clone(),
                                 tree,
                             ),
                             receiver_targets.clone(),
@@ -326,7 +336,7 @@ impl Compiler {
                             path.slice(0..path.segments.len() - remaining.segments.len());
                         let root_expr = Expression::GlobalReference {
                             path: resolved_path,
-                            static_arguments: None,
+                            generic_arguments: vec![],
                             target_symbol: resolved_id,
                         };
                         return Ok(Some((
@@ -334,7 +344,7 @@ impl Compiler {
                                 expression_id,
                                 root_expr,
                                 &remaining,
-                                static_arguments,
+                                generic_arguments.clone(),
                                 tree,
                             ),
                             resolved_targets,
@@ -358,7 +368,9 @@ impl Compiler {
                             return Ok(Some((
                                 Expression::GlobalReference {
                                     path: resolved_path,
-                                    static_arguments,
+                                    generic_arguments: generic_arguments
+                                        .clone()
+                                        .unwrap_or_default(),
                                     target_symbol: resolved_id,
                                 },
                                 receiver_targets.clone(),
@@ -367,7 +379,7 @@ impl Compiler {
 
                         let root_expr = Expression::GlobalReference {
                             path: resolved_path,
-                            static_arguments: None,
+                            generic_arguments: vec![],
                             target_symbol: resolved_id,
                         };
                         return Ok(Some((
@@ -375,7 +387,7 @@ impl Compiler {
                                 expression_id,
                                 root_expr,
                                 &remaining,
-                                static_arguments,
+                                generic_arguments.clone(),
                                 tree,
                             ),
                             receiver_targets.clone(),
@@ -394,7 +406,7 @@ impl Compiler {
         };
         let root_expr = Expression::GlobalReference {
             path: root_path,
-            static_arguments: None,
+            generic_arguments: vec![],
             target_symbol,
         };
         Ok(Some((
@@ -402,7 +414,7 @@ impl Compiler {
                 expression_id,
                 root_expr,
                 &path.slice(1..),
-                static_arguments,
+                generic_arguments,
                 tree,
             ),
             receiver_targets,
@@ -613,7 +625,7 @@ impl Compiler {
         dependency: DependencyTarget,
     ) -> ResolveResult<ModuleResolution> {
         // resolve triple slash reference lib directives through builtin library loading
-        if dependency.source == DependencySource::ReferenceLibDirective {
+        if dependency.source == ImportSource::ReferenceLibDirective {
             let target_text = self.repository.strings.get(dependency.target);
             let module_id = self
                 .resolve_reference_lib_to_module(revision, profile_id, target_text.as_ref())
@@ -799,7 +811,7 @@ impl Compiler {
                 Expression::UnresolvedReExport { target, kind, .. }
                 | Expression::ReExport { target, kind, .. } => {
                     targets.push(DependencyTarget {
-                        source: DependencySource::ExportStatement,
+                        source: ImportSource::ExportStatement,
                         target: *target,
                         node: expression_id.into_global_any(module_id),
                         kind: *kind,
@@ -817,19 +829,6 @@ impl Compiler {
                         node: expression_id.into_global_any(module_id),
                         kind: *kind,
                     });
-                }
-                Expression::TypeImport { target, .. } => {
-                    if let Expression::ScalarLiteral {
-                        value: ScalarLiteral::String(target),
-                    } = tree.get(*target)
-                    {
-                        targets.push(DependencyTarget {
-                            source: DependencySource::ImportStatement,
-                            target: *target,
-                            node: expression_id.into_global_any(module_id),
-                            kind: DependencyKind::Type,
-                        });
-                    }
                 }
                 _ => {}
             }
