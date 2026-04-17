@@ -326,13 +326,11 @@ fn test_parse_call_expression_with_generic_arguments() {
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
         // <T>
         assert_eq!(generic_arguments.len(), 1);
-        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-            assert_node!(parser.tree, *value, Expression::Type { value } => {
+        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                 assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                     assert_path!(parser, *path, "T");
                     assert!(generic_arguments.is_empty());
                 });
-            });
         });
         // (1, 2)
         assert_eq!(dynamic_arguments.len(), 2);
@@ -418,13 +416,11 @@ fn test_parse_new_type_arguments_before_if_keyword() {
     assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, dynamic_arguments } => {
         assert_expression_path!(parser, parser.tree.get(*left), "A");
         assert_eq!(generic_arguments.len(), 1);
-        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-            assert_node!(parser.tree, *value, Expression::Type { value } => {
+        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                 assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                     assert_path!(parser, *path, "T");
                     assert!(generic_arguments.is_empty());
                 });
-            });
         });
         assert!(dynamic_arguments.is_empty());
     });
@@ -441,13 +437,11 @@ fn test_parse_new_type_arguments_without_parenthesized_call() {
     assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, dynamic_arguments } => {
         assert_expression_path!(parser, parser.tree.get(*left), "A");
         assert_eq!(generic_arguments.len(), 1);
-        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-            assert_node!(parser.tree, *value, Expression::Type { value } => {
+        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                 assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                     assert_path!(parser, *path, "T");
                     assert!(generic_arguments.is_empty());
                 });
-            });
         });
         assert!(dynamic_arguments.is_empty());
     });
@@ -568,13 +562,11 @@ fn test_parse_new_parenthesized_cast_receiver_with_generic_arguments() {
             });
         });
         assert_eq!(generic_arguments.len(), 1);
-        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value, .. } => {
-            assert_node!(parser.tree, *value, Expression::Type { value } => {
+        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value, .. } => {
                 assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                     assert_path!(parser, *path, "Foo");
                     assert!(generic_arguments.is_empty());
                 });
-            });
         });
         assert_eq!(dynamic_arguments.len(), 1);
         assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {

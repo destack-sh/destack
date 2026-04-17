@@ -69,10 +69,8 @@ fn test_parse_class_expression_with_newline_extends() {
                     assert_node!(parser.tree, extends_expression, Expression::Instantiation { left, generic_arguments } => {
                         assert_expression_path!(parser, parser.tree.get(*left), "Foo");
                         assert_eq!(generic_arguments.len(), 1);
-                        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                            assert_node!(parser.tree, *value, Expression::Type { value } => {
+                        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                                 assert_expression_path!(parser, parser.tree.get(*value), "Bar");
-                            });
                         });
                     });
                 });

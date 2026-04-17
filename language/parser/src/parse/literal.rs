@@ -2340,12 +2340,10 @@ mod tests {
             assert_node!(parser.tree, *left, Expression::QualifiedReference { path, generic_arguments } => {
                 assert_path!(parser, *path, "Component");
                 assert_eq!(generic_arguments.len(), 1);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                             assert_eq!(*value, TypeLiteral::Any);
                         });
-                    });
                 });
             });
             assert!(arguments.is_none());
@@ -2366,8 +2364,7 @@ mod tests {
         assert_eq!(generic_arguments.len(), 1);
 
         // verify the generic arrow argument shape
-        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-            assert_node!(parser.tree, *value, Expression::Type { value } => {
+        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                 assert_node!(parser.tree, *value, TypeExpression::Declaration { declaration: declaration_id } => {
                     assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
                         assert_eq!(signature.kind, FunctionKind::Lambda);
@@ -2390,7 +2387,6 @@ mod tests {
                         });
                     });
                 });
-            });
         });
     }
 
@@ -2409,15 +2405,13 @@ mod tests {
             assert_node!(parser.tree, *left, Expression::QualifiedReference { path, generic_arguments } => {
                 assert_path!(parser, *path, "Component");
                 assert_eq!(generic_arguments.len(), 1);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Declaration { declaration: declaration_id } => {
                             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
                                 assert_eq!(signature.kind, FunctionKind::Lambda);
                                 assert!(body.is_none());
                             });
                         });
-                    });
                 });
             });
             assert!(arguments.is_none());
@@ -2441,12 +2435,10 @@ mod tests {
             assert_node!(parser.tree, *left, Expression::QualifiedReference { path, generic_arguments } => {
                 assert_path!(parser, *path, "Tags");
                 assert_eq!(generic_arguments.len(), 1);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Reference { path, .. } => {
                             assert_path!(parser, *path, "ValueTagData");
                         });
-                    });
                 });
             });
 
@@ -3165,7 +3157,7 @@ mod tests {
                 assert_node!(parser.tree, *value, Expression::Call { left, generic_arguments, dynamic_arguments, .. } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "foo");
                     assert_eq!(generic_arguments.len(), 1);
-                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
+                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_expression_path!(parser, parser.tree.get(*value), "T");
                     });
                     assert_eq!(dynamic_arguments.len(), 1);

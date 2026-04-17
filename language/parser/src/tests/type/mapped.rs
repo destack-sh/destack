@@ -153,13 +153,11 @@ fn test_parse_type_mapped_expression_in_generic_arguments() {
             assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                 assert_path!(parser, *path, "Promise");
                 assert_eq!(generic_arguments.len(), 1);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Mapped { readonly, optional, .. } => {
                             assert_eq!(*readonly, TypeModifier::Remove);
                             assert_eq!(*optional, TypeModifier::None);
                         });
-                    });
                 });
             });
         });

@@ -7,7 +7,7 @@ use destack_source::{NodeSpanType, Span};
 
 use crate::parse::parser::ParserOptions;
 use crate::parse::prelude::*;
-use crate::{ParseError, ParseResult, Parser};
+use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 /// Parsed parameter head as either one pattern or one named binding.
 type ParsedParameterPatternOrName = (Option<LocalNodeId<Pattern>>, Option<StringId>, Option<Span>);
@@ -122,6 +122,11 @@ impl Parser {
             return true;
         }
 
+        // allow one final type argument to commit before one missing close angle at eof
+        if self.peek_is(TokenType::End) {
+            return true;
+        }
+
         if !self.peek_is(TokenType::Newline) {
             return false;
         }
@@ -154,27 +159,33 @@ impl Parser {
         prefers_type_expression
     }
 
-    /// Eat one mixed generic argument payload.
-    #[inline]
-    fn eat_generic_argument_expression(
+    /// Eat one mixed generic argument node.
+    fn eat_generic_argument(
         &mut self,
         context: ParserOptions,
-    ) -> ParseResult<LocalNodeId<Expression>> {
-        // type ambient sites classify the whole slot before building final nodes
-        if self.generic_argument_slot_stays_in_type_space(context) {
-            let type_expression_id =
-                self.with_options(context, |parser| parser.eat_type_expression())?;
+        start: &ParserMark,
+    ) -> ParseResult<LocalNodeId<GenericArgument>> {
+        // direct spread generic arguments are not supported
+        if self.peek_is(TokenType::Spread) {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
 
-            return Ok(self.wrap_type_expression(type_expression_id));
+        // type ambient sites commit only when one full type expression owns the slot
+        if self.generic_argument_slot_stays_in_type_space(context) {
+            let value = self.with_options(context, |parser| parser.eat_type_expression())?;
+
+            return Ok(self.insert_node(GenericArgument::Type { value }, self.get_span_from(start)));
         }
 
         // otherwise parse the slot in value space
         let value_ambient_context = self.options.with_type(false);
-        self.eat_expression(
+        let value = self.eat_expression(
             self.options
                 .with_ambient_context(value_ambient_context)
                 .with_expression_context(context),
-        )
+        )?;
+
+        Ok(self.insert_node(GenericArgument::Value { value }, self.get_span_from(start)))
     }
 
     /// Return the common context for positional argument values.
@@ -1753,29 +1764,10 @@ impl Parser {
             // one argument slot
             let argument_start = self.mark_span();
             let mut is_recovered_argument = false;
-            let argument_id = match (|| {
-                if self.peek_is(TokenType::Spread) {
-                    self.bump(); // eat spread
-                    self.eat_newlines_maybe()?;
-                    let value = self.eat_generic_argument_expression(
-                        self.current_non_sequence_argument_context(),
-                    )?;
-
-                    return Ok(self.insert_node(
-                        GenericArgument::Spread { value },
-                        self.get_span_from(&argument_start),
-                    ));
-                }
-
-                let value = self.eat_generic_argument_expression(
-                    self.current_non_sequence_argument_context(),
-                )?;
-
-                Ok(self.insert_node(
-                    GenericArgument::Positional { value },
-                    self.get_span_from(&argument_start),
-                ))
-            })() {
+            let argument_id = match self.eat_generic_argument(
+                self.current_non_sequence_argument_context(),
+                &argument_start,
+            ) {
                 Ok(argument) => argument,
                 Err(error) => {
                     is_recovered_argument = true;
@@ -1808,7 +1800,7 @@ impl Parser {
     }
 
     /// Eat generic arguments, including the `<` and `>` tokens.
-    /// Only positional and spread arguments are allowed (no named arguments).
+    /// Only type and value arguments are allowed.
     /// Also handles `<<` (ShiftLeft) for patterns like `Extends<<T>() => ...>`.
     pub fn eat_generic_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<GenericArgument>>> {
         let _timing = self.timing_scope(tags::PARSE_ARGUMENT);
@@ -1853,7 +1845,7 @@ impl Parser {
             let argument_start = self.mark_span();
             vec![self.insert_node(GenericArgument::Error, self.get_span_from(&argument_start))]
         }
-        // regular generic arguments: positional or spread only
+        // regular generic arguments: type or value only
         else {
             let mut ambient_context = self.options.nested().with_static(true);
             if self.options.is_in_type()
@@ -2341,12 +2333,10 @@ mod tests {
                 assert_path!(parser, *path, "ConstructorParameters");
                 assert_eq!(generic_arguments.len(), 1);
 
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::TypeOfValue { value } => {
                             assert_expression_path!(parser, parser.tree.get(*value), "Response");
                         });
-                    });
                 });
             });
         });
@@ -2473,22 +2463,18 @@ mod tests {
                     assert_path!(parser, *path, "ReturnType");
                     assert_eq!(generic_arguments.len(), 1);
 
-                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                        assert_node!(parser.tree, *value, Expression::Type { value } => {
+                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                             assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                                 assert_path!(parser, *path, "onRequestHookHandler");
                                 assert_eq!(generic_arguments.len(), 1);
 
-                                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                                         assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                                             assert_path!(parser, *path, "RawServer");
                                             assert!(generic_arguments.is_empty());
                                         });
-                                    });
                                 });
                             });
-                        });
                     });
                 });
 
@@ -2497,22 +2483,18 @@ mod tests {
                     assert_path!(parser, *path, "ReturnType");
                     assert_eq!(generic_arguments.len(), 1);
 
-                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                        assert_node!(parser.tree, *value, Expression::Type { value } => {
+                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                             assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                                 assert_path!(parser, *path, "onRequestAsyncHookHandler");
                                 assert_eq!(generic_arguments.len(), 1);
 
-                                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                                         assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                                             assert_path!(parser, *path, "RawServer");
                                             assert!(generic_arguments.is_empty());
                                         });
-                                    });
                                 });
                             });
-                        });
                     });
                 });
             });
@@ -2522,21 +2504,17 @@ mod tests {
                 assert_path!(parser, *path, "ReturnType");
                 assert_eq!(generic_arguments.len(), 1);
 
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                             assert_path!(parser, *path, "onRequestHookHandler");
                             assert_eq!(generic_arguments.len(), 1);
-                            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-                                assert_node!(parser.tree, *value, Expression::Type { value } => {
+                            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                                     assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                                         assert_path!(parser, *path, "RawServer");
                                         assert!(generic_arguments.is_empty());
                                     });
-                                });
                             });
                         });
-                    });
                 });
             });
         });
@@ -2572,15 +2550,11 @@ mod tests {
 
         // <string, number
         assert_eq!(arguments.len(), 2);
-        assert_node!(parser.tree, arguments[0], GenericArgument::Positional { value } => {
-            assert_node!(parser.tree, *value, Expression::Type { value } => {
+        assert_node!(parser.tree, arguments[0], GenericArgument::Type { value } => {
                 assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
-            });
         });
-        assert_node!(parser.tree, arguments[1], GenericArgument::Positional { value } => {
-            assert_node!(parser.tree, *value, Expression::Type { value } => {
+        assert_node!(parser.tree, arguments[1], GenericArgument::Type { value } => {
                 assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
-            });
         });
     }
 
@@ -2610,10 +2584,8 @@ mod tests {
         parser.attach_comments();
 
         assert_eq!(arguments.len(), 1);
-        assert_node!(parser.tree, arguments[0], GenericArgument::Positional { value } => {
-            assert_node!(parser.tree, *value, Expression::Type { value } => {
+        assert_node!(parser.tree, arguments[0], GenericArgument::Type { value } => {
                 assert_node!(parser.tree, *value, TypeExpression::Union { .. });
-            });
         });
         assert_eq!(parser.tree.comments().len(), 1);
         assert_comment!(parser, 0, CommentKind::Line, "first-type-arg");
@@ -2629,10 +2601,8 @@ mod tests {
         parser.attach_comments();
 
         assert_eq!(arguments.len(), 2);
-        assert_node!(parser.tree, arguments[1], GenericArgument::Positional { value } => {
-            assert_node!(parser.tree, *value, Expression::Type { value } => {
+        assert_node!(parser.tree, arguments[1], GenericArgument::Type { value } => {
                 assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
-            });
         });
         assert_eq!(parser.tree.comments().len(), 1);
         assert_comment!(parser, 0, CommentKind::Line, "second-type-arg");
@@ -2646,6 +2616,19 @@ mod tests {
         let result = parser.eat_generic_arguments();
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_reject_spread_generic_argument() {
+        // <...T>
+        let mut test = TestParser::new_with_options("<...T>", LanguageType::Destack);
+        let mut parser = test.prepare();
+        let arguments = parser.eat_generic_arguments().unwrap();
+
+        test.assert_error_leaves(&parser, &[(None, None, "...")]);
+
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], GenericArgument::Error);
     }
 
     #[test]
@@ -3432,14 +3415,12 @@ const value = 1;
         let generic_arguments = parser.eat_generic_arguments().unwrap();
 
         assert_eq!(generic_arguments.len(), 1);
-        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Positional { value } => {
-            assert_node!(parser.tree, *value, Expression::Type { value } => {
+        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                 assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
                     assert_eq!(elements.len(), 2);
                     assert!(matches!(parser.tree.get(elements[0]), TypeExpression::KeyOf { .. }));
                     assert!(matches!(parser.tree.get(elements[1]), TypeExpression::KeyOf { .. }));
                 });
-            });
         });
     }
 }
