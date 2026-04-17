@@ -11,7 +11,7 @@ use destack_ast::{
     Comment, Expression, Keyword, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType, TokenSpan,
     TokenType, normalize_comment_payload,
 };
-use destack_source::{File, NodeSpanType, Span};
+use destack_source::{File, NodeSpanType, SourcePartKey, Span};
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 
@@ -391,6 +391,23 @@ fn extend_span_with_trailing_statement_terminator(tokens: &[TokenSpan], span: Sp
 }
 
 impl<'a> DestackFormatContext<'a> {
+    /// Return the first non-trivia token start for one node.
+    pub fn node_token_start<T>(&self, node_id: LocalNodeId<T>) -> u32
+    where
+        T: Node + Clone,
+        NodeTree: NodeTreeImpl<T>,
+    {
+        let node_span = self.span(node_id);
+
+        self.first_non_trivia_token_in_span(node_span)
+            .map_or(node_span.start, |token| token.span.start)
+    }
+
+    /// Return the first non-trivia token start for one expression.
+    pub fn expression_token_start(&self, expression_id: LocalNodeId<Expression>) -> u32 {
+        self.node_token_start(expression_id)
+    }
+
     /// Return the source text wrapper for this file.
     pub fn source_text(&self) -> SourceText<'a> {
         SourceText::new(self.file.text())
@@ -927,70 +944,158 @@ impl<'a> DestackFormatContext<'a> {
         T: Node + Clone,
         NodeTree: NodeTreeImpl<T>,
     {
-        let owner_span = self.span(node_id);
-        self.raw_leading_comments_attached_to(owner_span.start)
+        let leading_separator_is_structural = self
+            .tree
+            .get_side_span(node_id, NodeSpanType::Leading)
+            .and_then(|leading_span| self.first_non_trivia_token_in_span(leading_span))
+            .is_some_and(|token| {
+                matches!(
+                    token.token.ty,
+                    TokenType::ElementwiseOr | TokenType::ElementwiseAnd
+                )
+            });
+        let head_start = self
+            .tree
+            .get_head_span(node_id)
+            .or_else(|| self.tree.get_main_span(node_id))
+            .unwrap_or_else(|| self.span(node_id))
+            .start;
+
+        let mut comments = if leading_separator_is_structural {
+            Vec::new()
+        } else {
+            self.tree
+                .comments()
+                .iter()
+                .copied()
+                .filter(|comment| {
+                    comment.attached_part == SourcePartKey::new(node_id.id, NodeSpanType::Leading)
+                })
+                .collect::<Vec<_>>()
+        };
+
+        comments.extend(
+            self.tree
+                .comments()
+                .iter()
+                .copied()
+                .filter(|comment| {
+                    comment.attached_part == SourcePartKey::new(node_id.id, NodeSpanType::Enclosing)
+                })
+                .filter(|comment| comment.span.end <= head_start),
+        );
+
+        comments.sort_by_key(|comment| (comment.span.start, comment.span.end));
+        comments
     }
 
-    /// Return leading raw comments attached to one token boundary.
-    pub fn raw_leading_comments_attached_to(&self, attached_to: u32) -> Vec<Comment> {
-        self.comments()
-            .comments_before(attached_to)
+    /// Return raw comments fully contained in one boundary range.
+    pub(crate) fn raw_boundary_comments_in_range(&self, start: u32, end: u32) -> Vec<Comment> {
+        let mut comments = self
+            .tree
+            .comments()
             .iter()
             .copied()
-            .filter(|comment| comment.is_leading() && comment.attached_to == attached_to)
-            .collect()
+            .filter(|comment| comment.span.start >= start && comment.span.end <= end)
+            .collect::<Vec<_>>();
+        comments.sort_by_key(|comment| (comment.span.start, comment.span.end));
+        comments
     }
 
-    /// Return the first non-trivia token start for one type expression.
-    pub fn type_expression_token_start(&self, expression_id: LocalNodeId<Expression>) -> u32 {
-        if let Some(leading_separator_span) = self
-            .tree
-            .get_side_span(expression_id, NodeSpanType::Leading)
-        {
-            return leading_separator_span.start;
-        }
-
-        let expression_span = self.span(expression_id);
-
-        self.first_non_trivia_token_in_span(expression_span)
-            .map_or(expression_span.start, |token| token.span.start)
-    }
-
-    /// Return raw comments that belong before one explicit type-position expression.
-    pub fn raw_type_position_comments_for(
+    /// Return raw comments between the previous non-trivia token and one expression body.
+    pub fn raw_comments_after_previous_non_trivia_token_for(
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> Vec<Comment> {
-        if self
-            .tree
-            .get_side_span(expression_id, NodeSpanType::Leading)
-            .is_some()
-        {
-            return Vec::new();
-        }
-
         let expression_span = self.span(expression_id);
-        let first_token_type = self
-            .first_non_trivia_token_in_span(expression_span)
-            .map(|token| token.token.ty);
-        if matches!(
-            first_token_type,
-            Some(TokenType::ElementwiseOr | TokenType::ElementwiseAnd)
-        ) {
+        let Some(previous_token) = self.previous_non_trivia_token_before_span(expression_span)
+        else {
             return Vec::new();
-        }
+        };
+        let expression_start = self.expression_token_start(expression_id);
+        self.raw_boundary_comments_in_range(previous_token.span.end, expression_start)
+    }
 
-        let expression_start = self.type_expression_token_start(expression_id);
-        if let Some(start) = self.type_expression_leading_comment_start(expression_id) {
-            if start >= expression_start {
-                return Vec::new();
+    /// Return raw comments before the next non-trivia token after one span.
+    pub fn raw_comments_before_next_non_trivia_token_after_span(&self, span: Span) -> Vec<Comment> {
+        let Some(next_token) = self.next_non_trivia_token_after_span(span) else {
+            return Vec::new();
+        };
+
+        self.raw_boundary_comments_in_range(span.end, next_token.span.start)
+    }
+
+    /// Return raw comments inside one trailing span for one node.
+    pub fn raw_comments_in_trailing_for<T>(&self, node_id: LocalNodeId<T>) -> Vec<Comment>
+    where
+        T: Node + Clone,
+        NodeTree: NodeTreeImpl<T>,
+    {
+        let Some(trailing_span) = self.tree.get_side_span(node_id, NodeSpanType::Trailing) else {
+            return Vec::new();
+        };
+        let owner = SourcePartKey::new(node_id.id, NodeSpanType::Trailing);
+
+        self.tree
+            .comments()
+            .iter()
+            .copied()
+            .filter(|comment| comment.attached_part == owner)
+            .filter(|comment| comment.span.file == trailing_span.file)
+            .collect()
+    }
+
+    /// Return raw comments after the previous non-trivia token and before one expression body.
+    pub fn raw_comments_after_previous_non_trivia_token_before_expression(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> Vec<Comment> {
+        self.raw_comments_after_previous_non_trivia_token_for(expression_id)
+    }
+
+    /// Return the first non-trivia token start for one type expression.
+    pub fn type_expression_token_start<T>(&self, node_id: LocalNodeId<T>) -> u32
+    where
+        T: Node + Clone,
+        NodeTree: NodeTreeImpl<T>,
+    {
+        self.node_token_start(node_id)
+    }
+
+    /// Return raw comments that belong before one explicit type-position expression.
+    pub fn raw_type_position_comments_for<T>(&self, node_id: LocalNodeId<T>) -> Vec<Comment>
+    where
+        T: Node + Clone,
+        NodeTree: NodeTreeImpl<T>,
+    {
+        if let Some(leading_span) = self.tree.get_side_span(node_id, NodeSpanType::Leading)
+            && self
+                .first_non_trivia_token_in_span(leading_span)
+                .is_some_and(|token| {
+                    matches!(
+                        token.token.ty,
+                        TokenType::ElementwiseOr | TokenType::ElementwiseAnd
+                    )
+                })
+        {
+            if let Some(start) = self.type_expression_leading_comment_start(node_id) {
+                let separator_start = leading_span.start;
+                if start < separator_start {
+                    return self.raw_boundary_comments_in_range(start, separator_start);
+                }
             }
 
-            let comments = self.comments();
-            return comments.comments_in_range(start, expression_start).to_vec();
+            return Vec::new();
         }
 
-        self.raw_leading_comments_attached_to(expression_start)
+        if let Some(start) = self.type_expression_leading_comment_start(node_id) {
+            let node_start = self.type_expression_token_start(node_id);
+            if start < node_start {
+                return self.raw_boundary_comments_in_range(start, node_start);
+            }
+        }
+
+        self.raw_prefix_comments_for(node_id)
     }
 
     /// Return leading raw doc comments attached to one node head.
@@ -1393,7 +1498,7 @@ impl<'a> DestackFormatContext<'a> {
             let is_template_parent = self.tree.get_node_type(parent_id) == NodeType::Expression
                 && matches!(
                     self.tree.get(LocalNodeId::<Expression>::new(parent_id)),
-                    Expression::TemplateExpression { .. } | Expression::TypeTemplateLiteral { .. }
+                    Expression::TemplateExpression { .. }
                 );
             if is_template_parent {
                 break true;
@@ -1452,7 +1557,7 @@ impl<'a> DestackFormatContext<'a> {
                 == NodeType::Expression
                 && matches!(
                     self.tree.get(LocalNodeId::<Expression>::new(parent_id)),
-                    Expression::TypeConditional { .. }
+                    Expression::Type { .. }
                 );
             if is_type_conditional_parent {
                 break true;

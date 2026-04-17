@@ -2,7 +2,10 @@ use crate::format::annotation::{
     block_infix_annotations, line_suffix_boundary_annotations, write_raw_comment_slice,
 };
 use crate::format::chain::{is_call_like_argument, transparent_inner_expression};
-use crate::format::expression::expression_has_static_type_arguments;
+use crate::format::context::ParenthesizedExpressionView;
+use crate::format::expression::{
+    expression_has_generic_arguments, write_expression_with_prefix_annotations_after_offset,
+};
 use crate::format::tree::{
     is_jsx_whitespace_char, should_force_break_tree_attributes, tree_argument_is_wrapped_in_braces,
     tree_child_breaks_element, tree_children_have_blank_line_between, tree_text_is_whitespace_only,
@@ -107,17 +110,17 @@ fn tree_children_layout(
     let has_multiple_expression_children = expression_child_count >= 2;
     let has_tree_and_expression_children = has_tree_child && expression_child_count > 0;
     let has_tree_and_text_children = has_tree_child && has_non_whitespace_text_child;
-    let is_destack = context.options.language_type.is_destack();
+    let tree_children_force_break = context.options.language_type.is_destack();
     let force_break =
-        // destack: any tree child forces multiline tree layout
-        (is_destack
+        // tree child forms break as soon as any structured child appears
+        (tree_children_force_break
             && (force_break_attributes
                 || has_breaking_child
                 || has_tree_child
                 || has_multiple_expression_children
                 || has_newline_whitespace_text_child))
-            // ts/js/tsx/jsx: any tag child forces multiline, like the standard formatters
-            || (!is_destack
+            // tag forms keep text only content inline a bit longer
+            || (!tree_children_force_break
                 && (force_break_attributes
                     || has_breaking_child
                     || has_tree_child
@@ -614,7 +617,7 @@ fn tree_opening_tag_layout(
     elements: &Option<Vec<LocalNodeId<Argument>>>,
 ) -> (bool, bool) {
     let tag_has_static_type_arguments =
-        left.is_some_and(|left_id| expression_has_static_type_arguments(context, left_id));
+        left.is_some_and(|left_id| expression_has_generic_arguments(context, left_id));
     let single_attribute_per_line = context.options.single_attribute_per_line;
     let prefer_same_line_self_closing = !context.options.language_type.is_destack()
         && elements.is_none()
@@ -738,11 +741,9 @@ pub(crate) fn tree_literal_wraps_on_break(
             let declaration_id = LocalNodeId::<Declaration>::new(parent_id);
             let is_lambda_body = matches!(
                 context.tree.get(declaration_id),
-                Declaration::Function {
-                    signature,
-                    body: Some(body_id),
-                    ..
-                } if signature.kind == FunctionKind::Lambda && body_id.id == node_id.id
+                Declaration::Function(function)
+                    if function.signature.kind == FunctionKind::Lambda
+                        && function.body.is_some_and(|body_id| body_id.id == node_id.id)
             );
             !is_lambda_body
         }
@@ -799,6 +800,9 @@ pub(crate) fn format_parenthesized_tree_expression<'ast>(
 ) -> FormatResult<()> {
     let tree_should_break = tree_literal_should_break(f.context(), arguments, elements)
         || f.context().node_has_newline(expression_id);
+    let leading_inner_end = ParenthesizedExpressionView::from_node(f.context(), parenthesized_id)
+        .and_then(ParenthesizedExpressionView::leading_inner_span)
+        .map_or(f.context().span(expression_id).start, |span| span.end);
 
     if is_call_like_argument(f.context(), parenthesized_id) {
         write!(f, [expression_id])?;
@@ -808,7 +812,17 @@ pub(crate) fn format_parenthesized_tree_expression<'ast>(
             [
                 token("("),
                 block_indent(&format_with(|f| {
-                    write!(f, [group(&expression_id).should_expand(true)])?;
+                    write!(
+                        f,
+                        [group(&format_with(|f| {
+                            write_expression_with_prefix_annotations_after_offset(
+                                f,
+                                expression_id,
+                                leading_inner_end,
+                            )
+                        }))
+                        .should_expand(true)]
+                    )?;
 
                     if !trailing_inner_comment_nodes.is_empty() {
                         write!(

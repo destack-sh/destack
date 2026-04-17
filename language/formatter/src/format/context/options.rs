@@ -23,7 +23,7 @@ pub struct DestackFormatOptions {
     /// Maximum line length (best effort).
     pub line_width: u16 = 100,
 
-    // syntax
+    // punctuation and quoting
     /// Quote style for string literals.
     pub quote_style: QuoteStyle = QuoteStyle::Semantic,
     /// Trailing comma rules for multi-line constructs.
@@ -35,7 +35,7 @@ pub struct DestackFormatOptions {
     /// Object property quoting rules.
     pub quote_props: QuoteProperty = QuoteProperty::AsNeeded,
 
-    // tree/jsx
+    // tree forms
     /// Put `>` of multi-line tree/JSX on same line as last attribute.
     pub bracket_same_line: bool = false,
     /// Force each tree/JSX attribute onto its own line.

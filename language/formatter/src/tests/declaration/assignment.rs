@@ -3,7 +3,7 @@ use destack_source::FileType;
 
 /// Type alias comments after `=` should normalize to the stable union shell.
 #[test]
-fn test_format_typescript_union_head_comment_after_equals_is_idempotent() {
+fn test_format_union_head_comment_after_equals_is_idempotent() {
     assert_format_program_reference_widths(
         r#"type Aa1 = /*1*/ | /*2*/ C | D;
 "#,
@@ -23,9 +23,34 @@ fn test_format_typescript_union_head_comment_after_equals_is_idempotent() {
     );
 }
 
+/// Type alias line comments after `=` should keep the rhs in the assignment shell.
+#[test]
+fn test_format_type_alias_line_comment_after_equals() {
+    assert_format_program_reference_widths(
+        r#"type Item = // keep
+Alpha | Beta;
+"#,
+        FileType::TypeScript,
+        &[
+            (
+                80,
+                r#"type Item = // keep
+  Alpha | Beta;
+"#,
+            ),
+            (
+                100,
+                r#"type Item = // keep
+  Alpha | Beta;
+"#,
+            ),
+        ],
+    );
+}
+
 /// Assignment comments should stay attached to the formatted assignment shell.
 #[test]
-fn test_format_typescript_assignment_comments() {
+fn test_format_assignment_comments() {
     assert_format_program_reference_widths(
         r#"var longlonglonglonglonglong = /*#__PURE__*/_interopDefaultLegacy(aaaaaaaaaaaaaaa);
 var short = /*#__PURE__*/_interopDefaultLegacy(b);
@@ -33,13 +58,6 @@ var short = /*#__PURE__*/_interopDefaultLegacy(b);
 const jestPackageJson =
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   require(jestPath);
-
-{
-  sourcemap =
-  /** @type {'inline' | 'hidden' | 'sourcemap'} */ (
-      process.env.WORKER_MODE
-    ) || sourcemap;
-}
 
 class A {
   #testerConfig;
@@ -61,13 +79,6 @@ const jestPackageJson =
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   require(jestPath);
 
-{
-  sourcemap =
-    /** @type {'inline' | 'hidden' | 'sourcemap'} */ (
-      process.env.WORKER_MODE
-    ) || sourcemap;
-}
-
 class A {
   #testerConfig;
   constructor() {
@@ -86,11 +97,6 @@ const jestPackageJson =
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   require(jestPath);
 
-{
-  sourcemap =
-    /** @type {'inline' | 'hidden' | 'sourcemap'} */ (process.env.WORKER_MODE) || sourcemap;
-}
-
 class A {
   #testerConfig;
   constructor() {
@@ -106,7 +112,7 @@ class A {
 
 /// Call-expression type arguments should preserve leading comments.
 #[test]
-fn test_format_typescript_assignment_call_with_type_args_comments() {
+fn test_format_assignment_call_with_type_args_comments() {
     assert_format_program_reference_widths(
         r#"// Type arguments should not lose comments
 export const globalRegistry: $ZodRegistry = /*@__PURE__*/ registry();
@@ -143,7 +149,7 @@ const s = /* comment */ foo<A | B | C>();
 
 /// Conditional type aliases should keep the assignment-like shell from the reference formatter.
 #[test]
-fn test_format_typescript_type_alias_conditional_layout() {
+fn test_format_type_alias_conditional_layout() {
     assert_format_program_reference_widths(
         r#"export type _Repeat<A extends any, N extends number, L extends List = []> =
   __Repeat<N, A, L> extends infer X
@@ -170,7 +176,7 @@ fn test_format_typescript_type_alias_conditional_layout() {
 
 /// Assignment-like arrow functions with type-heavy left sides should follow the reference widths.
 #[test]
-fn test_format_typescript_assignment_arrow_function_layout() {
+fn test_format_assignment_arrow_function_layout() {
     assert_format_program_reference_widths(
         r#"{
   const onPanning: ComponenASDtProps<
@@ -211,7 +217,7 @@ const onPanning: ComponenASDtProps<typeof TransformWrapper>["onPanning"] = () =>
 
 /// Complex destructuring assignments should use the reference break-left-hand-side layout.
 #[test]
-fn test_format_typescript_assignment_break_left_hand_side_layout() {
+fn test_format_assignment_break_left_hand_side_layout() {
     assert_format_program_reference_widths(
         r#"{
   let { className, unfurl: unfurlAttrr, ...attrs } = getAttributesFromNode(node);
@@ -257,19 +263,19 @@ fn test_format_typescript_assignment_break_left_hand_side_layout() {
 
 /// Complex type arguments on assignment-like right-hand sides should match the expected shell.
 #[test]
-fn test_format_typescript_assignment_complex_type_arguments_layout() {
+fn test_format_assignment_complex_type_arguments_layout() {
     assert_format_program_reference_widths(
-        r#"// Type argument is a `TSMappedType`
+        r#"// mapped type argument
 const emitter = createGlobalEmitter<{
   [key in Event["type"]]: Extract<Event, { type: key }>
 }>()
 
-// Type argument is a `TSTypeLiteral`
+// object type argument
 const emitter2 = createGlobalEmitter<{
   longlonglonglongKey: Extract<Event, { type: key }>
 }>()
 
-// Type argument is a `TSTypeReference`
+// reference type argument
 // nested generic call with object-like type arguments
 export class Test {
   	readonly coordinates = model.required<
@@ -289,17 +295,17 @@ const result = configurationService.getValue<Record<string, boolean>>(
         &[
             (
                 80,
-                r#"// Type argument is a `TSMappedType`
+                r#"// mapped type argument
 const emitter = createGlobalEmitter<{
   [key in Event["type"]]: Extract<Event, { type: key }>;
 }>();
 
-// Type argument is a `TSTypeLiteral`
+// object type argument
 const emitter2 = createGlobalEmitter<{
   longlonglonglongKey: Extract<Event, { type: key }>;
 }>();
 
-// Type argument is a `TSTypeReference`
+// reference type argument
 // nested generic call with object-like type arguments
 export class Test {
   readonly coordinates = model.required<
@@ -317,17 +323,17 @@ const result =
             ),
             (
                 100,
-                r#"// Type argument is a `TSMappedType`
+                r#"// mapped type argument
 const emitter = createGlobalEmitter<{
   [key in Event["type"]]: Extract<Event, { type: key }>;
 }>();
 
-// Type argument is a `TSTypeLiteral`
+// object type argument
 const emitter2 = createGlobalEmitter<{
   longlonglonglongKey: Extract<Event, { type: key }>;
 }>();
 
-// Type argument is a `TSTypeReference`
+// reference type argument
 // nested generic call with object-like type arguments
 export class Test {
   readonly coordinates = model.required<
@@ -348,7 +354,7 @@ const result = configurationService.getValue<Record<string, boolean>>(enalementS
 
 /// Assignment-like shells with long generic calls should follow the reference width behavior.
 #[test]
-fn test_format_typescript_assignment_generic_call_width_behavior() {
+fn test_format_assignment_generic_call_width_behavior() {
     assert_format_program_reference_widths(
         r#"const fooRef =
         useRef<Record<string, LazyFooThingFD<T, TError> | null | undefined>>(cache);

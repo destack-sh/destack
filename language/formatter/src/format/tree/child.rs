@@ -5,8 +5,8 @@ use crate::format::chain::{
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Declaration, Expression, FunctionKind, IfCondition, IfKind, LocalNodeId, NodeTree,
-    ScalarLiteral, TokenType,
+    Argument, Declaration, Expression, FunctionDeclaration, FunctionKind, IfCondition, IfKind,
+    LocalNodeId, NodeTree, ScalarLiteral, TokenType,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_source::Span;
@@ -34,7 +34,8 @@ fn tree_callback_body_requires_break(
     context: &DestackFormatContext<'_>,
     declaration_id: LocalNodeId<Declaration>,
 ) -> bool {
-    let Declaration::Function { body, .. } = context.tree.get(declaration_id) else {
+    let Declaration::Function(FunctionDeclaration { body, .. }) = context.tree.get(declaration_id)
+    else {
         return false;
     };
     let Some(body_id) = *body else {
@@ -56,16 +57,12 @@ pub(crate) fn tree_expression_contains_callback_break(
 
     match context.tree.get(expression_id) {
         Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         }
         | Expression::New {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } => {
-            if dynamic_arguments.iter().copied().any(|argument_id| {
+            if arguments.iter().copied().any(|argument_id| {
                 argument_transparent_value_id(context, argument_id).is_some_and(|value_id| {
                     matches!(context.tree.get(value_id), Expression::Declaration(declaration_id)
                         if tree_callback_body_requires_break(context, *declaration_id))
@@ -187,7 +184,8 @@ pub(crate) fn tree_child_should_inline_braced_expression(
         }
         Expression::Declaration(declaration_id) => matches!(
             context.tree.get(*declaration_id),
-            Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
+            Declaration::Function(FunctionDeclaration { signature, .. })
+                if signature.kind == FunctionKind::Lambda
         ),
         _ => false,
     }

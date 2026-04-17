@@ -1,12 +1,11 @@
 use crate::format::annotation::{prefix_annotations, prefix_annotations_after_offset};
-use crate::format::directive::{node_has_ignore_directive, write_ignored_node};
 use crate::format::expression::{
-    expression_has_type_cast_comment_head, format_primary_expression, format_statement_expression,
+    format_primary_expression, format_statement_expression,
     write_primary_expression_trailing_annotations, write_statement_expression_trailing_annotations,
 };
+use crate::format::file::{node_has_ignore_directive, write_ignored_node};
 use crate::format::operator::{
-    format_operator_expression, operator_expression_owns_prefix_annotations,
-    write_operator_expression_trailing_annotations,
+    format_operator_expression, write_operator_expression_trailing_annotations,
 };
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{Expression, LocalNodeId};
@@ -51,8 +50,8 @@ pub(crate) fn write_expression_without_prefix_annotations<'ast>(
         | Expression::NewTarget
         | Expression::This
         | Expression::Super
+        | Expression::Type { .. }
         | Expression::ScalarLiteral(_)
-        | Expression::TypeLiteral(_)
         | Expression::TemplateExpression { .. }
         | Expression::TaggedTemplateExpression { .. }
         | Expression::ArrayExpression { .. }
@@ -60,20 +59,15 @@ pub(crate) fn write_expression_without_prefix_annotations<'ast>(
         | Expression::SequenceExpression { .. }
         | Expression::ObjectExpression { .. }
         | Expression::TreeExpression { .. }
-        | Expression::Parenthesized { .. }
-        | Expression::TypeConditional { .. }
-        | Expression::TypeMapped { .. }
-        | Expression::TypeIndex { .. }
-        | Expression::TypeTemplateLiteral { .. }
-        | Expression::TypeImport { .. }
-        | Expression::TypeInfer { .. }
-        | Expression::TypePredicate { .. } => {
+        | Expression::Parenthesized { .. } => {
             format_primary_expression(f, expression_id, expression)?;
             write_primary_expression_trailing_annotations(f, expression_id, expression)
         }
         Expression::Unary { .. }
-        | Expression::TypeUnary { .. }
-        | Expression::TypeBinary { .. }
+        | Expression::As { .. }
+        | Expression::Satisfies { .. }
+        | Expression::Is { .. }
+        | Expression::InstanceOf { .. }
         | Expression::ValueOf { .. }
         | Expression::ReferenceOf { .. }
         | Expression::PointerOf { .. }
@@ -107,27 +101,14 @@ pub(crate) fn write_expression_with_prefix_annotations_after_offset<'ast>(
     expression_id: LocalNodeId<Expression>,
     start_offset: u32,
 ) -> FormatResult<()> {
-    let expression = f.context().tree.get(expression_id);
-    let is_ignored = node_has_ignore_directive(f.context(), expression_id);
-    let type_cast_node_owns_prefix =
-        expression_has_type_cast_comment_head(f.context(), expression_id);
-
-    if !operator_expression_owns_prefix_annotations(
-        f.context(),
-        expression_id,
-        expression,
-        is_ignored,
-    ) && !type_cast_node_owns_prefix
-    {
-        write!(
-            f,
-            [prefix_annotations_after_offset(
-                f.context(),
-                expression_id,
-                start_offset
-            )]
-        )?;
-    }
+    write!(
+        f,
+        [prefix_annotations_after_offset(
+            f.context(),
+            expression_id,
+            start_offset
+        )]
+    )?;
 
     write_expression_without_prefix_annotations(f, expression_id)
 }
@@ -172,8 +153,8 @@ pub(crate) fn format_expression<'ast>(
         | Expression::NewTarget
         | Expression::This
         | Expression::Super
+        | Expression::Type { .. }
         | Expression::ScalarLiteral(_)
-        | Expression::TypeLiteral(_)
         | Expression::TemplateExpression { .. }
         | Expression::TaggedTemplateExpression { .. }
         | Expression::ArrayExpression { .. }
@@ -181,17 +162,12 @@ pub(crate) fn format_expression<'ast>(
         | Expression::SequenceExpression { .. }
         | Expression::ObjectExpression { .. }
         | Expression::TreeExpression { .. }
-        | Expression::Parenthesized { .. }
-        | Expression::TypeConditional { .. }
-        | Expression::TypeMapped { .. }
-        | Expression::TypeIndex { .. }
-        | Expression::TypeTemplateLiteral { .. }
-        | Expression::TypeImport { .. }
-        | Expression::TypeInfer { .. }
-        | Expression::TypePredicate { .. } => format_primary_expression(f, node_id, expression)?,
+        | Expression::Parenthesized { .. } => format_primary_expression(f, node_id, expression)?,
         Expression::Unary { .. }
-        | Expression::TypeUnary { .. }
-        | Expression::TypeBinary { .. }
+        | Expression::As { .. }
+        | Expression::Satisfies { .. }
+        | Expression::Is { .. }
+        | Expression::InstanceOf { .. }
         | Expression::ValueOf { .. }
         | Expression::ReferenceOf { .. }
         | Expression::PointerOf { .. }
@@ -230,14 +206,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
         node_id: LocalNodeId<Expression>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        let is_ignored = node_has_ignore_directive(f.context(), node_id);
-        let type_cast_node_owns_prefix =
-            expression_has_type_cast_comment_head(f.context(), node_id);
-        if !operator_expression_owns_prefix_annotations(f.context(), node_id, self, is_ignored)
-            && !type_cast_node_owns_prefix
-        {
-            write!(f, [prefix_annotations(f.context(), node_id)])?;
-        }
+        write!(f, [prefix_annotations(f.context(), node_id)])?;
 
         write_expression_without_prefix_annotations(f, node_id)?;
 

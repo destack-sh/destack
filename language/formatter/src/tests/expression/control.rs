@@ -28,7 +28,7 @@ fn test_format_match_with_block_case_and_guard() {
 fn test_format_switch_expression_cases() {
     assert_format!(
         "switch (x) { case 1: 2; case 3: 4 }",
-        "switch (x) {\n\tcase 1: 2\n\tcase 3: 4\n}",
+        "switch (x) {\n\tcase 1: 2;\n\tcase 3: 4;\n}",
         |p| p.eat_match(),
         DestackFormatOptions::default_tab()
     );
@@ -38,7 +38,7 @@ fn test_format_switch_expression_cases() {
 fn test_format_switch_with_default_case() {
     assert_format!(
         "switch (x) { case 1: \"one\"; default: \"other\" }",
-        "switch (x) {\n\tcase 1: \"one\"\n\tdefault: \"other\"\n}",
+        "switch (x) {\n\tcase 1: \"one\";\n\tdefault: \"other\";\n}",
         |p| p.eat_match(),
         DestackFormatOptions::default_tab()
     );
@@ -126,6 +126,7 @@ fn test_format_yield_type_comments() {
         a as any
     );
 }
+
 function *t2() {
     yield (
         // comment
@@ -191,6 +192,7 @@ function *t10() {
     a as any
   );
 }
+
 function* t2() {
   yield (
     // comment
@@ -257,6 +259,7 @@ function* t10() {
     a as any
   );
 }
+
 function* t2() {
   yield (
     // comment

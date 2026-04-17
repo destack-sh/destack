@@ -6,24 +6,22 @@ use crate::format::annotation::{
 use crate::format::chain::transparent_inner_expression;
 use crate::format::declaration::is_poorly_breakable_member_or_call_chain;
 use crate::format::declaration::signature::{
-    default_static_parameter_trailing_separator, expression_body_requires_head_space,
-    format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
+    default_generic_parameter_trailing_separator, expression_body_requires_head_space,
     format_where_clause_with_break, parameter_is_variadic, should_break_function_parameters,
     signature_return_type_has_line_suffix_boundary_annotation, single_parameter_should_hug,
     write_empty_parameter_list_with_interior_comments, write_function_header_prefix,
-    write_signature_dynamic_parameter_list, write_signature_hug_parameter_list,
-    write_static_parameter_list,
+    write_generic_parameter_list, write_signature_hug_parameter_list,
+    write_signature_parameter_list, write_signature_return_type_with_boundary_comments,
 };
 use crate::format::declaration::statement::write_block_body;
-use crate::format::directive::{node_has_ignore_directive, write_ignored_node};
 use crate::format::expression::write_expression_without_prefix_annotations;
-use crate::format::operator::{
-    write_colon_prefixed_type_annotation, write_type_expression_with_inline_prefix_annotations,
-};
+use crate::format::file::{node_has_ignore_directive, write_ignored_node};
+use crate::format::operator::write_colon_prefixed_type_annotation_with_trailing_comments;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AnnotationPosition, BindingModifier, Comment, Expression, FunctionSignature, Key, Keyword,
-    LocalNodeId, Name, Node, NodeTree, NodeTreeImpl, Property, ScalarLiteral, is_identifier_compat,
+    Ambientness, BinaryOperator, Comment, DecoratorPosition, Expression, FunctionSignature, Key,
+    Keyword, LocalNodeId, Mutability, Name, Node, NodeTree, NodeTreeImpl, NodeType, Property,
+    ScalarLiteral, TypeExpression, Visibility, is_identifier_compat,
 };
 use destack_core::StringId;
 use destack_fir::format::{FormatNodes, FormatResult, Formatter as FirFormatter, VecBuffer, text};
@@ -79,21 +77,14 @@ pub(crate) fn format_key_with_quotes<'ast>(
             write!(f, [expression])?;
             write!(f, [token("]")])?;
         }
-        Key::NamedExpression { name, key } => {
-            write!(f, [token("[")])?;
-            write!(f, [name])?;
-            write!(f, [token(":"), space()])?;
-            write!(f, [key])?;
-            write!(f, [token("]")])?;
-        }
     }
 
     Ok(())
 }
 
-/// Check whether a string is an identifier safe to leave unquoted in JavaScript.
+/// Check whether a string is an identifier safe to leave unquoted as a property key.
 pub(crate) fn is_identifier_for_quotes(content: &str) -> bool {
-    is_identifier_compat(content)
+    is_identifier_compat(content) || content.parse::<Keyword>().is_ok()
 }
 
 /// Format a name key while applying quote rules.
@@ -103,18 +94,13 @@ fn format_name_with_quotes<'ast>(
     force_quote_keys: bool,
 ) -> FormatResult<()> {
     let context = f.context();
-    let is_destack = context.options.language_type.is_destack();
-    let mut quote_props = context.options.quote_props;
-    if is_destack {
-        quote_props = QuoteProperty::Preserve;
-    }
+    let quote_props = context.options.quote_props;
 
     match name {
         Name::Identifier(string_id) => {
             let content = context.strings.get(string_id);
             if content.starts_with('#')
-                && (context.options.language_type.is_javascript()
-                    || context.options.language_type.is_typescript())
+                && context.options.language_type.supports_private_identifiers()
             {
                 let name = content.strip_prefix('#').unwrap_or(content);
                 if name.is_empty() {
@@ -136,9 +122,11 @@ fn format_name_with_quotes<'ast>(
             let content = context.strings.get(string_id);
             let is_ident = is_identifier_for_quotes(content);
 
-            // preserve cannot roundtrip source quote intent because keyword-like keys
-            // are normalized as string names in the parser model
-            let should_quote = force_quote_keys || !is_ident;
+            let should_quote = match quote_props {
+                QuoteProperty::AsNeeded => force_quote_keys || !is_ident,
+                QuoteProperty::Preserve => true,
+                QuoteProperty::Consistent => force_quote_keys || !is_ident,
+            };
 
             if should_quote {
                 format_quoted_name(f, string_id)?;
@@ -152,6 +140,16 @@ fn format_name_with_quotes<'ast>(
     }
 
     Ok(())
+}
+
+/// Return whether one key requires quotes in a consistent quote group.
+pub(crate) fn key_requires_quote_group(context: &DestackFormatContext<'_>, key: Key) -> bool {
+    match key {
+        Key::Name(Name::String(string_id)) => {
+            !is_identifier_for_quotes(context.strings.get(string_id))
+        }
+        _ => false,
+    }
 }
 
 /// Format a quoted key using the preferred quote character.
@@ -172,11 +170,16 @@ fn format_quoted_name<'ast>(
 
 /// Write a field type annotation.
 #[inline]
-fn write_field_type_annotation<'ast>(
+fn write_field_type_annotation<'ast, T>(
     f: &mut DestackFormatter<'ast, '_>,
-    value: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    write_colon_prefixed_type_annotation(f, value)
+    node_id: LocalNodeId<T>,
+    value: LocalNodeId<TypeExpression>,
+) -> FormatResult<()>
+where
+    T: Node + Clone + 'ast,
+    NodeTree: NodeTreeImpl<T>,
+{
+    write_colon_prefixed_type_annotation_with_trailing_comments(f, node_id, value)
 }
 
 /// The assignment-like layout used for field initializers.
@@ -187,22 +190,53 @@ enum FieldLikeLayout {
     NeverBreakAfterOperator,
 }
 
+/// Return whether one logical rhs can stay inline in the assignment-like layout.
+fn field_like_can_inline_logical_rhs(expression: &Expression) -> bool {
+    match expression {
+        Expression::ObjectExpression { properties, .. } => !properties.is_empty(),
+        Expression::ArrayExpression { elements } => !elements.is_empty(),
+        Expression::TreeExpression { .. } => true,
+        _ => false,
+    }
+}
+
 /// Return the assignment-like layout for one field initializer.
 fn field_like_layout<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    default: LocalNodeId<Expression>,
+    right: LocalNodeId<Expression>,
     is_left_short: bool,
     left_may_break: bool,
 ) -> FieldLikeLayout {
-    let default_id = transparent_inner_expression(f.context(), default);
+    let right_id = transparent_inner_expression(f.context(), right);
+    let right_expression = f.context().tree.get(right_id);
 
-    if is_poorly_breakable_member_or_call_chain(f, default_id) && !is_left_short {
+    if matches!(right_expression, Expression::SequenceExpression { .. }) {
+        return FieldLikeLayout::BreakAfterOperator;
+    }
+
+    if let Expression::Binary {
+        operator, right, ..
+    } = right_expression
+    {
+        let is_logical_expression = matches!(
+            operator,
+            BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce
+        );
+
+        if !is_logical_expression
+            || !field_like_can_inline_logical_rhs(f.context().tree.get(*right))
+        {
+            return FieldLikeLayout::BreakAfterOperator;
+        }
+    }
+
+    if is_poorly_breakable_member_or_call_chain(f, right_id) && !is_left_short {
         return FieldLikeLayout::BreakAfterOperator;
     }
 
     if !left_may_break
         && matches!(
-            f.context().tree.get(default_id),
+            f.context().tree.get(right_id),
             Expression::Declaration(_)
                 | Expression::TemplateExpression { .. }
                 | Expression::ScalarLiteral(
@@ -220,45 +254,362 @@ fn field_like_layout<'ast>(
     FieldLikeLayout::Fluid
 }
 
-/// Write the shared left side of one field-like assignment shell.
-fn write_field_like_left<'ast>(
+/// Write one visibility prefix.
+fn write_visibility_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    modifiers: Option<BindingModifier>,
-    key: Option<Key>,
-    value: Option<LocalNodeId<Expression>>,
-    force_quote_keys: bool,
+    visibility: Option<Visibility>,
 ) -> FormatResult<()> {
-    // modifiers
-    format_binding_modifiers_prefix_maybe(f, modifiers)?;
-
-    // key
-    if let Some(key) = key {
-        format_key_with_quotes(f, key, force_quote_keys)?;
+    // visibility
+    if let Some(visibility) = visibility {
+        let keyword = match visibility {
+            Visibility::Public => Keyword::Public,
+            Visibility::Protected => Keyword::Protected,
+            Visibility::Private => Keyword::Private,
+        };
+        write!(f, [keyword, space()])?;
     }
 
-    // modifiers
-    format_binding_modifiers_postfix_maybe(f, modifiers)?;
+    Ok(())
+}
+
+/// Write one ambient prefix.
+fn write_ambient_prefix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    ambient: Ambientness,
+) -> FormatResult<()> {
+    // ambient
+    if ambient.is_ambient() {
+        write!(f, [Keyword::Declare, space()])?;
+    }
+
+    Ok(())
+}
+
+/// Write one static prefix.
+fn write_static_prefix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    is_static: bool,
+) -> FormatResult<()> {
+    // static
+    if is_static {
+        write!(f, [Keyword::Static, space()])?;
+    }
+
+    Ok(())
+}
+
+/// Write one comptime prefix.
+fn write_comptime_prefix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    is_comptime: bool,
+) -> FormatResult<()> {
+    // comptime
+    if is_comptime {
+        write!(f, [Keyword::Comptime, space()])?;
+    }
+
+    Ok(())
+}
+
+/// Write one readonly prefix.
+fn write_readonly_prefix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    is_readonly: bool,
+) -> FormatResult<()> {
+    // readonly
+    if is_readonly {
+        write!(f, [Keyword::Readonly, space()])?;
+    }
+
+    Ok(())
+}
+
+/// Write one mutability prefix.
+fn write_mutability_prefix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    mutability: Option<Mutability>,
+) -> FormatResult<()> {
+    // mutability
+    if let Some(mutability) = mutability {
+        write!(f, [mutability.to_keyword(), space()])?;
+    }
+
+    Ok(())
+}
+
+/// Write one accessor prefix.
+fn write_accessor_prefix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    is_accessor: bool,
+) -> FormatResult<()> {
+    // accessor
+    if is_accessor {
+        write!(f, [token("accessor"), space()])?;
+    }
+
+    Ok(())
+}
+
+/// Write one optional suffix.
+fn write_optional_suffix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    is_optional: bool,
+) -> FormatResult<()> {
+    // optional
+    if is_optional {
+        write!(f, [token("?")])?;
+    }
+
+    Ok(())
+}
+
+/// Write one definite-assignment suffix.
+fn write_const_asserted_suffix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    is_const_asserted: bool,
+) -> FormatResult<()> {
+    // definite assignment
+    if is_const_asserted {
+        write!(f, [token("!")])?;
+    }
+
+    Ok(())
+}
+
+/// Return whether one object field can stay in shorthand form.
+fn property_field_is_shorthand(
+    context: &DestackFormatContext<'_>,
+    key: Key,
+    value: LocalNodeId<Expression>,
+) -> bool {
+    matches!(
+        (key, context.tree.get(value)),
+        (
+            Key::Name(Name::Identifier(key_name)),
+            Expression::Identifier { name: value_name },
+        ) if key_name == *value_name
+    )
+}
+
+/// Return whether one property container should quote all eligible keys.
+fn property_should_force_quote_keys<'ast>(
+    f: &DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Property>,
+) -> bool {
+    if f.context().options.quote_props != QuoteProperty::Consistent {
+        return false;
+    }
+
+    if f.context().options.language_type.is_destack() {
+        return false;
+    }
+
+    let Some((parent_id, parent_type)) = f.context().parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_id = LocalNodeId::<Expression>::new(parent_id);
+    let Expression::ObjectExpression { properties, .. } = f.context().tree.get(parent_id) else {
+        return false;
+    };
+
+    properties.iter().copied().any(|property_id| {
+        let key = match f.context().tree.get(property_id) {
+            Property::Field { key, .. } => Some(*key),
+            Property::Method { key, .. } => *key,
+            Property::Spread { .. } | Property::Error => None,
+        };
+
+        key.is_some_and(|key| key_requires_quote_group(f.context(), key))
+    })
+}
+
+/// Format one runtime object property value using the assignment-like shell.
+fn format_object_property_value<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Property>,
+    key: Key,
+    value: LocalNodeId<Expression>,
+    force_quote_keys: bool,
+) -> FormatResult<()> {
+    // shorthand
+    if property_field_is_shorthand(f.context(), key, value) {
+        return format_key_with_quotes(f, key, force_quote_keys);
+    }
+
+    // left side
+    let mut buffer = VecBuffer::new(f.state_mut());
+    write_field_like_left(
+        &mut FirFormatter::new(&mut buffer),
+        node_id,
+        key,
+        None,
+        None,
+        Ambientness::Concrete,
+        false,
+        false,
+        false,
+        false,
+        None,
+        false,
+        false,
+        false,
+        force_quote_keys,
+    )?;
+    let left_nodes = buffer.into_vec();
+    let left_may_break = left_nodes.will_break();
+    let is_left_short = left_nodes
+        .single_line_width()
+        .is_some_and(|width| width < (u32::from(f.context().options.indent_width) + 3));
+    let layout = field_like_layout(f, value, is_left_short, left_may_break);
+
+    let left = f.intern_vec(left_nodes);
+    let left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        if let Some(left) = &left {
+            f.write_node(left.clone());
+        }
+
+        Ok(())
+    });
+
+    let right = format_with(|f: &mut DestackFormatter<'ast, '_>| write!(f, [value]));
+    let inner_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if left_may_break {
+            write!(f, [left])?;
+        } else {
+            write!(f, [group(&left)])?;
+        }
+
+        write!(f, [token(":")])?;
+
+        match layout {
+            FieldLikeLayout::Fluid => {
+                let group_id = f.group_id("object_property_rhs");
+                write!(
+                    f,
+                    [
+                        group(&indent(&soft_line_break_or_space())).with_id(Some(group_id)),
+                        line_suffix_boundary(),
+                        indent_if_group_breaks(&right, group_id)
+                    ]
+                )
+            }
+            FieldLikeLayout::BreakAfterOperator => {
+                write!(f, [group(&soft_line_indent_or_space(&right))])
+            }
+            FieldLikeLayout::NeverBreakAfterOperator => {
+                write!(f, [space(), right])
+            }
+        }
+    });
+
+    write!(f, [group(&inner_content)])?;
+
+    Ok(())
+}
+
+/// Write the shared left side of one field-like assignment shell.
+fn write_field_like_left<'ast, T>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<T>,
+    key: Key,
+    value: Option<LocalNodeId<TypeExpression>>,
+    visibility: Option<Visibility>,
+    ambient: Ambientness,
+    is_static: bool,
+    is_abstract: bool,
+    is_override: bool,
+    is_readonly: bool,
+    mutability: Option<Mutability>,
+    is_accessor: bool,
+    is_optional: bool,
+    is_const_asserted: bool,
+    force_quote_keys: bool,
+) -> FormatResult<()>
+where
+    T: Node + Clone + 'ast,
+    NodeTree: NodeTreeImpl<T>,
+{
+    // prefixes
+    write_ambient_prefix(f, ambient)?;
+    write_visibility_prefix(f, visibility)?;
+    write_static_prefix(f, is_static)?;
+
+    // abstraction
+    if is_abstract {
+        write!(f, [Keyword::Abstract, space()])?;
+    }
+
+    // override
+    if is_override {
+        write!(f, [Keyword::Override, space()])?;
+    }
+
+    // storage and accessor
+    write_readonly_prefix(f, is_readonly)?;
+    write_mutability_prefix(f, mutability)?;
+    write_accessor_prefix(f, is_accessor)?;
+
+    // key
+    format_key_with_quotes(f, key, force_quote_keys)?;
+
+    // key suffixes
+    write_optional_suffix(f, is_optional)?;
+    write_const_asserted_suffix(f, is_const_asserted)?;
 
     // value
     if let Some(value) = value {
-        write_field_type_annotation(f, value)?;
+        write_field_type_annotation(f, node_id, value)?;
     }
 
     Ok(())
 }
 
 /// Format shared property or member field output.
-pub(crate) fn format_field_like<'ast>(
+pub(crate) fn format_field_like<'ast, T>(
     f: &mut DestackFormatter<'ast, '_>,
-    modifiers: Option<BindingModifier>,
-    key: Option<Key>,
-    value: Option<LocalNodeId<Expression>>,
+    node_id: LocalNodeId<T>,
+    key: Key,
+    value: Option<LocalNodeId<TypeExpression>>,
+    visibility: Option<Visibility>,
+    ambient: Ambientness,
+    is_static: bool,
+    is_abstract: bool,
+    is_override: bool,
+    is_readonly: bool,
+    mutability: Option<Mutability>,
+    is_accessor: bool,
+    is_optional: bool,
+    is_const_asserted: bool,
     default: Option<LocalNodeId<Expression>>,
     force_quote_keys: bool,
-) -> FormatResult<()> {
+) -> FormatResult<()>
+where
+    T: Node + Clone + 'ast,
+    NodeTree: NodeTreeImpl<T>,
+{
     // no initializer
     let Some(default) = default else {
-        write_field_like_left(f, modifiers, key, value, force_quote_keys)?;
+        write_field_like_left(
+            f,
+            node_id,
+            key,
+            value,
+            visibility,
+            ambient,
+            is_static,
+            is_abstract,
+            is_override,
+            is_readonly,
+            mutability,
+            is_accessor,
+            is_optional,
+            is_const_asserted,
+            force_quote_keys,
+        )?;
         return Ok(());
     };
 
@@ -266,9 +617,19 @@ pub(crate) fn format_field_like<'ast>(
     let mut buffer = VecBuffer::new(f.state_mut());
     write_field_like_left(
         &mut FirFormatter::new(&mut buffer),
-        modifiers,
+        node_id,
         key,
         value,
+        visibility,
+        ambient,
+        is_static,
+        is_abstract,
+        is_override,
+        is_readonly,
+        mutability,
+        is_accessor,
+        is_optional,
+        is_const_asserted,
         force_quote_keys,
     )?;
     let left_nodes = buffer.into_vec();
@@ -327,7 +688,11 @@ pub(crate) fn format_field_like<'ast>(
 pub(crate) fn format_method_like<'ast, N>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<N>,
-    modifiers: Option<BindingModifier>,
+    visibility: Option<Visibility>,
+    ambient: Ambientness,
+    is_static: bool,
+    is_accessor: bool,
+    is_comptime: bool,
     key: Option<Key>,
     signature: &FunctionSignature,
     body: Option<LocalNodeId<Expression>>,
@@ -337,11 +702,14 @@ where
     N: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<N>,
 {
-    let generics = signature.generics.as_ref();
-    let dynamic_parameters = method_dynamic_parameters(signature);
+    let parameters = method_parameters(signature);
 
-    // modifiers
-    format_binding_modifiers_prefix_maybe(f, modifiers)?;
+    // prefixes
+    write_ambient_prefix(f, ambient)?;
+    write_visibility_prefix(f, visibility)?;
+    write_static_prefix(f, is_static)?;
+    write_comptime_prefix(f, is_comptime)?;
+    write_accessor_prefix(f, is_accessor)?;
 
     // shared function header prefix
     write_function_header_prefix(f, signature, false, key.is_some())?;
@@ -351,34 +719,22 @@ where
         format_key_with_quotes(f, key, force_quote_keys)?;
     }
 
-    // name boundary comments
-    write!(f, [block_infix_annotations(f.context(), node_id)])?;
-
-    // name postfix modifiers: `?` and `!` belong on the method name
-    format_binding_modifiers_postfix_maybe(f, modifiers)?;
-
-    // static parameters
-    if let Some(static_parameters) =
-        generics.and_then(|generics| generics.static_parameters.as_ref())
-        && !static_parameters.is_empty()
-    {
-        write_static_parameter_list(
+    // generic parameters
+    if !signature.generic_parameters.is_empty() {
+        write_generic_parameter_list(
             f,
-            static_parameters,
-            default_static_parameter_trailing_separator(f),
+            &signature.generic_parameters,
+            default_generic_parameter_trailing_separator(f),
         )?;
     }
 
-    // optional marker to parameter list boundary
+    // key to parameter boundary
     write!(f, [block_infix_annotations(f.context(), node_id)])?;
-
-    write_method_parameters_and_return_type(f, node_id, signature, &dynamic_parameters)?;
+    write_method_parameters_and_return_type(f, node_id, signature, &parameters)?;
 
     // where clauses
-    if let Some(where_clauses) = generics.and_then(|generics| generics.where_clauses.as_ref())
-        && !where_clauses.is_empty()
-    {
-        format_where_clause_with_break(f, where_clauses)?;
+    if !signature.where_clauses.is_empty() {
+        format_where_clause_with_break(f, &signature.where_clauses)?;
     }
 
     // body
@@ -389,18 +745,16 @@ where
     Ok(())
 }
 
-/// Collect dynamic method parameters, including `this`.
-fn method_dynamic_parameters(
-    signature: &FunctionSignature,
-) -> Vec<LocalNodeId<destack_ast::Parameter>> {
-    let mut dynamic_parameters = Vec::with_capacity(signature.dynamic_parameters.len() + 1);
+/// Collect method parameters, including `this`.
+fn method_parameters(signature: &FunctionSignature) -> Vec<LocalNodeId<destack_ast::Parameter>> {
+    let mut parameters = Vec::with_capacity(signature.parameters.len() + 1);
 
     if let Some(this_parameter) = signature.this_parameter {
-        dynamic_parameters.push(this_parameter);
+        parameters.push(this_parameter);
     }
 
-    dynamic_parameters.extend(signature.dynamic_parameters.iter().copied());
-    dynamic_parameters
+    parameters.extend(signature.parameters.iter().copied());
+    parameters
 }
 
 /// Write one method parameter list and return type.
@@ -408,29 +762,28 @@ fn write_method_parameters_and_return_type<'ast, N>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<N>,
     signature: &FunctionSignature,
-    dynamic_parameters: &[LocalNodeId<destack_ast::Parameter>],
+    parameters: &[LocalNodeId<destack_ast::Parameter>],
 ) -> FormatResult<()>
 where
     N: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<N>,
 {
     let format_parameters_and_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        let should_expand_parameters =
-            should_break_function_parameters(f.context(), dynamic_parameters);
-        if dynamic_parameters.is_empty() {
+        let should_expand_parameters = should_break_function_parameters(f.context(), parameters);
+        if parameters.is_empty() {
             write_empty_parameter_list_with_interior_comments(f, node_id)?;
-        } else if dynamic_parameters.len() == 1
+        } else if parameters.len() == 1
             && !should_expand_parameters
-            && single_parameter_should_hug(f.context(), dynamic_parameters[0])
+            && single_parameter_should_hug(f.context(), parameters[0])
         {
-            write_signature_hug_parameter_list(f, dynamic_parameters)?;
+            write_signature_hug_parameter_list(f, parameters)?;
         } else {
-            let disallow_trailing_parameter_separator = dynamic_parameters
+            let disallow_trailing_parameter_separator = parameters
                 .last()
                 .is_some_and(|parameter_id| parameter_is_variadic(f.context(), *parameter_id));
-            write_signature_dynamic_parameter_list(
+            write_signature_parameter_list(
                 f,
-                dynamic_parameters,
+                parameters,
                 should_expand_parameters,
                 disallow_trailing_parameter_separator,
             )?;
@@ -438,7 +791,7 @@ where
 
         if let Some(return_type) = signature.return_type {
             write!(f, [token(":"), space()])?;
-            write_type_expression_with_inline_prefix_annotations(f, return_type)?;
+            write_signature_return_type_with_boundary_comments(f, return_type)?;
         }
 
         Ok(())
@@ -469,12 +822,9 @@ where
     if let Some(return_type) = signature.return_type {
         write!(
             f,
-            [
-                postfix_annotations_without_line_suffix_boundary::<Expression>(
-                    f.context(),
-                    return_type
-                )
-            ]
+            [postfix_annotations_without_line_suffix_boundary::<
+                TypeExpression,
+            >(f.context(), return_type)]
         )?;
     }
 
@@ -484,8 +834,8 @@ where
             .iter()
             .any(|annotation_id| {
                 matches!(
-                    f.context().annotation(*annotation_id).position(),
-                    AnnotationPosition::LinePostfixBoundary
+                    f.context().annotation(*annotation_id).position,
+                    DecoratorPosition::LinePostfixBoundary
                 )
             })
             || signature_return_type_has_line_suffix_boundary_annotation(
@@ -498,7 +848,7 @@ where
     if let Some(return_type) = signature.return_type {
         write!(
             f,
-            [line_suffix_boundary_annotations::<Expression>(
+            [line_suffix_boundary_annotations::<TypeExpression>(
                 f.context(),
                 return_type
             )]
@@ -539,7 +889,7 @@ fn write_method_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     body: LocalNodeId<Expression>,
     force_break_before_body: bool,
-    _return_type: Option<LocalNodeId<Expression>>,
+    _return_type: Option<LocalNodeId<TypeExpression>>,
 ) -> FormatResult<()> {
     let is_block_body = matches!(f.context().node::<Expression>(body), Expression::Block(..));
     let block_boundary_comment_nodes = method_body_boundary_comment_nodes(f, body)
@@ -646,37 +996,42 @@ impl<'ast> FormatNode<'ast, Property> for Property {
         node_id: LocalNodeId<Property>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        let force_quote_keys = property_should_force_quote_keys(f, node_id);
+
         if let Property::Method {
-            modifiers,
             key,
             signature,
             body,
         } = self
         {
             return format_node_with_directive(f, node_id, true, |f| {
-                format_method_like(f, node_id, *modifiers, *key, signature, *body, false)
+                format_method_like(
+                    f,
+                    node_id,
+                    None,
+                    Ambientness::Concrete,
+                    false,
+                    false,
+                    false,
+                    *key,
+                    signature,
+                    *body,
+                    force_quote_keys,
+                )
             });
         }
 
         format_node_with_directive(f, node_id, false, |f| {
             match self {
-                Property::Field {
-                    modifiers,
-                    key,
-                    value,
-                    default,
-                } => {
-                    format_field_like(f, *modifiers, *key, *value, *default, false)?;
+                Property::Field { key, value } => {
+                    format_object_property_value(f, node_id, *key, *value, force_quote_keys)?;
                 }
-                Property::Spread { modifiers, value } => {
-                    // modifiers
-                    format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                Property::Spread { value } => {
                     // keyword
                     write!(f, [token("...")])?;
+
                     // value
                     write!(f, [value])?;
-                    // modifiers
-                    format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 }
                 Property::Method { .. } => {}
                 Property::Error => {

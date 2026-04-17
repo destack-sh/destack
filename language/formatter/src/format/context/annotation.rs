@@ -1,24 +1,24 @@
 use super::context::DestackFormatContext;
 use destack_ast as ast;
-use destack_ast::{Annotation, AnnotationPosition, LocalNodeId, Node, NodeTree, NodeTreeImpl};
+use destack_ast::{Decorator, DecoratorPosition, LocalNodeId, Node, NodeTree, NodeTreeImpl};
 use destack_source::Span;
 
 impl<'a> DestackFormatContext<'a> {
     /// Get one annotation by id.
     #[inline]
-    pub fn annotation(&self, annotation_id: LocalNodeId<Annotation>) -> Annotation {
-        *self.tree.get(annotation_id)
+    pub fn annotation(&self, annotation_id: LocalNodeId<Decorator>) -> Decorator {
+        self.tree.get(annotation_id).clone()
     }
 
     /// Get one annotation span by id.
     #[inline]
-    pub fn annotation_span(&self, annotation_id: LocalNodeId<Annotation>) -> Span {
+    pub fn annotation_span(&self, annotation_id: LocalNodeId<Decorator>) -> Span {
         self.tree.get_span(annotation_id)
     }
 
     /// Return whether one annotation starts on its own source line.
     #[inline]
-    pub fn annotation_starts_on_own_line(&self, annotation_id: LocalNodeId<Annotation>) -> bool {
+    pub fn annotation_starts_on_own_line(&self, annotation_id: LocalNodeId<Decorator>) -> bool {
         self.span_starts_on_own_line(self.annotation_span(annotation_id))
     }
 
@@ -26,7 +26,7 @@ impl<'a> DestackFormatContext<'a> {
     #[inline]
     pub fn annotation_previous_non_whitespace_token(
         &self,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
     ) -> Option<ast::TokenSpan> {
         let annotation_span = self.annotation_span(annotation_id);
         self.previous_non_whitespace_token_before_span(annotation_span)
@@ -36,7 +36,7 @@ impl<'a> DestackFormatContext<'a> {
     #[inline]
     pub fn annotation_next_non_whitespace_token(
         &self,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
     ) -> Option<ast::TokenSpan> {
         let annotation_span = self.annotation_span(annotation_id);
         self.next_non_whitespace_token_after_span(annotation_span)
@@ -45,7 +45,7 @@ impl<'a> DestackFormatContext<'a> {
     /// Return whether the next non-whitespace token after one annotation starts on the same line.
     pub fn annotation_next_token_is_on_same_line(
         &self,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
     ) -> bool {
         let annotation_span = self.annotation_span(annotation_id);
         let Some(next_token) = self.annotation_next_non_whitespace_token(annotation_id) else {
@@ -63,7 +63,7 @@ impl<'a> DestackFormatContext<'a> {
     #[inline]
     pub fn annotation_next_non_whitespace_token_type(
         &self,
-        annotation_id: LocalNodeId<Annotation>,
+        annotation_id: LocalNodeId<Decorator>,
     ) -> Option<ast::TokenType> {
         self.annotation_next_non_whitespace_token(annotation_id)
             .map(|token| token.token.ty)
@@ -71,12 +71,12 @@ impl<'a> DestackFormatContext<'a> {
 
     /// Return annotation ids for a node.
     #[inline]
-    pub fn annotation_ids<T>(&self, node_id: LocalNodeId<T>) -> &[LocalNodeId<Annotation>]
+    pub fn annotation_ids<T>(&self, node_id: LocalNodeId<T>) -> &[LocalNodeId<Decorator>]
     where
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.tree.get_annotations_ref(node_id.id)
+        self.tree.get_decorators_ref(node_id.id)
     }
 
     /// Check if a node has an annotation.
@@ -86,7 +86,7 @@ impl<'a> DestackFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        !self.tree.get_annotations_ref(node_id.id).is_empty()
+        !self.tree.get_decorators_ref(node_id.id).is_empty()
     }
 
     /// Check if a node has a prefix annotation.
@@ -105,8 +105,8 @@ impl<'a> DestackFormatContext<'a> {
             .copied()
             .any(|annotation_id| {
                 matches!(
-                    self.annotation(annotation_id).position(),
-                    AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+                    self.annotation(annotation_id).position,
+                    DecoratorPosition::BlockPrefix | DecoratorPosition::LinePrefix
                 )
             })
     }
@@ -122,7 +122,7 @@ impl<'a> DestackFormatContext<'a> {
             .iter()
             .copied()
             .any(|annotation_id| {
-                self.annotation(annotation_id).position() == AnnotationPosition::BlockInfix
+                self.annotation(annotation_id).position == DecoratorPosition::BlockInfix
             })
     }
 
@@ -137,7 +137,7 @@ impl<'a> DestackFormatContext<'a> {
             .iter()
             .copied()
             .any(|annotation_id| {
-                self.annotation(annotation_id).position() != AnnotationPosition::LinePostfixBoundary
+                self.annotation(annotation_id).position != DecoratorPosition::LinePostfixBoundary
             })
     }
 
@@ -153,10 +153,10 @@ impl<'a> DestackFormatContext<'a> {
             .copied()
             .any(|annotation_id| {
                 matches!(
-                    self.annotation(annotation_id).position(),
-                    AnnotationPosition::BlockPostfix
-                        | AnnotationPosition::LinePostfix
-                        | AnnotationPosition::LinePostfixBoundary
+                    self.annotation(annotation_id).position,
+                    DecoratorPosition::BlockPostfix
+                        | DecoratorPosition::LinePostfix
+                        | DecoratorPosition::LinePostfixBoundary
                 )
             })
     }

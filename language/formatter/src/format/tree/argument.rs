@@ -61,7 +61,7 @@ pub(crate) fn argument_drops_parenthesized_value_wrapper(
             Expression::Declaration(declaration_id)
                 if matches!(
                     context.tree.get(*declaration_id),
-                    Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
+                    Declaration::Function(function) if function.signature.kind == FunctionKind::Lambda
                 )
         );
 
@@ -220,7 +220,7 @@ pub(crate) fn write_tree_expression_argument<'ast>(
                     }
                 }
             } else {
-                // tsx and jsx preserve named attribute token syntax
+                // named tree attributes preserve their source token form
                 write!(f, [name])?;
                 let argument_span = f.context().span(argument_id);
                 let tokens = f.context().non_trivia_tokens_in_span(argument_span);
@@ -278,7 +278,7 @@ pub(crate) fn write_tree_expression_argument<'ast>(
                         ])]
                     )?;
                 } else {
-                    // keep jsx expression containers inline for common expression forms
+                    // keep tree expression containers inline for common expression forms
                     if tree_child_should_inline_braced_expression(f.context(), argument_id) {
                         write!(f, [token("{"), value, token("}")])?;
                     } else if expression_chain_has_boundary_comment(f.context(), *value)

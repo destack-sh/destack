@@ -1,4 +1,4 @@
-use super::groups::TailChainGroup;
+use super::groups::{TailChainGroup, chain_operation_has_leading_gap_comment};
 use super::member::{CallChainPosition, build_member_chain_parts, member_has_intervening_comment};
 use super::{
     ChainExpression, ChainExpressionBase, ChainExpressionBaseHead, TailChainGroups,
@@ -9,21 +9,21 @@ use super::{
     transparent_inner_expression,
 };
 use crate::format::annotation::{
-    format_raw_comment, format_trailing_comments, infix_or_postfix_annotations,
-    infix_or_postfix_annotations_without_line_suffix_boundary, line_suffix_boundary_annotations,
-    postfix_annotations, prefix_annotations, write_raw_leading_comments,
+    format_raw_comment, format_trailing_comment_slice, format_trailing_comments,
+    infix_or_postfix_annotations, infix_or_postfix_annotations_without_line_suffix_boundary,
+    line_suffix_boundary_annotations, postfix_annotations, prefix_annotations,
+    write_raw_leading_comments,
 };
 use crate::format::call::{
     expression_is_long_curried_call, format_call_arguments_in_chain, format_call_expression,
 };
 use crate::format::context::ParenthesizedExpressionView;
-use crate::format::declaration::expression_is_in_statement_position;
 use crate::format::expression::{
-    format_static_argument_list, format_static_argument_list_with_relational_spacing,
+    format_generic_argument_list, format_generic_argument_list_with_relational_spacing,
 };
 use crate::format::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{AnnotationPosition, Expression, LocalNodeId, NodeType, PostfixPosition};
+use destack_ast::{DecoratorPosition, Expression, LocalNodeId, NodeType, PostfixPosition};
 use destack_fir::format::{
     BestFittingMode, Buffer, Format, FormatNodes, FormatResult, FormatState, VecBuffer,
 };
@@ -126,7 +126,7 @@ impl MemberChain {
 
             for annotation_id in context.annotation_ids(*node_id).iter().copied() {
                 let annotation = context.annotation(annotation_id);
-                if annotation.position() != AnnotationPosition::LinePostfixBoundary {
+                if annotation.position != DecoratorPosition::LinePostfixBoundary {
                     continue;
                 }
 
@@ -213,14 +213,11 @@ impl MemberChain {
         context: &DestackFormatContext<'_>,
         operation: &ChainExpression,
     ) -> bool {
-        let ChainExpression::Call {
-            dynamic_arguments, ..
-        } = operation
-        else {
+        let ChainExpression::Call { arguments, .. } = operation else {
             return false;
         };
 
-        dynamic_arguments.iter().copied().any(|argument_id| {
+        arguments.iter().copied().any(|argument_id| {
             let Some(argument_value_id) =
                 super::argument_value_id_if_present(context.tree, argument_id)
             else {
@@ -285,11 +282,11 @@ impl MemberChain {
 /// Try to merge the first tail group into the chain head.
 fn maybe_merge_first_tail_group_with_head(
     context: &DestackFormatContext<'_>,
-    root_id: LocalNodeId<Expression>,
+    _root_id: LocalNodeId<Expression>,
     base: &mut ChainExpressionBase,
     tail_groups: &mut TailChainGroups,
 ) {
-    if !should_merge_first_tail_group_with_head(context, root_id, base, tail_groups) {
+    if !should_merge_first_tail_group_with_head(context, base, tail_groups) {
         return;
     }
 
@@ -303,7 +300,6 @@ fn maybe_merge_first_tail_group_with_head(
 /// Return whether the first tail group should merge into the head.
 fn should_merge_first_tail_group_with_head(
     context: &DestackFormatContext<'_>,
-    root_id: LocalNodeId<Expression>,
     base: &ChainExpressionBase,
     tail_groups: &TailChainGroups,
 ) -> bool {
@@ -327,11 +323,10 @@ fn should_merge_first_tail_group_with_head(
                     Expression::Identifier { name, .. } => {
                         has_computed_property
                             || is_factory_name(context, *name)
-                            || (expression_is_in_statement_position(context, root_id)
-                                && has_short_name(
-                                    context.strings.get(*name),
-                                    context.options.indent_width,
-                                ))
+                            || has_short_name(
+                                context.strings.get(*name),
+                                context.options.indent_width,
+                            )
                     }
                     Expression::QualifiedReference { path, .. } if path.segments.len() == 1 => {
                         has_computed_property || is_factory_name(context, path.segments[0])
@@ -537,7 +532,7 @@ fn leading_call_expression_id(
     })
 }
 
-/// Format a member/call/maybe/index chain with prettier-style breaking.
+/// Format a member/call/maybe/index chain with OXC-shaped breaking.
 pub(crate) fn format_expression_chain<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
@@ -640,8 +635,8 @@ fn write_expanded_chain<'ast>(
                             .iter()
                             .any(|annotation_id| {
                                 matches!(
-                                    f.context().annotation(*annotation_id).position(),
-                                    AnnotationPosition::BlockPrefix
+                                    f.context().annotation(*annotation_id).position,
+                                    DecoratorPosition::BlockPrefix
                                 )
                             })
                     }));
@@ -717,25 +712,101 @@ fn next_operation_owns_callee_gap_comments(next_operation: Option<&ChainExpressi
         Some(ChainExpression::Call {
             optional_position: None,
             position: PostfixPosition::Direct,
-            static_arguments: None,
+            generic_arguments,
+            arguments,
             ..
-        })
+        }) if generic_arguments.is_empty() && !arguments.is_empty()
     )
 }
 
-/// Write raw trailing comments between one formatted node and its following operation.
+/// Return structural trailing comments emitted after one chain segment.
+fn chain_structural_trailing_comments(
+    context: &DestackFormatContext<'_>,
+    preceding_node_id: LocalNodeId<Expression>,
+    next_operation: Option<&ChainExpression>,
+) -> Vec<destack_ast::Comment> {
+    let mut comments = context.raw_comments_in_trailing_for(preceding_node_id);
+
+    let Some(next_operation) = next_operation else {
+        comments.sort_by_key(|comment| (comment.span.start, comment.span.end));
+        return comments;
+    };
+
+    let next_separator_comments = match next_operation {
+        ChainExpression::Member { node_id, .. } | ChainExpression::Index { node_id, .. } => {
+            let receiver_id = match context.tree.get(*node_id) {
+                Expression::Member { left, .. } | Expression::Index { left, .. } => *left,
+                _ => return comments,
+            };
+
+            context.raw_comments_before_next_non_trivia_token_after_span(context.span(receiver_id))
+        }
+        _ => Vec::new(),
+    };
+    comments.extend(
+        next_separator_comments
+            .into_iter()
+            .filter(|comment| !comment.preceded_by_newline()),
+    );
+    comments.sort_by_key(|comment| (comment.span.start, comment.span.end));
+    comments
+}
+
+/// Write separator comments that start on their own line before one chain hop.
+fn write_chain_operation_leading_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    op: &ChainExpression,
+) -> FormatResult<()> {
+    let node_id = match op {
+        ChainExpression::Member { node_id, .. } | ChainExpression::Index { node_id, .. } => {
+            *node_id
+        }
+        _ => return Ok(()),
+    };
+
+    let receiver_id = match f.context().tree.get(node_id) {
+        Expression::Member { left, .. } | Expression::Index { left, .. } => *left,
+        _ => return Ok(()),
+    };
+    let leading_comments = f
+        .context()
+        .raw_comments_before_next_non_trivia_token_after_span(f.context().span(receiver_id))
+        .into_iter()
+        .filter(|comment| comment.preceded_by_newline())
+        .collect::<Vec<_>>();
+    if leading_comments.is_empty() {
+        return Ok(());
+    }
+
+    write_raw_leading_comments(f, &leading_comments)
+}
+
+/// Write trailing comments between one formatted node and its following operation.
 fn write_chain_trailing_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     formatted_root_id: LocalNodeId<Expression>,
+    preceding_node_id: LocalNodeId<Expression>,
     preceding_span: Span,
     next_operation: Option<&ChainExpression>,
 ) -> FormatResult<()> {
     let Some(next_operation) = next_operation else {
-        return Ok(());
+        let structural_comments =
+            chain_structural_trailing_comments(f.context(), preceding_node_id, None);
+        if structural_comments.is_empty() {
+            return Ok(());
+        }
+
+        return write!(f, [format_trailing_comment_slice(&structural_comments)]);
     };
 
     if next_operation_owns_callee_gap_comments(Some(next_operation)) {
         return Ok(());
+    }
+
+    let structural_comments =
+        chain_structural_trailing_comments(f.context(), preceding_node_id, Some(next_operation));
+    if !structural_comments.is_empty() {
+        return write!(f, [format_trailing_comment_slice(&structural_comments)]);
     }
 
     let following_span_start = chain_operation_start(f.context(), next_operation).unwrap_or(0);
@@ -795,12 +866,10 @@ fn write_chain_base<'ast>(
     instantiation_prefix_wrap_body_ops: Option<usize>,
     deferred_base_boundary_owner_node_id: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
-    let root_is_decorator_expression =
-        f.context()
-            .parent(formatted_root_id)
-            .is_some_and(|(_, parent_type)| {
-                matches!(parent_type, NodeType::Decorator | NodeType::Annotation)
-            });
+    let root_is_decorator_expression = f
+        .context()
+        .parent(formatted_root_id)
+        .is_some_and(|(_, parent_type)| matches!(parent_type, NodeType::Decorator));
     let skip_base_head_for_start_call = base_head_is_owned_by_start_call(base);
     let mut has_open_prefix_wrap = false;
     let mut has_closed_prefix_wrap = false;
@@ -814,22 +883,22 @@ fn write_chain_base<'ast>(
             ChainExpressionBaseHead::Path {
                 node_id,
                 segment,
-                static_arguments,
+                generic_arguments,
                 emit_postfix_annotations,
             } => {
                 if !root_is_decorator_expression {
                     write!(f, [prefix_annotations(f.context(), *node_id)])?;
                 }
                 write!(f, [*segment])?;
-                if let Some(arguments) = static_arguments {
+                if !generic_arguments.is_empty() {
                     let next_operation = base
                         .body
                         .first()
                         .or_else(|| first_tail_group_operation(tail_groups));
                     if next_operation.is_some_and(chain_operation_is_index) {
-                        format_static_argument_list_with_relational_spacing(f, arguments)?;
+                        format_generic_argument_list_with_relational_spacing(f, generic_arguments)?;
                     } else {
-                        format_static_argument_list(f, arguments)?;
+                        format_generic_argument_list(f, generic_arguments)?;
                     }
                 }
                 if *emit_postfix_annotations {
@@ -881,6 +950,7 @@ fn write_chain_base<'ast>(
                 write_chain_trailing_comments(
                     f,
                     formatted_root_id,
+                    *node_id,
                     f.context().span(*node_id),
                     first_continuation,
                 )?;
@@ -969,9 +1039,9 @@ fn chain_operation_annotation_ownership(
                                 .any(|annotation_id| {
                                     let annotation = context.annotation(*annotation_id);
                                     if !matches!(
-                                        annotation.position(),
-                                        AnnotationPosition::BlockPrefix
-                                            | AnnotationPosition::LinePrefix
+                                        annotation.position,
+                                        DecoratorPosition::BlockPrefix
+                                            | DecoratorPosition::LinePrefix
                                     ) {
                                         return false;
                                     }
@@ -990,6 +1060,10 @@ fn chain_operation_annotation_ownership(
             (*node_id, should_emit_prefix_annotations, true)
         }
     };
+
+    // separator comments between chain hops belong to the chain layout
+    let emit_prefix_annotations =
+        emit_prefix_annotations && !chain_operation_has_leading_gap_comment(context, operation);
 
     let emit_prefix_annotations = emit_prefix_annotations && node_id != formatted_root_id;
     let root_postfix_owned_by_outer_context = node_id == formatted_root_id;
@@ -1027,31 +1101,6 @@ fn write_chain_operation_optional_boundary<'ast>(
     }
 
     Ok(())
-}
-
-/// Write comments owned by one member property gap.
-fn write_chain_member_leading_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let Some(left_id) = super::member::chain_node_left_id(f.context().tree, node_id) else {
-        return Ok(());
-    };
-    let Some(property_start) = super::member::member_property_start(f.context(), node_id) else {
-        return Ok(());
-    };
-
-    let leading_comments = {
-        let comments = f.context().comments();
-        comments
-            .comments_in_range(f.context().span(left_id).end, property_start)
-            .to_vec()
-    };
-    if leading_comments.is_empty() {
-        return Ok(());
-    }
-
-    write_raw_leading_comments(f, &leading_comments)
 }
 
 /// Write postfix annotations for one chain operation when it owns them.
@@ -1099,21 +1148,21 @@ fn write_chain_operation<'ast>(
         op,
         ChainExpression::Call {
             node_id,
-            dynamic_arguments,
+            arguments,
             ..
-        } if dynamic_arguments.is_empty() && f.context().has_infix_annotation(*node_id)
+        } if arguments.is_empty() && f.context().has_infix_annotation(*node_id)
     );
     write_chain_operation_prefix(f, node_id, emit_prefix_annotations)?;
+    write_chain_operation_leading_comments(f, op)?;
 
     match op {
         ChainExpression::Member {
             node_id,
             optional_position,
             segment,
-            static_arguments,
+            generic_arguments,
             ..
         } => {
-            write_chain_member_leading_comments(f, *node_id)?;
             write_chain_operation_optional_boundary(f, *node_id, *optional_position)?;
 
             let is_private_hash = member_is_private_hash(f.context(), *node_id);
@@ -1122,21 +1171,21 @@ fn write_chain_operation<'ast>(
                 write!(f, [token("#")])?;
             }
             write!(f, [*segment])?;
-            if let Some(arguments) = static_arguments {
+            if !generic_arguments.is_empty() {
                 if next_operation.is_some_and(chain_operation_is_index) {
-                    format_static_argument_list_with_relational_spacing(f, arguments)?;
+                    format_generic_argument_list_with_relational_spacing(f, generic_arguments)?;
                 } else {
-                    format_static_argument_list(f, arguments)?;
+                    format_generic_argument_list(f, generic_arguments)?;
                 }
             }
         }
         ChainExpression::Instantiation {
-            static_arguments, ..
+            generic_arguments, ..
         } => {
             if next_operation.is_some_and(chain_operation_is_index) {
-                format_static_argument_list_with_relational_spacing(f, static_arguments)?;
+                format_generic_argument_list_with_relational_spacing(f, generic_arguments)?;
             } else {
-                format_static_argument_list(f, static_arguments)?;
+                format_generic_argument_list(f, generic_arguments)?;
             }
         }
         ChainExpression::Call {
@@ -1144,8 +1193,8 @@ fn write_chain_operation<'ast>(
             call_position,
             optional_position,
             position,
-            static_arguments,
-            dynamic_arguments,
+            generic_arguments,
+            arguments,
         } => {
             if *call_position == CallChainPosition::Start {
                 format_call_expression(f, *call_node_id)?;
@@ -1154,10 +1203,10 @@ fn write_chain_operation<'ast>(
                 if *position == PostfixPosition::Indirect {
                     write!(f, [token(".")])?;
                 }
-                if let Some(arguments) = static_arguments {
-                    format_static_argument_list(f, arguments)?;
+                if !generic_arguments.is_empty() {
+                    format_generic_argument_list(f, generic_arguments)?;
                 }
-                format_call_arguments_in_chain(f, *call_node_id, dynamic_arguments)?;
+                format_call_arguments_in_chain(f, *call_node_id, arguments)?;
             }
         }
         ChainExpression::Index {
@@ -1215,7 +1264,13 @@ fn write_chain_operation<'ast>(
         deferred_base_boundary_owner_node_id,
     )?;
 
-    write_chain_trailing_comments(f, formatted_root_id, operation_span, next_operation)
+    write_chain_trailing_comments(
+        f,
+        formatted_root_id,
+        node_id,
+        operation_span,
+        next_operation,
+    )
 }
 
 /// Format all operations for one chain line.

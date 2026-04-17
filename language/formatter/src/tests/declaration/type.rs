@@ -2,7 +2,6 @@ use crate::{
     DestackFormatOptions, assert_format, assert_format_program,
     assert_format_program_reference_widths,
 };
-use destack_ast::{DeclarationDescriptor, EnumKind};
 use destack_source::FileType;
 
 #[test]
@@ -10,7 +9,7 @@ fn test_format_enum_empty() {
     assert_format!(
         "enum { }",
         "enum {}",
-        |p| p.eat_enum(&p.mark(), EnumKind::Enum, DeclarationDescriptor::default()),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -20,7 +19,7 @@ fn test_format_enum_with_simple_fields() {
     assert_format!(
         "enum { A, B }",
         "enum {\n\tA,\n\tB,\n}",
-        |p| p.eat_enum(&p.mark(), EnumKind::Enum, DeclarationDescriptor::default()),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_tab()
     );
 }
@@ -29,10 +28,8 @@ fn test_format_enum_with_simple_fields() {
 fn test_format_enum_with_annotations() {
     assert_format_program!(
         r#"@description("The status of a task.") enum Status { @default Todo; Done }"#,
-        r#"@description("The status of a task.")
-enum Status {
-    @default
-    Todo,
+        r#"@description("The status of a task.") enum Status {
+    @default Todo,
     Done,
 }
 "#,
@@ -41,7 +38,7 @@ enum Status {
 }
 
 #[test]
-fn test_format_enum_with_static_parameters() {
+fn test_format_enum_with_generic_parameters() {
     let source = r"enum Machine<T: int32 = 3, IsSomething: boolean = true> {
     A = 1,
     B = T,
@@ -51,14 +48,14 @@ fn test_format_enum_with_static_parameters() {
     assert_format!(
         source,
         source,
-        |p| p.eat_enum(&p.mark(), EnumKind::Enum, DeclarationDescriptor::default()),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
 
 /// Class type layout should keep the expected extends and implements forms.
 #[test]
-fn test_format_typescript_class_type_layout() {
+fn test_format_class_type_layout() {
     assert_format_program_reference_widths(
         r#"// Accessor with type annotation
 class Typed {
@@ -263,7 +260,7 @@ letlonglongRunningProvider4 = class implements languages.SignatureHelpProvider<H
 
 /// Member decorators should stay on their own line in class bodies.
 #[test]
-fn test_format_typescript_class_decorator_layout() {
+fn test_format_class_decorator_layout() {
     assert_format_program!(
         r#"class A {
   // comment shouldn't break the decorators grouping
@@ -271,9 +268,9 @@ fn test_format_typescript_class_decorator_layout() {
 }
 "#,
         r#"class A {
-  // comment shouldn't break the decorators grouping
-  @memoize
-  onContextMenu() {}
+    // comment shouldn't break the decorators grouping
+    @memoize
+    onContextMenu() {}
 }
 "#,
         FileType::TypeScript,
@@ -282,7 +279,7 @@ fn test_format_typescript_class_decorator_layout() {
 
 /// Decorator chain comments should stay interleaved without extra blank lines.
 #[test]
-fn test_format_typescript_member_decorator_comment_layout() {
+fn test_format_member_decorator_comment_layout() {
     assert_format_program_reference_widths(
         r#"class Box {
   // comment before entity

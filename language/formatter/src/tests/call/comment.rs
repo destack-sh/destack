@@ -240,3 +240,30 @@ fn test_format_static_member_breaks_after_receiver() {
         ],
     );
 }
+
+/// Snapshot matcher calls should follow the shared width split behavior.
+#[test]
+fn test_format_inline_snapshot_matcher_call_width_behavior() {
+    assert_format_program_reference_widths(
+        r#"expect(genCode(createVNodeCall(null, "`div`", mockProps)))
+  .toMatchInlineSnapshot(`
+  `)
+"#,
+        FileType::TypeScript,
+        &[
+            (
+                80,
+                r#"expect(genCode(createVNodeCall(null, "`div`", mockProps)))
+  .toMatchInlineSnapshot(`
+  `);
+"#,
+            ),
+            (
+                100,
+                r#"expect(genCode(createVNodeCall(null, "`div`", mockProps))).toMatchInlineSnapshot(`
+  `);
+"#,
+            ),
+        ],
+    );
+}

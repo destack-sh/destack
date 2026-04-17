@@ -1,5 +1,4 @@
 use crate::{DestackFormatOptions, assert_format, assert_format_program};
-use destack_ast::DeclarationDescriptor;
 use destack_source::{FileType, LanguageType};
 
 /// Empty structs should collapse cleanly.
@@ -8,7 +7,7 @@ fn test_format_struct_empty() {
     assert_format!(
         r#"struct Foo { }"#,
         r#"struct Foo {}"#,
-        |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -22,7 +21,7 @@ fn test_format_struct_with_fields() {
 	a: int32;
 	b: boolean;
 }"#,
-        |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_tab()
     );
 }
@@ -35,7 +34,7 @@ fn test_format_class_with_abstract_override_field() {
         r#"class Foo {
 	abstract override bar: int32;
 }"#,
-        |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions {
             language_type: LanguageType::TypeScript,
             ..DestackFormatOptions::default_tab()
@@ -52,14 +51,14 @@ fn test_format_struct_with_decorated_field() {
 	@validate(minLength(1))
 	name: string;
 }"#,
-        |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_tab()
     );
 }
 
 /// Quoted constructor parameter properties should expand into one parameter per line.
 #[test]
-fn test_format_typescript_constructor_parameter_properties_expand_for_quoted_constructor_name() {
+fn test_format_constructor_parameter_properties_expand_for_quoted_constructor_name() {
     assert_format_program!(
         r#"
 [
@@ -82,5 +81,56 @@ fn test_format_typescript_constructor_parameter_properties_expand_for_quoted_con
         .trim_start(),
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
+    );
+}
+
+/// TypeScript object literals should quote all eligible keys in one consistent group.
+#[test]
+fn test_format_object_quote_props_consistent() {
+    assert_format_program!(
+        r#"const x = { a: 1, "needs-quotes": 2, "default": 3 }
+"#,
+        r#"const x = { "a": 1, "needs-quotes": 2, "default": 3 };
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions {
+            quote_props: destack_workspace::QuoteProperty::Consistent,
+            ..DestackFormatOptions::default()
+        }
+    );
+}
+
+/// TypeScript object literals should preserve identifier-like quoted keys.
+#[test]
+fn test_format_object_quote_props_preserve() {
+    assert_format_program!(
+        r#"const x = { "normal": 1, "needs-quotes": 2, default: 3 }
+"#,
+        r#"const x = { "normal": 1, "needs-quotes": 2, default: 3 };
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions {
+            quote_props: destack_workspace::QuoteProperty::Preserve,
+            ..DestackFormatOptions::default()
+        }
+    );
+}
+
+/// TypeScript class members should stay unquoted when no sibling key requires quotes.
+#[test]
+fn test_format_class_quote_props_consistent_without_required_quotes() {
+    assert_format_program!(
+        r#"class Example { "a" = 1; b = 2; }
+"#,
+        r#"class Example {
+  a = 1;
+  b = 2;
+}
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions {
+            quote_props: destack_workspace::QuoteProperty::Consistent,
+            ..DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
+        }
     );
 }

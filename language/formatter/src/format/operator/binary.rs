@@ -1,17 +1,14 @@
 use crate::format::annotation::{format_trailing_comments_before_boundary, prefix_annotations};
 use crate::format::context::ParenthesizedExpressionView;
 use crate::format::expression::{
-    expression_has_only_prefix_comment_or_doc_annotations, is_type_cast_comment_node,
+    expression_has_only_prefix_comment_or_doc_annotations,
     write_expression_without_prefix_annotations,
 };
-use crate::format::operator::{
-    binary_like_is_type_intersection, binary_like_is_type_union,
-    format_type_intersection_binary_layout, type_binary_operand_needs_grouping_parentheses,
-};
+use crate::format::operator::expression_is_type_position;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    BinaryOperator, Expression, IfKind, LocalNodeId, NodeType, OperatorPrecedence, TokenType,
-    TypeBinaryOperator, UnaryOperator,
+    BinaryOperator, Expression, IfKind, LocalNodeId, Member, NodeType, OperatorPrecedence,
+    Property, TokenType, UnaryOperator,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
@@ -195,23 +192,61 @@ fn binary_operand_is_left(
     None
 }
 
+/// Return whether the parent inlines this binary root in the flattened layout.
+fn binary_parent_inlines_flattened_layout(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(expression_id) else {
+        return false;
+    };
+
+    match parent_type {
+        // variable declarators inline the binary element and own the outer indent
+        NodeType::Declarator => true,
+
+        // assignment expressions inline the rhs element and own the outer indent
+        NodeType::Expression => matches!(
+            context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
+            Expression::Assign { right, .. } if right.id == expression_id.id
+        ),
+
+        // object property values inline the binary element and own the outer indent
+        NodeType::Property => matches!(
+            context.tree.get(LocalNodeId::<Property>::new(parent_id)),
+            Property::Field { value, .. }
+                if *value == expression_id && !expression_is_type_position(context, expression_id)
+        ),
+
+        // class field initializers inline the binary element and own the outer indent
+        NodeType::Member => matches!(
+            context.tree.get(LocalNodeId::<Member>::new(parent_id)),
+            Member::Field { default, .. } if default.is_some_and(|default| default == expression_id)
+        ),
+
+        _ => false,
+    }
+}
+
 /// Return the earliest boundary that structurally belongs to one binary operand.
 fn binary_operand_comment_boundary_start(
     context: &DestackFormatContext<'_>,
     operand_id: LocalNodeId<Expression>,
 ) -> u32 {
-    context
+    if let Some(leading_span) = context
         .tree
-        .get_side_span(operand_id, destack_source::NodeSpanType::Separator)
-        .or_else(|| {
-            context
-                .tree
-                .get_side_span(operand_id, destack_source::NodeSpanType::Leading)
-        })
-        .map_or_else(|| context.span(operand_id).start, |span| span.start)
+        .get_side_span(operand_id, destack_source::NodeSpanType::Leading)
+    {
+        return leading_span.start;
+    }
+
+    let operand_span = context.span(operand_id);
+    context
+        .previous_non_trivia_token_before_span(operand_span)
+        .map_or(operand_span.start, |token| token.span.start)
 }
 
-/// Return whether one expression is a prefix-like left operand of `in` or `instanceof`.
+/// Return whether one expression is a prefix-like left operand of `in`.
 fn expression_is_relational_prefix_left_operand(expression: &Expression) -> bool {
     match expression {
         Expression::Unary { operator, .. } => matches!(
@@ -250,10 +285,7 @@ fn binary_operand_requires_grouping_parentheses(
     };
     let expression = context.tree.get(expression_id);
     if operand_is_left
-        && matches!(
-            parent_operator,
-            BinaryOperator::In | BinaryOperator::InstanceOf
-        )
+        && matches!(parent_operator, BinaryOperator::In)
         && expression_is_relational_prefix_left_operand(expression)
     {
         return true;
@@ -278,30 +310,45 @@ fn binary_operand_requires_grouping_parentheses(
         && !should_flatten_binary(parent_operator, *operand_operator)
 }
 
-/// Return whether one expression is a binary node.
+/// Return whether one expression is the same binary kind as the current owner.
 #[inline]
-fn expression_is_binary(expression: &Expression) -> bool {
-    matches!(expression, Expression::Binary { .. })
+fn expression_is_same_binary_kind(expression: &Expression, operator: BinaryOperator) -> bool {
+    matches!(
+        expression,
+        Expression::Binary {
+            operator: other_operator,
+            ..
+        } if is_logical_binary_operator(*other_operator) == is_logical_binary_operator(operator)
+    )
 }
 
 /// Return whether one flattened rhs owner should group its operator and rhs shell.
-fn flattened_operand_owner_should_group(
+fn binary_operand_owner_should_group(
     context: &DestackFormatContext<'_>,
     owner_id: LocalNodeId<Expression>,
 ) -> bool {
-    let parent_is_binary = context
+    let Expression::Binary {
+        left,
+        operator,
+        right,
+    } = context.tree.get(owner_id)
+    else {
+        return true;
+    };
+
+    let parent_is_same_kind = context
         .parent(owner_id)
         .is_some_and(|(parent_id, parent_type)| {
             parent_type == NodeType::Expression
-                && expression_is_binary(context.tree.get(LocalNodeId::<Expression>::new(parent_id)))
+                && expression_is_same_binary_kind(
+                    context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
+                    *operator,
+                )
         });
-    let Expression::Binary { left, right, .. } = context.tree.get(owner_id) else {
-        return true;
-    };
-    let left_is_binary = expression_is_binary(context.tree.get(*left));
-    let right_is_binary = expression_is_binary(context.tree.get(*right));
+    let left_is_same_kind = expression_is_same_binary_kind(context.tree.get(*left), *operator);
+    let right_is_same_kind = expression_is_same_binary_kind(context.tree.get(*right), *operator);
 
-    !(parent_is_binary || left_is_binary || right_is_binary)
+    !(parent_is_same_kind || left_is_same_kind || right_is_same_kind)
 }
 
 /// Flattens a binary expression chain while preserving the source owner of each rhs operand.
@@ -397,15 +444,12 @@ pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
         | Expression::Throw { .. }
         | Expression::Return { .. } => OperatorPrecedence::Prefix as u16,
 
-        // type unary
-        Expression::TypeUnary { operator, .. } => operator.precedence(),
-
         // binary
         Expression::Binary { operator, .. } => operator.precedence_group() as u16,
-        Expression::TypeBinary { operator, .. } => match operator {
-            TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies => 500,
-            _ => operator.precedence(),
-        },
+        Expression::As { .. } | Expression::Satisfies { .. } => 500,
+        Expression::Is { .. } | Expression::InstanceOf { .. } => {
+            OperatorPrecedence::Comparison as u16
+        }
 
         // assignment
         Expression::Assign { operator, .. } => operator.precedence(),
@@ -451,17 +495,10 @@ pub(crate) fn format_binary_operand_with_grouping_parentheses<'ast>(
 
     let operand_has_annotation = f.context().has_annotation(operand_id);
     let expression = f.context().tree.get(operand_id);
-    let needs_type_grouping_parentheses =
-        type_binary_operand_needs_grouping_parentheses(f.context(), parent_operator, operand_id);
-    let suppress_precedence_parentheses_for_type_binary = matches!(
+    let suppress_precedence_parentheses_for_type_relation = matches!(
         (expression, parent_operator),
         (
-            Expression::TypeBinary {
-                operator: TypeBinaryOperator::Is
-                    | TypeBinaryOperator::In
-                    | TypeBinaryOperator::InstanceOf,
-                ..
-            },
+            Expression::Is { .. } | Expression::InstanceOf { .. },
             BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce,
         )
     );
@@ -482,10 +519,9 @@ pub(crate) fn format_binary_operand_with_grouping_parentheses<'ast>(
                 parent_operator,
                 operand_id,
             ))
-        && !suppress_precedence_parentheses_for_type_binary;
-    let needs_grouping_parentheses = needs_type_grouping_parentheses
-        || needs_precedence_parentheses
-        || needs_mixed_logical_grouping_parentheses;
+        && !suppress_precedence_parentheses_for_type_relation;
+    let needs_grouping_parentheses =
+        needs_precedence_parentheses || needs_mixed_logical_grouping_parentheses;
     let operand_has_prefix_annotation = f.context().has_prefix_annotation(operand_id);
 
     if needs_grouping_parentheses {
@@ -523,7 +559,7 @@ pub(crate) fn binary_keeps_unary_left_parenthesized_wrapper(
         parent_expression,
         Expression::Binary {
             left,
-            operator: BinaryOperator::In | BinaryOperator::InstanceOf,
+            operator: BinaryOperator::In,
             ..
         } if *left == node_id
     ) && matches!(inner_expression, Expression::Unary { .. })
@@ -540,8 +576,7 @@ pub(crate) fn binary_drops_parenthesized_operand_wrapper(
         return false;
     };
 
-    if is_type_cast_comment_node(context, parenthesized_id)
-        || context.has_annotation(parenthesized_id)
+    if context.has_annotation(parenthesized_id)
         || context.has_annotation(inner_expression_id)
         || expression_has_only_prefix_comment_or_doc_annotations(context, parenthesized_id)
         || expression_has_only_prefix_comment_or_doc_annotations(context, inner_expression_id)
@@ -552,6 +587,7 @@ pub(crate) fn binary_drops_parenthesized_operand_wrapper(
     }
 
     let inner_expression = context.tree.get(inner_expression_id);
+
     if binary_keeps_unary_left_parenthesized_wrapper(
         parenthesized_id,
         inner_expression,
@@ -560,15 +596,10 @@ pub(crate) fn binary_drops_parenthesized_operand_wrapper(
         return false;
     }
 
-    let suppress_precedence_parentheses_for_type_binary = matches!(
+    let suppress_precedence_parentheses_for_type_relation = matches!(
         (inner_expression, operator),
         (
-            Expression::TypeBinary {
-                operator: TypeBinaryOperator::Is
-                    | TypeBinaryOperator::In
-                    | TypeBinaryOperator::InstanceOf,
-                ..
-            },
+            Expression::Is { .. } | Expression::InstanceOf { .. },
             BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce,
         )
     );
@@ -585,13 +616,8 @@ pub(crate) fn binary_drops_parenthesized_operand_wrapper(
     let needs_precedence_parentheses = (expression_precedence(inner_expression)
         < operator.precedence_group() as u16
         || binary_operand_requires_grouping_parentheses(context, *operator, parenthesized_id))
-        && !suppress_precedence_parentheses_for_type_binary;
-    let needs_type_grouping_parentheses =
-        type_binary_operand_needs_grouping_parentheses(context, *operator, parenthesized_id);
-
-    !(needs_precedence_parentheses
-        || needs_type_grouping_parentheses
-        || needs_mixed_logical_grouping_parentheses)
+        && !suppress_precedence_parentheses_for_type_relation;
+    !(needs_precedence_parentheses || needs_mixed_logical_grouping_parentheses)
 }
 
 /// Return whether one binary operator is logical.
@@ -651,16 +677,6 @@ impl BinaryLikeExpression {
         }
     }
 
-    /// Return whether this owner is one type union.
-    fn is_type_union(&self, context: &DestackFormatContext<'_>) -> bool {
-        binary_like_is_type_union(context, self.node_id, self.operator)
-    }
-
-    /// Return whether this owner is one type intersection.
-    fn is_type_intersection(&self, context: &DestackFormatContext<'_>) -> bool {
-        binary_like_is_type_intersection(context, self.node_id, self.operator)
-    }
-
     /// Format this owner using the default flattened layout.
     fn format_default_flattened_layout<'ast>(
         &self,
@@ -696,7 +712,11 @@ impl BinaryLikeExpression {
                 format_binary_operand_with_grouping_parentheses(f, self.operator, head_expression)?;
 
                 if self.operands.len() > 1 {
-                    write!(f, [indent(&format_tail)])?;
+                    if binary_parent_inlines_flattened_layout(f.context(), self.node_id) {
+                        write!(f, [format_tail])?;
+                    } else {
+                        write!(f, [indent(&format_tail)])?;
+                    }
                 }
 
                 Ok(())
@@ -742,19 +762,21 @@ impl BinaryLikeExpression {
             format_binary_operand_with_grouping_parentheses(f, self.operator, operand_expression)
         });
 
+        let should_break = previous_expression.is_some_and(|previous_expression| {
+            binary_expression_has_line_suffix_comment(f.context(), previous_expression)
+        });
         let owner_id = self.operand_owner_ids.get(operand_index).copied().flatten();
 
-        if owner_id
-            .is_some_and(|owner_id| flattened_operand_owner_should_group(f.context(), owner_id))
+        if owner_id.is_some_and(|owner_id| binary_operand_owner_should_group(f.context(), owner_id))
         {
-            let should_break = previous_expression.is_some_and(|previous_expression| {
-                binary_expression_has_line_suffix_comment(f.context(), previous_expression)
-            });
-
             return write!(
                 f,
                 [group(&operator_and_operand).should_expand(should_break)]
             );
+        }
+
+        if should_break {
+            return write!(f, [group(&operator_and_operand).should_expand(true)]);
         }
 
         write!(f, [operator_and_operand])
@@ -770,16 +792,6 @@ pub(crate) fn format_binary_expression<'ast>(
     _right: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let binary_like = BinaryLikeExpression::new(f.context(), node_id, *operator);
-
-    if binary_like.is_type_union(f.context()) {
-        super::format_type_union_binary_layout(f, node_id, &binary_like.operands)?;
-        return Ok(());
-    }
-
-    if binary_like.is_type_intersection(f.context()) {
-        format_type_intersection_binary_layout(f, &binary_like.operands)?;
-        return Ok(());
-    }
 
     binary_like.format_default_flattened_layout(f)
 }

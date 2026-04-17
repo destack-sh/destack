@@ -2,11 +2,12 @@ use crate::format::annotation::{block_infix_annotations, format_raw_comment};
 use crate::format::collection::{
     TrailingSeparator, format_block_nodes_with_ignore_ranges, separated_entries,
 };
-use crate::format::directive::any_ignore_range_for_nodes;
-use crate::format::operator::expression_static_arguments;
+use crate::format::file::any_ignore_range_for_nodes;
+use crate::format::operator::expression_generic_arguments;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Expression, LocalNodeId, NodeType, Parameter, Pattern, PatternField, Property,
+    Argument, Expression, GenericArgument, LocalNodeId, NodeType, Pattern, PatternField, Property,
+    TypeExpression,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
@@ -180,24 +181,10 @@ fn is_tree_attribute_expression(
 
 /// Return whether an expression is the type annotation of a parameter.
 pub(crate) fn is_parameter_type_annotation(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
+    _context: &DestackFormatContext<'_>,
+    _expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(expression_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Parameter {
-        return false;
-    }
-
-    let parameter = context.tree.get(LocalNodeId::<Parameter>::new(parent_id));
-    match parameter {
-        Parameter::Named { ty, .. }
-        | Parameter::Pattern { ty, .. }
-        | Parameter::VariadicNamed { ty, .. }
-        | Parameter::VariadicPattern { ty, .. } => ty.is_some_and(|ty| ty.id == expression_id.id),
-        Parameter::Error => false,
-    }
+    false
 }
 
 /// Format boundary comments for array-like structures.
@@ -316,9 +303,7 @@ fn object_assignment_target_has_complex_destructuring(
                 && properties.len() > COMPLEX_DESTRUCTURING_MAX_SIMPLE_PROPERTIES
                 && properties.iter().copied().any(|property_id| {
                     match context.tree.get(property_id) {
-                        Property::Field { value, default, .. } => {
-                            value.is_some() || default.is_some()
-                        }
+                        Property::Field { .. } => false,
                         Property::Method { .. } | Property::Error => true,
                         Property::Spread { .. } => false,
                     }
@@ -536,13 +521,23 @@ fn struct_literal_layout(
     let is_static_type_argument =
         f.context()
             .parent(expression_id)
-            .is_some_and(|(argument_id, parent_type)| {
-                if parent_type != NodeType::Argument {
+            .is_some_and(|(generic_argument_id, parent_type)| {
+                if parent_type != NodeType::GenericArgument {
                     return false;
                 }
 
-                let argument_id = LocalNodeId::<Argument>::new(argument_id);
-                let Some((parent_expression_id, expression_type)) = f.context().parent(argument_id)
+                let generic_argument_id = LocalNodeId::<GenericArgument>::new(generic_argument_id);
+                let generic_argument_value = match f.context().tree.get(generic_argument_id) {
+                    GenericArgument::Value { value } => *value,
+                    GenericArgument::Type { .. } => return false,
+                    GenericArgument::Error => return false,
+                };
+                if generic_argument_value.id != expression_id.id {
+                    return false;
+                }
+
+                let Some((parent_expression_id, expression_type)) =
+                    f.context().parent(generic_argument_id)
                 else {
                     return false;
                 };
@@ -551,8 +546,8 @@ fn struct_literal_layout(
                 }
 
                 let parent_expression_id = LocalNodeId::<Expression>::new(parent_expression_id);
-                expression_static_arguments(f.context().tree.get(parent_expression_id))
-                    .is_some_and(|arguments| arguments.contains(&argument_id))
+                expression_generic_arguments(f.context().tree.get(parent_expression_id))
+                    .is_some_and(|arguments| arguments.contains(&generic_argument_id))
             });
     let in_type_context =
         f.context().is_in_type_expression_root(expression_id) || is_static_type_argument;
@@ -638,7 +633,7 @@ fn struct_literal_layout(
 pub(crate) fn format_struct_literal<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
-    ty: &Option<LocalNodeId<Expression>>,
+    ty: &Option<LocalNodeId<TypeExpression>>,
     properties_ids: &[LocalNodeId<Property>],
 ) -> FormatResult<()> {
     if let Some(ty) = ty {

@@ -1,7 +1,10 @@
 use crate::{
-    DestackFormatOptions, assert_format_program, assert_format_program_reference_widths,
+    DestackFormatOptions, TestFormatter, assert_format_program,
+    assert_format_program_reference_widths,
     assert_format_program_roundtrip_with_file_name_and_type,
 };
+use destack_ast::{Declaration, Expression, TypeExpression};
+use destack_parser::ParserOptions;
 use destack_source::FileType;
 
 /// Conditional types with constrained infer bindings should stay inline.
@@ -16,7 +19,7 @@ fn test_format_type_conditional_with_constrained_infer() {
     );
 }
 
-/// Mapped types with key remaps should keep the OXC-style shell.
+/// Mapped types with key remaps should keep the shared shell.
 #[test]
 fn test_format_type_mapped_with_remap() {
     assert_format_program!(
@@ -26,6 +29,166 @@ fn test_format_type_mapped_with_remap() {
 "#,
         FileType::TypeScript
     );
+}
+
+/// Mapped remap block comments should stay before `as`.
+#[test]
+fn test_format_type_mapped_with_remap_boundary_block_comment() {
+    assert_format_program!(
+        r#"type Paths<T> = {
+  [K in keyof T as /* remap-note */
+    `get${Capitalize<K & string>}`]: () => T[K]
+}
+"#,
+        r#"type Paths<T> = {
+    [K in keyof T /* remap-note */ as `get${Capitalize<K & string>}`]: () => T[K];
+};
+"#,
+        FileType::TypeScript
+    );
+}
+
+/// Mapped remap line comments should stay on the mapped field line.
+#[test]
+fn test_format_type_mapped_with_remap_boundary_line_comment() {
+    assert_format_program!(
+        r#"type Paths<T> = {
+  [K in keyof T as // remap-note
+    Capitalize<K & string>]: () => T[K]
+}
+"#,
+        r#"type Paths<T> = {
+    [K in keyof T as Capitalize<K & string>]: () => T[K]; // remap-note
+};
+"#,
+        FileType::TypeScript
+    );
+}
+
+/// Already formatted remap template comments should stabilize on the shared second-pass shape.
+#[test]
+fn test_format_type_mapped_with_remap_boundary_line_comment_in_template_roundtrip() {
+    assert_format_program_roundtrip_with_file_name_and_type(
+        r#"type Paths<T> = {
+    [K in keyof T as `get${Capitalize<
+        K & string
+    > // remap-note
+    }`]: () => T[K];
+};
+"#,
+        r#"type Paths<T> = {
+    [K in keyof T as `get${Capitalize<
+        K & string
+    > // remap-note
+    }`]: () => T[K];
+};
+"#,
+        "main.ts",
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Formatter context should expose separator-owned remap line comments before plain remap expressions.
+#[test]
+fn test_format_type_mapped_plain_remap_separator_comments() {
+    let (formatter, expression_id) = TestFormatter::parse_with_file_type(
+        r#"type Paths<T> = {
+  [K in keyof T as // remap-note
+    Capitalize<K & string>]: () => T[K]
+}
+"#,
+        FileType::TypeScript,
+        |parser| parser.eat_expression(ParserOptions::default()),
+    )
+    .expect("parse mapped type");
+    let context = formatter.context(DestackFormatOptions::default());
+
+    let mapped_id = match context.tree.get(expression_id) {
+        Expression::Declaration(declaration_id) => match context.tree.get(*declaration_id) {
+            Declaration::Type(declaration) => declaration.value,
+            other => panic!("unexpected declaration: {other:?}"),
+        },
+        other => panic!("unexpected expression: {other:?}"),
+    };
+
+    let key_remap = match context.tree.get(mapped_id) {
+        TypeExpression::Mapped { parameter, .. } => parameter.key_remap.expect("missing key remap"),
+        other => panic!("unexpected mapped value: {other:?}"),
+    };
+
+    let comments = context.raw_type_position_comments_for(key_remap);
+
+    assert_eq!(comments.len(), 1);
+    assert!(comments[0].is_line());
+}
+
+/// Formatter context should expose separator-owned remap line comments before template remap expressions.
+#[test]
+fn test_format_type_mapped_template_remap_separator_comments() {
+    let (formatter, expression_id) = TestFormatter::parse_with_file_type(
+        r#"type Paths<T> = {
+  [K in keyof T as // remap-note
+    `get${Capitalize<K & string>}`]: () => T[K]
+}
+"#,
+        FileType::TypeScript,
+        |parser| parser.eat_expression(ParserOptions::default()),
+    )
+    .expect("parse mapped type");
+    let context = formatter.context(DestackFormatOptions::default());
+
+    let mapped_id = match context.tree.get(expression_id) {
+        Expression::Declaration(declaration_id) => match context.tree.get(*declaration_id) {
+            Declaration::Type(declaration) => declaration.value,
+            other => panic!("unexpected declaration: {other:?}"),
+        },
+        other => panic!("unexpected expression: {other:?}"),
+    };
+
+    let key_remap = match context.tree.get(mapped_id) {
+        TypeExpression::Mapped { parameter, .. } => parameter.key_remap.expect("missing key remap"),
+        other => panic!("unexpected mapped value: {other:?}"),
+    };
+
+    let comments = context.raw_type_position_comments_for(key_remap);
+
+    assert_eq!(comments.len(), 1);
+    assert!(comments[0].is_line());
+}
+
+/// Formatter context should expose separator-owned remap block comments before template remaps.
+#[test]
+fn test_format_type_mapped_template_remap_separator_block_comments() {
+    let (formatter, expression_id) = TestFormatter::parse_with_file_type(
+        r#"type Paths<T> = {
+  [K in keyof T as /* remap-note */
+    `get${Capitalize<K & string>}`]: () => T[K]
+}
+"#,
+        FileType::TypeScript,
+        |parser| parser.eat_expression(ParserOptions::default()),
+    )
+    .expect("parse mapped type");
+    let context = formatter.context(DestackFormatOptions::default());
+
+    let mapped_id = match context.tree.get(expression_id) {
+        Expression::Declaration(declaration_id) => match context.tree.get(*declaration_id) {
+            Declaration::Type(declaration) => declaration.value,
+            other => panic!("unexpected declaration: {other:?}"),
+        },
+        other => panic!("unexpected expression: {other:?}"),
+    };
+
+    let key_remap = match context.tree.get(mapped_id) {
+        TypeExpression::Mapped { parameter, .. } => parameter.key_remap.expect("missing key remap"),
+        other => panic!("unexpected mapped value: {other:?}"),
+    };
+
+    let comments = context.raw_type_position_comments_for(key_remap);
+
+    assert_eq!(comments.len(), 1);
+    assert!(comments[0].is_block());
 }
 
 /// Template literal unions should normalize to stable leading-pipe layout.
@@ -147,9 +310,97 @@ fn test_format_type_mapped_comments() {
     );
 }
 
+/// Mapped-type value comments should stay on the mapped field line.
+#[test]
+fn test_format_type_mapped_value_trailing_comment() {
+    assert_format_program!(
+        r#"type Flags<T> = {
+  [K in keyof T]: boolean; // mapped-line
+}
+"#,
+        r#"type Flags<T> = {
+    [K in keyof T]: boolean; // mapped-line
+};
+"#,
+        FileType::TypeScript
+    );
+}
+
+/// Mapped-type value block comments should stay attached after the `:` boundary.
+#[test]
+fn test_format_type_mapped_value_boundary_block_comment() {
+    assert_format_program!(
+        r#"type Flags<T> = {
+  [K in keyof T]: /* keep */ boolean;
+}
+"#,
+        r#"type Flags<T> = {
+    [K in keyof T]: /* keep */ boolean;
+};
+"#,
+        FileType::TypeScript
+    );
+}
+
+/// Mapped-type value line comments should flush after the formatted value.
+#[test]
+fn test_format_type_mapped_value_boundary_line_comment() {
+    assert_format_program!(
+        r#"type Flags<T> = {
+  [K in keyof T]: // mapped-line
+  boolean
+}
+"#,
+        r#"type Flags<T> = {
+    [K in keyof T]: boolean; // mapped-line
+};
+"#,
+        FileType::TypeScript
+    );
+}
+
+/// Mapped-type optional value line comments should flush after the formatted value.
+#[test]
+fn test_format_type_mapped_optional_value_boundary_line_comment() {
+    assert_format_program!(
+        r#"type Flags<T> = {
+  readonly [K in keyof T]?: // map-value
+  boolean
+}
+"#,
+        r#"type Flags<T> = {
+    readonly [K in keyof T]?: boolean; // map-value
+};
+"#,
+        FileType::TypeScript
+    );
+}
+
+/// Decorated single-member intersections should preserve the leading `&`.
+#[test]
+fn test_format_type_decorated_single_member_intersection() {
+    assert_format_program!(
+        r#"{
+    const buffer: @addrspace("shared") &Buffer = value;
+    function build(value: Buffer): @addrspace("shared") &Buffer {
+        return value;
+    }
+}
+"#,
+        r#"{
+    const buffer: @addrspace("shared") &Buffer = value;
+    function build(value: Buffer): @addrspace("shared") &Buffer {
+        return value;
+    }
+}
+"#,
+        FileType::TypeScript
+    );
+}
+
 /// Leading-pipe mixed comments should stay attached after the separator.
 #[test]
-fn test_format_typescript_union_leading_pipe_mixed_comments() {
+fn test_format_union_leading_pipe_mixed_comments() {
     assert_format_program_reference_widths(
         r#"type A1 =
   | /**
@@ -218,81 +469,51 @@ type A3 =
     );
 }
 
-/// Union head and separator comments should follow the expected union shell exactly.
+/// Already formatted union wrapper comments should stay stable on the second pass.
 #[test]
-fn test_format_typescript_union_comment_fixture() {
-    assert_format_program_reference_widths(
+fn test_format_union_comment_layout_roundtrip() {
+    assert_format_program_roundtrip_with_file_name_and_type(
         r#"interface _KeywordDef {
-  type?: JSONType | JSONType[] // data types that keyword applies to
+  type?: JSONType | JSONType[]; // data types that keyword applies to
 }
 
-type C1 = | (
-  /* 1 */ /*1*/ | (
-    | (
-          | A
-          // A comment to force break
-          | B
-        )
-  )
-  );
+type C1 =
+  /* 1 */ /*1*/
+  | A
+  // A comment to force break
+  | B;
 
-
-type C2 = | (
-  /* 1 */ /*1*/ 
-  /* 1 */ | (
-    | (
-          | A
-          // A comment to force break
-          | B
-        )
-  )
-  );
+type C2 =
+  /* 1 */ /*1*/
+  /* 1 */ | A
+  // A comment to force break
+  | B;
 "#,
+        r#"interface _KeywordDef {
+  type?: JSONType | JSONType[]; // data types that keyword applies to
+}
+
+type C1 =
+  /* 1 */ /*1*/
+  | A
+  // A comment to force break
+  | B;
+
+type C2 =
+  /* 1 */ /*1*/
+  /* 1 */ | A
+  // A comment to force break
+  | B;
+"#,
+        "main.ts",
         FileType::TypeScript,
-        &[
-            (
-                80,
-                r#"interface _KeywordDef {
-  type?: JSONType | JSONType[]; // data types that keyword applies to
-}
-
-type C1 = /* 1 */ /*1*/
-  | A
-  // A comment to force break
-  | B;
-
-type C2 =
-  /* 1 */ /*1*/
-  /* 1 */ | A
-  // A comment to force break
-  | B;
-"#,
-            ),
-            (
-                100,
-                r#"interface _KeywordDef {
-  type?: JSONType | JSONType[]; // data types that keyword applies to
-}
-
-type C1 = /* 1 */ /*1*/
-  | A
-  // A comment to force break
-  | B;
-
-type C2 =
-  /* 1 */ /*1*/
-  /* 1 */ | A
-  // A comment to force break
-  | B;
-"#,
-            ),
-        ],
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
     );
 }
 
 /// Leading union doc comments should stay attached to the head operand.
 #[test]
-fn test_format_typescript_union_leading_doc_comment() {
+fn test_format_union_leading_doc_comment() {
     assert_format_program_reference_widths(
         r#"export type AddressAllocator =
 (/** Reserve a specific IP address. The pool is inferred from the address since IP pools cannot have overlapping ranges. */
@@ -335,7 +556,7 @@ x: boolean }
 
 /// Nested conditional types should follow the reference break behavior.
 #[test]
-fn test_format_typescript_conditional_nested_test_layout() {
+fn test_format_conditional_nested_test_layout() {
     assert_format_program_reference_widths(
         r#"type IsUnion<T> = (
   Testtttttttttttttttttttttttttttttttttt extends any ? false : never
@@ -382,7 +603,7 @@ export const IsUnionType = (Testtttttttttttttttttttttttttttttttttt ? false : nev
 
 /// Leading-pipe unions should drop redundant grouping around single arms.
 #[test]
-fn test_format_typescript_union_parenthesis_layout() {
+fn test_format_union_parenthesis_layout() {
     assert_format_program_reference_widths(
         r#"type T1<B> = | (B extends any ? number : string);
 type T2 = | (() => void);
@@ -407,7 +628,7 @@ type T2 = () => void;
 
 /// Single-member unions should not keep redundant parentheses.
 #[test]
-fn test_format_typescript_single_member_union_layout() {
+fn test_format_single_member_union_layout() {
     assert_format_program_reference_widths(
         r#"// Single-member unions should not have unnecessary parentheses
 type Items = ( | number)[];
@@ -451,9 +672,27 @@ type Simple = number;
     );
 }
 
+/// Parenthesized unions should keep the last arm line comment on the last arm.
+#[test]
+fn test_format_parenthesized_union_last_arm_comment() {
+    assert_format_program!(
+        r#"type Result = (
+  | "a" // arm-a
+  | "b" // arm-b
+)[] // final-tail
+"#,
+        r#"type Result = (
+    | "a" // arm-a
+    | "b" // arm-b
+)[]; // final-tail
+"#,
+        FileType::TypeScript
+    );
+}
+
 /// Union doc heads should collapse inline at wider widths like the reference formatter.
 #[test]
-fn test_format_typescript_union_doc_head_width_behavior() {
+fn test_format_union_doc_head_width_behavior() {
     assert_format_program_reference_widths(
         r#"export type xxxxxxxxxxxxxx =
   /** xxxx
@@ -486,7 +725,7 @@ fn test_format_typescript_union_doc_head_width_behavior() {
 
 /// Union annotations in type positions should keep reference width behavior.
 #[test]
-fn test_format_typescript_union_annotation_width_behavior() {
+fn test_format_union_annotation_width_behavior() {
     assert_format_program_reference_widths(
         r#"export default class TestUnionTypeAnnotation1 {
   private prop!: /* comment */
@@ -539,7 +778,7 @@ export interface TestUnionTypeAnnotation2 {
 
 /// Template literal unions should collapse inline at wider widths like the reference formatter.
 #[test]
-fn test_format_typescript_template_literal_union_width_behavior() {
+fn test_format_template_literal_union_width_behavior() {
     assert_format_program_reference_widths(
         r#"export type T = `${
   | 'W'
@@ -580,7 +819,7 @@ fn test_format_typescript_template_literal_union_width_behavior() {
 
 /// Template literal conditionals should follow the reference width behavior.
 #[test]
-fn test_format_typescript_template_literal_conditional_width_behavior() {
+fn test_format_template_literal_conditional_width_behavior() {
     assert_format_program_reference_widths(
         r#"type templateLiteralType = `${
   TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
@@ -632,7 +871,7 @@ type CamelToSnakeCase<TCamelCaseString extends string> =
 
 /// Type assertions and satisfies expressions should match the reference assignment layout.
 #[test]
-fn test_format_typescript_type_assertion_assignment_layout() {
+fn test_format_type_assertion_assignment_layout() {
     assert_format_program_reference_widths(
         r#"(type) as unknown;
 (type) satisfies unknown;
@@ -673,11 +912,11 @@ fn test_format_typescript_type_assertion_assignment_layout() {
     );
 }
 
-/// Union comments inside type assertions and type arguments should preserve layout.
+/// Union comments inside `as` assertions and type arguments should preserve layout.
 #[test]
-fn test_format_typescript_union_type_argument_and_assertion_comments() {
+fn test_format_union_type_argument_and_as_assertion_comments() {
     assert_format_program_reference_widths(
-        r#"// TSTypeParameterInstantiation
+        r#"// generic argument list
 export class ClassTest extends Modal<
   // comment
   string | number | undefined
@@ -695,24 +934,22 @@ Math.random<
 >();
 
 
-// TypeAssertion
-<
+// as
+0 as
   // comment
-  string | number | undefined
->0;
+  string | number | undefined;
 
 console.log(
-  <
+  0 as
     // comment
     string | number | undefined
-  >0
 );
 "#,
         FileType::TypeScript,
         &[
             (
                 80,
-                r#"// TSTypeParameterInstantiation
+                r#"// generic argument list
 export class ClassTest extends Modal<
   // comment
   string | number | undefined
@@ -728,23 +965,21 @@ Math.random<
   string | number | undefined
 >();
 
-// TypeAssertion
-<
-  // comment
-  string | number | undefined
->0;
+// as
+0 as
+// comment
+string | number | undefined;
 
 console.log(
-  <
-    // comment
-    string | number | undefined
-  >0,
+  0 as
+  // comment
+  string | number | undefined,
 );
 "#,
             ),
             (
                 100,
-                r#"// TSTypeParameterInstantiation
+                r#"// generic argument list
 export class ClassTest extends Modal<
   // comment
   string | number | undefined
@@ -760,17 +995,15 @@ Math.random<
   string | number | undefined
 >();
 
-// TypeAssertion
-<
-  // comment
-  string | number | undefined
->0;
+// as
+0 as
+// comment
+string | number | undefined;
 
 console.log(
-  <
-    // comment
-    string | number | undefined
-  >0,
+  0 as
+  // comment
+  string | number | undefined,
 );
 "#,
             ),
@@ -778,10 +1011,10 @@ console.log(
     );
 }
 
-/// Module TypeScript arrow functions should preserve trailing type-parameter commas.
+/// Arrow functions in module files should preserve trailing type-parameter commas.
 #[test]
-fn test_format_typescript_module_arrow_type_parameter_trailing_comma() {
-    // mts, 80
+fn test_format_module_arrow_type_parameter_trailing_comma() {
+    // module extension, 80
     assert_format_program_roundtrip_with_file_name_and_type(
         r#"// index.mts
 const fn = <T,>() => {}
@@ -794,7 +1027,7 @@ const fn = <T,>() => {};
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
     );
 
-    // mts, 100
+    // module extension, 100
     assert_format_program_roundtrip_with_file_name_and_type(
         r#"// index.mts
 const fn = <T,>() => {}
@@ -807,7 +1040,7 @@ const fn = <T,>() => {};
         DestackFormatOptions::default_with_line_width(100).with_indent_width(2),
     );
 
-    // cts, 80
+    // common module extension, 80
     assert_format_program_roundtrip_with_file_name_and_type(
         r#"// index.cts
 const fn = <T,>() => {}
@@ -820,7 +1053,7 @@ const fn = <T,>() => {};
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
     );
 
-    // cts, 100
+    // common module extension, 100
     assert_format_program_roundtrip_with_file_name_and_type(
         r#"// index.cts
 const fn = <T,>() => {}
@@ -831,5 +1064,21 @@ const fn = <T,>() => {};
         "index.cts",
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(100).with_indent_width(2),
+    );
+}
+
+/// Single constrained lambda generic parameters should not force trailing commas.
+#[test]
+fn test_format_module_arrow_type_parameter_constraint_without_trailing_comma() {
+    assert_format_program_roundtrip_with_file_name_and_type(
+        r#"// index.mts
+const fn = <T extends string>() => {}
+"#,
+        r#"// index.mts
+const fn = <T extends string>() => {};
+"#,
+        "index.mts",
+        FileType::TypeScript,
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
     );
 }

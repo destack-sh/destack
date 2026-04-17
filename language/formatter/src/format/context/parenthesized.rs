@@ -1,6 +1,6 @@
 use super::context::DestackFormatContext;
-use destack_ast::{Comment, Expression, LocalNodeId, TokenSpan, TokenType};
-use destack_source::Span;
+use destack_ast::{Comment, Expression, LocalNodeId};
+use destack_source::{NodeSpanType, SourcePartKey, Span};
 
 /// One formatter-side normalized view of a preserved parenthesized expression.
 #[derive(Debug, Copy, Clone)]
@@ -11,13 +11,44 @@ pub struct ParenthesizedExpressionView<'context, 'ast> {
     node_id: LocalNodeId<Expression>,
     /// The inner wrapped expression node.
     inner_expression_id: LocalNodeId<Expression>,
-    /// The explicit opening delimiter token.
-    open_parenthesis: TokenSpan,
-    /// The explicit closing delimiter token.
-    close_parenthesis: TokenSpan,
 }
 
 impl<'context, 'ast> ParenthesizedExpressionView<'context, 'ast> {
+    /// Return one explicit side span on the wrapped inner expression.
+    fn inner_side_span(self, span_type: NodeSpanType) -> Option<Span> {
+        self.context
+            .tree
+            .get_side_span(self.inner_expression_id, span_type)
+    }
+
+    /// Return structurally attached comments on one explicit inner side span.
+    fn structural_comments_on_inner_side(self, span_type: NodeSpanType) -> Vec<Comment> {
+        self.context
+            .tree
+            .comments()
+            .iter()
+            .copied()
+            .filter(|comment| {
+                comment.attached_part == SourcePartKey::new(self.inner_expression_id.id, span_type)
+            })
+            .collect()
+    }
+
+    /// Return structurally attached comments inside one byte range.
+    fn structural_comments_in_range(self, start: u32, end: u32) -> Vec<Comment> {
+        if start >= end {
+            return Vec::new();
+        }
+
+        self.context
+            .tree
+            .comments()
+            .iter()
+            .copied()
+            .filter(|comment| comment.span.end > start && comment.span.end <= end)
+            .collect()
+    }
+
     /// Create one normalized parenthesized-expression view.
     pub fn from_node(
         context: &'context DestackFormatContext<'ast>,
@@ -37,30 +68,10 @@ impl<'context, 'ast> ParenthesizedExpressionView<'context, 'ast> {
             return None;
         }
 
-        let open_parenthesis = context.previous_non_whitespace_token_before_span(inner_span)?;
-        if open_parenthesis.token.ty != TokenType::OpenParenthesis
-            || open_parenthesis.span.file != parenthesized_span.file
-            || open_parenthesis.span.start < parenthesized_span.start
-            || open_parenthesis.span.end > parenthesized_span.end
-        {
-            return None;
-        }
-
-        let close_parenthesis = context.next_non_whitespace_token_after_span(inner_span)?;
-        if close_parenthesis.token.ty != TokenType::CloseParenthesis
-            || close_parenthesis.span.file != parenthesized_span.file
-            || close_parenthesis.span.start < parenthesized_span.start
-            || close_parenthesis.span.end > parenthesized_span.end
-        {
-            return None;
-        }
-
         Some(Self {
             context,
             node_id,
             inner_expression_id,
-            open_parenthesis,
-            close_parenthesis,
         })
     }
 
@@ -76,18 +87,6 @@ impl<'context, 'ast> ParenthesizedExpressionView<'context, 'ast> {
         self.inner_expression_id
     }
 
-    /// Return the explicit opening parenthesis token.
-    #[inline]
-    pub const fn open_parenthesis(self) -> TokenSpan {
-        self.open_parenthesis
-    }
-
-    /// Return the explicit closing parenthesis token.
-    #[inline]
-    pub const fn close_parenthesis(self) -> TokenSpan {
-        self.close_parenthesis
-    }
-
     /// Return the full wrapper span.
     #[inline]
     pub fn span(self) -> Span {
@@ -100,80 +99,45 @@ impl<'context, 'ast> ParenthesizedExpressionView<'context, 'ast> {
         self.context.span(self.inner_expression_id)
     }
 
-    /// Return the first inner non-trivia token start.
+    /// Return the explicit leading span between `(` and the inner head.
     #[inline]
-    pub fn inner_token_start(self) -> u32 {
-        let inner_span = self.inner_span();
+    pub fn leading_inner_span(self) -> Option<Span> {
+        self.inner_side_span(NodeSpanType::Leading)
+    }
 
-        self.context
-            .first_non_trivia_token_in_span(inner_span)
-            .map_or(inner_span.start, |token| token.span.start)
+    /// Return the explicit trailing span between the inner tail and `)`.
+    #[inline]
+    pub fn trailing_inner_span(self) -> Option<Span> {
+        self.inner_side_span(NodeSpanType::Trailing)
     }
 
     /// Return comments between `(` and the inner expression.
     pub fn leading_inner_comments(self) -> Vec<Comment> {
-        let leading_start = self.open_parenthesis.span.end;
-        let inner_start = self.inner_token_start();
-        if leading_start >= inner_start {
-            return Vec::new();
-        }
-
-        {
-            let comments = self.context.comments();
-            comments
-                .comments_in_range(leading_start, inner_start)
-                .to_vec()
-        }
+        self.structural_comments_on_inner_side(NodeSpanType::Leading)
     }
 
     /// Return comments that belong immediately before this wrapper's closing `)`.
     pub fn trailing_inner_comments(self) -> Vec<Comment> {
-        {
-            let comments = self.context.comments();
-            comments
-                .comments_in_range(
-                    self.open_parenthesis.span.end,
-                    self.close_parenthesis.span.start,
-                )
-                .to_vec()
-        }
-        .into_iter()
-        .filter(|comment| {
-            self.context
-                .next_non_whitespace_token_after_span(comment.span)
-                .is_some_and(|token| {
-                    token.token.ty == TokenType::CloseParenthesis
-                        && token.span.start == self.close_parenthesis.span.start
-                        && token.span.end == self.close_parenthesis.span.end
-                })
-        })
-        .collect()
+        self.structural_comments_on_inner_side(NodeSpanType::Trailing)
     }
 
     /// Return postfix comments between this wrapper's closing `)` and the next continuation token.
     pub fn postfix_comments(self) -> Vec<Comment> {
-        let Some(next_token) = self
-            .context
-            .next_non_trivia_token_after_span(self.close_parenthesis.span)
-        else {
+        let Some(next_token) = self.context.next_non_trivia_token_after_span(self.span()) else {
             return Vec::new();
         };
-        if next_token.span.file != self.close_parenthesis.span.file
-            || self.close_parenthesis.span.end >= next_token.span.start
+        let parenthesized_span = self.span();
+        if next_token.span.file != parenthesized_span.file
+            || parenthesized_span.end >= next_token.span.start
         {
             return Vec::new();
         }
 
-        {
-            let comments = self.context.comments();
-            comments
-                .comments_in_range(self.close_parenthesis.span.end, next_token.span.start)
-                .to_vec()
-        }
+        self.structural_comments_in_range(parenthesized_span.end, next_token.span.start)
     }
 
-    /// Return block comments owned at the wrapper boundary after the inner expression.
-    pub fn boundary_comments(self) -> Vec<Comment> {
+    /// Return block comments immediately before this wrapper's closing `)`.
+    pub fn trailing_inner_block_comments(self) -> Vec<Comment> {
         self.trailing_inner_comments()
             .into_iter()
             .filter(|comment| comment.is_block())
@@ -194,15 +158,8 @@ impl<'context, 'ast> ParenthesizedExpressionView<'context, 'ast> {
 
     /// Return whether source contains a newline between `(` and the inner expression.
     pub fn has_leading_inner_newline(self) -> bool {
-        let leading_start = self.open_parenthesis.span.end;
-        let inner_span = self.inner_span();
-        let inner_start = self.inner_token_start();
-        if leading_start >= inner_start {
-            return false;
-        }
-
-        self.context
-            .has_newline(Span::new(inner_span.file, leading_start, inner_start))
+        self.inner_side_span(NodeSpanType::Leading)
+            .is_some_and(|leading_span| self.context.has_newline(leading_span))
     }
 
     /// Return whether source contains a leading line comment between `(` and the inner expression.
@@ -214,23 +171,13 @@ impl<'context, 'ast> ParenthesizedExpressionView<'context, 'ast> {
 
     /// Return whether source contains leading comments or newlines before the inner expression.
     fn has_leading_inner_pattern(self, include_newline: bool) -> bool {
-        let leading_start = self.open_parenthesis.span.end;
-        let inner_span = self.inner_span();
-        let inner_start = self.inner_token_start();
-        if leading_start >= inner_start {
+        let Some(leading_span) = self.inner_side_span(NodeSpanType::Leading) else {
             return false;
-        }
-
-        let leading_span = Span::new(inner_span.file, leading_start, inner_start);
+        };
         if include_newline && self.context.has_newline(leading_span) {
             return true;
         }
 
-        {
-            let comments = self.context.comments();
-            !comments
-                .comments_in_range(leading_span.start, leading_span.end)
-                .is_empty()
-        }
+        !self.leading_inner_comments().is_empty()
     }
 }

@@ -1,6 +1,3 @@
-use super::conditional::format_type_conditional_expression;
-use super::mapped::format_type_mapped_expression;
-use super::member::{format_type_index_expression, format_type_template_literal};
 use super::object::{format_boundary_comment_array, format_fill_array, format_struct_literal};
 use super::parentheses::format_primary_parenthesized_expression;
 use super::path::{format_path_expression, primary_expression_skips_boundary_annotations};
@@ -15,12 +12,11 @@ use crate::format::annotation::{
 use crate::format::chain::transparent_inner_expression;
 use crate::format::collection::literal::{format_scalar_literal, format_template_literal};
 use crate::format::collection::{TrailingSeparator, separated_entries};
-use crate::format::declaration::signature::write_type_parameter_constraint_and_default;
-use crate::format::operator::format_static_argument_list;
+use crate::format::operator::expression_is_type_position;
 use crate::format::tree::format_tree_literal_expression;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Argument, Expression, Keyword, LocalNodeId, TypePredicateSubject};
-use destack_fir::format::{Buffer, Format, FormatResult};
+use destack_ast::{Argument, Expression, Keyword, LocalNodeId};
+use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
     block_indent, format_with, group, hard_line_break, line_suffix_boundary, soft_block_indent,
     soft_line_break_or_space, space, token,
@@ -253,7 +249,18 @@ pub(crate) fn format_primary_tuple_expression<'ast>(
         let should_expand =
             has_annotations || (f.context().has_newline(span) && elements_ids.len() > 1);
 
-        // trailing comma disambiguates tuples from parenthesized expressions
+        let trailing_separator = if expression_is_type_position(f.context(), node_id) {
+            match f.context().options.trailing_comma {
+                destack_workspace::TrailingComma::None => TrailingSeparator::Omit,
+                destack_workspace::TrailingComma::Es5 | destack_workspace::TrailingComma::All => {
+                    TrailingSeparator::Allowed
+                }
+            }
+        } else {
+            TrailingSeparator::Mandatory
+        };
+
+        // tuple delimiters
         write!(
             f,
             [group(&format_args![
@@ -261,7 +268,7 @@ pub(crate) fn format_primary_tuple_expression<'ast>(
                 soft_block_indent(&separated_entries(
                     ",",
                     elements_ids,
-                    TrailingSeparator::Mandatory,
+                    trailing_separator,
                     None,
                 )),
                 token(")")
@@ -351,9 +358,9 @@ pub(crate) fn format_primary_expression<'ast>(
         // qualified reference
         Expression::QualifiedReference {
             path,
-            static_arguments,
+            generic_arguments,
         } => {
-            format_path_expression(f, node_id, path, static_arguments)?;
+            format_path_expression(f, node_id, path, generic_arguments)?;
         }
 
         // private identifier
@@ -397,95 +404,9 @@ pub(crate) fn format_primary_expression<'ast>(
             format_template_literal(value, tree.get_span(node_id), f)?;
         }
 
-        // type template literal
-        Expression::TypeTemplateLiteral { strings, spans } => {
-            format_type_template_literal(strings, spans, f)?;
-        }
-
-        // type literal
-        Expression::TypeLiteral(node) => node.format(f)?,
-
-        // type import
-        Expression::TypeImport {
-            target: _,
-            arguments,
-            qualifier,
-            static_arguments,
-        } => {
-            write!(
-                f,
-                [
-                    Keyword::Import,
-                    group(&format_args![
-                        token("("),
-                        soft_block_indent(&separated_entries(
-                            ",",
-                            arguments,
-                            TrailingSeparator::Omit,
-                            None,
-                        )),
-                        token(")")
-                    ])
-                ]
-            )?;
-            if let Some(qualifier) = qualifier {
-                write!(f, [token("."), qualifier])?;
-            }
-            if let Some(static_arguments) = static_arguments {
-                format_static_argument_list(f, static_arguments)?;
-            }
-        }
-
-        // type infer
-        Expression::TypeInfer { name, constraint } => {
-            write!(f, [Keyword::Infer, space(), *name])?;
-            write_type_parameter_constraint_and_default(f, *constraint, None)?;
-        }
-
-        // type predicate
-        Expression::TypePredicate {
-            asserts,
-            subject,
-            target,
-        } => {
-            if *asserts {
-                write!(f, [Keyword::Asserts, space()])?;
-            }
-            match subject {
-                TypePredicateSubject::Identifier(name) => {
-                    write!(f, [*name])?;
-                }
-                TypePredicateSubject::This => {
-                    write!(f, [Keyword::This])?;
-                }
-            }
-            if let Some(target) = target {
-                write!(f, [space(), Keyword::Is, space(), *target])?;
-            }
-        }
-
-        // type conditional
-        Expression::TypeConditional {
-            left,
-            right,
-            then_type,
-            else_type,
-        } => {
-            format_type_conditional_expression(f, node_id, *left, *right, *then_type, *else_type)?;
-        }
-
-        // type mapped
-        Expression::TypeMapped {
-            parameter,
-            modifiers,
-            value,
-        } => {
-            format_type_mapped_expression(f, node_id, parameter, *modifiers, *value)?;
-        }
-
-        // type index
-        Expression::TypeIndex { left, index } => {
-            format_type_index_expression(f, *left, *index)?;
+        // type shell
+        Expression::Type { value } => {
+            write!(f, [value])?;
         }
 
         // array literal

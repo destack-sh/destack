@@ -1,5 +1,5 @@
 use crate::DestackFormatter;
-use crate::format::directive::{ignore_ranges_for_nodes, write_ignored_span};
+use crate::format::file::{ignore_ranges_for_nodes, write_ignored_span};
 use destack_ast::{LocalNodeId, Node, NodeTree, NodeTreeImpl};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{empty_line, hard_line_break};

@@ -1,14 +1,12 @@
 use super::list::{call_argument_lines_before, write_call_argument_in_list};
 use super::pattern::argument_expression_id;
-use crate::format::chain::{
-    expression_is_simple, expression_is_simple_with_depth, transparent_inner_expression,
-};
+use crate::format::chain::{SimpleArgument, transparent_inner_expression};
 use crate::format::context::DestackFormatterCommentExt;
 use crate::format::declaration::GroupedCallArgumentLayout;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Declaration, Expression, FunctionKind, LocalNodeId, ScalarLiteral,
-    TypeBinaryOperator, UnaryOperator,
+    Argument, Declaration, Expression, FunctionKind, GenericArgument, LocalNodeId, ScalarLiteral,
+    TypeExpression, UnaryOperator,
 };
 use destack_fir::format::{
     BestFittingMode, Buffer, FormatNode as FirNode, FormatNodes, FormatResult, GroupId,
@@ -21,9 +19,9 @@ use destack_fir::{best_fitting, format_args, write};
 /// Return whether any argument carries annotations.
 fn arguments_have_annotations(
     context: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
 ) -> bool {
-    dynamic_arguments
+    arguments
         .iter()
         .copied()
         .any(|argument_id| context.has_annotation(argument_id))
@@ -49,20 +47,18 @@ fn expression_is_groupable_first_argument(
     let Expression::Declaration(declaration_id) = ctx.tree.get(expression_id) else {
         return false;
     };
-    let Declaration::Function {
-        signature,
-        body: Some(body_id),
-        ..
-    } = ctx.tree.get(*declaration_id)
-    else {
+    let Declaration::Function(function) = ctx.tree.get(*declaration_id) else {
+        return false;
+    };
+    let Some(body_id) = function.body else {
         return false;
     };
 
-    if signature.kind != FunctionKind::Lambda {
+    if function.signature.kind != FunctionKind::Lambda {
         return true;
     }
 
-    let body_id = transparent_inner_expression(ctx, *body_id);
+    let body_id = transparent_inner_expression(ctx, body_id);
     matches!(ctx.tree.get(body_id), Expression::Block(_))
 }
 
@@ -96,20 +92,18 @@ fn expression_can_group_function_argument(
     let Expression::Declaration(declaration_id) = ctx.tree.get(expression_id) else {
         return false;
     };
-    let Declaration::Function {
-        signature,
-        body: Some(body_id),
-        ..
-    } = ctx.tree.get(*declaration_id)
-    else {
+    let Declaration::Function(function) = ctx.tree.get(*declaration_id) else {
+        return false;
+    };
+    let Some(body_id) = function.body else {
         return false;
     };
 
-    if signature.kind != FunctionKind::Lambda {
+    if function.signature.kind != FunctionKind::Lambda {
         return true;
     }
 
-    expression_can_group_lambda_body(ctx, *body_id, is_lambda_recursion)
+    expression_can_group_lambda_body(ctx, body_id, is_lambda_recursion)
 }
 
 /// Return whether two expressions share the same grouped-argument kind.
@@ -121,26 +115,8 @@ fn expressions_share_grouped_layout_kind(
     match (ctx.tree.get(left_id), ctx.tree.get(right_id)) {
         (Expression::ObjectExpression { .. }, Expression::ObjectExpression { .. })
         | (Expression::ArrayExpression { .. }, Expression::ArrayExpression { .. })
-        | (
-            Expression::TypeBinary {
-                operator: TypeBinaryOperator::Cast,
-                ..
-            },
-            Expression::TypeBinary {
-                operator: TypeBinaryOperator::Cast,
-                ..
-            },
-        )
-        | (
-            Expression::TypeBinary {
-                operator: TypeBinaryOperator::Satisfies,
-                ..
-            },
-            Expression::TypeBinary {
-                operator: TypeBinaryOperator::Satisfies,
-                ..
-            },
-        ) => true,
+        | (Expression::As { .. }, Expression::As { .. })
+        | (Expression::Satisfies { .. }, Expression::Satisfies { .. }) => true,
         _ => {
             expression_is_function_argument(ctx, left_id)
                 && expression_is_function_argument(ctx, right_id)
@@ -151,22 +127,26 @@ fn expressions_share_grouped_layout_kind(
 /// Return whether one type expression is simple enough for grouped call layout.
 fn type_expression_is_simple(
     ctx: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
+    expression_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     let expression_id = array_type_element_expression(ctx, expression_id);
-    let expression_id = single_static_argument_expression(ctx, expression_id);
+    let expression_id = single_generic_argument_type_expression(ctx, expression_id);
 
     match ctx.tree.get(expression_id) {
-        Expression::Identifier { .. }
-        | Expression::This
-        | Expression::ScalarLiteral(_)
-        | Expression::TypeLiteral(_)
-        | Expression::TypeTemplateLiteral { .. } => true,
-        Expression::QualifiedReference {
-            static_arguments, ..
-        } => static_arguments
-            .as_ref()
-            .is_none_or(|arguments| arguments.is_empty()),
+        TypeExpression::ScalarLiteral { .. }
+        | TypeExpression::Literal { .. }
+        | TypeExpression::Intrinsic
+        | TypeExpression::Const
+        | TypeExpression::This => true,
+        TypeExpression::Reference {
+            generic_arguments, ..
+        }
+        | TypeExpression::Member {
+            generic_arguments, ..
+        }
+        | TypeExpression::Import {
+            generic_arguments, ..
+        } => generic_arguments.is_empty(),
         _ => false,
     }
 }
@@ -174,48 +154,50 @@ fn type_expression_is_simple(
 /// Return one type expression after stripping up to two array suffixes.
 fn array_type_element_expression(
     ctx: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> LocalNodeId<Expression> {
-    let mut expression_id = transparent_inner_expression(ctx, expression_id);
+    expression_id: LocalNodeId<TypeExpression>,
+) -> LocalNodeId<TypeExpression> {
+    let mut expression_id = expression_id;
 
+    // strip one or two array wrappers
     for _ in 0..2 {
-        let Expression::Index { left, index, .. } = ctx.tree.get(expression_id) else {
+        let TypeExpression::Array { element } = ctx.tree.get(expression_id) else {
             break;
         };
 
-        if index.is_some() {
-            break;
-        }
-
-        expression_id = transparent_inner_expression(ctx, *left);
+        expression_id = *element;
     }
 
     expression_id
 }
 
-/// Return one type expression after extracting one single static argument.
-fn single_static_argument_expression(
+/// Return one type expression after extracting one single generic argument.
+fn single_generic_argument_type_expression(
     ctx: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> LocalNodeId<Expression> {
-    let expression_id = transparent_inner_expression(ctx, expression_id);
-    let Expression::QualifiedReference {
-        static_arguments: Some(static_arguments),
-        ..
-    } = ctx.tree.get(expression_id)
-    else {
-        return expression_id;
+    expression_id: LocalNodeId<TypeExpression>,
+) -> LocalNodeId<TypeExpression> {
+    let generic_arguments = match ctx.tree.get(expression_id) {
+        TypeExpression::Reference {
+            generic_arguments, ..
+        }
+        | TypeExpression::Member {
+            generic_arguments, ..
+        }
+        | TypeExpression::Import {
+            generic_arguments, ..
+        } => generic_arguments,
+        _ => return expression_id,
     };
 
-    if static_arguments.len() != 1 {
+    // keep multi-argument generics intact
+    if generic_arguments.len() != 1 {
         return expression_id;
     }
 
-    let Argument::Positional { value, .. } = ctx.tree.get(static_arguments[0]) else {
+    let GenericArgument::Type { value } = ctx.tree.get(generic_arguments[0]) else {
         return expression_id;
     };
 
-    transparent_inner_expression(ctx, *value)
+    *value
 }
 
 /// Return whether one expression can participate in grouped call-argument layout.
@@ -247,11 +229,9 @@ fn can_group_expression_argument(
                     .comments_in_range(ctx.span(expression_id).start, ctx.span(expression_id).end)
                     .is_empty()
         }
-        Expression::TypeBinary {
-            operator: TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies,
-            left,
-            ..
-        } => can_group_expression_argument(ctx, transparent_inner_expression(ctx, *left)),
+        Expression::As { expression, .. } | Expression::Satisfies { expression, .. } => {
+            can_group_expression_argument(ctx, transparent_inner_expression(ctx, *expression))
+        }
         Expression::Declaration(_) => {
             expression_can_group_function_argument(ctx, expression_id, false)
         }
@@ -275,30 +255,30 @@ fn is_relatively_short_argument(
             let left_id = transparent_inner_expression(ctx, *left);
             let right_id = transparent_inner_expression(ctx, *right);
 
-            expression_is_simple_with_depth(ctx, left_id, 1)
-                && expression_is_simple_with_depth(ctx, right_id, 1)
+            SimpleArgument::from(left_id).is_simple_with_depth(ctx, 1)
+                && SimpleArgument::from(right_id).is_simple_with_depth(ctx, 1)
         }
-        Expression::TypeBinary {
-            operator: TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies,
-            left,
-            right,
-            ..
+        Expression::As {
+            expression,
+            target_type,
+        }
+        | Expression::Satisfies {
+            expression,
+            target_type,
         } => {
-            let left_id = transparent_inner_expression(ctx, *left);
-            let right_id = transparent_inner_expression(ctx, *right);
+            let left_id = transparent_inner_expression(ctx, *expression);
+            let right_id = *target_type;
 
             type_expression_is_simple(ctx, right_id)
-                && expression_is_simple_with_depth(ctx, left_id, 1)
+                && SimpleArgument::from(left_id).is_simple_with_depth(ctx, 1)
         }
-        Expression::Call {
-            dynamic_arguments, ..
-        } => match dynamic_arguments.len() {
+        Expression::Call { arguments, .. } => match arguments.len() {
             0 => true,
-            1 => expression_is_simple(ctx, expression_id),
+            1 => SimpleArgument::from(expression_id).is_simple(ctx),
             _ => false,
         },
         Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }) => true,
-        _ => expression_is_simple(ctx, expression_id),
+        _ => SimpleArgument::from(expression_id).is_simple(ctx),
     }
 }
 
@@ -411,18 +391,16 @@ fn expression_is_zero_parameter_block_lambda(
     let Expression::Declaration(declaration_id) = ctx.tree.get(expression_id) else {
         return false;
     };
-    let Declaration::Function {
-        signature,
-        body: Some(body_id),
-        ..
-    } = ctx.tree.get(*declaration_id)
-    else {
+    let Declaration::Function(function) = ctx.tree.get(*declaration_id) else {
+        return false;
+    };
+    let Some(body_id) = function.body else {
         return false;
     };
 
-    let body_id = transparent_inner_expression(ctx, *body_id);
-    signature.kind == FunctionKind::Lambda
-        && signature.dynamic_parameters.is_empty()
+    let body_id = transparent_inner_expression(ctx, body_id);
+    function.signature.kind == FunctionKind::Lambda
+        && function.signature.parameters.is_empty()
         && matches!(ctx.tree.get(body_id), Expression::Block(_))
 }
 
@@ -493,16 +471,16 @@ fn expression_is_concise_numeric_array_element(
 fn should_group_last_argument(
     ctx: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
 ) -> bool {
-    let Some(last_argument_id) = dynamic_arguments.last().copied() else {
+    let Some(last_argument_id) = arguments.last().copied() else {
         return false;
     };
     let Some(last_id) = argument_expression_id(ctx, last_argument_id) else {
         return false;
     };
 
-    let penultimate_id = dynamic_arguments
+    let penultimate_id = arguments
         .iter()
         .rev()
         .nth(1)
@@ -513,7 +491,7 @@ fn should_group_last_argument(
         && should_group_last_argument_impl(
             ctx,
             call_node_id,
-            dynamic_arguments.len(),
+            arguments.len(),
             penultimate_id,
             last_id,
         )
@@ -523,19 +501,18 @@ fn should_group_last_argument(
 pub(crate) fn arguments_grouped_layout(
     ctx: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
 ) -> Option<GroupedCallArgumentLayout> {
-    if ctx.has_infix_annotation(call_node_id) || arguments_have_annotations(ctx, dynamic_arguments)
-    {
+    if ctx.has_infix_annotation(call_node_id) || arguments_have_annotations(ctx, arguments) {
         return None;
     }
 
-    if dynamic_arguments.len() == 2 {
-        let first_id = argument_expression_id(ctx, dynamic_arguments[0])?;
-        let second_id = argument_expression_id(ctx, dynamic_arguments[1])?;
+    if arguments.len() == 2 {
+        let first_id = argument_expression_id(ctx, arguments[0])?;
+        let second_id = argument_expression_id(ctx, arguments[1])?;
 
         if can_group_expression_argument(ctx, second_id) {
-            return should_group_last_argument(ctx, call_node_id, dynamic_arguments)
+            return should_group_last_argument(ctx, call_node_id, arguments)
                 .then_some(GroupedCallArgumentLayout::GroupedLastArgument);
         }
 
@@ -543,7 +520,7 @@ pub(crate) fn arguments_grouped_layout(
             .then_some(GroupedCallArgumentLayout::GroupedFirstArgument);
     }
 
-    should_group_last_argument(ctx, call_node_id, dynamic_arguments)
+    should_group_last_argument(ctx, call_node_id, arguments)
         .then_some(GroupedCallArgumentLayout::GroupedLastArgument)
 }
 
@@ -551,12 +528,12 @@ pub(crate) fn arguments_grouped_layout(
 pub(crate) fn write_grouped_arguments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     call_span: destack_source::Span,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
     layout: GroupedCallArgumentLayout,
     group_id: GroupId,
     disallow_trailing_separator: bool,
 ) -> FormatResult<()> {
-    let last_index = dynamic_arguments.len().saturating_sub(1);
+    let last_index = arguments.len().saturating_sub(1);
     let grouped_index = if layout == GroupedCallArgumentLayout::GroupedFirstArgument {
         0
     } else {
@@ -564,17 +541,17 @@ pub(crate) fn write_grouped_arguments<'ast>(
     };
     let mut non_grouped_breaks = false;
     let mut grouped_breaks = false;
-    let mut elements = Vec::with_capacity(dynamic_arguments.len());
+    let mut elements = Vec::with_capacity(arguments.len());
 
     // preformat arguments
-    for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
+    for (index, argument_id) in arguments.iter().copied().enumerate() {
         let is_grouped_argument = index == grouped_index;
         let lines_before = if index == 0 {
             0
         } else {
             call_argument_lines_before(f.context(), argument_id)
         };
-        let following_span_start = dynamic_arguments
+        let following_span_start = arguments
             .get(index + 1)
             .map(|argument_id| f.context().span(*argument_id).start)
             .unwrap_or(0);
@@ -604,7 +581,7 @@ pub(crate) fn write_grouped_arguments<'ast>(
         elements.push((interned, lines_before));
     }
 
-    // expanded fallback
+    // break out every argument once a non-grouped argument forces it
     if non_grouped_breaks {
         return format_all_elements_broken_out(
             f,
@@ -684,15 +661,15 @@ pub(crate) fn write_grouped_arguments<'ast>(
 /// Return whether a call has multiple function-like arguments.
 pub(crate) fn is_function_composition_args(
     context: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
 ) -> bool {
-    if dynamic_arguments.len() <= 1 {
+    if arguments.len() <= 1 {
         return false;
     }
 
     let mut has_seen_function_like = false;
 
-    for argument_id in dynamic_arguments.iter().copied() {
+    for argument_id in arguments.iter().copied() {
         let Some(expression_id) = argument_expression_id(context, argument_id) else {
             continue;
         };
@@ -706,16 +683,12 @@ pub(crate) fn is_function_composition_args(
             continue;
         }
 
-        if let Expression::Call {
-            dynamic_arguments, ..
-        } = context.tree.get(expression_id)
-        {
-            let call_has_function_like_argument =
-                dynamic_arguments.iter().copied().any(|argument_id| {
-                    argument_expression_id(context, argument_id).is_some_and(|expression_id| {
-                        expression_is_function_argument(context, expression_id)
-                    })
-                });
+        if let Expression::Call { arguments, .. } = context.tree.get(expression_id) {
+            let call_has_function_like_argument = arguments.iter().copied().any(|argument_id| {
+                argument_expression_id(context, argument_id).is_some_and(|expression_id| {
+                    expression_is_function_argument(context, expression_id)
+                })
+            });
 
             if call_has_function_like_argument {
                 return true;

@@ -1,30 +1,32 @@
 use crate::format::annotation::{
     format_raw_comment, infix_or_postfix_annotations, prefix_annotations,
-    write_inline_prefix_annotations,
+    write_inline_prefix_annotations, write_raw_comment_slice,
 };
 use crate::format::chain::{is_chain_root, is_expression_chain, transparent_inner_expression};
 use crate::format::context::ParenthesizedExpressionView;
 use crate::format::declaration::is_poorly_breakable_member_or_call_chain;
 use crate::format::expression::{
-    expression_has_prefix_comment_or_doc_annotation_in_left_spine,
-    expression_has_static_type_arguments, is_expression_breakable,
+    expression_has_prefix_comment_or_doc_annotation_in_left_spine, is_expression_breakable,
+    write_expression_with_prefix_annotations_after_offset,
     write_expression_without_prefix_annotations,
 };
 use crate::format::operator::{
-    AssignmentLikeLayout, assignment_rhs_prefers_break_after_operator, write_assignment_like_right,
+    AssignmentLikeLayout, assignment_rhs_prefers_break_after_operator,
+    expression_has_generic_arguments, write_assignment_like_right,
     write_type_expression_with_inline_prefix_annotations,
 };
 use crate::format::tree::tree_literal_requires_expanded_layout;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AnnotationPosition, Argument, Comment, Declaration, Declarator, Expression, FunctionKind,
-    IfKind, LocalNodeId, NodeTree, Pattern, PatternField, ScalarLiteral, TokenType,
+    Argument, ClassDeclaration, Comment, Declaration, Declarator, DecoratorPosition, Expression,
+    FunctionDeclaration, FunctionKind, IfKind, LocalNodeId, NodeTree, Pattern, PatternField,
+    ScalarLiteral, StructDeclaration, TokenType, TypeExpression,
 };
 use destack_fir::format::{
     Buffer, FormatNode as FirFormatNode, FormatNodes, FormatResult, Formatter as FirFormatter,
     VecBuffer,
 };
-use destack_fir::prelude::{format_with, group, hard_line_break, space, token};
+use destack_fir::prelude::{empty_line, format_with, group, hard_line_break, space, token};
 use destack_fir::write;
 use destack_source::Span;
 
@@ -42,8 +44,8 @@ fn declarator_expression_has_own_line_prefix_annotation(
         .any(|annotation_id| {
             let annotation = context.annotation(annotation_id);
             if !matches!(
-                annotation.position(),
-                AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                annotation.position,
+                DecoratorPosition::LinePrefix | DecoratorPosition::BlockPrefix
             ) {
                 return false;
             }
@@ -56,7 +58,7 @@ fn declarator_expression_has_own_line_prefix_annotation(
 fn buffer_declarator_header<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     pattern_id: LocalNodeId<Pattern>,
-    type_id: Option<LocalNodeId<Expression>>,
+    type_id: Option<LocalNodeId<TypeExpression>>,
 ) -> FormatResult<(Vec<FirFormatNode>, bool, bool)> {
     let mut buffer = VecBuffer::new(f.state_mut());
     let formatter = &mut FirFormatter::new(&mut buffer);
@@ -89,7 +91,8 @@ fn declarator_value_is_lambda_like(
     match context.tree.get(expression_id) {
         Expression::Declaration(declaration_id) => matches!(
             context.tree.get(*declaration_id),
-            Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
+            Declaration::Function(FunctionDeclaration { signature, .. })
+                if signature.kind == FunctionKind::Lambda
         ),
         _ => false,
     }
@@ -101,7 +104,7 @@ pub(crate) fn pattern_has_default_assignment(
     pattern_id: LocalNodeId<Pattern>,
 ) -> bool {
     match tree.get(pattern_id) {
-        Pattern::Wildcard | Pattern::Expression { .. } => false,
+        Pattern::Wildcard | Pattern::Expression { .. } | Pattern::TypeExpression { .. } => false,
         Pattern::Must(inner_pattern_id)
         | Pattern::ReferenceOf {
             right: inner_pattern_id,
@@ -172,7 +175,7 @@ fn pattern_has_nested_default_assignment_at_depth(
     depth: usize,
 ) -> bool {
     match tree.get(pattern_id) {
-        Pattern::Wildcard | Pattern::Expression { .. } => false,
+        Pattern::Wildcard | Pattern::Expression { .. } | Pattern::TypeExpression { .. } => false,
         Pattern::Must(inner_pattern_id)
         | Pattern::ReferenceOf {
             right: inner_pattern_id,
@@ -277,13 +280,31 @@ pub(crate) fn declarator_value_has_assignment_operator_prefix_comment(
     context: &DestackFormatContext<'_>,
     value_id: LocalNodeId<Expression>,
 ) -> bool {
-    context
-        .raw_prefix_doc_comments_for(value_id)
-        .iter()
+    declarator_value_assignment_operator_comment_nodes(context, value_id)
+        .into_iter()
         .any(|comment| {
-            context
-                .previous_non_trivia_token_before_span(comment.span)
-                .is_some_and(|token| token.token.ty == TokenType::Assign)
+            let Some(previous_token) = context.previous_non_trivia_token_before_span(comment.span)
+            else {
+                return false;
+            };
+            if previous_token.token.ty != TokenType::Assign {
+                return false;
+            }
+
+            let assignment_and_comment_share_line = context.file.is_same_line(
+                previous_token.span.end.saturating_sub(1),
+                comment.span.start,
+            );
+            if !assignment_and_comment_share_line {
+                return false;
+            }
+
+            if comment.is_line() {
+                return true;
+            }
+
+            !context.has_newline(comment.span)
+                && !context.span_has_newline_before_next_non_whitespace_token(comment.span)
         })
 }
 
@@ -293,13 +314,20 @@ fn declarator_value_assignment_operator_comment_nodes(
     value_id: LocalNodeId<Expression>,
 ) -> Vec<Comment> {
     let value_span = context.span(value_id);
-    let Some(previous_token) = context.previous_non_trivia_token_before_span(value_span) else {
+    let value_token_start = context
+        .first_non_trivia_token_in_span(value_span)
+        .map_or(value_span.start, |token| token.span.start);
+    let Some(previous_token) = context.previous_non_trivia_token_before_span(Span::new(
+        value_span.file,
+        value_token_start,
+        value_token_start,
+    )) else {
         return Vec::new();
     };
 
     if previous_token.token.ty != TokenType::Assign
         || previous_token.span.file != value_span.file
-        || previous_token.span.end >= value_span.start
+        || previous_token.span.end >= value_token_start
     {
         return Vec::new();
     }
@@ -307,8 +335,10 @@ fn declarator_value_assignment_operator_comment_nodes(
     {
         let comments = context.comments();
         comments
-            .comments_in_range(previous_token.span.end, value_span.start)
-            .to_vec()
+            .comments_in_range(previous_token.span.end, value_token_start)
+            .iter()
+            .copied()
+            .collect()
     }
 }
 
@@ -318,33 +348,20 @@ fn write_assignment_operator_comments<'ast>(
     value_id: LocalNodeId<Expression>,
     omit_leading_separator: bool,
 ) -> FormatResult<()> {
-    let value_span = f.context().span(value_id);
-    let Some(previous_token) = f
-        .context()
-        .previous_non_trivia_token_before_span(value_span)
-    else {
-        return Ok(());
-    };
-    if previous_token.token.ty != TokenType::Assign
-        || previous_token.span.file != value_span.file
-        || previous_token.span.end >= value_span.start
-    {
-        return Ok(());
-    }
-
-    let comment_nodes = {
-        let comments = f.context().comments();
-        comments
-            .comments_in_range(previous_token.span.end, value_span.start)
-            .to_vec()
-    };
+    let comment_nodes = declarator_value_assignment_operator_comment_nodes(f.context(), value_id);
     if comment_nodes.is_empty() {
         return Ok(());
     }
 
+    let Some(previous_token) = f
+        .context()
+        .previous_non_trivia_token_before_span(comment_nodes[0].span)
+    else {
+        return Ok(());
+    };
     let first_comment_span = comment_nodes[0].span;
     let leading_gap = Span::new(
-        value_span.file,
+        first_comment_span.file,
         previous_token.span.end,
         first_comment_span.start,
     );
@@ -358,17 +375,25 @@ fn write_assignment_operator_comments<'ast>(
         }
     }
 
-    for (index, comment) in comment_nodes.iter().copied().enumerate() {
-        let comment_span = comment.span;
-        format_raw_comment(f, comment)?;
+    format_raw_comment(f, comment_nodes[0])?;
+    if comment_nodes.len() > 1 {
+        write_raw_comment_slice(f, &comment_nodes[1..])?;
+    }
 
-        let is_last = index + 1 == comment_nodes.len();
-        if !is_last
-            || comment.is_line()
-            || f.context()
-                .span_has_newline_before_next_non_whitespace_token(comment_span)
+    if let Some(last_comment) = comment_nodes.last().copied() {
+        let next_token = f
+            .context()
+            .next_non_whitespace_token_after_span(last_comment.span);
+        let gap_span = next_token.and_then(|next_token| last_comment.span.gap_to(next_token.span));
+
+        if last_comment.is_line()
+            || gap_span.is_some_and(|gap_span| f.context().has_newline(gap_span))
         {
-            write!(f, [hard_line_break()])?;
+            if gap_span.is_some_and(|gap_span| f.context().has_blank_line(gap_span)) {
+                write!(f, [empty_line()])?;
+            } else {
+                write!(f, [hard_line_break()])?;
+            }
         } else {
             write!(f, [space()])?;
         }
@@ -384,6 +409,10 @@ fn format_assignment_value<'ast>(
     value_has_assignment_operator_prefix_annotation: bool,
     assignment_operator_comment_nodes: &[Comment],
 ) -> FormatResult<()> {
+    let assignment_operator_comment_end = assignment_operator_comment_nodes
+        .last()
+        .map(|comment| comment.span.end)
+        .unwrap_or_else(|| f.context().span(value_id).start);
     let prefix_annotation_ids: Vec<_> = f
         .context()
         .annotation_ids(value_id)
@@ -391,8 +420,8 @@ fn format_assignment_value<'ast>(
         .copied()
         .filter(|annotation_id| {
             matches!(
-                f.context().annotation(*annotation_id).position(),
-                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+                f.context().annotation(*annotation_id).position,
+                DecoratorPosition::BlockPrefix | DecoratorPosition::LinePrefix
             )
         })
         .collect();
@@ -400,7 +429,11 @@ fn format_assignment_value<'ast>(
     let mut operation = || {
         if prefix_annotation_ids.is_empty() {
             if !assignment_operator_comment_nodes.is_empty() {
-                return write_expression_without_prefix_annotations(f, value_id);
+                return write_expression_with_prefix_annotations_after_offset(
+                    f,
+                    value_id,
+                    assignment_operator_comment_end,
+                );
             }
 
             write!(f, [value_id])?;
@@ -410,7 +443,11 @@ fn format_assignment_value<'ast>(
         if value_has_assignment_operator_prefix_annotation {
             write_inline_prefix_annotations(f, &prefix_annotation_ids)?;
             write!(f, [space()])?;
-            return write_expression_without_prefix_annotations(f, value_id);
+            return write_expression_with_prefix_annotations_after_offset(
+                f,
+                value_id,
+                assignment_operator_comment_end,
+            );
         }
 
         write!(f, [prefix_annotations(f.context(), value_id)])?;
@@ -503,31 +540,82 @@ pub(crate) fn declarator_drops_parenthesized_value_wrapper(
     drops_tree_wrapper || drops_prefix_wrapper || drops_ternary_wrapper
 }
 
-/// Return whether a declaration heritage clause contains static type arguments.
+/// Return whether a declaration heritage clause contains generic arguments.
+fn type_expression_has_generic_arguments(
+    context: &DestackFormatContext<'_>,
+    type_id: LocalNodeId<TypeExpression>,
+) -> bool {
+    match context.tree.get(type_id) {
+        TypeExpression::Reference {
+            generic_arguments, ..
+        }
+        | TypeExpression::Member {
+            generic_arguments, ..
+        }
+        | TypeExpression::Import {
+            generic_arguments, ..
+        } => !generic_arguments.is_empty(),
+        TypeExpression::Parenthesized { expression } => {
+            type_expression_has_generic_arguments(context, *expression)
+        }
+        _ => false,
+    }
+}
+
+/// Return whether a declaration heritage clause contains generic arguments.
 fn declaration_has_generic_heritage(
     context: &DestackFormatContext<'_>,
     declaration_id: LocalNodeId<Declaration>,
 ) -> bool {
-    let heritage = match context.tree.get(declaration_id) {
-        Declaration::Struct { heritage, .. }
-        | Declaration::Class { heritage, .. }
-        | Declaration::Enum { heritage, .. }
-        | Declaration::Interface { heritage, .. }
-        | Declaration::Extension { heritage, .. } => heritage,
-        _ => return false,
-    };
-
-    heritage.extends_types.as_ref().is_some_and(|types| {
-        types
+    match context.tree.get(declaration_id) {
+        Declaration::Struct(StructDeclaration {
+            implements_types,
+            embedded_types,
+            ..
+        }) => {
+            implements_types
+                .iter()
+                .copied()
+                .any(|type_id| type_expression_has_generic_arguments(context, type_id))
+                || embedded_types
+                    .iter()
+                    .copied()
+                    .any(|type_id| type_expression_has_generic_arguments(context, type_id))
+        }
+        Declaration::Class(ClassDeclaration {
+            extends_expression,
+            implements_types,
+            ..
+        }) => {
+            extends_expression
+                .iter()
+                .copied()
+                .any(|expression_id| expression_has_generic_arguments(context, expression_id))
+                || implements_types
+                    .iter()
+                    .copied()
+                    .any(|type_id| type_expression_has_generic_arguments(context, type_id))
+        }
+        Declaration::Enum(declaration) => declaration
+            .implements_types
             .iter()
             .copied()
-            .any(|type_id| expression_has_static_type_arguments(context, type_id))
-    }) || heritage.implements_types.as_ref().is_some_and(|types| {
-        types
+            .any(|type_id| type_expression_has_generic_arguments(context, type_id)),
+        Declaration::Interface(declaration) => declaration
+            .extends_types
             .iter()
             .copied()
-            .any(|type_id| expression_has_static_type_arguments(context, type_id))
-    })
+            .any(|type_id| type_expression_has_generic_arguments(context, type_id)),
+        Declaration::Extension(declaration) => {
+            type_expression_has_generic_arguments(context, declaration.target_type)
+                || declaration
+                    .implements_types
+                    .iter()
+                    .copied()
+                    .any(|type_id| type_expression_has_generic_arguments(context, type_id))
+        }
+        _ => false,
+    }
 }
 
 /// Return whether a value expression wraps a class declaration with generic heritage.
@@ -699,7 +787,19 @@ pub(crate) fn format_declarator<'ast>(
     {
         AssignmentLikeLayout::BreakLeftHandSide
     }
-    // OXC: left sides that already break and feed a lambda rhs should stay on the lhs side
+    // operator-bound trivia and awkward rhs values break after `=`
+    else if value_has_assignment_operator_comment
+        || value_has_prefix_annotation_that_forces_break
+        || value_has_between_comment
+        || value_has_own_line_prefix_annotation
+        || value_prefers_break_after_operator
+        || value_has_generic_class_heritage
+        || (!is_left_short && value_chain_breaks_after_operator)
+        || (value_is_call_like && pattern_has_default_assignment)
+    {
+        AssignmentLikeLayout::BreakAfterOperator
+    }
+    // left sides that already break and feed a lambda rhs should stay on the lhs side
     else if (!is_left_short || left_may_break) && value_is_lambda_like {
         AssignmentLikeLayout::BreakLeftHandSide
     }
@@ -717,18 +817,6 @@ pub(crate) fn format_declarator<'ast>(
     {
         AssignmentLikeLayout::NeverBreakAfterOperator
     }
-    // operator-bound trivia and awkward rhs values break after `=`
-    else if value_has_assignment_operator_comment
-        || value_has_prefix_annotation_that_forces_break
-        || value_has_between_comment
-        || value_has_own_line_prefix_annotation
-        || value_prefers_break_after_operator
-        || value_has_generic_class_heritage
-        || (!is_left_short && value_chain_breaks_after_operator)
-        || (value_is_call_like && pattern_has_default_assignment)
-    {
-        AssignmentLikeLayout::BreakAfterOperator
-    }
     // short and stable rhs values stay attached to `=`
     else if !left_may_break
         && (is_left_short
@@ -742,7 +830,7 @@ pub(crate) fn format_declarator<'ast>(
     else if value_handles_its_own_breaking || value_breakable || value_has_newline {
         AssignmentLikeLayout::Fluid
     }
-    // fall back to the default OXC-style layout
+    // fall back to the default layout
     else {
         AssignmentLikeLayout::Fluid
     };
