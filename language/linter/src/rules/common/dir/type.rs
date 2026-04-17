@@ -304,13 +304,13 @@ fn evaluate_boolean_type_query_inner(
         evaluate_boolean_type_query_inner(types, next_type_id, query, state)
     } else if let dir::Type::Reference {
         symbol,
-        static_arguments,
+        generic_arguments,
     } = ty
     {
         evaluate_reference_boolean_type_query(
             types,
             *symbol,
-            static_arguments.as_deref(),
+            generic_arguments.as_deref(),
             query,
             state,
         )
@@ -385,7 +385,7 @@ fn aggregate_boolean_query_results(
 fn evaluate_reference_boolean_type_query(
     types: &dir::TypeTable,
     symbol: dir::GlobalSymbolId,
-    static_arguments: Option<&[dir::StaticArgument]>,
+    generic_arguments: Option<&[dir::StaticArgument]>,
     query: TypeBooleanQuery<'_>,
     state: &mut TypeBooleanQueryState,
 ) -> bool {
@@ -423,7 +423,7 @@ fn evaluate_reference_boolean_type_query(
         }
         TypeBooleanQuery::MapWithEmptyValue { map_symbols } => {
             if map_symbols.contains(&symbol)
-                && static_arguments_contain_empty_map_value(types, static_arguments)
+                && generic_arguments_contain_empty_map_value(types, generic_arguments)
             {
                 return true;
             }
@@ -743,26 +743,26 @@ fn evaluate_terminal_boolean_type_query(
 }
 
 /// Return true when static arguments contain an empty map value argument.
-fn static_arguments_contain_empty_map_value(
+fn generic_arguments_contain_empty_map_value(
     types: &dir::TypeTable,
-    static_arguments: Option<&[dir::StaticArgument]>,
+    generic_arguments: Option<&[dir::StaticArgument]>,
 ) -> bool {
-    let Some(static_arguments) = static_arguments else {
+    let Some(generic_arguments) = generic_arguments else {
         return false;
     };
-    if static_arguments.len() != 2 {
+    if generic_arguments.len() != 2 {
         return false;
     }
 
-    static_argument_is_void_or_never_type(types, &static_arguments[1])
+    generic_argument_is_void_or_never_type(types, &generic_arguments[1])
 }
 
 /// Return true when one static argument resolves to `void` or `never`.
-fn static_argument_is_void_or_never_type(
+fn generic_argument_is_void_or_never_type(
     types: &dir::TypeTable,
-    static_argument: &dir::StaticArgument,
+    generic_argument: &dir::StaticArgument,
 ) -> bool {
-    match static_argument {
+    match generic_argument {
         dir::StaticArgument::Evaluated { value, .. } => match value {
             dir::StaticExpression::Type { ty } => is_void_or_never_type(types, *ty),
             dir::StaticExpression::TypeLiteral {
@@ -907,14 +907,14 @@ fn is_string_array_type_inner(
             .all(|element| is_string_type(types, element.ty, string_symbol)),
         dir::Type::Reference {
             symbol,
-            static_arguments,
+            generic_arguments,
         } => {
             if array_symbol.is_none_or(|array_symbol| *symbol != array_symbol) {
                 false
             } else {
-                static_arguments.as_ref().is_some_and(|static_arguments| {
-                    static_arguments.first().is_some_and(|static_argument| {
-                        static_argument_type_id(types, static_argument).is_some_and(
+                generic_arguments.as_ref().is_some_and(|generic_arguments| {
+                    generic_arguments.first().is_some_and(|generic_argument| {
+                        generic_argument_type_id(types, generic_argument).is_some_and(
                             |element_type_id| is_string_type(types, element_type_id, string_symbol),
                         )
                     })
@@ -943,11 +943,11 @@ fn is_string_array_type_inner(
 }
 
 /// Resolve one static argument into a concrete type id when available.
-fn static_argument_type_id(
+fn generic_argument_type_id(
     types: &dir::TypeTable,
-    static_argument: &dir::StaticArgument,
+    generic_argument: &dir::StaticArgument,
 ) -> Option<dir::LocalTypeId> {
-    match static_argument {
+    match generic_argument {
         dir::StaticArgument::Evaluated { value, .. } => match value {
             dir::StaticExpression::Type { ty } => Some(*ty),
             _ => None,
@@ -1833,9 +1833,7 @@ fn function_parameter_type_at_inner(
     // inspect the type node
     let ty = types.get_type(type_id);
     let result = match ty {
-        dir::Type::Function {
-            dynamic_parameters, ..
-        } => dynamic_parameters.get(index).copied(),
+        dir::Type::Function { parameters, .. } => parameters.get(index).copied(),
         dir::Type::Object {
             call_signatures, ..
         } => call_signatures
@@ -1880,10 +1878,8 @@ fn function_parameter_types_at_inner(
     // inspect the type node
     let ty = types.get_type(type_id);
     match ty {
-        dir::Type::Function {
-            dynamic_parameters, ..
-        } => {
-            if let Some(parameter_type_id) = dynamic_parameters.get(index).copied()
+        dir::Type::Function { parameters, .. } => {
+            if let Some(parameter_type_id) = parameters.get(index).copied()
                 && !results.contains(&parameter_type_id)
             {
                 results.push(parameter_type_id);

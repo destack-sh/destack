@@ -289,13 +289,10 @@ fn require_import_target(
         _ => {}
     }
 
-    let dir::Expression::Call {
-        dynamic_arguments, ..
-    } = expression
-    else {
+    let dir::Expression::Call { arguments, .. } = expression else {
         return None;
     };
-    if dynamic_arguments.len() != 1 {
+    if arguments.len() != 1 {
         return None;
     }
 
@@ -303,7 +300,7 @@ fn require_import_target(
         return None;
     }
 
-    let argument = tree.get(dynamic_arguments[0]);
+    let argument = tree.get(arguments[0]);
     let dir::Argument::Positional { value, .. } = argument else {
         return None;
     };
@@ -398,7 +395,7 @@ fn require_side_effect_fix(
 ) -> Option<LintFix> {
     let dir::Expression::Call {
         generic_arguments,
-        dynamic_arguments,
+        arguments,
         ..
     } = expression
     else {
@@ -416,12 +413,12 @@ fn require_side_effect_fix(
     }
 
     // keep one positional string argument
-    if dynamic_arguments.len() != 1 {
+    if arguments.len() != 1 {
         return None;
     }
 
     // require one positional call argument
-    let argument = ctx.tree.get(dynamic_arguments[0]);
+    let argument = ctx.tree.get(arguments[0]);
     let dir::Argument::Positional { value, .. } = argument else {
         return None;
     };

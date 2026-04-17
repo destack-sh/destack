@@ -2,13 +2,13 @@ mod cognitive_complexity;
 mod cyclomatic_complexity;
 mod max_branching_factor;
 mod max_depth;
+mod max_generic_params;
 mod max_lines;
 mod max_lines_per_function;
 mod max_nested_callbacks;
 mod max_params;
 mod max_return_statements;
 mod max_statements;
-mod max_static_params;
 mod max_switch_cases;
 mod max_type_fields;
 mod max_type_variants;
@@ -31,13 +31,13 @@ pub use cognitive_complexity::*;
 pub use cyclomatic_complexity::*;
 pub use max_branching_factor::*;
 pub use max_depth::*;
+pub use max_generic_params::*;
 pub use max_lines::*;
 pub use max_lines_per_function::*;
 pub use max_nested_callbacks::*;
 pub use max_params::*;
 pub use max_return_statements::*;
 pub use max_statements::*;
-pub use max_static_params::*;
 pub use max_switch_cases::*;
 pub use max_type_fields::*;
 pub use max_type_variants::*;
@@ -67,7 +67,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(MaxParams),
         boxed(MaxReturnStatements),
         boxed(MaxStatements),
-        boxed(MaxStaticParams),
+        boxed(MaxGenericParams),
         boxed(MaxSwitchCases),
         boxed(MaxTypeFields),
         boxed(MaxTypeVariants),

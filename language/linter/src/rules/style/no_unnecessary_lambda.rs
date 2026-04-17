@@ -76,12 +76,12 @@ impl LintRule for NoUnnecessaryLambda {
             let dir::Expression::Call {
                 left,
                 generic_arguments,
-                dynamic_arguments,
+                arguments,
             } = call_expression
             else {
                 continue;
             };
-            if !generic_arguments.is_empty() || dynamic_arguments.len() != parameter_symbols.len() {
+            if !generic_arguments.is_empty() || arguments.len() != parameter_symbols.len() {
                 continue;
             }
 
@@ -91,7 +91,7 @@ impl LintRule for NoUnnecessaryLambda {
             }
 
             // keep one to one positional forwarding only
-            if !arguments_forward_parameters(ctx, dynamic_arguments, &parameter_symbols) {
+            if !arguments_forward_parameters(ctx, arguments, &parameter_symbols) {
                 continue;
             }
 

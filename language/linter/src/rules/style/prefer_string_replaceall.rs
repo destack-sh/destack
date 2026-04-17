@@ -110,7 +110,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // skip static arguments until we support rendering them
         if !generic_arguments.is_empty() {
@@ -142,7 +142,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         }
 
         // require at least one argument
-        let Some(first_argument_id) = dynamic_arguments.first() else {
+        let Some(first_argument_id) = arguments.first() else {
             return;
         };
         let first_argument = self.ctx.tree.get(*first_argument_id);
@@ -332,15 +332,11 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         let expression = self.ctx.tree.get(expression_id);
         let (callee_id, arguments) = match expression {
             dir::Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
+                left, arguments, ..
             }
             | dir::Expression::New {
-                left,
-                dynamic_arguments,
-                ..
-            } => (*left, dynamic_arguments.as_slice()),
+                left, arguments, ..
+            } => (*left, arguments.as_slice()),
             _ => return false,
         };
 
@@ -509,10 +505,10 @@ impl NodeVisitor for PreferStringReplaceAllVisitor<'_, '_> {
         if let dir::Expression::Call {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
         } = expression
         {
-            self.check_replace_call(id, *left, generic_arguments.as_slice(), dynamic_arguments);
+            self.check_replace_call(id, *left, generic_arguments.as_slice(), arguments);
         }
 
         // walk expression children

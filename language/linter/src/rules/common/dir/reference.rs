@@ -460,17 +460,13 @@ pub fn call_like_invocation_is_receiver_bound(
     apply_name: StringId,
 ) -> bool {
     let expression = tree.get(call_like_id);
-    let (callee_id, dynamic_arguments) = match expression {
+    let (callee_id, arguments) = match expression {
         dir::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         }
         | dir::Expression::New {
-            left,
-            dynamic_arguments,
-            ..
-        } => (*left, dynamic_arguments.as_slice()),
+            left, arguments, ..
+        } => (*left, arguments.as_slice()),
         _ => return false,
     };
 
@@ -498,7 +494,7 @@ pub fn call_like_invocation_is_receiver_bound(
         return true;
     }
 
-    !dynamic_arguments.is_empty()
+    !arguments.is_empty()
 }
 /// Get the base of a reference path.
 fn expression_reference_path_base(
@@ -544,7 +540,7 @@ pub struct MethodCallInfo<'a> {
     /// Generic arguments on the call expression.
     pub generic_arguments: &'a [dir::LocalNodeId<dir::GenericArgument>],
     /// Dynamic arguments on the call expression.
-    pub dynamic_arguments: &'a [dir::LocalNodeId<dir::Argument>],
+    pub arguments: &'a [dir::LocalNodeId<dir::Argument>],
 }
 
 /// Info about one call-like expression (`call(...)` or `new call(...)`).
@@ -555,7 +551,7 @@ pub struct CallLikeExpressionInfo<'a> {
     /// Generic arguments.
     pub generic_arguments: &'a [dir::LocalNodeId<dir::GenericArgument>],
     /// Dynamic arguments.
-    pub dynamic_arguments: &'a [dir::LocalNodeId<dir::Argument>],
+    pub arguments: &'a [dir::LocalNodeId<dir::Argument>],
     /// Whether this expression is `new`.
     pub is_new: bool,
 }
@@ -566,21 +562,21 @@ pub fn expression_call_like(expression: &dir::Expression) -> Option<CallLikeExpr
         dir::Expression::Call {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
         } => Some(CallLikeExpressionInfo {
             left: *left,
             generic_arguments: generic_arguments.as_slice(),
-            dynamic_arguments,
+            arguments,
             is_new: false,
         }),
         dir::Expression::New {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
         } => Some(CallLikeExpressionInfo {
             left: *left,
             generic_arguments: generic_arguments.as_slice(),
-            dynamic_arguments,
+            arguments,
             is_new: true,
         }),
         _ => None,
@@ -597,7 +593,7 @@ pub fn expression_method_call(
     let dir::Expression::Call {
         left,
         generic_arguments,
-        dynamic_arguments,
+        arguments,
     } = expression
     else {
         return None;
@@ -622,7 +618,7 @@ pub fn expression_method_call(
         receiver_id: *left,
         method_name: name,
         generic_arguments: generic_arguments.as_slice(),
-        dynamic_arguments,
+        arguments,
     })
 }
 

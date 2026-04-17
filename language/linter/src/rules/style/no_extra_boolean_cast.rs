@@ -138,13 +138,13 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         callee_id: dir::LocalNodeId<dir::Expression>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         if !self.is_boolean_reference(callee_id) {
             return;
         }
 
-        if dynamic_arguments.len() != 1 {
+        if arguments.len() != 1 {
             return;
         }
 
@@ -152,7 +152,7 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
             return;
         }
 
-        let argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let argument = self.ctx.tree.get(arguments[0]);
         self.report(
             expression_id,
             argument.value(),
@@ -223,16 +223,12 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
         // direct boolean contexts
         match parent_expression {
             dir::Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
+                left, arguments, ..
             }
             | dir::Expression::New {
-                left,
-                dynamic_arguments,
-                ..
+                left, arguments, ..
             } => {
-                if dynamic_arguments.first().is_some_and(|argument_id| {
+                if arguments.first().is_some_and(|argument_id| {
                     self.ctx.tree.get(*argument_id).value() == expression_id
                 }) && self.is_boolean_reference(*left)
                 {
@@ -327,22 +323,18 @@ impl NodeVisitor for NoExtraBooleanCastVisitor<'_, '_> {
     ) {
         // Boolean(value)
         if let dir::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
         {
-            self.check_boolean_cast(id, *left, dynamic_arguments);
+            self.check_boolean_cast(id, *left, arguments);
         }
 
         // new Boolean(value)
         if let dir::Expression::New {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
         {
-            self.check_boolean_cast(id, *left, dynamic_arguments);
+            self.check_boolean_cast(id, *left, arguments);
         }
 
         // !!value
@@ -412,14 +404,10 @@ fn replacement_needs_parentheses(
                 }
                 | dir::Expression::SequenceExpression { .. }
         ),
-        dir::Expression::Call {
-            dynamic_arguments, ..
-        }
-        | dir::Expression::New {
-            dynamic_arguments, ..
-        } if dynamic_arguments
-            .first()
-            .is_some_and(|argument_id| tree.get(*argument_id).value() == expression_id) =>
+        dir::Expression::Call { arguments, .. } | dir::Expression::New { arguments, .. }
+            if arguments
+                .first()
+                .is_some_and(|argument_id| tree.get(*argument_id).value() == expression_id) =>
         {
             matches!(
                 replacement_expression,

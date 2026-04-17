@@ -222,7 +222,7 @@ fn should_report_parameter(
         return false;
     }
 
-    // static parameters are type parameters, not value parameters
+    // generic parameters are type parameters, not value parameters
     let symbol_id = parameter.symbol().into_global(ctx.module_id());
     let symbol = ctx.symbols.get_symbol(symbol_id.local_id);
     if symbol.is_static_parameter() {

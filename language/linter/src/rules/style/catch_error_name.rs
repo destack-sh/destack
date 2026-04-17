@@ -64,7 +64,7 @@ impl LintRule for CatchErrorName {
             if let dir::Expression::Call {
                 left: _,
                 generic_arguments: _,
-                dynamic_arguments: _,
+                arguments: _,
             } = expression
             {
                 report_promise_rejection_callback(
@@ -166,7 +166,7 @@ fn report_promise_rejection_callback(
     let dir::Expression::Call {
         left,
         generic_arguments: _,
-        dynamic_arguments,
+        arguments,
     } = expression
     else {
         return;
@@ -176,7 +176,7 @@ fn report_promise_rejection_callback(
     let Some(callback) = promise_rejection_callback(
         ctx.tree,
         *left,
-        dynamic_arguments.len(),
+        arguments.len(),
         catch_name,
         then_name,
         PromiseCallbackArity::Exact,
@@ -185,7 +185,7 @@ fn report_promise_rejection_callback(
     };
 
     // keep callback arguments with one named first parameter
-    let callback_argument_id = dynamic_arguments[callback.callback_argument_index];
+    let callback_argument_id = arguments[callback.callback_argument_index];
     let Some((parameter_id, actual_name_id, symbol_id)) =
         callback_parameter_binding_from_argument(ctx, callback_argument_id)
     else {

@@ -125,15 +125,11 @@ fn has_unknown_constructor_flags_argument(
     let expression = ctx.tree.get(expression_id);
     let (callee_id, arguments) = match expression {
         Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         }
         | Expression::New {
-            left,
-            dynamic_arguments,
-            ..
-        } => (*left, dynamic_arguments.as_slice()),
+            left, arguments, ..
+        } => (*left, arguments.as_slice()),
         _ => return false,
     };
 
@@ -207,15 +203,11 @@ fn unicode_regex_fix(
     // fix RegExp constructors by adding or extending the flags argument
     let (callee_id, arguments) = match expression {
         Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         }
         | Expression::New {
-            left,
-            dynamic_arguments,
-            ..
-        } => (*left, dynamic_arguments.as_slice()),
+            left, arguments, ..
+        } => (*left, arguments.as_slice()),
         _ => return None,
     };
     let path_segments = expression_path_segments(ctx.tree, callee_id)?;

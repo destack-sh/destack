@@ -135,12 +135,12 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         let call = expression_method_call(self.ctx.tree, expression_id)?;
 
         // keep simple callback-only forEach calls
-        if !call.generic_arguments.is_empty() || call.dynamic_arguments.len() != 1 {
+        if !call.generic_arguments.is_empty() || call.arguments.len() != 1 {
             return None;
         }
 
         // keep positional callback expressions
-        let callback_argument = self.ctx.tree.get(call.dynamic_arguments[0]);
+        let callback_argument = self.ctx.tree.get(call.arguments[0]);
         let dir::Argument::Positional {
             value: callback_id, ..
         } = callback_argument
@@ -186,10 +186,10 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         }
 
         // keep one positional pushed value
-        if !push_call.generic_arguments.is_empty() || push_call.dynamic_arguments.len() != 1 {
+        if !push_call.generic_arguments.is_empty() || push_call.arguments.len() != 1 {
             return None;
         }
-        let pushed_argument = self.ctx.tree.get(push_call.dynamic_arguments[0]);
+        let pushed_argument = self.ctx.tree.get(push_call.arguments[0]);
         let dir::Argument::Positional {
             value: pushed_value_id,
             ..

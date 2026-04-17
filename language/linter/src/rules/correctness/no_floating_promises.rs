@@ -168,9 +168,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
         let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
         let expression = self.ctx.tree.get(expression_id);
         let dir::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
         else {
             return false;
@@ -194,7 +192,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
         }
 
         // require optional structure
-        let Some(second_argument_id) = dynamic_arguments.get(1) else {
+        let Some(second_argument_id) = arguments.get(1) else {
             return false;
         };
         let second_argument = self.ctx.tree.get(*second_argument_id);

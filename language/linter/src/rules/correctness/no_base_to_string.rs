@@ -164,9 +164,7 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
         // match call expression
         let expression = self.ctx.tree.get(expression_id);
         let dir::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
         else {
             return;
@@ -181,7 +179,7 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
         }
 
         // resolve first argument type
-        let Some(argument_id) = dynamic_arguments.first() else {
+        let Some(argument_id) = arguments.first() else {
             return;
         };
         let argument = self.ctx.tree.get(*argument_id);

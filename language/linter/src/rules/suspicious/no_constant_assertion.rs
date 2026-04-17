@@ -50,9 +50,7 @@ impl LintRule for NoConstantAssertion {
             let expression = ctx.tree.get(node_id);
 
             let Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
+                left, arguments, ..
             } = expression
             else {
                 continue;
@@ -64,7 +62,7 @@ impl LintRule for NoConstantAssertion {
             }
 
             // check if the first argument is a constant
-            let Some(first_arg_id) = dynamic_arguments.first() else {
+            let Some(first_arg_id) = arguments.first() else {
                 continue;
             };
 

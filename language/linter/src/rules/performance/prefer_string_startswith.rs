@@ -203,7 +203,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         let dir::Expression::Call {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
         } = expression
         else {
             return;
@@ -211,7 +211,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         if !generic_arguments.is_empty() {
             return;
         }
-        if dynamic_arguments.len() != 1 {
+        if arguments.len() != 1 {
             return;
         }
 
@@ -238,7 +238,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         };
 
         // require one positional string argument
-        let first_argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let first_argument = self.ctx.tree.get(arguments[0]);
         let dir::Argument::Positional {
             value: argument_id, ..
         } = first_argument
@@ -286,7 +286,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         let dir::Expression::Call {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
         } = expression
         else {
             return None;
@@ -294,7 +294,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         if !generic_arguments.is_empty() {
             return None;
         }
-        if dynamic_arguments.is_empty() || dynamic_arguments.len() > 2 {
+        if arguments.is_empty() || arguments.len() > 2 {
             return None;
         }
 
@@ -317,7 +317,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         }
 
         // require one positional search argument
-        let first_argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let first_argument = self.ctx.tree.get(arguments[0]);
         let dir::Argument::Positional {
             value: prefix_id, ..
         } = first_argument
@@ -326,8 +326,8 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         };
 
         // optionally accept one positional fromIndex argument
-        let from_index_id = if dynamic_arguments.len() == 2 {
-            let second_argument = self.ctx.tree.get(dynamic_arguments[1]);
+        let from_index_id = if arguments.len() == 2 {
+            let second_argument = self.ctx.tree.get(arguments[1]);
             let dir::Argument::Positional { value, .. } = second_argument else {
                 return None;
             };

@@ -142,7 +142,7 @@ impl<'a, 'b> ObjectConstructorVisitor<'a, 'b> {
         }
 
         // only fix no argument calls: `Object(value)` has different semantics
-        if !call_like.dynamic_arguments.is_empty() {
+        if !call_like.arguments.is_empty() {
             return None;
         }
 

@@ -145,7 +145,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
 
         // check for .shift() with no arguments
         if call.method_name == self.shift_name {
-            if !call.dynamic_arguments.is_empty() {
+            if !call.arguments.is_empty() {
                 return;
             }
 
@@ -181,7 +181,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
 
         // check for .pop() with no arguments
         if call.method_name == self.pop_name {
-            if !call.dynamic_arguments.is_empty() {
+            if !call.arguments.is_empty() {
                 return;
             }
 
@@ -201,7 +201,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
         let dir::Expression::Call {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
         } = filter_call_expression
         else {
             return None;
@@ -209,11 +209,11 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
         if !generic_arguments.is_empty() {
             return None;
         }
-        if dynamic_arguments.is_empty() || dynamic_arguments.len() > 2 {
+        if arguments.is_empty() || arguments.len() > 2 {
             return None;
         }
 
-        for argument_id in dynamic_arguments {
+        for argument_id in arguments {
             let argument = self.ctx.tree.get(*argument_id);
             if !matches!(argument, dir::Argument::Positional { .. }) {
                 return None;
@@ -249,8 +249,8 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
         )?;
 
         // preserve callback and optional this-arg source range
-        let first_argument_id = *dynamic_arguments.first()?;
-        let last_argument_id = *dynamic_arguments.last()?;
+        let first_argument_id = *arguments.first()?;
+        let last_argument_id = *arguments.last()?;
         let first_span = self.ctx.get_span(first_argument_id);
         let last_span = self.ctx.get_span(last_argument_id);
         let arguments_span = Span::new(first_span.file, first_span.start, last_span.end);
@@ -262,20 +262,17 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
     /// Return the literal numeric index for one `.at(index)` call.
     fn at_index_value(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> Option<i64> {
         let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::Call {
-            dynamic_arguments, ..
-        } = expression
-        else {
+        let dir::Expression::Call { arguments, .. } = expression else {
             return None;
         };
 
         // must have exactly one argument
-        if dynamic_arguments.len() != 1 {
+        if arguments.len() != 1 {
             return None;
         }
 
         // argument must be literal 0
-        let argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let argument = self.ctx.tree.get(arguments[0]);
         let expression_id = argument.value();
         let const_value = self.ctx.const_value(expression_id)?;
         let index_value = const_i64(&const_value)?;
@@ -296,13 +293,10 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
 
         // check filter has at least one argument
         let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::Call {
-            dynamic_arguments, ..
-        } = expression
-        else {
+        let dir::Expression::Call { arguments, .. } = expression else {
             return false;
         };
-        if dynamic_arguments.is_empty() {
+        if arguments.is_empty() {
             return false;
         }
 

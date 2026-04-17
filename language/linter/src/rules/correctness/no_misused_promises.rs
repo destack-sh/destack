@@ -325,16 +325,12 @@ impl NodeVisitor for MisusedPromiseVisitor<'_, '_> {
                 self.check_conditional_expression(id, *condition);
             }
             dir::Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
+                left, arguments, ..
             }
             | dir::Expression::New {
-                left,
-                dynamic_arguments,
-                ..
+                left, arguments, ..
             } => {
-                self.check_call_arguments(id, *left, dynamic_arguments);
+                self.check_call_arguments(id, *left, arguments);
             }
             _ => {}
         }

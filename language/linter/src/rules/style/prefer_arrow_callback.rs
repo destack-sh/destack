@@ -42,17 +42,13 @@ impl LintRule for PreferArrowCallback {
         // inspect callback arguments in call like expressions
         for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
             let expression = ctx.tree.get(expression_id);
-            let dynamic_arguments = match expression {
-                dir::Expression::Call {
-                    dynamic_arguments, ..
-                }
-                | dir::Expression::New {
-                    dynamic_arguments, ..
-                } => dynamic_arguments,
+            let arguments = match expression {
+                dir::Expression::Call { arguments, .. }
+                | dir::Expression::New { arguments, .. } => arguments,
                 _ => continue,
             };
 
-            for argument_id in dynamic_arguments {
+            for argument_id in arguments {
                 check_callback_argument(ctx, meta, options, *argument_id);
             }
         }
@@ -292,13 +288,13 @@ fn collect_callback_candidates(
     // handle `.bind(...)` wrappers specially
     let dir::Expression::Call {
         left: call_left_id,
-        dynamic_arguments,
+        arguments,
         ..
     } = expression
     else {
         return;
     };
-    let Some(bind_shape) = bind_call_shape(ctx, *call_left_id, dynamic_arguments.as_slice()) else {
+    let Some(bind_shape) = bind_call_shape(ctx, *call_left_id, arguments.as_slice()) else {
         return;
     };
 
@@ -368,7 +364,7 @@ struct BindCallShape {
 fn bind_call_shape(
     ctx: &LintModuleDirContext<'_>,
     call_left_id: dir::LocalNodeId<dir::Expression>,
-    dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+    arguments: &[dir::LocalNodeId<dir::Argument>],
 ) -> Option<BindCallShape> {
     let bind_name = ctx.repository.strings.intern("bind");
     let call_left_id = expression_unwrap_parenthesized(ctx.tree, call_left_id);
@@ -391,8 +387,8 @@ fn bind_call_shape(
     }
 
     // treat only single `this` arguments as lexical binds
-    let is_lexical_this = dynamic_arguments.len() == 1
-        && dynamic_arguments
+    let is_lexical_this = arguments.len() == 1
+        && arguments
             .first()
             .is_some_and(|argument_id| argument_is_this_expression(ctx, *argument_id));
 

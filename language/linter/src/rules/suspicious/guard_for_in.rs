@@ -228,24 +228,17 @@ impl<'a, 'b> GuardForInVisitor<'a, 'b> {
     ) -> bool {
         let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
         let dir::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = self.ctx.tree.get(expression_id)
         else {
             return false;
         };
 
-        self.is_object_has_own_call(*left, dynamic_arguments, iterator_id, binding_symbol)
-            || self.is_receiver_has_own_property_call(
-                *left,
-                dynamic_arguments,
-                iterator_id,
-                binding_symbol,
-            )
+        self.is_object_has_own_call(*left, arguments, iterator_id, binding_symbol)
+            || self.is_receiver_has_own_property_call(*left, arguments, iterator_id, binding_symbol)
             || self.is_object_prototype_has_own_property_call(
                 *left,
-                dynamic_arguments,
+                arguments,
                 iterator_id,
                 binding_symbol,
             )

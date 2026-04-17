@@ -131,18 +131,15 @@ impl<'a, 'b> NoAccumulatingSpreadVisitor<'a, 'b> {
 
         // get the callback argument
         let expression = tree.get(expression_id);
-        let dir::Expression::Call {
-            dynamic_arguments, ..
-        } = expression
-        else {
+        let dir::Expression::Call { arguments, .. } = expression else {
             return;
         };
-        if dynamic_arguments.is_empty() {
+        if arguments.is_empty() {
             return;
         }
 
         // get the callback expression
-        let callback_arg = tree.get(dynamic_arguments[0]);
+        let callback_arg = tree.get(arguments[0]);
         let callback_id = callback_arg.value();
         let callback = tree.get(callback_id);
 
@@ -273,18 +270,15 @@ impl<'a, 'b> NoAccumulatingSpreadVisitor<'a, 'b> {
 
         // require at least two arguments to inspect the source object
         let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::Call {
-            dynamic_arguments, ..
-        } = expression
-        else {
+        let dir::Expression::Call { arguments, .. } = expression else {
             return;
         };
-        if dynamic_arguments.len() < 2 {
+        if arguments.len() < 2 {
             return;
         }
 
         // match Object.assign(target, accumulator, ...)
-        let source_argument = self.ctx.tree.get(dynamic_arguments[1]);
+        let source_argument = self.ctx.tree.get(arguments[1]);
         let source_expression_id = source_argument.value();
         let source_symbol = expression_target_symbol(self.ctx.tree, source_expression_id);
         if source_symbol != Some(accumulator_symbol) {

@@ -188,7 +188,7 @@ impl<'a, 'b> PreferObjectHasOwnVisitor<'a, 'b> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         callee_id: dir::LocalNodeId<dir::Expression>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         let Some(invocation_kind) = self.prototype_has_own_invocation_kind(callee_id) else {
             return;
@@ -211,9 +211,7 @@ impl<'a, 'b> PreferObjectHasOwnVisitor<'a, 'b> {
         )
         .with_label("use Object.hasOwn(value, key) instead of prototype hasOwnProperty call");
 
-        if let Some(fix) =
-            self.prototype_has_own_fix(expression_id, invocation_kind, dynamic_arguments)
-        {
+        if let Some(fix) = self.prototype_has_own_fix(expression_id, invocation_kind, arguments) {
             diagnostic = diagnostic.with_fix(fix);
         }
 
@@ -225,18 +223,18 @@ impl<'a, 'b> PreferObjectHasOwnVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         invocation_kind: HasOwnInvocationKind,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> Option<LintFix> {
         // resolve the object and key arguments from the invocation style
         let (object_value_id, key_value_id) = match invocation_kind {
             HasOwnInvocationKind::Call => {
-                let object_id = positional_argument_value(self.ctx.tree, dynamic_arguments, 0)?;
-                let key_id = positional_argument_value(self.ctx.tree, dynamic_arguments, 1)?;
+                let object_id = positional_argument_value(self.ctx.tree, arguments, 0)?;
+                let key_id = positional_argument_value(self.ctx.tree, arguments, 1)?;
                 (object_id, key_id)
             }
             HasOwnInvocationKind::Apply => {
-                let object_id = positional_argument_value(self.ctx.tree, dynamic_arguments, 0)?;
-                let args_array_id = positional_argument_value(self.ctx.tree, dynamic_arguments, 1)?;
+                let object_id = positional_argument_value(self.ctx.tree, arguments, 0)?;
+                let args_array_id = positional_argument_value(self.ctx.tree, arguments, 1)?;
                 let key_id = array_first_argument_value(self.ctx.tree, args_array_id)?;
                 (object_id, key_id)
             }
@@ -290,12 +288,10 @@ impl NodeVisitor for PreferObjectHasOwnVisitor<'_, '_> {
     ) {
         // check call expressions
         if let dir::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
         {
-            self.check_call(id, *left, dynamic_arguments);
+            self.check_call(id, *left, arguments);
         }
 
         // walk expression children

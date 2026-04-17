@@ -141,8 +141,8 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
         }
 
         // skip single non spread constructors: `Array(3)` is not `[3]`
-        if call_like.dynamic_arguments.len() == 1 {
-            let argument = self.ctx.tree.get(call_like.dynamic_arguments[0]);
+        if call_like.arguments.len() == 1 {
+            let argument = self.ctx.tree.get(call_like.arguments[0]);
             if !matches!(argument, dir::Argument::Spread { .. }) {
                 return None;
             }
@@ -150,7 +150,7 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
 
         // collect positional and spread arguments in order
         let mut elements = Vec::new();
-        for argument_id in call_like.dynamic_arguments {
+        for argument_id in call_like.arguments {
             let argument = self.ctx.tree.get(*argument_id);
             let element = match argument {
                 dir::Argument::Positional { value, .. } => {

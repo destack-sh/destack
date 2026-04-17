@@ -51,9 +51,7 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
         for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
             let expression = ctx.tree.get(expression_id);
             let dir::Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
+                left, arguments, ..
             } = expression
             else {
                 continue;
@@ -61,7 +59,7 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
             let Some(callback) = promise_rejection_callback(
                 ctx.tree,
                 *left,
-                dynamic_arguments.len(),
+                arguments.len(),
                 catch_name,
                 then_name,
                 PromiseCallbackArity::Minimum,
@@ -89,7 +87,7 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
 
             let callback_argument = ctx
                 .tree
-                .get(dynamic_arguments[callback.callback_argument_index])
+                .get(arguments[callback.callback_argument_index])
                 .value();
             let callback_candidates =
                 collect_rejection_callback_candidates(ctx.tree, callback_argument);

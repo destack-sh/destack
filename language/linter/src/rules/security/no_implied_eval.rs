@@ -280,12 +280,10 @@ impl NodeVisitor for NoImpliedEvalVisitor<'_, '_> {
 
         // check timer calls
         if let dir::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
         {
-            self.check_call(id, *left, dynamic_arguments);
+            self.check_call(id, *left, arguments);
         }
 
         // walk expression children

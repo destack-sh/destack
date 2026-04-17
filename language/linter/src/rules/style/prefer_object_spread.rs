@@ -99,7 +99,7 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // ignore non object assign calls
         if !self.is_object_assign_receiver(left) {
@@ -107,12 +107,12 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
         }
 
         // require at least one argument
-        if dynamic_arguments.is_empty() {
+        if arguments.is_empty() {
             return;
         }
 
         // require an object literal as the first argument
-        let first_argument_id = dynamic_arguments[0];
+        let first_argument_id = arguments[0];
         let argument = self.ctx.tree.get(first_argument_id);
         let value_id = argument.value();
         if !self.is_object_literal(value_id) {
@@ -120,12 +120,12 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
         }
 
         // ignore calls with spread arguments
-        if self.has_spread_argument(dynamic_arguments) {
+        if self.has_spread_argument(arguments) {
             return;
         }
 
         // ignore accessor merges with multiple arguments, spread can change getter and setter timing
-        if dynamic_arguments.len() > 1 && self.has_accessor_object_argument(dynamic_arguments) {
+        if arguments.len() > 1 && self.has_accessor_object_argument(arguments) {
             return;
         }
 
@@ -147,8 +147,7 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
             span,
         )
         .with_label("use { ...value } instead of Object.assign");
-        if let Some(fix) =
-            self.object_spread_fix(expression_id, left, generic_arguments, dynamic_arguments)
+        if let Some(fix) = self.object_spread_fix(expression_id, left, generic_arguments, arguments)
         {
             diagnostic = diagnostic.with_fix(fix);
         }
@@ -162,7 +161,7 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         member_id: dir::LocalNodeId<dir::Expression>,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> Option<LintFix> {
         // skip static call arguments until static argument rendering is supported
         if !generic_arguments.is_empty() {
@@ -179,13 +178,13 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
         }
 
         // require at least one argument
-        if dynamic_arguments.is_empty() {
+        if arguments.is_empty() {
             return None;
         }
 
         // build literal entries from positional arguments only
         let mut literal_entries = Vec::new();
-        for argument_id in dynamic_arguments {
+        for argument_id in arguments {
             let argument = self.ctx.tree.get(*argument_id);
             let dir::Argument::Positional { value, .. } = argument else {
                 return None;
@@ -374,11 +373,11 @@ impl NodeVisitor for PreferObjectSpreadVisitor<'_, '_> {
         if let dir::Expression::Call {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
             ..
         } = expression
         {
-            self.check_assign_call(id, *left, generic_arguments.as_slice(), dynamic_arguments);
+            self.check_assign_call(id, *left, generic_arguments.as_slice(), arguments);
         }
 
         // walk expression children

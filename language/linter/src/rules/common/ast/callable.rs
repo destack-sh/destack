@@ -118,8 +118,8 @@ pub fn function_signature_parameter_count(
     signature: &ast::FunctionSignature,
     this_parameter_count: ThisParameterCount,
 ) -> usize {
-    // start from dynamic parameters
-    let dynamic_parameter_count = signature.parameters.len();
+    // start from parameters
+    let parameter_count = signature.parameters.len();
 
     // resolve optional this-parameter contribution
     let this_parameter_count = signature
@@ -140,10 +140,10 @@ pub fn function_signature_parameter_count(
         })
         .unwrap_or(0);
 
-    dynamic_parameter_count + this_parameter_count
+    parameter_count + this_parameter_count
 }
 
-/// Return static parameter count for one function signature.
-pub fn function_signature_static_parameter_count(signature: &ast::FunctionSignature) -> usize {
+/// Return generic parameter count for one function signature.
+pub fn function_signature_generic_parameter_count(signature: &ast::FunctionSignature) -> usize {
     signature.generic_parameters.len()
 }

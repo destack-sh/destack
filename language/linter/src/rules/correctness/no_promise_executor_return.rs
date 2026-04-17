@@ -87,7 +87,7 @@ impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // ignore non promise calls
         let Some(target_symbol) = expression_target_symbol(self.ctx.tree, left) else {
@@ -98,7 +98,7 @@ impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
         }
 
         // get the executor argument
-        let Some(argument_id) = dynamic_arguments.first() else {
+        let Some(argument_id) = arguments.first() else {
             return;
         };
         let argument = self.ctx.tree.get(*argument_id);
@@ -159,12 +159,10 @@ impl NodeVisitor for PromiseExecutorReturnVisitor<'_, '_> {
     ) {
         // check Promise constructors only
         if let dir::Expression::New {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
         {
-            self.check_executor_returns(id, *left, dynamic_arguments);
+            self.check_executor_returns(id, *left, arguments);
         }
 
         // walk expression children

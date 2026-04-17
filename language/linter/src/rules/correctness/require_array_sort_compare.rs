@@ -174,12 +174,10 @@ impl NodeVisitor for ArraySortVisitor<'_, '_> {
     ) {
         // check call expressions for sort without comparator
         if let dir::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
         {
-            self.check_sort_call(id, *left, dynamic_arguments);
+            self.check_sort_call(id, *left, arguments);
         }
 
         // walk expression children

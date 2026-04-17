@@ -174,13 +174,13 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         let dir::Expression::Call {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
             ..
         } = call_expression
         else {
             return None;
         };
-        if dynamic_arguments.is_empty() {
+        if arguments.is_empty() {
             return None;
         }
 
@@ -208,7 +208,7 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         let receiver_path = expression_reference_path(self.ctx.tree, receiver_id)?;
         Some(FilterLengthMatch {
             receiver_path,
-            dynamic_arguments: dynamic_arguments.clone(),
+            arguments: arguments.clone(),
             has_generic_arguments: !generic_arguments.is_empty(),
         })
     }
@@ -266,12 +266,12 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
             return None;
         }
 
-        if filter_match.dynamic_arguments.is_empty() {
+        if filter_match.arguments.is_empty() {
             return None;
         }
 
         let mut argument_texts = Vec::new();
-        for argument_id in &filter_match.dynamic_arguments {
+        for argument_id in &filter_match.arguments {
             let argument_span = self.ctx.get_span(*argument_id);
             let argument_text = self.ctx.get_span_text(argument_span);
             if argument_text.trim().is_empty() {
@@ -322,8 +322,8 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
 struct FilterLengthMatch {
     /// The path for the filter receiver.
     receiver_path: ReferencePath,
-    /// The dynamic arguments passed to filter.
-    dynamic_arguments: Vec<dir::LocalNodeId<dir::Argument>>,
+    /// The arguments passed to filter.
+    arguments: Vec<dir::LocalNodeId<dir::Argument>>,
     /// Whether filter has explicit generic arguments.
     has_generic_arguments: bool,
 }

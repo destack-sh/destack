@@ -267,7 +267,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         let dir::Expression::Call {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
         } = candidate_expression
         else {
             return None;
@@ -275,12 +275,12 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         if !generic_arguments.is_empty() {
             return None;
         }
-        if dynamic_arguments.is_empty() || dynamic_arguments.len() > 2 {
+        if arguments.is_empty() || arguments.len() > 2 {
             return None;
         }
 
         // require positional callback and optional positional this-arg
-        for argument_id in dynamic_arguments {
+        for argument_id in arguments {
             let argument = self.ctx.tree.get(*argument_id);
             if !matches!(argument, dir::Argument::Positional { .. }) {
                 return None;
@@ -327,8 +327,8 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         )?;
 
         // preserve callback and optional this-arg source range
-        let first_argument_id = *dynamic_arguments.first()?;
-        let last_argument_id = *dynamic_arguments.last()?;
+        let first_argument_id = *arguments.first()?;
+        let last_argument_id = *arguments.last()?;
         let first_span = self.ctx.get_span(first_argument_id);
         let last_span = self.ctx.get_span(last_argument_id);
         let arguments_span = Span::new(first_span.file, first_span.start, last_span.end);
@@ -368,14 +368,12 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         let call_id = *left;
         let call_expression = self.ctx.tree.get(call_id);
         let dir::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = call_expression
         else {
             return false;
         };
-        if dynamic_arguments.is_empty() {
+        if arguments.is_empty() {
             return false;
         }
 
@@ -400,14 +398,12 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
 
         // match call expression
         let dir::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
         else {
             return false;
         };
-        if dynamic_arguments.is_empty() {
+        if arguments.is_empty() {
             return false;
         }
 
@@ -429,14 +425,12 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
 
         // match call expression
         let dir::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
+            left, arguments, ..
         } = expression
         else {
             return false;
         };
-        if dynamic_arguments.is_empty() {
+        if arguments.is_empty() {
             return false;
         }
 
