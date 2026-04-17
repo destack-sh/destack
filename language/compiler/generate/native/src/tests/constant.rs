@@ -5,9 +5,9 @@ use super::compile_mir_to_normalized_clif;
 fn test_string_global() {
     let mir = r#"
 global readonly hello: uint8[5] = b"hello";
-function get_hello(): ref<uint8[5], raw, readonly, addressSpace(global)> {
+function get_hello(): ref<uint8[5], raw, readonly, space(global)> {
 bb0:
-    v0: ref<uint8[5], raw, readonly, addressSpace(global)> = global.address hello
+    v0: ref<uint8[5], raw, readonly, space(global)> = global.address hello
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -24,9 +24,9 @@ bb0:
 fn test_empty_string_global() {
     let mir = r#"
 global readonly empty: uint8[0] = b"";
-function get_empty(): ref<uint8[0], raw, readonly, addressSpace(global)> {
+function get_empty(): ref<uint8[0], raw, readonly, space(global)> {
 bb0:
-    v0: ref<uint8[0], raw, readonly, addressSpace(global)> = global.address empty
+    v0: ref<uint8[0], raw, readonly, space(global)> = global.address empty
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -64,7 +64,7 @@ global counter: int32 = 0int32 ;
 
 function increment(): int32 {
 bb0:
-    v0: ref<int32, raw, addressSpace(global)> = global.address counter
+    v0: ref<int32, raw, space(global)> = global.address counter
     v1: int32 = load v0
     v2: int32 = const 1int32
     v3: int32 = int.add v1, v2
@@ -91,7 +91,7 @@ global data: int64 = zeroInit ;
 
 function get_data(): int64 {
 bb0:
-    v0: ref<int64, raw, addressSpace(global)> = global.address data
+    v0: ref<int64, raw, space(global)> = global.address data
     v1: int64 = load v0
     return v1
 }"#;

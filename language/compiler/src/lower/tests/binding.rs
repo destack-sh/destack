@@ -423,11 +423,11 @@ class Counter {
         "native",
         r#"
 type Counter {
-    vtable: ref<void, raw, readonly, addressSpace(global)>;
+    vtable: ref<void, raw, readonly, space(global)>;
     value: int32;
 }
 
-global Counter#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
+global Counter#vtable: ref?<void, raw, readonly, space(global)>[3], readonly = zeroInit
 
 function Counter.borrowValue(value0: ref<Counter, managed, readonly>): ref<int32, borrowed> {
 entry0(value0: ref<Counter, managed, readonly>):

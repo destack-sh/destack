@@ -206,12 +206,12 @@ type Circle {
 function makeShape(value0: Circle): makeShape.return#union {
 entry0(value0: Circle):
     value1: uint8 = 0uint8
-    value2: ref<usize[1], raw, addressSpace(stack)> = stack.alloc usize[1]
+    value2: ref<usize[1], raw, space(stack)> = stack.alloc usize[1]
     value3: uint64 = 0uint64
     value4: usize = cast.bit value3 -> usize
     value5: usize[1] = array usize[1] (value4)
     store value2, value5
-    value6: ref<Circle, raw, addressSpace(stack)> = cast.bit value2 -> ref<Circle, raw, addressSpace(stack)>
+    value6: ref<Circle, raw, space(stack)> = cast.bit value2 -> ref<Circle, raw, space(stack)>
     store value6, value0
     value7: usize[1] = load value2
     value8: makeShape.return#union = struct makeShape.return#union (value1, value7)
@@ -560,9 +560,9 @@ type Circle { value: int32 }
 function takeCircle(value0: takeCircle.value#union): Circle {
 entry0(value0: takeCircle.value#union):
     value1: usize[1] = field.get value0, 1
-    value2: ref<usize[1], raw, addressSpace(stack)> = stack.alloc usize[1]
+    value2: ref<usize[1], raw, space(stack)> = stack.alloc usize[1]
     store value2, value1
-    value3: ref<Circle, raw, addressSpace(stack)> = cast.bit value2 -> ref<Circle, raw, addressSpace(stack)>
+    value3: ref<Circle, raw, space(stack)> = cast.bit value2 -> ref<Circle, raw, space(stack)>
     value4: Circle = load value3
     return value4
 }

@@ -6,7 +6,7 @@ fn test_stack_allocate_i32() {
     let mir = r#"
 function alloc_i32(): ref<int32, raw> {
 bb0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -30,7 +30,7 @@ fn test_stack_allocate_i64() {
     let mir = r#"
 function alloc_i64(): ref<int64, raw> {
 bb0:
-    v0: ref<int64, raw, addressSpace(stack)> = stack.alloc int64
+    v0: ref<int64, raw, space(stack)> = stack.alloc int64
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -53,7 +53,7 @@ fn test_stack_allocate_and_use() {
     let mir = r#"
 function alloc_store_load(): int32 {
 bb0:
-    v0: ref<int32, raw, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = const 42int32
     store v0, v1
     v2: int32 = load v0
