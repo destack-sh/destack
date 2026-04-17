@@ -956,7 +956,7 @@ impl Compiler {
                 position: _,
                 left,
                 generic_arguments,
-                dynamic_arguments,
+                arguments,
             } => {
                 let left = self.bind_expression(
                     module,
@@ -996,7 +996,7 @@ impl Compiler {
                         )
                     })
                     .collect();
-                let dynamic_arguments = dynamic_arguments
+                let arguments = arguments
                     .iter()
                     .map(|argument| {
                         self.bind_argument(
@@ -1018,13 +1018,13 @@ impl Compiler {
                 Expression::Call {
                     left,
                     generic_arguments,
-                    dynamic_arguments,
+                    arguments,
                 }
             }
             ast::Expression::New {
                 left,
                 generic_arguments,
-                dynamic_arguments,
+                arguments,
             } => {
                 let left = self.bind_expression(
                     module,
@@ -1059,7 +1059,7 @@ impl Compiler {
                         )
                     })
                     .collect();
-                let dynamic_arguments = dynamic_arguments
+                let arguments = arguments
                     .iter()
                     .map(|argument| {
                         self.bind_argument(
@@ -1081,7 +1081,7 @@ impl Compiler {
                 Expression::New {
                     left,
                     generic_arguments,
-                    dynamic_arguments,
+                    arguments,
                 }
             }
             ast::Expression::Delete { value } => {
