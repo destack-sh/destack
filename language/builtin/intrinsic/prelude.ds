@@ -1,20 +1,19 @@
-// ownership and place
-export {
-    type Borrowed,
-    type Owned,
-    type Shared,
-    type Space,
-} from "./ownership.ds";
-
 // reflection
 export { Type, typeOf } from "./reflect/type.ds";
 
 // ownership
 export {
+    type Region,
+    type Borrowed,
+    type Owned,
+    type Shared,
+    type Space,
     type Bytes,
     type Buffer,
     type Copy,
     type Clone,
+    type Dispose,
+    type AsyncDispose,
     type Send,
     type Sync,
 } from "./memory/index.ds";

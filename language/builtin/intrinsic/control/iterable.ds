@@ -5,6 +5,12 @@ export declare interface SymbolConstructor {
 
     /// The default async iterator symbol used by for await of semantics.
     readonly asyncIterator: unique symbol;
+
+    /// The default dispose symbol used by using semantics.
+    readonly dispose: unique symbol;
+
+    /// The default async dispose symbol used by await using semantics.
+    readonly asyncDispose: unique symbol;
 }
 
 /// The global Symbol constructor.

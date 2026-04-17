@@ -10,8 +10,14 @@ export newtype interface Send {}
 /// Mark a type as safe to share across threads.
 export newtype interface Sync {}
 
-/// Borrowed value of `T`.
-export newtype interface Borrowed<T> {}
+/// Region marker for borrowed validity.
+///
+/// `Region` is a compiler known static parameter kind.
+/// It is not a runtime value type and has no interface behavior.
+export newtype Region = unknown;
+
+/// Borrowed value of `T` within region `R`.
+export newtype interface Borrowed<R, T> {}
 
 /// Owned value of `T`.
 export newtype interface Owned<T> {}

@@ -57,12 +57,13 @@ macro_rules! builtin_source {
 // intrinsic root
 builtin_source!(INTRINSIC_ROOT_INDEX, "index.ds");
 builtin_source!(INTRINSIC_PRELUDE, "prelude.ds");
-builtin_source!(INTRINSIC_OWNERSHIP, "ownership.ds");
 
 // memory
 builtin_source!(MEMORY_INDEX, "memory", "index.ds");
 builtin_source!(MEMORY_BYTES, "memory", "bytes.ds");
 builtin_source!(MEMORY_COPY, "memory", "copy.ds");
+builtin_source!(MEMORY_DISPOSE, "memory", "dispose.ds");
+builtin_source!(MEMORY_OWNERSHIP, "memory", "ownership.ds");
 builtin_source!(MEMORY_THREAD, "memory", "thread.ds");
 
 // operator
@@ -104,7 +105,9 @@ builtin_source!(PRIMITIVE_VECTOR, "primitive", "vector.ds");
 /// Dependencies should be loaded before dependents.
 pub const INTRINSIC_SOURCES: &[BuiltinSource] = &[
     // memory
+    MEMORY_OWNERSHIP,
     MEMORY_COPY,
+    MEMORY_DISPOSE,
     MEMORY_THREAD,
     MEMORY_BYTES,
     MEMORY_INDEX,
