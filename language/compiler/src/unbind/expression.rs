@@ -32,8 +32,8 @@ impl Compiler {
         let span = self.unbind_span(module, argument_id.into());
 
         let ast_argument = match argument {
-            dir::GenericArgument::Positional { value } => {
-                let value = self.unbind_expression(
+            dir::GenericArgument::Type { value } => {
+                let value = self.unbind_type_expression(
                     module,
                     *value,
                     tree,
@@ -44,9 +44,9 @@ impl Compiler {
                     context,
                 );
 
-                ast::GenericArgument::Positional { value }
+                ast::GenericArgument::Type { value }
             }
-            dir::GenericArgument::Spread { value } => {
+            dir::GenericArgument::Value { value } => {
                 let value = self.unbind_expression(
                     module,
                     *value,
@@ -58,7 +58,7 @@ impl Compiler {
                     context,
                 );
 
-                ast::GenericArgument::Spread { value }
+                ast::GenericArgument::Value { value }
             }
             dir::GenericArgument::Error => ast::GenericArgument::Error,
         };
@@ -546,7 +546,7 @@ impl Compiler {
                 dir::Expression::Call {
                     left,
                     generic_arguments,
-                    dynamic_arguments,
+                    arguments,
                 } => {
                     let left = self.unbind_expression(module, *left, tree, symbols, types, ast_tree, ast_strings, context);
                     let generic_arguments = generic_arguments.iter().map(|argument| {
@@ -561,14 +561,14 @@ impl Compiler {
                             context,
                         )
                     }).collect();
-                    let dynamic_arguments = dynamic_arguments.iter().map(|arg| {
+                    let arguments = arguments.iter().map(|arg| {
                         self.unbind_argument(module, *arg, tree, symbols, types, ast_tree, ast_strings, context)
                     }).collect();
                     ast::Expression::Call {
                         position: ast::PostfixPosition::Direct,
                         left,
                         generic_arguments,
-                        dynamic_arguments,
+                        arguments,
                     }
                 }
 
@@ -625,7 +625,7 @@ impl Compiler {
                 dir::Expression::New {
                     left,
                     generic_arguments,
-                    dynamic_arguments,
+                    arguments,
                 } => {
                     let left = self.unbind_expression(module, *left, tree, symbols, types, ast_tree, ast_strings, context);
                     let generic_arguments = generic_arguments.iter().map(|argument| {
@@ -640,10 +640,10 @@ impl Compiler {
                             context,
                         )
                     }).collect();
-                    let dynamic_arguments = dynamic_arguments.iter().map(|arg| {
+                    let arguments = arguments.iter().map(|arg| {
                         self.unbind_argument(module, *arg, tree, symbols, types, ast_tree, ast_strings, context)
                     }).collect();
-                    ast::Expression::New { left, generic_arguments, dynamic_arguments }
+                    ast::Expression::New { left, generic_arguments, arguments }
                 }
 
                 dir::Expression::Delete { value } => {
@@ -831,7 +831,7 @@ impl Compiler {
                         position: ast::PostfixPosition::Direct,
                         left: ast_tree.insert(ast::Expression::Type { value: ty }, span),
                         generic_arguments: Vec::new(),
-                        dynamic_arguments: vec![value_arg],
+                        arguments: vec![value_arg],
                     }
                 }
 
@@ -854,7 +854,7 @@ impl Compiler {
                         position: ast::PostfixPosition::Direct,
                         left: ast_tree.insert(ast::Expression::Type { value: ty }, span),
                         generic_arguments: Vec::new(),
-                        dynamic_arguments: elements,
+                        arguments: elements,
                     }
                 }
 
