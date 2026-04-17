@@ -70,29 +70,3 @@ pub enum CastSource {
     /// Casts inserted implicitly at type boundaries.
     Implicit,
 }
-
-/// The operator used to perform an ownership cast.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
-pub enum OwnershipCastOperator {
-    /// Convert a value into a readonly borrow.
-    BorrowShared,
-    /// Convert a value into a mutable borrow.
-    BorrowMut,
-    /// Convert a value into an owned value.
-    ToOwned,
-    /// Convert an owned value back into a managed value.
-    ToManaged,
-    /// Convert a value into a raw pointer.
-    ToRaw,
-    /// Convert a raw pointer into a reference.
-    FromRaw,
-}
-
-/// The source of an ownership cast expression.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
-pub enum OwnershipCastSource {
-    /// Ownership casts written explicitly in source.
-    Explicit,
-    /// Ownership casts inserted implicitly at type boundaries.
-    Implicit,
-}
