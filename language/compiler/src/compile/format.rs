@@ -2,14 +2,14 @@ use destack_artifact::{ArtifactKey, ArtifactStore};
 use destack_builtin::LanguageSymbol;
 use destack_core::StringId;
 use destack_dir::{
-    self as dir, FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, StaticKey,
-    Visibility,
+    self as dir, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, StaticKey, Visibility,
 };
 use destack_mir as mir;
 use destack_source::{FileType, ModuleId, ModuleStamp, PackageId, PackageStamp, TargetId, Uri};
 use destack_workspace::{ProfileId, Repository, Revision};
 use std::path::PathBuf;
 
+use crate::CallableAbstraction;
 use destack_query::format::{format_global_type, format_symbol_name, format_type};
 
 /// Trait for formatting types in diagnostic messages. Should not fail.
@@ -311,7 +311,7 @@ impl DiagnosticFormat for Visibility {
     }
 }
 
-impl DiagnosticFormat for FunctionAbstraction {
+impl DiagnosticFormat for CallableAbstraction {
     fn diagnostic_fmt(
         &self,
         _revision: Revision,
@@ -319,10 +319,10 @@ impl DiagnosticFormat for FunctionAbstraction {
         _artifacts: &ArtifactStore,
     ) -> String {
         match self {
-            FunctionAbstraction::Abstract => "abstract".to_string(),
-            FunctionAbstraction::AbstractOverride => "abstract override".to_string(),
-            FunctionAbstraction::ConcreteOverride => "override".to_string(),
-            FunctionAbstraction::Concrete => "concrete".to_string(),
+            CallableAbstraction::Abstract => "abstract".to_string(),
+            CallableAbstraction::AbstractOverride => "abstract override".to_string(),
+            CallableAbstraction::Override => "override".to_string(),
+            CallableAbstraction::Concrete => "concrete".to_string(),
         }
     }
 }
