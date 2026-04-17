@@ -899,7 +899,7 @@ mod tests {
                 strings.intern("alpha"),
             ))),
         );
-        let static_parameter = insert_generic_parameter(
+        let generic_parameter = insert_generic_parameter(
             tree,
             GenericParameter::Type {
                 modifiers: None,
@@ -941,7 +941,7 @@ mod tests {
                     cardinality: FunctionCardinality::Scalar,
                     mode: None,
                     kind: FunctionKind::Lambda,
-                    generic_parameters: vec![static_parameter],
+                    generic_parameters: vec![generic_parameter],
                     this_parameter: None,
                     parameters: vec![dynamic_parameter],
                     return_type: Some(function_return_type),

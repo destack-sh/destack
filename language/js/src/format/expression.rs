@@ -323,7 +323,7 @@ fn format_expression_with_precedence<'ast>(
             position,
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
         } => {
             format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
 
@@ -335,9 +335,9 @@ fn format_expression_with_precedence<'ast>(
                 write!(f, [list_like("<", ">", ",", generic_arguments)])?;
             }
 
-            let mut dynamic_arguments = list_like("(", ")", ",", dynamic_arguments);
-            dynamic_arguments.without_trailing_separator();
-            write!(f, [dynamic_arguments])?;
+            let mut arguments = list_like("(", ")", ",", arguments);
+            arguments.without_trailing_separator();
+            write!(f, [arguments])?;
         }
         Expression::ImportCall {
             target,
@@ -371,7 +371,7 @@ fn format_expression_with_precedence<'ast>(
         Expression::New {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
         } => {
             write!(f, [token("new"), space()])?;
             format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
@@ -380,9 +380,9 @@ fn format_expression_with_precedence<'ast>(
                 write!(f, [list_like("<", ">", ",", generic_arguments)])?;
             }
 
-            let mut dynamic_arguments = list_like("(", ")", ",", dynamic_arguments);
-            dynamic_arguments.without_trailing_separator();
-            write!(f, [dynamic_arguments])?;
+            let mut arguments = list_like("(", ")", ",", arguments);
+            arguments.without_trailing_separator();
+            write!(f, [arguments])?;
         }
         Expression::IfTernary {
             condition,

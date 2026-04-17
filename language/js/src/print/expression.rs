@@ -312,7 +312,7 @@ impl<'a> Printer<'a> {
                 position,
                 left,
                 generic_arguments,
-                dynamic_arguments,
+                arguments,
             } => {
                 self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
 
@@ -325,7 +325,7 @@ impl<'a> Printer<'a> {
                 }
 
                 self.write_punct("(");
-                self.print_argument_list(dynamic_arguments)?;
+                self.print_argument_list(arguments)?;
                 self.write_punct(")");
             }
             Expression::ImportCall {
@@ -356,7 +356,7 @@ impl<'a> Printer<'a> {
             Expression::New {
                 left,
                 generic_arguments,
-                dynamic_arguments,
+                arguments,
             } => {
                 self.write_keyword(Keyword::New);
                 self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
@@ -366,7 +366,7 @@ impl<'a> Printer<'a> {
                 }
 
                 self.write_punct("(");
-                self.print_argument_list(dynamic_arguments)?;
+                self.print_argument_list(arguments)?;
                 self.write_punct(")");
             }
             Expression::IfTernary {

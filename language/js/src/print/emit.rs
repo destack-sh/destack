@@ -734,7 +734,7 @@ mod tests {
             Expression::Member {
                 left: import_meta,
                 name: strings.intern("url"),
-                static_arguments: None,
+                generic_arguments: None,
             },
         );
         let new_target = insert_expression(&mut tree, Expression::NewTarget);
@@ -743,7 +743,7 @@ mod tests {
             Expression::Member {
                 left: new_target,
                 name: strings.intern("name"),
-                static_arguments: None,
+                generic_arguments: None,
             },
         );
         let printed = print_javascript_roots_minified(
@@ -827,7 +827,7 @@ mod tests {
             &mut tree,
             Expression::Path {
                 path: build_path(&strings, &["import", "meta"]),
-                static_arguments: None,
+                generic_arguments: None,
             },
         );
         let target = insert_expression(
@@ -863,7 +863,7 @@ mod tests {
             &mut tree,
             Expression::Path {
                 path: build_path(&strings, &["foo"]),
-                static_arguments: None,
+                generic_arguments: None,
             },
         );
         let optional_object = insert_expression(
@@ -878,14 +878,14 @@ mod tests {
             Expression::Member {
                 left: optional_object,
                 name: strings.intern("bar"),
-                static_arguments: None,
+                generic_arguments: None,
             },
         );
         let fallback = insert_expression(
             &mut tree,
             Expression::Path {
                 path: build_path(&strings, &["fallback"]),
-                static_arguments: None,
+                generic_arguments: None,
             },
         );
         let expression = insert_expression(
@@ -911,21 +911,21 @@ mod tests {
             &mut tree,
             Expression::Path {
                 path: build_path(&strings, &["a"]),
-                static_arguments: None,
+                generic_arguments: None,
             },
         );
         let b = insert_expression(
             &mut tree,
             Expression::Path {
                 path: build_path(&strings, &["b"]),
-                static_arguments: None,
+                generic_arguments: None,
             },
         );
         let c = insert_expression(
             &mut tree,
             Expression::Path {
                 path: build_path(&strings, &["c"]),
-                static_arguments: None,
+                generic_arguments: None,
             },
         );
         let b_or_c = insert_expression(
@@ -1008,7 +1008,7 @@ mod tests {
             &mut tree,
             Expression::Path {
                 path: build_path(&strings, &["foo"]),
-                static_arguments: None,
+                generic_arguments: None,
             },
         );
         let optional_foo = insert_expression(
@@ -1023,7 +1023,7 @@ mod tests {
             Expression::Member {
                 left: optional_foo,
                 name: strings.intern("bar"),
-                static_arguments: None,
+                generic_arguments: None,
             },
         );
         let plain_chain = insert_expression(
@@ -1031,7 +1031,7 @@ mod tests {
             Expression::Member {
                 left: optional_member,
                 name: strings.intern("baz"),
-                static_arguments: None,
+                generic_arguments: None,
             },
         );
         let grouped_optional_member = insert_expression(
@@ -1045,7 +1045,7 @@ mod tests {
             Expression::Member {
                 left: grouped_optional_member,
                 name: strings.intern("baz"),
-                static_arguments: None,
+                generic_arguments: None,
             },
         );
         let printed = print_javascript_roots_minified(

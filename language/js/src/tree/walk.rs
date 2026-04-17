@@ -736,7 +736,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             position: _,
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
         } => {
             let left_expr = tree.get(*left);
             visitor.visit_expression(tree, *left, left_expr);
@@ -746,7 +746,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_type(tree, *type_id, ty);
             }
 
-            for argument_id in dynamic_arguments {
+            for argument_id in arguments {
                 let argument = tree.get(*argument_id);
                 visitor.visit_argument(tree, *argument_id, argument);
             }
@@ -766,7 +766,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::New {
             left,
             generic_arguments,
-            dynamic_arguments,
+            arguments,
         } => {
             let left_expr = tree.get(*left);
             visitor.visit_expression(tree, *left, left_expr);
@@ -776,7 +776,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_type(tree, *type_id, ty);
             }
 
-            for argument_id in dynamic_arguments {
+            for argument_id in arguments {
                 let argument = tree.get(*argument_id);
                 visitor.visit_argument(tree, *argument_id, argument);
             }
