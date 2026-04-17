@@ -14,6 +14,7 @@ impl Compiler {
     ) -> Option<vm::Value> {
         match value {
             dir::StaticExpression::ScalarLiteral { value } => match value {
+                dir::ScalarLiteral::Null => Some(vm::Value::raw_pointer(vm::RawPointer::NULL)),
                 dir::ScalarLiteral::Boolean(value) => Some(vm::Value::bool(*value)),
                 dir::ScalarLiteral::Integer(value) => Some(vm::Value::int64(*value)),
                 dir::ScalarLiteral::Bigint(value) => Some(vm::Value::int64(*value)),
@@ -43,6 +44,10 @@ impl Compiler {
             ValueTag::Float32 => dir::ScalarLiteral::Float(value.as_float32()? as f64),
             ValueTag::Float64 => dir::ScalarLiteral::Float(value.as_float64()?),
             ValueTag::Char => dir::ScalarLiteral::Character(value.as_char()?),
+
+            // preserve null literals instead of treating them as unsupported pointers
+            ValueTag::RawPointer if value.as_raw_pointer()?.is_null() => dir::ScalarLiteral::Null,
+
             // resolve managed string objects through the isolate helper
             ValueTag::ManagedReference => {
                 let literal = isolate.string_value(heap, *value).ok()?;
@@ -57,10 +62,47 @@ impl Compiler {
         Some(dir::StaticExpression::ScalarLiteral { value: scalar })
     }
 
+    /// Require one type expression node for one local type id.
+    fn insert_comptime_type_expression_for_type_id(
+        &self,
+        tree: &mut dir::NodeTree,
+        types: &dir::TypeTable,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+        anchor_id: dir::LocalNodeIdAny,
+        parent_id: dir::LocalNodeIdAny,
+        scope: (dir::LocalScopeId, dir::LocalScopeMark),
+        type_id: dir::LocalTypeId,
+    ) -> ExecuteResult<dir::LocalNodeId<dir::TypeExpression>> {
+        // materialize literal types directly when no reusable syntax node exists
+        if let dir::Type::TypeLiteral { value } = types.get_type(type_id) {
+            let expression_any = tree.reserve_from(
+                dir::NodeType::TypeExpression,
+                anchor_id,
+                scope,
+                Some(parent_id),
+                Some(dir::ProvenanceReason::Evaluated),
+            );
+            let expression = dir::TypeExpression::Literal {
+                value: value.clone(),
+            };
+            let expression_id = tree.insert(expression_any, expression);
+
+            return Ok(expression_id);
+        }
+
+        let _ = (
+            tree, types, module_id, profile_id, anchor_id, parent_id, scope, type_id,
+        );
+
+        todo!("FUGU #Incomplete: insert comptime types")
+    }
+
     /// Convert a static expression into a DIR expression node.
     pub(crate) fn static_expression_to_expression(
         &self,
         tree: &mut dir::NodeTree,
+        types: &dir::TypeTable,
         module_id: ModuleId,
         profile_id: ProfileId,
         anchor_id: dir::LocalNodeIdAny,
@@ -75,7 +117,16 @@ impl Compiler {
             dir::StaticExpression::TypeLiteral { value } => Ok(dir::Expression::TypeLiteral {
                 value: value.clone(),
             }),
-            dir::StaticExpression::Type { ty } => Ok(dir::Expression::Type { value: *ty }),
+            dir::StaticExpression::Type { ty } => {
+                let value = self.insert_comptime_type_expression_for_type_id(
+                    tree, types, module_id, profile_id, anchor_id, parent_id, scope, *ty,
+                )?;
+
+                Ok(dir::Expression::Type {
+                    value,
+                    resolved_type: *ty,
+                })
+            }
             dir::StaticExpression::ArrayExpression { elements } => {
                 // build positional arguments for array elements
                 let mut argument_ids = Vec::with_capacity(elements.len());
@@ -95,13 +146,10 @@ impl Compiler {
                         Some(dir::ProvenanceReason::Evaluated),
                     );
                     let value_expression = self.static_expression_to_expression(
-                        tree, module_id, profile_id, anchor_id, value_any, scope, element,
+                        tree, types, module_id, profile_id, anchor_id, value_any, scope, element,
                     )?;
                     let value_id = tree.insert(value_any, value_expression);
-                    let argument = dir::Argument::Positional {
-                        modifiers: None,
-                        value: value_id,
-                    };
+                    let argument = dir::Argument::Positional { value: value_id };
                     let argument_id = tree.insert(argument_any, argument);
                     argument_ids.push(argument_id);
                 }
@@ -129,13 +177,10 @@ impl Compiler {
                         Some(dir::ProvenanceReason::Evaluated),
                     );
                     let value_expression = self.static_expression_to_expression(
-                        tree, module_id, profile_id, anchor_id, value_any, scope, element,
+                        tree, types, module_id, profile_id, anchor_id, value_any, scope, element,
                     )?;
                     let value_id = tree.insert(value_any, value_expression);
-                    let argument = dir::Argument::Positional {
-                        modifiers: None,
-                        value: value_id,
-                    };
+                    let argument = dir::Argument::Positional { value: value_id };
                     let argument_id = tree.insert(argument_any, argument);
                     argument_ids.push(argument_id);
                 }
@@ -157,6 +202,7 @@ impl Compiler {
                     );
                     let property = self.static_property_to_property(
                         tree,
+                        types,
                         module_id,
                         profile_id,
                         anchor_id,
@@ -169,6 +215,7 @@ impl Compiler {
                 }
 
                 Ok(dir::Expression::ObjectExpression {
+                    ty: None,
                     properties: property_ids,
                 })
             }
@@ -184,6 +231,7 @@ impl Compiler {
     pub(crate) fn static_property_to_property(
         &self,
         tree: &mut dir::NodeTree,
+        types: &dir::TypeTable,
         module_id: ModuleId,
         profile_id: ProfileId,
         anchor_id: dir::LocalNodeIdAny,
@@ -192,13 +240,7 @@ impl Compiler {
         property: &dir::StaticProperty,
     ) -> ExecuteResult<dir::Property> {
         match property {
-            dir::StaticProperty::Field {
-                modifiers,
-                key,
-                value,
-                default,
-                symbol,
-            } => {
+            dir::StaticProperty::Field { key, value, symbol } => {
                 // build the field value expression
                 let value_any = tree.reserve_from(
                     dir::NodeType::Expression,
@@ -208,44 +250,17 @@ impl Compiler {
                     Some(dir::ProvenanceReason::Evaluated),
                 );
                 let value_expression = self.static_expression_to_expression(
-                    tree, module_id, profile_id, anchor_id, value_any, scope, value,
+                    tree, types, module_id, profile_id, anchor_id, value_any, scope, value,
                 )?;
                 let value_id = tree.insert(value_any, value_expression);
 
-                // build the default expression when provided
-                let default_id = match default {
-                    Some(default) => {
-                        let default_any = tree.reserve_from(
-                            dir::NodeType::Expression,
-                            anchor_id,
-                            scope,
-                            Some(parent_id),
-                            Some(dir::ProvenanceReason::Evaluated),
-                        );
-                        let default_expression = self.static_expression_to_expression(
-                            tree,
-                            module_id,
-                            profile_id,
-                            anchor_id,
-                            default_any,
-                            scope,
-                            default,
-                        )?;
-                        Some(tree.insert(default_any, default_expression))
-                    }
-                    None => None,
-                };
-
                 Ok(dir::Property::Field {
-                    modifiers: *modifiers,
                     key: *key,
-                    value: Some(value_id),
-                    default: default_id,
+                    value: value_id,
                     symbol: *symbol,
                 })
             }
             dir::StaticProperty::Method {
-                modifiers,
                 key,
                 signature,
                 body,
@@ -260,15 +275,33 @@ impl Compiler {
                     Some(dir::ProvenanceReason::Evaluated),
                 );
                 let body_expression = self.static_expression_to_expression(
-                    tree, module_id, profile_id, anchor_id, body_any, scope, body,
+                    tree, types, module_id, profile_id, anchor_id, body_any, scope, body,
                 )?;
                 let body_id = tree.insert(body_any, body_expression);
 
                 Ok(dir::Property::Method {
-                    modifiers: *modifiers,
                     key: *key,
                     signature: signature.clone(),
                     body: Some(body_id),
+                    symbol: *symbol,
+                })
+            }
+            dir::StaticProperty::Spread { value, symbol } => {
+                // build the spread value expression
+                let value_any = tree.reserve_from(
+                    dir::NodeType::Expression,
+                    anchor_id,
+                    scope,
+                    Some(parent_id),
+                    Some(dir::ProvenanceReason::Evaluated),
+                );
+                let value_expression = self.static_expression_to_expression(
+                    tree, types, module_id, profile_id, anchor_id, value_any, scope, value,
+                )?;
+                let value_id = tree.insert(value_any, value_expression);
+
+                Ok(dir::Property::Spread {
+                    value: value_id,
                     symbol: *symbol,
                 })
             }
