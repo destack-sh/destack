@@ -20,8 +20,8 @@ pub struct LinterComplexityOptions {
     pub cyclomatic_complexity_variant: CyclomaticComplexityVariant,
     /// Maximum nesting depth.
     pub max_depth: usize,
-    /// Maximum static parameters (generics including const values).
-    pub max_static_params: usize,
+    /// Maximum generic parameters (generics including const values).
+    pub max_generic_params: usize,
     /// Maximum lines per file.
     pub max_lines: usize,
     /// Ignore full-line comments in `max-lines`.
@@ -89,7 +89,7 @@ impl Default for LinterComplexityOptions {
             max_cyclomatic_complexity: 40,
             cyclomatic_complexity_variant: CyclomaticComplexityVariant::default(),
             max_depth: 4,
-            max_static_params: 4,
+            max_generic_params: 4,
             max_lines: 500,
             max_lines_skip_comments: false,
             max_lines_skip_blank_lines: false,
@@ -139,8 +139,8 @@ pub struct LinterComplexityJson {
     pub cyclomatic_complexity_variant: Option<CyclomaticComplexityVariantJson>,
     /// Maximum nesting depth.
     pub max_depth: Option<usize>,
-    /// Maximum static parameters.
-    pub max_static_params: Option<usize>,
+    /// Maximum generic parameters.
+    pub max_generic_params: Option<usize>,
     /// Maximum lines per file.
     pub max_lines: Option<usize>,
     /// Ignore full-line comments in `max-lines`.
@@ -225,8 +225,8 @@ impl LinterComplexityJson {
             options.complexity.max_depth = max_depth;
         }
 
-        if let Some(max_static_params) = self.max_static_params {
-            options.complexity.max_static_params = max_static_params;
+        if let Some(max_generic_params) = self.max_generic_params {
+            options.complexity.max_generic_params = max_generic_params;
         }
 
         if let Some(max_lines) = self.max_lines {
