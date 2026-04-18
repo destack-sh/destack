@@ -2393,7 +2393,6 @@ impl Compiler {
             Expression::Member {
                 left: receiver_id,
                 name,
-                generic_arguments: member_static_arguments,
                 ..
             } => self.resolve_member_call_expression_target(
                 &mut ctx.reborrow(),
@@ -2419,7 +2418,7 @@ impl Compiler {
                         });
                     }
                 },
-                Some(member_static_arguments.clone()),
+                None,
                 call_has_static_arguments,
                 state,
             ),

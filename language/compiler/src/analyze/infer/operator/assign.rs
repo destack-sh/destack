@@ -257,7 +257,6 @@ impl Compiler {
         if let Expression::Member {
             left: receiver_id,
             name,
-            generic_arguments,
         } = ctx.tree.get(left_id)
         {
             let receiver_ty_id = self.infer_member_assignment_receiver_type(
@@ -274,9 +273,7 @@ impl Compiler {
             }
 
             // reject writes to readonly members when the key is known
-            if generic_arguments.is_empty()
-                && let Some(name) = *name
-            {
+            if let Some(name) = *name {
                 let member_key = self.static_key_from_key(
                     ctx.compiler_context.revision(),
                     ctx.profile,

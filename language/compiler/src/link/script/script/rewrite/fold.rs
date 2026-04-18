@@ -1020,18 +1020,10 @@ impl Rewriter<'_, '_> {
 
                 js::Expression::Parenthesized { expression }
             }
-            js::Expression::Member {
-                left,
-                name,
-                generic_arguments,
-            } => {
+            js::Expression::Member { left, name } => {
                 let left = Self::rewrite_optional_chain_receiver(module, receiver, left)?;
 
-                js::Expression::Member {
-                    left,
-                    name,
-                    generic_arguments,
-                }
+                js::Expression::Member { left, name }
             }
             js::Expression::Index {
                 position,

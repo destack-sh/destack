@@ -188,9 +188,9 @@ fn insert_json_expression(
                 let property = tree.insert_from_source_any(
                     js::Property::Field {
                         modifiers: None,
-                        key: Some(key),
-                        value: Some(value),
-                        default: None,
+                        key,
+                        value,
+                        is_shorthand: false,
                     },
                     module_id,
                     anchor,

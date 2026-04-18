@@ -167,21 +167,33 @@ impl<'module, 'a> Rewriter<'module, 'a> {
             let property = self.module.tree.get(property_id).clone();
 
             match property {
-                js::Property::Field { key, .. } | js::Property::Method { key, .. } => {
-                    let Some(name) = self.rewritten_property_name(key.as_ref()) else {
+                js::Property::Field { key, .. } => {
+                    let Some(name) = self.rewritten_property_name(&key) else {
                         continue;
                     };
 
                     let property = self.module.tree.get_mut(property_id);
+                    let js::Property::Field { key, .. } = property else {
+                        continue;
+                    };
+                    Self::set_property_key_name(key, name);
+                }
+                js::Property::Method { key: Some(key), .. } => {
+                    let Some(name) = self.rewritten_property_name(&key) else {
+                        continue;
+                    };
 
-                    match property {
-                        js::Property::Field { key, .. } | js::Property::Method { key, .. } => {
-                            Self::set_property_key_name(key, name);
-                        }
-                        js::Property::Spread { .. } => {}
-                    }
+                    let property = self.module.tree.get_mut(property_id);
+                    let js::Property::Method { key, .. } = property else {
+                        continue;
+                    };
+                    let Some(key) = key else {
+                        continue;
+                    };
+                    Self::set_property_key_name(key, name);
                 }
                 js::Property::Spread { .. } => {}
+                js::Property::Method { key: None, .. } => {}
             }
         }
 
@@ -190,21 +202,33 @@ impl<'module, 'a> Rewriter<'module, 'a> {
             let member = self.module.tree.get(member_id).clone();
 
             match member {
-                js::Member::Field { key, .. } | js::Member::Method { key, .. } => {
-                    let Some(name) = self.rewritten_property_name(key.as_ref()) else {
+                js::Member::Field { key, .. } => {
+                    let Some(name) = self.rewritten_property_name(&key) else {
                         continue;
                     };
 
                     let member = self.module.tree.get_mut(member_id);
+                    let js::Member::Field { key, .. } = member else {
+                        continue;
+                    };
+                    Self::set_property_key_name(key, name);
+                }
+                js::Member::Method { key: Some(key), .. } => {
+                    let Some(name) = self.rewritten_property_name(&key) else {
+                        continue;
+                    };
 
-                    match member {
-                        js::Member::Field { key, .. } | js::Member::Method { key, .. } => {
-                            Self::set_property_key_name(key, name);
-                        }
-                        js::Member::StaticBlock { .. } => {}
-                    }
+                    let member = self.module.tree.get_mut(member_id);
+                    let js::Member::Method { key, .. } = member else {
+                        continue;
+                    };
+                    let Some(key) = key else {
+                        continue;
+                    };
+                    Self::set_property_key_name(key, name);
                 }
                 js::Member::StaticBlock { .. } => {}
+                js::Member::Method { key: None, .. } => {}
             }
         }
 
@@ -240,21 +264,11 @@ impl<'module, 'a> Rewriter<'module, 'a> {
                     }
 
                     let expression = self.module.tree.get_mut(expression_id);
-                    *expression = js::Expression::Member {
-                        left,
-                        name,
-                        generic_arguments: vec![],
-                    };
+                    *expression = js::Expression::Member { left, name };
                 }
 
-                js::Expression::Member {
-                    left,
-                    name,
-                    generic_arguments,
-                } => {
-                    if !generic_arguments.is_empty()
-                        || self.can_use_identifier_property_name(&self.module.strings.get(name))
-                    {
+                js::Expression::Member { left, name } => {
+                    if self.can_use_identifier_property_name(&self.module.strings.get(name)) {
                         continue;
                     }
 

@@ -308,11 +308,7 @@ impl Compiler {
                     },
                 ))
             }
-            Expression::Member {
-                left,
-                name,
-                generic_arguments: callee_generic_arguments,
-            } => {
+            Expression::Member { left, name } => {
                 let name = name?;
                 let left = self.insert_constructor_callee_type_expression(state, left, &[])?;
                 let type_expression_id = state.tree.reserve_from(
@@ -328,11 +324,7 @@ impl Compiler {
                     TypeExpression::Member {
                         left,
                         name,
-                        generic_arguments: if generic_arguments.is_empty() {
-                            callee_generic_arguments
-                        } else {
-                            generic_arguments
-                        },
+                        generic_arguments,
                     },
                 ))
             }

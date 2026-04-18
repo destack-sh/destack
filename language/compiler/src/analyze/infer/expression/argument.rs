@@ -2919,17 +2919,9 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
-        let Expression::Member {
-            name,
-            generic_arguments,
-            left,
-        } = ctx.tree.get(expression_id)
-        else {
+        let Expression::Member { name, left } = ctx.tree.get(expression_id) else {
             return Ok(None);
         };
-        if !generic_arguments.is_empty() {
-            return Ok(None);
-        }
 
         let left_expression = ctx.tree.get(*left);
         let mut enum_symbol = match left_expression {

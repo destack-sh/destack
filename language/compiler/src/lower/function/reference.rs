@@ -159,27 +159,8 @@ impl FunctionLowerer<'_> {
                 let value = self.state.builder.global_addr(global.global, result_type);
                 Ok((value, result_type))
             }
-            dir::Expression::Member {
-                left,
-                name,
-                generic_arguments,
-            }
-            | dir::Expression::PrivateMember {
-                left,
-                name,
-                generic_arguments,
-            } => {
-                // reject generic arguments on member borrows
-                if !generic_arguments.is_empty() {
-                    return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
-                        message: "generic arguments on member borrows are not supported"
-                            .to_string(),
-                    });
-                }
-
+            dir::Expression::Member { left, name }
+            | dir::Expression::PrivateMember { left, name } => {
                 // lower the aggregate value
                 let (aggregate_value, aggregate_type) = self.lower_value_expression(*left)?;
 
