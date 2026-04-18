@@ -10,7 +10,7 @@ fn test_parse_tagged_template_with_regex_interpolation() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expr_id, Expression::TaggedTemplateExpression { tag, value } => {
+    assert_node!(parser.tree, expr_id, Expression::TaggedTemplateExpression { tag, value, .. } => {
         assert_expression_path!(parser, parser.tree.get(*tag), "re");
         match value {
             TemplateLiteral::InterpolatedString { strings, arguments } => {
@@ -35,7 +35,7 @@ fn test_parse_tagged_template_with_legacy_octal_escape() {
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
     // String.raw`\\1`
-    assert_node!(parser.tree, expr_id, Expression::TaggedTemplateExpression { tag, value } => {
+    assert_node!(parser.tree, expr_id, Expression::TaggedTemplateExpression { tag, value, .. } => {
         assert_expression_path!(parser, parser.tree.get(*tag), "String.raw");
 
         // `\\1`

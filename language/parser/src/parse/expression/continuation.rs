@@ -330,6 +330,13 @@ impl Parser {
         start: &ParserMark,
         left_expression_id: LocalNodeId<Expression>,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        if matches!(
+            self.tree.get(left_expression_id),
+            Expression::Instantiation { .. }
+        ) {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
         let dot_index = self.pos_index();
         let next_raw_index = dot_index.saturating_add(1);
         let next_token_type = self.token_type_at(next_raw_index);
@@ -416,7 +423,6 @@ impl Parser {
                 Expression::Member {
                     left: left_expression_id,
                     name: None,
-                    generic_arguments: vec![],
                 },
                 self.get_span_from(start),
             );
@@ -438,7 +444,6 @@ impl Parser {
                     Expression::PrivateMember {
                         left: left_expression_id,
                         name: None,
-                        generic_arguments: vec![],
                     },
                     self.get_span_from(start),
                 );
@@ -467,15 +472,11 @@ impl Parser {
         if is_private_member {
             self.bump(); // eat #
             let (name, name_span) = self.eat_identifier_with_span()?;
-            let generic_arguments = self
-                .try_eat_generic_arguments(false, false)
-                .unwrap_or_default();
             let expression_id = self.insert_value_private_member_expression(
                 start,
                 left_expression_id,
                 name,
                 name_span,
-                generic_arguments,
             );
 
             return Ok(Some(expression_id));
@@ -486,16 +487,8 @@ impl Parser {
         }
 
         let (name, name_span) = self.eat_member_name_with_span()?;
-        let generic_arguments = self
-            .try_eat_generic_arguments(false, false)
-            .unwrap_or_default();
-        let expression_id = self.insert_value_member_expression(
-            start,
-            left_expression_id,
-            name,
-            name_span,
-            generic_arguments,
-        );
+        let expression_id =
+            self.insert_value_member_expression(start, left_expression_id, name, name_span);
 
         Ok(Some(expression_id))
     }
@@ -507,29 +500,17 @@ impl Parser {
         left: LocalNodeId<Expression>,
         name: destack_source::StringId,
         name_span: Span,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
     ) -> LocalNodeId<Expression> {
         let member_id = self.insert_node(
             Expression::Member {
                 left,
                 name: Some(name),
-                generic_arguments: vec![],
             },
             self.get_span_from(start),
         );
         self.tree.set_main_span(member_id, name_span);
 
-        if generic_arguments.is_empty() {
-            return member_id;
-        }
-
-        self.insert_node(
-            Expression::Instantiation {
-                left: member_id,
-                generic_arguments,
-            },
-            self.get_span_from(start),
-        )
+        member_id
     }
 
     /// Insert one canonical private member expression.
@@ -539,29 +520,17 @@ impl Parser {
         left: LocalNodeId<Expression>,
         name: destack_source::StringId,
         name_span: Span,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
     ) -> LocalNodeId<Expression> {
         let member_id = self.insert_node(
             Expression::PrivateMember {
                 left,
                 name: Some(name),
-                generic_arguments: vec![],
             },
             self.get_span_from(start),
         );
         self.tree.set_main_span(member_id, name_span);
 
-        if generic_arguments.is_empty() {
-            return member_id;
-        }
-
-        self.insert_node(
-            Expression::Instantiation {
-                left: member_id,
-                generic_arguments,
-            },
-            self.get_span_from(start),
-        )
+        member_id
     }
 
     /// Eat one type-space dot postfix continuation when the parser is already positioned at `.`.
@@ -917,10 +886,13 @@ impl Parser {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
 
+                let (tag, generic_arguments) =
+                    self.split_instantiation_expression(left_expression_id);
                 let template_literal = self.eat_tagged_template_literal()?;
                 let expression_id = self.insert_node(
                     Expression::TaggedTemplateExpression {
-                        tag: left_expression_id,
+                        tag,
+                        generic_arguments,
                         value: template_literal,
                     },
                     self.get_span_from(start),
@@ -945,6 +917,13 @@ impl Parser {
 
             // direct indexing
             TokenType::OpenBracket => {
+                if matches!(
+                    self.tree.get(left_expression_id),
+                    Expression::Instantiation { .. }
+                ) {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
+
                 let left_is_maybe =
                     matches!(self.tree.get(left_expression_id), Expression::Maybe { .. });
                 if left_is_maybe {

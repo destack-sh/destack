@@ -218,8 +218,7 @@ fn test_parse_mixed_index_call_postfix() {
                 // .y<T>
                 assert_node!(parser.tree, *left, Expression::Instantiation { left, generic_arguments } => {
                     assert_eq!(generic_arguments.len(), 1);
-                    assert_node!(parser.tree, *left, Expression::Member { left, name, generic_arguments: member_arguments } => {
-                        assert!(member_arguments.is_empty());
+                    assert_node!(parser.tree, *left, Expression::Member { left, name } => {
                         assert_string!(parser, *name, "y");
                         assert_node!(parser.tree, *left, Expression::Maybe { left, .. } => {
                             // .[f]

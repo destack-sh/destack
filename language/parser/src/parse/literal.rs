@@ -1456,7 +1456,7 @@ impl Parser {
             let expression_id = self.insert_node(
                 Expression::QualifiedReference {
                     path: path.clone(),
-                    generic_arguments: generic_arguments.clone().unwrap_or_default(),
+                    generic_arguments: vec![],
                 },
                 self.get_span_between(&start, &header_start),
             );
@@ -1467,6 +1467,7 @@ impl Parser {
         });
         let expression = Expression::TreeExpression {
             left,
+            generic_arguments: generic_arguments.unwrap_or_default(),
             arguments,
             elements,
         };
@@ -2110,7 +2111,7 @@ mod tests {
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
         // <A/>
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             // A
             assert_expression_path!(parser, parser.tree.get(*left), "A");
             assert!(arguments.is_none());
@@ -2125,7 +2126,7 @@ mod tests {
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
         // <amp-something />
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "ampSomething");
             assert!(arguments.is_none());
             assert!(elements.is_none());
@@ -2138,7 +2139,7 @@ mod tests {
         let mut test = TestParser::new("<A a={1} annoying-bee={2} c={3} flag />");
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "A");
             assert_eq!(arguments.as_ref().unwrap().len(), 4);
             // a={1}
@@ -2183,7 +2184,7 @@ mod tests {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
         let expression = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "Tooltip");
             assert_eq!(arguments.as_ref().unwrap().len(), 3);
             // title={true}
@@ -2228,25 +2229,25 @@ mod tests {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
         let expression = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "A");
             assert!(arguments.is_none());
             assert!(elements.is_some());
             // <B>
             assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
-                assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+                assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "B");
                     assert!(arguments.is_none());
                     assert!(elements.is_some());
                     // <C>
                     assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
-                        assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+                        assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
                             assert_expression_path!(parser, parser.tree.get(*left), "C");
                             assert!(arguments.is_none());
                             assert!(elements.is_some());
                             // <D/>
                             assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
-                                assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+                                assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
                                     assert_expression_path!(parser, parser.tree.get(*left), "D");
                                     assert!(arguments.is_none());
                                     assert!(elements.is_none());
@@ -2281,7 +2282,7 @@ mod tests {
         let expression = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expression, Expression::Parenthesized { expression } => {
             // <div className="font-semibold">
-            assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+            assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "div");
                 assert!(arguments.is_some());
                 assert_eq!(arguments.as_ref().unwrap().len(), 1);
@@ -2299,7 +2300,7 @@ mod tests {
                 assert_eq!(elements.as_ref().unwrap().len(), 1);
                 // <Link subtle to={1}>
                 assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+                    assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
                         // Link
                         assert_expression_path!(parser, parser.tree.get(*left), "Link");
                         assert!(arguments.is_some());
@@ -2336,9 +2337,10 @@ mod tests {
         );
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
-            assert_node!(parser.tree, *left, Expression::QualifiedReference { path, generic_arguments } => {
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), generic_arguments, arguments, elements, .. } => {
+            assert_node!(parser.tree, *left, Expression::QualifiedReference { path, generic_arguments: left_generic_arguments } => {
                 assert_path!(parser, *path, "Component");
+                assert!(left_generic_arguments.is_empty());
                 assert_eq!(generic_arguments.len(), 1);
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
@@ -2401,9 +2403,10 @@ mod tests {
 
         // parse the tree literal
         let expression = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
-            assert_node!(parser.tree, *left, Expression::QualifiedReference { path, generic_arguments } => {
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), generic_arguments, arguments, elements, .. } => {
+            assert_node!(parser.tree, *left, Expression::QualifiedReference { path, generic_arguments: left_generic_arguments } => {
                 assert_path!(parser, *path, "Component");
+                assert!(left_generic_arguments.is_empty());
                 assert_eq!(generic_arguments.len(), 1);
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Declaration { declaration: declaration_id } => {
@@ -2431,9 +2434,10 @@ mod tests {
         let mut parser = test.prepare();
         let expression_id = parser.eat_tree_literal().unwrap();
 
-        assert_node!(parser.tree, expression_id, Expression::TreeExpression { left: Some(left), arguments, elements } => {
-            assert_node!(parser.tree, *left, Expression::QualifiedReference { path, generic_arguments } => {
+        assert_node!(parser.tree, expression_id, Expression::TreeExpression { left: Some(left), generic_arguments, arguments, elements, .. } => {
+            assert_node!(parser.tree, *left, Expression::QualifiedReference { path, generic_arguments: left_generic_arguments } => {
                 assert_path!(parser, *path, "Tags");
+                assert!(left_generic_arguments.is_empty());
                 assert_eq!(generic_arguments.len(), 1);
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         assert_node!(parser.tree, *value, TypeExpression::Reference { path, .. } => {
@@ -2511,7 +2515,7 @@ mod tests {
         let mut test = TestParser::new(r#"<h4>Tool: {part.toolName}</h4>"#);
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "h4");
             assert!(arguments.is_none());
             assert!(elements.is_some());
@@ -2534,7 +2538,7 @@ mod tests {
         let mut test = TestParser::new(r#"<div><h4>Tool: {x}</h4></div>"#);
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "div");
             assert!(arguments.is_none());
             assert!(elements.is_some());
@@ -2552,7 +2556,7 @@ mod tests {
         let mut test = TestParser::new(r#"<div key={index}><h4>Tool: {x}</h4></div>"#);
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "div");
             assert!(arguments.is_some());
             assert_eq!(arguments.as_ref().unwrap().len(), 1);
@@ -2567,7 +2571,7 @@ mod tests {
         let mut test = TestParser::new(r#"<>{x.map(() => (<div><h4>T: {y}</h4></div>))}</>"#);
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: None, arguments, elements } => {
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: None, arguments, elements, .. } => {
             assert!(arguments.is_none());
             assert!(elements.is_some());
             assert_eq!(elements.as_ref().unwrap().len(), 1);
@@ -2581,7 +2585,7 @@ mod tests {
         let mut test = TestParser::new(r#"<div>{/* comment */}</div>"#);
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(_), arguments, elements } => {
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(_), arguments, elements, .. } => {
             assert!(arguments.is_none());
             assert!(elements.is_some());
         });
@@ -2620,7 +2624,7 @@ mod tests {
         );
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: None, arguments, elements } => {
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: None, arguments, elements, .. } => {
             assert!(arguments.is_none());
             assert!(elements.is_some());
             assert!(elements.as_ref().unwrap().is_empty());
@@ -2634,7 +2638,7 @@ mod tests {
             TestParser::new_with_options("<>\n< /* comment */ / >", LanguageType::JavaScriptXml);
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: None, arguments, elements } => {
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: None, arguments, elements, .. } => {
             assert!(arguments.is_none());
             assert!(elements.is_some());
             assert!(elements.as_ref().unwrap().is_empty());
@@ -2648,7 +2652,7 @@ mod tests {
             TestParser::new_with_options(r#"<Foo:Bar n:foo="bar" />"#, LanguageType::JavaScriptXml);
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "Foo:Bar");
             let arguments = arguments.as_ref().expect("expected arguments");
             assert_eq!(arguments.len(), 1);
@@ -2680,7 +2684,7 @@ mod tests {
                 assert_string!(parser, *name, "a");
             });
             // consequence: <>{y && <E />}</>
-            assert_node!(parser.tree, *then_expression, Expression::TreeExpression { left: None, arguments, elements } => {
+            assert_node!(parser.tree, *then_expression, Expression::TreeExpression { left: None, arguments, elements, .. } => {
                 assert!(arguments.is_none());
                 assert!(elements.is_some());
                 assert_eq!(elements.as_ref().unwrap().len(), 1);
@@ -2702,7 +2706,7 @@ mod tests {
         let mut test = TestParser::new(r#"<Button icon={<Icon />} />"#);
         let mut parser = test.prepare();
         let expr = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "Button");
             assert!(arguments.is_some());
             assert_eq!(arguments.as_ref().unwrap().len(), 1);
@@ -2710,7 +2714,7 @@ mod tests {
             assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "icon");
                 // value is <Icon />
-                assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(inner_left), arguments: inner_args, elements: inner_elems } => {
+                assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(inner_left), arguments: inner_args, elements: inner_elems, .. } => {
                     assert_expression_path!(parser, parser.tree.get(*inner_left), "Icon");
                     assert!(inner_args.is_none());
                     assert!(inner_elems.is_none());
@@ -2738,7 +2742,7 @@ mod tests {
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
 
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "PopoverProvider");
 
             let arguments = arguments.as_ref().expect("expected arguments");
@@ -2750,7 +2754,7 @@ mod tests {
                     let elements = elements.as_ref().expect("expected tooltip children");
                     assert_eq!(elements.len(), 1);
                     assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
-                        assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+                        assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
                             assert_expression_path!(parser, parser.tree.get(*left), "Picker");
                             assert!(arguments.is_none());
                             assert!(elements.is_none());
@@ -2762,7 +2766,7 @@ mod tests {
             let elements = elements.as_ref().expect("expected provider children");
             assert_eq!(elements.len(), 1);
             assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
-                assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+                assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "PopoverTrigger");
                     assert!(arguments.is_none());
                     assert!(elements.is_none());
@@ -2797,7 +2801,7 @@ mod tests {
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
 
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "PopoverProvider");
 
             let arguments = arguments.as_ref().expect("expected provider arguments");
@@ -2916,7 +2920,7 @@ mod tests {
         let expression_id = parser.eat_tree_literal().unwrap();
 
         assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
-        assert_node!(parser.tree, expression_id, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expression_id, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "F");
             assert!(elements.is_none());
 
@@ -2971,7 +2975,7 @@ mod tests {
         );
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "Tag");
             let arguments = arguments.as_ref().expect("expected arguments");
             assert_eq!(arguments.len(), 1);
@@ -2993,7 +2997,7 @@ mod tests {
         );
         let mut parser = test.prepare();
         let expr = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "WrappedComponent");
             let arguments = arguments.as_ref().expect("expected arguments");
             assert_eq!(arguments.len(), 2);
@@ -3023,7 +3027,7 @@ mod tests {
             TestParser::new(r#"<Outer title={<div><Button icon={<Icon />} /></div>} />"#);
         let mut parser = test.prepare();
         let expr = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "Outer");
             assert!(arguments.is_some());
             assert_eq!(arguments.as_ref().unwrap().len(), 1);
@@ -3046,7 +3050,7 @@ mod tests {
         let mut test = TestParser::new(r#"<Rive style={{width: 400, height: 400}} />"#);
         let mut parser = test.prepare();
         let expr = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "Rive");
             assert!(arguments.is_some());
             assert_eq!(arguments.as_ref().unwrap().len(), 1);
@@ -3067,7 +3071,7 @@ mod tests {
         let mut test = TestParser::new(code);
         let mut parser = test.prepare();
         let expr = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "div");
             assert!(arguments.is_none());
             assert!(elements.is_some());
@@ -3095,7 +3099,7 @@ mod tests {
         let mut test = TestParser::new(r#"<div>{x && <span/>}</div>"#);
         let mut parser = test.prepare();
         let expr = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "div");
             assert!(arguments.is_none());
             assert!(elements.is_some());
@@ -3120,7 +3124,7 @@ mod tests {
         let mut test = TestParser::new(r#"<div>{a < b}</div>"#);
         let mut parser = test.prepare();
         let expr = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "div");
             assert!(arguments.is_none());
             assert!(elements.is_some());
@@ -3147,7 +3151,7 @@ mod tests {
             TestParser::new_with_options(r#"<div>{foo<T>(x)}</div>"#, LanguageType::TypeScriptXml);
         let mut parser = test.prepare();
         let expr = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "div");
             assert!(arguments.is_none());
             assert!(elements.is_some());
@@ -3494,7 +3498,7 @@ mod tests {
 
                                 let body = body.expect("expected lambda body");
                                 assert_node!(parser.tree, body, Expression::Parenthesized { expression } => {
-                                    assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+                                    assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
                                         assert_expression_path!(parser, parser.tree.get(*left), "option");
                                         assert!(arguments.is_none());
 
@@ -3512,7 +3516,7 @@ mod tests {
             });
 
             assert_node!(parser.tree, elements[1], Argument::Positional { value } => {
-                assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+                assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "button");
                     assert!(arguments.is_none());
                     assert!(elements.is_none());

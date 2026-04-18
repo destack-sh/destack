@@ -13,8 +13,7 @@ fn test_parse_import_meta_expression() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Member { left, name, generic_arguments } => {
-        assert!(generic_arguments.is_empty());
+    assert_node!(parser.tree, expression_id, Expression::Member { left, name } => {
         assert_string!(parser, name.expect("expected member name"), "env");
         assert_node!(parser.tree, *left, Expression::ImportMeta);
     });
@@ -27,8 +26,7 @@ fn test_parse_new_target_expression() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Member { left, name, generic_arguments } => {
-        assert!(generic_arguments.is_empty());
+    assert_node!(parser.tree, expression_id, Expression::Member { left, name } => {
         assert_string!(parser, name.expect("expected member name"), "member");
         assert_node!(parser.tree, *left, Expression::NewTarget);
     });

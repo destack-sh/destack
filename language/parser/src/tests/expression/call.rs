@@ -83,8 +83,7 @@ fn test_parse_member_postfix_missing_name() {
     test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
 
     // foo.
-    assert_node!(parser.tree, expression_id, Expression::Member { left, name: None, generic_arguments } => {
-        assert!(generic_arguments.is_empty());
+    assert_node!(parser.tree, expression_id, Expression::Member { left, name: None } => {
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
     });
 }
@@ -99,8 +98,7 @@ fn test_parse_private_member_postfix_missing_name() {
     test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
 
     // foo.#
-    assert_node!(parser.tree, expression_id, Expression::PrivateMember { left, name: None, generic_arguments } => {
-        assert!(generic_arguments.is_empty());
+    assert_node!(parser.tree, expression_id, Expression::PrivateMember { left, name: None } => {
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
     });
 }
@@ -115,8 +113,7 @@ fn test_parse_optional_member_postfix_missing_name() {
     test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
 
     // foo?.
-    assert_node!(parser.tree, expression_id, Expression::Member { left, name: None, generic_arguments } => {
-        assert!(generic_arguments.is_empty());
+    assert_node!(parser.tree, expression_id, Expression::Member { left, name: None } => {
         assert_node!(parser.tree, *left, Expression::Maybe { left, position } => {
             assert_eq!(*position, PostfixPosition::Direct);
             assert_expression_path!(parser, parser.tree.get(*left), "foo");
@@ -135,8 +132,7 @@ fn test_parse_parenthesized_member_postfix_missing_name_preserves_outer_close() 
 
     // (foo.)
     assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
-        assert_node!(parser.tree, *expression, Expression::Member { left, name: None, generic_arguments } => {
-            assert!(generic_arguments.is_empty());
+        assert_node!(parser.tree, *expression, Expression::Member { left, name: None } => {
             assert_expression_path!(parser, parser.tree.get(*left), "foo");
         });
     });

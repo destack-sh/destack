@@ -64,14 +64,12 @@ fn test_parse_class_expression_with_newline_extends() {
     assert_node!(parser.tree, expr_id, Expression::New { left, .. } => {
         assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
             assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
-                assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_expression, .. }) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_expression, extends_generic_arguments, .. }) => {
                     let extends_expression = extends_expression.expect("expected extends expression");
-                    assert_node!(parser.tree, extends_expression, Expression::Instantiation { left, generic_arguments } => {
-                        assert_expression_path!(parser, parser.tree.get(*left), "Foo");
-                        assert_eq!(generic_arguments.len(), 1);
-                        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                                assert_expression_path!(parser, parser.tree.get(*value), "Bar");
-                        });
+                    assert_expression_path!(parser, parser.tree.get(extends_expression), "Foo");
+                    assert_eq!(extends_generic_arguments.len(), 1);
+                    assert_node!(parser.tree, extends_generic_arguments[0], GenericArgument::Type { value } => {
+                            assert_expression_path!(parser, parser.tree.get(*value), "Bar");
                     });
                 });
             });
@@ -237,16 +235,14 @@ fn test_parse_arrow_body_with_anonymous_class_expression() {
 
             // class extends Component<Omit<P, keyof A> & Partial<B>, C>
             assert_node!(parser.tree, *body, Expression::Declaration(class_id) => {
-                assert_node!(parser.tree, *class_id, Declaration::Class(ClassDeclaration { extends_expression, members, .. }) => {
+                assert_node!(parser.tree, *class_id, Declaration::Class(ClassDeclaration { extends_expression, extends_generic_arguments, members, .. }) => {
                     assert_eq!(members.len(), 1);
 
                     // Component<Omit<...>, C>
                     let extends_expression =
                         extends_expression.expect("expected extends expression");
-                    assert_node!(parser.tree, extends_expression, Expression::Instantiation { left, generic_arguments } => {
-                        assert_expression_path!(parser, parser.tree.get(*left), "Component");
-                        assert_eq!(generic_arguments.len(), 2);
-                    });
+                    assert_expression_path!(parser, parser.tree.get(extends_expression), "Component");
+                    assert_eq!(extends_generic_arguments.len(), 2);
                 });
             });
         });
@@ -276,14 +272,12 @@ fn test_parse_arrow_body_with_multiline_class_heritage_generic_arguments() {
 
             // class extends React.Component<Omit<P, keyof Props> & Partial<Props>, Props>
             assert_node!(parser.tree, *body, Expression::Declaration(class_id) => {
-                assert_node!(parser.tree, *class_id, Declaration::Class(ClassDeclaration { extends_expression, .. }) => {
+                assert_node!(parser.tree, *class_id, Declaration::Class(ClassDeclaration { extends_expression, extends_generic_arguments, .. }) => {
                     // React.Component<Omit<P, keyof Props> & Partial<Props>, Props>
                     let extends_expression =
                         extends_expression.expect("expected extends expression");
-                    assert_node!(parser.tree, extends_expression, Expression::Instantiation { left, generic_arguments } => {
-                        assert_expression_path!(parser, parser.tree.get(*left), "React.Component");
-                        assert_eq!(generic_arguments.len(), 2);
-                    });
+                    assert_expression_path!(parser, parser.tree.get(extends_expression), "React.Component");
+                    assert_eq!(extends_generic_arguments.len(), 2);
                 });
             });
         });

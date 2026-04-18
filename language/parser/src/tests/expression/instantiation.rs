@@ -174,8 +174,7 @@ fn test_parse_instantiation_expression_member_assignment() {
                         assert_path!(parser, *path, "T");
                     });
             });
-            assert_node!(parser.tree, *left, Expression::Member { left, name, generic_arguments } => {
-                assert!(generic_arguments.is_empty());
+            assert_node!(parser.tree, *left, Expression::Member { left, name } => {
                 assert_string!(parser, *name, "myFunc");
                 assert_node!(parser.tree, *left, Expression::Identifier { name } => {
                     assert_string!(parser, *name, "cls");
@@ -193,8 +192,7 @@ fn test_parse_instantiation_expression_member_access_with_parentheses() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expr_id, Expression::Member { left, name, generic_arguments } => {
-        assert!(generic_arguments.is_empty());
+    assert_node!(parser.tree, expr_id, Expression::Member { left, name } => {
         assert_string!(parser, *name, "x");
         assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
             assert_node!(parser.tree, *expression, Expression::Instantiation { left, generic_arguments } => {
@@ -292,19 +290,15 @@ fn test_parse_call_with_string_literal_type_arguments() {
     let expr_id = parser.eat_expression(parser.options).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Call { left, generic_arguments, arguments, .. } => {
         assert_eq!(arguments.len(), 1);
-        assert!(generic_arguments.is_empty());
-        assert_node!(parser.tree, *left, Expression::Instantiation { left, generic_arguments } => {
-            assert_eq!(generic_arguments.len(), 1);
-            assert_node!(parser.tree, *left, Expression::Member { left, name, generic_arguments: member_arguments } => {
-                assert!(member_arguments.is_empty());
-                assert_string!(parser, *name, "getValue");
-                assert_expression_path!(parser, parser.tree.get(*left), "accessor");
-            });
-            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                    assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
-                        assert_eq!(elements.len(), 3);
-                    });
-            });
+        assert_eq!(generic_arguments.len(), 1);
+        assert_node!(parser.tree, *left, Expression::Member { left, name } => {
+            assert_string!(parser, *name, "getValue");
+            assert_expression_path!(parser, parser.tree.get(*left), "accessor");
+        });
+        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
+                    assert_eq!(elements.len(), 3);
+                });
         });
     });
 }
