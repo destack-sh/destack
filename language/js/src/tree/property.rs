@@ -11,6 +11,7 @@ pub enum Property {
         modifiers: Option<BindingModifier>,
         key: Key,
         value: LocalNodeId<Expression>,
+        is_shorthand: bool,
     },
     /// Named member function (like `foo()` or `<T>(): T`).
     Method {
