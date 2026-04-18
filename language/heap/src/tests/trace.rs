@@ -1,4 +1,4 @@
-use crate::{HeapError, ManagedReference, ReferenceMap, trace_managed_references};
+use crate::{EdgeMap, HeapError, ManagedReference, trace_managed_references};
 
 /// Trace compact managed references at fixed byte offsets.
 #[test]
@@ -8,7 +8,7 @@ fn test_reference_offsets_trace_reference32_payloads() {
     let bytes = [
         0xAA, 0xBB, 0xCC, 0xDD, 0x04, 0x03, 0x02, 0x01, 0x44, 0x33, 0x22, 0x11,
     ];
-    let map = ReferenceMap::ReferenceOffsets {
+    let map = EdgeMap::ReferenceOffsets {
         offsets: vec![4, 8].into_boxed_slice(),
     };
     let mut traced = Vec::new();
@@ -29,7 +29,7 @@ fn test_repeated_reference_offsets_trace_reference32_payloads() {
         0x10, 0x20, 0x30, 0x40, 0x04, 0x03, 0x02, 0x01, 0x50, 0x60, 0x70, 0x80, 0x44, 0x33, 0x22,
         0x11,
     ];
-    let map = ReferenceMap::RepeatedReferenceOffsets {
+    let map = EdgeMap::RepeatedReferenceOffsets {
         count: 2,
         element_size: 8,
         offsets: vec![4].into_boxed_slice(),
@@ -47,7 +47,7 @@ fn test_repeated_reference_offsets_trace_reference32_payloads() {
 #[test]
 fn test_reference_offsets_reject_unsupported_tracing_width() {
     let bytes = [0xAA, 0xBB, 0xCC, 0xDD];
-    let map = ReferenceMap::ReferenceOffsets {
+    let map = EdgeMap::ReferenceOffsets {
         offsets: vec![0].into_boxed_slice(),
     };
 

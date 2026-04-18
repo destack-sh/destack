@@ -1,19 +1,16 @@
-mod alloc;
-mod gc;
-mod heap;
-mod managed;
-mod raw;
+mod arena;
+mod core;
+mod local;
 mod shared;
 #[cfg(test)]
 mod tests;
 mod value;
 
-pub use alloc::{
-    Arena, ArenaImage, ArenaPage, PageId, PageRun, PageView, SmallObjectPolicy, SpanSlot,
+pub use arena::{
+    Arena, ArenaImage, ArenaPage, Bitmap, PageId, PageRun, PageView, SizeClass, SizeClassTable,
+    SmallObjectPolicy, SpanSlot,
 };
-pub use gc::{GcCycle, GcKind, GcState, GcStats, trace_managed_references};
-pub use heap::*;
-pub use managed::*;
-pub use raw::*;
+pub use core::*;
+pub use local::*;
 pub use shared::*;
 pub use value::*;

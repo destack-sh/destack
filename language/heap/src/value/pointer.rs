@@ -138,18 +138,18 @@ impl RawPointer {
     }
 }
 
-/// Pointer to a world-shared space allocation.
+/// Pointer to a world-shared raw allocation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct SharedPointer(pub(crate) u64);
+pub struct SharedRawPointer(pub(crate) u64);
 
-impl SharedPointer {
+impl SharedRawPointer {
     /// The null pointer.
-    pub const NULL: Self = SharedPointer(0);
+    pub const NULL: Self = SharedRawPointer(0);
 
-    /// Create a new shared pointer from an id.
+    /// Create a new shared raw pointer from an id.
     #[inline]
     pub fn new(id: u32) -> Self {
-        SharedPointer::with_byte_offset(id, 0)
+        SharedRawPointer::with_byte_offset(id, 0)
     }
 
     /// Check if this pointer is null.
@@ -170,7 +170,7 @@ impl SharedPointer {
         self.0
     }
 
-    /// Restore a shared pointer from raw bits.
+    /// Restore a shared raw pointer from raw bits.
     #[inline]
     pub const fn from_bits(bits: u64) -> Self {
         Self(bits)
@@ -182,12 +182,67 @@ impl SharedPointer {
         (self.0 >> POINTER_SLOT_SHIFT) as usize
     }
 
-    /// Create a new shared pointer with a byte offset.
+    /// Create a new shared raw pointer with a byte offset.
     #[inline]
     pub fn with_byte_offset(id: u32, byte_offset: u32) -> Self {
         let base = id as u64;
         let offset = (byte_offset as u64) << POINTER_SLOT_SHIFT;
-        SharedPointer(base | offset)
+        SharedRawPointer(base | offset)
+    }
+}
+
+/// Reference to a world-shared managed object.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct SharedManagedReference(pub(crate) u64);
+
+impl SharedManagedReference {
+    /// The null reference.
+    pub const NULL: Self = SharedManagedReference(0);
+    /// The encoded byte width for one shared managed reference.
+    pub const BYTE_LEN: usize = std::mem::size_of::<Self>();
+
+    /// Create a new shared managed reference from a raw id.
+    #[inline]
+    pub fn new(id: u32) -> Self {
+        SharedManagedReference::with_slot_offset(id, 0)
+    }
+
+    /// Check if this reference is null.
+    #[inline]
+    pub fn is_null(&self) -> bool {
+        self.id() == 0
+    }
+
+    /// Return the raw id of this reference.
+    #[inline]
+    pub fn id(&self) -> u32 {
+        (self.0 & POINTER_BASE_MASK) as u32
+    }
+
+    /// Return the raw bits for this reference.
+    #[inline]
+    pub const fn bits(self) -> u64 {
+        self.0
+    }
+
+    /// Restore a shared managed reference from raw bits.
+    #[inline]
+    pub const fn from_bits(bits: u64) -> Self {
+        Self(bits)
+    }
+
+    /// Return the aggregate slot offset stored in this reference.
+    #[inline]
+    pub fn slot_offset(&self) -> usize {
+        (self.0 >> POINTER_SLOT_SHIFT) as usize
+    }
+
+    /// Create a new shared managed reference with an aggregate slot offset.
+    #[inline]
+    pub fn with_slot_offset(id: u32, slot_offset: u32) -> Self {
+        let base = id as u64;
+        let slot = (slot_offset as u64) << POINTER_SLOT_SHIFT;
+        SharedManagedReference(base | slot)
     }
 }
 

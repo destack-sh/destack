@@ -399,13 +399,13 @@ pub enum HeapError {
         /// The missing dense entry index.
         index: usize,
     },
-    /// One reference-map id cannot be represented by the table.
-    InvalidMapId {
-        /// The invalid reference-map index.
+    /// One edge-map id cannot be represented by the table.
+    InvalidEdgeId {
+        /// The invalid edge-map index.
         index: usize,
     },
-    /// One reference-map table does not reserve id 0 for the empty map.
-    InvalidMapSentinel {
+    /// One edge-map table does not reserve id 0 for the empty map.
+    InvalidEdgeSentinel {
         /// The invalid sentinel index.
         index: usize,
     },
@@ -414,15 +414,15 @@ pub enum HeapError {
         /// The invalid byte width.
         bytes: usize,
     },
-    /// One traced reference-map field width overflowed its byte offset.
-    ReferenceMapOffsetOverflow {
+    /// One traced edge-map field width overflowed its byte offset.
+    EdgeMapOffsetOverflow {
         /// The traced field byte offset.
         start: usize,
         /// The traced field byte width.
         width: usize,
     },
-    /// One traced reference-map field extended past the provided payload bytes.
-    TruncatedReferenceMapPayload {
+    /// One traced edge-map field extended past the provided payload bytes.
+    TruncatedEdgeMapPayload {
         /// The traced field byte offset.
         start: usize,
         /// The traced field byte width.
@@ -430,7 +430,7 @@ pub enum HeapError {
         /// The available payload length.
         len: usize,
     },
-    /// One traced reference-map field could not be read from one random-access reader.
+    /// One traced edge-map field could not be read from one random-access reader.
     TruncatedReferenceReaderWindow {
         /// The traced field byte offset.
         start: usize,
@@ -442,13 +442,13 @@ pub enum HeapError {
         /// The traced value byte offset.
         start: usize,
     },
-    /// One reference-map table had duplicate maps where stable ids must be unique.
-    DuplicateMap {
-        /// The duplicate reference-map index.
+    /// One edge-map table had duplicate maps where stable ids must be unique.
+    DuplicateEdgeMap {
+        /// The duplicate edge-map index.
         index: usize,
     },
-    /// One reference-map table cannot be addressed by its reverse lookup.
-    InvalidMapTableLen {
+    /// One edge-map table cannot be addressed by its reverse lookup.
+    InvalidEdgeTableLen {
         /// The invalid map count.
         len: usize,
     },
@@ -874,13 +874,13 @@ impl Display for HeapError {
             Self::MissingTableEntry { index } => {
                 write!(formatter, "heap lost dense table entry at index {index}")
             }
-            Self::InvalidMapId { index } => {
-                write!(formatter, "invalid reference-map id: {index}")
+            Self::InvalidEdgeId { index } => {
+                write!(formatter, "invalid edge-map id: {index}")
             }
-            Self::InvalidMapSentinel { index } => {
+            Self::InvalidEdgeSentinel { index } => {
                 write!(
                     formatter,
-                    "reference-map table must reserve index {index} for the empty map"
+                    "edge-map table must reserve index {index} for the empty map"
                 )
             }
             Self::InvalidReferenceWindowWidth { bytes } => {
@@ -889,13 +889,13 @@ impl Display for HeapError {
                     "unsupported managed reference width for tracing window: {bytes}"
                 )
             }
-            Self::ReferenceMapOffsetOverflow { start, width } => {
+            Self::EdgeMapOffsetOverflow { start, width } => {
                 write!(
                     formatter,
                     "managed reference offset overflow while tracing: start={start}, width={width}"
                 )
             }
-            Self::TruncatedReferenceMapPayload { start, width, len } => {
+            Self::TruncatedEdgeMapPayload { start, width, len } => {
                 write!(
                     formatter,
                     "truncated managed reference payload while tracing: start={start}, width={width}, len={len}"
@@ -913,11 +913,11 @@ impl Display for HeapError {
                     "invalid value payload while tracing managed references: start={start}"
                 )
             }
-            Self::DuplicateMap { index } => {
-                write!(formatter, "duplicate reference map at index {index}")
+            Self::DuplicateEdgeMap { index } => {
+                write!(formatter, "duplicate edge map at index {index}")
             }
-            Self::InvalidMapTableLen { len } => {
-                write!(formatter, "invalid reference-map table length: {len}")
+            Self::InvalidEdgeTableLen { len } => {
+                write!(formatter, "invalid edge-map table length: {len}")
             }
         }
     }

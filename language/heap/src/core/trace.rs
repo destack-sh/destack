@@ -1,9 +1,9 @@
 use crate::core::{overlapping_repeated_index_range, ranges_overlap};
-use crate::{HeapError, HeapResult, ReferenceMap, Value};
+use crate::{EdgeMap, HeapError, HeapResult, Value};
 
-/// Visit each reference encoded by one reference map through one random-access reader.
-pub(crate) fn visit_reference_map_in_reader<R>(
-    map: &ReferenceMap,
+/// Visit each reference encoded by one edge map through one random-access reader.
+pub(crate) fn visit_edge_map_in_reader<R>(
+    map: &EdgeMap,
     reference_bytes: usize,
     mut fill_bytes: impl FnMut(usize, &mut [u8]) -> bool,
     mut decode_reference: impl FnMut(&[u8]) -> HeapResult<R>,
@@ -11,21 +11,21 @@ pub(crate) fn visit_reference_map_in_reader<R>(
     mut visit: impl FnMut(R),
 ) -> HeapResult<()> {
     match map {
-        ReferenceMap::None => {}
-        ReferenceMap::ReferenceOffsets { offsets } => visit_reference_offsets_in_reader(
+        EdgeMap::None => {}
+        EdgeMap::ReferenceOffsets { offsets } => visit_reference_offsets_in_reader(
             offsets,
             reference_bytes,
             &mut fill_bytes,
             &mut decode_reference,
             &mut visit,
         )?,
-        ReferenceMap::ValueOffsets { offsets } => visit_value_offsets_in_reader(
+        EdgeMap::ValueOffsets { offsets } => visit_value_offsets_in_reader(
             offsets,
             &mut fill_bytes,
             &mut decode_value_reference,
             &mut visit,
         )?,
-        ReferenceMap::RepeatedReferenceOffsets {
+        EdgeMap::RepeatedReferenceOffsets {
             count,
             element_size,
             offsets,
@@ -43,9 +43,9 @@ pub(crate) fn visit_reference_map_in_reader<R>(
     Ok(())
 }
 
-/// Visit each overlapping reference encoded by one reference map through one reader.
-pub(crate) fn visit_reference_map_in_reader_range<R>(
-    map: &ReferenceMap,
+/// Visit each overlapping reference encoded by one edge map through one reader.
+pub(crate) fn visit_edge_map_in_reader_range<R>(
+    map: &EdgeMap,
     start: usize,
     len: usize,
     reference_bytes: usize,
@@ -61,12 +61,12 @@ pub(crate) fn visit_reference_map_in_reader_range<R>(
 
     // reject invalid dirty windows
     let Some(end) = start.checked_add(len) else {
-        return Err(HeapError::ReferenceMapOffsetOverflow { start, width: len });
+        return Err(HeapError::EdgeMapOffsetOverflow { start, width: len });
     };
 
     match map {
-        ReferenceMap::None => {}
-        ReferenceMap::ReferenceOffsets { offsets } => visit_reference_offsets_in_reader_range(
+        EdgeMap::None => {}
+        EdgeMap::ReferenceOffsets { offsets } => visit_reference_offsets_in_reader_range(
             offsets,
             start,
             end,
@@ -75,7 +75,7 @@ pub(crate) fn visit_reference_map_in_reader_range<R>(
             &mut decode_reference,
             &mut visit,
         )?,
-        ReferenceMap::ValueOffsets { offsets } => visit_value_offsets_in_reader_range(
+        EdgeMap::ValueOffsets { offsets } => visit_value_offsets_in_reader_range(
             offsets,
             start,
             end,
@@ -83,7 +83,7 @@ pub(crate) fn visit_reference_map_in_reader_range<R>(
             &mut decode_value_reference,
             &mut visit,
         )?,
-        ReferenceMap::RepeatedReferenceOffsets {
+        EdgeMap::RepeatedReferenceOffsets {
             count,
             element_size,
             offsets,

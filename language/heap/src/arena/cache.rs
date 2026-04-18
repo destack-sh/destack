@@ -77,14 +77,16 @@ impl PageRunCache {
             return Ok(());
         }
 
-        arena.release_run(run)
+        arena.release_cached_run(run)
     }
 
-    /// Flush this cache back into the arena free-run pool.
-    pub(crate) fn flush(&mut self, arena: &Arena) {
+    /// Flush this cache back into the arena page-run pool.
+    pub(crate) fn try_flush(&mut self, arena: &Arena) -> HeapResult<()> {
         for run in self.drain() {
-            arena.recycle_cached_run(run);
+            arena.release_cached_run(run)?;
         }
+
+        Ok(())
     }
 
     /// Return the currently cached byte count.
