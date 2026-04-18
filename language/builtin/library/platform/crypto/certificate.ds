@@ -203,7 +203,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function certificateImport(
@@ -236,7 +235,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function certificateExport(
@@ -268,7 +266,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function certificateDescriptor(handle: CryptoCertificateHandle): Result<CryptoCertificateDescriptor, PlatformError>;
@@ -298,7 +295,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function certificateVerify(request: CryptoCertificateVerifyRequest): Result<CryptoCertificateVerifyResult, PlatformError>;
@@ -328,7 +324,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function certificateDelete(handle: CryptoCertificateHandle): Result<void, PlatformError>;

@@ -55,7 +55,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function getPriority(pid: ProcessId): Result<int32, PlatformError>;
@@ -85,7 +84,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function setPriority(pid: ProcessId, priority: int32): Result<void, PlatformError>;
@@ -176,7 +174,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function getScheduler(pid: ProcessId): Result<ProcessSchedulerConfig, PlatformError>;
@@ -206,7 +203,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function setScheduler(
@@ -239,7 +235,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function yieldNow(): Result<void, PlatformError>;

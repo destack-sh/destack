@@ -27,7 +27,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function exit(code: uint32): Result<void, PlatformError>;

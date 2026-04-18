@@ -6,19 +6,19 @@ export newtype WorldHandle = ResourceId;
 /// Handle for one live runtime control object.
 export newtype RuntimeHandle = ResourceId;
 
-/// Handle for one live agent control object.
-export newtype AgentHandle = ResourceId;
+/// Handle for one live worker control object.
+export newtype WorkerHandle = ResourceId;
 
 /// Stable runtime identifier in one world.
 export newtype RuntimeId = uint64;
 
-/// Stable agent identifier in one world.
-export newtype AgentId = uint64;
+/// Stable worker identifier in one world.
+export newtype WorkerId = uint64;
 
 /// Stable world resource identifier.
 export struct WorldResourceId {
-    /// Owning agent identifier.
-    agentId: AgentId;
+    /// Owning worker identifier.
+    workerId: WorkerId;
     /// Resource identifier in the owning local resource table.
     resourceId: ResourceId;
 }
@@ -172,11 +172,11 @@ export struct RuntimeCreateOptions {
     labels?: Array<RuntimeLabel>;
 }
 
-/// Create options for one agent.
-export struct AgentCreateOptions {
-    /// Optional agent name.
+/// Create options for one worker.
+export struct WorkerCreateOptions {
+    /// Optional worker name.
     name?: string;
-    /// Optional agent labels.
+    /// Optional worker labels.
     labels?: Array<RuntimeLabel>;
 }
 
@@ -204,29 +204,29 @@ export struct WorldDescriptor {
 export struct RuntimeDescriptor {
     /// Runtime identifier.
     id: RuntimeId;
-    /// Primary agent identifier.
-    primaryAgentId: AgentId;
+    /// Primary worker identifier.
+    primaryWorkerId: WorkerId;
     /// Optional runtime name.
     name?: string;
-    /// Agent count in this runtime.
-    agentCount: uint32;
+    /// Worker count in this runtime.
+    workerCount: uint32;
     /// Runtime labels.
     labels?: Array<RuntimeLabel>;
 }
 
-/// Descriptor for one live agent.
-export struct AgentDescriptor {
-    /// Agent identifier.
-    id: AgentId;
+/// Descriptor for one live worker.
+export struct WorkerDescriptor {
+    /// Worker identifier.
+    id: WorkerId;
     /// Owning runtime identifier.
     runtimeId: RuntimeId;
-    /// Optional agent name.
+    /// Optional worker name.
     name?: string;
-    /// Whether the agent has pending work.
+    /// Whether the worker has pending work.
     hasPendingWork: boolean;
-    /// Resource count owned by this agent.
+    /// Resource count owned by this worker.
     resourceCount: uint32;
-    /// Agent labels.
+    /// Worker labels.
     labels?: Array<RuntimeLabel>;
 }
 
@@ -310,11 +310,11 @@ export struct RuntimeFilter {
     labels?: Array<RuntimeLabelSelector>;
 }
 
-/// Filter for agent lists.
-export struct AgentFilter {
+/// Filter for worker lists.
+export struct WorkerFilter {
     /// Optional owning runtime selector.
     runtimeId?: RuntimeId;
-    /// Optional exact agent name.
+    /// Optional exact worker name.
     name?: string;
     /// Optional pending-work selector.
     hasPendingWork?: boolean;
@@ -376,8 +376,8 @@ export struct TopologyEdgeFilter {
 export struct ResourceFilter {
     /// Optional owning runtime selector.
     runtimeId?: RuntimeId;
-    /// Optional owning agent selector.
-    agentId?: AgentId;
+    /// Optional owning worker selector.
+    workerId?: WorkerId;
     /// Optional resource kind selector.
     kind?: string;
     /// Optional exact resource label selector.
@@ -420,7 +420,7 @@ export struct ResourceDescriptor {
     label?: string;
 }
 
-/// Event-loop summary for one agent.
+/// Event-loop summary for one worker.
 export struct EventLoopDescriptor {
     /// Ready task count.
     taskCount: uint32;
@@ -434,7 +434,7 @@ export struct EventLoopDescriptor {
     hasPendingWork: boolean;
 }
 
-/// Heap summary for one agent.
+/// Heap summary for one worker.
 export struct HeapDescriptor {
     /// Total heap bytes.
     heapBytes: uint64;
@@ -446,7 +446,7 @@ export struct HeapDescriptor {
     gcCycles: uint64;
 }
 
-/// Engine view kind for one agent.
+/// Engine view kind for one worker.
 export enum EngineDescriptorKind {
     /// VM isolate-backed execution.
     Isolate = 1,
@@ -454,7 +454,7 @@ export enum EngineDescriptorKind {
     Native = 2,
 }
 
-/// Engine summary for one agent.
+/// Engine summary for one worker.
 export struct EngineDescriptor {
     /// Engine implementation kind.
     kind: EngineDescriptorKind;

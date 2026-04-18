@@ -27,7 +27,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function digestCompute(
@@ -57,7 +56,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function digestOpen(algorithm: CryptoDigestAlgorithm): Result<CryptoDigestHandle, PlatformError>;
@@ -84,7 +82,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function digestUpdate(
@@ -114,7 +111,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function digestFinish(handle: CryptoDigestHandle): Result<Slice<uint8>, PlatformError>;
@@ -141,7 +137,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function digestReset(handle: CryptoDigestHandle): Result<void, PlatformError>;
@@ -168,7 +163,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function digestClose(handle: CryptoDigestHandle): Result<void, PlatformError>;

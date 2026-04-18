@@ -28,7 +28,6 @@ declare namespace memory {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function advise(
@@ -62,7 +61,6 @@ declare namespace memory {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function discard(address: uint64, length: uint64): Result<void, PlatformError>;

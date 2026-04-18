@@ -30,7 +30,6 @@ declare namespace ffi {
         simulation: "stub",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function fromAddress(address: uint64): Result<FfiPointer, PlatformError>;
@@ -60,7 +59,6 @@ declare namespace ffi {
         simulation: "stub",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function address(pointer: FfiPointer): Result<uint64, PlatformError>;

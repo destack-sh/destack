@@ -28,7 +28,6 @@ export declare namespace debug {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function mark(label: string): Result<void, PlatformError>;
@@ -59,7 +58,6 @@ export declare namespace debug {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function breakNow(): Result<void, PlatformError>;

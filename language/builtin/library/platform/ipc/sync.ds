@@ -28,7 +28,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function semaphoreCreate(
@@ -62,7 +61,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function semaphoreWait(
@@ -95,7 +93,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function semaphorePost(
@@ -128,7 +125,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function futexWait(
@@ -163,7 +159,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function futexWake(

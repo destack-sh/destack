@@ -1,8 +1,8 @@
 import type { PlatformError } from "../error/index.ds";
 import {
-    AgentCreateOptions,
-    AgentDescriptor,
-    AgentHandle,
+    WorkerCreateOptions,
+    WorkerDescriptor,
+    WorkerHandle,
     RuntimeCreateOptions,
     RuntimeDescriptor,
     RuntimeHandle,
@@ -12,7 +12,7 @@ import {
     WorldHandle,
 } from "./types.ds";
 
-/// Low-level world, runtime, and agent control bindings.
+/// Low-level world, runtime, and worker control bindings.
 export declare namespace runtime {
     /// Create one world.
     ///
@@ -39,7 +39,6 @@ export declare namespace runtime {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "owner",
     })
     export function worldCreate(options?: WorldCreateOptions): Result<WorldHandle, PlatformError>;
@@ -47,7 +46,7 @@ export declare namespace runtime {
     /// Close one world.
     ///
     /// Tear down one low-level world control object and release its owned runtime state.
-    /// Active runtimes, agents, and attached runtime resources are closed according to runtime shutdown policy.
+    /// Active runtimes, workers, and attached runtime resources are closed according to runtime shutdown policy.
     ///
     /// # Platform
     /// Runtime-managed on all targets.
@@ -69,7 +68,6 @@ export declare namespace runtime {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "owner",
     })
     export function worldClose(world: WorldHandle): Result<void, PlatformError>;
@@ -99,14 +97,13 @@ export declare namespace runtime {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "owner",
     })
     export function worldDescribe(world: WorldHandle): Result<WorldDescriptor, PlatformError>;
 
     /// Advance one world by one scheduler step.
     ///
-    /// Execute one world-level deterministic advance step across runtimes, agents, clocks, and simulation.
+    /// Execute one world-level deterministic advance step across runtimes, workers, clocks, and simulation.
     /// The returned outcome distinguishes idle, progressed, and time-advance results.
     ///
     /// # Platform
@@ -129,7 +126,6 @@ export declare namespace runtime {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "owner",
     })
     export function worldTick(world: WorldHandle): Result<RuntimeTickOutcome, PlatformError>;
@@ -159,7 +155,6 @@ export declare namespace runtime {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "owner",
     })
     export function runtimeCreate(
@@ -170,7 +165,7 @@ export declare namespace runtime {
     /// Close one runtime.
     ///
     /// Remove one runtime container from its owning world and release its live execution state.
-    /// Agent teardown follows runtime shutdown policy.
+    /// Worker teardown follows runtime shutdown policy.
     ///
     /// # Platform
     /// Runtime-managed on all targets.
@@ -192,7 +187,6 @@ export declare namespace runtime {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "owner",
     })
     export function runtimeClose(runtimeHandle: RuntimeHandle): Result<void, PlatformError>;
@@ -200,7 +194,7 @@ export declare namespace runtime {
     /// Describe one runtime.
     ///
     /// Return one structured runtime descriptor for one live runtime handle.
-    /// Descriptor fields summarize runtime ownership, primary agent, labels, and agent counts.
+    /// Descriptor fields summarize runtime ownership, primary worker, labels, and worker counts.
     ///
     /// # Platform
     /// Runtime-managed on all targets.
@@ -222,103 +216,99 @@ export declare namespace runtime {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "owner",
     })
     export function runtimeDescribe(
         runtimeHandle: RuntimeHandle,
     ): Result<RuntimeDescriptor, PlatformError>;
 
-    /// Spawn one agent in one runtime.
+    /// Spawn one worker in one runtime.
     ///
     /// Create one execution lane inside one runtime with explicit metadata options.
-    /// The agent is attached to the runtime's current world and trace context.
+    /// The worker is attached to the runtime's current world and trace context.
     ///
     /// # Platform
     /// Runtime-managed on all targets.
-    /// Uses runtime agent construction logic.
+    /// Uses runtime worker construction logic.
     ///
     /// # Errors
     /// Returns invalidArgument, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `runtime.agent.create`.
+    /// Requires `runtime.worker.create`.
     ///
     /// # Replay
     /// Deterministic.
-    @binding("destack.runtime.core.agentCreate", {
+    @binding("destack.runtime.core.workerCreate", {
         effect: "deterministic",
         replay: "nonrecordable",
-        capabilities: ["runtime.agent.create"],
+        capabilities: ["runtime.worker.create"],
         platforms: ["windows", "unix", "wasi"],
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "owner",
     })
-    export function agentCreate(
+    export function workerCreate(
         runtimeHandle: RuntimeHandle,
-        options?: AgentCreateOptions,
-    ): Result<AgentHandle, PlatformError>;
+        options?: WorkerCreateOptions,
+    ): Result<WorkerHandle, PlatformError>;
 
-    /// Close one agent.
+    /// Close one worker.
     ///
     /// Remove one execution lane from its owning runtime and release its lane-local state.
     /// Resource teardown follows runtime and resource policy.
     ///
     /// # Platform
     /// Runtime-managed on all targets.
-    /// Uses runtime agent teardown logic.
+    /// Uses runtime worker teardown logic.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `runtime.agent.control`.
+    /// Requires `runtime.worker.control`.
     ///
     /// # Replay
     /// Deterministic.
-    @binding("destack.runtime.core.agentClose", {
+    @binding("destack.runtime.core.workerClose", {
         effect: "deterministic",
         replay: "nonrecordable",
-        capabilities: ["runtime.agent.control"],
+        capabilities: ["runtime.worker.control"],
         platforms: ["windows", "unix", "wasi"],
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "owner",
     })
-    export function agentClose(agent: AgentHandle): Result<void, PlatformError>;
+    export function workerClose(worker: WorkerHandle): Result<void, PlatformError>;
 
-    /// Describe one agent.
+    /// Describe one worker.
     ///
-    /// Return one structured agent descriptor for one live agent handle.
+    /// Return one structured worker descriptor for one live worker handle.
     /// Descriptor fields summarize ownership, labels, pending-work state, and resource counts.
     ///
     /// # Platform
     /// Runtime-managed on all targets.
-    /// Uses runtime agent state only.
+    /// Uses runtime worker state only.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
     ///
     /// # Security
-    /// Requires `runtime.agent.read`.
+    /// Requires `runtime.worker.read`.
     ///
     /// # Replay
     /// Deterministic.
-    @binding("destack.runtime.core.agentDescribe", {
+    @binding("destack.runtime.core.workerDescribe", {
         effect: "deterministic",
         replay: "nonrecordable",
-        capabilities: ["runtime.agent.read"],
+        capabilities: ["runtime.worker.read"],
         platforms: ["windows", "unix", "wasi"],
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "owner",
     })
-    export function agentDescribe(agent: AgentHandle): Result<AgentDescriptor, PlatformError>;
+    export function workerDescribe(worker: WorkerHandle): Result<WorkerDescriptor, PlatformError>;
 }

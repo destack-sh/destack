@@ -30,7 +30,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function cgroupJoin(path: string): Result<void, PlatformError>;
@@ -60,7 +59,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function cgroupGetLimit(
@@ -93,7 +91,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function cgroupSetLimit(
@@ -127,7 +124,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function jobAssign(name: string, pids: Slice<ProcessId>): Result<void, PlatformError>;
@@ -157,7 +153,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function jobSetLimit(

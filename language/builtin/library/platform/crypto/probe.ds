@@ -41,7 +41,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function probeKeyAlgorithms(): Result<Slice<CryptoKeyAlgorithm>, PlatformError>;
@@ -71,7 +70,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function probeKeyFormats(): Result<Slice<CryptoKeyFormat>, PlatformError>;
@@ -101,7 +99,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function probeKeyResidencies(): Result<Slice<CryptoKeyResidency>, PlatformError>;
@@ -131,7 +128,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function probeDigestAlgorithms(): Result<Slice<CryptoDigestAlgorithm>, PlatformError>;
@@ -161,7 +157,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function probeSignatureAlgorithms(): Result<Slice<CryptoSignatureAlgorithm>, PlatformError>;
@@ -191,7 +186,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function probeCipherAlgorithms(): Result<Slice<CryptoCipherAlgorithm>, PlatformError>;
@@ -221,7 +215,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function probeMacAlgorithms(): Result<Slice<CryptoMacAlgorithm>, PlatformError>;
@@ -251,7 +244,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function probeKdfAlgorithms(): Result<Slice<CryptoKdfAlgorithm>, PlatformError>;
@@ -281,7 +273,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function probeAgreementAlgorithms(): Result<Slice<CryptoKeyAgreementAlgorithm>, PlatformError>;
@@ -311,7 +302,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function probeKeyWrapAlgorithms(): Result<Slice<CryptoKeyWrapAlgorithm>, PlatformError>;
@@ -341,7 +331,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function probeNamedCurves(): Result<Slice<CryptoNamedCurve>, PlatformError>;

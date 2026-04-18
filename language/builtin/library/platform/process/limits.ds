@@ -38,7 +38,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function getLimit(resource: ProcessLimitResource): Result<ProcessLimit, PlatformError>;
@@ -68,7 +67,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function setLimit(

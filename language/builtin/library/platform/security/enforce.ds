@@ -29,7 +29,6 @@ declare namespace security {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function sandboxSeal(handle: SandboxHandle): Result<void, PlatformError>;
@@ -59,7 +58,6 @@ declare namespace security {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function sandboxSetCapabilities(
@@ -92,7 +90,6 @@ declare namespace security {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function setWriteXorExecute(enabled: boolean): Result<void, PlatformError>;

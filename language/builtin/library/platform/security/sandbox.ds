@@ -28,7 +28,6 @@ declare namespace security {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function sandboxEnter(name: string): Result<SandboxHandle, PlatformError>;
@@ -58,7 +57,6 @@ declare namespace security {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function sandboxExit(handle: SandboxHandle): Result<void, PlatformError>;

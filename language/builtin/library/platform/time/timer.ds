@@ -47,7 +47,6 @@ declare namespace time {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function timerOnce(
@@ -80,7 +79,6 @@ declare namespace time {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function timerInterval(
@@ -113,7 +111,6 @@ declare namespace time {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function timerAt(
@@ -146,7 +143,6 @@ declare namespace time {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function timerCancel(handle: TimerHandle): Result<void, PlatformError>;
@@ -176,7 +172,6 @@ declare namespace time {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function timerPause(handle: TimerHandle): Result<void, PlatformError>;
@@ -206,7 +201,6 @@ declare namespace time {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function timerResume(handle: TimerHandle): Result<void, PlatformError>;
@@ -236,7 +230,6 @@ declare namespace time {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function timerIsActive(handle: TimerHandle): Result<boolean, PlatformError>;
@@ -266,7 +259,6 @@ declare namespace time {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function timerRemainingNs(handle: TimerHandle): Result<uint64, PlatformError>;
@@ -296,7 +288,6 @@ declare namespace time {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function timerReset(handle: TimerHandle, delayNs: uint64): Result<void, PlatformError>;
@@ -326,7 +317,6 @@ declare namespace time {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function timerUpdateInterval(

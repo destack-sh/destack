@@ -31,7 +31,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function eventOpen(initial: uint64): Result<EventToken, PlatformError>;
@@ -61,7 +60,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function eventClose(token: EventToken): Result<void, PlatformError>;
@@ -92,7 +90,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function eventSignal(token: EventToken, value: uint64): Result<void, PlatformError>;
@@ -122,7 +119,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function eventAttach(

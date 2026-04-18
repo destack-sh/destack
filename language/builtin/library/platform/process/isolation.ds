@@ -56,7 +56,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function setns(
@@ -89,7 +88,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function unshare(flags: ProcessUnshareFlags): Result<void, PlatformError>;
@@ -119,7 +117,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function chroot(path: OsPath): Result<void, PlatformError>;
@@ -149,7 +146,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function installSyscallFilter(
@@ -182,7 +178,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function setHostName(name: string): Result<void, PlatformError>;
@@ -212,7 +207,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function setNetworkNamespace(path: OsPath): Result<void, PlatformError>;

@@ -37,7 +37,6 @@ declare namespace runtime {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "owner",
     })
     export function traceDescribe(world: WorldHandle): Result<TraceDescriptor, PlatformError>;
@@ -67,7 +66,6 @@ declare namespace runtime {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "owner",
     })
     export function traceOpen(
@@ -100,7 +98,6 @@ declare namespace runtime {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "owner",
     })
     export function traceClose(cursor: TraceCursorHandle): Result<void, PlatformError>;
@@ -130,7 +127,6 @@ declare namespace runtime {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "owner",
     })
     export function traceNext(
@@ -163,7 +159,6 @@ declare namespace runtime {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "owner",
     })
     export function traceTell(cursor: TraceCursorHandle): Result<TraceSequence, PlatformError>;
@@ -193,7 +188,6 @@ declare namespace runtime {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "owner",
     })
     export function traceSeekSequence(
@@ -226,7 +220,6 @@ declare namespace runtime {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "owner",
     })
     export function traceSeekRevision(
@@ -259,7 +252,6 @@ declare namespace runtime {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "owner",
     })
     export function traceSeekCheckpoint(
@@ -292,7 +284,6 @@ declare namespace runtime {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "owner",
     })
     export function traceMark(

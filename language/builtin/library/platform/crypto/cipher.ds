@@ -63,7 +63,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function cipherEncrypt(
@@ -94,7 +93,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function cipherDecrypt(
@@ -125,7 +123,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function cipherOpen(
@@ -156,7 +153,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function cipherUpdateAdditionalData(
@@ -186,7 +182,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function cipherUpdate(
@@ -219,7 +214,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function cipherFinish(
@@ -249,7 +243,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function cipherReset(
@@ -279,7 +272,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function cipherClose(handle: CryptoCipherHandle): Result<void, PlatformError>;

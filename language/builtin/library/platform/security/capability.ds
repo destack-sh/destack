@@ -35,7 +35,6 @@ declare namespace security {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function capabilityList(): Result<Slice<PlatformCapability>, PlatformError>;
@@ -65,7 +64,6 @@ declare namespace security {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function capabilityHas(capability: PlatformCapability): Result<boolean, PlatformError>;

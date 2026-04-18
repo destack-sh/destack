@@ -122,7 +122,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function spawn(
@@ -157,7 +156,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function spawnWithActions(

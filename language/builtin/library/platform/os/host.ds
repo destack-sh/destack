@@ -39,7 +39,6 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function hostIdentity(): Result<HostIdentity, PlatformError>;

@@ -41,7 +41,6 @@ export declare namespace resource {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function remove(id: ResourceId): Result<void, PlatformError>;
@@ -71,7 +70,6 @@ export declare namespace resource {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function kind(id: ResourceId): Result<ResourceKind, PlatformError>;
@@ -101,7 +99,6 @@ export declare namespace resource {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function transfer(
@@ -134,7 +131,6 @@ export declare namespace resource {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function close(id: ResourceId): Result<void, PlatformError>;

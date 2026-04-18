@@ -81,7 +81,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function contextOpen(options: TlsContextOptions): Result<TlsContextHandle, PlatformError>;
@@ -111,7 +110,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function contextClose(handle: TlsContextHandle): Result<void, PlatformError>;
@@ -141,7 +139,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function contextSetIdentityPem(
@@ -175,7 +172,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function contextSetTrustAnchorsPem(
@@ -209,7 +205,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function contextSetCipherSuites(
@@ -243,7 +238,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function contextSetGroups(
@@ -277,7 +271,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function contextSetSignatureAlgorithms(
@@ -311,7 +304,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function contextSetHostnameVerificationMode(
@@ -344,7 +336,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function contextSetSessionResumption(

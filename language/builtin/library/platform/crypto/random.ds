@@ -25,7 +25,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function randomFill(buffer: Slice<uint8>): Result<void, PlatformError>;
@@ -52,7 +51,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function randomBytes(length: uint32): Result<Slice<uint8>, PlatformError>;

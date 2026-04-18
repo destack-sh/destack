@@ -27,7 +27,6 @@ declare namespace memory {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function pageSize(): Result<uint64, PlatformError>;
@@ -57,7 +56,6 @@ declare namespace memory {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function allocationGranularity(): Result<uint64, PlatformError>;
@@ -87,7 +85,6 @@ declare namespace memory {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function hugePageSize(): Result<uint64 | void, PlatformError>;

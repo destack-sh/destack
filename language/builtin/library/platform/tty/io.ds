@@ -29,7 +29,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function read(handle: TtyHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
@@ -59,7 +58,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function write(handle: TtyHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;

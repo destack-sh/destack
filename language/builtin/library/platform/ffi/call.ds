@@ -29,7 +29,6 @@ declare namespace ffi {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function call(
