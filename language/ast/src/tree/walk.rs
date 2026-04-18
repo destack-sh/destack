@@ -851,9 +851,19 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 }
             }
         },
-        Expression::TaggedTemplateExpression { tag, value } => {
+        Expression::TaggedTemplateExpression {
+            tag,
+            generic_arguments,
+            value,
+        } => {
             let tag_expr = tree.get(*tag);
             visitor.visit_expression(tree, *tag, tag_expr);
+
+            for argument_id in generic_arguments {
+                let argument = tree.get(*argument_id);
+                visitor.visit_generic_argument(tree, *argument_id, argument);
+            }
+
             match value {
                 TemplateLiteral::String { .. } => {}
                 TemplateLiteral::InterpolatedString { arguments, .. } => {
@@ -899,6 +909,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::TreeExpression {
             left,
+            generic_arguments,
             arguments,
             elements,
         } => {
@@ -906,6 +917,12 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 let left_expr = tree.get(*left_id);
                 visitor.visit_expression(tree, *left_id, left_expr);
             }
+
+            for argument_id in generic_arguments {
+                let argument = tree.get(*argument_id);
+                visitor.visit_generic_argument(tree, *argument_id, argument);
+            }
+
             if let Some(arguments) = arguments {
                 for argument_id in arguments {
                     let argument = tree.get(*argument_id);
@@ -1007,27 +1024,17 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Member {
             left: receiver,
             name: _,
-            generic_arguments,
         } => {
             let receiver_expr = tree.get(*receiver);
             visitor.visit_expression(tree, *receiver, receiver_expr);
-            for argument_id in generic_arguments {
-                let argument = tree.get(*argument_id);
-                visitor.visit_generic_argument(tree, *argument_id, argument);
-            }
         }
 
         Expression::PrivateMember {
             left: receiver,
             name: _,
-            generic_arguments,
         } => {
             let receiver_expr = tree.get(*receiver);
             visitor.visit_expression(tree, *receiver, receiver_expr);
-            for argument_id in generic_arguments {
-                let argument = tree.get(*argument_id);
-                visitor.visit_generic_argument(tree, *argument_id, argument);
-            }
         }
 
         Expression::Index {

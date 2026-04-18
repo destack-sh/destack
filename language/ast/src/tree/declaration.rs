@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Ambientness, DependencyKind, ExportMode, Expression, FunctionSignature, GenericParameter,
-    LocalNodeId, Member, Mutability, Name, Node, NodeType, Path, StringId, TypeExpression,
-    TypeMember, WhereClause,
+    Ambientness, DependencyKind, ExportMode, Expression, FunctionSignature, GenericArgument,
+    GenericParameter, LocalNodeId, Member, Mutability, Name, Node, NodeType, Path, StringId,
+    TypeExpression, TypeMember, WhereClause,
 };
 
 /// The source keyword used for a namespace declaration.
@@ -127,6 +127,8 @@ pub struct ClassDeclaration {
     pub where_clauses: Vec<LocalNodeId<WhereClause>>,
     /// The extended class expression.
     pub extends_expression: Option<LocalNodeId<Expression>>,
+    /// The generic arguments applied to the extended class expression.
+    pub extends_generic_arguments: Vec<LocalNodeId<GenericArgument>>,
     /// The implemented interfaces.
     pub implements_types: Vec<LocalNodeId<TypeExpression>>,
     /// The class members.
