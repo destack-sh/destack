@@ -17,7 +17,7 @@ pub(crate) fn intent_open(
         .with_payload(stream_id);
 
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -32,7 +32,7 @@ pub(crate) fn intent_close(
     let runtime_state = os_state(binding)?;
     let removed =
         binding
-            .agent()
+            .worker()
             .resources
             .remove(&binding.world(), handle.0, Some(binding.engine()));
 

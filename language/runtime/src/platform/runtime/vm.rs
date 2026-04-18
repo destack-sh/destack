@@ -4,7 +4,6 @@ use std::sync::Arc;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::core::{VmDecodeCodec, io_not_found};
 use crate::platform::runtime::{
-    AgentCreateOptionsVm, AgentDescriptorVm, AgentFilterVm, AgentHandle, AgentId,
     BranchDescriptorVm, BranchFilterVm, BranchId, CheckpointDescriptorVm, CheckpointFilterVm,
     CheckpointId, EngineDescriptorVm, EventLoopDescriptorVm, HeapDescriptorVm, ImageDescriptorVm,
     ImageFilterVm, ImageId, ObservationHandle, ObservationOptionsVm, ObservationRecordVm,
@@ -13,8 +12,9 @@ use crate::platform::runtime::{
     RuntimeLabelVm, RuntimeTickOutcome, SnapshotDescriptorVm, SnapshotFormat, SnapshotId,
     TopologyEdgeFilterVm, TopologyEdgeIdVm, TopologyEdgeVm, TopologyEntityFilterVm,
     TopologyEntityIdVm, TopologyEntityVm, TraceCursorHandle, TraceCursorOptionsVm,
-    TraceDescriptorVm, TraceRecordVm, TraceSequence, WorldCreateOptionsVm, WorldDescriptorVm,
-    WorldHandle, WorldResourceIdVm, WorldViewHandle, WorldViewOptionsVm,
+    TraceDescriptorVm, TraceRecordVm, TraceSequence, WorkerCreateOptionsVm, WorkerDescriptorVm,
+    WorkerFilterVm, WorkerHandle, WorkerId, WorldCreateOptionsVm, WorldDescriptorVm, WorldHandle,
+    WorldResourceIdVm, WorldViewHandle, WorldViewOptionsVm,
 };
 use crate::platform::{PlatformError, VmArray};
 use crate::runtime;
@@ -28,75 +28,75 @@ use super::{
     VmRuntimeBinding, VmRuntimeDecode,
 };
 
-/// Close one agent.
-pub(crate) fn destack_runtime_agent_close(
+/// Close one worker.
+pub(crate) fn destack_runtime_worker_close(
     _binding: &BindingCallContext,
     _context: &mut destack_vm::ExternalCallContext<'_>,
-    argument_agent: AgentHandle,
+    argument_worker: WorkerHandle,
 ) -> RuntimeResult<()> {
     // remove the external handle first
     let control = control();
     let mut table = control.lock();
-    let entry = table.close_agent(RuntimeHandleCodec::decode_agent_handle(argument_agent))?;
+    let entry = table.close_worker(RuntimeHandleCodec::decode_worker_handle(argument_worker))?;
     let world = table.world_mut(entry.world_handle_id)?;
 
-    world.remove_agent(entry.agent_id)
+    world.remove_worker(entry.worker_id)
 }
 
-/// Spawn one agent in one runtime.
-pub(crate) fn destack_runtime_agent_create(
+/// Spawn one worker in one runtime.
+pub(crate) fn destack_runtime_worker_create(
     _binding: &BindingCallContext,
     context: &mut destack_vm::ExternalCallContext<'_>,
-    runtimehandle: RuntimeHandle,
-    options: Option<AgentCreateOptionsVm>,
-) -> RuntimeResult<AgentHandle> {
+    runtime_handle: RuntimeHandle,
+    options: Option<WorkerCreateOptionsVm>,
+) -> RuntimeResult<WorkerHandle> {
     // request decode
     let mut runtime_decode = VmRuntimeDecode::new(context);
 
     // decode create options
-    let options = options.unwrap_or(AgentCreateOptionsVm {
+    let options = options.unwrap_or(WorkerCreateOptionsVm {
         name: None,
         labels: None,
     });
     let name = runtime_decode.decode_optional(options.name)?;
     let labels = runtime_decode.decode_optional(options.labels)?;
-    let runtime_options = RuntimeRequestCodec::agent_create_options(name, labels);
+    let runtime_options = RuntimeRequestCodec::worker_create_options(name, labels);
 
-    // spawn one agent in the live runtime
+    // spawn one worker in the live runtime
     let control = control();
     let mut table = control.lock();
-    let entry = table.runtime_entry(RuntimeHandleCodec::decode_runtime_handle(runtimehandle))?;
+    let entry = table.runtime_entry(RuntimeHandleCodec::decode_runtime_handle(runtime_handle))?;
     let world = table.world_mut(entry.world_handle_id)?;
-    let agent_id =
-        world.spawn_agent_with_options(entry.runtime_id, &runtime_options, empty_vm_engine()?)?;
+    let worker_id =
+        world.spawn_worker_with_options(entry.runtime_id, &runtime_options, empty_vm_engine()?)?;
 
-    Ok(RuntimeHandleCodec::encode_agent_handle(
-        table.register_agent(entry.world_handle_id, entry.runtime_id, agent_id),
+    Ok(RuntimeHandleCodec::encode_worker_handle(
+        table.register_worker(entry.world_handle_id, entry.runtime_id, worker_id),
     ))
 }
 
-/// Describe one agent.
-pub(crate) fn destack_runtime_agent_describe(
+/// Describe one worker.
+pub(crate) fn destack_runtime_worker_describe(
     _binding: &BindingCallContext,
     context: &mut destack_vm::ExternalCallContext<'_>,
-    argument_agent: AgentHandle,
-) -> RuntimeResult<AgentDescriptorVm> {
-    // resolve one live agent descriptor
+    argument_worker: WorkerHandle,
+) -> RuntimeResult<WorkerDescriptorVm> {
+    // resolve one live worker descriptor
     let control = control();
     let table = control.lock();
-    let entry = table.agent_entry(RuntimeHandleCodec::decode_agent_handle(argument_agent))?;
+    let entry = table.worker_entry(RuntimeHandleCodec::decode_worker_handle(argument_worker))?;
     let runtime_id = entry.runtime_id;
-    let agent_id = entry.agent_id;
+    let worker_id = entry.worker_id;
     let mut runtime_binding = VmRuntimeBinding::new(context);
     let world = table.world(entry.world_handle_id)?;
     let runtime = world.runtime(runtime_id)?;
-    let agent = runtime.agent(agent_id).ok_or_else(|| {
-        RuntimeError::AgentNotFound {
-            agent_id: agent_id.0,
+    let worker = runtime.worker(worker_id).ok_or_else(|| {
+        RuntimeError::WorkerNotFound {
+            worker_id: worker_id.0,
         }
         .boxed()
     })?;
-    let descriptor = RuntimeDescriptorCodec::agent_descriptor_for_live(world, agent)?;
+    let descriptor = RuntimeDescriptorCodec::worker_descriptor_for_live(world, worker)?;
 
     runtime_binding.encode(descriptor)
 }
@@ -113,9 +113,9 @@ pub(crate) fn destack_runtime_runtime_close(
     let entry = table.close_runtime(RuntimeHandleCodec::decode_runtime_handle(argument_runtime))?;
     let world = table.world_mut(entry.world_handle_id)?;
     let runtime = world.remove_runtime(entry.runtime_id)?;
-    let agent_ids = runtime.agent_ids();
+    let worker_ids = runtime.worker_ids();
 
-    table.close_agent_handles(entry.world_handle_id, &agent_ids)?;
+    table.close_worker_handles(entry.world_handle_id, &worker_ids)?;
 
     Ok(())
 }
@@ -272,19 +272,19 @@ pub(crate) fn destack_runtime_world_view_open(
 ) -> RuntimeResult<WorldViewHandle> {
     // pin one explicit or current revision
     let options = options.unwrap_or(WorldViewOptionsVm { revision_id: None });
-    let revision_id = {
+    let revision = {
         let control = control();
         let mut table = control.lock();
-        let revision_id = match options.revision_id {
+        let revision = match options.revision_id {
             Some(revision_id) => RuntimeHandleCodec::decode_revision_id(revision_id),
             None => table
                 .world(RuntimeHandleCodec::decode_world_handle(argument_world))?
-                .revision_id(),
+                .revision(),
         };
         let world = table.world_mut(RuntimeHandleCodec::decode_world_handle(argument_world))?;
-        world.revision_info(revision_id).map(|_| ())?;
+        world.revision_state(revision).map(|_| ())?;
 
-        revision_id
+        revision
     };
 
     // register the pinned view
@@ -293,7 +293,7 @@ pub(crate) fn destack_runtime_world_view_open(
     Ok(RuntimeHandleCodec::encode_world_view_handle(
         table.open_world_view(
             RuntimeHandleCodec::decode_world_handle(argument_world),
-            revision_id,
+            revision,
         )?,
     ))
 }
@@ -402,45 +402,46 @@ pub(crate) fn destack_runtime_runtime_view(
     runtime_binding.encode(descriptor)
 }
 
-/// List agents visible through one pinned world view.
-pub(crate) fn destack_runtime_agent_list(
+/// List workers visible through one pinned world view.
+pub(crate) fn destack_runtime_worker_list(
     _binding: &BindingCallContext,
     context: &mut destack_vm::ExternalCallContext<'_>,
     view: WorldViewHandle,
-    filter: Option<AgentFilterVm>,
-    after: Option<AgentId>,
+    filter: Option<WorkerFilterVm>,
+    after: Option<WorkerId>,
     limit: Option<u32>,
-) -> RuntimeResult<VmArray<AgentDescriptorVm>> {
+) -> RuntimeResult<VmArray<WorkerDescriptorVm>> {
     // request decode
     let mut runtime_decode = VmRuntimeDecode::new(context);
 
-    // enumerate pinned agents in stable order
+    // enumerate pinned workers in stable order
     let control = control();
     let table = control.lock();
     let world_view = PinnedWorldView::from_handle(&table, view)?;
     let filter = runtime_decode.decode_optional(filter)?;
-    let filter = RuntimeRequestCodec::agent_filter_from_value(filter);
-    let after = after.map(RuntimeHandleCodec::decode_agent_id);
+    let filter = RuntimeRequestCodec::worker_filter_from_value(filter);
+    let after = after.map(RuntimeHandleCodec::decode_worker_id);
     let limit = RuntimeRequestCodec::list_limit(limit);
-    let descriptors = world_view.agent_descriptors(&filter, after, limit)?;
+    let descriptors = world_view.worker_descriptors(&filter, after, limit)?;
     let mut runtime_binding = VmRuntimeBinding::new(context);
 
     runtime_binding.encode(descriptors)
 }
 
-/// Describe one agent visible through one pinned world view.
-pub(crate) fn destack_runtime_agent_view(
+/// Describe one worker visible through one pinned world view.
+pub(crate) fn destack_runtime_worker_view(
     _binding: &BindingCallContext,
     context: &mut destack_vm::ExternalCallContext<'_>,
     view: WorldViewHandle,
-    agent_id: AgentId,
-) -> RuntimeResult<AgentDescriptorVm> {
-    // resolve one pinned agent
+    worker_id: WorkerId,
+) -> RuntimeResult<WorkerDescriptorVm> {
+    // resolve one pinned worker
     let control = control();
     let table = control.lock();
     let world_view = PinnedWorldView::from_handle(&table, view)?;
     let mut runtime_binding = VmRuntimeBinding::new(context);
-    let descriptor = world_view.agent_descriptor(RuntimeHandleCodec::decode_agent_id(agent_id))?;
+    let descriptor =
+        world_view.worker_descriptor(RuntimeHandleCodec::decode_worker_id(worker_id))?;
 
     runtime_binding.encode(descriptor)
 }
@@ -602,55 +603,55 @@ pub(crate) fn destack_runtime_edge_view(
     runtime_binding.encode(descriptor)
 }
 
-/// Describe the event loop for one agent visible through one pinned world view.
+/// Describe the event loop for one worker visible through one pinned world view.
 pub(crate) fn destack_runtime_event_loop_view(
     _binding: &BindingCallContext,
     context: &mut destack_vm::ExternalCallContext<'_>,
     view: WorldViewHandle,
-    agent_id: AgentId,
+    worker_id: WorkerId,
 ) -> RuntimeResult<EventLoopDescriptorVm> {
-    // resolve one pinned agent event loop
+    // resolve one pinned worker event loop
     let control = control();
     let table = control.lock();
     let world_view = PinnedWorldView::from_handle(&table, view)?;
     let mut runtime_binding = VmRuntimeBinding::new(context);
 
     runtime_binding
-        .encode(world_view.event_loop_descriptor(RuntimeHandleCodec::decode_agent_id(agent_id))?)
+        .encode(world_view.event_loop_descriptor(RuntimeHandleCodec::decode_worker_id(worker_id))?)
 }
 
-/// Describe the heap for one agent visible through one pinned world view.
+/// Describe the heap for one worker visible through one pinned world view.
 pub(crate) fn destack_runtime_heap_view(
     _binding: &BindingCallContext,
     context: &mut destack_vm::ExternalCallContext<'_>,
     view: WorldViewHandle,
-    agent_id: AgentId,
+    worker_id: WorkerId,
 ) -> RuntimeResult<HeapDescriptorVm> {
-    // resolve one pinned agent heap
+    // resolve one pinned worker heap
     let control = control();
     let table = control.lock();
     let world_view = PinnedWorldView::from_handle(&table, view)?;
     let mut runtime_binding = VmRuntimeBinding::new(context);
 
     runtime_binding
-        .encode(world_view.heap_descriptor(RuntimeHandleCodec::decode_agent_id(agent_id))?)
+        .encode(world_view.heap_descriptor(RuntimeHandleCodec::decode_worker_id(worker_id))?)
 }
 
-/// Describe the execution engine for one agent visible through one pinned world view.
+/// Describe the execution engine for one worker visible through one pinned world view.
 pub(crate) fn destack_runtime_engine_view(
     _binding: &BindingCallContext,
     context: &mut destack_vm::ExternalCallContext<'_>,
     view: WorldViewHandle,
-    agent_id: AgentId,
+    worker_id: WorkerId,
 ) -> RuntimeResult<EngineDescriptorVm> {
-    // resolve one pinned agent engine
+    // resolve one pinned worker engine
     let control = control();
     let table = control.lock();
     let world_view = PinnedWorldView::from_handle(&table, view)?;
     let mut runtime_binding = VmRuntimeBinding::new(context);
 
     runtime_binding
-        .encode(world_view.engine_descriptor(RuntimeHandleCodec::decode_agent_id(agent_id))?)
+        .encode(world_view.engine_descriptor(RuntimeHandleCodec::decode_worker_id(worker_id))?)
 }
 
 /// Describe one branch.
@@ -803,8 +804,8 @@ pub(crate) fn destack_runtime_checkpoint_list(
                 return false;
             };
 
-            if let Some(revision_id) = filter.revision_id
-                && checkpoint.revision_id != revision_id
+            if let Some(revision) = filter.revision
+                && checkpoint.revision != revision
             {
                 return false;
             }
@@ -839,8 +840,8 @@ pub(crate) fn destack_runtime_image_capture(
     let control = control();
     let mut table = control.lock();
     let world = table.world_mut(RuntimeHandleCodec::decode_world_handle(argument_world))?;
-    let revision_id = world.suspend()?;
-    let revision = world.revision_info(revision_id)?;
+    let revision = world.suspend()?;
+    let revision = world.revision_state(revision)?;
 
     RuntimeHandleCodec::encode_image_id(revision.image_id)
 }
@@ -859,11 +860,10 @@ pub(crate) fn destack_runtime_image_describe(
     let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
     let image_id = RuntimeHandleCodec::decode_image_id(imageid);
     let image = world.image_info(image_id)?;
-    let revision_id = world.revision_id_for_image(image_id)?;
+    let revision = world.revision_for_image(image_id)?;
 
     runtime_binding.encode(RuntimeDescriptorCodec::image_descriptor(
-        revision_id,
-        &image,
+        revision, image_id, &image,
     )?)
 }
 
@@ -890,21 +890,20 @@ pub(crate) fn destack_runtime_image_list(
             after == 0 || image_id.get() > u128::from(after)
         })
         .filter(|image_id| {
-            let Some(revision_id) = filter.revision_id else {
+            let Some(revision) = filter.revision else {
                 return true;
             };
 
-            world.revision_id_for_image(*image_id).ok() == Some(revision_id)
+            world.revision_for_image(*image_id).ok() == Some(revision)
         })
         .take(limit)
         .map(|image_id| {
             let image = world.image_info(image_id)?;
-            let revision_id = world.revision_id_for_image(image_id)?;
+            let revision = world.revision_for_image(image_id)?;
             let mut runtime_binding = VmRuntimeBinding::new(context);
 
             runtime_binding.encode(RuntimeDescriptorCodec::image_descriptor(
-                revision_id,
-                &image,
+                revision, image_id, &image,
             )?)
         })
         .collect::<RuntimeResult<Vec<_>>>()?;
@@ -924,11 +923,13 @@ pub(crate) fn destack_runtime_revision_describe(
     let control = control();
     let table = control.lock();
     let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
-    let revision = world.revision_info(RuntimeHandleCodec::decode_revision_id(revisionid))?;
+    let revision = world.revision_state(RuntimeHandleCodec::decode_revision_id(revisionid))?;
     let image = world.image_info(revision.image_id)?;
 
     runtime_binding.encode(RuntimeDescriptorCodec::revision_descriptor(
-        revision, &image,
+        RuntimeHandleCodec::decode_revision_id(revisionid),
+        revision,
+        &image,
     )?)
 }
 
@@ -950,28 +951,30 @@ pub(crate) fn destack_runtime_revision_list(
     let table = control.lock();
     let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
     let descriptors = world
-        .revision_ids()
+        .revisions()
         .into_iter()
-        .filter(|revision_id: &runtime::world::RevisionId| {
-            after == 0 || revision_id.get() > u128::from(after)
+        .filter(|revision: &runtime::world::Revision| {
+            after == 0 || revision.get() > u128::from(after)
         })
-        .filter(|revision_id| {
+        .filter(|revision| {
             let Some(branch_id) = filter.branch_id else {
                 return true;
             };
 
             world
-                .revision_info(*revision_id)
+                .revision_state(*revision)
                 .map(|revision| revision.branch_id == branch_id)
                 .unwrap_or(false)
         })
         .take(limit)
         .map(|revision_id| {
-            let revision = world.revision_info(revision_id)?;
+            let revision = world.revision_state(revision_id)?;
             let image = world.image_info(revision.image_id)?;
 
             runtime_binding.encode(RuntimeDescriptorCodec::revision_descriptor(
-                revision, &image,
+                revision_id,
+                revision,
+                &image,
             )?)
         })
         .collect::<RuntimeResult<Vec<_>>>()?;
@@ -1006,7 +1009,7 @@ pub(crate) fn destack_runtime_world_fork(
     let mut runtime_decode = VmRuntimeDecode::new(context);
 
     // decode one fork request
-    let revision_id = RuntimeHandleCodec::decode_revision_id(revisionid);
+    let revision = RuntimeHandleCodec::decode_revision_id(revisionid);
     let name = runtime_decode.decode_optional(name)?;
     let labels = runtime_decode.decode_optional(labels)?;
     let labels = RuntimeRequestCodec::labels_from_value(labels);
@@ -1017,7 +1020,7 @@ pub(crate) fn destack_runtime_world_fork(
         let control = control();
         let mut table = control.lock();
         let world = table.world_mut(RuntimeHandleCodec::decode_world_handle(argument_world))?;
-        let child = world.fork_revision(revision_id, branch_name)?;
+        let child = world.fork_revision(revision, branch_name)?;
 
         // carry branch labels through the child lineage until branch create grows them directly
         if !labels.is_empty() {
@@ -1046,7 +1049,7 @@ pub(crate) fn destack_runtime_world_revision(
     let table = control.lock();
     let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
 
-    RuntimeHandleCodec::encode_revision_id(world.revision_id())
+    RuntimeHandleCodec::encode_revision_id(world.revision())
 }
 
 /// Rewind one world to one checkpoint.
@@ -1227,7 +1230,7 @@ pub(crate) fn destack_runtime_snapshot_import(
 
     // decode one stored snapshot payload
     let payload = argument_payload.read_bytes(&context.read())?;
-    let snapshot = runtime::world::Snapshot::decode(&payload)?;
+    let snapshot = runtime::world::WorldSnapshot::decode(&payload)?;
     let bytes = Arc::<[u8]>::from(payload);
     Ok(RuntimeHandleCodec::encode_snapshot_id({
         let mut table = control.lock();
@@ -1466,7 +1469,7 @@ pub(crate) fn destack_runtime_trace_seek_checkpoint(
     let world = table.world(entry.world_handle_id)?;
     let checkpoint =
         world.checkpoint_info(RuntimeHandleCodec::decode_checkpoint_id(checkpointid))?;
-    let revision = world.revision_info(checkpoint.revision_id)?;
+    let revision = world.revision_state(checkpoint.revision)?;
 
     entry.cursor.seek_sequence(revision.sequence)
 }
@@ -1483,7 +1486,7 @@ pub(crate) fn destack_runtime_trace_seek_revision(
     let table = control.lock();
     let entry = table.trace_cursor_entry(RuntimeHandleCodec::decode_trace_cursor_handle(cursor))?;
     let world = table.world(entry.world_handle_id)?;
-    let revision = world.revision_info(RuntimeHandleCodec::decode_revision_id(revisionid))?;
+    let revision = world.revision_state(RuntimeHandleCodec::decode_revision_id(revisionid))?;
 
     entry.cursor.seek_sequence(revision.sequence)
 }

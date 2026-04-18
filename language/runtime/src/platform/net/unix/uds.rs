@@ -63,7 +63,7 @@ pub(crate) unsafe fn destack_net_uds_connect(
         .with_finalizer(SocketFinalizer { fd });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
@@ -153,7 +153,7 @@ pub(crate) unsafe fn destack_net_uds_listen(
         .with_finalizer(SocketFinalizer { fd });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
@@ -201,7 +201,7 @@ pub(crate) unsafe fn destack_net_uds_accept(
         .with_finalizer(SocketFinalizer { fd });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {

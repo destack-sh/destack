@@ -25,12 +25,22 @@ pub struct HeapOptions {
     pub size_classes: HeapSizeClasses,
     /// The byte width for managed young space.
     pub managed_young_bytes: usize,
+    /// The maximum payload size admitted into managed young space.
+    pub max_managed_young_allocation_bytes: usize,
     /// The byte width for managed small-object spans.
     pub managed_small_bytes: usize,
     /// The byte width for raw small-object spans.
     pub raw_small_bytes: usize,
     /// The byte width for local heap pages and page-sized chunks.
     pub page_bytes: usize,
+    /// The byte width for one physical arena segment.
+    pub arena_segment_bytes: usize,
+    /// The byte width for one remembered card.
+    pub card_bytes: usize,
+    /// The required alignment for configured small-allocation classes.
+    pub small_allocation_alignment_bytes: usize,
+    /// The entry count per heap metadata table chunk.
+    pub table_chunk_len: usize,
     /// Hard limit for total retained heap bytes.
     pub max_bytes: Option<u64>,
     /// Hard limit for retained managed heap bytes.
@@ -49,9 +59,14 @@ impl Default for HeapOptions {
             initial_bytes: None,
             size_classes: HeapSizeClasses::Default,
             managed_young_bytes: 64 * 1024,
+            max_managed_young_allocation_bytes: 4 * 1024,
             managed_small_bytes: 16 * 1024,
             raw_small_bytes: 16 * 1024,
             page_bytes: 4 * 1024,
+            arena_segment_bytes: 1024 * 1024,
+            card_bytes: 256,
+            small_allocation_alignment_bytes: 8,
+            table_chunk_len: 256,
             max_bytes: None,
             max_managed_bytes: None,
             max_raw_bytes: None,
@@ -97,12 +112,22 @@ pub struct HeapOptionsJson {
     pub size_classes: Option<HeapSizeClassesJson>,
     /// The byte width for managed young space.
     pub managed_young_bytes: Option<usize>,
+    /// The maximum payload size admitted into managed young space.
+    pub max_managed_young_allocation_bytes: Option<usize>,
     /// The byte width for managed small-object spans.
     pub managed_small_bytes: Option<usize>,
     /// The byte width for raw small-object spans.
     pub raw_small_bytes: Option<usize>,
     /// The byte width for local heap pages and page-sized chunks.
     pub page_bytes: Option<usize>,
+    /// The byte width for one physical arena segment.
+    pub arena_segment_bytes: Option<usize>,
+    /// The byte width for one remembered card.
+    pub card_bytes: Option<usize>,
+    /// The required alignment for configured small-allocation classes.
+    pub small_allocation_alignment_bytes: Option<usize>,
+    /// The entry count per heap metadata table chunk.
+    pub table_chunk_len: Option<usize>,
     /// Hard limit for total retained heap bytes.
     pub max_bytes: Option<u64>,
     /// Hard limit for retained managed heap bytes.
@@ -131,6 +156,9 @@ impl HeapOptionsJson {
         if self.managed_young_bytes.is_none() {
             self.managed_young_bytes = parent.managed_young_bytes;
         }
+        if self.max_managed_young_allocation_bytes.is_none() {
+            self.max_managed_young_allocation_bytes = parent.max_managed_young_allocation_bytes;
+        }
         if self.managed_small_bytes.is_none() {
             self.managed_small_bytes = parent.managed_small_bytes;
         }
@@ -139,6 +167,18 @@ impl HeapOptionsJson {
         }
         if self.page_bytes.is_none() {
             self.page_bytes = parent.page_bytes;
+        }
+        if self.arena_segment_bytes.is_none() {
+            self.arena_segment_bytes = parent.arena_segment_bytes;
+        }
+        if self.card_bytes.is_none() {
+            self.card_bytes = parent.card_bytes;
+        }
+        if self.small_allocation_alignment_bytes.is_none() {
+            self.small_allocation_alignment_bytes = parent.small_allocation_alignment_bytes;
+        }
+        if self.table_chunk_len.is_none() {
+            self.table_chunk_len = parent.table_chunk_len;
         }
         if self.max_bytes.is_none() {
             self.max_bytes = parent.max_bytes;
@@ -174,6 +214,9 @@ impl HeapOptionsJson {
         if let Some(managed_young_bytes) = self.managed_young_bytes {
             options.managed_young_bytes = managed_young_bytes;
         }
+        if let Some(max_managed_young_allocation_bytes) = self.max_managed_young_allocation_bytes {
+            options.max_managed_young_allocation_bytes = max_managed_young_allocation_bytes;
+        }
         if let Some(managed_small_bytes) = self.managed_small_bytes {
             options.managed_small_bytes = managed_small_bytes;
         }
@@ -182,6 +225,18 @@ impl HeapOptionsJson {
         }
         if let Some(page_bytes) = self.page_bytes {
             options.page_bytes = page_bytes;
+        }
+        if let Some(arena_segment_bytes) = self.arena_segment_bytes {
+            options.arena_segment_bytes = arena_segment_bytes;
+        }
+        if let Some(card_bytes) = self.card_bytes {
+            options.card_bytes = card_bytes;
+        }
+        if let Some(small_allocation_alignment_bytes) = self.small_allocation_alignment_bytes {
+            options.small_allocation_alignment_bytes = small_allocation_alignment_bytes;
+        }
+        if let Some(table_chunk_len) = self.table_chunk_len {
+            options.table_chunk_len = table_chunk_len;
         }
 
         // apply hard limit overrides

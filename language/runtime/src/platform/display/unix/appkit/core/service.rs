@@ -8,7 +8,7 @@ use objc2_core_graphics::{
 use crate::platform::display::unix::appkit::event as appkit_event;
 use crate::runtime::process::service::executor::host::HostExecutor;
 use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy, Service};
-use crate::runtime::{AgentId, BindingCallContext, ProcessSubscriberRegistry};
+use crate::runtime::{WorkerId, BindingCallContext, ProcessSubscriberRegistry};
 
 use super::core::warn_callback_error;
 use super::runtime::AppKitRuntimeState;
@@ -24,7 +24,7 @@ pub(crate) struct AppKitDisplayService {
 /// Mutable AppKit display service state.
 struct AppKitDisplayServiceState {
     /// Registered runtime subscribers for monitor topology callbacks.
-    monitor_callback_runtimes: Mutex<ProcessSubscriberRegistry<AgentId, AppKitRuntimeState>>,
+    monitor_callback_runtimes: Mutex<ProcessSubscriberRegistry<WorkerId, AppKitRuntimeState>>,
     /// Guard that installs the CoreGraphics callback once.
     monitor_callback_registration: OnceLock<()>,
 }
@@ -47,7 +47,7 @@ impl AppKitDisplayService {
         binding: &BindingCallContext,
         runtime_state: &Arc<AppKitRuntimeState>,
     ) {
-        let agent_id = binding.agent().id;
+        let worker_id = binding.worker().id;
         let host_session_id = binding.host().host_session_id();
         let state = self.state.clone();
         let runtime_state = runtime_state.clone();
@@ -59,7 +59,7 @@ impl AppKitDisplayService {
                     .monitor_callback_runtimes
                     .lock()
                     .unwrap_or_else(|error| error.into_inner());
-                registry.register(agent_id, &runtime_state);
+                registry.register(worker_id, &runtime_state);
 
                 drop(registry);
 

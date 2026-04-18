@@ -6,7 +6,7 @@ use crate::platform::PlatformError;
 use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
 
 // NOTE #Architecture: ASIO callback entry points do not carry user-data context, so callback
-// routing cannot recover a per-agent runtime-state handle, this service remains process-global
+// routing cannot recover a per-worker runtime-state handle, this service remains process-global
 /// One process-global ASIO callback routing service.
 struct AsioCallbackService {
     /// The currently active ASIO runtime for callback dispatch.

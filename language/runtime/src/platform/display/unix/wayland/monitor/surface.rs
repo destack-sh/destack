@@ -23,7 +23,7 @@ pub(crate) unsafe fn monitor_close(
 
     // remove the resource entry from the runtime table
     let removed = context
-        .agent()
+        .worker()
         .resources
         .remove(&context.world(), handle.0, Some(context.engine()))
         .is_some();

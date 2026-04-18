@@ -65,7 +65,7 @@ pub(crate) unsafe fn monitor_close(
     display_resource::resolve_display_id(context, handle, "destack.display.monitor.close")?;
 
     let removed = context
-        .agent()
+        .worker()
         .resources
         .remove(&context.world(), handle.0, Some(context.engine()))
         .is_some();

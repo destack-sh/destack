@@ -1,7 +1,6 @@
 use destack_core::{Capture, CaptureMode};
 use destack_engine::Continuation;
 use destack_heap as heap;
-use destack_workspace::SchedulerOptions;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -10,27 +9,39 @@ use super::{
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{HostEvent, HostEventKind};
 use crate::platform::ResourceId;
+use crate::runtime::ExecutionContextId;
 use crate::runtime::engine::{Engine, LiveContinuation};
 use crate::runtime::poller::{PollerEvent, PollerToken};
-use crate::runtime::{DropCounts, ExecutionContextId};
 
-/// Durable event-loop state captured at one checkpoint.
+/// Scalar event-loop state needed for restore.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct EventLoopSnapshot {
-    /// Configured scheduler options.
-    pub options: SchedulerOptions,
+pub struct EventLoopState {
     /// The next task identifier to issue.
     pub next_task_id: u64,
     /// The next microtask identifier to issue.
     pub next_microtask_id: u64,
     /// The next queue sequence to issue.
     pub next_sequence: u64,
-    /// Drop accounting at the event-loop boundary.
-    pub drop_counts: DropCounts,
     /// Host-event fairness counter.
     pub host_events_since_poller: u64,
     /// Captured execution context id when initialized.
     pub execution_context_id: Option<ExecutionContextId>,
+}
+
+/// Durable event-loop state captured at one checkpoint.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum EventLoopSnapshot {
+    /// One idle scheduler with no pending work or subscriptions.
+    Idle(EventLoopState),
+    /// One active scheduler with retained work or subscriptions.
+    Active(EventLoopActiveSnapshot),
+}
+
+/// Durable event-loop payload when the scheduler is not idle.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EventLoopActiveSnapshot {
+    /// Scalar scheduler state.
+    pub state: EventLoopState,
     /// Captured pending macrotasks.
     pub tasks: Vec<TaskImage>,
     /// Captured pending microtasks.
@@ -81,24 +92,13 @@ pub struct MicrotaskImage {
     pub status: TaskStatus,
 }
 
-/// Captured watch payload for one suspendable event-loop image.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct EventLoopWatchImage {
-    /// Runnable continuation image.
-    pub runnable: Continuation,
-    /// Resume payload passed back into the continuation.
-    pub resume_value: heap::Value,
-    /// Task priority used when queueing watched tasks.
-    pub priority: u8,
-}
-
 /// Captured timer watch keyed by timer handle.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TimerWatchImage {
     /// Timer handle associated with this watch.
     pub handle: ResourceId,
     /// Captured watch payload.
-    pub watch: EventLoopWatchImage,
+    pub watch: EventLoopWatch,
 }
 
 /// Captured poller-event watch keyed by poller token.
@@ -107,7 +107,7 @@ pub struct PollerEventWatchImage {
     /// Poller token associated with this watch.
     pub token: PollerToken,
     /// Captured watch payload.
-    pub watch: EventLoopWatchImage,
+    pub watch: EventLoopWatch,
 }
 
 /// Captured host-event watch keyed by host event kind.
@@ -116,10 +116,34 @@ pub struct HostEventWatchImage {
     /// Host event kind associated with this watch.
     pub kind: HostEventKind,
     /// Captured watch payload.
-    pub watch: EventLoopWatchImage,
+    pub watch: EventLoopWatch,
 }
 
 impl EventLoop {
+    /// Fork one event loop for one child worker.
+    pub(crate) fn fork(
+        &self,
+        parent_engine: &mut dyn Engine,
+        child_engine: &mut dyn Engine,
+    ) -> RuntimeResult<Self> {
+        let snapshot = self.snapshot(CaptureMode::Suspend, parent_engine)?;
+        let mut forked = Self::default();
+
+        // scheduler options
+        forked.configure(self.options.clone())?;
+        forked.drop_counts = self.drop_counts;
+
+        // execution context
+        if let Some(execution_context_id) = self.execution_context_id.get().copied() {
+            forked.initialize_execution_context(execution_context_id);
+        }
+
+        // queued state
+        forked.restore_snapshot(&snapshot, child_engine)?;
+
+        Ok(forked)
+    }
+
     /// Capture one durable event-loop snapshot.
     pub(crate) fn snapshot(
         &self,
@@ -147,31 +171,52 @@ impl EventLoop {
         let timer_watches = self
             .timer_watches
             .iter()
-            .map(|(handle, watch)| self.timer_watch_image(*handle, watch, mode, engine))
+            .map(|(handle, watch)| self.timer_watch_image(*handle, watch))
             .collect::<RuntimeResult<Vec<_>>>()?;
         let poller_event_watches = self
             .poller_event_watches
             .iter()
-            .map(|(token, watch)| self.poller_event_watch_image(*token, watch, mode, engine))
+            .map(|(token, watch)| self.poller_event_watch_image(*token, watch))
             .collect::<RuntimeResult<Vec<_>>>()?;
         let host_event_watches = self
             .host_event_watches
             .iter()
-            .map(|(kind, watch)| self.host_event_watch_image(*kind, watch, mode, engine))
+            .map(|(kind, watch)| self.host_event_watch_image(*kind, watch))
             .collect::<RuntimeResult<Vec<_>>>()?;
 
         // queue state
         let timers = self.timers.lock().image();
-        let canceled_timers = self.canceled_timers.lock().iter().copied().collect();
+        let canceled_timers = self
+            .canceled_timers
+            .lock()
+            .iter()
+            .copied()
+            .collect::<Vec<_>>();
 
-        Ok(EventLoopSnapshot {
-            options: self.options.clone(),
+        let state = EventLoopState {
             next_task_id: self.next_task_id,
             next_microtask_id: self.next_microtask_id,
             next_sequence: self.next_sequence,
-            drop_counts: self.drop_counts,
             host_events_since_poller: self.host_events_since_poller,
             execution_context_id: self.execution_context_id.get().copied(),
+        };
+
+        if tasks.is_empty()
+            && microtasks.is_empty()
+            && self.events.is_empty()
+            && self.host_events.is_empty()
+            && self.ready_timers.lock().is_empty()
+            && timers.is_empty()
+            && canceled_timers.is_empty()
+            && timer_watches.is_empty()
+            && poller_event_watches.is_empty()
+            && host_event_watches.is_empty()
+        {
+            return Ok(EventLoopSnapshot::Idle(state));
+        }
+
+        Ok(EventLoopSnapshot::Active(EventLoopActiveSnapshot {
+            state,
             tasks,
             microtasks,
             events: self.events.iter().copied().collect(),
@@ -182,7 +227,7 @@ impl EventLoop {
             timer_watches,
             poller_event_watches,
             host_event_watches,
-        })
+        }))
     }
 
     /// Restore one durable event-loop snapshot.
@@ -204,17 +249,16 @@ impl EventLoop {
         self.host_event_watches.clear();
 
         // scalar state
-        self.options = snapshot.options.clone();
-        self.next_task_id = snapshot.next_task_id;
-        self.next_microtask_id = snapshot.next_microtask_id;
-        self.next_sequence = snapshot.next_sequence;
-        self.drop_counts = snapshot.drop_counts;
-        self.host_events_since_poller = snapshot.host_events_since_poller;
+        let state = snapshot.state();
+        self.next_task_id = state.next_task_id;
+        self.next_microtask_id = state.next_microtask_id;
+        self.next_sequence = state.next_sequence;
+        self.host_events_since_poller = state.host_events_since_poller;
 
         // preserve or initialize the execution context id
         match (
             self.execution_context_id.get().copied(),
-            snapshot.execution_context_id,
+            state.execution_context_id,
         ) {
             (Some(current), Some(expected)) if current != expected => {
                 return Err(RuntimeError::Internal {
@@ -235,6 +279,10 @@ impl EventLoop {
             _ => {}
         }
 
+        let Some(snapshot) = snapshot.active() else {
+            return Ok(());
+        };
+
         // rebuild queued continuations
         let tasks = snapshot
             .tasks
@@ -249,17 +297,17 @@ impl EventLoop {
         let timer_watches = snapshot
             .timer_watches
             .iter()
-            .map(|watch| self.timer_watch_from_image(watch, engine))
+            .map(|watch| self.timer_watch_from_image(watch))
             .collect::<RuntimeResult<Vec<_>>>()?;
         let poller_event_watches = snapshot
             .poller_event_watches
             .iter()
-            .map(|watch| self.poller_event_watch_from_image(watch, engine))
+            .map(|watch| self.poller_event_watch_from_image(watch))
             .collect::<RuntimeResult<Vec<_>>>()?;
         let host_event_watches = snapshot
             .host_event_watches
             .iter()
-            .map(|watch| self.host_event_watch_from_image(watch, engine))
+            .map(|watch| self.host_event_watch_from_image(watch))
             .collect::<RuntimeResult<Vec<_>>>()?;
 
         // queue payloads
@@ -354,23 +402,19 @@ impl EventLoop {
         &self,
         handle: ResourceId,
         watch: &EventLoopWatch,
-        mode: CaptureMode,
-        engine: &mut dyn Engine,
     ) -> RuntimeResult<TimerWatchImage> {
-        let watch = self.watch_image(watch, mode, engine)?;
-
-        Ok(TimerWatchImage { handle, watch })
+        Ok(TimerWatchImage {
+            handle,
+            watch: watch.clone(),
+        })
     }
 
     /// Restore one timer watch from one immutable image.
     fn timer_watch_from_image(
         &self,
         image: &TimerWatchImage,
-        engine: &mut dyn Engine,
     ) -> RuntimeResult<(ResourceId, EventLoopWatch)> {
-        let watch = self.watch_from_image(&image.watch, engine)?;
-
-        Ok((image.handle, watch))
+        Ok((image.handle, image.watch.clone()))
     }
 
     /// Capture one immutable poller-event watch image.
@@ -378,23 +422,19 @@ impl EventLoop {
         &self,
         token: PollerToken,
         watch: &EventLoopWatch,
-        mode: CaptureMode,
-        engine: &mut dyn Engine,
     ) -> RuntimeResult<PollerEventWatchImage> {
-        let watch = self.watch_image(watch, mode, engine)?;
-
-        Ok(PollerEventWatchImage { token, watch })
+        Ok(PollerEventWatchImage {
+            token,
+            watch: watch.clone(),
+        })
     }
 
     /// Restore one poller-event watch from one immutable image.
     fn poller_event_watch_from_image(
         &self,
         image: &PollerEventWatchImage,
-        engine: &mut dyn Engine,
     ) -> RuntimeResult<(PollerToken, EventLoopWatch)> {
-        let watch = self.watch_from_image(&image.watch, engine)?;
-
-        Ok((image.token, watch))
+        Ok((image.token, image.watch.clone()))
     }
 
     /// Capture one immutable host-event watch image.
@@ -402,54 +442,19 @@ impl EventLoop {
         &self,
         kind: HostEventKind,
         watch: &EventLoopWatch,
-        mode: CaptureMode,
-        engine: &mut dyn Engine,
     ) -> RuntimeResult<HostEventWatchImage> {
-        let watch = self.watch_image(watch, mode, engine)?;
-
-        Ok(HostEventWatchImage { kind, watch })
+        Ok(HostEventWatchImage {
+            kind,
+            watch: watch.clone(),
+        })
     }
 
     /// Restore one host-event watch from one immutable image.
     fn host_event_watch_from_image(
         &self,
         image: &HostEventWatchImage,
-        engine: &mut dyn Engine,
     ) -> RuntimeResult<(HostEventKind, EventLoopWatch)> {
-        let watch = self.watch_from_image(&image.watch, engine)?;
-
-        Ok((image.kind, watch))
-    }
-
-    /// Capture one immutable watch image.
-    fn watch_image(
-        &self,
-        watch: &EventLoopWatch,
-        mode: CaptureMode,
-        engine: &mut dyn Engine,
-    ) -> RuntimeResult<EventLoopWatchImage> {
-        let runnable = self.capture_continuation_image(&watch.runnable, mode, engine)?;
-
-        Ok(EventLoopWatchImage {
-            runnable,
-            resume_value: watch.resume_value,
-            priority: watch.priority,
-        })
-    }
-
-    /// Restore one watch from one immutable watch image.
-    fn watch_from_image(
-        &self,
-        image: &EventLoopWatchImage,
-        engine: &mut dyn Engine,
-    ) -> RuntimeResult<EventLoopWatch> {
-        let runnable = engine.restore_continuation_image(&image.runnable)?;
-
-        Ok(EventLoopWatch {
-            runnable,
-            resume_value: image.resume_value,
-            priority: image.priority,
-        })
+        Ok((image.kind, image.watch.clone()))
     }
 }
 
@@ -479,25 +484,76 @@ impl Capture for EventLoop {
 }
 
 impl EventLoopSnapshot {
+    /// Return the retained scalar scheduler state.
+    pub const fn state(&self) -> &EventLoopState {
+        match self {
+            Self::Idle(state) => state,
+            Self::Active(snapshot) => &snapshot.state,
+        }
+    }
+
+    /// Return the retained active scheduler payload when present.
+    pub const fn active(&self) -> Option<&EventLoopActiveSnapshot> {
+        match self {
+            Self::Idle(_) => None,
+            Self::Active(snapshot) => Some(snapshot),
+        }
+    }
+
+    /// Return the number of retained tasks.
+    pub fn task_count(&self) -> usize {
+        self.active().map_or(0, |snapshot| snapshot.tasks.len())
+    }
+
+    /// Return the number of retained microtasks.
+    pub fn microtask_count(&self) -> usize {
+        self.active()
+            .map_or(0, |snapshot| snapshot.microtasks.len())
+    }
+
+    /// Return the number of retained timers.
+    pub fn timer_count(&self) -> usize {
+        self.active().map_or(0, |snapshot| {
+            snapshot.ready_timers.len() + snapshot.timers.len()
+        })
+    }
+
+    /// Return the number of retained watches.
+    pub fn watch_count(&self) -> usize {
+        self.active().map_or(0, |snapshot| {
+            snapshot.timer_watches.len()
+                + snapshot.poller_event_watches.len()
+                + snapshot.host_event_watches.len()
+        })
+    }
+
     /// Return whether one runnable item is already ready in this snapshot.
     pub fn has_ready_work(&self) -> bool {
-        !self.tasks.is_empty()
-            || !self.microtasks.is_empty()
-            || !self.events.is_empty()
-            || !self.host_events.is_empty()
-            || self
+        let Some(snapshot) = self.active() else {
+            return false;
+        };
+
+        !snapshot.tasks.is_empty()
+            || !snapshot.microtasks.is_empty()
+            || !snapshot.events.is_empty()
+            || !snapshot.host_events.is_empty()
+            || snapshot
                 .ready_timers
                 .iter()
-                .any(|timer| !self.canceled_timers.contains(&timer.handle))
+                .any(|timer| !snapshot.canceled_timers.contains(&timer.handle))
     }
 
     /// Return whether any event-loop work remains in this snapshot.
     pub fn has_pending_work(&self) -> bool {
+        let Some(snapshot) = self.active() else {
+            return false;
+        };
+
         self.has_ready_work()
-            || !self.timers.is_empty()
-            || !self.timer_watches.is_empty()
-            || !self.poller_event_watches.is_empty()
-            || !self.host_event_watches.is_empty()
+            || !snapshot.timers.is_empty()
+            || !snapshot.timer_watches.is_empty()
+            || !snapshot.poller_event_watches.is_empty()
+            || !snapshot.host_event_watches.is_empty()
     }
 }
 
@@ -509,9 +565,6 @@ impl EventLoop {
         mode: CaptureMode,
         engine: &mut dyn Engine,
     ) -> RuntimeResult<Continuation> {
-        // validate capture support through the live continuation boundary
-        engine.validate_capture_mode(continuation, mode)?;
-
-        engine.continuation_image(continuation)
+        engine.continuation_image(continuation, mode)
     }
 }

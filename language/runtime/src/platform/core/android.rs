@@ -10,7 +10,7 @@ pub(crate) fn host_session_id(
     binding: &BindingCallContext,
     _operation: &'static str,
 ) -> RuntimeResult<u64> {
-    Ok(binding.agent().runtime_id.0)
+    Ok(binding.worker().runtime_id.0)
 }
 
 /// Convert one Android host buffer length into one checked `u32`.

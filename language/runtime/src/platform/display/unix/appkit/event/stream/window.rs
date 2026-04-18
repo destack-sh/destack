@@ -120,7 +120,7 @@ pub(crate) unsafe fn window_event_open(
     });
 
     // register the resource and stream entry
-    let resource_id = binding.agent().resources.insert(
+    let resource_id = binding.worker().resources.insert(
         &binding.world(),
         ResourceEntry::new(ResourceKind::Window)
             .with_label(platform::display::unix::appkit::core::WINDOW_EVENT_RESOURCE_LABEL)
@@ -157,7 +157,7 @@ pub(crate) unsafe fn window_event_close(
 
     // remove the resource entry itself
     let removed = binding
-        .agent()
+        .worker()
         .resources
         .remove(&binding.world(), handle.0, Some(binding.engine()))
         .is_some();

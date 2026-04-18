@@ -49,7 +49,7 @@ pub(crate) unsafe fn destack_fs_close(
 ) -> RuntimeResult<()> {
     // remove the resource entry
     let entry = binding
-        .agent()
+        .worker()
         .resources
         .remove(&binding.world(), handle.0, Some(binding.engine()))
         .ok_or_else(|| {
@@ -135,7 +135,7 @@ pub(crate) unsafe fn destack_fs_dup(
         .with_finalizer(HandleFinalizer::new(duplicated));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
@@ -215,7 +215,7 @@ pub(crate) unsafe fn destack_fs_dup2(
     // replace the target resource entry with the duplicated handle
     if let Some(entry) =
         binding
-            .agent()
+            .worker()
             .resources
             .remove(&binding.world(), target.0, Some(binding.engine()))
     {
@@ -230,7 +230,7 @@ pub(crate) unsafe fn destack_fs_dup2(
             status_flags: source_status_flags,
         })
         .with_finalizer(HandleFinalizer::new(duplicated));
-    binding.agent().resources.insert_with_id(
+    binding.worker().resources.insert_with_id(
         &binding.world(),
         target.0,
         entry,
@@ -293,7 +293,7 @@ pub(crate) unsafe fn destack_fs_closedir(
 ) -> RuntimeResult<()> {
     // remove the resource entry
     let entry = binding
-        .agent()
+        .worker()
         .resources
         .remove(&binding.world(), handle.0, Some(binding.engine()))
         .ok_or_else(|| {
@@ -728,7 +728,7 @@ pub(crate) unsafe fn destack_fs_dirfd(
         .with_finalizer(HandleFinalizer::new(duplicated));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), resource, Some(binding.engine()));
     unsafe {

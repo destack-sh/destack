@@ -1,19 +1,19 @@
 use std::collections::BTreeMap;
 
 use crate::platform::runtime::{
-    AgentFilterValue, BranchFilterValue, CheckpointFilterValue, ImageFilterValue,
-    ResourceFilterValue, RevisionFilterValue, RuntimeExecutionMode, RuntimeFilterValue,
-    RuntimeLabelSelectorValue, RuntimeLabelValue, RuntimeWorldKind, TopologyEdgeFilterValue,
-    TopologyEdgeIdValue, TopologyEdgeKindValue, TopologyEntityFilterValue, TopologyEntityIdValue,
-    TopologyEntityKindValue, WorldCreateOptionsValue,
+    BranchFilterValue, CheckpointFilterValue, ImageFilterValue, ResourceFilterValue,
+    RevisionFilterValue, RuntimeExecutionMode, RuntimeFilterValue, RuntimeLabelSelectorValue,
+    RuntimeLabelValue, RuntimeWorldKind, TopologyEdgeFilterValue, TopologyEdgeIdValue,
+    TopologyEdgeKindValue, TopologyEntityFilterValue, TopologyEntityIdValue,
+    TopologyEntityKindValue, WorkerFilterValue, WorldCreateOptionsValue,
 };
 use crate::runtime::control::inspect::{
-    AgentListFilter, BranchListFilter, CheckpointListFilter, EdgeListFilter, EntityListFilter,
-    ImageListFilter, ResourceListFilter, RevisionListFilter, RuntimeListFilter,
+    BranchListFilter, CheckpointListFilter, EdgeListFilter, EntityListFilter, ImageListFilter,
+    ResourceListFilter, RevisionListFilter, RuntimeListFilter, WorkerListFilter,
 };
-use crate::runtime::world::ObservationOptions;
+use crate::runtime::observe::ObservationOptions;
 use destack_workspace::{
-    ExecutionMode, RuntimeAgentOptions, RuntimeOptions, RuntimeWorld, TimeMode,
+    ExecutionMode, RuntimeOptions, RuntimeWorkerOptions, RuntimeWorld, TimeMode,
 };
 
 use super::RuntimeHandleCodec;
@@ -124,13 +124,13 @@ impl RuntimeRequestCodec {
         }
     }
 
-    /// Build one agent-create options object from decoded agent fields.
-    pub(crate) fn agent_create_options(
+    /// Build one worker-create options object from decoded worker fields.
+    pub(crate) fn worker_create_options(
         name: Option<String>,
         labels: Option<Vec<RuntimeLabelValue>>,
     ) -> RuntimeOptions {
         RuntimeOptions {
-            primary_agent: RuntimeAgentOptions {
+            primary_worker: RuntimeWorkerOptions {
                 name,
                 labels: Self::labels_from_value(labels),
             },
@@ -177,13 +177,13 @@ impl RuntimeRequestCodec {
         }
     }
 
-    /// Convert one agent filter into the shared inspect filter.
-    pub(crate) fn agent_filter_from_value(filter: Option<AgentFilterValue>) -> AgentListFilter {
+    /// Convert one worker filter into the shared inspect filter.
+    pub(crate) fn worker_filter_from_value(filter: Option<WorkerFilterValue>) -> WorkerListFilter {
         let Some(filter) = filter else {
-            return AgentListFilter::default();
+            return WorkerListFilter::default();
         };
 
-        AgentListFilter {
+        WorkerListFilter {
             runtime_id: filter.runtime_id.map(RuntimeHandleCodec::decode_runtime_id),
             name: filter.name,
             has_pending_work: filter.has_pending_work,
@@ -225,7 +225,7 @@ impl RuntimeRequestCodec {
         };
 
         CheckpointListFilter {
-            revision_id: filter
+            revision: filter
                 .revision_id
                 .map(RuntimeHandleCodec::decode_revision_id),
             name: filter.name,
@@ -240,7 +240,7 @@ impl RuntimeRequestCodec {
         };
 
         ImageListFilter {
-            revision_id: filter
+            revision: filter
                 .revision_id
                 .map(RuntimeHandleCodec::decode_revision_id),
         }
@@ -256,7 +256,7 @@ impl RuntimeRequestCodec {
 
         ResourceListFilter {
             runtime_id: filter.runtime_id.map(RuntimeHandleCodec::decode_runtime_id),
-            agent_id: filter.agent_id.map(RuntimeHandleCodec::decode_agent_id),
+            worker_id: filter.worker_id.map(RuntimeHandleCodec::decode_worker_id),
             kind: filter.kind,
             label: filter.label,
         }

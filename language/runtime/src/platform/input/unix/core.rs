@@ -432,7 +432,7 @@ pub(super) fn resolve_unix_input_binding(
     operation: &'static str,
 ) -> RuntimeResult<UnixInputBinding> {
     // resolve resource entry and validate payload shape
-    let resolved_binding = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved_binding = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -688,7 +688,7 @@ pub(super) fn set_unix_read_mode(
     mode: InputReadMode,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let result = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let result = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -759,7 +759,7 @@ pub(super) fn set_gamepad_player_index(
         .boxed());
     }
 
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -787,7 +787,7 @@ pub(super) fn gamepad_player_index(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u8> {
-    let player_index = binding.agent().resources.with_entry(handle.0, |entry| {
+    let player_index = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -816,7 +816,7 @@ pub(super) fn set_relative_mode_flag(
     enabled: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -847,7 +847,7 @@ pub(super) fn set_pointer_snapshot(
     y: f64,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -878,7 +878,7 @@ pub(super) fn set_sensor_stream_config(
     config: InputSensorEffectiveConfig,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -918,7 +918,7 @@ pub(super) fn is_sensor_stream_enabled(
     sensor_kind: InputSensorKind,
     operation: &'static str,
 ) -> RuntimeResult<bool> {
-    let enabled = binding.agent().resources.with_entry(handle.0, |entry| {
+    let enabled = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -947,7 +947,7 @@ pub(super) fn set_linux_active_rumble_effect_id(
     effect_id: Option<i16>,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -976,7 +976,7 @@ pub(super) fn linux_active_rumble_effect_id(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Option<i16>> {
-    let effect_id = binding.agent().resources.with_entry(handle.0, |entry| {
+    let effect_id = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -1135,7 +1135,7 @@ fn read_platform_event(
     nonblocking: bool,
     operation: &'static str,
 ) -> RuntimeResult<InputEvent> {
-    let result = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let result = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -1468,7 +1468,7 @@ pub(super) fn next_unix_event_sequence(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
-    let sequence = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let sequence = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }

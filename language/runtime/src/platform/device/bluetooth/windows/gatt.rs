@@ -541,7 +541,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_subscribe(
     let entry = ResourceEntry::new(ResourceKind::BluetoothSubscription)
         .with_label(BLUETOOTH_SUBSCRIPTION_RESOURCE_LABEL)
         .with_payload(payload)
-        .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
             WindowsBluetoothSubscriptionFinalizer {
                 characteristic,
                 value_changed_token,
@@ -549,7 +549,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_subscribe(
             },
         ));
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 

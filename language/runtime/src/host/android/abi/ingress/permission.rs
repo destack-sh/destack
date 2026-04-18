@@ -1,1 +1,0 @@
-include!("permission.generated.rs");

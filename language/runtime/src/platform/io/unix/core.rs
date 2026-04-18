@@ -249,7 +249,7 @@ pub(crate) fn host_control_fcntl(
 
     // resolve one fd-backed resource from the table
     let fd = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle, |entry| entry.fd())
         .flatten()
@@ -330,7 +330,7 @@ pub(crate) fn host_control_ioctl(
 
     // resolve one fd-backed resource from the table
     let fd = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle, |entry| entry.fd())
         .flatten()
@@ -374,7 +374,7 @@ pub(crate) fn host_poll_resolve_target_handle(
 ) -> RuntimeResult<PlatformHandle> {
     // resolve one runtime target entry
     let resolved = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(target, |entry| entry.fd().map(PlatformHandle::from_raw_fd));
 
@@ -406,7 +406,7 @@ pub(crate) fn host_completion_resolve_target_handle(
 ) -> RuntimeResult<PlatformHandle> {
     // resolve one runtime target entry
     let resolved = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(target, |entry| entry.fd().map(PlatformHandle::from_raw_fd));
 
@@ -442,7 +442,7 @@ pub(crate) fn host_completion_register_accepted_handle(
         });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     Ok(resource_id.0 as i64)
@@ -482,7 +482,7 @@ pub(crate) fn host_event_open(
             });
         let resource_id =
             binding
-                .agent()
+                .worker()
                 .resources
                 .insert(&binding.world(), entry, Some(binding.engine()));
         Ok(EventToken(resource_id.0))
@@ -516,7 +516,7 @@ pub(crate) fn host_event_open(
             });
         let resource_id =
             binding
-                .agent()
+                .worker()
                 .resources
                 .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -530,7 +530,7 @@ pub(crate) fn host_event_close(
     token: EventToken,
 ) -> RuntimeResult<()> {
     // remove one token resource from the runtime table
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         ResourceId(token.0),
         Some(binding.engine()),
@@ -552,7 +552,7 @@ pub(crate) fn host_event_signal(
     #[cfg(target_os = "linux")]
     let descriptor = {
         binding
-            .agent()
+            .worker()
             .resources
             .with_entry(ResourceId(token.0), |entry| entry.fd())
             .flatten()
@@ -560,7 +560,7 @@ pub(crate) fn host_event_signal(
     };
     #[cfg(all(unix, not(target_os = "linux")))]
     let descriptor = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(ResourceId(token.0), |entry| {
             if entry.kind != ResourceKind::Event {

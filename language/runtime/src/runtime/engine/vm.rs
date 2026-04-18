@@ -4,20 +4,14 @@ use destack_vm::Isolate;
 use {destack_heap as heap, destack_vm as vm};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
-use crate::runtime::engine::{Engine, EngineImage, EngineSnapshot, Entry, LiveContinuation};
+use crate::runtime::engine::{Engine, EngineImage, EngineLayout, Entry, LiveContinuation};
 
-/// VM engine implementation for one agent.
+/// VM engine implementation for one worker.
 impl Engine for Isolate {
-    /// Return the encoded managed-reference width required by this VM isolate.
-    fn heap_managed_reference_bytes(&self) -> u8 {
-        Isolate::heap_managed_reference_bytes(self)
-    }
-
     /// Run a VM entrypoint by name.
     fn run(
         &mut self,
-        memory: &mut heap::MemoryContext<'_>,
+        memory: &mut vm::MemoryContext<'_>,
         entry: &Entry,
         args: &[heap::Value],
     ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
@@ -27,24 +21,10 @@ impl Engine for Isolate {
         Ok(map_vm_outcome(outcome))
     }
 
-    /// Run one replayable VM entrypoint by name.
-    fn run_replayable_entry(
-        &mut self,
-        memory: &mut heap::MemoryContext<'_>,
-        entry: &Entry,
-        args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
-        let name = entry.name();
-        let outcome = self
-            .run_function_by_name_yielding(memory, name, args)
-            .map_err(Box::<RuntimeError>::from)?;
-        Ok(map_vm_outcome(outcome))
-    }
-
     /// Resume a VM continuation.
     fn resume(
         &mut self,
-        memory: &mut heap::MemoryContext<'_>,
+        memory: &mut vm::MemoryContext<'_>,
         continuation: LiveContinuation,
         value: heap::Value,
     ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
@@ -61,50 +41,20 @@ impl Engine for Isolate {
         Ok(map_vm_outcome(outcome))
     }
 
-    /// Validate that one VM continuation supports one capture mode.
-    fn validate_capture_mode(
-        &self,
-        continuation: &LiveContinuation,
-        mode: CaptureMode,
-    ) -> RuntimeResult<()> {
-        let _ = mode;
-
-        let LiveContinuation::Vm(_) = continuation else {
-            return Err(RuntimeError::EngineContinuationMismatch {
-                engine: "vm".to_string(),
-                continuation: "native".to_string(),
-            }
-            .boxed());
-        };
-
-        Ok(())
-    }
-
-    /// Reject repeatable dispatch for VM continuations.
-    fn clone_for_repeatable_dispatch(
-        &self,
-        continuation: &LiveContinuation,
-    ) -> RuntimeResult<LiveContinuation> {
-        let LiveContinuation::Vm(_) = continuation else {
-            return Err(RuntimeError::EngineContinuationMismatch {
-                engine: "vm".to_string(),
-                continuation: "native".to_string(),
-            }
-            .boxed());
-        };
-
-        Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "watch.runnable",
-            "vm continuations are not supported for event loop watches",
-        ))
-        .boxed())
-    }
-
     /// Capture one immutable VM image.
     fn image(&mut self) -> RuntimeResult<EngineImage> {
         let image = Isolate::image(self).map_err(Box::<RuntimeError>::from)?;
 
         Ok(EngineImage::Vm(std::sync::Arc::new(image)))
+    }
+
+    /// Fork one live VM engine over one already-forked heap.
+    fn fork(&mut self, heap: &mut heap::Heap) -> RuntimeResult<Box<dyn Engine>> {
+        let _ = heap;
+
+        let isolate = Isolate::fork(self).map_err(Box::<RuntimeError>::from)?;
+
+        Ok(Box::new(isolate))
     }
 
     /// Restore one immutable VM image.
@@ -118,7 +68,10 @@ impl Engine for Isolate {
     fn continuation_image(
         &mut self,
         continuation: &LiveContinuation,
+        mode: CaptureMode,
     ) -> RuntimeResult<Continuation> {
+        let _ = mode;
+
         let LiveContinuation::Vm(continuation) = continuation else {
             return Err(RuntimeError::EngineContinuationMismatch {
                 engine: "vm".to_string(),
@@ -141,22 +94,30 @@ impl Engine for Isolate {
         Ok(LiveContinuation::Vm(continuation))
     }
 
-    /// Capture one serialized VM snapshot.
-    fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot> {
+    /// Capture one serialized VM image.
+    fn snapshot(&mut self) -> RuntimeResult<EngineImage> {
         let snapshot = Isolate::snapshot(self).map_err(Box::<RuntimeError>::from)?;
 
-        Ok(EngineSnapshot::Vm(snapshot))
+        Ok(EngineImage::Vm(std::sync::Arc::new(snapshot)))
     }
 
-    /// Restore one serialized VM snapshot.
+    /// Restore one serialized VM image.
     fn restore_snapshot(
         &mut self,
         heap: &mut heap::Heap,
-        snapshot: &EngineSnapshot,
+        snapshot: &EngineImage,
     ) -> RuntimeResult<()> {
-        let EngineSnapshot::Vm(snapshot) = snapshot;
+        let EngineImage::Vm(snapshot) = snapshot;
 
         Isolate::restore_snapshot(self, heap, snapshot).map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// VM heap-layout metadata.
+impl EngineLayout for Isolate {
+    /// Return the managed-reference width required by this VM isolate.
+    fn managed_reference_bytes(&self) -> u8 {
+        Isolate::heap_managed_reference_bytes(self)
     }
 }
 

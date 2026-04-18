@@ -1,9 +1,10 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::trace::{Outcome, Trace, TraceRecord, TraceSequence};
-use crate::runtime::world::{
-    Input, Observation, ObservationCategory, ObservationRecord, Scope, World, WorldResourceId,
+use crate::runtime::observe::{
+    Observation, ObservationCategory, ObservationRecord, ObservationScope,
 };
-use crate::runtime::{AgentId, RuntimeId};
+use crate::runtime::trace::{Outcome, Trace, TraceRecord, TraceSequence};
+use crate::runtime::world::{Command, World, WorldResourceId};
+use crate::runtime::{WorkerId, RuntimeId};
 
 use super::{BranchId, LineageView, Moment};
 
@@ -11,7 +12,7 @@ use super::{BranchId, LineageView, Moment};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EventKind {
     /// One input that entered the world.
-    Input,
+    Command,
     /// One observed outcome that replay could not derive.
     Outcome,
     /// One retained or user-visible history anchor.
@@ -25,7 +26,7 @@ pub enum EventKind {
 #[allow(clippy::large_enum_variant)]
 pub enum EventPayload {
     /// One projected trace input.
-    Input(Input),
+    Command(Command),
     /// One projected trace outcome.
     Outcome(Outcome),
     /// One projected trace anchor.
@@ -48,7 +49,7 @@ pub struct Event {
 impl Event {
     /// Report whether this event is one projected input.
     pub const fn is_input(&self) -> bool {
-        matches!(self.kind, EventKind::Input)
+        matches!(self.kind, EventKind::Command)
     }
 
     /// Report whether this event is one projected outcome.
@@ -67,9 +68,9 @@ impl Event {
     }
 
     /// Return one projected input payload when present.
-    pub const fn input(&self) -> Option<&Input> {
+    pub const fn input(&self) -> Option<&Command> {
         match &self.payload {
-            EventPayload::Input(input) => Some(input),
+            EventPayload::Command(input) => Some(input),
             _ => None,
         }
     }
@@ -101,7 +102,7 @@ impl Event {
     /// Return the stable event name when available.
     pub fn name(&self) -> Option<&str> {
         match &self.payload {
-            EventPayload::Input(input) => Some(input.name()),
+            EventPayload::Command(input) => Some(input.name()),
             EventPayload::Outcome(outcome) => Some(outcome.name()),
             EventPayload::Anchor(_) => Some("label"),
             EventPayload::Observation(observation) => Some(observation.name.as_str()),
@@ -117,7 +118,7 @@ impl Event {
     }
 
     /// Return the event scope when this event wraps one observation.
-    pub fn scope(&self) -> Option<&Scope> {
+    pub fn scope(&self) -> Option<&ObservationScope> {
         self.observation().map(|observation| &observation.scope)
     }
 
@@ -130,10 +131,10 @@ impl Event {
     /// Build one projected trace event at the moment after one record.
     pub(super) fn from_trace(moment: Moment, record: TraceRecord) -> Self {
         match record {
-            TraceRecord::Input(input) => Self {
+            TraceRecord::Command(input) => Self {
                 moment,
-                kind: EventKind::Input,
-                payload: EventPayload::Input(input),
+                kind: EventKind::Command,
+                payload: EventPayload::Command(input),
             },
             TraceRecord::Outcome(outcome) => Self {
                 moment,
@@ -160,7 +161,7 @@ impl Event {
     /// Return the stable event-order rank at one shared moment.
     pub(super) fn order_rank(&self) -> u8 {
         match self.kind {
-            EventKind::Input | EventKind::Outcome | EventKind::Anchor => 0,
+            EventKind::Command | EventKind::Outcome | EventKind::Anchor => 0,
             EventKind::Observation => 1,
         }
     }
@@ -234,7 +235,7 @@ impl EventSet {
 
     /// Keep only projected input events.
     pub fn inputs(self) -> Self {
-        self.kind(EventKind::Input)
+        self.kind(EventKind::Command)
     }
 
     /// Keep only projected outcome events.
@@ -271,13 +272,13 @@ impl EventSet {
     }
 
     /// Keep only observation events on one exact scope.
-    pub fn on(self, scope: Scope) -> Self {
+    pub fn on(self, scope: ObservationScope) -> Self {
         self.filter(|event| event.scope() == Some(&scope))
     }
 
     /// Keep only world-scoped observation events.
     pub fn world(self) -> Self {
-        self.on(Scope::world())
+        self.on(ObservationScope::world())
     }
 
     /// Keep only runtime-scoped observation events.
@@ -285,9 +286,9 @@ impl EventSet {
         self.filter(|event| event.scope().and_then(|scope| scope.runtime_id()) == Some(runtime_id))
     }
 
-    /// Keep only agent-scoped observation events.
-    pub fn agent(self, agent_id: AgentId) -> Self {
-        self.filter(|event| event.scope().and_then(|scope| scope.agent_id()) == Some(agent_id))
+    /// Keep only worker-scoped observation events.
+    pub fn worker(self, worker_id: WorkerId) -> Self {
+        self.filter(|event| event.scope().and_then(|scope| scope.worker_id()) == Some(worker_id))
     }
 
     /// Keep only entity-scoped observation events.

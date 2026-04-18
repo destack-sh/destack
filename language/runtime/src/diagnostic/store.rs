@@ -256,6 +256,32 @@ impl DiagnosticStore {
         self.len() == 0
     }
 
+    /// Fork one quiescent diagnostics store.
+    pub(crate) fn try_fork(&self) -> RuntimeResult<Option<Self>> {
+        // require one quiescent diagnostics state
+        let snapshot = match self.snapshot() {
+            Ok(snapshot) => snapshot,
+            Err(_) => return Ok(None),
+        };
+
+        // rebuild the same storage policy on one fresh store
+        let forked = Self {
+            minimum_level: self.minimum_level,
+            capacity: self.capacity,
+            state: Mutex::new(DiagnosticState {
+                errors: Vec::new(),
+                error_generations: Vec::new(),
+                free_error_slots: Vec::new(),
+                diagnostic_entries: VecDeque::with_capacity(self.capacity),
+                dropped_since_drain: 0,
+                next_diagnostic_sequence: 1,
+            }),
+        };
+        forked.restore_snapshot(&snapshot)?;
+
+        Ok(Some(forked))
+    }
+
     /// Capture one durable diagnostics snapshot.
     pub(crate) fn snapshot(&self) -> RuntimeResult<DiagnosticSnapshot> {
         let state = self.state.lock();

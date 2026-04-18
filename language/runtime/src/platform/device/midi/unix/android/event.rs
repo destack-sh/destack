@@ -102,7 +102,7 @@ fn register_poll_event_session(
 ) -> RuntimeResult<RuntimeScheduledCallbackHandle> {
     let session = session.clone();
 
-    binding.agent().schedule_runtime_callback(
+    binding.worker().schedule_runtime_callback(
         binding,
         poll_interval_ns,
         Some(poll_interval_ns),
@@ -168,7 +168,7 @@ pub(crate) fn midi_event_open(
 
     // prefer host-native topology delivery when the backend advertises it
     let description = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .describe_android_backend(binding, "destack.device.midi.event.open")?;
@@ -239,7 +239,7 @@ pub(crate) fn midi_event_close(
         // cancel the synthetic poll callback before dropping the resource
         if let Some(poll_callback) = session.poll_callback {
             binding
-                .agent()
+                .worker()
                 .cancel_runtime_callback(binding, poll_callback)?;
         }
     }

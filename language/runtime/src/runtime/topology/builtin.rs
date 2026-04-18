@@ -68,7 +68,7 @@ const BUILTIN_ENTITY_KIND_SPECS: &[BuiltinEntityKindSpec] = &[
         facets: &[ResourceFacet::Clock],
     },
     BuiltinEntityKindSpec {
-        kind_id: "runtime.agent",
+        kind_id: "runtime.worker",
         facets: &[],
     },
     BuiltinEntityKindSpec {
@@ -248,11 +248,11 @@ const BUILTIN_EDGE_KIND_SPECS: &[BuiltinEdgeKindSpec] = &[
         facets: &[ResourceFacet::Stream],
     },
     BuiltinEdgeKindSpec {
-        kind_id: "runtime.instance.owns.agent",
+        kind_id: "runtime.instance.owns.worker",
         facets: &[],
     },
     BuiltinEdgeKindSpec {
-        kind_id: "runtime.agent.owns.resource",
+        kind_id: "runtime.worker.owns.resource",
         facets: &[],
     },
     BuiltinEdgeKindSpec {

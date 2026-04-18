@@ -66,7 +66,7 @@ fn submit_media_list(
     operation: &'static str,
     query: &MediaQueryValue,
 ) -> RuntimeResult<MediaPageValue> {
-    let binding = BindingCallContext::from_current_agent_for_native()?;
+    let binding = BindingCallContext::from_current_worker_for_native()?;
     let request = HostMediaListRequest::from_value(&binding, query.clone());
     let mut response = MaybeUninit::<HostMediaListResponse>::uninit();
     let status =
@@ -128,7 +128,7 @@ fn submit_media_import_path(
     path: OsPath,
     kind: MediaAssetKind,
 ) -> RuntimeResult<String> {
-    let binding = BindingCallContext::from_current_agent_for_native()?;
+    let binding = BindingCallContext::from_current_worker_for_native()?;
     let path = core_fs::os_path_to_utf8_string(path, "path")?;
     let request = HostMediaImportPathRequest {
         path: NativeStringRef::from_value(&binding, path),
@@ -162,7 +162,7 @@ fn submit_media_delete(
     operation: &'static str,
     ids: &[String],
 ) -> RuntimeResult<u32> {
-    let binding = BindingCallContext::from_current_agent_for_native()?;
+    let binding = BindingCallContext::from_current_worker_for_native()?;
     let request = HostMediaDeleteRequest {
         identifiers: NativeStringSlice::from_value(&binding, ids.to_vec()),
     };

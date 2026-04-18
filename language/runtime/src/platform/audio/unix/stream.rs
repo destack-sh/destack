@@ -122,7 +122,7 @@ pub(crate) unsafe fn destack_audio_stream_close(
         audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.close")?;
     stream.unbind_runtime();
 
-    if !binding.agent().resources.remove_and_finalize(
+    if !binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -337,7 +337,7 @@ pub(crate) unsafe fn destack_audio_stream_open(
         "destack.audio.stream.open",
     )?;
 
-    let resource_id = binding.agent().resources.insert(
+    let resource_id = binding.worker().resources.insert(
         &binding.world(),
         ResourceEntry::new(ResourceKind::AudioStream)
             .with_label(audio_core::AUDIO_STREAM_RESOURCE_LABEL)

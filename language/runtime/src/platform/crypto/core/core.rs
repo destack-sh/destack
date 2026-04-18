@@ -595,7 +595,7 @@ pub(super) fn resolve_key_resource(
     handle: resource::CryptoKeyHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<CryptoKeyResource>>> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != CRYPTO_KEY_RESOURCE_KIND {
             return None;
         }
@@ -618,7 +618,7 @@ pub(super) fn resolve_store_resource(
     handle: resource::CryptoStoreHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<CryptoStoreResource>>> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != CRYPTO_STORE_RESOURCE_KIND {
             return None;
         }
@@ -847,7 +847,7 @@ pub(super) fn resolve_certificate_resource(
     handle: resource::CryptoCertificateHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<CryptoCertificateResource>>> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != CRYPTO_CERTIFICATE_RESOURCE_KIND {
             return None;
         }
@@ -870,7 +870,7 @@ pub(super) fn resolve_digest_resource(
     handle: resource::CryptoDigestHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<CryptoDigestResource>>> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != CRYPTO_DIGEST_RESOURCE_KIND {
             return None;
         }
@@ -893,7 +893,7 @@ pub(super) fn resolve_mac_resource(
     handle: resource::CryptoMacHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<CryptoMacResource>>> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != CRYPTO_MAC_RESOURCE_KIND {
             return None;
         }
@@ -916,7 +916,7 @@ pub(super) fn resolve_cipher_resource(
     handle: resource::CryptoCipherHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<CryptoCipherResource>>> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != CRYPTO_CIPHER_RESOURCE_KIND {
             return None;
         }
@@ -943,7 +943,7 @@ pub(super) fn insert_key_resource(
         .with_payload(Arc::new(Mutex::new(resource_value)));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -960,7 +960,7 @@ pub(super) fn insert_certificate_resource(
         .with_payload(Arc::new(Mutex::new(resource_value)));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 

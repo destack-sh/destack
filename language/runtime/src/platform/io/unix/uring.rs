@@ -145,7 +145,7 @@ fn resolve_uring_resource(
 ) -> RuntimeResult<Arc<UringResource>> {
     // resolve one io_uring resource payload
     let resolved = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Uring {
@@ -195,7 +195,7 @@ pub(crate) unsafe fn destack_io_uring_close(
     {
         resolve_uring_resource(binding, handle)?;
 
-        let removed = binding.agent().resources.remove_and_finalize(
+        let removed = binding.worker().resources.remove_and_finalize(
             &binding.world(),
             handle.0,
             Some(binding.engine()),
@@ -355,7 +355,7 @@ pub(crate) unsafe fn destack_io_uring_open(
             .with_payload(resource);
         let value =
             binding
-                .agent()
+                .worker()
                 .resources
                 .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -472,7 +472,7 @@ pub(crate) unsafe fn destack_io_uring_register_files(
         let mut descriptors = Vec::with_capacity(files.len());
         for file in files {
             let fd = binding
-                .agent()
+                .worker()
                 .resources
                 .with_entry(*file, |entry| entry.fd())
                 .flatten()

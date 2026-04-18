@@ -15,7 +15,7 @@ fn file_descriptor(
     operation: &'static str,
 ) -> RuntimeResult<libc::c_int> {
     let descriptor = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::File {
@@ -100,7 +100,7 @@ fn register_stdio_tty(
         });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 

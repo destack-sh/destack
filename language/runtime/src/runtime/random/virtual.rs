@@ -34,7 +34,7 @@ pub(crate) struct VirtualRandom {
     next_stream_id: AtomicU64,
     /// Per-stream deterministic state.
     streams: Mutex<HashMap<RandomStreamId, u64>>,
-    /// Cached scoped stream identities keyed by runtime and agent scope.
+    /// Cached scoped stream identities keyed by runtime and worker scope.
     scoped_streams: Mutex<HashMap<ScopedRandomStreamKey, RandomStreamId>>,
 }
 
@@ -70,14 +70,14 @@ impl VirtualRandom {
     pub(crate) fn scoped_stream_id(
         &self,
         runtime_id: u64,
-        agent_id: u64,
+        worker_id: u64,
         task_id: Option<u64>,
         microtask_id: Option<u64>,
     ) -> RandomStreamId {
-        // resolve one stable key for this runtime and agent scope
+        // resolve one stable key for this runtime and worker scope
         let key = ScopedRandomStreamKey {
             runtime_id,
-            agent_id,
+            worker_id,
             task_id,
             microtask_id,
         };

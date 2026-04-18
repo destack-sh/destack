@@ -1,24 +1,25 @@
 use std::collections::BTreeMap;
 
 use crate::diagnostic::RuntimeResult;
+use crate::runtime::observe::Observation;
 use crate::runtime::scheduler::Timer;
-use crate::runtime::{AgentId, TickOutcome};
+use crate::runtime::{WorkerId, TickOutcome};
 use destack_workspace::{ExecutionMode, TimeMode};
 
-use super::{Input, Observation, RuntimeId, Wake, World};
+use super::{Command, RuntimeId, Wake, World};
 
 impl World {
     /// Drain due world wakes at one wall-clock timestamp.
-    pub(crate) fn drain_due<I>(agent_timers: I) -> Vec<Wake>
+    pub(crate) fn drain_due<I>(worker_timers: I) -> Vec<Wake>
     where
-        I: IntoIterator<Item = (RuntimeId, AgentId, Timer)>,
+        I: IntoIterator<Item = (RuntimeId, WorkerId, Timer)>,
     {
-        // due agent timers
-        let mut wakes = agent_timers
+        // due worker timers
+        let mut wakes = worker_timers
             .into_iter()
-            .map(|(runtime_id, agent_id, timer)| Wake::AgentTimer {
+            .map(|(runtime_id, worker_id, timer)| Wake::WorkerTimer {
                 runtime_id,
-                agent_id,
+                worker_id,
                 timer,
             })
             .collect::<Vec<_>>();
@@ -31,9 +32,9 @@ impl World {
 
     /// Execute one world tick across all stored runtimes in stable order.
     pub fn tick(&mut self) -> RuntimeResult<TickOutcome> {
-        let input = self.resolve_input(Input::Tick)?;
+        let command = self.resolve_command(Command::Tick)?;
         if self.trace.mode() == ExecutionMode::Record {
-            self.ingest(input.clone())?;
+            self.ingest(command.clone())?;
         }
         self.tick_inner()
     }
@@ -71,27 +72,27 @@ impl World {
         self.clock.advance_virtual_to(deadline);
         self.trace.record_time_advance(deadline)?;
 
-        // collect due agent timers across runtimes
-        let mut agent_timers = Vec::new();
+        // collect due worker timers across runtimes
+        let mut worker_timers = Vec::new();
         for runtime in self.runtimes.values_mut() {
-            agent_timers.extend(runtime.collect_due_timers(&world)?);
+            worker_timers.extend(runtime.collect_due_timers(&world)?);
         }
 
         // deliver due simulation events into the simulation ready queue
         self.simulation.deliver_due(deadline);
 
         // drain world timer wakes into per-runtime batches
-        let wakes = Self::drain_due(agent_timers);
+        let wakes = Self::drain_due(worker_timers);
         let mut wakes_by_runtime = BTreeMap::<RuntimeId, Vec<Wake>>::new();
         for wake in wakes {
             match wake {
-                Wake::AgentTimer { runtime_id, .. } => {
+                Wake::WorkerTimer { runtime_id, .. } => {
                     wakes_by_runtime.entry(runtime_id).or_default().push(wake);
                 }
             }
         }
 
-        // deliver due agent wakes
+        // deliver due worker wakes
         for (runtime_id, runtime) in self.runtimes.iter_mut() {
             let wakes = wakes_by_runtime.remove(runtime_id).unwrap_or_default();
             if !wakes.is_empty() {

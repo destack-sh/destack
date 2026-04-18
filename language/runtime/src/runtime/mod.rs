@@ -4,6 +4,7 @@ pub(crate) mod control;
 pub mod engine;
 pub mod history;
 pub mod memory;
+pub mod observe;
 pub mod policy;
 pub(crate) mod poller;
 pub(crate) mod process;

@@ -199,7 +199,7 @@ fn register_stream_poll_callback(
     let runtime_state = Arc::clone(runtime_state);
     let live_stream = Arc::clone(stream);
     let weak_stream = Arc::downgrade(stream);
-    let callback = ctx.agent().schedule_runtime_callback(
+    let callback = ctx.worker().schedule_runtime_callback(
         ctx,
         poll_interval_ns,
         Some(poll_interval_ns),
@@ -291,7 +291,7 @@ pub(crate) unsafe fn open_event_stream(
         )),
     });
 
-    let handle = ctx.agent().resources.insert(
+    let handle = ctx.worker().resources.insert(
         ctx.world(),
         ResourceEntry::new(ResourceKind::AudioEvent)
             .with_label(AUDIO_EVENT_RESOURCE_LABEL)
@@ -304,14 +304,14 @@ pub(crate) unsafe fn open_event_stream(
     if let Err(error) = register_stream_poll_callback(ctx, &runtime_state, &stream) {
         unregister_event_stream(&runtime_state, stream.stream_id);
         let _ = ctx
-            .agent()
+            .worker()
             .resources
             .remove(ctx.world(), handle, Some(ctx.engine()));
         return Err(error);
     }
 
     // refresh backend monitor demand after the new stream is visible
-    let monitor_service = ctx.agent().platform_state.audio.monitor_service();
+    let monitor_service = ctx.worker().platform_state.audio.monitor_service();
     if let Err(error) = monitor_service.refresh_runtime(&runtime_state, options.backend) {
         let poll_callback = {
             let mut state = stream
@@ -321,12 +321,12 @@ pub(crate) unsafe fn open_event_stream(
             state.poll_callback.take()
         };
         if let Some(poll_callback) = poll_callback {
-            let _ = ctx.agent().cancel_runtime_callback(ctx, poll_callback);
+            let _ = ctx.worker().cancel_runtime_callback(ctx, poll_callback);
         }
 
         unregister_event_stream(&runtime_state, stream.stream_id);
         let _ = ctx
-            .agent()
+            .worker()
             .resources
             .remove(ctx.world(), handle, Some(ctx.engine()));
         return Err(error);
@@ -357,14 +357,14 @@ pub(crate) unsafe fn close_event_stream(
         state.poll_callback.take()
     };
     if let Some(poll_callback) = poll_callback {
-        ctx.agent().cancel_runtime_callback(ctx, poll_callback)?;
+        ctx.worker().cancel_runtime_callback(ctx, poll_callback)?;
     }
 
     unregister_event_stream(&runtime_state, stream.stream_id);
     trim_event_log(&runtime_state);
 
     let removed = ctx
-        .agent()
+        .worker()
         .resources
         .remove(ctx.world(), handle.0, Some(ctx.engine()))
         .is_some();
@@ -375,7 +375,7 @@ pub(crate) unsafe fn close_event_stream(
         ));
     }
 
-    let monitor_service = ctx.agent().platform_state.audio.monitor_service();
+    let monitor_service = ctx.worker().platform_state.audio.monitor_service();
     let _ = monitor_service.refresh_runtime(&runtime_state, backend);
     Ok(())
 }

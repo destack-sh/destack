@@ -241,7 +241,7 @@ fn register_stdio_fd(
         .with_finalizer(StdioFdFinalizer { fd: duplicated });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -258,7 +258,7 @@ fn resolve_process_fd(
     binding: &BindingCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<(ProcessId, i32)> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         let pid = entry
             .payload
             .as_ref()
@@ -284,7 +284,7 @@ fn resolve_signal_fd(
     binding: &BindingCallContext,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<(Vec<Signal>, i32)> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         let signals = entry
             .payload
             .as_ref()
@@ -311,7 +311,7 @@ fn update_signal_fd(
     handle: resource::SignalFdHandle,
     signals: Vec<Signal>,
 ) -> RuntimeResult<()> {
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         entry
             .payload
             .as_mut()
@@ -337,7 +337,7 @@ fn ensure_process_fd_handle(
     binding: &BindingCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
-    let is_process_fd = binding.agent().resources.with_entry(handle.0, |entry| {
+    let is_process_fd = binding.worker().resources.with_entry(handle.0, |entry| {
         entry
             .payload
             .as_ref()
@@ -361,7 +361,7 @@ fn ensure_signal_fd_handle(
     binding: &BindingCallContext,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
-    let is_signal_fd = binding.agent().resources.with_entry(handle.0, |entry| {
+    let is_signal_fd = binding.worker().resources.with_entry(handle.0, |entry| {
         entry
             .payload
             .as_ref()
@@ -475,7 +475,7 @@ pub(crate) unsafe fn destack_process_process_fd_close(
 ) -> RuntimeResult<()> {
     ensure_process_fd_handle(binding, handle)?;
 
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -544,7 +544,7 @@ pub(crate) unsafe fn destack_process_process_fd_open(
             .with_finalizer(StdioFdFinalizer { fd });
         let resource_id =
             binding
-                .agent()
+                .worker()
                 .resources
                 .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -729,7 +729,7 @@ pub(crate) unsafe fn destack_process_signal_fd_close(
 ) -> RuntimeResult<()> {
     ensure_signal_fd_handle(binding, handle)?;
 
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -791,7 +791,7 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
             .with_finalizer(StdioFdFinalizer { fd });
         let resource_id =
             binding
-                .agent()
+                .worker()
                 .resources
                 .insert(&binding.world(), entry, Some(binding.engine()));
 

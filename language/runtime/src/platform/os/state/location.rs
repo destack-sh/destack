@@ -66,7 +66,7 @@ pub(crate) fn location_watch_open(
         .with_payload(watch_id);
 
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -79,7 +79,7 @@ pub(crate) fn location_watch_close(
     handle: resource::LocationWatchHandle,
 ) -> RuntimeResult<()> {
     let runtime_state = os_state(binding)?;
-    let watch_id = binding.agent().resources.with_entry(handle.0, |entry| {
+    let watch_id = binding.worker().resources.with_entry(handle.0, |entry| {
         entry
             .payload
             .as_ref()
@@ -96,7 +96,7 @@ pub(crate) fn location_watch_close(
 
     let removed =
         binding
-            .agent()
+            .worker()
             .resources
             .remove(&binding.world(), handle.0, Some(binding.engine()));
 

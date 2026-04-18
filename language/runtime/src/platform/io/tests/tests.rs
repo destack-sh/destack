@@ -595,7 +595,7 @@ fn vm_path_from_utf8(
 fn insert_completion_target_with_host_handle(binding: &BindingCallContext) -> ResourceId {
     #[cfg(unix)]
     {
-        binding.agent().resources.insert(
+        binding.worker().resources.insert(
             &binding.world(),
             ResourceEntry::new(ResourceKind::File).with_fd(0),
             Some(binding.engine()),
@@ -604,7 +604,7 @@ fn insert_completion_target_with_host_handle(binding: &BindingCallContext) -> Re
 
     #[cfg(windows)]
     {
-        binding.agent().resources.insert(
+        binding.worker().resources.insert(
             &binding.world(),
             ResourceEntry::new(ResourceKind::File).with_handle(std::ptr::dangling_mut::<c_void>()),
             Some(binding.engine()),
@@ -742,7 +742,7 @@ fn test_io_completion_open_rejects_zero_entries() {
 #[test]
 fn test_io_completion_close_rejects_non_completion_handle() {
     with_harness_context(|mut context| {
-        let foreign = context.call_context.agent().resources.insert(
+        let foreign = context.call_context.worker().resources.insert(
             context.call_context.world(),
             ResourceEntry::new(ResourceKind::File),
             Some(context.call_context.engine()),
@@ -752,8 +752,8 @@ fn test_io_completion_close_rejects_non_completion_handle() {
             context.destack_io_completion_close(forged),
             PlatformErrorCode::IoNotFound,
         )?;
-        assert!(context.call_context.agent().resources.contains(foreign));
-        context.call_context.agent().resources.remove_and_finalize(
+        assert!(context.call_context.worker().resources.contains(foreign));
+        context.call_context.worker().resources.remove_and_finalize(
             context.call_context.world(),
             foreign,
             Some(context.call_context.engine()),
@@ -904,7 +904,7 @@ fn test_io_completion_submit_rejects_null_pointer_argument() {
         }
 
         context.destack_io_completion_close(handle)?;
-        context.call_context.agent().resources.remove_and_finalize(
+        context.call_context.worker().resources.remove_and_finalize(
             context.call_context.world(),
             target,
             Some(context.call_context.engine()),
@@ -1095,7 +1095,7 @@ fn test_io_completion_cancel_returns_zero_without_pending_requests() {
             return Ok(());
         };
 
-        let target = context.call_context.agent().resources.insert(
+        let target = context.call_context.worker().resources.insert(
             context.call_context.world(),
             ResourceEntry::new(ResourceKind::File),
             Some(context.call_context.engine()),
@@ -1104,7 +1104,7 @@ fn test_io_completion_cancel_returns_zero_without_pending_requests() {
         assert_eq!(canceled, 0);
 
         context.destack_io_completion_close(handle)?;
-        context.call_context.agent().resources.remove_and_finalize(
+        context.call_context.worker().resources.remove_and_finalize(
             context.call_context.world(),
             target,
             Some(context.call_context.engine()),
@@ -1164,7 +1164,7 @@ fn test_io_event_open_rejects_reserved_initial_value() {
 #[test]
 fn test_io_event_close_rejects_non_event_token() {
     with_harness_context(|mut context| {
-        let foreign = context.call_context.agent().resources.insert(
+        let foreign = context.call_context.worker().resources.insert(
             context.call_context.world(),
             ResourceEntry::new(ResourceKind::File),
             Some(context.call_context.engine()),
@@ -1174,8 +1174,8 @@ fn test_io_event_close_rejects_non_event_token() {
             context.destack_io_event_close(forged),
             PlatformErrorCode::IoNotFound,
         )?;
-        assert!(context.call_context.agent().resources.contains(foreign));
-        context.call_context.agent().resources.remove_and_finalize(
+        assert!(context.call_context.worker().resources.contains(foreign));
+        context.call_context.worker().resources.remove_and_finalize(
             context.call_context.world(),
             foreign,
             Some(context.call_context.engine()),
@@ -1367,7 +1367,7 @@ fn test_io_event_attachment_state_is_runtime_scoped() {
 fn test_io_event_attach_rejects_non_poll_target() {
     with_harness_context(|mut context| {
         let token = context.destack_io_event_open(0)?;
-        let target = context.call_context.agent().resources.insert(
+        let target = context.call_context.worker().resources.insert(
             context.call_context.world(),
             ResourceEntry::new(ResourceKind::File),
             Some(context.call_context.engine()),
@@ -1378,7 +1378,7 @@ fn test_io_event_attach_rejects_non_poll_target() {
             PlatformErrorCode::InvalidArgumentValue,
         )?;
         context.destack_io_event_close(token)?;
-        context.call_context.agent().resources.remove_and_finalize(
+        context.call_context.worker().resources.remove_and_finalize(
             context.call_context.world(),
             target,
             Some(context.call_context.engine()),
@@ -1583,7 +1583,7 @@ fn test_io_control_fcntl_rejects_command_width_overflow() {
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
-        context.call_context.agent().resources.remove_and_finalize(
+        context.call_context.worker().resources.remove_and_finalize(
             context.call_context.world(),
             target,
             Some(context.call_context.engine()),

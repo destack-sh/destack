@@ -591,7 +591,7 @@ pub(crate) unsafe fn window_open(
     }
 
     // register resource entry and backend window-id mapping
-    let resource_id = context.agent().resources.insert(
+    let resource_id = context.worker().resources.insert(
         context.world(),
         display_resource::window_resource_entry(context, Arc::clone(&host_state)),
         Some(context.engine()),

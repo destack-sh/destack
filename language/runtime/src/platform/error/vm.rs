@@ -27,7 +27,7 @@ pub(crate) fn destack_error_take_platform_error(
     error_id: u64,
 ) -> RuntimeResult<PlatformErrorVm> {
     let error = take_platform_error(
-        binding.agent().diagnostics.as_ref(),
+        binding.worker().diagnostics.as_ref(),
         DiagnosticId::from_raw(error_id),
     );
     let mut store = VmStringStore::new(context);

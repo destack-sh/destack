@@ -229,7 +229,7 @@ pub(crate) fn midi_event_open(
     }
 
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .windows_midi_service("destack.device.midi.event.open")?;

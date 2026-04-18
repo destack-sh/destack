@@ -4,18 +4,17 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::resource::ResourceId;
 use crate::platform::runtime::{
-    AgentHandle, AgentId, BranchId, CheckpointId, ImageId, ObservationHandle, RevisionId,
-    RuntimeHandle, RuntimeId, SnapshotFormat, SnapshotId, TraceCursorHandle, WorldHandle,
+    BranchId, CheckpointId, ImageId, ObservationHandle, RevisionId, RuntimeHandle, RuntimeId,
+    SnapshotFormat, SnapshotId, TraceCursorHandle, WorkerHandle, WorkerId, WorldHandle,
     WorldResourceId, WorldResourceIdVm, WorldViewHandle,
 };
 use crate::runtime::control::{ControlHandleId, ControlSnapshotFormat};
+use crate::runtime::observe::ObservationSubscriptionId;
 use crate::runtime::world::{
     BranchId as WorldBranchId, CheckpointId as WorldCheckpointId, ImageId as WorldImageId,
-    RevisionId as WorldRevisionId, Snapshot, WorldResourceId as LogicalWorldResourceId,
+    Revision as WorldRevision, WorldResourceId as LogicalWorldResourceId, WorldSnapshot,
 };
-use crate::runtime::{
-    AgentId as WorldAgentId, ObservationSubscriptionId, RuntimeId as WorldRuntimeId,
-};
+use crate::runtime::{RuntimeId as WorldRuntimeId, WorkerId as WorldWorkerId};
 
 /// One observation handle exposed through the low-level runtime binding surface.
 #[derive(Debug, Clone)]
@@ -34,7 +33,7 @@ pub(crate) struct SnapshotHandleEntry {
     /// The requested snapshot format.
     pub format: SnapshotFormat,
     /// The stored snapshot payload.
-    pub snapshot: Snapshot,
+    pub snapshot: WorldSnapshot,
     /// The encoded snapshot bytes.
     pub bytes: Arc<[u8]>,
 }
@@ -63,14 +62,14 @@ impl RuntimeHandleCodec {
         RuntimeHandle(ResourceId(handle_id.get()))
     }
 
-    /// Decode one agent handle into its control-table id.
-    pub(crate) fn decode_agent_handle(handle: AgentHandle) -> ControlHandleId {
+    /// Decode one worker handle into its control-table id.
+    pub(crate) fn decode_worker_handle(handle: WorkerHandle) -> ControlHandleId {
         ControlHandleId::new(handle.0.0)
     }
 
-    /// Encode one agent control-table id as one low-level agent handle.
-    pub(crate) fn encode_agent_handle(handle_id: ControlHandleId) -> AgentHandle {
-        AgentHandle(ResourceId(handle_id.get()))
+    /// Encode one worker control-table id as one low-level worker handle.
+    pub(crate) fn encode_worker_handle(handle_id: ControlHandleId) -> WorkerHandle {
+        WorkerHandle(ResourceId(handle_id.get()))
     }
 
     /// Decode one observation handle into its control-table id.
@@ -148,8 +147,8 @@ impl RuntimeHandleCodec {
     }
 
     /// Encode one world revision id as one low-level revision id.
-    pub(crate) fn encode_revision_id(revision_id: WorldRevisionId) -> RuntimeResult<RevisionId> {
-        let revision_id = u64::try_from(revision_id.get()).map_err(|_| {
+    pub(crate) fn encode_revision_id(revision: WorldRevision) -> RuntimeResult<RevisionId> {
+        let revision_id = u64::try_from(revision.get()).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
                 "revisionId",
                 "world revision id exceeds uint64",
@@ -161,8 +160,8 @@ impl RuntimeHandleCodec {
     }
 
     /// Decode one low-level revision id into one world revision id.
-    pub(crate) fn decode_revision_id(revision_id: RevisionId) -> WorldRevisionId {
-        WorldRevisionId::new(u128::from(revision_id.0))
+    pub(crate) fn decode_revision_id(revision_id: RevisionId) -> WorldRevision {
+        WorldRevision::new(u128::from(revision_id.0))
     }
 
     /// Encode one world checkpoint id as one low-level checkpoint id.
@@ -213,14 +212,14 @@ impl RuntimeHandleCodec {
         WorldRuntimeId(runtime_id.0)
     }
 
-    /// Encode one world agent id as one low-level agent id.
-    pub(crate) fn encode_agent_id(agent_id: WorldAgentId) -> RuntimeResult<AgentId> {
-        Ok(AgentId(agent_id.0))
+    /// Encode one world worker id as one low-level worker id.
+    pub(crate) fn encode_worker_id(worker_id: WorldWorkerId) -> RuntimeResult<WorkerId> {
+        Ok(WorkerId(worker_id.0))
     }
 
-    /// Decode one low-level agent id into one world agent id.
-    pub(crate) fn decode_agent_id(agent_id: AgentId) -> WorldAgentId {
-        WorldAgentId(agent_id.0)
+    /// Decode one low-level worker id into one world worker id.
+    pub(crate) fn decode_worker_id(worker_id: WorkerId) -> WorldWorkerId {
+        WorldWorkerId(worker_id.0)
     }
 
     /// Decode one low-level world resource id into one logical world resource id.
@@ -228,7 +227,7 @@ impl RuntimeHandleCodec {
         resource_id: WorldResourceId,
     ) -> RuntimeResult<LogicalWorldResourceId> {
         Ok(LogicalWorldResourceId::new(
-            Self::decode_agent_id(resource_id.agent_id),
+            Self::decode_worker_id(resource_id.worker_id),
             resource_id.resource_id,
         ))
     }
@@ -238,7 +237,7 @@ impl RuntimeHandleCodec {
         resource_id: WorldResourceIdVm,
     ) -> RuntimeResult<LogicalWorldResourceId> {
         Ok(LogicalWorldResourceId::new(
-            Self::decode_agent_id(resource_id.agent_id),
+            Self::decode_worker_id(resource_id.worker_id),
             resource_id.resource_id,
         ))
     }
@@ -246,7 +245,7 @@ impl RuntimeHandleCodec {
     /// Encode one logical world resource id into the low-level binding type.
     pub(crate) fn encode_world_resource_id(resource_id: LogicalWorldResourceId) -> WorldResourceId {
         WorldResourceId {
-            agent_id: AgentId(resource_id.agent_id.0),
+            worker_id: WorkerId(resource_id.worker_id.0),
             resource_id: resource_id.resource_id,
         }
     }

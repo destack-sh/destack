@@ -47,7 +47,7 @@ fn splice_descriptor(
 ) -> RuntimeResult<RawFd> {
     // resolve the resource and enforce splice-compatible kinds
     let resolved = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle, |entry| {
             if !matches!(

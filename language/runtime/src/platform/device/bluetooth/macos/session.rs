@@ -93,7 +93,7 @@ pub(crate) unsafe fn destack_device_bluetooth_open(
     let entry = ResourceEntry::new(ResourceKind::BluetoothDevice)
         .with_label(BLUETOOTH_DEVICE_RESOURCE_LABEL)
         .with_payload(resource.clone())
-        .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
             MacBluetoothDeviceFinalizer {
                 central,
                 peripheral,
@@ -103,7 +103,7 @@ pub(crate) unsafe fn destack_device_bluetooth_open(
         ));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 

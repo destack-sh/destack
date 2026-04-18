@@ -23,7 +23,7 @@ use crate::platform::resource::{ListenerHandle, ResourceKind};
 use crate::platform::{
     NativeArray, PlatformError, VmAggregateCodec, VmArray, VmSlice, fs as platform_fs,
 };
-use crate::runtime::{Agent, BindingCallContext};
+use crate::runtime::{Worker, BindingCallContext};
 pub(crate) use crate::tests::platform::assert_platform_error_codes_with_privileged_policy;
 use crate::tests::runtime::TestRuntime;
 use platform_fs::{Dirent, DirentVm, OsPath, OsPathVm, WatchEvent, WatchEventVm};
@@ -68,8 +68,8 @@ pub(crate) struct FsHarnessContext<'call> {
 
 /// Read the port assigned to one listener handle.
 #[cfg(unix)]
-pub(super) fn listener_port(agent: &Agent, handle: ListenerHandle) -> u16 {
-    let fd = agent
+pub(super) fn listener_port(worker: &Worker, handle: ListenerHandle) -> u16 {
+    let fd = worker
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Listener {
@@ -101,13 +101,13 @@ pub(super) fn listener_port(agent: &Agent, handle: ListenerHandle) -> u16 {
 
 /// Read the port assigned to one listener handle.
 #[cfg(windows)]
-pub(super) fn listener_port(agent: &Agent, handle: ListenerHandle) -> u16 {
+pub(super) fn listener_port(worker: &Worker, handle: ListenerHandle) -> u16 {
     use windows_sys::Win32::Networking::WinSock::{
         AF_INET, AF_INET6, SOCKADDR, SOCKADDR_IN, SOCKADDR_IN6, SOCKADDR_STORAGE, SOCKET,
         getsockname,
     };
 
-    let socket = agent
+    let socket = worker
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Listener {

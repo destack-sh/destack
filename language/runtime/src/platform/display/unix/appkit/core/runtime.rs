@@ -51,7 +51,7 @@ pub(crate) struct AppKitMainThreadState {
     pub(crate) windows: HashMap<resource::WindowHandle, AppKitWindowHost>,
 }
 
-/// Callback-safe reference to the owning agent resource table.
+/// Callback-safe reference to the owning worker resource table.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct AppKitResourceTableRef(*const ResourceTable);
 
@@ -103,7 +103,7 @@ impl RuntimeIngressHandler for AppKitIngressHandler {
 pub(crate) struct AppKitRuntimeState {
     /// Main-thread state for native AppKit objects.
     pub(crate) main_thread_state: MainThreadBound<RefCell<AppKitMainThreadState>>,
-    /// Agent resource table used for callback-owned display-handle updates.
+    /// Worker resource table used for callback-owned display-handle updates.
     pub(crate) resources: AppKitResourceTableRef,
     /// Runtime world used for callback-owned resource-table updates.
     pub(crate) world: AppKitWorldRef,
@@ -164,14 +164,14 @@ impl AppKitRuntimeState {
 
         Self {
             main_thread_state,
-            resources: AppKitResourceTableRef(&binding.agent().resources),
+            resources: AppKitResourceTableRef(&binding.worker().resources),
             world: AppKitWorldRef(*binding.world()),
             display_handle_cache: Mutex::new(HashMap::new()),
             monitor_events: Mutex::new(RuntimeEventLog::default()),
             monitor_event_signal: Condvar::new(),
             window_events: Mutex::new(RuntimeEventLog::default()),
             window_event_signal: Condvar::new(),
-            diagnostics: Arc::clone(&binding.agent().diagnostics),
+            diagnostics: Arc::clone(&binding.worker().diagnostics),
             current_theme: Mutex::new(window::current_window_theme()),
             monitor_streams: RuntimeStreamRegistry::default(),
             window_streams: RuntimeStreamRegistry::default(),
@@ -256,9 +256,9 @@ impl AppKitRuntimeState {
         )
     }
 
-    /// Borrow the agent resource table captured by this runtime.
+    /// Borrow the worker resource table captured by this runtime.
     pub(crate) fn resource_table(&self) -> &ResourceTable {
-        // safety: the agent owns the resource table for the lifetime of the runtime state
+        // safety: the worker owns the resource table for the lifetime of the runtime state
         unsafe { &*self.resources.0 }
     }
 
@@ -289,7 +289,7 @@ impl AppKitRuntimeState {
     pub(crate) fn ensure_service_registration(self: &Arc<Self>, binding: &BindingCallContext) {
         // register once so repeated binding calls do not keep re-entering the main thread
         self.service_registration.get_or_init(|| {
-            let service = binding.agent().platform_state.display.appkit_service();
+            let service = binding.worker().platform_state.display.appkit_service();
             service.register_runtime(binding, self);
         });
     }
@@ -298,7 +298,7 @@ impl AppKitRuntimeState {
 /// Return runtime-owned AppKit state for this binding call.
 pub(crate) fn runtime_state(binding: &BindingCallContext) -> Arc<AppKitRuntimeState> {
     let runtime_state = binding
-        .agent()
+        .worker()
         .platform_state
         .display
         .appkit_runtime_state(|| AppKitRuntimeState::from_context(binding));

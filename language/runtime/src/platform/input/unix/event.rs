@@ -47,7 +47,7 @@ use crate::runtime::process::start_with_policy;
 #[cfg(unix)]
 use crate::runtime::process::{ExecutionMode, ExecutionPolicy};
 #[cfg(unix)]
-use crate::runtime::{AgentId, ProcessSubscriberRegistry};
+use crate::runtime::{ProcessSubscriberRegistry, WorkerId};
 
 /// Resource-table label for opened input-monitor entries.
 const INPUT_MONITOR_RESOURCE_LABEL: &str = "input.monitor";
@@ -60,7 +60,7 @@ const INPUT_MONITOR_EVENT_PREFIX: &str = "event";
 /// Linux inotify read-buffer size for monitor polling.
 #[cfg(target_os = "linux")]
 const INPUT_MONITOR_INOTIFY_BUFFER_SIZE: usize = 4096;
-/// Maximum retained monitor topology events per agent runtime.
+/// Maximum retained monitor topology events per worker runtime.
 #[cfg(unix)]
 const INPUT_MONITOR_QUEUE_LIMIT: usize = 1024;
 /// Poll timeout for one native Linux monitor wait.
@@ -75,23 +75,23 @@ const INPUT_MONITOR_SYNTHETIC_INTERVAL: Duration = Duration::from_millis(250);
 struct SequencedMonitorDeltaEvent {
     /// Shared monotonic queue sequence for this topology event.
     sequence: u64,
-    /// Monitor payload delivered to per-agent runtimes.
+    /// Monitor payload delivered to per-worker runtimes.
     event: MonitorDeltaEvent,
 }
 
-/// Shared queue state for one agent-owned unix monitor runtime.
+/// Shared queue state for one worker-owned unix monitor runtime.
 #[derive(Debug, Default)]
 struct UnixInputMonitorQueueState {
-    /// Retained monitor topology events for this agent.
+    /// Retained monitor topology events for this worker.
     events: VecDeque<SequencedMonitorDeltaEvent>,
     /// Next shared sequence number to assign.
     next_sequence: u64,
 }
 
-/// One agent-owned unix monitor runtime state.
+/// One worker-owned unix monitor runtime state.
 #[derive(Debug)]
 pub(crate) struct UnixInputMonitorRuntimeState {
-    /// Shared event queue for this agent.
+    /// Shared event queue for this worker.
     queue: Mutex<UnixInputMonitorQueueState>,
     /// Wake handle for blocking monitor reads.
     wake: Condvar,
@@ -102,8 +102,8 @@ pub(crate) struct UnixInputMonitorRuntimeState {
 }
 
 impl UnixInputMonitorRuntimeState {
-    /// Build one agent-owned unix monitor runtime state.
-    pub(crate) fn new(_agent_id: AgentId) -> Self {
+    /// Build one worker-owned unix monitor runtime state.
+    pub(crate) fn new(_worker_id: WorkerId) -> Self {
         Self {
             queue: Mutex::new(UnixInputMonitorQueueState::default()),
             wake: Condvar::new(),
@@ -134,8 +134,8 @@ enum UnixInputMonitorWorker {
 /// One process-global unix input monitor service.
 #[derive(Debug)]
 pub(crate) struct UnixInputMonitorService {
-    /// Registered unix monitor runtimes keyed by owning agent.
-    runtimes: Mutex<ProcessSubscriberRegistry<AgentId, UnixInputMonitorRuntimeState>>,
+    /// Registered unix monitor runtimes keyed by owning worker.
+    runtimes: Mutex<ProcessSubscriberRegistry<WorkerId, UnixInputMonitorRuntimeState>>,
     /// Shared monitor worker when the host supports one.
     worker: Mutex<Option<UnixInputMonitorWorker>>,
     /// Whether the shared monitor worker is currently running.
@@ -152,10 +152,10 @@ impl UnixInputMonitorService {
         }
     }
 
-    /// Register one agent-local unix monitor runtime.
+    /// Register one worker-local unix monitor runtime.
     fn register_runtime(
         &self,
-        agent_id: AgentId,
+        worker_id: WorkerId,
         runtime_state: &Arc<UnixInputMonitorRuntimeState>,
     ) {
         let mut runtimes = self
@@ -163,18 +163,18 @@ impl UnixInputMonitorService {
             .lock()
             .unwrap_or_else(|error| error.into_inner());
 
-        runtimes.register(agent_id, runtime_state);
+        runtimes.register(worker_id, runtime_state);
     }
 
-    /// Unregister one agent-local unix monitor runtime.
-    fn unregister_runtime(&self, agent_id: AgentId) {
+    /// Unregister one worker-local unix monitor runtime.
+    fn unregister_runtime(&self, worker_id: WorkerId) {
         let should_shutdown = {
             let mut runtimes = self
                 .runtimes
                 .lock()
                 .unwrap_or_else(|error| error.into_inner());
 
-            runtimes.unregister(agent_id);
+            runtimes.unregister(worker_id);
             runtimes.is_empty()
         };
 
@@ -371,7 +371,7 @@ fn validate_monitor_handle(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // validate monitor resource kind and label
-    let valid = binding.agent().resources.with_entry(handle.0, |entry| {
+    let valid = binding.worker().resources.with_entry(handle.0, |entry| {
         entry.kind == ResourceKind::InputMonitor
             && entry.label.as_deref() == Some(INPUT_MONITOR_RESOURCE_LABEL)
             && entry
@@ -712,19 +712,19 @@ fn register_unix_monitor_runtime_finalizer(
         return;
     }
 
-    let agent_id = binding.agent().id;
+    let worker_id = binding.worker().id;
     let service = Arc::clone(service);
-    binding.agent().finalizers.register(move || {
-        service.unregister_runtime(agent_id);
+    binding.worker().finalizers.register(move || {
+        service.unregister_runtime(worker_id);
     });
 }
 
-/// Return one agent-owned unix monitor runtime state.
+/// Return one worker-owned unix monitor runtime state.
 fn unix_input_monitor_runtime_state(
     binding: &BindingCallContext,
 ) -> Arc<UnixInputMonitorRuntimeState> {
     binding
-        .agent()
+        .worker()
         .platform_state
         .input
         .unix_input_monitor_runtime_state(binding)
@@ -745,7 +745,7 @@ fn ensure_unix_monitor_runtime_registration(
     }
 
     register_unix_monitor_runtime_finalizer(binding, service, runtime_state);
-    service.register_runtime(binding.agent().id, runtime_state);
+    service.register_runtime(binding.worker().id, runtime_state);
 }
 
 /// Publish one topology event into every live unix monitor runtime.
@@ -1135,7 +1135,7 @@ fn monitor_event_to_output(
     )
 }
 
-/// Drain one agent-local unix monitor queue into one monitor binding.
+/// Drain one worker-local unix monitor queue into one monitor binding.
 fn drain_runtime_monitor_events(
     binding: &mut UnixInputMonitorBinding,
     runtime_state: &UnixInputMonitorRuntimeState,
@@ -1187,7 +1187,7 @@ fn poll_monitor_event(
     let runtime_state = unix_input_monitor_runtime_state(binding);
     #[cfg(unix)]
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .input
         .unix_input_monitor_service("destack.input.service.monitor")?;
@@ -1198,39 +1198,44 @@ fn poll_monitor_event(
 
     loop {
         // drain watcher queues and attempt one queue pop
-        let next = binding.agent().resources.with_entry_mut(handle.0, |entry| {
-            if entry.kind != ResourceKind::InputMonitor {
-                return None;
-            }
+        let next = binding
+            .worker()
+            .resources
+            .with_entry_mut(handle.0, |entry| {
+                if entry.kind != ResourceKind::InputMonitor {
+                    return None;
+                }
 
-            if entry.label.as_deref() != Some(INPUT_MONITOR_RESOURCE_LABEL) {
-                return None;
-            }
+                if entry.label.as_deref() != Some(INPUT_MONITOR_RESOURCE_LABEL) {
+                    return None;
+                }
 
-            let resolved_binding = entry
-                .payload
-                .as_mut()
-                .and_then(|payload| payload.downcast_mut::<UnixInputMonitorBinding>())?;
+                let resolved_binding = entry
+                    .payload
+                    .as_mut()
+                    .and_then(|payload| payload.downcast_mut::<UnixInputMonitorBinding>())?;
 
-            #[cfg(unix)]
-            let requires_snapshot =
-                resolved_binding.pending_events.is_empty() && !service.is_worker_running();
+                #[cfg(unix)]
+                let requires_snapshot =
+                    resolved_binding.pending_events.is_empty() && !service.is_worker_running();
 
-            #[cfg(unix)]
-            let has_runtime_events = drain_runtime_monitor_events(resolved_binding, &runtime_state);
+                #[cfg(unix)]
+                let has_runtime_events =
+                    drain_runtime_monitor_events(resolved_binding, &runtime_state);
 
-            let event = resolved_binding.pending_events.pop_front();
-            let event = event.map(|event| {
-                let sequence = resolved_binding.next_sequence;
-                resolved_binding.next_sequence = resolved_binding.next_sequence.saturating_add(1);
-                (event, sequence)
+                let event = resolved_binding.pending_events.pop_front();
+                let event = event.map(|event| {
+                    let sequence = resolved_binding.next_sequence;
+                    resolved_binding.next_sequence =
+                        resolved_binding.next_sequence.saturating_add(1);
+                    (event, sequence)
+                });
+                Some(Ok::<_, Box<RuntimeError>>((
+                    event,
+                    has_runtime_events,
+                    requires_snapshot,
+                )))
             });
-            Some(Ok::<_, Box<RuntimeError>>((
-                event,
-                has_runtime_events,
-                requires_snapshot,
-            )))
-        });
 
         match next {
             // return one queued monitor event
@@ -1241,29 +1246,31 @@ fn poll_monitor_event(
             // when no watch backend exists, rescan device ids and enqueue topology deltas
             Some(Some(Ok((None, _, true)))) => {
                 let current_devices = list_monitor_devices(binding)?;
-                let next = binding.agent().resources.with_entry_mut(handle.0, |entry| {
-                    if entry.kind != ResourceKind::InputMonitor {
-                        return None;
-                    }
+                let next = binding
+                    .worker()
+                    .resources
+                    .with_entry_mut(handle.0, |entry| {
+                        if entry.kind != ResourceKind::InputMonitor {
+                            return None;
+                        }
 
-                    if entry.label.as_deref() != Some(INPUT_MONITOR_RESOURCE_LABEL) {
-                        return None;
-                    }
+                        if entry.label.as_deref() != Some(INPUT_MONITOR_RESOURCE_LABEL) {
+                            return None;
+                        }
 
-                    let resolved_binding = entry
-                        .payload
-                        .as_mut()
-                        .and_then(|payload| payload.downcast_mut::<UnixInputMonitorBinding>())?;
-                    enqueue_monitor_delta(resolved_binding, &current_devices);
-                    let event = resolved_binding.pending_events.pop_front();
-                    let event = event.map(|event| {
-                        let sequence = resolved_binding.next_sequence;
-                        resolved_binding.next_sequence =
-                            resolved_binding.next_sequence.saturating_add(1);
-                        (event, sequence)
+                        let resolved_binding = entry.payload.as_mut().and_then(|payload| {
+                            payload.downcast_mut::<UnixInputMonitorBinding>()
+                        })?;
+                        enqueue_monitor_delta(resolved_binding, &current_devices);
+                        let event = resolved_binding.pending_events.pop_front();
+                        let event = event.map(|event| {
+                            let sequence = resolved_binding.next_sequence;
+                            resolved_binding.next_sequence =
+                                resolved_binding.next_sequence.saturating_add(1);
+                            (event, sequence)
+                        });
+                        Some(event)
                     });
-                    Some(event)
-                });
 
                 match next {
                     Some(Some(Some((event, sequence)))) => {
@@ -1412,7 +1419,7 @@ pub(crate) unsafe fn destack_input_monitor_close(
     validate_monitor_handle(binding, handle, "destack.input.event.monitorClose")?;
 
     // remove and finalize monitor resource
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -1460,7 +1467,7 @@ pub(crate) unsafe fn destack_input_monitor_open(
     let runtime_state = unix_input_monitor_runtime_state(binding);
     #[cfg(unix)]
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .input
         .unix_input_monitor_service("destack.input.event.monitorOpen")?;
@@ -1488,7 +1495,7 @@ pub(crate) unsafe fn destack_input_monitor_open(
     let entry = ResourceEntry::new(ResourceKind::InputMonitor)
         .with_label(INPUT_MONITOR_RESOURCE_LABEL)
         .with_payload(resolved_binding);
-    let handle = resource::InputMonitorHandle(binding.agent().resources.insert(
+    let handle = resource::InputMonitorHandle(binding.worker().resources.insert(
         &binding.world(),
         entry,
         Some(binding.engine()),

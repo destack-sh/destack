@@ -21,7 +21,7 @@ use crate::runtime::{
     BindingCallContext, RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry,
 };
 
-/// Callback-safe reference to the owning agent resource table.
+/// Callback-safe reference to the owning worker resource table.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Win32ResourceTableRef(*const ResourceTable);
 
@@ -38,7 +38,7 @@ unsafe impl Sync for Win32WorldRef {}
 /// Runtime-owned mutable state for the Win32 display backend.
 #[derive(Debug)]
 pub(crate) struct Win32RuntimeState {
-    /// Agent resource table used for callback-owned input-session updates.
+    /// Worker resource table used for callback-owned input-session updates.
     pub(crate) resources: Win32ResourceTableRef,
     /// Runtime world used for callback-owned resource-table updates.
     pub(crate) world: Win32WorldRef,
@@ -134,15 +134,15 @@ impl Win32RuntimeState {
         self.window_streams.next_stream_id()
     }
 
-    /// Borrow the agent resource table captured by this runtime.
+    /// Borrow the worker resource table captured by this runtime.
     pub(crate) fn resource_table(&self) -> &ResourceTable {
-        // safety: the agent owns the resource table for the lifetime of the runtime state
+        // safety: the worker owns the resource table for the lifetime of the runtime state
         unsafe { &*self.resources.0 }
     }
 
     /// Borrow the runtime world captured by this runtime.
     pub(crate) fn world(&self) -> &World {
-        // safety: the world outlives the runtime state for the lifetime of the agent
+        // safety: the world outlives the runtime state for the lifetime of the worker
         unsafe { &*self.world.0 }
     }
 
@@ -342,7 +342,7 @@ impl Win32RuntimeState {
     pub(crate) fn ensure_service_registration(self: &Arc<Self>, context: &BindingCallContext) {
         // register once so repeated binding calls do not keep re-entering the windows loop
         self.service_registration.get_or_init(|| {
-            let service = context.agent().platform_state.display.win32_service();
+            let service = context.worker().platform_state.display.win32_service();
             service.register_runtime(context, self);
         });
     }
@@ -350,15 +350,15 @@ impl Win32RuntimeState {
 
 /// Return runtime-owned Win32 display state.
 pub(crate) fn runtime_state(context: &BindingCallContext) -> Arc<Win32RuntimeState> {
-    let diagnostics = Arc::clone(&context.agent().diagnostics);
+    let diagnostics = Arc::clone(&context.worker().diagnostics);
     let runtime_state = context
-        .agent()
+        .worker()
         .platform_state
         .display
         .win32_runtime_state(|| {
             Win32RuntimeState::new(
                 diagnostics,
-                Win32ResourceTableRef(&context.agent().resources),
+                Win32ResourceTableRef(&context.worker().resources),
                 Win32WorldRef(context.world()),
             )
         });

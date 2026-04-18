@@ -76,7 +76,7 @@ pub(crate) unsafe fn destack_device_serial_watch_open(
 
     // resolve the shared topology service and capture the initial snapshot
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .windows_serial_service("destack.device.serial.watchOpen")?;
@@ -102,7 +102,7 @@ pub(crate) unsafe fn destack_device_serial_watch_open(
     let entry = ResourceEntry::new(ResourceKind::SerialWatch)
         .with_label(SERIAL_WATCH_RESOURCE_LABEL)
         .with_payload(resource)
-        .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
             WindowsSerialWatchFinalizer {
                 service,
                 registration_id,
@@ -110,7 +110,7 @@ pub(crate) unsafe fn destack_device_serial_watch_open(
             },
         ));
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 

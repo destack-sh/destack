@@ -922,7 +922,7 @@ fn rollback_key_publish(
     // remove the key resource and zeroize secret bytes before drop
     let Some(entry) =
         binding
-            .agent()
+            .worker()
             .resources
             .remove(&binding.world(), handle.0, Some(binding.engine()))
     else {
@@ -2700,7 +2700,7 @@ pub(crate) fn key_delete(
     // remove key resource and verify kind
     let Some(entry) =
         binding
-            .agent()
+            .worker()
             .resources
             .remove(&binding.world(), handle.0, Some(binding.engine()))
     else {

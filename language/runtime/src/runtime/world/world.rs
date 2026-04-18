@@ -7,237 +7,49 @@ use parking_lot::RwLock;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::runtime::bindings::BindingReplayPayload;
+use crate::runtime::memory::resolve_shared_raw_limits;
+use crate::runtime::observe::{Observation, ObservationSequence, Observations};
 use crate::runtime::policy::{Policy, PolicyState};
 use crate::runtime::random::{Random, RandomStreamId};
 use crate::runtime::time::{Clock, HostClockSource, Nanos};
 use crate::runtime::trace::{EnvironmentConfig, Outcome, Trace, TraceHeader, TraceSequence};
-use crate::runtime::{AgentId, Runtime};
+use crate::runtime::{Runtime, WorkerId};
 use crate::simulation::Simulation;
 use destack_workspace::{ExecutionMode, RandomMode, ReplayPayloadMode, RuntimeOptions, TimeMode};
 
-use super::lineage::{Lineage, ROOT_BRANCH_ID, ROOT_IMAGE_ID};
+use super::lineage::{Lineage, ROOT_BRANCH_ID};
 use super::topology::Topology;
 pub(crate) use super::topology::{
     RuntimeId, WorldEdge, WorldEdgeId, WorldEdgeKind, WorldEdgeKindDefinition, WorldEntity,
     WorldEntityId, WorldEntityKind, WorldEntityKindDefinition,
 };
 use super::{
-    BranchId, INITIAL_AGENT_ID, INITIAL_RUNTIME_ID, Image, ImageStore, Input, Observation,
-    ObservationSequence, Observations, WorldResource, WorldResourceId,
+    BranchId, Command, INITIAL_RUNTIME_ID, INITIAL_WORKER_ID, WorldImage, WorldRef, WorldResource,
+    WorldResourceId,
 };
 
 /// Number of bytes in a megabyte for replay chunk sizing.
 const BYTES_PER_MB: u64 = 1024 * 1024;
 
-/// Execution-scoped mutable world reference.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct WorldRef {
-    /// Active branch identifier for this live execution scope.
-    pub(crate) branch_id: BranchId,
-    /// Effective world time mode after execution-mode resolution.
-    pub(crate) time_mode: TimeMode,
-    /// Effective world random mode after execution-mode resolution.
-    pub(crate) random_mode: RandomMode,
-    /// Shared page arena for every branchable world allocation.
-    arena: *const Arc<heap::Arena>,
-    /// Exact hard limits for world-owned shared memory.
-    pub(crate) shared_limits: heap::SharedLimits,
-    /// Shared simulation state for all agents using this world.
-    simulation: *mut Simulation,
-    /// Active policy state.
-    policy: *mut PolicyState,
-    /// The next runtime id to allocate.
-    next_runtime_id: *mut u64,
-    /// The next agent id to allocate.
-    next_agent_id: *mut u64,
-    /// Topology registry for world metadata.
-    topology: *mut Topology,
-    /// Logical resource records keyed by world resource identifier.
-    resources: *mut BTreeMap<WorldResourceId, WorldResource>,
-    /// Shared world clock.
-    clock: *const Clock,
-    /// Shared world randomness state.
-    random: *const Random,
-    /// Trace of world events.
-    trace: *const Trace,
-    /// Emitted observations.
-    observations: *const Observations,
-    /// World-owned shared memory visible across agents.
-    shared: *mut heap::SharedSpace,
-}
-
 impl WorldRef {
-    /// Create one execution-scoped world reference from split world fields.
-    pub(crate) fn new(
-        branch_id: BranchId,
-        time_mode: TimeMode,
-        random_mode: RandomMode,
-        arena: &Arc<heap::Arena>,
-        shared_limits: heap::SharedLimits,
-        simulation: &mut Simulation,
-        policy: &mut PolicyState,
-        next_runtime_id: &mut u64,
-        next_agent_id: &mut u64,
-        topology: &mut Topology,
-        resources: &mut BTreeMap<WorldResourceId, WorldResource>,
-        clock: &Clock,
-        random: &Random,
-        trace: &Trace,
-        observations: &Observations,
-        shared: &mut heap::SharedSpace,
-    ) -> Self {
-        Self {
-            branch_id,
-            time_mode,
-            random_mode,
-            arena,
-            shared_limits,
-            simulation,
-            policy,
-            next_runtime_id,
-            next_agent_id,
-            topology,
-            resources,
-            clock,
-            random,
-            trace,
-            observations,
-            shared,
-        }
-    }
-
-    /// Borrow the live simulation state.
-    #[inline]
-    pub(crate) fn simulation(&self) -> &Simulation {
-        // safety: the execution scope owns the live simulation borrow
-        unsafe { &*self.simulation }
-    }
-
-    /// Borrow the live policy state.
-    #[inline]
-    pub(crate) fn policy(&self) -> &PolicyState {
-        // safety: the execution scope owns the live policy borrow
-        unsafe { &*self.policy }
-    }
-
-    /// Borrow the live policy state mutably.
-    #[inline]
-    pub(crate) fn policy_mut(&self) -> &mut PolicyState {
-        // safety: the execution scope owns the live policy borrow
-        unsafe { &mut *self.policy }
-    }
-
-    /// Borrow the live topology.
-    #[inline]
-    pub(crate) fn topology(&self) -> &Topology {
-        // safety: the execution scope owns the live topology borrow
-        unsafe { &*self.topology }
-    }
-
-    /// Borrow the live topology mutably.
-    #[inline]
-    pub(crate) fn topology_mut(&self) -> &mut Topology {
-        // safety: the execution scope owns the live topology borrow
-        unsafe { &mut *self.topology }
-    }
-
-    /// Borrow the live world resources mutably.
-    #[inline]
-    pub(crate) fn resources_mut(&self) -> &mut BTreeMap<WorldResourceId, WorldResource> {
-        // safety: the execution scope owns the live resource borrow
-        unsafe { &mut *self.resources }
-    }
-
-    /// Borrow the shared world clock.
-    #[inline]
-    pub(crate) fn clock(&self) -> &Clock {
-        // safety: the execution scope owns the live world borrow
-        unsafe { &*self.clock }
-    }
-
-    /// Borrow the shared world randomness state.
-    #[inline]
-    pub(crate) fn random(&self) -> &Random {
-        // safety: the execution scope owns the live world borrow
-        unsafe { &*self.random }
-    }
-
-    /// Return the shared page arena for this execution scope.
-    #[inline]
-    pub(crate) fn arena(&self) -> Arc<heap::Arena> {
-        // safety: the execution scope owns the live world borrow
-        unsafe { (&*self.arena).clone() }
-    }
-
-    /// Borrow the shared trace controller.
-    #[inline]
-    pub(crate) fn trace(&self) -> &Trace {
-        // safety: the execution scope owns the live world borrow
-        unsafe { &*self.trace }
-    }
-
-    /// Borrow the emitted observations.
-    #[inline]
-    pub(crate) fn observations(&self) -> &Observations {
-        // safety: the execution scope owns the live world borrow
-        unsafe { &*self.observations }
-    }
-
-    /// Return the current live execution coordinate.
-    pub(crate) fn moment(&self) -> super::Moment {
-        super::Moment::new(self.branch_id, self.trace().log().next_sequence())
-    }
-
-    /// Emit one observation at the current execution coordinate.
-    pub(crate) fn observe(&self, observation: Observation) -> ObservationSequence {
-        self.observations().record_at(self.moment(), observation)
-    }
-
-    /// Borrow the shared world memory mutably.
-    #[inline]
-    pub(crate) fn shared_mut(&self) -> &mut heap::SharedSpace {
-        // safety: the execution scope owns the live shared-space borrow
-        unsafe { &mut *self.shared }
-    }
-
-    /// Allocate one runtime identifier.
-    pub(crate) fn allocate_runtime_id(&self) -> RuntimeId {
-        let runtime_id = unsafe { *self.next_runtime_id };
-        unsafe {
-            *self.next_runtime_id = runtime_id.saturating_add(1);
-        }
-
-        RuntimeId(runtime_id)
-    }
-
-    /// Allocate one agent identifier.
-    pub(crate) fn allocate_agent_id(&self) -> AgentId {
-        let agent_id = unsafe { *self.next_agent_id };
-        unsafe {
-            *self.next_agent_id = agent_id.saturating_add(1);
-        }
-
-        AgentId(agent_id)
-    }
-
-    /// Register one runtime and its primary agent in world topology.
+    /// Register one runtime and its primary worker in world topology.
     pub(crate) fn register_runtime_topology(
         &self,
         runtime_id: RuntimeId,
         runtime_name: String,
         runtime_labels: BTreeMap<String, String>,
-        primary_agent_id: AgentId,
-        primary_agent_name: String,
-        primary_agent_labels: BTreeMap<String, String>,
+        primary_worker_id: WorkerId,
+        primary_worker_name: String,
+        primary_worker_labels: BTreeMap<String, String>,
     ) -> RuntimeResult<()> {
         self.topology_mut()
             .add_runtime(
                 runtime_id,
                 runtime_name,
                 runtime_labels,
-                primary_agent_id,
-                primary_agent_name,
-                primary_agent_labels,
+                primary_worker_id,
+                primary_worker_name,
+                primary_worker_labels,
             )
             .map_err(|message| {
                 RuntimeError::Internal {
@@ -247,16 +59,16 @@ impl WorldRef {
             })
     }
 
-    /// Register one agent in one existing runtime.
-    pub(crate) fn register_agent_topology(
+    /// Register one worker in one existing runtime.
+    pub(crate) fn register_worker_topology(
         &self,
         runtime_id: RuntimeId,
-        agent_id: AgentId,
-        agent_name: String,
-        agent_labels: BTreeMap<String, String>,
+        worker_id: WorkerId,
+        worker_name: String,
+        worker_labels: BTreeMap<String, String>,
     ) -> RuntimeResult<()> {
         self.topology_mut()
-            .add_agent(runtime_id, agent_id, agent_name, agent_labels)
+            .add_worker(runtime_id, worker_id, worker_name, worker_labels)
             .map_err(|message| {
                 RuntimeError::Internal {
                     message: message.to_string(),
@@ -343,17 +155,17 @@ impl WorldRef {
         self.time_mode
     }
 
-    /// Return the earliest deadline across agent-local and world-local timed work.
+    /// Return the earliest deadline across worker-local and world-local timed work.
     pub(crate) fn next_deadline<I>(
         &self,
-        agent_deadlines: I,
+        worker_deadlines: I,
     ) -> Option<crate::runtime::time::WorldInstant>
     where
         I: IntoIterator<Item = Option<crate::runtime::time::WorldInstant>>,
     {
         let mut next_deadline = self.simulation().next_deadline();
 
-        for agent_deadline in agent_deadlines {
+        for agent_deadline in worker_deadlines {
             next_deadline = match (next_deadline, agent_deadline) {
                 (Some(current), Some(candidate)) => Some(current.min(candidate)),
                 (Some(current), None) => Some(current),
@@ -373,14 +185,14 @@ pub struct World {
     pub(crate) branch_id: BranchId,
     /// Live runtimes owned by this world.
     pub(crate) runtimes: BTreeMap<RuntimeId, Box<Runtime>>,
-    /// Shared simulation state for all agents using this world.
+    /// Shared simulation state for all workers using this world.
     pub(crate) simulation: Simulation,
     /// Active policy state.
     pub(crate) policy: PolicyState,
     /// The next runtime id to allocate.
     pub(crate) next_runtime_id: u64,
-    /// The next agent id to allocate.
-    pub(crate) next_agent_id: u64,
+    /// The next worker id to allocate.
+    pub(crate) next_worker_id: u64,
     /// Topology registry for world metadata.
     pub(crate) topology: Topology,
     /// Logical resource records keyed by world resource identifier.
@@ -398,16 +210,14 @@ pub struct World {
     pub(crate) trace: Trace,
     /// Emitted observation log (separate from causal trace).
     pub(crate) observations: Observations,
-    /// Shared page arena for every branchable world allocation.
-    pub(crate) arena: Arc<heap::Arena>,
+    /// Shared-heap arena for every branchable world allocation.
+    pub(crate) shared_arena: Arc<heap::Arena>,
     /// World-owned lineage metadata.
     pub(crate) lineage: Arc<RwLock<Lineage>>,
-    /// World-owned retained image payloads.
-    pub(crate) images: Arc<RwLock<ImageStore>>,
-    /// World-owned shared memory visible across agents.
-    pub(crate) shared: heap::SharedSpace,
-    /// Exact hard limits for world-owned shared memory.
-    pub(crate) shared_limits: heap::SharedLimits,
+    /// World-owned shared heap visible across workers.
+    pub(crate) shared: heap::SharedHeap,
+    /// Exact hard limits for world-owned shared raw space.
+    pub(crate) shared_raw_limits: heap::SharedRawLimits,
 }
 
 impl World {
@@ -473,18 +283,18 @@ impl World {
         let policy = Policy::from_workspace_rules(&options.rules);
         let trace = Trace::new(options.execution, trace_header);
         let topology = Topology::new();
-        let arena = Arc::new(heap::Arena::with_page_bytes(options.heap.page_bytes));
-        let shared = heap::SharedSpace::with_arena(arena.clone());
-        let shared_limits = heap::SharedLimits {
-            max_bytes: options.heap.max_shared_bytes,
-        };
+        let shared_arena = Arc::new(
+            heap::Arena::try_new(options.heap.page_bytes, options.heap.arena_segment_bytes)
+                .map_err(Box::<RuntimeError>::from)?,
+        );
+        let shared = heap::SharedHeap::with_arena(shared_arena.clone());
+        let shared_raw_limits = resolve_shared_raw_limits(&options.heap);
         policy.validate_with_kind_catalog(&topology)?;
 
         // final world state
-        let root_image = Arc::new(Image {
-            id: ROOT_IMAGE_ID,
+        let root_image = Arc::new(WorldImage {
             next_runtime_id: INITIAL_RUNTIME_ID,
-            next_agent_id: INITIAL_AGENT_ID,
+            next_worker_id: INITIAL_WORKER_ID,
             policy: PolicyState::new(policy.clone()),
             topology: topology.clone(),
             resources: BTreeMap::new(),
@@ -493,15 +303,13 @@ impl World {
             random: random.snapshot(),
             shared: shared.image(),
             runtimes: BTreeMap::new(),
-            agents: BTreeMap::new(),
+            workers: BTreeMap::new(),
         });
         let root_trace_image = Arc::new(trace.capture_image());
         let lineage = Arc::new(RwLock::new(Lineage::new_root(
             root_image.clock.virtual_wall,
             root_image.clock.virtual_mono,
             root_trace_image.next_sequence,
-        )));
-        let images = Arc::new(RwLock::new(ImageStore::new_root(
             root_image,
             root_trace_image,
         )));
@@ -512,7 +320,7 @@ impl World {
             simulation: Simulation::default(),
             policy: PolicyState::new(policy),
             next_runtime_id: INITIAL_RUNTIME_ID,
-            next_agent_id: INITIAL_AGENT_ID,
+            next_worker_id: INITIAL_WORKER_ID,
             topology,
             resources: BTreeMap::new(),
             time_mode,
@@ -521,11 +329,10 @@ impl World {
             random,
             trace,
             observations: Observations::default(),
-            arena,
+            shared_arena,
             lineage,
-            images,
             shared,
-            shared_limits,
+            shared_raw_limits,
         };
 
         Ok(world)
@@ -581,16 +388,16 @@ impl World {
         Ok(entity.labels.clone())
     }
 
-    /// Return labels for one live agent.
-    pub fn agent_labels(&self, agent_id: AgentId) -> RuntimeResult<BTreeMap<String, String>> {
-        let entity_id = format!("agent.{}", agent_id.0);
+    /// Return labels for one live worker.
+    pub fn worker_labels(&self, worker_id: WorkerId) -> RuntimeResult<BTreeMap<String, String>> {
+        let entity_id = format!("worker.{}", worker_id.0);
         let topology = &self.topology;
         let entity =
             topology
                 .entities()
                 .get(entity_id.as_str())
-                .ok_or(RuntimeError::AgentNotFound {
-                    agent_id: agent_id.0,
+                .ok_or(RuntimeError::WorkerNotFound {
+                    worker_id: worker_id.0,
                 })?;
 
         Ok(entity.labels.clone())
@@ -612,12 +419,11 @@ impl World {
             self.branch_id,
             self.time_mode,
             self.random_mode,
-            &self.arena,
-            self.shared_limits,
+            self.shared_raw_limits,
             &mut self.simulation,
             &mut self.policy,
             &mut self.next_runtime_id,
-            &mut self.next_agent_id,
+            &mut self.next_worker_id,
             &mut self.topology,
             &mut self.resources,
             &self.clock,
@@ -646,6 +452,13 @@ impl World {
     /// Return the emitted observation log for this world.
     pub fn observations(&self) -> &Observations {
         &self.observations
+    }
+
+    /// Emit one observation at the current world moment.
+    pub fn observe(&mut self, observation: Observation) -> ObservationSequence {
+        let moment = self.moment();
+
+        self.observations.record_at(moment, observation)
     }
 
     /// Return the current world wall time.
@@ -733,9 +546,9 @@ impl World {
         &self.trace
     }
 
-    /// Ingest one authoritative input at the world boundary.
-    pub fn ingest(&self, input: Input) -> RuntimeResult<()> {
-        self.trace.record_input(input)
+    /// Ingest one authoritative command at the world boundary.
+    pub fn ingest(&self, command: Command) -> RuntimeResult<()> {
+        self.trace.record_command(command)
     }
 
     /// Accept one authoritative external outcome at the world boundary.
@@ -753,8 +566,8 @@ impl World {
         self.anchor(label)
     }
 
-    /// Resolve one input against the replay boundary.
-    pub(crate) fn resolve_input(&self, input: Input) -> RuntimeResult<Input> {
-        self.trace.resolve_input(input)
+    /// Resolve one command against the replay boundary.
+    pub(crate) fn resolve_command(&self, command: Command) -> RuntimeResult<Command> {
+        self.trace.resolve_command(command)
     }
 }

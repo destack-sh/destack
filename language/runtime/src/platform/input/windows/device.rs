@@ -161,7 +161,7 @@ pub(super) fn open_device(
                         restore_mode: Some(mode),
                         release_console_lane: true,
                     });
-                let resource_id = binding.agent().resources.insert(
+                let resource_id = binding.worker().resources.insert(
                     &binding.world(),
                     entry,
                     Some(binding.engine()),
@@ -231,7 +231,7 @@ pub(super) fn open_device(
                 });
             let resource_id =
                 binding
-                    .agent()
+                    .worker()
                     .resources
                     .insert(&binding.world(), entry, Some(binding.engine()));
             Ok(resource::InputDeviceHandle(resource_id))
@@ -284,7 +284,7 @@ pub(super) fn open_device(
                 });
             let resource_id =
                 binding
-                    .agent()
+                    .worker()
                     .resources
                     .insert(&binding.world(), entry, Some(binding.engine()));
             Ok(resource::InputDeviceHandle(resource_id))
@@ -302,7 +302,7 @@ pub(super) fn close_device(
     input_core::resolve_input(binding, handle, operation)?;
 
     // remove from resource table and run finalizer
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),

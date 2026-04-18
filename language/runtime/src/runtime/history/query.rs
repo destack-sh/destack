@@ -427,8 +427,8 @@ impl<'a> LineageView<'a> {
     fn replay_trace_for_branch(self, branch_id: BranchId) -> RuntimeResult<Trace> {
         let trace_image = {
             let lineage = self.world.lineage.read();
-            let head_revision = lineage.head_revision_for_branch(branch_id)?;
-            self.world.trace_image(head_revision.id)?
+            let branch = lineage.branch(branch_id)?;
+            self.world.trace_image(branch.head_revision)?
         };
 
         Trace::replay_from_image(&trace_image)

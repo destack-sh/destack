@@ -11,27 +11,27 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::NativeStringRef;
 use crate::platform::runtime::{
-    AgentCreateOptions, AgentCreateOptionsVm, AgentDescriptor, AgentDescriptorVm, AgentFilter,
-    AgentFilterVm, AgentHandle, AgentId, BranchDescriptor, BranchDescriptorVm, BranchFilter,
-    BranchFilterVm, BranchId, CheckpointDescriptor, CheckpointDescriptorVm, CheckpointFilter,
-    CheckpointFilterVm, CheckpointId, EngineDescriptor, EngineDescriptorKind, EngineDescriptorVm,
-    EventLoopDescriptor, EventLoopDescriptorVm, HeapDescriptor, HeapDescriptorVm, ImageDescriptor,
-    ImageDescriptorVm, ImageFilter, ImageFilterVm, ImageId, ObservationEventKind,
-    ObservationHandle, ObservationOptions, ObservationOptionsVm, ObservationRecord,
-    ObservationRecordVm, ResourceDescriptor, ResourceDescriptorVm, ResourceFilter,
-    ResourceFilterVm, RevisionDescriptor, RevisionDescriptorVm, RevisionFilter, RevisionFilterVm,
-    RevisionId, RuntimeCreateOptions, RuntimeCreateOptionsVm, RuntimeDescriptor,
-    RuntimeDescriptorVm, RuntimeEngineKind, RuntimeExecutionMode, RuntimeFilter, RuntimeFilterVm,
-    RuntimeHandle, RuntimeId, RuntimeLabel, RuntimeLabelSelector, RuntimeLabelSelectorVm,
-    RuntimeLabelVm, RuntimeTickOutcome, RuntimeWorldKind, SnapshotDescriptor, SnapshotDescriptorVm,
-    SnapshotFormat, SnapshotId, TopologyEdge, TopologyEdgeFilter, TopologyEdgeFilterVm,
-    TopologyEdgeId, TopologyEdgeIdVm, TopologyEdgeKind, TopologyEdgeKindVm, TopologyEdgeVm,
-    TopologyEntity, TopologyEntityFilter, TopologyEntityFilterVm, TopologyEntityId,
-    TopologyEntityIdVm, TopologyEntityKind, TopologyEntityKindVm, TopologyEntityVm,
-    TraceCursorHandle, TraceCursorOptions, TraceCursorOptionsVm, TraceDescriptor,
-    TraceDescriptorVm, TraceEventKind, TraceRecord, TraceRecordVm, TraceSequence,
-    WorldCreateOptions, WorldCreateOptionsVm, WorldDescriptor, WorldDescriptorVm, WorldHandle,
-    WorldResourceId, WorldResourceIdVm, WorldViewHandle, WorldViewOptions, WorldViewOptionsVm,
+    BranchDescriptor, BranchDescriptorVm, BranchFilter, BranchFilterVm, BranchId,
+    CheckpointDescriptor, CheckpointDescriptorVm, CheckpointFilter, CheckpointFilterVm,
+    CheckpointId, EngineDescriptor, EngineDescriptorKind, EngineDescriptorVm, EventLoopDescriptor,
+    EventLoopDescriptorVm, HeapDescriptor, HeapDescriptorVm, ImageDescriptor, ImageDescriptorVm,
+    ImageFilter, ImageFilterVm, ImageId, ObservationEventKind, ObservationHandle,
+    ObservationOptions, ObservationOptionsVm, ObservationRecord, ObservationRecordVm,
+    ResourceDescriptor, ResourceDescriptorVm, ResourceFilter, ResourceFilterVm, RevisionDescriptor,
+    RevisionDescriptorVm, RevisionFilter, RevisionFilterVm, RevisionId, RuntimeCreateOptions,
+    RuntimeCreateOptionsVm, RuntimeDescriptor, RuntimeDescriptorVm, RuntimeEngineKind,
+    RuntimeExecutionMode, RuntimeFilter, RuntimeFilterVm, RuntimeHandle, RuntimeId, RuntimeLabel,
+    RuntimeLabelSelector, RuntimeLabelSelectorVm, RuntimeLabelVm, RuntimeTickOutcome,
+    RuntimeWorldKind, SnapshotDescriptor, SnapshotDescriptorVm, SnapshotFormat, SnapshotId,
+    TopologyEdge, TopologyEdgeFilter, TopologyEdgeFilterVm, TopologyEdgeId, TopologyEdgeIdVm,
+    TopologyEdgeKind, TopologyEdgeKindVm, TopologyEdgeVm, TopologyEntity, TopologyEntityFilter,
+    TopologyEntityFilterVm, TopologyEntityId, TopologyEntityIdVm, TopologyEntityKind,
+    TopologyEntityKindVm, TopologyEntityVm, TraceCursorHandle, TraceCursorOptions,
+    TraceCursorOptionsVm, TraceDescriptor, TraceDescriptorVm, TraceEventKind, TraceRecord,
+    TraceRecordVm, TraceSequence, WorkerCreateOptions, WorkerCreateOptionsVm, WorkerDescriptor,
+    WorkerDescriptorVm, WorkerFilter, WorkerFilterVm, WorkerHandle, WorkerId, WorldCreateOptions,
+    WorldCreateOptionsVm, WorldDescriptor, WorldDescriptorVm, WorldHandle, WorldResourceId,
+    WorldResourceIdVm, WorldViewHandle, WorldViewOptions, WorldViewOptionsVm,
 };
 use crate::platform::{
     NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, abi as platform_abi,
@@ -172,34 +172,34 @@ fn decode_array<T>(
     VmArray::<T>::from_value(context, value, name, expected)
 }
 
-/// Decode arguments for destack.runtime.core.agentClose.
+/// Decode arguments for destack.runtime.core.workerClose.
 #[inline]
-fn decode_destack_runtime_core_agent_close_args(
+fn decode_destack_runtime_core_worker_close_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(AgentHandle,)> {
-    let agent_value = arg_value(args, 0, "agent", "AgentHandle")?;
-    let agent_inner_inner = decode_uint64(agent_value, "agent_inner_inner", "AgentHandle")?;
-    let agent_inner = resource::ResourceId(agent_inner_inner);
-    let agent = AgentHandle(agent_inner);
-    Ok((agent,))
+) -> RuntimeResult<(WorkerHandle,)> {
+    let worker_value = arg_value(args, 0, "worker", "WorkerHandle")?;
+    let worker_inner_inner = decode_uint64(worker_value, "worker_inner_inner", "WorkerHandle")?;
+    let worker_inner = resource::ResourceId(worker_inner_inner);
+    let worker = WorkerHandle(worker_inner);
+    Ok((worker,))
 }
 
-/// Encode the result for destack.runtime.core.agentClose.
+/// Encode the result for destack.runtime.core.workerClose.
 #[inline]
-fn encode_destack_runtime_core_agent_close_result(
+fn encode_destack_runtime_core_worker_close_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.runtime.core.agentCreate.
+/// Decode arguments for destack.runtime.core.workerCreate.
 #[inline]
-fn decode_destack_runtime_core_agent_create_args(
+fn decode_destack_runtime_core_worker_create_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(RuntimeHandle, Option<AgentCreateOptionsVm>)> {
+) -> RuntimeResult<(RuntimeHandle, Option<WorkerCreateOptionsVm>)> {
     let context = &context.read();
     let runtimehandle_value = arg_value(args, 0, "runtimehandle", "RuntimeHandle")?;
     let runtimehandle_inner_inner = decode_uint64(
@@ -209,11 +209,11 @@ fn decode_destack_runtime_core_agent_create_args(
     )?;
     let runtimehandle_inner = resource::ResourceId(runtimehandle_inner_inner);
     let runtimehandle = RuntimeHandle(runtimehandle_inner);
-    let options_value = arg_value(args, 1, "options", "AgentCreateOptions")?;
+    let options_value = arg_value(args, 1, "options", "WorkerCreateOptions")?;
     let options = if options_value.tag() == vm::ValueTag::Void {
         None
     } else {
-        let options_inner = <AgentCreateOptionsVm as VmAggregateCodec>::decode_with_context(
+        let options_inner = <WorkerCreateOptionsVm as VmAggregateCodec>::decode_with_context(
             context,
             options_value,
         )?;
@@ -222,35 +222,35 @@ fn decode_destack_runtime_core_agent_create_args(
     Ok((runtimehandle, options))
 }
 
-/// Encode the result for destack.runtime.core.agentCreate.
+/// Encode the result for destack.runtime.core.workerCreate.
 #[inline]
-fn encode_destack_runtime_core_agent_create_result(
+fn encode_destack_runtime_core_worker_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<AgentHandle>,
+    result: RuntimeResult<WorkerHandle>,
 ) -> RuntimeResult<vm::Value> {
     result
         .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
         .and_then(|value| value)
 }
 
-/// Decode arguments for destack.runtime.core.agentDescribe.
+/// Decode arguments for destack.runtime.core.workerDescribe.
 #[inline]
-fn decode_destack_runtime_core_agent_describe_args(
+fn decode_destack_runtime_core_worker_describe_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(AgentHandle,)> {
-    let agent_value = arg_value(args, 0, "agent", "AgentHandle")?;
-    let agent_inner_inner = decode_uint64(agent_value, "agent_inner_inner", "AgentHandle")?;
-    let agent_inner = resource::ResourceId(agent_inner_inner);
-    let agent = AgentHandle(agent_inner);
-    Ok((agent,))
+) -> RuntimeResult<(WorkerHandle,)> {
+    let worker_value = arg_value(args, 0, "worker", "WorkerHandle")?;
+    let worker_inner_inner = decode_uint64(worker_value, "worker_inner_inner", "WorkerHandle")?;
+    let worker_inner = resource::ResourceId(worker_inner_inner);
+    let worker = WorkerHandle(worker_inner);
+    Ok((worker,))
 }
 
-/// Encode the result for destack.runtime.core.agentDescribe.
+/// Encode the result for destack.runtime.core.workerDescribe.
 #[inline]
-fn encode_destack_runtime_core_agent_describe_result(
+fn encode_destack_runtime_core_worker_describe_result(
     context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<AgentDescriptorVm>,
+    result: RuntimeResult<WorkerDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
     let context = &mut context.write();
     result
@@ -269,7 +269,7 @@ fn encode_destack_runtime_core_agent_describe_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("runtime::AgentDescriptor")
+                .begin_named_storage_value_builder("runtime::WorkerDescriptor")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
                 .write_component(0, field_0?)
@@ -387,13 +387,13 @@ fn encode_destack_runtime_core_runtime_describe_result(
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.id.0, 64));
             let field_1: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.primary_agent_id.0, 64));
+                Ok(vm::Value::uint(value.primary_worker_id.0, 64));
             let field_2: RuntimeResult<vm::Value> = match value.name {
                 Some(value) => Ok(value.value()),
                 None => Ok(vm::Value::VOID),
             };
             let field_3: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.agent_count as u64, 32));
+                Ok(vm::Value::uint(value.worker_count as u64, 32));
             let field_4: RuntimeResult<vm::Value> = match value.labels {
                 Some(value) => value.to_value(context),
                 None => Ok(vm::Value::VOID),
@@ -576,15 +576,15 @@ fn encode_destack_runtime_core_world_tick_result(
         .and_then(|value| value)
 }
 
-/// Decode arguments for destack.runtime.inspect.agentList.
+/// Decode arguments for destack.runtime.inspect.workerList.
 #[inline]
-fn decode_destack_runtime_inspect_agent_list_args(
+fn decode_destack_runtime_inspect_worker_list_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     WorldViewHandle,
-    Option<AgentFilterVm>,
-    Option<AgentId>,
+    Option<WorkerFilterVm>,
+    Option<WorkerId>,
     Option<u32>,
 )> {
     let context = &context.read();
@@ -592,20 +592,20 @@ fn decode_destack_runtime_inspect_agent_list_args(
     let view_inner_inner = decode_uint64(view_value, "view_inner_inner", "WorldViewHandle")?;
     let view_inner = resource::ResourceId(view_inner_inner);
     let view = WorldViewHandle(view_inner);
-    let filter_value = arg_value(args, 1, "filter", "AgentFilter")?;
+    let filter_value = arg_value(args, 1, "filter", "WorkerFilter")?;
     let filter = if filter_value.tag() == vm::ValueTag::Void {
         None
     } else {
         let filter_inner =
-            <AgentFilterVm as VmAggregateCodec>::decode_with_context(context, filter_value)?;
+            <WorkerFilterVm as VmAggregateCodec>::decode_with_context(context, filter_value)?;
         Some(filter_inner)
     };
-    let after_value = arg_value(args, 2, "after", "AgentId")?;
+    let after_value = arg_value(args, 2, "after", "WorkerId")?;
     let after = if after_value.tag() == vm::ValueTag::Void {
         None
     } else {
-        let after_inner_inner = decode_uint64(after_value, "after_inner_inner", "AgentId")?;
-        let after_inner = AgentId(after_inner_inner);
+        let after_inner_inner = decode_uint64(after_value, "after_inner_inner", "WorkerId")?;
+        let after_inner = WorkerId(after_inner_inner);
         Some(after_inner)
     };
     let limit_value = arg_value(args, 3, "limit", "uint32")?;
@@ -618,11 +618,11 @@ fn decode_destack_runtime_inspect_agent_list_args(
     Ok((view, filter, after, limit))
 }
 
-/// Encode the result for destack.runtime.inspect.agentList.
+/// Encode the result for destack.runtime.inspect.workerList.
 #[inline]
-fn encode_destack_runtime_inspect_agent_list_result(
+fn encode_destack_runtime_inspect_worker_list_result(
     context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<VmArray<AgentDescriptorVm>>,
+    result: RuntimeResult<VmArray<WorkerDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
     let context = &mut context.write();
     result
@@ -630,27 +630,27 @@ fn encode_destack_runtime_inspect_agent_list_result(
         .and_then(|value| value)
 }
 
-/// Decode arguments for destack.runtime.inspect.agentView.
+/// Decode arguments for destack.runtime.inspect.workerView.
 #[inline]
-fn decode_destack_runtime_inspect_agent_view_args(
+fn decode_destack_runtime_inspect_worker_view_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(WorldViewHandle, AgentId)> {
+) -> RuntimeResult<(WorldViewHandle, WorkerId)> {
     let view_value = arg_value(args, 0, "view", "WorldViewHandle")?;
     let view_inner_inner = decode_uint64(view_value, "view_inner_inner", "WorldViewHandle")?;
     let view_inner = resource::ResourceId(view_inner_inner);
     let view = WorldViewHandle(view_inner);
-    let agentid_value = arg_value(args, 1, "agentid", "AgentId")?;
-    let agentid_inner = decode_uint64(agentid_value, "agentid_inner", "AgentId")?;
-    let agentid = AgentId(agentid_inner);
-    Ok((view, agentid))
+    let workerid_value = arg_value(args, 1, "workerid", "WorkerId")?;
+    let workerid_inner = decode_uint64(workerid_value, "workerid_inner", "WorkerId")?;
+    let workerid = WorkerId(workerid_inner);
+    Ok((view, workerid))
 }
 
-/// Encode the result for destack.runtime.inspect.agentView.
+/// Encode the result for destack.runtime.inspect.workerView.
 #[inline]
-fn encode_destack_runtime_inspect_agent_view_result(
+fn encode_destack_runtime_inspect_worker_view_result(
     context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<AgentDescriptorVm>,
+    result: RuntimeResult<WorkerDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
     let context = &mut context.write();
     result
@@ -669,7 +669,7 @@ fn encode_destack_runtime_inspect_agent_view_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("runtime::AgentDescriptor")
+                .begin_named_storage_value_builder("runtime::WorkerDescriptor")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
                 .write_component(0, field_0?)
@@ -812,15 +812,15 @@ fn encode_destack_runtime_inspect_edge_view_result(
 fn decode_destack_runtime_inspect_engine_view_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(WorldViewHandle, AgentId)> {
+) -> RuntimeResult<(WorldViewHandle, WorkerId)> {
     let view_value = arg_value(args, 0, "view", "WorldViewHandle")?;
     let view_inner_inner = decode_uint64(view_value, "view_inner_inner", "WorldViewHandle")?;
     let view_inner = resource::ResourceId(view_inner_inner);
     let view = WorldViewHandle(view_inner);
-    let agentid_value = arg_value(args, 1, "agentid", "AgentId")?;
-    let agentid_inner = decode_uint64(agentid_value, "agentid_inner", "AgentId")?;
-    let agentid = AgentId(agentid_inner);
-    Ok((view, agentid))
+    let workerid_value = arg_value(args, 1, "workerid", "WorkerId")?;
+    let workerid_inner = decode_uint64(workerid_value, "workerid_inner", "WorkerId")?;
+    let workerid = WorkerId(workerid_inner);
+    Ok((view, workerid))
 }
 
 /// Encode the result for destack.runtime.inspect.engineView.
@@ -994,15 +994,15 @@ fn encode_destack_runtime_inspect_entity_view_result(
 fn decode_destack_runtime_inspect_event_loop_view_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(WorldViewHandle, AgentId)> {
+) -> RuntimeResult<(WorldViewHandle, WorkerId)> {
     let view_value = arg_value(args, 0, "view", "WorldViewHandle")?;
     let view_inner_inner = decode_uint64(view_value, "view_inner_inner", "WorldViewHandle")?;
     let view_inner = resource::ResourceId(view_inner_inner);
     let view = WorldViewHandle(view_inner);
-    let agentid_value = arg_value(args, 1, "agentid", "AgentId")?;
-    let agentid_inner = decode_uint64(agentid_value, "agentid_inner", "AgentId")?;
-    let agentid = AgentId(agentid_inner);
-    Ok((view, agentid))
+    let workerid_value = arg_value(args, 1, "workerid", "WorkerId")?;
+    let workerid_inner = decode_uint64(workerid_value, "workerid_inner", "WorkerId")?;
+    let workerid = WorkerId(workerid_inner);
+    Ok((view, workerid))
 }
 
 /// Encode the result for destack.runtime.inspect.eventLoopView.
@@ -1051,15 +1051,15 @@ fn encode_destack_runtime_inspect_event_loop_view_result(
 fn decode_destack_runtime_inspect_heap_view_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(WorldViewHandle, AgentId)> {
+) -> RuntimeResult<(WorldViewHandle, WorkerId)> {
     let view_value = arg_value(args, 0, "view", "WorldViewHandle")?;
     let view_inner_inner = decode_uint64(view_value, "view_inner_inner", "WorldViewHandle")?;
     let view_inner = resource::ResourceId(view_inner_inner);
     let view = WorldViewHandle(view_inner);
-    let agentid_value = arg_value(args, 1, "agentid", "AgentId")?;
-    let agentid_inner = decode_uint64(agentid_value, "agentid_inner", "AgentId")?;
-    let agentid = AgentId(agentid_inner);
-    Ok((view, agentid))
+    let workerid_value = arg_value(args, 1, "workerid", "WorkerId")?;
+    let workerid_inner = decode_uint64(workerid_value, "workerid_inner", "WorkerId")?;
+    let workerid = WorkerId(workerid_inner);
+    Ok((view, workerid))
 }
 
 /// Encode the result for destack.runtime.inspect.heapView.
@@ -1224,7 +1224,7 @@ fn encode_destack_runtime_inspect_resource_view_result(
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = {
                 let field_0: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.id.agent_id.0, 64));
+                    Ok(vm::Value::uint(value.id.worker_id.0, 64));
                 let field_1: RuntimeResult<vm::Value> =
                     Ok(vm::Value::uint(value.id.resource_id.0, 64));
                 let mut value_builder = context
@@ -1410,13 +1410,13 @@ fn encode_destack_runtime_inspect_runtime_view_result(
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.id.0, 64));
             let field_1: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.primary_agent_id.0, 64));
+                Ok(vm::Value::uint(value.primary_worker_id.0, 64));
             let field_2: RuntimeResult<vm::Value> = match value.name {
                 Some(value) => Ok(value.value()),
                 None => Ok(vm::Value::VOID),
             };
             let field_3: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.agent_count as u64, 32));
+                Ok(vm::Value::uint(value.worker_count as u64, 32));
             let field_4: RuntimeResult<vm::Value> = match value.labels {
                 Some(value) => value.to_value(context),
                 None => Ok(vm::Value::VOID),
@@ -2971,12 +2971,12 @@ fn encode_destack_runtime_trace_tell_result(
         .and_then(|value| value)
 }
 
-/// Binding descriptor for destack.runtime.core.agentClose.
+/// Binding descriptor for destack.runtime.core.workerClose.
 pub(crate) const RUNTIME_CORE_AGENT_CLOSE: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
-        "destack.runtime.core.agentClose",
-        "export function agentClose(agent: AgentHandle): Result<void, PlatformError>",
-        &["runtime.agent.control"],
+        "destack.runtime.core.workerClose",
+        "export function workerClose(worker: WorkerHandle): Result<void, PlatformError>",
+        &["runtime.worker.control"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,
         BindingAffinity::Owner,
@@ -2984,11 +2984,11 @@ pub(crate) const RUNTIME_CORE_AGENT_CLOSE: BindingDescriptor =
     .with_namespace("runtime")
     .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
-/// Binding descriptor for destack.runtime.core.agentCreate.
+/// Binding descriptor for destack.runtime.core.workerCreate.
 pub(crate) const RUNTIME_CORE_AGENT_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
-    "destack.runtime.core.agentCreate",
-    "export function agentCreate(runtimeHandle: RuntimeHandle, options: AgentCreateOptions): Result<AgentHandle, PlatformError>",
-    &["runtime.agent.create"],
+    "destack.runtime.core.workerCreate",
+    "export function workerCreate(runtimeHandle: RuntimeHandle, options: WorkerCreateOptions): Result<WorkerHandle, PlatformError>",
+    &["runtime.worker.create"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,
     BindingAffinity::Owner,
@@ -2996,12 +2996,12 @@ pub(crate) const RUNTIME_CORE_AGENT_CREATE: BindingDescriptor = BindingDescripto
     .with_namespace("runtime")
     .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
-/// Binding descriptor for destack.runtime.core.agentDescribe.
+/// Binding descriptor for destack.runtime.core.workerDescribe.
 pub(crate) const RUNTIME_CORE_AGENT_DESCRIBE: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
-        "destack.runtime.core.agentDescribe",
-        "export function agentDescribe(agent: AgentHandle): Result<AgentDescriptor, PlatformError>",
-        &["runtime.agent.read"],
+        "destack.runtime.core.workerDescribe",
+        "export function workerDescribe(worker: WorkerHandle): Result<WorkerDescriptor, PlatformError>",
+        &["runtime.worker.read"],
         BindingScope::Runtime,
         BindingBlocking::Never,
         BindingAffinity::Owner,
@@ -3097,10 +3097,10 @@ pub(crate) const RUNTIME_CORE_WORLD_TICK: BindingDescriptor =
     .with_namespace("runtime")
     .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
-/// Binding descriptor for destack.runtime.inspect.agentList.
+/// Binding descriptor for destack.runtime.inspect.workerList.
 pub(crate) const RUNTIME_INSPECT_AGENT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
-    "destack.runtime.inspect.agentList",
-    "export function agentList(view: WorldViewHandle, filter: AgentFilter, after: AgentId, limit: uint32): Result<AgentDescriptor[], PlatformError>",
+    "destack.runtime.inspect.workerList",
+    "export function workerList(view: WorldViewHandle, filter: WorkerFilter, after: WorkerId, limit: uint32): Result<WorkerDescriptor[], PlatformError>",
     &["runtime.inspect.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3109,10 +3109,10 @@ pub(crate) const RUNTIME_INSPECT_AGENT_LIST: BindingDescriptor = BindingDescript
     .with_namespace("runtime")
     .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
-/// Binding descriptor for destack.runtime.inspect.agentView.
+/// Binding descriptor for destack.runtime.inspect.workerView.
 pub(crate) const RUNTIME_INSPECT_AGENT_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
-    "destack.runtime.inspect.agentView",
-    "export function agentView(view: WorldViewHandle, agentId: AgentId): Result<AgentDescriptor, PlatformError>",
+    "destack.runtime.inspect.workerView",
+    "export function workerView(view: WorldViewHandle, workerId: WorkerId): Result<WorkerDescriptor, PlatformError>",
     &["runtime.inspect.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3148,7 +3148,7 @@ pub(crate) const RUNTIME_INSPECT_EDGE_VIEW: BindingDescriptor = BindingDescripto
 /// Binding descriptor for destack.runtime.inspect.engineView.
 pub(crate) const RUNTIME_INSPECT_ENGINE_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.engineView",
-    "export function engineView(view: WorldViewHandle, agentId: AgentId): Result<EngineDescriptor, PlatformError>",
+    "export function engineView(view: WorldViewHandle, workerId: WorkerId): Result<EngineDescriptor, PlatformError>",
     &["runtime.inspect.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3184,7 +3184,7 @@ pub(crate) const RUNTIME_INSPECT_ENTITY_VIEW: BindingDescriptor = BindingDescrip
 /// Binding descriptor for destack.runtime.inspect.eventLoopView.
 pub(crate) const RUNTIME_INSPECT_EVENT_LOOP_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.eventLoopView",
-    "export function eventLoopView(view: WorldViewHandle, agentId: AgentId): Result<EventLoopDescriptor, PlatformError>",
+    "export function eventLoopView(view: WorldViewHandle, workerId: WorkerId): Result<EventLoopDescriptor, PlatformError>",
     &["runtime.inspect.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3196,7 +3196,7 @@ pub(crate) const RUNTIME_INSPECT_EVENT_LOOP_VIEW: BindingDescriptor = BindingDes
 /// Binding descriptor for destack.runtime.inspect.heapView.
 pub(crate) const RUNTIME_INSPECT_HEAP_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.heapView",
-    "export function heapView(view: WorldViewHandle, agentId: AgentId): Result<HeapDescriptor, PlatformError>",
+    "export function heapView(view: WorldViewHandle, workerId: WorkerId): Result<HeapDescriptor, PlatformError>",
     &["runtime.inspect.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3749,18 +3749,18 @@ pub(crate) const RUNTIME_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     bindings: &[
         NativeBinding::new(
             RUNTIME_CORE_AGENT_CLOSE,
-            "destack.runtime.core.agentClose",
-            destack_runtime_core_agent_close as *const (),
+            "destack.runtime.core.workerClose",
+            destack_runtime_core_worker_close as *const (),
         ),
         NativeBinding::new(
             RUNTIME_CORE_AGENT_CREATE,
-            "destack.runtime.core.agentCreate",
-            destack_runtime_core_agent_create as *const (),
+            "destack.runtime.core.workerCreate",
+            destack_runtime_core_worker_create as *const (),
         ),
         NativeBinding::new(
             RUNTIME_CORE_AGENT_DESCRIBE,
-            "destack.runtime.core.agentDescribe",
-            destack_runtime_core_agent_describe as *const (),
+            "destack.runtime.core.workerDescribe",
+            destack_runtime_core_worker_describe as *const (),
         ),
         NativeBinding::new(
             RUNTIME_CORE_RUNTIME_CLOSE,
@@ -3799,13 +3799,13 @@ pub(crate) const RUNTIME_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
         ),
         NativeBinding::new(
             RUNTIME_INSPECT_AGENT_LIST,
-            "destack.runtime.inspect.agentList",
-            destack_runtime_inspect_agent_list as *const (),
+            "destack.runtime.inspect.workerList",
+            destack_runtime_inspect_worker_list as *const (),
         ),
         NativeBinding::new(
             RUNTIME_INSPECT_AGENT_VIEW,
-            "destack.runtime.inspect.agentView",
-            destack_runtime_inspect_agent_view as *const (),
+            "destack.runtime.inspect.workerView",
+            destack_runtime_inspect_worker_view as *const (),
         ),
         NativeBinding::new(
             RUNTIME_INSPECT_EDGE_LIST,
@@ -4066,25 +4066,25 @@ pub(crate) const RUNTIME_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 };
 
 /// Native export wrappers for runtime bindings.
-#[unsafe(export_name = "destack.runtime.core.agentClose")]
-pub(crate) unsafe extern "C" fn destack_runtime_core_agent_close(
-    agent: AgentHandle,
+#[unsafe(export_name = "destack.runtime.core.workerClose")]
+pub(crate) unsafe extern "C" fn destack_runtime_core_worker_close(
+    worker: WorkerHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = &agent;
+        let _ = &worker;
 
         {
             let _binding_hook_guard = context.on_before_binding(RUNTIME_CORE_AGENT_CLOSE)?;
-            unsafe { platform_runtime_native::destack_runtime_agent_close(context, agent) }
+            unsafe { platform_runtime_native::destack_runtime_worker_close(context, worker) }
         }
     })
 }
 
-#[unsafe(export_name = "destack.runtime.core.agentCreate")]
-pub(crate) unsafe extern "C" fn destack_runtime_core_agent_create(
-    out: *mut AgentHandle,
+#[unsafe(export_name = "destack.runtime.core.workerCreate")]
+pub(crate) unsafe extern "C" fn destack_runtime_core_worker_create(
+    out: *mut WorkerHandle,
     runtimehandle: RuntimeHandle,
-    options: Option<AgentCreateOptions>,
+    options: Option<WorkerCreateOptions>,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
@@ -4095,7 +4095,7 @@ pub(crate) unsafe extern "C" fn destack_runtime_core_agent_create(
         {
             let _binding_hook_guard = context.on_before_binding(RUNTIME_CORE_AGENT_CREATE)?;
             unsafe {
-                platform_runtime_native::destack_runtime_agent_create(
+                platform_runtime_native::destack_runtime_worker_create(
                     context,
                     out,
                     runtimehandle,
@@ -4106,20 +4106,22 @@ pub(crate) unsafe extern "C" fn destack_runtime_core_agent_create(
     })
 }
 
-#[unsafe(export_name = "destack.runtime.core.agentDescribe")]
-pub(crate) unsafe extern "C" fn destack_runtime_core_agent_describe(
-    out: *mut AgentDescriptor,
-    agent: AgentHandle,
+#[unsafe(export_name = "destack.runtime.core.workerDescribe")]
+pub(crate) unsafe extern "C" fn destack_runtime_core_worker_describe(
+    out: *mut WorkerDescriptor,
+    worker: WorkerHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &agent);
+        let _ = (&out, &worker);
 
         {
             let _binding_hook_guard = context.on_before_binding(RUNTIME_CORE_AGENT_DESCRIBE)?;
-            unsafe { platform_runtime_native::destack_runtime_agent_describe(context, out, agent) }
+            unsafe {
+                platform_runtime_native::destack_runtime_worker_describe(context, out, worker)
+            }
         }
     })
 }
@@ -4266,12 +4268,12 @@ pub(crate) unsafe extern "C" fn destack_runtime_core_world_tick(
     })
 }
 
-#[unsafe(export_name = "destack.runtime.inspect.agentList")]
-pub(crate) unsafe extern "C" fn destack_runtime_inspect_agent_list(
-    out: *mut NativeArray<AgentDescriptor>,
+#[unsafe(export_name = "destack.runtime.inspect.workerList")]
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_worker_list(
+    out: *mut NativeArray<WorkerDescriptor>,
     view: WorldViewHandle,
-    filter: Option<AgentFilter>,
-    after: Option<AgentId>,
+    filter: Option<WorkerFilter>,
+    after: Option<WorkerId>,
     limit: Option<u32>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -4283,7 +4285,7 @@ pub(crate) unsafe extern "C" fn destack_runtime_inspect_agent_list(
         {
             let _binding_hook_guard = context.on_before_binding(RUNTIME_INSPECT_AGENT_LIST)?;
             unsafe {
-                platform_runtime_native::destack_runtime_agent_list(
+                platform_runtime_native::destack_runtime_worker_list(
                     context, out, view, filter, after, limit,
                 )
             }
@@ -4291,22 +4293,22 @@ pub(crate) unsafe extern "C" fn destack_runtime_inspect_agent_list(
     })
 }
 
-#[unsafe(export_name = "destack.runtime.inspect.agentView")]
-pub(crate) unsafe extern "C" fn destack_runtime_inspect_agent_view(
-    out: *mut AgentDescriptor,
+#[unsafe(export_name = "destack.runtime.inspect.workerView")]
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_worker_view(
+    out: *mut WorkerDescriptor,
     view: WorldViewHandle,
-    agentid: AgentId,
+    workerid: WorkerId,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &view, &agentid);
+        let _ = (&out, &view, &workerid);
 
         {
             let _binding_hook_guard = context.on_before_binding(RUNTIME_INSPECT_AGENT_VIEW)?;
             unsafe {
-                platform_runtime_native::destack_runtime_agent_view(context, out, view, agentid)
+                platform_runtime_native::destack_runtime_worker_view(context, out, view, workerid)
             }
         }
     })
@@ -4362,18 +4364,18 @@ pub(crate) unsafe extern "C" fn destack_runtime_inspect_edge_view(
 pub(crate) unsafe extern "C" fn destack_runtime_inspect_engine_view(
     out: *mut EngineDescriptor,
     view: WorldViewHandle,
-    agentid: AgentId,
+    workerid: WorkerId,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &view, &agentid);
+        let _ = (&out, &view, &workerid);
 
         {
             let _binding_hook_guard = context.on_before_binding(RUNTIME_INSPECT_ENGINE_VIEW)?;
             unsafe {
-                platform_runtime_native::destack_runtime_engine_view(context, out, view, agentid)
+                platform_runtime_native::destack_runtime_engine_view(context, out, view, workerid)
             }
         }
     })
@@ -4429,19 +4431,19 @@ pub(crate) unsafe extern "C" fn destack_runtime_inspect_entity_view(
 pub(crate) unsafe extern "C" fn destack_runtime_inspect_event_loop_view(
     out: *mut EventLoopDescriptor,
     view: WorldViewHandle,
-    agentid: AgentId,
+    workerid: WorkerId,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &view, &agentid);
+        let _ = (&out, &view, &workerid);
 
         {
             let _binding_hook_guard = context.on_before_binding(RUNTIME_INSPECT_EVENT_LOOP_VIEW)?;
             unsafe {
                 platform_runtime_native::destack_runtime_event_loop_view(
-                    context, out, view, agentid,
+                    context, out, view, workerid,
                 )
             }
         }
@@ -4452,18 +4454,18 @@ pub(crate) unsafe extern "C" fn destack_runtime_inspect_event_loop_view(
 pub(crate) unsafe extern "C" fn destack_runtime_inspect_heap_view(
     out: *mut HeapDescriptor,
     view: WorldViewHandle,
-    agentid: AgentId,
+    workerid: WorkerId,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &view, &agentid);
+        let _ = (&out, &view, &workerid);
 
         {
             let _binding_hook_guard = context.on_before_binding(RUNTIME_INSPECT_HEAP_VIEW)?;
             unsafe {
-                platform_runtime_native::destack_runtime_heap_view(context, out, view, agentid)
+                platform_runtime_native::destack_runtime_heap_view(context, out, view, workerid)
             }
         }
     })
@@ -5507,15 +5509,15 @@ pub(crate) fn register_runtime_vm_bindings(registry: &mut BindingRegistry, isola
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (agent,) = decode_destack_runtime_core_agent_close_args(context, args)?;
+                    let (worker,) = decode_destack_runtime_core_worker_close_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let _binding_hook_guard =
                             binding.on_before_binding(RUNTIME_CORE_AGENT_CLOSE)?;
-                        platform_runtime_vm::destack_runtime_agent_close(binding, context, agent)
+                        platform_runtime_vm::destack_runtime_worker_close(binding, context, worker)
                     };
-                    encode_destack_runtime_core_agent_close_result(context, result)
+                    encode_destack_runtime_core_worker_close_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -5530,20 +5532,20 @@ pub(crate) fn register_runtime_vm_bindings(registry: &mut BindingRegistry, isola
                 with_binding_call_context(|binding| {
                     // decode args
                     let (runtimehandle, options) =
-                        decode_destack_runtime_core_agent_create_args(context, args)?;
+                        decode_destack_runtime_core_worker_create_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let _binding_hook_guard =
                             binding.on_before_binding(RUNTIME_CORE_AGENT_CREATE)?;
-                        platform_runtime_vm::destack_runtime_agent_create(
+                        platform_runtime_vm::destack_runtime_worker_create(
                             binding,
                             context,
                             runtimehandle,
                             options,
                         )
                     };
-                    encode_destack_runtime_core_agent_create_result(context, result)
+                    encode_destack_runtime_core_worker_create_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -5557,15 +5559,18 @@ pub(crate) fn register_runtime_vm_bindings(registry: &mut BindingRegistry, isola
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (agent,) = decode_destack_runtime_core_agent_describe_args(context, args)?;
+                    let (worker,) =
+                        decode_destack_runtime_core_worker_describe_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let _binding_hook_guard =
                             binding.on_before_binding(RUNTIME_CORE_AGENT_DESCRIBE)?;
-                        platform_runtime_vm::destack_runtime_agent_describe(binding, context, agent)
+                        platform_runtime_vm::destack_runtime_worker_describe(
+                            binding, context, worker,
+                        )
                     };
-                    encode_destack_runtime_core_agent_describe_result(context, result)
+                    encode_destack_runtime_core_worker_describe_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -5765,17 +5770,17 @@ pub(crate) fn register_runtime_vm_bindings(registry: &mut BindingRegistry, isola
                 with_binding_call_context(|binding| {
                     // decode args
                     let (view, filter, after, limit) =
-                        decode_destack_runtime_inspect_agent_list_args(context, args)?;
+                        decode_destack_runtime_inspect_worker_list_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let _binding_hook_guard =
                             binding.on_before_binding(RUNTIME_INSPECT_AGENT_LIST)?;
-                        platform_runtime_vm::destack_runtime_agent_list(
+                        platform_runtime_vm::destack_runtime_worker_list(
                             binding, context, view, filter, after, limit,
                         )
                     };
-                    encode_destack_runtime_inspect_agent_list_result(context, result)
+                    encode_destack_runtime_inspect_worker_list_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -5789,18 +5794,18 @@ pub(crate) fn register_runtime_vm_bindings(registry: &mut BindingRegistry, isola
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (view, agentid) =
-                        decode_destack_runtime_inspect_agent_view_args(context, args)?;
+                    let (view, workerid) =
+                        decode_destack_runtime_inspect_worker_view_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let _binding_hook_guard =
                             binding.on_before_binding(RUNTIME_INSPECT_AGENT_VIEW)?;
-                        platform_runtime_vm::destack_runtime_agent_view(
-                            binding, context, view, agentid,
+                        platform_runtime_vm::destack_runtime_worker_view(
+                            binding, context, view, workerid,
                         )
                     };
-                    encode_destack_runtime_inspect_agent_view_result(context, result)
+                    encode_destack_runtime_inspect_worker_view_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -5864,7 +5869,7 @@ pub(crate) fn register_runtime_vm_bindings(registry: &mut BindingRegistry, isola
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (view, agentid) =
+                    let (view, workerid) =
                         decode_destack_runtime_inspect_engine_view_args(context, args)?;
 
                     // execute binding
@@ -5872,7 +5877,7 @@ pub(crate) fn register_runtime_vm_bindings(registry: &mut BindingRegistry, isola
                         let _binding_hook_guard =
                             binding.on_before_binding(RUNTIME_INSPECT_ENGINE_VIEW)?;
                         platform_runtime_vm::destack_runtime_engine_view(
-                            binding, context, view, agentid,
+                            binding, context, view, workerid,
                         )
                     };
                     encode_destack_runtime_inspect_engine_view_result(context, result)
@@ -5939,7 +5944,7 @@ pub(crate) fn register_runtime_vm_bindings(registry: &mut BindingRegistry, isola
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (view, agentid) =
+                    let (view, workerid) =
                         decode_destack_runtime_inspect_event_loop_view_args(context, args)?;
 
                     // execute binding
@@ -5947,7 +5952,7 @@ pub(crate) fn register_runtime_vm_bindings(registry: &mut BindingRegistry, isola
                         let _binding_hook_guard =
                             binding.on_before_binding(RUNTIME_INSPECT_EVENT_LOOP_VIEW)?;
                         platform_runtime_vm::destack_runtime_event_loop_view(
-                            binding, context, view, agentid,
+                            binding, context, view, workerid,
                         )
                     };
                     encode_destack_runtime_inspect_event_loop_view_result(context, result)
@@ -5964,7 +5969,7 @@ pub(crate) fn register_runtime_vm_bindings(registry: &mut BindingRegistry, isola
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (view, agentid) =
+                    let (view, workerid) =
                         decode_destack_runtime_inspect_heap_view_args(context, args)?;
 
                     // execute binding
@@ -5972,7 +5977,7 @@ pub(crate) fn register_runtime_vm_bindings(registry: &mut BindingRegistry, isola
                         let _binding_hook_guard =
                             binding.on_before_binding(RUNTIME_INSPECT_HEAP_VIEW)?;
                         platform_runtime_vm::destack_runtime_heap_view(
-                            binding, context, view, agentid,
+                            binding, context, view, workerid,
                         )
                     };
                     encode_destack_runtime_inspect_heap_view_result(context, result)

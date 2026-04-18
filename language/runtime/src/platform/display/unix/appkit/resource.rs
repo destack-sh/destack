@@ -22,7 +22,7 @@ pub(crate) fn open_display_handle(
         .with_payload(AppKitDisplayHostState { id });
     let resource_id =
         context
-            .agent()
+            .worker()
             .resources
             .insert(&context.world(), entry, Some(context.engine()));
 

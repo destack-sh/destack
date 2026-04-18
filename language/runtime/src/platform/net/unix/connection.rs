@@ -202,7 +202,7 @@ fn register_socket_pair(
         .with_finalizer(DescriptorFinalizer { fd: first_fd });
     let first_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), first_entry, Some(binding.engine()));
 
@@ -211,7 +211,7 @@ fn register_socket_pair(
         .with_finalizer(DescriptorFinalizer { fd: second_fd });
     let second_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), second_entry, Some(binding.engine()));
 
@@ -473,7 +473,7 @@ pub(crate) unsafe fn destack_net_accept(
         .with_finalizer(SocketFinalizer { fd: client_fd });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
@@ -506,7 +506,7 @@ pub(crate) unsafe fn destack_net_close(
 ) -> RuntimeResult<()> {
     // validate the handle kind
     let is_socket = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| entry.kind == ResourceKind::Socket)
         .unwrap_or(false);
@@ -519,7 +519,7 @@ pub(crate) unsafe fn destack_net_close(
     }
 
     // remove the resource and close it
-    if !binding.agent().resources.remove_and_finalize(
+    if !binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -557,7 +557,7 @@ pub(crate) unsafe fn destack_net_close_listener(
 ) -> RuntimeResult<()> {
     // validate the handle kind
     let is_listener = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| entry.kind == ResourceKind::Listener)
         .unwrap_or(false);
@@ -570,7 +570,7 @@ pub(crate) unsafe fn destack_net_close_listener(
     }
 
     // remove the resource and close it
-    if !binding.agent().resources.remove_and_finalize(
+    if !binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -708,7 +708,7 @@ pub(crate) unsafe fn destack_net_listen_raw(
             .with_finalizer(DescriptorFinalizer { fd });
         let resource_id =
             binding
-                .agent()
+                .worker()
                 .resources
                 .insert(&binding.world(), entry, Some(binding.engine()));
         unsafe {
@@ -766,7 +766,7 @@ pub(crate) unsafe fn destack_net_socket(
         .with_finalizer(DescriptorFinalizer { fd });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {

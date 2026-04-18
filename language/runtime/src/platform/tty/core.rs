@@ -56,7 +56,7 @@ pub(crate) fn close_tty_resource(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     let kind = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| entry.kind)
         .ok_or_else(|| invalid_tty_handle(operation))?;
@@ -64,7 +64,7 @@ pub(crate) fn close_tty_resource(
         return Err(invalid_tty_handle(operation));
     }
 
-    if !binding.agent().resources.remove_and_finalize(
+    if !binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -82,7 +82,7 @@ pub(crate) fn close_pty_resource(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     let kind = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| entry.kind)
         .ok_or_else(|| invalid_pty_handle(operation))?;
@@ -90,7 +90,7 @@ pub(crate) fn close_pty_resource(
         return Err(invalid_pty_handle(operation));
     }
 
-    if !binding.agent().resources.remove_and_finalize(
+    if !binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),

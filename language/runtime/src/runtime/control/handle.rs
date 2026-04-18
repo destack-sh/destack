@@ -44,8 +44,8 @@ pub(super) enum ControlKind {
     World,
     /// One live runtime handle.
     Runtime,
-    /// One live agent handle.
-    Agent,
+    /// One live worker handle.
+    Worker,
     /// One live observation handle.
     Observation,
     /// One stored snapshot handle.
@@ -62,7 +62,7 @@ impl ControlKind {
         match self {
             ControlKind::World => "world",
             ControlKind::Runtime => "runtime",
-            ControlKind::Agent => "agent",
+            ControlKind::Worker => "worker",
             ControlKind::Observation => "observation",
             ControlKind::Snapshot => "snapshot",
             ControlKind::TraceCursor => "trace cursor",

@@ -683,7 +683,7 @@ fn spawn_process(
         .with_payload(core_process::SpawnedProcess { pid: process_id });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 

@@ -76,12 +76,12 @@ fn test_unix_ancillary_send_receive_roundtrip() {
             .with_finalizer(UnixDescriptorFinalizer {
                 descriptor: sockets[1],
             });
-        let left = resource::SocketHandle(context.call_context.agent().resources.insert(
+        let left = resource::SocketHandle(context.call_context.worker().resources.insert(
             context.call_context.world(),
             left_entry,
             Some(context.call_context.engine()),
         ));
-        let right = resource::SocketHandle(context.call_context.agent().resources.insert(
+        let right = resource::SocketHandle(context.call_context.worker().resources.insert(
             context.call_context.world(),
             right_entry,
             Some(context.call_context.engine()),
@@ -90,12 +90,12 @@ fn test_unix_ancillary_send_receive_roundtrip() {
         // register one transferable descriptor
         let duplicated = unsafe { libc::dup(sockets[0]) };
         if duplicated < 0 {
-            context.call_context.agent().resources.remove_and_finalize(
+            context.call_context.worker().resources.remove_and_finalize(
                 context.call_context.world(),
                 left.0,
                 Some(context.call_context.engine()),
             );
-            context.call_context.agent().resources.remove_and_finalize(
+            context.call_context.worker().resources.remove_and_finalize(
                 context.call_context.world(),
                 right.0,
                 Some(context.call_context.engine()),
@@ -111,7 +111,7 @@ fn test_unix_ancillary_send_receive_roundtrip() {
                 descriptor: duplicated,
             });
         let transferred =
-            resource::TransferredHandle(context.call_context.agent().resources.insert(
+            resource::TransferredHandle(context.call_context.worker().resources.insert(
                 context.call_context.world(),
                 transferred_entry,
                 Some(context.call_context.engine()),
@@ -130,22 +130,22 @@ fn test_unix_ancillary_send_receive_roundtrip() {
         assert_eq!(handles.len(), 1);
 
         // cleanup all registered resources
-        context.call_context.agent().resources.remove_and_finalize(
+        context.call_context.worker().resources.remove_and_finalize(
             context.call_context.world(),
             left.0,
             Some(context.call_context.engine()),
         );
-        context.call_context.agent().resources.remove_and_finalize(
+        context.call_context.worker().resources.remove_and_finalize(
             context.call_context.world(),
             right.0,
             Some(context.call_context.engine()),
         );
-        context.call_context.agent().resources.remove_and_finalize(
+        context.call_context.worker().resources.remove_and_finalize(
             context.call_context.world(),
             transferred.0,
             Some(context.call_context.engine()),
         );
-        context.call_context.agent().resources.remove_and_finalize(
+        context.call_context.worker().resources.remove_and_finalize(
             context.call_context.world(),
             handles[0].0,
             Some(context.call_context.engine()),

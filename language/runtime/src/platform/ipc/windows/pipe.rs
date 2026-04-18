@@ -38,7 +38,7 @@ pub(crate) unsafe fn destack_ipc_pipe_close(
     binding: &BindingCallContext,
     handle: resource::PipeHandle,
 ) -> RuntimeResult<()> {
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),

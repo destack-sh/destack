@@ -6,13 +6,13 @@ use crate::runtime::policy::{
 };
 use crate::runtime::random::Random;
 use crate::runtime::world::topology::Topology;
-use crate::runtime::{AgentId, WorldEdgeKind, WorldEntityKind};
+use crate::runtime::{WorkerId, WorldEdgeKind, WorldEntityKind};
 use destack_workspace::{ExecutionMode, RuntimeAccess, RuntimeSelector};
 
 /// Stable runtime name used by policy tests.
 const TEST_RUNTIME_NAME: &str = "test-runtime";
-/// Stable agent name used by policy tests.
-const TEST_AGENT_NAME: &str = "test-agent";
+/// Stable worker name used by policy tests.
+const TEST_WORKER_NAME: &str = "test-worker";
 
 /// Ensures activation windows based on call counts gate initial firings.
 #[test]
@@ -41,7 +41,7 @@ fn test_on_event_respects_after_call_count_activation() {
         &policy_event(10, Hook::BindingBefore, 0),
         TEST_RUNTIME_NAME,
         &BTreeMap::new(),
-        TEST_AGENT_NAME,
+        TEST_WORKER_NAME,
         &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
@@ -53,7 +53,7 @@ fn test_on_event_respects_after_call_count_activation() {
         &policy_event(10, Hook::BindingBefore, 0),
         TEST_RUNTIME_NAME,
         &BTreeMap::new(),
-        TEST_AGENT_NAME,
+        TEST_WORKER_NAME,
         &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
@@ -61,10 +61,10 @@ fn test_on_event_respects_after_call_count_activation() {
     assert_eq!(second_decisions.len(), 1);
 }
 
-/// Ensures call-count activation windows are isolated per agent.
+/// Ensures call-count activation windows are isolated per worker.
 #[test]
-fn test_on_event_respects_after_call_count_per_agent() {
-    // prepare one rule that activates after two call events per agent
+fn test_on_event_respects_after_call_count_per_worker() {
+    // prepare one rule that activates after two call events per worker
     let trigger = Trigger {
         on: Hook::BindingBefore,
         activation: Some(ActivationWindow::AfterCallCount { call_count: 2 }),
@@ -78,44 +78,44 @@ fn test_on_event_respects_after_call_count_per_agent() {
         skip_hits: None,
     };
     let policy = Policy {
-        rules: vec![effect_rule("after-call-count-per-agent", trigger)],
+        rules: vec![effect_rule("after-call-count-per-worker", trigger)],
     };
     let random = Random::new(11);
     let mut state = PolicyState::new(policy);
 
-    // first call for each agent should only advance that agent activation state
-    let agent_one_first = state.on_event(
+    // first call for each worker should only advance that worker activation state
+    let worker_one_first = state.on_event(
         &policy_event(1, Hook::BindingBefore, 0),
         TEST_RUNTIME_NAME,
         &BTreeMap::new(),
-        TEST_AGENT_NAME,
+        TEST_WORKER_NAME,
         &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
     );
-    let agent_two_first = state.on_event(
+    let worker_two_first = state.on_event(
         &policy_event(2, Hook::BindingBefore, 0),
         TEST_RUNTIME_NAME,
         &BTreeMap::new(),
-        TEST_AGENT_NAME,
+        TEST_WORKER_NAME,
         &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
     );
-    assert!(agent_one_first.is_empty());
-    assert!(agent_two_first.is_empty());
+    assert!(worker_one_first.is_empty());
+    assert!(worker_two_first.is_empty());
 
-    // second call for one agent should activate only that agent rule state
-    let agent_two_second = state.on_event(
+    // second call for one worker should activate only that worker rule state
+    let worker_two_second = state.on_event(
         &policy_event(2, Hook::BindingBefore, 0),
         TEST_RUNTIME_NAME,
         &BTreeMap::new(),
-        TEST_AGENT_NAME,
+        TEST_WORKER_NAME,
         &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
     );
-    assert_eq!(agent_two_second.len(), 1);
+    assert_eq!(worker_two_second.len(), 1);
 }
 
 /// Ensures cadence and cooldown gates jointly shape accepted firings.
@@ -145,7 +145,7 @@ fn test_on_event_respects_cadence_and_cooldown() {
         &policy_event(2, Hook::SchedulerDequeue, 0),
         TEST_RUNTIME_NAME,
         &BTreeMap::new(),
-        TEST_AGENT_NAME,
+        TEST_WORKER_NAME,
         &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
@@ -154,7 +154,7 @@ fn test_on_event_respects_cadence_and_cooldown() {
         &policy_event(2, Hook::SchedulerDequeue, 0),
         TEST_RUNTIME_NAME,
         &BTreeMap::new(),
-        TEST_AGENT_NAME,
+        TEST_WORKER_NAME,
         &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
@@ -163,7 +163,7 @@ fn test_on_event_respects_cadence_and_cooldown() {
         &policy_event(2, Hook::SchedulerDequeue, 5),
         TEST_RUNTIME_NAME,
         &BTreeMap::new(),
-        TEST_AGENT_NAME,
+        TEST_WORKER_NAME,
         &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
@@ -172,7 +172,7 @@ fn test_on_event_respects_cadence_and_cooldown() {
         &policy_event(2, Hook::SchedulerDequeue, 10),
         TEST_RUNTIME_NAME,
         &BTreeMap::new(),
-        TEST_AGENT_NAME,
+        TEST_WORKER_NAME,
         &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
@@ -210,7 +210,7 @@ fn test_on_event_respects_call_count_lifetime() {
         &policy_event(3, Hook::SchedulerDequeue, 0),
         TEST_RUNTIME_NAME,
         &BTreeMap::new(),
-        TEST_AGENT_NAME,
+        TEST_WORKER_NAME,
         &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
@@ -219,7 +219,7 @@ fn test_on_event_respects_call_count_lifetime() {
         &policy_event(3, Hook::SchedulerDequeue, 0),
         TEST_RUNTIME_NAME,
         &BTreeMap::new(),
-        TEST_AGENT_NAME,
+        TEST_WORKER_NAME,
         &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
@@ -228,7 +228,7 @@ fn test_on_event_respects_call_count_lifetime() {
         &policy_event(3, Hook::SchedulerDequeue, 0),
         TEST_RUNTIME_NAME,
         &BTreeMap::new(),
-        TEST_AGENT_NAME,
+        TEST_WORKER_NAME,
         &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
@@ -266,7 +266,7 @@ fn test_on_event_emits_policy_decision_payload() {
         &policy_event(99, Hook::BindingBefore, 1234),
         TEST_RUNTIME_NAME,
         &BTreeMap::new(),
-        TEST_AGENT_NAME,
+        TEST_WORKER_NAME,
         &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
@@ -277,7 +277,7 @@ fn test_on_event_emits_policy_decision_payload() {
     let decision = &decisions[0];
     assert_eq!(decision.rule_id.0, "test.active.metadata");
     assert_eq!(decision.hook, Hook::BindingBefore);
-    assert_eq!(decision.agent_id, AgentId(99));
+    assert_eq!(decision.worker_id, WorkerId(99));
     assert!(decision.call_id.is_some());
     assert!(matches!(decision.effect, Effect::Fault { .. }));
 }
@@ -554,54 +554,54 @@ fn validate_policy(policy: &Policy) -> crate::diagnostic::RuntimeResult<()> {
 }
 
 /// Build one policy event for policy trigger tests.
-fn policy_event(agent_id: u64, hook: Hook, virtual_time_ns: u64) -> HookEvent {
+fn policy_event(worker_id: u64, hook: Hook, virtual_time_ns: u64) -> HookEvent {
     match hook {
         Hook::BindingBefore => HookEvent::BindingBefore {
-            agent_id: AgentId(agent_id),
+            worker_id: WorkerId(worker_id),
             call_id: PolicyCallId(1),
             descriptor: crate::runtime::bindings::BindingDescriptor::pure("destack.test", "()"),
             engine: None,
             virtual_time_ns,
         },
         Hook::BindingAfter => HookEvent::BindingAfter {
-            agent_id: AgentId(agent_id),
+            worker_id: WorkerId(worker_id),
             call_id: PolicyCallId(1),
             descriptor: crate::runtime::bindings::BindingDescriptor::pure("destack.test", "()"),
             engine: None,
             virtual_time_ns,
         },
         Hook::SchedulerEnqueue => HookEvent::SchedulerEnqueue {
-            agent_id: AgentId(agent_id),
+            worker_id: WorkerId(worker_id),
             virtual_time_ns,
         },
         Hook::SchedulerDequeue => HookEvent::SchedulerDequeue {
-            agent_id: AgentId(agent_id),
+            worker_id: WorkerId(worker_id),
             virtual_time_ns,
         },
         Hook::SchedulerTimerFire => HookEvent::SchedulerTimerFire {
-            agent_id: AgentId(agent_id),
+            worker_id: WorkerId(worker_id),
             virtual_time_ns,
         },
         Hook::IngressEnqueue => HookEvent::IngressEnqueue {
-            agent_id: AgentId(agent_id),
+            worker_id: WorkerId(worker_id),
             virtual_time_ns,
         },
         Hook::TimeRead => HookEvent::TimeRead {
-            agent_id: AgentId(agent_id),
+            worker_id: WorkerId(worker_id),
             engine: None,
             virtual_time_ns,
         },
         Hook::RandomRead => HookEvent::RandomRead {
-            agent_id: AgentId(agent_id),
+            worker_id: WorkerId(worker_id),
             engine: None,
             virtual_time_ns,
         },
         Hook::ResourceAttach => HookEvent::ResourceAttach {
-            agent_id: AgentId(agent_id),
+            worker_id: WorkerId(worker_id),
             virtual_time_ns,
         },
         Hook::ResourceDetach => HookEvent::ResourceDetach {
-            agent_id: AgentId(agent_id),
+            worker_id: WorkerId(worker_id),
             virtual_time_ns,
         },
     }

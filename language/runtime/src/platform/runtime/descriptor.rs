@@ -3,22 +3,21 @@ use std::collections::BTreeMap;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::runtime::{
-    AgentDescriptorValue, BranchDescriptorValue, CheckpointDescriptorValue, EngineDescriptor,
-    EngineDescriptorKind, EventLoopDescriptor, HeapDescriptor, ImageDescriptor,
-    ObservationEventKind, ObservationRecordValue, ResourceDescriptorValue, RevisionDescriptor,
-    RuntimeDescriptorValue, RuntimeLabelValue, SnapshotDescriptor, SnapshotId, TopologyEdgeIdValue,
-    TopologyEdgeKindValue, TopologyEdgeValue, TopologyEntityIdValue, TopologyEntityKindValue,
-    TopologyEntityValue, TraceEventKind, TraceRecordValue, TraceSequence, WorldDescriptorValue,
+    BranchDescriptorValue, CheckpointDescriptorValue, EngineDescriptor, EngineDescriptorKind,
+    EventLoopDescriptor, HeapDescriptor, ImageDescriptor, ObservationEventKind,
+    ObservationRecordValue, ResourceDescriptorValue, RevisionDescriptor, RuntimeDescriptorValue,
+    RuntimeLabelValue, SnapshotDescriptor, SnapshotId, TopologyEdgeIdValue, TopologyEdgeKindValue,
+    TopologyEdgeValue, TopologyEntityIdValue, TopologyEntityKindValue, TopologyEntityValue,
+    TraceEventKind, TraceRecordValue, TraceSequence, WorkerDescriptorValue, WorldDescriptorValue,
     WorldHandle,
 };
 use crate::runtime;
 use crate::runtime::control::{ObservationEntry, SnapshotEntry, WorldViewEntry};
 use crate::runtime::engine::EngineImage;
+use crate::runtime::observe::{ObservationCategory, ObservationRecord};
 use crate::runtime::scheduler::EventLoopSnapshot;
 use crate::runtime::trace::{Outcome, TraceRecord};
-use crate::runtime::world::{
-    Image, ObservationCategory, ObservationRecord, Revision, World, WorldEdge, WorldEntity,
-};
+use crate::runtime::world::{Revision, RevisionState, World, WorldEdge, WorldEntity, WorldImage};
 use postcard::to_allocvec;
 
 use super::{ObservationHandleEntry, PinnedWorldView, RuntimeHandleCodec, SnapshotHandleEntry};
@@ -55,10 +54,10 @@ impl RuntimeDescriptorCodec {
         match event {
             TraceRecord::Outcome(Outcome::Entropy(_)) => TraceEventKind::Entropy,
             TraceRecord::Outcome(Outcome::BindingCall(_)) => TraceEventKind::BindingCall,
-            TraceRecord::Input(_)
+            TraceRecord::Command(_)
             | TraceRecord::Outcome(Outcome::TimeAdvance(_))
             | TraceRecord::Outcome(Outcome::RuntimeSpawned { .. })
-            | TraceRecord::Outcome(Outcome::AgentSpawned { .. }) => TraceEventKind::Control,
+            | TraceRecord::Outcome(Outcome::WorkerSpawned { .. }) => TraceEventKind::Control,
             TraceRecord::Anchor(_) => TraceEventKind::Marker,
         }
     }
@@ -86,6 +85,7 @@ impl RuntimeDescriptorCodec {
         PinnedWorldView {
             world_handle: RuntimeHandleCodec::encode_world_handle(entry.world_handle_id),
             labels: entry.labels.labels,
+            revision_handle: entry.revision_handle,
             revision: entry.revision,
             image: entry.image,
         }
@@ -97,7 +97,7 @@ impl RuntimeDescriptorCodec {
     ) -> RuntimeResult<BranchDescriptorValue> {
         Ok(BranchDescriptorValue {
             id: RuntimeHandleCodec::encode_branch_id(branch.id)?,
-            head_revision: RuntimeHandleCodec::encode_revision_id(branch.head_revision_id)?,
+            head_revision: RuntimeHandleCodec::encode_revision_id(branch.head_revision)?,
             name: Self::owned_name(&branch.name),
             labels: Self::owned_labels(branch.labels),
         })
@@ -105,14 +105,15 @@ impl RuntimeDescriptorCodec {
 
     /// Build one owned revision descriptor from runtime state.
     pub(crate) fn revision_descriptor(
-        revision: Revision,
-        image: &Image,
+        revision_handle: Revision,
+        revision: RevisionState,
+        image: &WorldImage,
     ) -> RuntimeResult<RevisionDescriptor> {
         Ok(RevisionDescriptor {
-            id: RuntimeHandleCodec::encode_revision_id(revision.id)?,
+            id: RuntimeHandleCodec::encode_revision_id(revision_handle)?,
             branch_id: RuntimeHandleCodec::encode_branch_id(revision.branch_id)?,
             parent_revision: revision
-                .parent_revision_id
+                .parent_revision
                 .map(RuntimeHandleCodec::encode_revision_id)
                 .transpose()?,
             sequence: TraceSequence(revision.sequence.get()),
@@ -125,51 +126,54 @@ impl RuntimeDescriptorCodec {
 
     /// Build one owned runtime descriptor from one captured runtime.
     pub(crate) fn runtime_descriptor_for_image(
-        image: &Image,
+        image: &WorldImage,
+        runtime_id: runtime::world::RuntimeId,
         runtime: &runtime::RuntimeImage,
     ) -> RuntimeResult<RuntimeDescriptorValue> {
-        let labels = image.runtime_labels(runtime.runtime_id)?;
-        let agent_count = image
-            .agents
-            .values()
-            .filter(|agent| agent.runtime_id == runtime.runtime_id)
+        let labels = image.runtime_labels(runtime_id)?;
+        let worker_count = image
+            .workers
+            .keys()
+            .filter(|worker_id| image.runtime_owns_worker(runtime_id, **worker_id))
             .count();
-        let agent_count = u32::try_from(agent_count).map_err(|_| {
+        let worker_count = u32::try_from(worker_count).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
-                "agentCount",
-                "runtime agent count exceeds uint32",
+                "workerCount",
+                "runtime worker count exceeds uint32",
             ))
             .boxed()
         })?;
 
         Ok(RuntimeDescriptorValue {
-            id: RuntimeHandleCodec::encode_runtime_id(runtime.runtime_id)?,
-            primary_agent_id: RuntimeHandleCodec::encode_agent_id(runtime.primary_agent_id)?,
-            name: Self::owned_name(&runtime.name),
-            agent_count,
+            id: RuntimeHandleCodec::encode_runtime_id(runtime_id)?,
+            primary_worker_id: RuntimeHandleCodec::encode_worker_id(runtime.primary_worker_id)?,
+            name: Self::owned_name(image.runtime_name(runtime_id)?),
+            worker_count,
             labels: Self::owned_labels(labels.clone()),
         })
     }
 
-    /// Build one owned agent descriptor from one captured agent.
-    pub(crate) fn agent_descriptor_for_image(
-        image: &Image,
-        agent: &runtime::AgentImage,
-    ) -> RuntimeResult<AgentDescriptorValue> {
-        let labels = image.agent_labels(agent.agent_id)?;
-        let resource_count = u32::try_from(agent.resources.entries.len()).map_err(|_| {
+    /// Build one owned worker descriptor from one captured worker.
+    pub(crate) fn worker_descriptor_for_image(
+        image: &WorldImage,
+        worker_id: runtime::WorkerId,
+        worker: &runtime::WorkerImage,
+    ) -> RuntimeResult<WorkerDescriptorValue> {
+        let labels = image.worker_labels(worker_id)?;
+        let runtime_id = image.worker_runtime_id(worker_id)?;
+        let resource_count = u32::try_from(worker.resources.entries.len()).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
                 "resourceCount",
-                "agent resource count exceeds uint32",
+                "worker resource count exceeds uint32",
             ))
             .boxed()
         })?;
 
-        Ok(AgentDescriptorValue {
-            id: RuntimeHandleCodec::encode_agent_id(agent.agent_id)?,
-            runtime_id: RuntimeHandleCodec::encode_runtime_id(agent.runtime_id)?,
-            name: Self::owned_name(&agent.name),
-            has_pending_work: agent.has_pending_work(),
+        Ok(WorkerDescriptorValue {
+            id: RuntimeHandleCodec::encode_worker_id(worker_id)?,
+            runtime_id: RuntimeHandleCodec::encode_runtime_id(runtime_id)?,
+            name: Self::owned_name(image.worker_name(worker_id)?),
+            has_pending_work: worker.has_pending_work(),
             resource_count,
             labels: Self::owned_labels(labels.clone()),
         })
@@ -181,42 +185,42 @@ impl RuntimeDescriptorCodec {
         runtime: &runtime::Runtime,
     ) -> RuntimeResult<RuntimeDescriptorValue> {
         let labels = world.runtime_labels(runtime.runtime_id())?;
-        let agent_count = u32::try_from(runtime.agent_count()).map_err(|_| {
+        let worker_count = u32::try_from(runtime.worker_count()).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
-                "agentCount",
-                "runtime agent count exceeds uint32",
+                "workerCount",
+                "runtime worker count exceeds uint32",
             ))
             .boxed()
         })?;
 
         Ok(RuntimeDescriptorValue {
             id: RuntimeHandleCodec::encode_runtime_id(runtime.runtime_id())?,
-            primary_agent_id: RuntimeHandleCodec::encode_agent_id(runtime.primary_agent_id())?,
+            primary_worker_id: RuntimeHandleCodec::encode_worker_id(runtime.primary_worker_id())?,
             name: Self::owned_name(runtime.name()),
-            agent_count,
+            worker_count,
             labels: Self::owned_labels(labels),
         })
     }
 
-    /// Build one owned agent descriptor from one live agent.
-    pub(crate) fn agent_descriptor_for_live(
+    /// Build one owned worker descriptor from one live worker.
+    pub(crate) fn worker_descriptor_for_live(
         world: &World,
-        agent: &runtime::Agent,
-    ) -> RuntimeResult<AgentDescriptorValue> {
-        let labels = world.agent_labels(agent.agent_id())?;
-        let resource_count = u32::try_from(agent.resource_count()).map_err(|_| {
+        worker: &runtime::Worker,
+    ) -> RuntimeResult<WorkerDescriptorValue> {
+        let labels = world.worker_labels(worker.worker_id())?;
+        let resource_count = u32::try_from(worker.resource_count()).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
                 "resourceCount",
-                "agent resource count exceeds uint32",
+                "worker resource count exceeds uint32",
             ))
             .boxed()
         })?;
 
-        Ok(AgentDescriptorValue {
-            id: RuntimeHandleCodec::encode_agent_id(agent.agent_id())?,
-            runtime_id: RuntimeHandleCodec::encode_runtime_id(agent.runtime_id())?,
-            name: Self::owned_name(agent.name()),
-            has_pending_work: agent.has_pending_work(),
+        Ok(WorkerDescriptorValue {
+            id: RuntimeHandleCodec::encode_worker_id(worker.worker_id())?,
+            runtime_id: RuntimeHandleCodec::encode_runtime_id(worker.runtime_id())?,
+            name: Self::owned_name(worker.name()),
+            has_pending_work: worker.has_pending_work(),
             resource_count,
             labels: Self::owned_labels(labels),
         })
@@ -258,34 +262,28 @@ impl RuntimeDescriptorCodec {
     pub(crate) fn event_loop_descriptor(
         snapshot: &EventLoopSnapshot,
     ) -> RuntimeResult<EventLoopDescriptor> {
-        let task_count = u32::try_from(snapshot.tasks.len()).map_err(|_| {
+        let task_count = u32::try_from(snapshot.task_count()).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
                 "taskCount",
                 "event loop task count exceeds uint32",
             ))
             .boxed()
         })?;
-        let microtask_count = u32::try_from(snapshot.microtasks.len()).map_err(|_| {
+        let microtask_count = u32::try_from(snapshot.microtask_count()).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
                 "microtaskCount",
                 "event loop microtask count exceeds uint32",
             ))
             .boxed()
         })?;
-        let timer_count = u32::try_from(snapshot.ready_timers.len() + snapshot.timers.len())
-            .map_err(|_| {
-                RuntimeError::from(PlatformError::invalid_argument_value(
-                    "timerCount",
-                    "event loop timer count exceeds uint32",
-                ))
-                .boxed()
-            })?;
-        let watch_count = u32::try_from(
-            snapshot.timer_watches.len()
-                + snapshot.poller_event_watches.len()
-                + snapshot.host_event_watches.len(),
-        )
-        .map_err(|_| {
+        let timer_count = u32::try_from(snapshot.timer_count()).map_err(|_| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "timerCount",
+                "event loop timer count exceeds uint32",
+            ))
+            .boxed()
+        })?;
+        let watch_count = u32::try_from(snapshot.watch_count()).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
                 "watchCount",
                 "event loop watch count exceeds uint32",
@@ -298,48 +296,41 @@ impl RuntimeDescriptorCodec {
             microtask_count,
             timer_count,
             watch_count,
-            has_pending_work: !snapshot.tasks.is_empty()
-                || !snapshot.microtasks.is_empty()
-                || !snapshot.events.is_empty()
-                || !snapshot.host_events.is_empty()
-                || !snapshot.ready_timers.is_empty()
-                || !snapshot.timers.is_empty()
-                || !snapshot.timer_watches.is_empty()
-                || !snapshot.poller_event_watches.is_empty()
-                || !snapshot.host_event_watches.is_empty(),
+            has_pending_work: snapshot.has_pending_work(),
         })
     }
 
-    /// Build one owned heap descriptor from one captured agent image.
-    pub(crate) fn heap_descriptor(agent: &runtime::AgentImage) -> RuntimeResult<HeapDescriptor> {
-        let page_count = u32::try_from(agent.heap_image.page_count()).map_err(|_| {
+    /// Build one owned heap descriptor from one captured worker image.
+    pub(crate) fn heap_descriptor(worker: &runtime::WorkerImage) -> RuntimeResult<HeapDescriptor> {
+        let page_count = u32::try_from(worker.heap_image.page_count()).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
                 "pageCount",
                 "heap page count exceeds uint32",
             ))
             .boxed()
         })?;
-        let shared_page_count = u32::try_from(agent.heap_image.raw_page_count()).map_err(|_| {
-            RuntimeError::from(PlatformError::invalid_argument_value(
-                "sharedPageCount",
-                "shared heap page count exceeds uint32",
-            ))
-            .boxed()
-        })?;
+        let shared_page_count =
+            u32::try_from(worker.heap_image.raw_page_count()).map_err(|_| {
+                RuntimeError::from(PlatformError::invalid_argument_value(
+                    "sharedPageCount",
+                    "shared heap page count exceeds uint32",
+                ))
+                .boxed()
+            })?;
 
         Ok(HeapDescriptor {
-            heap_bytes: agent.heap_image.local_allocated_bytes(),
+            heap_bytes: worker.heap_image.local_allocated_bytes()?,
             page_count,
             shared_page_count,
-            gc_cycles: agent.heap_image.managed_gc_state().cycles,
+            gc_cycles: worker.heap_image.gc_state().completed_cycles,
         })
     }
 
-    /// Build one owned engine descriptor from one captured agent image.
+    /// Build one owned engine descriptor from one captured worker image.
     pub(crate) fn engine_descriptor(
-        agent: &runtime::AgentImage,
+        worker: &runtime::WorkerImage,
     ) -> RuntimeResult<EngineDescriptor> {
-        match &agent.engine_image {
+        match &worker.engine_image {
             EngineImage::Vm(image) => {
                 let call_stack_depth =
                     u32::try_from(image.interpreter.call_stack.len()).map_err(|_| {
@@ -401,7 +392,7 @@ impl RuntimeDescriptorCodec {
     ) -> RuntimeResult<CheckpointDescriptorValue> {
         Ok(CheckpointDescriptorValue {
             id: RuntimeHandleCodec::encode_checkpoint_id(checkpoint.id)?,
-            revision_id: RuntimeHandleCodec::encode_revision_id(checkpoint.revision_id)?,
+            revision_id: RuntimeHandleCodec::encode_revision_id(checkpoint.revision)?,
             name: Self::owned_name(&checkpoint.name),
             labels: Self::owned_labels(checkpoint.labels),
         })
@@ -409,14 +400,15 @@ impl RuntimeDescriptorCodec {
 
     /// Build one owned image descriptor from runtime state.
     pub(crate) fn image_descriptor(
-        revision_id: runtime::world::RevisionId,
-        image: &Image,
+        revision: runtime::world::Revision,
+        image_id: runtime::world::ImageId,
+        image: &WorldImage,
     ) -> RuntimeResult<ImageDescriptor> {
         let (shared_bytes, _) = World::image_size_and_hash(image)?;
 
         Ok(ImageDescriptor {
-            id: RuntimeHandleCodec::encode_image_id(image.id)?,
-            revision_id: RuntimeHandleCodec::encode_revision_id(revision_id)?,
+            id: RuntimeHandleCodec::encode_image_id(image_id)?,
+            revision_id: RuntimeHandleCodec::encode_revision_id(revision)?,
             shared_bytes: Some(shared_bytes),
         })
     }
@@ -434,11 +426,9 @@ impl RuntimeDescriptorCodec {
             .boxed()
         })?;
 
-        let image = entry.snapshot.image()?;
-
         Ok(SnapshotDescriptor {
             id: snapshot_id,
-            image_id: RuntimeHandleCodec::encode_image_id(image.id)?,
+            image_id: RuntimeHandleCodec::encode_image_id(entry.snapshot.revision()?.image_id)?,
             format: entry.format,
             size_bytes: Some(size_bytes),
         })
@@ -453,7 +443,7 @@ impl RuntimeDescriptorCodec {
         Ok(WorldDescriptorValue {
             handle,
             branch_id: RuntimeHandleCodec::encode_branch_id(world.branch_id())?,
-            revision_id: RuntimeHandleCodec::encode_revision_id(world.revision_id())?,
+            revision_id: RuntimeHandleCodec::encode_revision_id(world.revision())?,
             wall_ns: world.wall().get(),
             mono_ns: world.mono().get(),
             virtual_ns: world.clock().virtual_wall().get(),
@@ -471,14 +461,15 @@ impl RuntimeDescriptorCodec {
     /// Build one owned world descriptor from one pinned revision.
     pub(crate) fn world_descriptor_for_revision(
         handle: WorldHandle,
-        revision: Revision,
-        image: &Image,
+        revision_handle: Revision,
+        revision: RevisionState,
+        image: &WorldImage,
         labels: BTreeMap<String, String>,
     ) -> RuntimeResult<WorldDescriptorValue> {
         Ok(WorldDescriptorValue {
             handle,
             branch_id: RuntimeHandleCodec::encode_branch_id(revision.branch_id)?,
-            revision_id: RuntimeHandleCodec::encode_revision_id(revision.id)?,
+            revision_id: RuntimeHandleCodec::encode_revision_id(revision_handle)?,
             wall_ns: revision.wall.get(),
             mono_ns: revision.mono.get(),
             virtual_ns: image.clock.virtual_wall.get(),

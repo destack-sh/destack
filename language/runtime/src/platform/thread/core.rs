@@ -198,7 +198,7 @@ pub(crate) fn insert_thread_resource<T: Send + Sync + 'static>(
         .with_payload(Arc::new(resource));
 
     binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()))
 }
@@ -210,7 +210,7 @@ pub(crate) fn resolve_thread_resource<T: Send + Sync + 'static>(
     field: &str,
     kind: &str,
 ) -> RuntimeResult<Arc<T>> {
-    let resolved = binding.agent().resources.with_entry(handle, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle, |entry| {
         entry
             .payload
             .as_ref()
@@ -232,7 +232,7 @@ pub(crate) fn take_thread_resource<T: Send + Sync + 'static>(
 ) -> RuntimeResult<Arc<T>> {
     let Some(entry) =
         binding
-            .agent()
+            .worker()
             .resources
             .remove(&binding.world(), handle, Some(binding.engine()))
     else {

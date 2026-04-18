@@ -158,7 +158,7 @@ fn register_stdio_handle(
         .with_finalizer(StdioHandleFinalizer::new(duplicated));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -307,7 +307,7 @@ fn resolve_process_fd(
     binding: &BindingCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<(ProcessId, windows_sys::Win32::Foundation::HANDLE)> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         entry
             .payload
             .as_ref()
@@ -514,7 +514,7 @@ fn ensure_process_fd_handle(
     binding: &BindingCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
-    let is_process_fd = binding.agent().resources.with_entry(handle.0, |entry| {
+    let is_process_fd = binding.worker().resources.with_entry(handle.0, |entry| {
         entry
             .payload
             .as_ref()
@@ -556,7 +556,7 @@ pub(crate) unsafe fn destack_process_process_fd_close(
 ) -> RuntimeResult<()> {
     ensure_process_fd_handle(binding, handle)?;
 
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -614,7 +614,7 @@ pub(crate) unsafe fn destack_process_process_fd_open(
         .with_finalizer(ProcessHandleFinalizer::new(process_handle));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 

@@ -41,14 +41,30 @@ impl BindingPolicy {
 
     /// Apply runtime defaults to this policy.
     pub fn apply_runtime_defaults(&mut self, options: &RuntimeOptions) {
+        self.apply_image_defaults(
+            options.execution,
+            options.access,
+            options.world,
+            options.replay.payload,
+        );
+    }
+
+    /// Apply captured policy defaults without requiring full runtime options.
+    pub fn apply_image_defaults(
+        &mut self,
+        execution: ExecutionMode,
+        access: RuntimeAccess,
+        world: RuntimeWorld,
+        replay_payload: ReplayPayloadMode,
+    ) {
         // align execution mode derived behavior
-        self.mode = options.execution;
+        self.mode = execution;
         self.allowed = allowed_effects_for_mode(self.mode);
 
         // apply default dispatch behavior
-        self.default_access = options.access;
-        self.default_world = options.world;
-        self.default_replay_payload = replay_payload_from_mode(options.replay.payload);
+        self.default_access = access;
+        self.default_world = world;
+        self.default_replay_payload = replay_payload_from_mode(replay_payload);
     }
 
     /// Set the active capability set used for requirement checks.

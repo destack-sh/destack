@@ -9,7 +9,7 @@ use crate::platform::time::TimerClock;
 use crate::runtime::scheduler::{Timer, TimerDeadline, TimerHandle};
 use crate::runtime::time::Nanos;
 
-/// One agent-local runtime callback handle.
+/// One worker-local runtime callback handle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct RuntimeScheduledCallbackHandle(u64);
 
@@ -46,7 +46,7 @@ struct RuntimeScheduledCallbackEntry {
     callback: Box<RuntimeScheduledCallback>,
 }
 
-/// Agent-local runtime callback scheduler.
+/// Worker-local runtime callback scheduler.
 #[derive(Default)]
 pub(crate) struct RuntimeScheduledCallbackRegistry {
     /// Next callback handle to issue.

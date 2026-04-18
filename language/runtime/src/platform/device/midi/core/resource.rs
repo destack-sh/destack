@@ -184,7 +184,7 @@ pub(crate) fn midi_handle_backend(
     kind: ResourceKind,
 ) -> Option<MidiBackend> {
     binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle_id, |entry| {
             if entry.kind != kind {
@@ -277,7 +277,7 @@ where
 {
     let mut payload = Some(payload);
     let session = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle_id, |entry| {
             // reject entries from a different resource family
@@ -312,7 +312,7 @@ pub(crate) fn remove_labeled_resource(
     operation: &'static str,
     handle_kind: &str,
 ) -> RuntimeResult<()> {
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle_id,
         Some(binding.engine()),
@@ -341,7 +341,7 @@ where
         .with_route(ResourceRoute::MidiBackend(backend))
         .with_finalizer(
             binding
-                .agent()
+                .worker()
                 .platform_state
                 .device
                 .retain_runtime_activity(),
@@ -349,7 +349,7 @@ where
         .with_payload(payload);
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -600,7 +600,7 @@ mod tests {
 
         // baseline capture
         runtime
-            .agent
+            .worker
             .platform_state
             .device
             .capture_image(CaptureMode::Suspend, ())
@@ -613,7 +613,7 @@ mod tests {
 
         // active midi resource should block capture
         let error = runtime
-            .agent
+            .worker
             .platform_state
             .device
             .capture_image(CaptureMode::Suspend, ())
@@ -640,7 +640,7 @@ mod tests {
 
         // capture should recover after the last midi resource closes
         runtime
-            .agent
+            .worker
             .platform_state
             .device
             .capture_image(CaptureMode::Suspend, ())

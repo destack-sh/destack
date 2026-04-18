@@ -76,7 +76,7 @@ fn validate_monitor_handle(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // validate monitor resource kind
-    let valid = binding.agent().resources.with_entry(handle.0, |entry| {
+    let valid = binding.worker().resources.with_entry(handle.0, |entry| {
         entry.kind == ResourceKind::InputMonitor
             && entry.label.as_deref() == Some(INPUT_MONITOR_RESOURCE_LABEL)
             && entry
@@ -126,7 +126,7 @@ fn next_monitor_sequence(
     handle: resource::InputMonitorHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
-    let sequence = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let sequence = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputMonitor {
             return None;
         }
@@ -530,7 +530,7 @@ fn pop_pending_console_button_transition(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Option<input_core::PendingConsoleButtonTransition>> {
-    let transition = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let transition = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -572,7 +572,7 @@ fn push_pending_console_button_transitions(
         return Ok(());
     }
 
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -608,7 +608,7 @@ fn set_console_button_state(
     state: u32,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -642,7 +642,7 @@ fn set_xinput_packet_number(
     packet_number: u32,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -738,7 +738,7 @@ pub(super) fn queue_console_record_for_demux(
     pending_record: input_core::PendingConsoleRecord,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -775,7 +775,7 @@ fn pop_pending_console_record(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Option<input_core::PendingConsoleRecord>> {
-    let record = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let record = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -943,7 +943,7 @@ pub(super) fn read_event(
                     return Err(input_core::input_not_found(operation, handle));
                 };
                 let service = binding
-                    .agent()
+                    .worker()
                     .platform_state
                     .input
                     .windows_xinput_service(operation)?;
@@ -1087,7 +1087,7 @@ pub(super) fn set_read_mode(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // mutate resolved_binding state and host mode in one resource-table transaction
-    let result = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let result = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -1256,7 +1256,7 @@ pub(crate) unsafe fn destack_input_monitor_close(
     validate_monitor_handle(binding, handle, "destack.input.event.monitorClose")?;
 
     // remove and finalize monitor resource
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -1309,7 +1309,7 @@ pub(crate) unsafe fn destack_input_monitor_open(
         .with_label(INPUT_MONITOR_RESOURCE_LABEL)
         .with_payload(WindowsInputMonitorBinding { next_sequence: 1 })
         .with_finalizer(WindowsMonitorFinalizer);
-    let handle = resource::InputMonitorHandle(binding.agent().resources.insert(
+    let handle = resource::InputMonitorHandle(binding.worker().resources.insert(
         &binding.world(),
         entry,
         Some(binding.engine()),

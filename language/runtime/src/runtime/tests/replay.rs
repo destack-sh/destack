@@ -6,7 +6,7 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{
     PlatformError, ResourceBacking, ResourceCapture, ResourceId, ResourcePortability,
 };
-use crate::runtime::AgentId;
+use crate::runtime::WorkerId;
 use crate::runtime::bindings::{
     BindingDescriptor, BindingId, BindingReplayKind, BindingReplayPayload, BindingReplayPolicy,
 };
@@ -18,8 +18,8 @@ use crate::runtime::trace::{
     EntropyKind, EntropySubject, EnvironmentConfig, Trace, TraceError, TraceHeader,
 };
 use crate::runtime::world::{
-    Input, Mutation, RuntimeId, WorldEntity, WorldEntityKind, WorldEntityKindDefinition,
-    WorldResource, WorldResourceId,
+    Command, RuntimeId, WorldEntity, WorldEntityKind, WorldEntityKindDefinition, WorldResource,
+    WorldResourceId,
 };
 use destack_vm as vm;
 use destack_workspace::config::{ExecutionMode, RuntimeAccess, RuntimeSelector};
@@ -29,7 +29,7 @@ use serde::{Deserialize, Serialize};
 fn test_entropy_subject(binding_name: &'static str) -> EntropySubject {
     EntropySubject {
         runtime_id: RuntimeId(1),
-        agent_id: AgentId(1),
+        worker_id: WorkerId(1),
         binding_id: BindingId::from_name(binding_name),
         engine: None,
         task_id: None,
@@ -338,11 +338,11 @@ fn test_replay_entropy_vm_error_roundtrip() {
     }
 }
 
-/// Policy mutations replay in the same order they were recorded.
+/// Policy commands replay in the same order they were recorded.
 #[test]
-fn test_record_replay_policy_mutation() {
-    // build one policy mutation payload
-    let mutation = Mutation::InstallRule {
+fn test_record_replay_policy_command() {
+    // build one policy command payload
+    let command = Command::InstallRule {
         rule: Rule {
             id: RuleId("test.runtime.policy.command".to_string()),
             enabled: true,
@@ -357,25 +357,25 @@ fn test_record_replay_policy_mutation() {
         },
     };
 
-    // record the mutation input to the replay log
+    // record the command to the replay log
     let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     record_state
-        .record_input(Input::Mutation(mutation.clone()))
-        .expect("record world input");
+        .record_command(command.clone())
+        .expect("record world command");
 
-    // replay the mutation input from the same log
+    // replay the command from the same log
     let replay_state = Trace::from_log(ExecutionMode::Replay, record_state.log().clone());
-    let replayed = replay_state.next_input().expect("replay input");
+    let replayed = replay_state.next_command().expect("replay command");
 
-    // verify the replayed input matches
-    assert_eq!(replayed, Input::Mutation(mutation));
+    // verify the replayed command matches
+    assert_eq!(replayed, command);
 }
 
-/// Topology-style mutations replay in the same order they were recorded.
+/// Topology commands replay in the same order they were recorded.
 #[test]
-fn test_record_replay_topology_mutation() {
-    // build one topology mutation payload
-    let mutation = Mutation::DefineEntityKind {
+fn test_record_replay_topology_command() {
+    // build one topology command payload
+    let command = Command::DefineEntityKind {
         kind: WorldEntityKindDefinition {
             kind: "test.entity".into(),
             labels: Default::default(),
@@ -383,33 +383,33 @@ fn test_record_replay_topology_mutation() {
         },
     };
 
-    // record the mutation input to the replay log
+    // record the command to the replay log
     let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     record_state
-        .record_input(Input::Mutation(mutation.clone()))
-        .expect("record world input");
+        .record_command(command.clone())
+        .expect("record world command");
 
-    // replay the mutation input from the same log
+    // replay the command from the same log
     let replay_state = Trace::from_log(ExecutionMode::Replay, record_state.log().clone());
-    let replayed = replay_state.next_input().expect("replay input");
+    let replayed = replay_state.next_command().expect("replay command");
 
-    // verify the replayed input matches
-    assert_eq!(replayed, Input::Mutation(mutation));
+    // verify the replayed command matches
+    assert_eq!(replayed, command);
 }
 
-/// World mutation inputs replay in the same order they were recorded.
+/// World commands replay in the same order they were recorded.
 #[test]
-fn test_record_replay_world_mutation_inputs() {
-    // build two mutation payloads
-    let mutations = vec![
-        Mutation::DefineEntityKind {
+fn test_record_replay_world_commands() {
+    // build two command payloads
+    let commands = vec![
+        Command::DefineEntityKind {
             kind: WorldEntityKindDefinition {
                 kind: "test.program.entity".into(),
                 labels: Default::default(),
                 supported_faults: Default::default(),
             },
         },
-        Mutation::UpsertEntity {
+        Command::UpsertEntity {
             entity: WorldEntity {
                 id: "test.program.entity.1".into(),
                 kind: "test.program.entity".into(),
@@ -418,68 +418,64 @@ fn test_record_replay_world_mutation_inputs() {
         },
     ];
 
-    // record the mutation inputs to the replay log
+    // record the commands to the replay log
     let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
-    for mutation in &mutations {
+    for command in &commands {
         record_state
-            .record_input(Input::Mutation(mutation.clone()))
-            .expect("record world input");
+            .record_command(command.clone())
+            .expect("record world command");
     }
 
-    // replay the inputs from the same log
+    // replay the commands from the same log
     let replay_state = Trace::from_log(ExecutionMode::Replay, record_state.log().clone());
     let mut replayed = Vec::new();
-    for _ in &mutations {
-        let input = replay_state.next_input().expect("replay input");
-        replayed.push(input);
+    for _ in &commands {
+        let command = replay_state.next_command().expect("replay command");
+        replayed.push(command);
     }
 
-    // verify the replayed inputs match
-    let expected = mutations
-        .into_iter()
-        .map(Input::Mutation)
-        .collect::<Vec<_>>();
-    assert_eq!(replayed, expected);
+    // verify the replayed commands match
+    assert_eq!(replayed, commands);
 }
 
-/// World inputs replay in the same order they were recorded.
+/// Mixed world commands replay in the same order they were recorded.
 #[test]
-fn test_record_replay_world_inputs() {
-    let inputs = vec![
-        Input::Tick,
-        Input::RunEntrypoint {
+fn test_record_replay_world_commands_mixed() {
+    let commands = vec![
+        Command::Tick,
+        Command::RunEntrypoint {
             runtime_id: RuntimeId(7),
             entry: Entry::new("test.entry"),
             args: vec![destack_heap::Value::int32(11)],
         },
-        Input::RemoveRuntime {
+        Command::RemoveRuntime {
             runtime_id: RuntimeId(9),
         },
     ];
 
     let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
-    for input in &inputs {
+    for command in &commands {
         record_state
-            .record_input(input.clone())
-            .expect("record world input");
+            .record_command(command.clone())
+            .expect("record world command");
     }
 
     let replay_state = Trace::from_log(ExecutionMode::Replay, record_state.log().clone());
     let mut replayed = Vec::new();
-    for _ in &inputs {
-        replayed.push(replay_state.next_input().expect("replay input"));
+    for _ in &commands {
+        replayed.push(replay_state.next_command().expect("replay command"));
     }
 
-    assert_eq!(replayed, inputs);
+    assert_eq!(replayed, commands);
 }
 
-/// Resource lifecycle replays through world mutation inputs.
+/// Resource lifecycle replays through world commands.
 #[test]
-fn test_record_replay_resource_mutation() {
-    // build one resource creation mutation
-    let mutation = Mutation::CreateResource {
+fn test_record_replay_resource_command() {
+    // build one resource creation command
+    let command = Command::CreateResource {
         resource: WorldResource::new(
-            WorldResourceId::new(AgentId(42), ResourceId(7)),
+            WorldResourceId::new(WorkerId(42), ResourceId(7)),
             WorldEntityKind::from("resource.timer"),
             Some("test-timer".to_string()),
             ResourceBacking::Virtual,
@@ -488,18 +484,18 @@ fn test_record_replay_resource_mutation() {
         ),
     };
 
-    // record the mutation input to the replay log
+    // record the command to the replay log
     let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     record_state
-        .record_input(Input::Mutation(mutation.clone()))
-        .expect("record world input");
+        .record_command(command.clone())
+        .expect("record world command");
 
-    // replay the mutation input from the same log
+    // replay the command from the same log
     let replay_state = Trace::from_log(ExecutionMode::Replay, record_state.log().clone());
-    let replayed = replay_state.next_input().expect("replay input");
+    let replayed = replay_state.next_command().expect("replay command");
 
-    // verify the replayed input matches
-    assert_eq!(replayed, Input::Mutation(mutation));
+    // verify the replayed command matches
+    assert_eq!(replayed, command);
 
     // there should be no additional events after replay
     let trailing = replay_state

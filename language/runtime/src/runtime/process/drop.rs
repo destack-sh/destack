@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 pub enum DropReason {
     /// Events dropped before delivery because an upstream queue overflowed.
     QueuePressure,
-    /// Ingress dropped because no agent declared interest.
+    /// Ingress dropped because no worker declared interest.
     UnmatchedIngress,
     /// Events dropped inside one event loop because no dispatch watch matched.
     UnwatchedDispatch,
@@ -16,7 +16,7 @@ pub enum DropReason {
 pub struct DropCounts {
     /// Events dropped because an upstream queue overflowed.
     pub queue_pressure: u64,
-    /// Ingress dropped because no agent declared interest.
+    /// Ingress dropped because no worker declared interest.
     pub unmatched_ingress: u64,
     /// Events dropped because no dispatch watch matched.
     pub unwatched_dispatch: u64,

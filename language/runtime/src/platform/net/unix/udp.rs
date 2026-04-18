@@ -54,7 +54,7 @@ pub(crate) unsafe fn destack_net_udp_socket(
         .with_finalizer(SocketFinalizer { fd });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {

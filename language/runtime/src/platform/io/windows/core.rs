@@ -139,7 +139,7 @@ pub(crate) fn host_control_ioctl(
 
     // resolve one host-backed resource entry
     let entry = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle, |entry| (entry.socket(), entry.handle()))
         .ok_or_else(|| io_core::io_target_not_found("destack.io.control.ioctl", handle))?;
@@ -246,7 +246,7 @@ pub(crate) fn host_poll_resolve_target_handle(
     target: ResourceId,
 ) -> RuntimeResult<PlatformHandle> {
     // resolve one runtime target entry
-    let resolved = binding.agent().resources.with_entry(target, |entry| {
+    let resolved = binding.worker().resources.with_entry(target, |entry| {
         entry.socket().map(PlatformHandle::from_raw_socket)
     });
 
@@ -277,7 +277,7 @@ pub(crate) fn host_completion_resolve_target_handle(
     operation: &'static str,
 ) -> RuntimeResult<PlatformHandle> {
     // resolve one runtime target entry
-    let resolved = binding.agent().resources.with_entry(target, |entry| {
+    let resolved = binding.worker().resources.with_entry(target, |entry| {
         if let Some(socket) = entry.socket() {
             return Some(PlatformHandle::from_raw_socket(socket));
         }
@@ -316,7 +316,7 @@ pub(crate) fn host_completion_register_accepted_handle(
         });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     Ok(resource_id.0 as i64)
@@ -347,7 +347,7 @@ pub(crate) fn host_event_open(
         .with_finalizer(WindowsHandleFinalizer { handle });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     Ok(EventToken(resource_id.0))
@@ -359,7 +359,7 @@ pub(crate) fn host_event_close(
     token: EventToken,
 ) -> RuntimeResult<()> {
     // remove one token resource from the runtime table
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         ResourceId(token.0),
         Some(binding.engine()),
@@ -381,7 +381,7 @@ pub(crate) fn host_event_signal(
 
     // resolve one event handle from the token resource
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(ResourceId(token.0), |entry| {
             if entry.label.as_deref() != Some(io_core::EVENT_RESOURCE_LABEL) {

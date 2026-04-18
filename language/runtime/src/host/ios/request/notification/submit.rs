@@ -65,7 +65,7 @@ fn submit_notification_post(
     operation: &'static str,
     request: &NotificationRequestValue,
 ) -> RuntimeResult<String> {
-    let binding = BindingCallContext::from_current_agent_for_native()?;
+    let binding = BindingCallContext::from_current_worker_for_native()?;
     let request = HostNotificationRequest::from_value(&binding, request.clone());
     let status = unsafe { destack_host_ios_notification_post(runtime_id, request) };
     decode_callback_host_status(status, operation)?;

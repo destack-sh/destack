@@ -481,7 +481,7 @@ fn spawn_process(
         .with_finalizer(ProcessHandleFinalizer::new(process_handle as HANDLE));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 

@@ -180,7 +180,7 @@ static PACKET_SOCKET_STATES: LazyLock<Mutex<HashMap<ResourceId, WindowsPacketSta
 
 /// Return configured packet backend mode for Windows packet lanes.
 fn windows_packet_backend_mode(binding: &BindingCallContext) -> PlatformWindowsPacketBackend {
-    binding.agent().options.platform.windows.net_packet_backend
+    binding.worker().options.platform.windows.net_packet_backend
 }
 
 /// Return one `notSupported` error for unsupported Windows packet lanes.
@@ -853,7 +853,7 @@ pub(crate) unsafe fn destack_net_packet_open(
         .with_finalizer(WindowsPacketFinalizer::new(socket));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     let snap_length = usize::try_from(options.snap_length).unwrap_or(WINDOWS_PACKET_MAX_LENGTH);

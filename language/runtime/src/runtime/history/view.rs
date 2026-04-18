@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
 use crate::runtime::policy::Policy;
@@ -7,9 +8,9 @@ use crate::runtime::topology::{
     WorldEntityKindDefinition,
 };
 use crate::runtime::world::{WorldResource, WorldResourceId};
-use crate::runtime::{AgentId, AgentImage, RuntimeImage};
+use crate::runtime::{WorkerId, WorkerImage, RuntimeImage};
 
-use super::{Image, Moment};
+use super::{Moment, WorldImage};
 
 /// One branch divergence between two committed branch heads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,12 +29,12 @@ pub struct WorldView {
     /// The moment this view represents.
     moment: Moment,
     /// The exact materialized image for this view.
-    image: Image,
+    image: WorldImage,
 }
 
 impl WorldView {
     /// Create one committed world view from one exact moment and image.
-    pub(super) fn new(moment: Moment, image: Image) -> Self {
+    pub(super) fn new(moment: Moment, image: WorldImage) -> Self {
         Self { moment, image }
     }
 
@@ -43,7 +44,7 @@ impl WorldView {
     }
 
     /// Return the underlying materialized image.
-    pub fn image(&self) -> &Image {
+    pub fn image(&self) -> &WorldImage {
         &self.image
     }
 
@@ -52,14 +53,14 @@ impl WorldView {
         self.image.policy()
     }
 
-    /// Return all runtimes visible at this moment.
-    pub fn runtimes(&self) -> &BTreeMap<RuntimeId, RuntimeImage> {
+    /// Return all retained runtime images visible at this moment.
+    pub fn runtimes(&self) -> &BTreeMap<RuntimeId, Arc<RuntimeImage>> {
         self.image.runtimes()
     }
 
-    /// Return all agents visible at this moment.
-    pub fn agents(&self) -> &BTreeMap<AgentId, AgentImage> {
-        self.image.agents()
+    /// Return all retained worker images visible at this moment.
+    pub fn workers(&self) -> &BTreeMap<WorkerId, Arc<WorkerImage>> {
+        self.image.workers()
     }
 
     /// Return all logical world resources visible at this moment.
@@ -72,9 +73,9 @@ impl WorldView {
         self.image.runtimes.keys().copied().collect()
     }
 
-    /// Return all agent ids visible at this moment.
-    pub fn agent_ids(&self) -> Vec<AgentId> {
-        self.image.agents.keys().copied().collect()
+    /// Return all worker ids visible at this moment.
+    pub fn worker_ids(&self) -> Vec<WorkerId> {
+        self.image.workers.keys().copied().collect()
     }
 
     /// Return the number of runtimes visible at this moment.
@@ -82,9 +83,9 @@ impl WorldView {
         self.image.runtime_count()
     }
 
-    /// Return the number of agents visible at this moment.
-    pub fn agent_count(&self) -> usize {
-        self.image.agent_count()
+    /// Return the number of workers visible at this moment.
+    pub fn worker_count(&self) -> usize {
+        self.image.worker_count()
     }
 
     /// Return the number of logical resources visible at this moment.
@@ -107,9 +108,9 @@ impl WorldView {
         self.image.has_runtime(runtime_id)
     }
 
-    /// Report whether one agent exists at this moment.
-    pub fn has_agent(&self, agent_id: AgentId) -> bool {
-        self.image.has_agent(agent_id)
+    /// Report whether one worker exists at this moment.
+    pub fn has_worker(&self, worker_id: WorkerId) -> bool {
+        self.image.has_worker(worker_id)
     }
 
     /// Report whether one resource exists at this moment.
@@ -140,14 +141,14 @@ impl WorldView {
         self.image.runtime_labels(runtime_id)
     }
 
-    /// Return one agent image by id.
-    pub fn agent(&self, agent_id: AgentId) -> RuntimeResult<&AgentImage> {
-        self.image.agent(agent_id)
+    /// Return one worker image by id.
+    pub fn worker(&self, worker_id: WorkerId) -> RuntimeResult<&WorkerImage> {
+        self.image.worker(worker_id)
     }
 
-    /// Return labels for one agent visible at this moment.
-    pub fn agent_labels(&self, agent_id: AgentId) -> RuntimeResult<&BTreeMap<String, String>> {
-        self.image.agent_labels(agent_id)
+    /// Return labels for one worker visible at this moment.
+    pub fn worker_labels(&self, worker_id: WorkerId) -> RuntimeResult<&BTreeMap<String, String>> {
+        self.image.worker_labels(worker_id)
     }
 
     /// Return one resource by id when present.

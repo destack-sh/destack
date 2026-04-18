@@ -9,27 +9,27 @@ use crate::diagnostic::RuntimeError;
 use crate::host::Session;
 use crate::runtime::bindings::BindingDescriptor;
 use crate::runtime::policy::{CustomEffect, Rule, Trigger};
-use crate::runtime::{Agent, BindingCallContext, Hook, HookDecision, HookSelector, World};
+use crate::runtime::{Worker, BindingCallContext, Hook, HookDecision, HookSelector, World};
 
 /// Ensures before-binding callbacks can deny one matching binding call.
 #[test]
 fn test_on_before_binding_allows_hook_callback_deny() {
-    // create one agent in one shared world
+    // create one worker in one shared world
     let options = RuntimeOptions::default();
     let mut world = World::from_options(&options).expect("hook test world should build");
     let world_ref = world.world_ref();
-    let agent = Agent::new_in_world(
+    let worker = Worker::new_in_world(
         Vec::new(),
         &options,
         &world_ref,
         Box::new(super::tests::TestEngine::default()),
     )
-    .expect("agent should construct in world");
-    let host = Session::from_runtime_options(&options, agent.runtime_id);
+    .expect("worker should construct in world");
+    let host = Session::from_runtime_options(&options, worker.runtime_id);
 
     // register one deny callback for matching binding names
     let callback_id =
-        agent
+        worker
             .hooks
             .on_before(HookSelector::binding("destack.test.hook.*"), |_event| {
                 HookDecision::Deny {
@@ -39,7 +39,7 @@ fn test_on_before_binding_allows_hook_callback_deny() {
 
     // matching binding calls should fail with the callback message
     let call_context =
-        BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world_ref);
+        BindingCallContext::new(&worker, worker.event_loop.as_ref(), &host, &world_ref);
     let descriptor = BindingDescriptor::pure("destack.test.hook.block", "()");
     let result = call_context.on_before_binding(descriptor);
     assert!(result.is_err());
@@ -50,9 +50,9 @@ fn test_on_before_binding_allows_hook_callback_deny() {
     ));
 
     // unregistering the callback should restore allow behavior
-    assert!(agent.hooks.off(callback_id));
+    assert!(worker.hooks.off(callback_id));
     let call_context =
-        BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world_ref);
+        BindingCallContext::new(&worker, worker.event_loop.as_ref(), &host, &world_ref);
     let result = call_context.on_before_binding(descriptor);
     assert!(result.is_ok());
 }
@@ -60,21 +60,21 @@ fn test_on_before_binding_allows_hook_callback_deny() {
 /// Ensures callback selectors only apply to matching binding names.
 #[test]
 fn test_on_before_binding_respects_hook_selector_binding_glob() {
-    // create one agent in one shared world
+    // create one worker in one shared world
     let options = RuntimeOptions::default();
     let mut world = World::from_options(&options).expect("hook test world should build");
     let world_ref = world.world_ref();
-    let agent = Agent::new_in_world(
+    let worker = Worker::new_in_world(
         Vec::new(),
         &options,
         &world_ref,
         Box::new(super::tests::TestEngine::default()),
     )
-    .expect("agent should construct in world");
-    let host = Session::from_runtime_options(&options, agent.runtime_id);
+    .expect("worker should construct in world");
+    let host = Session::from_runtime_options(&options, worker.runtime_id);
 
     // register one deny callback with one non-matching binding pattern
-    let callback_id = agent.hooks.on_before(
+    let callback_id = worker.hooks.on_before(
         HookSelector::binding("destack.test.hook.nonmatching.*"),
         |_event| HookDecision::Deny {
             message: "blocked by callback".to_string(),
@@ -83,30 +83,30 @@ fn test_on_before_binding_respects_hook_selector_binding_glob() {
 
     // non-matching binding calls should continue normally
     let call_context =
-        BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world_ref);
+        BindingCallContext::new(&worker, worker.event_loop.as_ref(), &host, &world_ref);
     let descriptor = BindingDescriptor::pure("destack.test.hook.allowed", "()");
     let result = call_context.on_before_binding(descriptor);
     assert!(result.is_ok());
 
     // unregister should remove exactly one callback
-    assert!(agent.hooks.off(callback_id));
+    assert!(worker.hooks.off(callback_id));
 }
 
 /// Ensures custom-effect handlers execute for matching runtime rules.
 #[test]
 fn test_on_before_binding_dispatches_custom_effect_handler() {
-    // create one agent in one shared world
+    // create one worker in one shared world
     let options = RuntimeOptions::default();
     let mut world = World::from_options(&options).expect("hook test world should build");
     let world_ref = world.world_ref();
-    let agent = Agent::new_in_world(
+    let worker = Worker::new_in_world(
         Vec::new(),
         &options,
         &world_ref,
         Box::new(super::tests::TestEngine::default()),
     )
-    .expect("agent should construct in world");
-    let host = Session::from_runtime_options(&options, agent.runtime_id);
+    .expect("worker should construct in world");
+    let host = Session::from_runtime_options(&options, worker.runtime_id);
 
     // install one custom-effect rule for one binding pattern
     world
@@ -123,7 +123,7 @@ fn test_on_before_binding_dispatches_custom_effect_handler() {
     // register one custom effect handler callback
     let invocations = Arc::new(AtomicU64::new(0));
     let invocations_for_handler = invocations.clone();
-    agent
+    worker
         .hooks
         .on_custom_effect("test.custom.handler", move |invocation| {
             assert_eq!(invocation.rule_id, "test.hook.custom.effect");
@@ -135,7 +135,7 @@ fn test_on_before_binding_dispatches_custom_effect_handler() {
 
     // matching binding call should dispatch one custom effect invocation
     let call_context =
-        BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world_ref);
+        BindingCallContext::new(&worker, worker.event_loop.as_ref(), &host, &world_ref);
     let descriptor = BindingDescriptor::pure("destack.test.hook.custom.call", "()");
     let result = call_context.on_before_binding(descriptor);
     assert!(result.is_ok());

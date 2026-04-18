@@ -312,7 +312,7 @@ pub(crate) unsafe fn destack_device_serial_open(
 
     // start one service-owned comm-event runtime for this handle
     let serial_service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .windows_serial_service("destack.device.serial.open")?;
@@ -332,7 +332,7 @@ pub(crate) unsafe fn destack_device_serial_open(
     let entry = ResourceEntry::new(ResourceKind::SerialPort)
         .with_label(SERIAL_PORT_RESOURCE_LABEL)
         .with_payload(Arc::clone(&resource))
-        .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
             WindowsSerialEventFinalizer {
                 service: serial_service,
                 registration_id,
@@ -341,7 +341,7 @@ pub(crate) unsafe fn destack_device_serial_open(
         ));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 

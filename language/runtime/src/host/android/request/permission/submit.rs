@@ -23,7 +23,7 @@ pub(crate) fn submit_permission_request(
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
         }
         HostRequest::OsPermissionRequest { permission } => {
-            let binding = BindingCallContext::from_current_agent_for_native()?;
+            let binding = BindingCallContext::from_current_worker_for_native()?;
             let abi_request = HostPermissionRequest {
                 request_id: context.request_id.0,
                 permission: <HostPermission as NativeAbiCodec>::from_value(&binding, *permission),

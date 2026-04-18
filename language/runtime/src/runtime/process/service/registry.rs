@@ -16,7 +16,7 @@ struct ServiceRegistry {
 /// Global typed platform-service registry.
 static SERVICE_REGISTRY: OnceLock<ServiceRegistry> = OnceLock::new();
 
-/// One agent-local cached handle for one typed platform service.
+/// One worker-local cached handle for one typed platform service.
 #[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
 pub(crate) struct ServiceHandle<S> {
     /// Cached typed service handle.

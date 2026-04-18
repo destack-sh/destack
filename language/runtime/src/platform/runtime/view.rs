@@ -3,17 +3,18 @@ use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::runtime::{
-    AgentDescriptorValue, EngineDescriptor, EventLoopDescriptor, HeapDescriptor, ImageDescriptor,
+    EngineDescriptor, EventLoopDescriptor, HeapDescriptor, ImageDescriptor,
     ResourceDescriptorValue, RevisionDescriptor, RuntimeDescriptorValue, TopologyEdgeValue,
-    TopologyEntityValue, TraceDescriptor, TraceSequence, WorldDescriptorValue, WorldHandle,
+    TopologyEntityValue, TraceDescriptor, TraceSequence, WorkerDescriptorValue,
+    WorldDescriptorValue, WorldHandle,
 };
 use crate::runtime;
 use crate::runtime::control::inspect::{
-    AgentListFilter, EdgeListFilter, EntityListFilter, ResourceListFilter, RuntimeListFilter,
-    agent_in_image, edge_in_image, entity_in_image, list_agents, list_edges, list_entities,
-    list_resources, list_runtimes, resource_in_image, runtime_in_image,
+    EdgeListFilter, EntityListFilter, ResourceListFilter, RuntimeListFilter, WorkerListFilter,
+    edge_in_image, entity_in_image, list_edges, list_entities, list_resources, list_runtimes,
+    list_workers, resource_in_image, runtime_in_image, worker_in_image,
 };
-use crate::runtime::world::{Image, Revision};
+use crate::runtime::world::{RevisionState, WorldImage};
 
 use crate::runtime::control::Control;
 
@@ -26,10 +27,12 @@ pub(crate) struct PinnedWorldView {
     pub world_handle: WorldHandle,
     /// The stored world labels.
     pub labels: BTreeMap<String, String>,
+    /// The pinned revision handle.
+    pub revision_handle: runtime::world::Revision,
     /// The pinned revision metadata.
-    pub revision: Revision,
+    pub revision: RevisionState,
     /// The pinned world image.
-    pub image: Arc<Image>,
+    pub image: Arc<WorldImage>,
 }
 
 impl PinnedWorldView {
@@ -44,15 +47,19 @@ impl PinnedWorldView {
         Ok(RuntimeDescriptorCodec::world_view_entry(entry))
     }
 
-    /// Return one captured agent from this pinned world view.
-    pub(crate) fn agent(&self, agent_id: runtime::AgentId) -> RuntimeResult<&runtime::AgentImage> {
-        agent_in_image(&self.image, agent_id)
+    /// Return one captured worker from this pinned world view.
+    pub(crate) fn worker(
+        &self,
+        worker_id: runtime::WorkerId,
+    ) -> RuntimeResult<&runtime::WorkerImage> {
+        worker_in_image(&self.image, worker_id)
     }
 
     /// Return one owned world descriptor from this pinned world view.
     pub(crate) fn world_descriptor(&self) -> RuntimeResult<WorldDescriptorValue> {
         RuntimeDescriptorCodec::world_descriptor_for_revision(
             self.world_handle,
+            self.revision_handle,
             self.revision.clone(),
             &self.image,
             self.labels.clone(),
@@ -61,12 +68,20 @@ impl PinnedWorldView {
 
     /// Return one owned revision descriptor from this pinned world view.
     pub(crate) fn revision_descriptor(&self) -> RuntimeResult<RevisionDescriptor> {
-        RuntimeDescriptorCodec::revision_descriptor(self.revision.clone(), &self.image)
+        RuntimeDescriptorCodec::revision_descriptor(
+            self.revision_handle,
+            self.revision.clone(),
+            &self.image,
+        )
     }
 
     /// Return one owned image descriptor from this pinned world view.
     pub(crate) fn image_descriptor(&self) -> RuntimeResult<ImageDescriptor> {
-        RuntimeDescriptorCodec::image_descriptor(self.revision.id, &self.image)
+        RuntimeDescriptorCodec::image_descriptor(
+            self.revision_handle,
+            self.revision.image_id,
+            &self.image,
+        )
     }
 
     /// Return one owned trace descriptor from this pinned world view.
@@ -84,7 +99,7 @@ impl PinnedWorldView {
     ) -> RuntimeResult<RuntimeDescriptorValue> {
         let runtime = runtime_in_image(&self.image, runtime_id)?;
 
-        RuntimeDescriptorCodec::runtime_descriptor_for_image(&self.image, runtime)
+        RuntimeDescriptorCodec::runtime_descriptor_for_image(&self.image, runtime_id, runtime)
     }
 
     /// Return owned runtime descriptors from this pinned world view.
@@ -98,69 +113,75 @@ impl PinnedWorldView {
         let mut descriptors = Vec::with_capacity(runtimes.len());
 
         // collect owned runtime descriptors
-        for runtime in runtimes {
-            let descriptor =
-                RuntimeDescriptorCodec::runtime_descriptor_for_image(&self.image, runtime)?;
+        for (runtime_id, runtime) in runtimes {
+            let descriptor = RuntimeDescriptorCodec::runtime_descriptor_for_image(
+                &self.image,
+                runtime_id,
+                runtime,
+            )?;
             descriptors.push(descriptor);
         }
 
         Ok(descriptors)
     }
 
-    /// Return one owned agent descriptor from this pinned world view.
-    pub(crate) fn agent_descriptor(
+    /// Return one owned worker descriptor from this pinned world view.
+    pub(crate) fn worker_descriptor(
         &self,
-        agent_id: runtime::AgentId,
-    ) -> RuntimeResult<AgentDescriptorValue> {
-        let agent = self.agent(agent_id)?;
+        worker_id: runtime::WorkerId,
+    ) -> RuntimeResult<WorkerDescriptorValue> {
+        let worker = self.worker(worker_id)?;
 
-        RuntimeDescriptorCodec::agent_descriptor_for_image(&self.image, agent)
+        RuntimeDescriptorCodec::worker_descriptor_for_image(&self.image, worker_id, worker)
     }
 
     /// Return one owned event-loop descriptor from this pinned world view.
     pub(crate) fn event_loop_descriptor(
         &self,
-        agent_id: runtime::AgentId,
+        worker_id: runtime::WorkerId,
     ) -> RuntimeResult<EventLoopDescriptor> {
-        let agent = self.agent(agent_id)?;
+        let worker = self.worker(worker_id)?;
 
-        RuntimeDescriptorCodec::event_loop_descriptor(&agent.event_loop)
+        RuntimeDescriptorCodec::event_loop_descriptor(&worker.event_loop)
     }
 
     /// Return one owned heap descriptor from this pinned world view.
     pub(crate) fn heap_descriptor(
         &self,
-        agent_id: runtime::AgentId,
+        worker_id: runtime::WorkerId,
     ) -> RuntimeResult<HeapDescriptor> {
-        let agent = self.agent(agent_id)?;
+        let worker = self.worker(worker_id)?;
 
-        RuntimeDescriptorCodec::heap_descriptor(agent)
+        RuntimeDescriptorCodec::heap_descriptor(worker)
     }
 
     /// Return one owned engine descriptor from this pinned world view.
     pub(crate) fn engine_descriptor(
         &self,
-        agent_id: runtime::AgentId,
+        worker_id: runtime::WorkerId,
     ) -> RuntimeResult<EngineDescriptor> {
-        let agent = self.agent(agent_id)?;
+        let worker = self.worker(worker_id)?;
 
-        RuntimeDescriptorCodec::engine_descriptor(agent)
+        RuntimeDescriptorCodec::engine_descriptor(worker)
     }
 
-    /// Return owned agent descriptors from this pinned world view.
-    pub(crate) fn agent_descriptors(
+    /// Return owned worker descriptors from this pinned world view.
+    pub(crate) fn worker_descriptors(
         &self,
-        filter: &AgentListFilter,
-        after: Option<runtime::AgentId>,
+        filter: &WorkerListFilter,
+        after: Option<runtime::WorkerId>,
         limit: Option<usize>,
-    ) -> RuntimeResult<Vec<AgentDescriptorValue>> {
-        let agents = list_agents(&self.image, filter, after, limit)?;
-        let mut descriptors = Vec::with_capacity(agents.len());
+    ) -> RuntimeResult<Vec<WorkerDescriptorValue>> {
+        let workers = list_workers(&self.image, filter, after, limit)?;
+        let mut descriptors = Vec::with_capacity(workers.len());
 
-        // collect owned agent descriptors
-        for agent in agents {
-            let descriptor =
-                RuntimeDescriptorCodec::agent_descriptor_for_image(&self.image, agent)?;
+        // collect owned worker descriptors
+        for (worker_id, worker) in workers {
+            let descriptor = RuntimeDescriptorCodec::worker_descriptor_for_image(
+                &self.image,
+                worker_id,
+                worker,
+            )?;
             descriptors.push(descriptor);
         }
 

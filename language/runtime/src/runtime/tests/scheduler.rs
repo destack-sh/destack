@@ -2,16 +2,16 @@ use std::sync::Arc;
 
 use destack_core::{Capture, CaptureMode};
 use destack_engine::Continuation;
-use destack_heap as heap;
 use destack_workspace::{RuntimeOptions, SchedulerOptions, TimeMode, TimeOptions};
+use {destack_heap as heap, destack_vm as vm};
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::{HostEventKind, HostLifecycleState, Session};
+use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
-use crate::platform::{PlatformError, ResourceId};
 use crate::runtime::engine::{
-    Engine, EngineImage, EngineSnapshot, Entry, ExecutionOutcome, ExecutionOutput,
-    LiveContinuation, NativeContinuationHandle,
+    Engine, EngineImage, EngineLayout, Entry, ExecutionOutcome, ExecutionOutput, LiveContinuation,
+    NativeContinuationHandle,
 };
 use crate::runtime::poller::{
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
@@ -21,15 +21,15 @@ use crate::runtime::scheduler::{
     EventLoop, Microtask, MicrotaskId, Runnable, Task, TaskId, TaskStatus, Timer, TimerDeadline,
 };
 use crate::runtime::time::{Nanos, WorldInstant, host as host_time};
-use crate::runtime::{Agent, BindingCallContext, DropReason, TickOutcome, World};
+use crate::runtime::{BindingCallContext, DropReason, TickOutcome, Worker, World};
 
 use super::tests::{
     ScriptedHostClockSource, TestEngine, TestMultiAgentRuntime, TestPoller, TestRuntime,
-    continuation_from_image, native_continuation_image,
+    continuation_from_image, native_continuation_image, validate_native_capture_mode,
 };
 
 /// Engine that always completes on resume for microtask tests.
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 struct CompleteEngine {
     /// Number of resume calls observed.
     resume_calls: usize,
@@ -38,32 +38,10 @@ struct CompleteEngine {
 }
 
 impl Engine for CompleteEngine {
-    /// Return the managed-reference width required by this scheduler test engine.
-    fn heap_managed_reference_bytes(&self) -> u8 {
-        8
-    }
-
     /// Run one entrypoint without yielding.
     fn run(
         &mut self,
-        _memory: &mut heap::MemoryContext<'_>,
-        _entry: &Entry,
-        _args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
-        Ok(ExecutionOutcome::Completed {
-            output: ExecutionOutput {
-                value: heap::Value::VOID,
-                stats: Default::default(),
-                managed_allocation_count: 0,
-                raw_allocation_count: 0,
-            },
-        })
-    }
-
-    /// Run one replayable entrypoint without yielding.
-    fn run_replayable_entry(
-        &mut self,
-        _memory: &mut heap::MemoryContext<'_>,
+        _memory: &mut vm::MemoryContext<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
     ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
@@ -80,7 +58,7 @@ impl Engine for CompleteEngine {
     /// Resume one continuation and complete immediately.
     fn resume(
         &mut self,
-        _memory: &mut heap::MemoryContext<'_>,
+        _memory: &mut vm::MemoryContext<'_>,
         continuation: LiveContinuation,
         _value: heap::Value,
     ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
@@ -100,50 +78,17 @@ impl Engine for CompleteEngine {
         })
     }
 
-    /// Validate capture support for one continuation.
-    fn validate_capture_mode(
-        &self,
-        continuation: &LiveContinuation,
-        mode: CaptureMode,
-    ) -> RuntimeResult<()> {
-        // native continuations do not have honest suspend or hibernate restore yet
-        if matches!(continuation, LiveContinuation::Native(_))
-            && matches!(mode, CaptureMode::Suspend | CaptureMode::Hibernate)
-        {
-            return Err(crate::diagnostic::RuntimeError::Internal {
-                message: format!(
-                    "event loop cannot capture native continuations for {mode:?}: explicit rehydration is not implemented"
-                ),
-            }
-            .boxed());
-        }
-
-        Ok(())
-    }
-
-    /// Clone one continuation for repeatable watch dispatch.
-    fn clone_for_repeatable_dispatch(
-        &self,
-        continuation: &LiveContinuation,
-    ) -> RuntimeResult<LiveContinuation> {
-        match continuation {
-            LiveContinuation::Native(handle) => Ok(LiveContinuation::Native(*handle)),
-            LiveContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::from(
-                PlatformError::invalid_argument_value(
-                    "watch.runnable",
-                    "vm continuations are not supported for event loop watches",
-                ),
-            )
-            .boxed()),
-        }
-    }
-
     /// Capture one immutable engine image for scheduler tests.
     fn image(&mut self) -> RuntimeResult<EngineImage> {
         Err(crate::diagnostic::RuntimeError::Internal {
             message: "scheduler test engine images are not implemented".to_string(),
         }
         .boxed())
+    }
+
+    /// Fork one live scheduler test engine.
+    fn fork(&mut self, _heap: &mut heap::Heap) -> RuntimeResult<Box<dyn Engine>> {
+        Ok(Box::new(self.clone()))
     }
 
     /// Restore one immutable engine image for scheduler tests.
@@ -160,7 +105,10 @@ impl Engine for CompleteEngine {
     fn continuation_image(
         &mut self,
         continuation: &LiveContinuation,
+        mode: CaptureMode,
     ) -> RuntimeResult<Continuation> {
+        validate_native_capture_mode(continuation, mode)?;
+
         match continuation {
             LiveContinuation::Native(continuation) => Ok(native_continuation_image(*continuation)),
             LiveContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
@@ -179,19 +127,19 @@ impl Engine for CompleteEngine {
         Ok(LiveContinuation::Native(continuation_from_image(image)))
     }
 
-    /// Capture one serialized engine snapshot for scheduler tests.
-    fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot> {
+    /// Capture one serialized engine image for scheduler tests.
+    fn snapshot(&mut self) -> RuntimeResult<EngineImage> {
         Err(crate::diagnostic::RuntimeError::Internal {
             message: "scheduler test engine snapshots are not implemented".to_string(),
         }
         .boxed())
     }
 
-    /// Restore one serialized engine snapshot for scheduler tests.
+    /// Restore one serialized engine image for scheduler tests.
     fn restore_snapshot(
         &mut self,
         _heap: &mut heap::Heap,
-        snapshot: &EngineSnapshot,
+        snapshot: &EngineImage,
     ) -> RuntimeResult<()> {
         let _ = snapshot;
 
@@ -199,6 +147,13 @@ impl Engine for CompleteEngine {
             message: "scheduler test engine snapshot restore is not implemented".to_string(),
         }
         .boxed())
+    }
+}
+
+impl EngineLayout for CompleteEngine {
+    /// Return the managed-reference width required by this scheduler test engine.
+    fn managed_reference_bytes(&self) -> u8 {
+        8
     }
 }
 
@@ -398,7 +353,7 @@ fn test_tick_drops_host_event_without_watch() {
 /// Records unmatched runtime ingress explicitly instead of rerouting it.
 #[test]
 fn test_runtime_tick_records_unmatched_poller_ingress() {
-    // create one multi-agent runtime with no poller watches
+    // create one multi-worker runtime with no poller watches
     let mut runtime = TestMultiAgentRuntime::with_options_and_engine(
         &RuntimeOptions::default(),
         CompleteEngine::default(),
@@ -872,11 +827,11 @@ fn test_runtime_tick_advances_virtual_time_before_dispatch() {
     };
     let mut runtime =
         TestMultiAgentRuntime::with_options_and_engine(&options, CompleteEngine::default());
-    let primary_agent_id = runtime.primary_agent_id();
+    let primary_worker_id = runtime.primary_worker_id();
     let fire_at_nanos = runtime.wall_nanos().saturating_add(5_000);
-    runtime.with_agent_mut(primary_agent_id, |agent| {
-        register_timer_watch(agent, 950, 111, 0);
-        schedule_timer(agent, TimerClock::Wall, 950, fire_at_nanos, None);
+    runtime.with_worker_mut(primary_worker_id, |worker| {
+        register_timer_watch(worker, 950, 111, 0);
+        schedule_timer(worker, TimerClock::Wall, 950, fire_at_nanos, None);
     });
 
     // the first tick should only advance time
@@ -919,11 +874,13 @@ fn test_world_tick_drives_runtime() {
     let runtime_id = world
         .spawn_runtime(Vec::new(), &options, CompleteEngine::default())
         .expect("runtime should spawn");
-    // enqueue one native task on the primary agent
+    // enqueue one native task on the primary worker
     let runtime = world.runtime_mut(runtime_id).expect("runtime should exist");
-    let primary_agent_id = runtime.primary_agent_id();
-    let agent = runtime.agent_mut(primary_agent_id).expect("primary agent");
-    agent.event_loop.enqueue_task(Task {
+    let primary_worker_id = runtime.primary_worker_id();
+    let worker = runtime
+        .worker_mut(primary_worker_id)
+        .expect("primary worker");
+    worker.event_loop.enqueue_task(Task {
         id: TaskId::new(1),
         runnable: LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(211))),
         resume_value: heap::Value::VOID,
@@ -934,18 +891,18 @@ fn test_world_tick_drives_runtime() {
     // world tick should delegate through the runtime and execute the task
     assert_eq!(world.tick().expect("world tick"), TickOutcome::Progressed);
     let runtime = world.runtime(runtime_id).expect("runtime should exist");
-    let agent = runtime.agent(primary_agent_id).expect("primary agent");
-    let engine = agent.engine.as_ref() as &dyn std::any::Any;
+    let worker = runtime.worker(primary_worker_id).expect("primary worker");
+    let engine = worker.engine.as_ref() as &dyn std::any::Any;
     let engine = engine
         .downcast_ref::<CompleteEngine>()
         .expect("runtime engine should exist");
     assert_eq!(engine.resume_calls, 1);
 }
 
-/// Dispatches equal-deadline timers in stable agent-id order.
+/// Dispatches equal-deadline timers in stable worker-id order.
 #[test]
-fn test_runtime_tick_orders_equal_deadline_timers_by_agent_id() {
-    // configure one virtual runtime with two agents and one equal deadline
+fn test_runtime_tick_orders_equal_deadline_timers_by_worker_id() {
+    // configure one virtual runtime with two workers and one equal deadline
     let options = RuntimeOptions {
         time: TimeOptions {
             mode: TimeMode::Virtual,
@@ -955,37 +912,37 @@ fn test_runtime_tick_orders_equal_deadline_timers_by_agent_id() {
     };
     let mut runtime =
         TestMultiAgentRuntime::with_options_and_engine(&options, CompleteEngine::default());
-    let primary_agent_id = runtime.primary_agent_id();
-    let secondary_agent_id = runtime.spawn_agent(CompleteEngine::default());
+    let primary_worker_id = runtime.primary_worker_id();
+    let secondary_worker_id = runtime.spawn_worker(CompleteEngine::default());
     let fire_at_nanos = runtime.wall_nanos().saturating_add(10_000);
 
-    // register one watched timer on each agent
-    runtime.with_agent_mut(primary_agent_id, |agent| {
-        register_timer_watch(agent, 960, 201, 0);
-        schedule_timer(agent, TimerClock::Wall, 960, fire_at_nanos, None);
+    // register one watched timer on each worker
+    runtime.with_worker_mut(primary_worker_id, |worker| {
+        register_timer_watch(worker, 960, 201, 0);
+        schedule_timer(worker, TimerClock::Wall, 960, fire_at_nanos, None);
     });
-    runtime.with_agent_mut(secondary_agent_id, |agent| {
-        register_timer_watch(agent, 961, 202, 0);
-        schedule_timer(agent, TimerClock::Wall, 961, fire_at_nanos, None);
+    runtime.with_worker_mut(secondary_worker_id, |worker| {
+        register_timer_watch(worker, 961, 202, 0);
+        schedule_timer(worker, TimerClock::Wall, 961, fire_at_nanos, None);
     });
 
-    // the first tick advances time and later ticks dispatch in agent order
+    // the first tick advances time and later ticks dispatch in worker order
     assert_eq!(runtime.tick(), TickOutcome::AdvancedTime);
     assert_eq!(runtime.tick(), TickOutcome::Progressed);
-    runtime.with_agent_engine::<CompleteEngine, _>(primary_agent_id, |engine| {
+    runtime.with_worker_engine::<CompleteEngine, _>(primary_worker_id, |engine| {
         assert_eq!(engine.resumed_native_ids, vec![201]);
     });
     assert_eq!(runtime.tick(), TickOutcome::Progressed);
-    runtime.with_agent_engine::<CompleteEngine, _>(primary_agent_id, |engine| {
+    runtime.with_worker_engine::<CompleteEngine, _>(primary_worker_id, |engine| {
         assert_eq!(engine.resumed_native_ids, vec![201]);
     });
-    runtime.with_agent_engine::<CompleteEngine, _>(secondary_agent_id, |engine| {
+    runtime.with_worker_engine::<CompleteEngine, _>(secondary_worker_id, |engine| {
         assert_eq!(engine.resumed_native_ids, vec![202]);
     });
     assert_eq!(runtime.tick(), TickOutcome::Idle);
 }
 
-/// Advances virtual time to one simulation deadline when no agent work is ready.
+/// Advances virtual time to one simulation deadline when no worker work is ready.
 #[test]
 fn test_runtime_tick_advances_to_simulation_deadline() {
     // configure one virtual runtime with one simulated wakeup
@@ -1016,7 +973,7 @@ fn test_runtime_tick_advances_to_simulation_deadline() {
     runtime.with_primary_engine::<CompleteEngine, _>(|engine| {
         assert_eq!(
             engine.resume_calls, 0,
-            "simulation deadline should not run agent work"
+            "simulation deadline should not run worker work"
         );
     });
 }
@@ -1034,15 +991,15 @@ fn test_virtual_sleep_binding_fails_loudly() {
     };
     let mut world = World::from_options(&options).expect("world");
     let world_ref = world.world_ref();
-    let agent = Agent::new_in_world(
+    let worker = Worker::new_in_world(
         Vec::new(),
         &options,
         &world_ref,
         Box::new(TestEngine::default()),
     )
-    .expect("agent should build");
-    let host = Session::from_runtime_options(&options, agent.runtime_id);
-    let binding = BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world_ref);
+    .expect("worker should build");
+    let host = Session::from_runtime_options(&options, worker.runtime_id);
+    let binding = BindingCallContext::new(&worker, worker.event_loop.as_ref(), &host, &world_ref);
     let wall_before = binding.wall_nanos();
 
     // synchronous sleep must fail instead of advancing virtual time inline
@@ -1059,9 +1016,9 @@ fn test_virtual_sleep_binding_fails_loudly() {
     );
 }
 
-/// Register one native timer watch on one explicit agent.
-fn register_timer_watch(agent: &mut Agent, handle: u64, continuation_id: u64, priority: u8) {
-    agent
+/// Register one native timer watch on one explicit worker.
+fn register_timer_watch(worker: &mut Worker, handle: u64, continuation_id: u64, priority: u8) {
+    worker
         .watch_timer(
             ResourceId(handle),
             LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(
@@ -1073,15 +1030,15 @@ fn register_timer_watch(agent: &mut Agent, handle: u64, continuation_id: u64, pr
         .expect("timer watch should register");
 }
 
-/// Schedule one timer on one explicit agent.
+/// Schedule one timer on one explicit worker.
 fn schedule_timer(
-    agent: &mut Agent,
+    worker: &mut Worker,
     clock: TimerClock,
     handle: u64,
     fire_at_nanos: u64,
     interval_nanos: Option<u64>,
 ) {
-    agent
+    worker
         .event_loop
         .schedule_timer(Timer {
             handle: ResourceId(handle).into(),

@@ -127,7 +127,7 @@ fn resolve_poll_resource(
 ) -> RuntimeResult<Arc<PollResource>> {
     // resolve the poll entry payload
     let resolved = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Poll {
@@ -263,7 +263,7 @@ pub(super) fn poll_open(
     // store the poll instance as one runtime resource
     let entry = ResourceEntry::new(ResourceKind::Poll).with_payload(resource);
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -280,7 +280,7 @@ pub(super) fn poll_close(
 
     // drop stale event token attachments for this poll handle
     {
-        let mut attachments_by_token = binding.agent().platform_state.io.event_attachments().lock();
+        let mut attachments_by_token = binding.worker().platform_state.io.event_attachments().lock();
         attachments_by_token.retain(|_, attachments| {
             attachments.remove(&handle.0);
             !attachments.is_empty()
@@ -288,7 +288,7 @@ pub(super) fn poll_close(
     }
 
     // remove one poll instance from the resource table
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -480,7 +480,7 @@ fn resolve_completion_resource(
 ) -> RuntimeResult<Arc<CompletionResource>> {
     // resolve one completion resource payload
     let resolved = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Completion {
@@ -508,7 +508,7 @@ fn resolve_completion_resource(
 /// Return whether one event token exists and carries the event label.
 fn event_exists(binding: &BindingCallContext, token: EventToken) -> bool {
     binding
-        .agent()
+        .worker()
         .resources
         .with_entry(ResourceId(token.0), |entry| {
             if entry.kind != ResourceKind::Event {
@@ -520,7 +520,7 @@ fn event_exists(binding: &BindingCallContext, token: EventToken) -> bool {
         .unwrap_or(false)
 }
 
-/// Return the attachment key for one event token in one agent.
+/// Return the attachment key for one event token in one worker.
 fn event_attachment_key(_binding: &BindingCallContext, token: EventToken) -> EventAttachmentKey {
     ResourceId(token.0)
 }
@@ -861,7 +861,7 @@ pub(super) fn completion_open(
         .with_label(COMPLETION_RESOURCE_LABEL)
         .with_payload(resource);
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -877,7 +877,7 @@ pub(super) fn completion_close(
     resolve_completion_resource(binding, handle)?;
 
     // remove one completion queue from the resource table
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -1052,7 +1052,7 @@ pub(super) fn completion_cancel(
     target: ResourceId,
 ) -> RuntimeResult<u32> {
     // reject unknown targets early
-    if !binding.agent().resources.contains(target) {
+    if !binding.worker().resources.contains(target) {
         return Err(io_target_not_found("destack.io.completion.cancel", target));
     }
 
@@ -1135,7 +1135,7 @@ pub(super) fn event_close(binding: &BindingCallContext, token: EventToken) -> Ru
     // remove stored poll attachments for this token
     let attachment_key = event_attachment_key(binding, token);
     binding
-        .agent()
+        .worker()
         .platform_state
         .io
         .event_attachments()
@@ -1180,7 +1180,7 @@ pub(super) fn event_signal(
     // read current attachment mappings before dispatch
     let attachment_key = event_attachment_key(binding, token);
     let attachments = binding
-        .agent()
+        .worker()
         .platform_state
         .io
         .event_attachments()
@@ -1200,7 +1200,7 @@ pub(super) fn event_signal(
 
     // prune stale attachments that no longer point to live poll handles
     if !stale_targets.is_empty() {
-        let mut attachments_by_token = binding.agent().platform_state.io.event_attachments().lock();
+        let mut attachments_by_token = binding.worker().platform_state.io.event_attachments().lock();
         if let Some(attachments) = attachments_by_token.get_mut(&attachment_key) {
             for target in stale_targets {
                 attachments.remove(&target);
@@ -1226,7 +1226,7 @@ pub(super) fn event_attach(
     key: u64,
 ) -> RuntimeResult<()> {
     // reject unknown target ids early
-    if !binding.agent().resources.contains(target) {
+    if !binding.worker().resources.contains(target) {
         return Err(io_target_not_found("destack.io.event.attach", target));
     }
 
@@ -1246,7 +1246,7 @@ pub(super) fn event_attach(
 
     // store the attachment routing metadata for this token
     let attachment_key = event_attachment_key(binding, token);
-    let mut attachments = binding.agent().platform_state.io.event_attachments().lock();
+    let mut attachments = binding.worker().platform_state.io.event_attachments().lock();
     attachments
         .entry(attachment_key)
         .or_default()

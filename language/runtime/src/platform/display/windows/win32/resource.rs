@@ -47,7 +47,7 @@ pub(crate) fn open_display_handle(
         .with_payload(Win32DisplayHostState { id });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     resource::DisplayHandle(resource_id)

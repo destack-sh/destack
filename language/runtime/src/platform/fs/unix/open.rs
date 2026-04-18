@@ -65,7 +65,7 @@ pub(crate) unsafe fn destack_fs_open_bytes(
         });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
@@ -177,7 +177,7 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
         });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
@@ -271,7 +271,7 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
             directory_stream: None,
         });
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
@@ -374,7 +374,7 @@ pub(crate) unsafe fn destack_fs_openat2_bytes(
             });
         let handle =
             binding
-                .agent()
+                .worker()
                 .resources
                 .insert(&binding.world(), entry, Some(binding.engine()));
         unsafe {

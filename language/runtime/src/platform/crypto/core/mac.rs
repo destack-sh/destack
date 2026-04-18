@@ -150,7 +150,7 @@ pub(crate) fn mac_open(
             .with_payload(Arc::new(Mutex::new(resource_value)));
         let resource_id =
             binding
-                .agent()
+                .worker()
                 .resources
                 .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -179,7 +179,7 @@ pub(crate) fn mac_open(
         .with_payload(Arc::new(Mutex::new(resource_value)));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -317,7 +317,7 @@ pub(crate) fn mac_close(
     // remove mac resource entry
     let Some(entry) =
         binding
-            .agent()
+            .worker()
             .resources
             .remove(&binding.world(), handle.0, Some(binding.engine()))
     else {

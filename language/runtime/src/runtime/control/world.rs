@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
 use crate::diagnostic::RuntimeResult;
-use crate::runtime::{AgentId, RuntimeId, World};
+use crate::runtime::{RuntimeId, WorkerId, World};
 
 use super::Control;
 use super::handle::{ControlEntry, ControlHandleId, ControlKind, WorldLabels};
-use super::object::{AgentEntry, ControlObject, RuntimeEntry, WorldEntry};
+use super::object::{ControlObject, RuntimeEntry, WorkerEntry, WorldEntry};
 
 impl Control {
     /// Register one live world and return its external control handle.
@@ -135,69 +135,72 @@ impl Control {
         Ok(entry.clone())
     }
 
-    /// Register one agent handle and return its external control handle.
-    pub(crate) fn register_agent(
+    /// Register one worker handle and return its external control handle.
+    pub(crate) fn register_worker(
         &mut self,
         world_handle_id: ControlHandleId,
         runtime_id: RuntimeId,
-        agent_id: AgentId,
+        worker_id: WorkerId,
     ) -> ControlHandleId {
         let handle_id = self.allocate_handle_id();
 
-        // process-global agent handle
+        // process-global worker handle
         self.handles.insert(
             handle_id,
             ControlEntry {
-                kind: ControlKind::Agent,
+                kind: ControlKind::Worker,
             },
         );
 
-        // agent storage
+        // worker storage
         self.insert_object(
             handle_id,
-            ControlObject::Agent(AgentEntry {
+            ControlObject::Worker(WorkerEntry {
                 world_handle_id,
                 runtime_id,
-                agent_id,
+                worker_id,
             }),
         );
 
         handle_id
     }
 
-    /// Close one agent handle and return its stored entry.
-    pub(crate) fn close_agent(&mut self, handle_id: ControlHandleId) -> RuntimeResult<AgentEntry> {
-        self.require_kind(handle_id, ControlKind::Agent)?;
+    /// Close one worker handle and return its stored entry.
+    pub(crate) fn close_worker(
+        &mut self,
+        handle_id: ControlHandleId,
+    ) -> RuntimeResult<WorkerEntry> {
+        self.require_kind(handle_id, ControlKind::Worker)?;
 
-        let entry = self.take_agent_entry(handle_id)?;
+        let entry = self.take_worker_entry(handle_id)?;
 
         self.unregister_handle(handle_id);
 
         Ok(entry)
     }
 
-    /// Resolve one agent handle into its stored entry.
-    pub(crate) fn agent_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<AgentEntry> {
-        self.require_kind(handle_id, ControlKind::Agent)?;
+    /// Resolve one worker handle into its stored entry.
+    pub(crate) fn worker_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<WorkerEntry> {
+        self.require_kind(handle_id, ControlKind::Worker)?;
 
-        let entry = self.get_agent_entry(handle_id)?;
+        let entry = self.get_worker_entry(handle_id)?;
 
         Ok(entry.clone())
     }
 
-    /// Remove agent handles for one world and one set of agent ids.
-    pub(crate) fn close_agent_handles(
+    /// Remove worker handles for one world and one set of worker ids.
+    pub(crate) fn close_worker_handles(
         &mut self,
         world_handle_id: ControlHandleId,
-        agent_ids: &[AgentId],
+        worker_ids: &[WorkerId],
     ) -> RuntimeResult<()> {
         let handle_ids = self
             .objects
             .iter()
             .filter_map(|(handle_id, object)| match object {
-                ControlObject::Agent(entry)
+                ControlObject::Worker(entry)
                     if entry.world_handle_id == world_handle_id
-                        && agent_ids.contains(&entry.agent_id) =>
+                        && worker_ids.contains(&entry.worker_id) =>
                 {
                     Some(*handle_id)
                 }
@@ -206,7 +209,7 @@ impl Control {
             .collect::<Vec<_>>();
 
         for handle_id in &handle_ids {
-            let _entry = self.take_agent_entry(*handle_id)?;
+            let _entry = self.take_worker_entry(*handle_id)?;
         }
 
         for handle_id in handle_ids {

@@ -4,7 +4,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::trace::TraceSequence;
 use crate::runtime::world::World;
 
-use super::{BranchId, RevisionId};
+use super::{BranchId, Revision};
 
 /// Precise execution coordinate over one branch and one trace sequence.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -32,11 +32,11 @@ impl World {
     }
 
     /// Return the exact execution coordinate for one committed revision.
-    pub fn revision_moment(&self, revision_id: RevisionId) -> RuntimeResult<Moment> {
+    pub fn revision_moment(&self, revision: Revision) -> RuntimeResult<Moment> {
         let lineage = self.lineage.read();
-        let revision = lineage.revisions.get(&revision_id).ok_or_else(|| {
+        let revision = lineage.revisions.get(&revision).ok_or_else(|| {
             RuntimeError::RevisionNotFound {
-                revision_id: revision_id.get(),
+                revision_id: revision.get(),
             }
             .boxed()
         })?;

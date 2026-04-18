@@ -124,7 +124,6 @@ impl Trace {
         Decode: FnOnce(Vec<u8>) -> RuntimeResult<()>,
     {
         let mode = self.mode();
-
         match mode {
             // fast and deterministic modes execute directly
             ExecutionMode::Fast | ExecutionMode::Deterministic => call(),

@@ -95,3 +95,17 @@ impl Capture for PlatformState {
         Ok(())
     }
 }
+
+impl PlatformState {
+    /// Fork this platform state for one child worker.
+    pub(crate) fn fork(&mut self) -> Result<Self, Box<RuntimeError>> {
+        // capture the current platform state first
+        let image = self.capture_image(CaptureMode::Fork, ())?;
+
+        // rebuild one fresh platform-state container
+        let mut forked = Self::default();
+        forked.restore_image(&image, ())?;
+
+        Ok(forked)
+    }
+}

@@ -20,17 +20,17 @@ use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
-/// ABI newtype for AgentHandle.
+/// ABI newtype for WorkerHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct AgentHandle(
+pub struct WorkerHandle(
     /// Inner value.
     pub resource::ResourceId,
 );
 
-pub type AgentHandleVm = AgentHandle;
+pub type WorkerHandleVm = WorkerHandle;
 
-impl VmValueCodec for AgentHandle {
+impl VmValueCodec for WorkerHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
@@ -40,13 +40,13 @@ impl VmValueCodec for AgentHandle {
     }
 }
 
-impl VmCollectionElement for AgentHandle {}
+impl VmCollectionElement for WorkerHandle {}
 
-/// Value type for AgentHandle.
-pub type AgentHandleValue = AgentHandle;
+/// Value type for WorkerHandle.
+pub type WorkerHandleValue = WorkerHandle;
 
-impl NativeAbiCodec for AgentHandle {
-    type Value = AgentHandleValue;
+impl NativeAbiCodec for WorkerHandle {
+    type Value = WorkerHandleValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(self)
@@ -57,8 +57,8 @@ impl NativeAbiCodec for AgentHandle {
     }
 }
 
-impl VmAbiCodec for AgentHandle {
-    type Value = AgentHandleValue;
+impl VmAbiCodec for WorkerHandle {
+    type Value = WorkerHandleValue;
 
     fn into_value(
         self,
@@ -75,17 +75,17 @@ impl VmAbiCodec for AgentHandle {
     }
 }
 
-/// ABI newtype for AgentId.
+/// ABI newtype for WorkerId.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct AgentId(
+pub struct WorkerId(
     /// Inner value.
     pub u64,
 );
 
-pub type AgentIdVm = AgentId;
+pub type WorkerIdVm = WorkerId;
 
-impl VmValueCodec for AgentId {
+impl VmValueCodec for WorkerId {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
@@ -95,13 +95,13 @@ impl VmValueCodec for AgentId {
     }
 }
 
-impl VmCollectionElement for AgentId {}
+impl VmCollectionElement for WorkerId {}
 
-/// Value type for AgentId.
-pub type AgentIdValue = AgentId;
+/// Value type for WorkerId.
+pub type WorkerIdValue = WorkerId;
 
-impl NativeAbiCodec for AgentId {
-    type Value = AgentIdValue;
+impl NativeAbiCodec for WorkerId {
+    type Value = WorkerIdValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(self)
@@ -112,8 +112,8 @@ impl NativeAbiCodec for AgentId {
     }
 }
 
-impl VmAbiCodec for AgentId {
-    type Value = AgentIdValue;
+impl VmAbiCodec for WorkerId {
+    type Value = WorkerIdValue;
 
     fn into_value(
         self,
@@ -1716,40 +1716,40 @@ impl VmAbiCodec for TraceEventKind {
     }
 }
 
-/// ABI struct for AgentCreateOptions.
+/// ABI struct for WorkerCreateOptions.
 #[repr(C)]
-pub struct AgentCreateOptionsAbi<A: BindingAbi> {
-    /// Optional agent name.
+pub struct WorkerCreateOptionsAbi<A: BindingAbi> {
+    /// Optional worker name.
     pub name: Option<A::String>,
-    /// Optional agent labels.
+    /// Optional worker labels.
     pub labels: Option<A::Array<platform_runtime::RuntimeLabelAbi<A>>>,
 }
 
-pub type AgentCreateOptions = AgentCreateOptionsAbi<NativeAbi>;
-pub type AgentCreateOptionsVm = AgentCreateOptionsAbi<VmAbi>;
+pub type WorkerCreateOptions = WorkerCreateOptionsAbi<NativeAbi>;
+pub type WorkerCreateOptionsVm = WorkerCreateOptionsAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for AgentCreateOptionsAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for WorkerCreateOptionsAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("AgentCreateOptionsAbi")
+            .debug_struct("WorkerCreateOptionsAbi")
             .finish_non_exhaustive()
     }
 }
 
-impl Copy for AgentCreateOptionsAbi<NativeAbi> {}
-impl Clone for AgentCreateOptionsAbi<NativeAbi> {
+impl Copy for WorkerCreateOptionsAbi<NativeAbi> {}
+impl Clone for WorkerCreateOptionsAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for AgentCreateOptionsAbi<VmAbi> {}
-impl Clone for AgentCreateOptionsAbi<VmAbi> {
+impl Copy for WorkerCreateOptionsAbi<VmAbi> {}
+impl Clone for WorkerCreateOptionsAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for AgentCreateOptionsAbi<VmAbi> {
+impl VmAggregateCodec for WorkerCreateOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
@@ -1791,7 +1791,7 @@ impl VmAggregateCodec for AgentCreateOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::AgentCreateOptions")
+            .begin_named_storage_value_builder("runtime::WorkerCreateOptions")
             .map_err(Box::<RuntimeError>::from)?;
         let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.name, context,
@@ -1811,22 +1811,22 @@ impl VmAggregateCodec for AgentCreateOptionsAbi<VmAbi> {
     }
 }
 
-impl VmCollectionElement for AgentCreateOptionsAbi<VmAbi> {}
+impl VmCollectionElement for WorkerCreateOptionsAbi<VmAbi> {}
 
-/// Value type for AgentCreateOptions.
+/// Value type for WorkerCreateOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AgentCreateOptionsValue {
-    /// Optional agent name.
+pub struct WorkerCreateOptionsValue {
+    /// Optional worker name.
     pub name: Option<String>,
-    /// Optional agent labels.
+    /// Optional worker labels.
     pub labels: Option<Vec<RuntimeLabelValue>>,
 }
 
-impl NativeAbiCodec for AgentCreateOptionsAbi<NativeAbi> {
-    type Value = AgentCreateOptionsValue;
+impl NativeAbiCodec for WorkerCreateOptionsAbi<NativeAbi> {
+    type Value = WorkerCreateOptionsValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(AgentCreateOptionsValue {
+        Ok(WorkerCreateOptionsValue {
             name: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.name)? },
             labels: unsafe {
                 <Option<NativeArray<RuntimeLabel>> as NativeAbiCodec>::into_value(self.labels)?
@@ -1845,14 +1845,14 @@ impl NativeAbiCodec for AgentCreateOptionsAbi<NativeAbi> {
     }
 }
 
-impl VmAbiCodec for AgentCreateOptionsAbi<VmAbi> {
-    type Value = AgentCreateOptionsValue;
+impl VmAbiCodec for WorkerCreateOptionsAbi<VmAbi> {
+    type Value = WorkerCreateOptionsValue;
 
     fn into_value(
         self,
         context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(AgentCreateOptionsValue {
+        Ok(WorkerCreateOptionsValue {
             name: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.name, context)?,
             labels: <Option<VmArray<RuntimeLabelVm>> as VmAbiCodec>::into_value(
                 self.labels,
@@ -1875,48 +1875,48 @@ impl VmAbiCodec for AgentCreateOptionsAbi<VmAbi> {
     }
 }
 
-/// ABI struct for AgentDescriptor.
+/// ABI struct for WorkerDescriptor.
 #[repr(C)]
-pub struct AgentDescriptorAbi<A: BindingAbi> {
-    /// Agent identifier.
-    pub id: AgentId,
+pub struct WorkerDescriptorAbi<A: BindingAbi> {
+    /// Worker identifier.
+    pub id: WorkerId,
     /// Owning runtime identifier.
     pub runtime_id: RuntimeId,
-    /// Optional agent name.
+    /// Optional worker name.
     pub name: Option<A::String>,
-    /// Whether the agent has pending work.
+    /// Whether the worker has pending work.
     pub has_pending_work: bool,
-    /// Resource count owned by this agent.
+    /// Resource count owned by this worker.
     pub resource_count: u32,
-    /// Agent labels.
+    /// Worker labels.
     pub labels: Option<A::Array<platform_runtime::RuntimeLabelAbi<A>>>,
 }
 
-pub type AgentDescriptor = AgentDescriptorAbi<NativeAbi>;
-pub type AgentDescriptorVm = AgentDescriptorAbi<VmAbi>;
+pub type WorkerDescriptor = WorkerDescriptorAbi<NativeAbi>;
+pub type WorkerDescriptorVm = WorkerDescriptorAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for AgentDescriptorAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for WorkerDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("AgentDescriptorAbi")
+            .debug_struct("WorkerDescriptorAbi")
             .finish_non_exhaustive()
     }
 }
 
-impl Copy for AgentDescriptorAbi<NativeAbi> {}
-impl Clone for AgentDescriptorAbi<NativeAbi> {
+impl Copy for WorkerDescriptorAbi<NativeAbi> {}
+impl Clone for WorkerDescriptorAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for AgentDescriptorAbi<VmAbi> {}
-impl Clone for AgentDescriptorAbi<VmAbi> {
+impl Copy for WorkerDescriptorAbi<VmAbi> {}
+impl Clone for WorkerDescriptorAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for AgentDescriptorAbi<VmAbi> {
+impl VmAggregateCodec for WorkerDescriptorAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
@@ -1940,7 +1940,7 @@ impl VmAggregateCodec for AgentDescriptorAbi<VmAbi> {
             .boxed());
         }
         let field_id =
-            <AgentId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <WorkerId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let field_runtime_id =
             <RuntimeId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_name =
@@ -1970,9 +1970,10 @@ impl VmAggregateCodec for AgentDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::AgentDescriptor")
+            .begin_named_storage_value_builder("runtime::WorkerDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AgentId as VmAggregateCodec>::encode_with_context(self.id, context)?;
+        let component_value =
+            <WorkerId as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
             .write_component(0, component_value)
             .map_err(Box::<RuntimeError>::from)?;
@@ -2009,31 +2010,31 @@ impl VmAggregateCodec for AgentDescriptorAbi<VmAbi> {
     }
 }
 
-impl VmCollectionElement for AgentDescriptorAbi<VmAbi> {}
+impl VmCollectionElement for WorkerDescriptorAbi<VmAbi> {}
 
-/// Value type for AgentDescriptor.
+/// Value type for WorkerDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AgentDescriptorValue {
-    /// Agent identifier.
-    pub id: AgentId,
+pub struct WorkerDescriptorValue {
+    /// Worker identifier.
+    pub id: WorkerId,
     /// Owning runtime identifier.
     pub runtime_id: RuntimeId,
-    /// Optional agent name.
+    /// Optional worker name.
     pub name: Option<String>,
-    /// Whether the agent has pending work.
+    /// Whether the worker has pending work.
     pub has_pending_work: bool,
-    /// Resource count owned by this agent.
+    /// Resource count owned by this worker.
     pub resource_count: u32,
-    /// Agent labels.
+    /// Worker labels.
     pub labels: Option<Vec<RuntimeLabelValue>>,
 }
 
-impl NativeAbiCodec for AgentDescriptorAbi<NativeAbi> {
-    type Value = AgentDescriptorValue;
+impl NativeAbiCodec for WorkerDescriptorAbi<NativeAbi> {
+    type Value = WorkerDescriptorValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(AgentDescriptorValue {
-            id: unsafe { <AgentId as NativeAbiCodec>::into_value(self.id)? },
+        Ok(WorkerDescriptorValue {
+            id: unsafe { <WorkerId as NativeAbiCodec>::into_value(self.id)? },
             runtime_id: unsafe { <RuntimeId as NativeAbiCodec>::into_value(self.runtime_id)? },
             name: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.name)? },
             has_pending_work: unsafe {
@@ -2048,7 +2049,7 @@ impl NativeAbiCodec for AgentDescriptorAbi<NativeAbi> {
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            id: <AgentId as NativeAbiCodec>::from_value(binding, value.id),
+            id: <WorkerId as NativeAbiCodec>::from_value(binding, value.id),
             runtime_id: <RuntimeId as NativeAbiCodec>::from_value(binding, value.runtime_id),
             name: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.name),
             has_pending_work: <bool as NativeAbiCodec>::from_value(binding, value.has_pending_work),
@@ -2061,15 +2062,15 @@ impl NativeAbiCodec for AgentDescriptorAbi<NativeAbi> {
     }
 }
 
-impl VmAbiCodec for AgentDescriptorAbi<VmAbi> {
-    type Value = AgentDescriptorValue;
+impl VmAbiCodec for WorkerDescriptorAbi<VmAbi> {
+    type Value = WorkerDescriptorValue;
 
     fn into_value(
         self,
         context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(AgentDescriptorValue {
-            id: <AgentId as VmAbiCodec>::into_value(self.id, context)?,
+        Ok(WorkerDescriptorValue {
+            id: <WorkerId as VmAbiCodec>::into_value(self.id, context)?,
             runtime_id: <RuntimeId as VmAbiCodec>::into_value(self.runtime_id, context)?,
             name: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.name, context)?,
             has_pending_work: <bool as VmAbiCodec>::into_value(self.has_pending_work, context)?,
@@ -2086,7 +2087,7 @@ impl VmAbiCodec for AgentDescriptorAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
-            id: <AgentId as VmAbiCodec>::from_value(context, value.id)?,
+            id: <WorkerId as VmAbiCodec>::from_value(context, value.id)?,
             runtime_id: <RuntimeId as VmAbiCodec>::from_value(context, value.runtime_id)?,
             name: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.name)?,
             has_pending_work: <bool as VmAbiCodec>::from_value(context, value.has_pending_work)?,
@@ -2099,12 +2100,12 @@ impl VmAbiCodec for AgentDescriptorAbi<VmAbi> {
     }
 }
 
-/// ABI struct for AgentFilter.
+/// ABI struct for WorkerFilter.
 #[repr(C)]
-pub struct AgentFilterAbi<A: BindingAbi> {
+pub struct WorkerFilterAbi<A: BindingAbi> {
     /// Optional owning runtime selector.
     pub runtime_id: Option<RuntimeId>,
-    /// Optional exact agent name.
+    /// Optional exact worker name.
     pub name: Option<A::String>,
     /// Optional pending-work selector.
     pub has_pending_work: Option<bool>,
@@ -2112,31 +2113,31 @@ pub struct AgentFilterAbi<A: BindingAbi> {
     pub labels: Option<A::Array<platform_runtime::RuntimeLabelSelectorAbi<A>>>,
 }
 
-pub type AgentFilter = AgentFilterAbi<NativeAbi>;
-pub type AgentFilterVm = AgentFilterAbi<VmAbi>;
+pub type WorkerFilter = WorkerFilterAbi<NativeAbi>;
+pub type WorkerFilterVm = WorkerFilterAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for AgentFilterAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for WorkerFilterAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("AgentFilterAbi")
+            .debug_struct("WorkerFilterAbi")
             .finish_non_exhaustive()
     }
 }
 
-impl Copy for AgentFilterAbi<NativeAbi> {}
-impl Clone for AgentFilterAbi<NativeAbi> {
+impl Copy for WorkerFilterAbi<NativeAbi> {}
+impl Clone for WorkerFilterAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for AgentFilterAbi<VmAbi> {}
-impl Clone for AgentFilterAbi<VmAbi> {
+impl Copy for WorkerFilterAbi<VmAbi> {}
+impl Clone for WorkerFilterAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for AgentFilterAbi<VmAbi> {
+impl VmAggregateCodec for WorkerFilterAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
@@ -2185,7 +2186,7 @@ impl VmAggregateCodec for AgentFilterAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::AgentFilter")
+            .begin_named_storage_value_builder("runtime::WorkerFilter")
             .map_err(Box::<RuntimeError>::from)?;
         let component_value =
             <Option<RuntimeId> as VmAggregateCodec>::encode_with_context(self.runtime_id, context)?;
@@ -2217,14 +2218,14 @@ impl VmAggregateCodec for AgentFilterAbi<VmAbi> {
     }
 }
 
-impl VmCollectionElement for AgentFilterAbi<VmAbi> {}
+impl VmCollectionElement for WorkerFilterAbi<VmAbi> {}
 
-/// Value type for AgentFilter.
+/// Value type for WorkerFilter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AgentFilterValue {
+pub struct WorkerFilterValue {
     /// Optional owning runtime selector.
     pub runtime_id: Option<RuntimeId>,
-    /// Optional exact agent name.
+    /// Optional exact worker name.
     pub name: Option<String>,
     /// Optional pending-work selector.
     pub has_pending_work: Option<bool>,
@@ -2232,11 +2233,11 @@ pub struct AgentFilterValue {
     pub labels: Option<Vec<RuntimeLabelSelectorValue>>,
 }
 
-impl NativeAbiCodec for AgentFilterAbi<NativeAbi> {
-    type Value = AgentFilterValue;
+impl NativeAbiCodec for WorkerFilterAbi<NativeAbi> {
+    type Value = WorkerFilterValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(AgentFilterValue {
+        Ok(WorkerFilterValue {
             runtime_id: unsafe {
                 <Option<RuntimeId> as NativeAbiCodec>::into_value(self.runtime_id)?
             },
@@ -2271,14 +2272,14 @@ impl NativeAbiCodec for AgentFilterAbi<NativeAbi> {
     }
 }
 
-impl VmAbiCodec for AgentFilterAbi<VmAbi> {
-    type Value = AgentFilterValue;
+impl VmAbiCodec for WorkerFilterAbi<VmAbi> {
+    type Value = WorkerFilterValue;
 
     fn into_value(
         self,
         context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(AgentFilterValue {
+        Ok(WorkerFilterValue {
             runtime_id: <Option<RuntimeId> as VmAbiCodec>::into_value(self.runtime_id, context)?,
             name: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.name, context)?,
             has_pending_work: <Option<bool> as VmAbiCodec>::into_value(
@@ -4145,8 +4146,8 @@ impl VmAbiCodec for ResourceDescriptorAbi<VmAbi> {
 pub struct ResourceFilterAbi<A: BindingAbi> {
     /// Optional owning runtime selector.
     pub runtime_id: Option<RuntimeId>,
-    /// Optional owning agent selector.
-    pub agent_id: Option<AgentId>,
+    /// Optional owning worker selector.
+    pub worker_id: Option<WorkerId>,
     /// Optional resource kind selector.
     pub kind: Option<A::String>,
     /// Optional exact resource label selector.
@@ -4204,9 +4205,10 @@ impl VmAggregateCodec for ResourceFilterAbi<VmAbi> {
             <Option<RuntimeId> as VmAggregateCodec>::decode_component_with_context(
                 context, value_ref, 0,
             )?;
-        let field_agent_id = <Option<AgentId> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
+        let field_worker_id =
+            <Option<WorkerId> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         let field_kind =
             <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
                 context, value_ref, 2,
@@ -4217,7 +4219,7 @@ impl VmAggregateCodec for ResourceFilterAbi<VmAbi> {
             )?;
         Ok(Self {
             runtime_id: field_runtime_id,
-            agent_id: field_agent_id,
+            worker_id: field_worker_id,
             kind: field_kind,
             label: field_label,
         })
@@ -4236,7 +4238,7 @@ impl VmAggregateCodec for ResourceFilterAbi<VmAbi> {
             .write_component(0, component_value)
             .map_err(Box::<RuntimeError>::from)?;
         let component_value =
-            <Option<AgentId> as VmAggregateCodec>::encode_with_context(self.agent_id, context)?;
+            <Option<WorkerId> as VmAggregateCodec>::encode_with_context(self.worker_id, context)?;
         value_builder
             .write_component(1, component_value)
             .map_err(Box::<RuntimeError>::from)?;
@@ -4263,8 +4265,8 @@ impl VmCollectionElement for ResourceFilterAbi<VmAbi> {}
 pub struct ResourceFilterValue {
     /// Optional owning runtime selector.
     pub runtime_id: Option<RuntimeId>,
-    /// Optional owning agent selector.
-    pub agent_id: Option<AgentId>,
+    /// Optional owning worker selector.
+    pub worker_id: Option<WorkerId>,
     /// Optional resource kind selector.
     pub kind: Option<String>,
     /// Optional exact resource label selector.
@@ -4279,7 +4281,7 @@ impl NativeAbiCodec for ResourceFilterAbi<NativeAbi> {
             runtime_id: unsafe {
                 <Option<RuntimeId> as NativeAbiCodec>::into_value(self.runtime_id)?
             },
-            agent_id: unsafe { <Option<AgentId> as NativeAbiCodec>::into_value(self.agent_id)? },
+            worker_id: unsafe { <Option<WorkerId> as NativeAbiCodec>::into_value(self.worker_id)? },
             kind: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.kind)? },
             label: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.label)? },
         })
@@ -4291,7 +4293,7 @@ impl NativeAbiCodec for ResourceFilterAbi<NativeAbi> {
                 binding,
                 value.runtime_id,
             ),
-            agent_id: <Option<AgentId> as NativeAbiCodec>::from_value(binding, value.agent_id),
+            worker_id: <Option<WorkerId> as NativeAbiCodec>::from_value(binding, value.worker_id),
             kind: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.kind),
             label: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.label),
         }
@@ -4307,7 +4309,7 @@ impl VmAbiCodec for ResourceFilterAbi<VmAbi> {
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(ResourceFilterValue {
             runtime_id: <Option<RuntimeId> as VmAbiCodec>::into_value(self.runtime_id, context)?,
-            agent_id: <Option<AgentId> as VmAbiCodec>::into_value(self.agent_id, context)?,
+            worker_id: <Option<WorkerId> as VmAbiCodec>::into_value(self.worker_id, context)?,
             kind: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.kind, context)?,
             label: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.label, context)?,
         })
@@ -4319,7 +4321,7 @@ impl VmAbiCodec for ResourceFilterAbi<VmAbi> {
     ) -> RuntimeResult<Self> {
         Ok(Self {
             runtime_id: <Option<RuntimeId> as VmAbiCodec>::from_value(context, value.runtime_id)?,
-            agent_id: <Option<AgentId> as VmAbiCodec>::from_value(context, value.agent_id)?,
+            worker_id: <Option<WorkerId> as VmAbiCodec>::from_value(context, value.worker_id)?,
             kind: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.kind)?,
             label: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.label)?,
         })
@@ -4749,12 +4751,12 @@ impl VmAbiCodec for RuntimeCreateOptionsAbi<VmAbi> {
 pub struct RuntimeDescriptorAbi<A: BindingAbi> {
     /// Runtime identifier.
     pub id: RuntimeId,
-    /// Primary agent identifier.
-    pub primary_agent_id: AgentId,
+    /// Primary worker identifier.
+    pub primary_worker_id: WorkerId,
     /// Optional runtime name.
     pub name: Option<A::String>,
-    /// Agent count in this runtime.
-    pub agent_count: u32,
+    /// Worker count in this runtime.
+    pub worker_count: u32,
     /// Runtime labels.
     pub labels: Option<A::Array<platform_runtime::RuntimeLabelAbi<A>>>,
 }
@@ -4808,13 +4810,13 @@ impl VmAggregateCodec for RuntimeDescriptorAbi<VmAbi> {
         }
         let field_id =
             <RuntimeId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
-        let field_primary_agent_id =
-            <AgentId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_primary_worker_id =
+            <WorkerId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_name =
             <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
                 context, value_ref, 2,
             )?;
-        let field_agent_count =
+        let field_worker_count =
             <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
         let field_labels =
             <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_component_with_context(
@@ -4822,9 +4824,9 @@ impl VmAggregateCodec for RuntimeDescriptorAbi<VmAbi> {
             )?;
         Ok(Self {
             id: field_id,
-            primary_agent_id: field_primary_agent_id,
+            primary_worker_id: field_primary_worker_id,
             name: field_name,
-            agent_count: field_agent_count,
+            worker_count: field_worker_count,
             labels: field_labels,
         })
     }
@@ -4842,7 +4844,7 @@ impl VmAggregateCodec for RuntimeDescriptorAbi<VmAbi> {
             .write_component(0, component_value)
             .map_err(Box::<RuntimeError>::from)?;
         let component_value =
-            <AgentId as VmAggregateCodec>::encode_with_context(self.primary_agent_id, context)?;
+            <WorkerId as VmAggregateCodec>::encode_with_context(self.primary_worker_id, context)?;
         value_builder
             .write_component(1, component_value)
             .map_err(Box::<RuntimeError>::from)?;
@@ -4853,7 +4855,7 @@ impl VmAggregateCodec for RuntimeDescriptorAbi<VmAbi> {
             .write_component(2, component_value)
             .map_err(Box::<RuntimeError>::from)?;
         let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.agent_count, context)?;
+            <u32 as VmAggregateCodec>::encode_with_context(self.worker_count, context)?;
         value_builder
             .write_component(3, component_value)
             .map_err(Box::<RuntimeError>::from)?;
@@ -4876,12 +4878,12 @@ impl VmCollectionElement for RuntimeDescriptorAbi<VmAbi> {}
 pub struct RuntimeDescriptorValue {
     /// Runtime identifier.
     pub id: RuntimeId,
-    /// Primary agent identifier.
-    pub primary_agent_id: AgentId,
+    /// Primary worker identifier.
+    pub primary_worker_id: WorkerId,
     /// Optional runtime name.
     pub name: Option<String>,
-    /// Agent count in this runtime.
-    pub agent_count: u32,
+    /// Worker count in this runtime.
+    pub worker_count: u32,
     /// Runtime labels.
     pub labels: Option<Vec<RuntimeLabelValue>>,
 }
@@ -4892,11 +4894,11 @@ impl NativeAbiCodec for RuntimeDescriptorAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(RuntimeDescriptorValue {
             id: unsafe { <RuntimeId as NativeAbiCodec>::into_value(self.id)? },
-            primary_agent_id: unsafe {
-                <AgentId as NativeAbiCodec>::into_value(self.primary_agent_id)?
+            primary_worker_id: unsafe {
+                <WorkerId as NativeAbiCodec>::into_value(self.primary_worker_id)?
             },
             name: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.name)? },
-            agent_count: unsafe { <u32 as NativeAbiCodec>::into_value(self.agent_count)? },
+            worker_count: unsafe { <u32 as NativeAbiCodec>::into_value(self.worker_count)? },
             labels: unsafe {
                 <Option<NativeArray<RuntimeLabel>> as NativeAbiCodec>::into_value(self.labels)?
             },
@@ -4906,12 +4908,12 @@ impl NativeAbiCodec for RuntimeDescriptorAbi<NativeAbi> {
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             id: <RuntimeId as NativeAbiCodec>::from_value(binding, value.id),
-            primary_agent_id: <AgentId as NativeAbiCodec>::from_value(
+            primary_worker_id: <WorkerId as NativeAbiCodec>::from_value(
                 binding,
-                value.primary_agent_id,
+                value.primary_worker_id,
             ),
             name: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.name),
-            agent_count: <u32 as NativeAbiCodec>::from_value(binding, value.agent_count),
+            worker_count: <u32 as NativeAbiCodec>::from_value(binding, value.worker_count),
             labels: <Option<NativeArray<RuntimeLabel>> as NativeAbiCodec>::from_value(
                 binding,
                 value.labels,
@@ -4929,9 +4931,12 @@ impl VmAbiCodec for RuntimeDescriptorAbi<VmAbi> {
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(RuntimeDescriptorValue {
             id: <RuntimeId as VmAbiCodec>::into_value(self.id, context)?,
-            primary_agent_id: <AgentId as VmAbiCodec>::into_value(self.primary_agent_id, context)?,
+            primary_worker_id: <WorkerId as VmAbiCodec>::into_value(
+                self.primary_worker_id,
+                context,
+            )?,
             name: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.name, context)?,
-            agent_count: <u32 as VmAbiCodec>::into_value(self.agent_count, context)?,
+            worker_count: <u32 as VmAbiCodec>::into_value(self.worker_count, context)?,
             labels: <Option<VmArray<RuntimeLabelVm>> as VmAbiCodec>::into_value(
                 self.labels,
                 context,
@@ -4945,9 +4950,12 @@ impl VmAbiCodec for RuntimeDescriptorAbi<VmAbi> {
     ) -> RuntimeResult<Self> {
         Ok(Self {
             id: <RuntimeId as VmAbiCodec>::from_value(context, value.id)?,
-            primary_agent_id: <AgentId as VmAbiCodec>::from_value(context, value.primary_agent_id)?,
+            primary_worker_id: <WorkerId as VmAbiCodec>::from_value(
+                context,
+                value.primary_worker_id,
+            )?,
             name: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.name)?,
-            agent_count: <u32 as VmAbiCodec>::from_value(context, value.agent_count)?,
+            worker_count: <u32 as VmAbiCodec>::from_value(context, value.worker_count)?,
             labels: <Option<VmArray<RuntimeLabelVm>> as VmAbiCodec>::from_value(
                 context,
                 value.labels,
@@ -7098,8 +7106,8 @@ impl VmAbiCodec for WorldDescriptorAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WorldResourceId {
-    /// Owning agent identifier.
-    pub agent_id: AgentId,
+    /// Owning worker identifier.
+    pub worker_id: WorkerId,
     /// Resource identifier in the owning local resource table.
     pub resource_id: resource::ResourceId,
 }
@@ -7129,14 +7137,14 @@ impl VmAggregateCodec for WorldResourceId {
             ))
             .boxed());
         }
-        let field_agent_id =
-            <AgentId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_worker_id =
+            <WorkerId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let field_resource_id =
             <resource::ResourceId as VmAggregateCodec>::decode_component_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
-            agent_id: field_agent_id,
+            worker_id: field_worker_id,
             resource_id: field_resource_id,
         })
     }
@@ -7149,7 +7157,7 @@ impl VmAggregateCodec for WorldResourceId {
             .begin_named_storage_value_builder("runtime::WorldResourceId")
             .map_err(Box::<RuntimeError>::from)?;
         let component_value =
-            <AgentId as VmAggregateCodec>::encode_with_context(self.agent_id, context)?;
+            <WorkerId as VmAggregateCodec>::encode_with_context(self.worker_id, context)?;
         value_builder
             .write_component(0, component_value)
             .map_err(Box::<RuntimeError>::from)?;
@@ -7294,38 +7302,38 @@ impl VmAbiCodec for WorldViewOptions {
 
 impl VmCollectionElement for WorldViewOptions {}
 
-/// Replay struct for AgentCreateOptions.
+/// Replay struct for WorkerCreateOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AgentcreateoptionsReplayRecord {
-    /// Optional agent name.
+pub struct WorkercreateoptionsReplayRecord {
+    /// Optional worker name.
     pub name: Option<String>,
-    /// Optional agent labels.
+    /// Optional worker labels.
     pub labels: Option<Vec<RuntimelabelReplayRecord>>,
 }
 
-/// Replay struct for AgentDescriptor.
+/// Replay struct for WorkerDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AgentdescriptorReplayRecord {
-    /// Agent identifier.
-    pub id: AgentId,
+pub struct WorkerdescriptorReplayRecord {
+    /// Worker identifier.
+    pub id: WorkerId,
     /// Owning runtime identifier.
     pub runtime_id: RuntimeId,
-    /// Optional agent name.
+    /// Optional worker name.
     pub name: Option<String>,
-    /// Whether the agent has pending work.
+    /// Whether the worker has pending work.
     pub has_pending_work: bool,
-    /// Resource count owned by this agent.
+    /// Resource count owned by this worker.
     pub resource_count: u32,
-    /// Agent labels.
+    /// Worker labels.
     pub labels: Option<Vec<RuntimelabelReplayRecord>>,
 }
 
-/// Replay struct for AgentFilter.
+/// Replay struct for WorkerFilter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AgentfilterReplayRecord {
+pub struct WorkerfilterReplayRecord {
     /// Optional owning runtime selector.
     pub runtime_id: Option<RuntimeId>,
-    /// Optional exact agent name.
+    /// Optional exact worker name.
     pub name: Option<String>,
     /// Optional pending-work selector.
     pub has_pending_work: Option<bool>,
@@ -7408,8 +7416,8 @@ pub struct ResourcedescriptorReplayRecord {
 pub struct ResourcefilterReplayRecord {
     /// Optional owning runtime selector.
     pub runtime_id: Option<RuntimeId>,
-    /// Optional owning agent selector.
-    pub agent_id: Option<AgentId>,
+    /// Optional owning worker selector.
+    pub worker_id: Option<WorkerId>,
     /// Optional resource kind selector.
     pub kind: Option<String>,
     /// Optional exact resource label selector.
@@ -7430,12 +7438,12 @@ pub struct RuntimecreateoptionsReplayRecord {
 pub struct RuntimedescriptorReplayRecord {
     /// Runtime identifier.
     pub id: RuntimeId,
-    /// Primary agent identifier.
-    pub primary_agent_id: AgentId,
+    /// Primary worker identifier.
+    pub primary_worker_id: WorkerId,
     /// Optional runtime name.
     pub name: Option<String>,
-    /// Agent count in this runtime.
-    pub agent_count: u32,
+    /// Worker count in this runtime.
+    pub worker_count: u32,
     /// Runtime labels.
     pub labels: Option<Vec<RuntimelabelReplayRecord>>,
 }
@@ -7566,9 +7574,9 @@ pub(crate) fn register_runtime_vm_storage_types(isolate: &mut vm::Isolate) -> vm
     isolate.register_named_storage_type("runtime::TopologyEdgeKind", 1)?;
     isolate.register_named_storage_type("runtime::TopologyEntityId", 1)?;
     isolate.register_named_storage_type("runtime::TopologyEntityKind", 1)?;
-    isolate.register_named_storage_type("runtime::AgentCreateOptions", 2)?;
-    isolate.register_named_storage_type("runtime::AgentDescriptor", 6)?;
-    isolate.register_named_storage_type("runtime::AgentFilter", 4)?;
+    isolate.register_named_storage_type("runtime::WorkerCreateOptions", 2)?;
+    isolate.register_named_storage_type("runtime::WorkerDescriptor", 6)?;
+    isolate.register_named_storage_type("runtime::WorkerFilter", 4)?;
     isolate.register_named_storage_type("runtime::BranchDescriptor", 4)?;
     isolate.register_named_storage_type("runtime::BranchFilter", 2)?;
     isolate.register_named_storage_type("runtime::CheckpointDescriptor", 4)?;

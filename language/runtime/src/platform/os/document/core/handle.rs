@@ -33,7 +33,7 @@ pub(crate) fn open(
 pub(crate) fn close(binding: &BindingCallContext, handle: DocumentHandle) -> RuntimeResult<()> {
     let removed =
         binding
-            .agent()
+            .worker()
             .resources
             .remove(&binding.world(), handle.0, Some(binding.engine()));
 
@@ -172,7 +172,7 @@ pub(super) fn open_document_path(
         .with_label("os.document")
         .with_payload(Arc::clone(&stream));
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -224,7 +224,7 @@ fn resolve_document_stream(
     handle: DocumentHandle,
 ) -> RuntimeResult<Arc<Mutex<DocumentStream>>> {
     binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Document {

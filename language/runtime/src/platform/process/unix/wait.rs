@@ -17,7 +17,7 @@ fn resolve_spawned_process_handle(
     binding: &BindingCallContext,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<ProcessId> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         entry
             .payload
             .as_ref()
@@ -105,7 +105,7 @@ pub(crate) unsafe fn destack_process_try_wait(
     let status = process_wait_pid(process_id.0, PROCESS_WAIT_FLAG_NOHANG)?;
 
     if is_terminal_wait_status(&status) {
-        let _ = binding.agent().resources.remove_and_finalize(
+        let _ = binding.worker().resources.remove_and_finalize(
             &binding.world(),
             handle.0,
             Some(binding.engine()),
@@ -149,7 +149,7 @@ pub(crate) unsafe fn destack_process_wait(
     let status = process_wait_pid(process_id.0, flags.0)?;
 
     if is_terminal_wait_status(&status) {
-        let _ = binding.agent().resources.remove_and_finalize(
+        let _ = binding.worker().resources.remove_and_finalize(
             &binding.world(),
             handle.0,
             Some(binding.engine()),

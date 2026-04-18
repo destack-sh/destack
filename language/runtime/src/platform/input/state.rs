@@ -102,30 +102,30 @@ struct HostTextObserver {
     sessions: Arc<Mutex<HashMap<u64, HostTextSession>>>,
 }
 
-/// Agent-owned input module state.
+/// Worker-owned input module state.
 #[derive(Default)]
 pub(crate) struct PlatformInputState {
-    /// Agent-owned host text state.
+    /// Worker-owned host text state.
     #[cfg(any(target_os = "android", target_os = "ios"))]
     pub(super) host_text_state: HostTextState,
 
-    /// Shared unix input-monitor service handle for this agent.
+    /// Shared unix input-monitor service handle for this worker.
     #[cfg(unix)]
     unix_input_monitor_service: ServiceHandle<UnixInputMonitorService>,
 
-    /// Agent-owned unix input-monitor state.
+    /// Worker-owned unix input-monitor state.
     #[cfg(unix)]
     unix_input_monitor_runtime_state: OnceLock<Arc<UnixInputMonitorRuntimeState>>,
 
-    /// Shared windows raw-input service handle for this agent.
+    /// Shared windows raw-input service handle for this worker.
     #[cfg(windows)]
     windows_raw_input_service: ServiceHandle<WindowsRawInputService>,
 
-    /// Shared windows xinput packet service handle for this agent.
+    /// Shared windows xinput packet service handle for this worker.
     #[cfg(windows)]
     windows_xinput_service: ServiceHandle<WindowsXInputService>,
 
-    /// Agent-owned windows raw-input state.
+    /// Worker-owned windows raw-input state.
     #[cfg(windows)]
     windows_raw_input_runtime_state: OnceLock<Arc<WindowsRawInputRuntimeState>>,
 }
@@ -139,7 +139,7 @@ impl std::fmt::Debug for PlatformInputState {
 }
 
 impl PlatformInputState {
-    /// Return whether any agent-owned input state is active.
+    /// Return whether any worker-owned input state is active.
     fn has_runtime_state(&self) -> bool {
         #[cfg(any(target_os = "android", target_os = "ios"))]
         if self.host_text_state.has_live_sessions() {
@@ -310,7 +310,7 @@ impl PlatformInputState {
         Ok(())
     }
 
-    /// Return one shared unix input-monitor service handle for this agent.
+    /// Return one shared unix input-monitor service handle for this worker.
     #[cfg(unix)]
     pub(crate) fn unix_input_monitor_service(
         &self,
@@ -320,7 +320,7 @@ impl PlatformInputState {
             .get_or_try_init(|| unix_input_monitor_service(operation))
     }
 
-    /// Return one agent-owned unix input-monitor state.
+    /// Return one worker-owned unix input-monitor state.
     #[cfg(unix)]
     pub(crate) fn unix_input_monitor_runtime_state(
         &self,
@@ -328,11 +328,11 @@ impl PlatformInputState {
     ) -> Arc<UnixInputMonitorRuntimeState> {
         Arc::clone(
             self.unix_input_monitor_runtime_state
-                .get_or_init(|| Arc::new(UnixInputMonitorRuntimeState::new(ctx.agent().id))),
+                .get_or_init(|| Arc::new(UnixInputMonitorRuntimeState::new(ctx.worker().id))),
         )
     }
 
-    /// Return one shared windows raw-input service handle for this agent.
+    /// Return one shared windows raw-input service handle for this worker.
     #[cfg(windows)]
     pub(crate) fn windows_raw_input_service(
         &self,
@@ -342,7 +342,7 @@ impl PlatformInputState {
             .get_or_try_init(|| windows_raw_input_service(operation))
     }
 
-    /// Return one shared windows xinput packet service handle for this agent.
+    /// Return one shared windows xinput packet service handle for this worker.
     #[cfg(windows)]
     pub(crate) fn windows_xinput_service(
         &self,
@@ -352,7 +352,7 @@ impl PlatformInputState {
             .get_or_try_init(|| windows_xinput_service(operation))
     }
 
-    /// Return one agent-owned windows raw-input state.
+    /// Return one worker-owned windows raw-input state.
     #[cfg(windows)]
     pub(crate) fn windows_raw_input_runtime_state(
         &self,
@@ -360,7 +360,7 @@ impl PlatformInputState {
     ) -> Arc<WindowsRawInputRuntimeState> {
         Arc::clone(
             self.windows_raw_input_runtime_state
-                .get_or_init(|| Arc::new(WindowsRawInputRuntimeState::new(ctx.agent().id))),
+                .get_or_init(|| Arc::new(WindowsRawInputRuntimeState::new(ctx.worker().id))),
         )
     }
 }

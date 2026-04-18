@@ -205,7 +205,7 @@ pub(crate) fn midi_event_open(
     }
 
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .jack_service("destack.device.midi.event.open")?;

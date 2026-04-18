@@ -216,7 +216,7 @@ pub(super) fn pipe_descriptor(
     operation: &'static str,
 ) -> RuntimeResult<RawFd> {
     let descriptor = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Pipe {
@@ -243,7 +243,7 @@ pub(super) fn shared_memory_descriptor(
     operation: &'static str,
 ) -> RuntimeResult<RawFd> {
     let descriptor = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::SharedMemory {
@@ -270,7 +270,7 @@ pub(super) fn socket_descriptor(
     operation: &'static str,
 ) -> RuntimeResult<RawFd> {
     let descriptor = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Socket {
@@ -297,7 +297,7 @@ pub(super) fn transferable_descriptor(
     field: &'static str,
 ) -> RuntimeResult<RawFd> {
     let descriptor = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| entry.fd())
         .flatten()
@@ -314,7 +314,7 @@ pub(super) fn message_queue_descriptor(
     operation: &'static str,
 ) -> RuntimeResult<libc::mqd_t> {
     let queue = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::MessageQueue {
@@ -343,7 +343,7 @@ pub(super) fn semaphore_pointer(
     operation: &'static str,
 ) -> RuntimeResult<*mut libc::sem_t> {
     let pointer = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Semaphore {
@@ -378,7 +378,7 @@ pub(super) fn register_pipe_descriptor(
     );
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -398,7 +398,7 @@ pub(super) fn register_shared_memory_descriptor(
     );
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -422,7 +422,7 @@ pub(super) fn register_semaphore(
     );
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -442,7 +442,7 @@ pub(super) fn register_transferred_descriptor(
     );
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -463,7 +463,7 @@ pub(super) fn register_message_queue(
     );
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 

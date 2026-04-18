@@ -23,7 +23,7 @@ fn backend_support(binding: &BindingCallContext, backend: MidiBackend) -> Backen
 /// Probe Android host reachability for the Android MIDI backend.
 fn android_backend_support(binding: &BindingCallContext) -> BackendSupport {
     let description = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .describe_android_backend(binding, "destack.device.midi.backend.support");
@@ -34,7 +34,7 @@ fn android_backend_support(binding: &BindingCallContext) -> BackendSupport {
 /// Return one process-wide Android backend description when available.
 fn backend_description(binding: &BindingCallContext) -> Option<AndroidBackendDescription> {
     binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .describe_android_backend(binding, "destack.device.midi.backend.list")

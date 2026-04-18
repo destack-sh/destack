@@ -190,7 +190,7 @@ pub(super) fn serial_resource(
     handle: resource::SerialPortHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<UnixSerialPortResource>> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::SerialPort {
             return None;
         }
@@ -214,7 +214,7 @@ pub(super) fn close_serial_resource(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     let kind = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| entry.kind)
         .ok_or_else(|| invalid_serial_handle(operation))?;
@@ -222,7 +222,7 @@ pub(super) fn close_serial_resource(
         return Err(invalid_serial_handle(operation));
     }
 
-    if !binding.agent().resources.remove_and_finalize(
+    if !binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),

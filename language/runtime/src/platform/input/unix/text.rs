@@ -261,7 +261,7 @@ fn resolve_text_target_window(
         .window
         .expect("explicit window targets should carry one handle");
     let resolved = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(target_window.0, |entry| {
             if entry.kind != ResourceKind::Window {
@@ -334,7 +334,7 @@ fn pop_queued_text_session_event(
     operation: &'static str,
 ) -> RuntimeResult<Option<InputTextSessionEvent>> {
     let next = binding
-        .agent()
+        .worker()
         .resources
         .with_entry_mut(session.0, |entry| {
             if entry.kind != ResourceKind::InputTextSession {
@@ -390,7 +390,7 @@ fn resolve_text_session(
     session: resource::InputTextSessionHandle,
     operation: &'static str,
 ) -> RuntimeResult<UnixTextRepository> {
-    let resolved = binding.agent().resources.with_entry(session.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(session.0, |entry| {
         if entry.kind != ResourceKind::InputTextSession {
             return None;
         }
@@ -416,7 +416,7 @@ fn text_set_geometry(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     let updated = binding
-        .agent()
+        .worker()
         .resources
         .with_entry_mut(session.0, |entry| {
             if entry.kind != ResourceKind::InputTextSession {
@@ -449,7 +449,7 @@ fn text_set_state(
     validate_text_session_state(&state)?;
 
     let updated = binding
-        .agent()
+        .worker()
         .resources
         .with_entry_mut(session.0, |entry| {
             if entry.kind != ResourceKind::InputTextSession {
@@ -1161,7 +1161,7 @@ fn read_text_session_event(
     operation: &'static str,
 ) -> RuntimeResult<InputTextSessionEvent> {
     let event = binding
-        .agent()
+        .worker()
         .resources
         .with_entry_mut(session_handle.0, |entry| {
             if entry.kind != ResourceKind::InputTextSession {
@@ -1274,7 +1274,7 @@ fn read_text_session_event(
 /// Return the shared `platform.input` state for this binding.
 #[cfg(any(target_os = "android", target_os = "ios"))]
 fn input_state(binding: &BindingCallContext) -> RuntimeResult<&PlatformInputState> {
-    let state = &binding.agent().platform_state.input;
+    let state = &binding.worker().platform_state.input;
     state.bootstrap_host_text_state(binding)?;
 
     Ok(state)
@@ -1483,7 +1483,7 @@ pub(crate) unsafe fn destack_input_text_open(
             .with_payload(session);
         let resource_id =
             binding
-                .agent()
+                .worker()
                 .resources
                 .insert(&binding.world(), entry, Some(binding.engine()));
         let session_handle = resource::InputTextSessionHandle(resource_id);
@@ -1510,7 +1510,7 @@ pub(crate) unsafe fn destack_input_text_open(
             UnixTextRepositorySource::AppKitWindow => unreachable!(),
         };
         if let Err(error) = activate {
-            let _ = binding.agent().resources.remove_and_finalize(
+            let _ = binding.worker().resources.remove_and_finalize(
                 &binding.world(),
                 session_handle.0,
                 Some(binding.engine()),
@@ -1571,7 +1571,7 @@ pub(crate) unsafe fn destack_input_text_open(
             .with_payload(session);
         let resource_id =
             binding
-                .agent()
+                .worker()
                 .resources
                 .insert(&binding.world(), entry, Some(binding.engine()));
         let session_handle = resource::InputTextSessionHandle(resource_id);
@@ -1585,7 +1585,7 @@ pub(crate) unsafe fn destack_input_text_open(
             None,
         );
         if let Err(error) = activate {
-            let _ = binding.agent().resources.remove_and_finalize(
+            let _ = binding.worker().resources.remove_and_finalize(
                 &binding.world(),
                 session_handle.0,
                 Some(binding.engine()),
@@ -1667,7 +1667,7 @@ pub(crate) unsafe fn destack_input_text_open(
     };
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -1729,7 +1729,7 @@ pub(crate) unsafe fn destack_input_text_close(
     }
 
     // remove and finalize
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         session.0,
         Some(binding.engine()),
@@ -1974,7 +1974,7 @@ pub(crate) unsafe fn destack_input_text_open(
         .with_backing(ResourceBacking::Host);
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     let session = resource::InputTextSessionHandle(resource_id);
@@ -1985,7 +1985,7 @@ pub(crate) unsafe fn destack_input_text_open(
 
     // cleanup
     binding
-        .agent()
+        .worker()
         .resources
         .with_entry_mut(resource_id, |entry| {
             entry.finalizer =
@@ -2010,7 +2010,7 @@ pub(crate) unsafe fn destack_input_text_open(
         state_store.remove_host_text_session(session_id);
         let _ =
             binding
-                .agent()
+                .worker()
                 .resources
                 .remove(&binding.world(), resource_id, Some(binding.engine()));
         return Err(error);
@@ -2029,7 +2029,7 @@ pub(crate) unsafe fn destack_input_text_close(
     binding: &BindingCallContext,
     session: resource::InputTextSessionHandle,
 ) -> RuntimeResult<()> {
-    let exists = binding.agent().resources.with_entry(session.0, |entry| {
+    let exists = binding.worker().resources.with_entry(session.0, |entry| {
         entry.kind == ResourceKind::InputTextSession
             && entry.label.as_deref() == Some(TEXT_SESSION_RESOURCE_LABEL)
     });
@@ -2050,7 +2050,7 @@ pub(crate) unsafe fn destack_input_text_close(
     }
 
     let _ = binding
-        .agent()
+        .worker()
         .resources
         .remove(&binding.world(), session.0, Some(binding.engine()));
 

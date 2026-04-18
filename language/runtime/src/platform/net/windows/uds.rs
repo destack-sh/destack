@@ -30,7 +30,7 @@ pub(crate) struct WindowsUdsRuntimeState {
 /// Return runtime-owned state for windows UDS helpers.
 fn windows_uds_runtime_state(binding: &BindingCallContext) -> Arc<WindowsUdsRuntimeState> {
     binding
-        .agent()
+        .worker()
         .platform_state
         .net
         .windows_uds_runtime_state(|| WindowsUdsRuntimeState {
@@ -165,7 +165,7 @@ fn register_socket_pair(
         .with_finalizer(SocketFinalizer::new(first_socket));
     let first_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), first_entry, Some(binding.engine()));
 
@@ -175,7 +175,7 @@ fn register_socket_pair(
         .with_finalizer(SocketFinalizer::new(second_socket));
     let second_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), second_entry, Some(binding.engine()));
 
@@ -365,7 +365,7 @@ pub(crate) unsafe fn destack_net_uds_connect(
         .with_finalizer(SocketFinalizer::new(socket));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
@@ -454,7 +454,7 @@ pub(crate) unsafe fn destack_net_uds_listen(
         .with_finalizer(SocketFinalizer::new(socket));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {

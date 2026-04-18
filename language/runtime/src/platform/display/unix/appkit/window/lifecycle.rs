@@ -35,7 +35,7 @@ pub(crate) unsafe fn window_close(
     apply_cursor_policy(&runtime_state);
 
     let removed = context
-        .agent()
+        .worker()
         .resources
         .remove(&context.world(), window_handle.0, Some(context.engine()))
         .is_some();

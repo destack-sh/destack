@@ -149,7 +149,7 @@ pub(super) fn camera_device_resource<T: Send + Sync + 'static>(
     handle: resource::CameraDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<T>> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::CameraDevice {
             return None;
         }
@@ -172,7 +172,7 @@ pub(super) fn camera_stream_resource<T: Send + Sync + 'static>(
     handle: resource::CameraStreamHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<T>> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::CameraStream {
             return None;
         }
@@ -196,7 +196,7 @@ pub(super) fn close_camera_device_resource(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     let kind = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| entry.kind)
         .ok_or_else(|| invalid_camera_handle(operation, "device"))?;
@@ -204,7 +204,7 @@ pub(super) fn close_camera_device_resource(
         return Err(invalid_camera_handle(operation, "device"));
     }
 
-    if !binding.agent().resources.remove_and_finalize(
+    if !binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -222,7 +222,7 @@ pub(super) fn close_camera_stream_resource(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     let kind = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| entry.kind)
         .ok_or_else(|| invalid_camera_handle(operation, "stream"))?;
@@ -230,7 +230,7 @@ pub(super) fn close_camera_stream_resource(
         return Err(invalid_camera_handle(operation, "stream"));
     }
 
-    if !binding.agent().resources.remove_and_finalize(
+    if !binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -247,7 +247,7 @@ pub(super) fn camera_watch_payload<T: Clone + 'static>(
     handle: resource::CameraWatchHandle,
     operation: &'static str,
 ) -> RuntimeResult<T> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::CameraWatch {
             return None;
         }
@@ -267,7 +267,7 @@ pub(super) fn close_camera_watch_resource(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     let kind = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| entry.kind)
         .ok_or_else(|| invalid_camera_watch_handle(operation))?;
@@ -275,7 +275,7 @@ pub(super) fn close_camera_watch_resource(
         return Err(invalid_camera_watch_handle(operation));
     }
 
-    if !binding.agent().resources.remove_and_finalize(
+    if !binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),

@@ -7,7 +7,7 @@ use crate::platform::audio::{
     AudioEventSubscriptionFlags, AudioEventSubscriptionOptions,
 };
 use crate::platform::resource::ResourceId;
-use crate::runtime::{AgentId, BindingCallContext, RuntimeEventLog, RuntimeStreamRegistry};
+use crate::runtime::{WorkerId, BindingCallContext, RuntimeEventLog, RuntimeStreamRegistry};
 
 use super::constants::{
     EVENT_SUBSCRIBE_BACKEND, EVENT_SUBSCRIBE_DEFAULT_ROUTE, EVENT_SUBSCRIBE_DEVICE_HOTPLUG,
@@ -37,10 +37,10 @@ pub(crate) const DEVICE_EVENT_SUBSCRIPTION_FLAGS_MASK: u32 = EVENT_SUBSCRIBE_DEV
     | EVENT_SUBSCRIBE_FORMAT_CHANGE.0
     | EVENT_SUBSCRIBE_REROUTE.0;
 
-/// Runtime-owned mutable state for one agent audio module instance.
+/// Runtime-owned mutable state for one worker audio module instance.
 pub(crate) struct AudioRuntimeState {
-    /// Owning agent identifier.
-    pub(crate) agent_id: AgentId,
+    /// Owning worker identifier.
+    pub(crate) worker_id: WorkerId,
     /// Runtime-owned live audio event log.
     pub(crate) event_log: Mutex<RuntimeEventLog<AudioEventRecord>>,
     /// Wake signal for audio event readers.
@@ -62,10 +62,10 @@ impl fmt::Debug for AudioRuntimeState {
 }
 
 impl AudioRuntimeState {
-    /// Build one runtime-owned audio state object for one agent.
-    pub(crate) fn new(agent_id: AgentId) -> Self {
+    /// Build one runtime-owned audio state object for one worker.
+    pub(crate) fn new(worker_id: WorkerId) -> Self {
         Self {
-            agent_id,
+            worker_id,
             event_log: Mutex::new(RuntimeEventLog::default()),
             event_signal: Condvar::new(),
             stream_registry: RuntimeStreamRegistry::default(),
@@ -77,7 +77,7 @@ impl AudioRuntimeState {
 
 /// Return runtime-owned state for audio event routing.
 pub(crate) fn runtime_state(ctx: &BindingCallContext) -> Arc<AudioRuntimeState> {
-    ctx.agent().platform_state.audio.runtime_state(ctx)
+    ctx.worker().platform_state.audio.runtime_state(ctx)
 }
 
 /// Return whether one stream tracks device-level events.

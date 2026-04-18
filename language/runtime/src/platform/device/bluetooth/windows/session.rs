@@ -127,7 +127,7 @@ pub(crate) unsafe fn destack_device_bluetooth_open(
     let entry = ResourceEntry::new(ResourceKind::BluetoothDevice)
         .with_label(BLUETOOTH_DEVICE_RESOURCE_LABEL)
         .with_payload(resource)
-        .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
             WindowsBluetoothDeviceResource {
                 device,
                 connection_status_token,
@@ -139,7 +139,7 @@ pub(crate) unsafe fn destack_device_bluetooth_open(
             },
         ));
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 

@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::AgentId;
+use crate::runtime::WorkerId;
 use crate::runtime::bindings::{
     BindingDescriptor, BindingEngine, BindingReplayPayload, BindingScope,
 };
@@ -30,8 +30,8 @@ pub(crate) struct PolicyDecision {
     pub rule_id: RuleId,
     /// Hook that produced this effect.
     pub hook: Hook,
-    /// Agent identifier for this effect.
-    pub agent_id: AgentId,
+    /// Worker identifier for this effect.
+    pub worker_id: WorkerId,
     /// Binding call identifier when one call event fired this decision.
     pub call_id: Option<PolicyCallId>,
     /// Effect payload to execute.
@@ -56,10 +56,10 @@ pub(crate) struct RuleSubject<'a> {
     pub runtime_name: &'a str,
     /// Runtime labels for selector matching.
     pub runtime_labels: &'a BTreeMap<String, String>,
-    /// Agent name for selector matching.
-    pub agent_name: &'a str,
-    /// Agent labels for selector matching.
-    pub agent_labels: &'a BTreeMap<String, String>,
+    /// Worker name for selector matching.
+    pub worker_name: &'a str,
+    /// Worker labels for selector matching.
+    pub worker_labels: &'a BTreeMap<String, String>,
     /// Execution mode for selector matching.
     pub mode: ExecutionMode,
 }
@@ -69,15 +69,15 @@ impl<'a> RuleSubject<'a> {
     pub(crate) fn new(
         runtime_name: &'a str,
         runtime_labels: &'a BTreeMap<String, String>,
-        agent_name: &'a str,
-        agent_labels: &'a BTreeMap<String, String>,
+        worker_name: &'a str,
+        worker_labels: &'a BTreeMap<String, String>,
         mode: ExecutionMode,
     ) -> Self {
         Self {
             runtime_name,
             runtime_labels,
-            agent_name,
-            agent_labels,
+            worker_name,
+            worker_labels,
             mode,
         }
     }
@@ -348,10 +348,10 @@ pub(crate) struct PolicyState {
     dispatch_rule_indices: Vec<usize>,
     /// Enabled triggered effect rule indices for this policy revision.
     effect_rule_indices: Vec<usize>,
-    /// Total matching call events seen per agent.
-    total_calls_seen_by_agent: HashMap<AgentId, u64>,
-    /// Runtime rule state by rule id and agent id.
-    rule_states: HashMap<RuleId, HashMap<AgentId, RuleState>>,
+    /// Total matching call events seen per worker.
+    total_calls_seen_by_agent: HashMap<WorkerId, u64>,
+    /// Runtime rule state by rule id and worker id.
+    rule_states: HashMap<RuleId, HashMap<WorkerId, RuleState>>,
 }
 
 impl PolicyState {
@@ -449,8 +449,8 @@ impl PolicyState {
         self.resolve_binding_dispatch(
             subject.runtime_name,
             subject.runtime_labels,
-            subject.agent_name,
-            subject.agent_labels,
+            subject.worker_name,
+            subject.worker_labels,
             subject.mode,
             descriptor,
             engine,
@@ -471,8 +471,8 @@ impl PolicyState {
             event,
             subject.runtime_name,
             subject.runtime_labels,
-            subject.agent_name,
-            subject.agent_labels,
+            subject.worker_name,
+            subject.worker_labels,
             subject.mode,
             random,
         )
@@ -483,8 +483,8 @@ impl PolicyState {
         &self,
         runtime_name: &str,
         runtime_labels: &BTreeMap<String, String>,
-        agent_name: &str,
-        agent_labels: &BTreeMap<String, String>,
+        worker_name: &str,
+        worker_labels: &BTreeMap<String, String>,
         mode: ExecutionMode,
         descriptor: BindingDescriptor,
         engine: Option<BindingEngine>,
@@ -510,8 +510,8 @@ impl PolicyState {
                 rule,
                 runtime_name,
                 runtime_labels,
-                agent_name,
-                agent_labels,
+                worker_name,
+                worker_labels,
                 Some(descriptor),
                 mode,
                 engine,
@@ -565,18 +565,18 @@ impl PolicyState {
         event: &HookEvent,
         runtime_name: &str,
         runtime_labels: &BTreeMap<String, String>,
-        agent_name: &str,
-        agent_labels: &BTreeMap<String, String>,
+        worker_name: &str,
+        worker_labels: &BTreeMap<String, String>,
         mode: ExecutionMode,
         random: &Random,
     ) -> Vec<PolicyDecision> {
-        let event_agent_id = event.agent_id();
+        let event_worker_id = event.worker_id();
 
         // update call counters for activation windows
         let total_calls_seen = {
             let calls_seen = self
                 .total_calls_seen_by_agent
-                .entry(event_agent_id)
+                .entry(event_worker_id)
                 .or_insert(0);
             if event.counts_as_call_event() {
                 *calls_seen = calls_seen.saturating_add(1);
@@ -600,8 +600,8 @@ impl PolicyState {
                 rule,
                 runtime_name,
                 runtime_labels,
-                agent_name,
-                agent_labels,
+                worker_name,
+                worker_labels,
                 event.binding_descriptor(),
                 mode,
                 event.engine(),
@@ -619,12 +619,12 @@ impl PolicyState {
                 continue;
             };
 
-            // load mutable state for this rule and agent
+            // load mutable state for this rule and worker
             let rule_state = self
                 .rule_states
                 .entry(rule.id.clone())
                 .or_default()
-                .entry(event_agent_id)
+                .entry(event_worker_id)
                 .or_default();
 
             // evaluate trigger gates and record accepted firings
@@ -638,7 +638,7 @@ impl PolicyState {
             decisions.push(PolicyDecision {
                 rule_id: rule.id.clone(),
                 hook: event_hook,
-                agent_id: event_agent_id,
+                worker_id: event_worker_id,
                 call_id: event_call_id,
                 effect: rule.action.clone(),
             });
@@ -687,8 +687,8 @@ impl PolicyState {
         rule: &Rule,
         runtime_name: &str,
         runtime_labels: &BTreeMap<String, String>,
-        agent_name: &str,
-        agent_labels: &BTreeMap<String, String>,
+        worker_name: &str,
+        worker_labels: &BTreeMap<String, String>,
         descriptor: Option<BindingDescriptor>,
         mode: ExecutionMode,
         engine: Option<BindingEngine>,
@@ -701,8 +701,8 @@ impl PolicyState {
             selector,
             runtime_name,
             runtime_labels,
-            agent_name,
-            agent_labels,
+            worker_name,
+            worker_labels,
             descriptor,
             mode,
             engine,

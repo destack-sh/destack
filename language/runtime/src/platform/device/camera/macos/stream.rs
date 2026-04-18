@@ -362,7 +362,7 @@ pub(crate) unsafe fn destack_device_camera_stream_open(
     let entry = ResourceEntry::new(ResourceKind::CameraStream)
         .with_label(CAMERA_STREAM_RESOURCE_LABEL)
         .with_payload(resource)
-        .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
             MacosCameraStreamFinalizer {
                 session,
                 input,
@@ -379,7 +379,7 @@ pub(crate) unsafe fn destack_device_camera_stream_open(
             },
         ));
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 

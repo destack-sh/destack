@@ -14,7 +14,7 @@ pub(crate) fn os_state(binding: &BindingCallContext) -> RuntimeResult<PlatformOs
 
 /// Return the shared `platform.os` state for this binding.
 fn resolve_live_state(binding: &BindingCallContext) -> PlatformOsState {
-    binding.agent().platform_state.os.clone()
+    binding.worker().platform_state.os.clone()
 }
 
 /// Bootstrap one shared `platform.os` state from runtime queue delivery.

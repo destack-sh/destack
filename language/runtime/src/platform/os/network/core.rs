@@ -87,7 +87,7 @@ pub(crate) fn watch_open(
         .with_label("os.network.watch")
         .with_payload(watch_id);
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -102,7 +102,7 @@ pub(crate) fn watch_close(
     let runtime_state = os_state(binding)?;
     let removed =
         binding
-            .agent()
+            .worker()
             .resources
             .remove(&binding.world(), handle.0, Some(binding.engine()));
     let Some(entry) = removed else {
@@ -305,7 +305,7 @@ fn resolve_watch_state(
     binding: &BindingCallContext,
     handle: resource::NetworkWatchHandle,
 ) -> RuntimeResult<Arc<NetworkWatchStream>> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         entry
             .payload
             .as_ref()
@@ -322,7 +322,7 @@ fn resolve_watch_state(
         .ok_or_else(|| invalid_handle("unknown network watch handle"))
 }
 
-/// Ensure one shared network watch callback is registered for this agent.
+/// Ensure one shared network watch callback is registered for this worker.
 fn ensure_network_watch_callback(binding: &BindingCallContext) -> RuntimeResult<()> {
     let runtime_state = os_state(binding)?;
     if runtime_state.network_watch_callback().is_some() {
@@ -330,7 +330,7 @@ fn ensure_network_watch_callback(binding: &BindingCallContext) -> RuntimeResult<
     }
 
     let callback_runtime_state = runtime_state.clone();
-    let callback_handle = binding.agent().schedule_runtime_callback(
+    let callback_handle = binding.worker().schedule_runtime_callback(
         binding,
         NETWORK_WATCH_CALLBACK_INTERVAL_NS,
         Some(NETWORK_WATCH_CALLBACK_INTERVAL_NS),

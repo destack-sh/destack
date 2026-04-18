@@ -68,7 +68,7 @@ fn finalize_window_resource_best_effort(
     operation: &'static str,
 ) {
     // finalize runtime resource and publish diagnostics when resource is missing
-    let removed = context.agent().resources.remove_and_finalize(
+    let removed = context.worker().resources.remove_and_finalize(
         context.world(),
         handle.0,
         Some(context.engine()),
@@ -304,7 +304,7 @@ pub(crate) unsafe fn window_open(
     let entry = display_resource::window_resource_entry(context, hwnd, Arc::clone(&host_state));
     let resource_id =
         context
-            .agent()
+            .worker()
             .resources
             .insert(&context.world(), entry, Some(context.engine()));
     let handle = resource::WindowHandle(resource_id);

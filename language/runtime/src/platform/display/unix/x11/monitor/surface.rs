@@ -73,7 +73,7 @@ pub(crate) unsafe fn monitor_close(
 ) -> RuntimeResult<()> {
     // remove the resource entry from the runtime table
     let removed = binding
-        .agent()
+        .worker()
         .resources
         .remove(&binding.world(), handle.0, Some(binding.engine()))
         .is_some();

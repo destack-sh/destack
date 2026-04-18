@@ -16,7 +16,7 @@ fn resolve_spawned_process_handle(
     binding: &BindingCallContext,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<(ProcessId, Option<windows_sys::Win32::Foundation::HANDLE>)> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         entry
             .payload
             .as_ref()
@@ -195,7 +195,7 @@ pub(crate) unsafe fn destack_process_try_wait(
     };
 
     if is_terminal_wait_status(&status) {
-        let _ = binding.agent().resources.remove_and_finalize(
+        let _ = binding.worker().resources.remove_and_finalize(
             &binding.world(),
             handle.0,
             Some(binding.engine()),
@@ -244,7 +244,7 @@ pub(crate) unsafe fn destack_process_wait(
     };
 
     if is_terminal_wait_status(&status) {
-        let _ = binding.agent().resources.remove_and_finalize(
+        let _ = binding.worker().resources.remove_and_finalize(
             &binding.world(),
             handle.0,
             Some(binding.engine()),

@@ -90,6 +90,28 @@ impl RuntimeFinalizers {
         }
     }
 
+    /// Fork one quiescent runtime-finalizer registry.
+    pub(crate) fn try_fork(&self) -> Option<Self> {
+        let state = self.state.lock();
+
+        // finalized registries stay finalized in the child
+        if matches!(&*state, RuntimeFinalizerState::Finalized) {
+            return Some(Self {
+                state: Mutex::new(RuntimeFinalizerState::Finalized),
+            });
+        }
+
+        // active finalizers are not clonable across branches
+        let RuntimeFinalizerState::Active(entries) = &*state else {
+            return None;
+        };
+        if !entries.is_empty() {
+            return None;
+        }
+
+        Some(Self::default())
+    }
+
     // capture image
     fn image(&self, _mode: CaptureMode) -> RuntimeResult<RuntimeFinalizersImage> {
         let state = self.state.lock();

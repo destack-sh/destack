@@ -107,7 +107,7 @@ fn register_socket_pair(
         .with_finalizer(SocketFinalizer::new(first_socket));
     let first_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), first_entry, Some(binding.engine()));
 
@@ -117,7 +117,7 @@ fn register_socket_pair(
         .with_finalizer(SocketFinalizer::new(second_socket));
     let second_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), second_entry, Some(binding.engine()));
 
@@ -410,7 +410,7 @@ pub(crate) unsafe fn destack_net_accept(
         .with_finalizer(SocketFinalizer::new(client));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
@@ -442,7 +442,7 @@ pub(crate) unsafe fn destack_net_close(
 ) -> RuntimeResult<()> {
     // remove the resource entry
     let entry = binding
-        .agent()
+        .worker()
         .resources
         .remove(&binding.world(), handle.0, Some(binding.engine()))
         .ok_or_else(|| {
@@ -482,7 +482,7 @@ pub(crate) unsafe fn destack_net_close_listener(
 ) -> RuntimeResult<()> {
     // remove the resource entry
     let entry = binding
-        .agent()
+        .worker()
         .resources
         .remove(&binding.world(), handle.0, Some(binding.engine()))
         .ok_or_else(|| {
@@ -644,7 +644,7 @@ pub(crate) unsafe fn destack_net_listen_raw(
         .with_finalizer(SocketFinalizer::new(listener));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
@@ -699,7 +699,7 @@ pub(crate) unsafe fn destack_net_socket(
         .with_finalizer(SocketFinalizer::new(socket));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {

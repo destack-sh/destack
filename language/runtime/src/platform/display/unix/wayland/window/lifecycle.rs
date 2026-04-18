@@ -202,7 +202,7 @@ pub(crate) unsafe fn window_close(
 
     // remove the resource entry and reject stale handles
     let removed = context
-        .agent()
+        .worker()
         .resources
         .remove(&context.world(), window_handle.0, Some(context.engine()))
         .is_some();

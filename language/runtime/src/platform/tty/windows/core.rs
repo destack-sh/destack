@@ -194,7 +194,7 @@ pub(super) fn tty_binding(
     operation: &'static str,
 ) -> RuntimeResult<Option<Arc<WindowsTtyBinding>>> {
     let resolved = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Tty {
@@ -207,7 +207,7 @@ pub(super) fn tty_binding(
 
     if resolved.is_none() {
         let kind = binding
-            .agent()
+            .worker()
             .resources
             .with_entry(handle.0, |entry| entry.kind);
         if let Some(kind) = kind
@@ -227,7 +227,7 @@ pub(super) fn tty_handle(
     operation: &'static str,
 ) -> RuntimeResult<HANDLE> {
     let resolved = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Tty {
@@ -279,7 +279,7 @@ pub(super) fn register_pty_pair(
     let controller_entry = ResourceEntry::new(ResourceKind::Pty)
         .with_label(PTY_RESOURCE_LABEL)
         .with_finalizer(WindowsPseudoConsoleFinalizer { pseudo_console });
-    let controller_id = binding.agent().resources.insert(
+    let controller_id = binding.worker().resources.insert(
         &binding.world(),
         controller_entry,
         Some(binding.engine()),
@@ -294,7 +294,7 @@ pub(super) fn register_pty_pair(
         });
     let worker_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), worker_entry, Some(binding.engine()));
 

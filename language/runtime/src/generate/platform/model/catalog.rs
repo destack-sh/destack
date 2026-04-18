@@ -27,7 +27,7 @@ pub(crate) enum CatalogBindingBlocking {
 pub(crate) enum CatalogBindingAffinity {
     /// Binding is callable from any execution context.
     Any,
-    /// Binding requires the agent event-loop context.
+    /// Binding requires the worker event-loop context.
     EventLoop,
     /// Binding requires the creating execution context.
     Owner,

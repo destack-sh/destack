@@ -50,13 +50,13 @@ impl RandomStreamId {
     }
 }
 
-/// Key for one runtime and agent scoped implicit random stream.
+/// Key for one runtime and worker scoped implicit random stream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ScopedRandomStreamKey {
     /// Runtime identifier component.
     pub runtime_id: u64,
-    /// Agent identifier component.
-    pub agent_id: u64,
+    /// Worker identifier component.
+    pub worker_id: u64,
     /// Task identifier component when per-runnable streams are enabled.
     pub task_id: Option<u64>,
     /// Microtask identifier component when per-runnable streams are enabled.
@@ -146,12 +146,12 @@ impl Random {
     pub fn scoped_stream_id(
         &self,
         runtime_id: u64,
-        agent_id: u64,
+        worker_id: u64,
         task_id: Option<u64>,
         microtask_id: Option<u64>,
     ) -> RandomStreamId {
         self.virtual_random
-            .scoped_stream_id(runtime_id, agent_id, task_id, microtask_id)
+            .scoped_stream_id(runtime_id, worker_id, task_id, microtask_id)
     }
 
     /// Allocate a new deterministic random stream id.
@@ -216,6 +216,18 @@ impl Random {
             streams,
             scoped_streams,
         }
+    }
+
+    /// Fork this random state for one child branch.
+    pub(crate) fn fork(&self) -> RuntimeResult<Self> {
+        // capture the current deterministic state first
+        let image = self.snapshot();
+
+        // rebuild one fresh random source with the same deterministic streams
+        let forked = Self::new(image.root_seed);
+        forked.restore_snapshot(&image)?;
+
+        Ok(forked)
     }
 
     /// Restore one materialized random image.
@@ -339,7 +351,7 @@ mod tests {
 
     #[test]
     fn test_scoped_stream_id_is_stable_for_same_scope() {
-        // resolve one scoped stream id twice for one runtime and agent scope
+        // resolve one scoped stream id twice for one runtime and worker scope
         let random = Random::new(0xdead_beef);
         let first = random.scoped_stream_id(1, 7, Some(3), None);
         let second = random.scoped_stream_id(1, 7, Some(3), None);
@@ -349,14 +361,14 @@ mod tests {
     }
 
     #[test]
-    fn test_scoped_stream_id_differs_across_agents_with_same_task_id() {
-        // resolve one scoped stream id for two agents with the same task id
+    fn test_scoped_stream_id_differs_across_workers_with_same_task_id() {
+        // resolve one scoped stream id for two workers with the same task id
         let random = Random::new(0xdead_beef);
-        let first_agent_stream = random.scoped_stream_id(1, 7, Some(3), None);
-        let second_agent_stream = random.scoped_stream_id(1, 8, Some(3), None);
+        let first_worker_stream = random.scoped_stream_id(1, 7, Some(3), None);
+        let second_worker_stream = random.scoped_stream_id(1, 8, Some(3), None);
 
-        // ensure runtime and agent identity separates scoped streams
-        assert_ne!(first_agent_stream, second_agent_stream);
+        // ensure runtime and worker identity separates scoped streams
+        assert_ne!(first_worker_stream, second_worker_stream);
     }
 
     #[test]

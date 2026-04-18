@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
+use crate::runtime::observe::ObservationSubscriptionId;
 use crate::runtime::trace::TraceCursor;
-use crate::runtime::world::ObservationSubscriptionId;
 
 use super::Control;
 use super::handle::{ControlEntry, ControlHandleId, ControlKind};

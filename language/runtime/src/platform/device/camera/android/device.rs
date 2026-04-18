@@ -68,7 +68,7 @@ pub(crate) unsafe fn destack_device_camera_device_open(
     let entry = ResourceEntry::new(ResourceKind::CameraDevice)
         .with_label(CAMERA_DEVICE_RESOURCE_LABEL)
         .with_payload(resource)
-        .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
             AndroidCameraDeviceFinalizer {
                 runtime_id,
                 session_id,
@@ -76,7 +76,7 @@ pub(crate) unsafe fn destack_device_camera_device_open(
         ));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 

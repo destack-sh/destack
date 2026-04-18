@@ -178,7 +178,7 @@ pub(crate) fn midi_event_open(
 
     // service and topology
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .winmm_service("destack.device.midi.event.open")?;

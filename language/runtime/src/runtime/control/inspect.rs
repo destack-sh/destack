@@ -2,9 +2,10 @@ use std::collections::BTreeMap;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::world::{
-    BranchId, Image, RevisionId, RuntimeId, WorldEdge, WorldEntity, WorldResource, WorldResourceId,
+    BranchId, Revision, RuntimeId, WorldEdge, WorldEntity, WorldImage, WorldResource,
+    WorldResourceId,
 };
-use crate::runtime::{AgentId, AgentImage, RuntimeImage};
+use crate::runtime::{WorkerId, WorkerImage, RuntimeImage};
 
 /// Runtime list filter decoded from one low-level ABI surface.
 #[derive(Debug, Clone, Default)]
@@ -15,12 +16,12 @@ pub(crate) struct RuntimeListFilter {
     pub labels: Vec<(String, Option<String>)>,
 }
 
-/// Agent list filter decoded from one low-level ABI surface.
+/// Worker list filter decoded from one low-level ABI surface.
 #[derive(Debug, Clone, Default)]
-pub(crate) struct AgentListFilter {
+pub(crate) struct WorkerListFilter {
     /// Optional owning runtime id.
     pub runtime_id: Option<RuntimeId>,
-    /// Optional exact agent name match.
+    /// Optional exact worker name match.
     pub name: Option<String>,
     /// Optional pending-work predicate.
     pub has_pending_work: Option<bool>,
@@ -48,18 +49,18 @@ pub(crate) struct RevisionListFilter {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct CheckpointListFilter {
     /// Optional revision id filter.
-    pub revision_id: Option<RevisionId>,
+    pub revision: Option<Revision>,
     /// Optional exact checkpoint name.
     pub name: Option<String>,
     /// Optional label selectors.
     pub labels: Vec<(String, Option<String>)>,
 }
 
-/// Image list filter decoded from one low-level ABI surface.
+/// WorldImage list filter decoded from one low-level ABI surface.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ImageListFilter {
     /// Optional owning revision id.
-    pub revision_id: Option<RevisionId>,
+    pub revision: Option<Revision>,
 }
 
 /// Resource list filter decoded from one low-level ABI surface.
@@ -67,8 +68,8 @@ pub(crate) struct ImageListFilter {
 pub(crate) struct ResourceListFilter {
     /// Optional owning runtime id.
     pub runtime_id: Option<RuntimeId>,
-    /// Optional owning agent id.
-    pub agent_id: Option<AgentId>,
+    /// Optional owning worker id.
+    pub worker_id: Option<WorkerId>,
     /// Optional exact resource kind.
     pub kind: Option<String>,
     /// Optional exact resource label.
@@ -110,32 +111,32 @@ pub(crate) fn labels_match_selectors(
 
 /// List runtimes in stable id order.
 pub(crate) fn list_runtimes<'a>(
-    image: &'a Image,
+    image: &'a WorldImage,
     filter: &RuntimeListFilter,
     after: Option<RuntimeId>,
     limit: Option<usize>,
-) -> RuntimeResult<Vec<&'a RuntimeImage>> {
+) -> RuntimeResult<Vec<(RuntimeId, &'a RuntimeImage)>> {
     let after = after.map(|id| id.0).unwrap_or(0);
     let mut runtimes = Vec::new();
 
     // stable runtime scan
-    for runtime in image.runtimes.values() {
-        if runtime.runtime_id.0 <= after {
+    for (runtime_id, runtime) in &image.runtimes {
+        if runtime_id.0 <= after {
             continue;
         }
 
         if let Some(name) = filter.name.as_deref()
-            && runtime.name != name
+            && image.runtime_name(*runtime_id)? != name
         {
             continue;
         }
 
-        let labels = image.runtime_labels(runtime.runtime_id)?;
+        let labels = image.runtime_labels(*runtime_id)?;
         if !labels_match_selectors(labels, &filter.labels) {
             continue;
         }
 
-        runtimes.push(runtime);
+        runtimes.push((*runtime_id, runtime.as_ref()));
 
         if let Some(limit) = limit
             && runtimes.len() >= limit
@@ -149,97 +150,101 @@ pub(crate) fn list_runtimes<'a>(
 
 /// Resolve one runtime from one pinned image.
 pub(crate) fn runtime_in_image(
-    image: &Image,
+    image: &WorldImage,
     runtime_id: RuntimeId,
 ) -> RuntimeResult<&RuntimeImage> {
-    image.runtimes.get(&runtime_id).ok_or_else(|| {
+    let runtime = image.runtimes.get(&runtime_id).ok_or_else(|| {
         RuntimeError::RuntimeNotFound {
             runtime_id: runtime_id.0,
         }
         .boxed()
-    })
+    })?;
+
+    Ok(runtime.as_ref())
 }
 
-/// List agents in stable id order.
-pub(crate) fn list_agents<'a>(
-    image: &'a Image,
-    filter: &AgentListFilter,
-    after: Option<AgentId>,
+/// List workers in stable id order.
+pub(crate) fn list_workers<'a>(
+    image: &'a WorldImage,
+    filter: &WorkerListFilter,
+    after: Option<WorkerId>,
     limit: Option<usize>,
-) -> RuntimeResult<Vec<&'a AgentImage>> {
+) -> RuntimeResult<Vec<(WorkerId, &'a WorkerImage)>> {
     let after = after.map(|id| id.0).unwrap_or(0);
-    let mut agents = Vec::new();
+    let mut workers = Vec::new();
 
-    // stable agent scan
-    for agent in image.agents.values() {
-        if agent.agent_id.0 <= after {
+    // stable worker scan
+    for (worker_id, worker) in &image.workers {
+        if worker_id.0 <= after {
             continue;
         }
 
         if let Some(runtime_id) = filter.runtime_id
-            && agent.runtime_id != runtime_id
+            && !image.runtime_owns_worker(runtime_id, *worker_id)
         {
             continue;
         }
 
         if let Some(name) = filter.name.as_deref()
-            && agent.name != name
+            && image.worker_name(*worker_id)? != name
         {
             continue;
         }
 
-        let has_pending_work = agent.has_pending_work();
+        let has_pending_work = worker.has_pending_work();
         if let Some(expected) = filter.has_pending_work
             && has_pending_work != expected
         {
             continue;
         }
 
-        let labels = image.agent_labels(agent.agent_id)?;
+        let labels = image.worker_labels(*worker_id)?;
         if !labels_match_selectors(labels, &filter.labels) {
             continue;
         }
 
-        agents.push(agent);
+        workers.push((*worker_id, worker.as_ref()));
 
         if let Some(limit) = limit
-            && agents.len() >= limit
+            && workers.len() >= limit
         {
             break;
         }
     }
 
-    Ok(agents)
+    Ok(workers)
 }
 
-/// Resolve one agent from one pinned image.
-pub(crate) fn agent_in_image(image: &Image, agent_id: AgentId) -> RuntimeResult<&AgentImage> {
-    image.agents.get(&agent_id).ok_or_else(|| {
-        RuntimeError::AgentNotFound {
-            agent_id: agent_id.0,
+/// Resolve one worker from one pinned image.
+pub(crate) fn worker_in_image(image: &WorldImage, worker_id: WorkerId) -> RuntimeResult<&WorkerImage> {
+    let worker = image.workers.get(&worker_id).ok_or_else(|| {
+        RuntimeError::WorkerNotFound {
+            worker_id: worker_id.0,
         }
         .boxed()
-    })
+    })?;
+
+    Ok(worker.as_ref())
 }
 
 /// Return whether one logical resource matches the structured filter.
 pub(crate) fn resource_matches_filter(
-    image: &Image,
+    image: &WorldImage,
     resource: &WorldResource,
     filter: &ResourceListFilter,
 ) -> bool {
     if let Some(runtime_id) = filter.runtime_id {
-        let Some(agent) = image.agents.get(&resource.id.agent_id) else {
+        if !image.has_worker(resource.id.worker_id) {
             return false;
-        };
+        }
 
-        if agent.runtime_id != runtime_id {
+        if !image.runtime_owns_worker(runtime_id, resource.id.worker_id) {
             return false;
         }
     }
 
-    if let Some(agent_id) = filter.agent_id
-        && resource.id.agent_id != agent_id
+    if let Some(worker_id) = filter.worker_id
+        && resource.id.worker_id != worker_id
     {
         return false;
     }
@@ -261,7 +266,7 @@ pub(crate) fn resource_matches_filter(
 
 /// List logical resources in stable id order.
 pub(crate) fn list_resources<'a>(
-    image: &'a Image,
+    image: &'a WorldImage,
     filter: &ResourceListFilter,
     after: Option<WorldResourceId>,
     limit: Option<usize>,
@@ -294,7 +299,7 @@ pub(crate) fn list_resources<'a>(
 
 /// Resolve one logical resource from one pinned image.
 pub(crate) fn resource_in_image(
-    image: &Image,
+    image: &WorldImage,
     resource_id: WorldResourceId,
 ) -> RuntimeResult<&WorldResource> {
     image.resource(resource_id).ok_or_else(|| {
@@ -308,7 +313,7 @@ pub(crate) fn resource_in_image(
 
 /// List topology entities in stable id order.
 pub(crate) fn list_entities<'a>(
-    image: &'a Image,
+    image: &'a WorldImage,
     filter: &EntityListFilter,
     after: Option<&str>,
     limit: Option<usize>,
@@ -347,7 +352,7 @@ pub(crate) fn list_entities<'a>(
 
 /// Resolve one topology entity from one pinned image.
 pub(crate) fn entity_in_image<'a>(
-    image: &'a Image,
+    image: &'a WorldImage,
     entity_id: &str,
 ) -> RuntimeResult<&'a WorldEntity> {
     image.entity(entity_id).ok_or_else(|| {
@@ -361,7 +366,7 @@ pub(crate) fn entity_in_image<'a>(
 
 /// List topology edges in stable id order.
 pub(crate) fn list_edges<'a>(
-    image: &'a Image,
+    image: &'a WorldImage,
     filter: &EdgeListFilter,
     after: Option<&str>,
     limit: Option<usize>,
@@ -411,7 +416,10 @@ pub(crate) fn list_edges<'a>(
 }
 
 /// Resolve one topology edge from one pinned image.
-pub(crate) fn edge_in_image<'a>(image: &'a Image, edge_id: &str) -> RuntimeResult<&'a WorldEdge> {
+pub(crate) fn edge_in_image<'a>(
+    image: &'a WorldImage,
+    edge_id: &str,
+) -> RuntimeResult<&'a WorldEdge> {
     image.edge(edge_id).ok_or_else(|| {
         RuntimeError::ResourceNotFound {
             resource_id: 0,

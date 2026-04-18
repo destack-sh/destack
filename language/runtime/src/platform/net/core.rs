@@ -64,7 +64,7 @@ pub(crate) fn require_resource<T>(
     with_entry: impl FnOnce(&ResourceEntry) -> RuntimeResult<T>,
 ) -> RuntimeResult<T> {
     let resolved = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(id, |entry| {
             if entry.kind != kind {
@@ -116,7 +116,7 @@ pub(super) fn current_packet_backend(binding: &BindingCallContext) -> Option<Pac
 
     #[cfg(target_os = "windows")]
     {
-        match binding.agent().options.platform.windows.net_packet_backend {
+        match binding.worker().options.platform.windows.net_packet_backend {
             PlatformWindowsPacketBackend::RawSocket => Some(PacketBackend::WinRawSocket),
             PlatformWindowsPacketBackend::Disabled | PlatformWindowsPacketBackend::HostBackend => {
                 None

@@ -106,12 +106,12 @@ fn create_poll_targets(context: &IoHarnessContext<'_>) -> RuntimeResult<PollTarg
                 descriptor: descriptors[1],
             });
 
-        let read_target = context.call_context.agent().resources.insert(
+        let read_target = context.call_context.worker().resources.insert(
             context.call_context.world(),
             read_entry,
             Some(context.call_context.engine()),
         );
-        let write_target = context.call_context.agent().resources.insert(
+        let write_target = context.call_context.worker().resources.insert(
             context.call_context.world(),
             write_entry,
             Some(context.call_context.engine()),
@@ -197,12 +197,12 @@ fn create_poll_targets(context: &IoHarnessContext<'_>) -> RuntimeResult<PollTarg
             .with_socket(sender as _)
             .with_finalizer(WindowsSocketFinalizer { socket: sender });
 
-        let read_target = context.call_context.agent().resources.insert(
+        let read_target = context.call_context.worker().resources.insert(
             context.call_context.world(),
             read_entry,
             Some(context.call_context.engine()),
         );
-        let write_target = context.call_context.agent().resources.insert(
+        let write_target = context.call_context.worker().resources.insert(
             context.call_context.world(),
             write_entry,
             Some(context.call_context.engine()),
@@ -224,12 +224,12 @@ fn create_poll_targets(context: &IoHarnessContext<'_>) -> RuntimeResult<PollTarg
 
 /// Remove poll target resources from the runtime table.
 fn remove_poll_targets(context: &IoHarnessContext<'_>, targets: PollTargets) {
-    context.call_context.agent().resources.remove_and_finalize(
+    context.call_context.worker().resources.remove_and_finalize(
         context.call_context.world(),
         targets.read_target,
         Some(context.call_context.engine()),
     );
-    context.call_context.agent().resources.remove_and_finalize(
+    context.call_context.worker().resources.remove_and_finalize(
         context.call_context.world(),
         targets.write_target,
         Some(context.call_context.engine()),
@@ -311,7 +311,7 @@ fn test_io_poll_open_close_roundtrip() {
 #[test]
 fn test_io_poll_close_rejects_non_poll_handle() {
     with_harness_context(|mut context| {
-        let foreign = context.call_context.agent().resources.insert(
+        let foreign = context.call_context.worker().resources.insert(
             context.call_context.world(),
             ResourceEntry::new(ResourceKind::File),
             Some(context.call_context.engine()),
@@ -321,8 +321,8 @@ fn test_io_poll_close_rejects_non_poll_handle() {
             context.destack_io_poll_close(forged),
             PlatformErrorCode::IoNotFound,
         )?;
-        assert!(context.call_context.agent().resources.contains(foreign));
-        context.call_context.agent().resources.remove_and_finalize(
+        assert!(context.call_context.worker().resources.contains(foreign));
+        context.call_context.worker().resources.remove_and_finalize(
             context.call_context.world(),
             foreign,
             Some(context.call_context.engine()),
@@ -446,7 +446,7 @@ fn test_io_poll_rejects_non_pollable_target() {
     with_harness_context(|mut context| {
         let handle = context.destack_io_poll_open(PollBackend::Auto)?;
 
-        let target = context.call_context.agent().resources.insert(
+        let target = context.call_context.worker().resources.insert(
             context.call_context.world(),
             ResourceEntry::new(ResourceKind::File),
             Some(context.call_context.engine()),
@@ -457,7 +457,7 @@ fn test_io_poll_rejects_non_pollable_target() {
         )?;
 
         context.destack_io_poll_close(handle)?;
-        context.call_context.agent().resources.remove_and_finalize(
+        context.call_context.worker().resources.remove_and_finalize(
             context.call_context.world(),
             target,
             Some(context.call_context.engine()),

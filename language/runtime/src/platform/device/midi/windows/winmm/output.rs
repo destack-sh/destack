@@ -159,7 +159,7 @@ pub(crate) fn midi_output_port_list(
 ) -> RuntimeResult<Vec<MidiPortDescriptorValue>> {
     // current topology
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .winmm_service("destack.device.midi.output.port.list")?;
@@ -180,7 +180,7 @@ pub(crate) fn midi_output_port_open(
 ) -> RuntimeResult<resource::MidiOutputPortHandle> {
     // service and topology
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .winmm_service("destack.device.midi.output.port.open")?;

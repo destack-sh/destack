@@ -45,7 +45,7 @@ pub(crate) struct WindowsMmapRuntimeState {
 /// Return runtime-owned windows mmap mutable state.
 fn windows_mmap_runtime_state(binding: &BindingCallContext) -> Arc<WindowsMmapRuntimeState> {
     binding
-        .agent()
+        .worker()
         .platform_state
         .fs
         .windows_mmap_runtime_state(WindowsMmapRuntimeState::default)

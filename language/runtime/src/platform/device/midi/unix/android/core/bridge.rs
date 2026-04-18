@@ -55,7 +55,7 @@ fn host_session_id(
     binding: &BindingCallContext,
     _operation: &'static str,
 ) -> Result<u64, Box<RuntimeError>> {
-    Ok(binding.agent().runtime_id.0)
+    Ok(binding.worker().runtime_id.0)
 }
 
 /// Build one ioInvalidData runtime error.

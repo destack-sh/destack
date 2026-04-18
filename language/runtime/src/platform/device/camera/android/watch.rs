@@ -114,7 +114,7 @@ fn register_camera_watch_callback(
 ) -> RuntimeResult<RuntimeScheduledCallbackHandle> {
     let state = Arc::downgrade(state);
 
-    binding.agent().schedule_runtime_callback(
+    binding.worker().schedule_runtime_callback(
         binding,
         CAMERA_WATCH_POLL_INTERVAL_NS,
         Some(CAMERA_WATCH_POLL_INTERVAL_NS),
@@ -186,13 +186,13 @@ pub(crate) unsafe fn destack_device_camera_device_watch_open(
         }))
         .with_finalizer(
             binding
-                .agent()
+                .worker()
                 .platform_state
                 .device
                 .wrap_finalizer(AndroidCameraWatchFinalizer { state }),
         );
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -220,7 +220,7 @@ pub(crate) unsafe fn destack_device_camera_device_watch_close(
 
         if let Some(callback_handle) = callback_handle {
             binding
-                .agent()
+                .worker()
                 .cancel_runtime_callback(binding, callback_handle)?;
         }
     }

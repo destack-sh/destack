@@ -53,7 +53,7 @@ pub(crate) unsafe fn destack_resource_close(
     // remove the entry and run finalization
     let removed =
         binding
-            .agent()
+            .worker()
             .resources
             .remove_and_finalize(&binding.world(), id, Some(binding.engine()));
     if !removed {
@@ -93,7 +93,7 @@ pub(crate) unsafe fn destack_resource_kind(
 
     // load the kind for the requested resource
     let kind = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(id, |entry| entry.kind)
         .ok_or_else(|| resource_not_found("destack.resource.id.kind", id))?;
@@ -133,7 +133,7 @@ pub(crate) unsafe fn destack_resource_remove(
     // remove the entry and run finalization
     let removed =
         binding
-            .agent()
+            .worker()
             .resources
             .remove_and_finalize(&binding.world(), id, Some(binding.engine()));
     if !removed {
@@ -169,7 +169,7 @@ pub(crate) unsafe fn destack_resource_transfer(
     ensure_resource_affinity(binding, id, "destack.resource.id.transfer")?;
 
     // validate that the source resource exists
-    let exists = binding.agent().resources.contains(id);
+    let exists = binding.worker().resources.contains(id);
     if !exists {
         return Err(resource_not_found("destack.resource.id.transfer", id));
     }
