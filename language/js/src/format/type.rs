@@ -1,6 +1,6 @@
 use crate::{
-    FunctionMode, Keyword, LocalNodeId, PrimitiveType, TupleElement, Type, TypeLiteral, TypeMember,
-    TypeModifier, TypePredicateSubject,
+    FunctionMode, Keyword, LocalNodeId, PrimitiveType, TupleElement, TypeExpression, TypeLiteral,
+    TypeMember, TypeModifier, TypePredicateSubject,
 };
 use destack_fir::format::FormatResult;
 
@@ -147,20 +147,20 @@ impl<'ast> FormatNode<'ast, TupleElement> for TupleElement {
     }
 }
 
-impl<'ast> FormatNode<'ast, Type> for Type {
+impl<'ast> FormatNode<'ast, TypeExpression> for TypeExpression {
     fn format_node(
         &self,
-        _node_id: LocalNodeId<Type>,
+        _node_id: LocalNodeId<TypeExpression>,
         f: &mut JsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
-            Type::Scalar(scalar) => {
+            TypeExpression::Scalar(scalar) => {
                 write!(f, [scalar])?;
             }
-            Type::This => {
+            TypeExpression::This => {
                 write!(f, [Keyword::This])?;
             }
-            Type::Path {
+            TypeExpression::Path {
                 path,
                 generic_arguments,
             } => {
@@ -169,34 +169,31 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                     write!(f, [list_like("<", ">", ",", generic_arguments)])?;
                 }
             }
-            Type::Expression(expression) => {
-                write!(f, [expression])?;
-            }
-            Type::Readonly { target_type } => {
+            TypeExpression::Readonly { target_type } => {
                 write!(f, [Keyword::Readonly, space(), target_type])?;
             }
-            Type::KeyOf { target_type } => {
+            TypeExpression::KeyOf { target_type } => {
                 write!(f, [Keyword::Keyof, space(), target_type])?;
             }
-            Type::Must { target_type } => {
+            TypeExpression::Must { target_type } => {
                 write!(f, [target_type, token("!")])?;
             }
-            Type::AsComptime { target_type } => {
+            TypeExpression::AsComptime { target_type } => {
                 write!(f, [target_type, space(), token("as comptime")])?;
             }
-            Type::Not { target_type } => {
+            TypeExpression::Not { target_type } => {
                 write!(f, [token("!"), target_type])?;
             }
-            Type::In { left, right } => {
+            TypeExpression::In { left, right } => {
                 write!(f, [left, space(), Keyword::In, space(), right])?;
             }
-            Type::Extends { left, right } => {
+            TypeExpression::Extends { left, right } => {
                 write!(f, [left, space(), Keyword::Extends, space(), right])?;
             }
-            Type::Implements { left, right } => {
+            TypeExpression::Implements { left, right } => {
                 write!(f, [left, space(), Keyword::Implements, space(), right])?;
             }
-            Type::Conditional {
+            TypeExpression::Conditional {
                 left,
                 right,
                 then_type,
@@ -221,7 +218,7 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                     ]
                 )?;
             }
-            Type::Mapped {
+            TypeExpression::Mapped {
                 parameter,
                 modifiers,
                 value,
@@ -249,7 +246,7 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                         space(),
                         Keyword::In,
                         space(),
-                        parameter.constraint
+                        parameter.source_type
                     ]
                 )?;
 
@@ -268,10 +265,10 @@ impl<'ast> FormatNode<'ast, Type> for Type {
 
                 write!(f, [token(":"), space(), value, token("}")])?;
             }
-            Type::Index { left, index } => {
+            TypeExpression::Index { left, index } => {
                 write!(f, [left, token("["), index, token("]")])?;
             }
-            Type::TemplateLiteral(template) => {
+            TypeExpression::TemplateLiteral(template) => {
                 write!(f, [token("`")])?;
 
                 for (index, string) in template.strings.iter().enumerate() {
@@ -284,7 +281,7 @@ impl<'ast> FormatNode<'ast, Type> for Type {
 
                 write!(f, [token("`")])?;
             }
-            Type::Import {
+            TypeExpression::Import {
                 target,
                 qualifier,
                 generic_arguments,
@@ -301,14 +298,14 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                     write!(f, [list_like("<", ">", ",", generic_arguments)])?;
                 }
             }
-            Type::Infer { name, constraint } => {
+            TypeExpression::Infer { name, constraint } => {
                 write!(f, [Keyword::Infer, space(), *name])?;
 
                 if let Some(constraint) = constraint {
                     write!(f, [space(), Keyword::Extends, space(), constraint])?;
                 }
             }
-            Type::Predicate {
+            TypeExpression::Predicate {
                 asserts,
                 subject,
                 target,
@@ -318,7 +315,7 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                 }
 
                 match subject {
-                    TypePredicateSubject::Name(name) => write!(f, [*name])?,
+                    TypePredicateSubject::Identifier(name) => write!(f, [*name])?,
                     TypePredicateSubject::This => write!(f, [Keyword::This])?,
                 }
 
@@ -327,26 +324,22 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                 }
             }
 
-            Type::Array { element } => {
-                if let Some(element) = element {
-                    write!(f, [element, token("[]")])?;
-                } else {
-                    write!(f, [token("Array<any>")])?;
-                }
+            TypeExpression::Array { element } => {
+                write!(f, [element, token("[]")])?;
             }
-            Type::Tuple { elements } => {
+            TypeExpression::Tuple { elements } => {
                 write!(f, [list_like("[", "]", ",", elements)])?;
             }
-            Type::Object { properties } => {
-                write!(f, [list_like("{", "}", ",", properties).include_space()])?;
+            TypeExpression::Object { members } => {
+                write!(f, [list_like("{", "}", ",", members).include_space()])?;
             }
-            Type::Union { elements } => {
+            TypeExpression::Union { elements } => {
                 write!(f, [list_like("|", "|", ",", elements)])?;
             }
-            Type::Intersection { elements } => {
+            TypeExpression::Intersection { elements } => {
                 write!(f, [list_like("&", "&", ",", elements)])?;
             }
-            Type::Function { signature } => {
+            TypeExpression::Function { signature } => {
                 // mode
                 if let Some(mode) = signature.mode
                     && mode == FunctionMode::New
@@ -365,7 +358,7 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                 }
             }
 
-            Type::Error => {
+            TypeExpression::Error => {
                 write!(f, [token("/* ERROR */")])?;
             }
         }

@@ -171,10 +171,6 @@ fn format_expression_with_precedence<'ast>(
             format_expression_id_with_precedence(*expression, Precedence::Compare, f)?;
             write!(f, [space(), Keyword::Satisfies, space(), target_type])?;
         }
-        Expression::Is { value, target_type } => {
-            format_expression_id_with_precedence(*value, Precedence::Compare, f)?;
-            write!(f, [space(), Keyword::Is, space(), target_type])?;
-        }
         Expression::InstanceOf { value, target } => {
             format_expression_id_with_precedence(*value, Precedence::Compare, f)?;
             write!(f, [space(), Keyword::InstanceOf, space()])?;
@@ -270,29 +266,13 @@ fn format_expression_with_precedence<'ast>(
 
             write!(f, [token("!")])?;
         }
-        Expression::Member {
-            left,
-            name,
-            generic_arguments,
-        } => {
+        Expression::Member { left, name } => {
             format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
             write!(f, [token("."), *name])?;
-
-            if f.context().include_types() && !generic_arguments.is_empty() {
-                write!(f, [list_like("<", ">", ",", generic_arguments)])?;
-            }
         }
-        Expression::PrivateMember {
-            left,
-            name,
-            generic_arguments,
-        } => {
+        Expression::PrivateMember { left, name } => {
             format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
             write!(f, [token("."), token("#"), *name])?;
-
-            if f.context().include_types() && !generic_arguments.is_empty() {
-                write!(f, [list_like("<", ">", ",", generic_arguments)])?;
-            }
         }
         Expression::Index {
             position,

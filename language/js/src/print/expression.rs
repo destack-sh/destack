@@ -152,13 +152,6 @@ impl<'a> Printer<'a> {
                 self.write_punct(" ");
                 self.print_type_id(*target_type)?;
             }
-            Expression::Is { value, target_type } => {
-                self.print_expression_id_with_precedence(*value, Precedence::Compare)?;
-                self.write_punct(" ");
-                self.write_keyword(Keyword::Is);
-                self.write_punct(" ");
-                self.print_type_id(*target_type)?;
-            }
             Expression::InstanceOf { value, target } => {
                 self.print_expression_id_with_precedence(*value, Precedence::Compare)?;
                 self.write_punct(" ");
@@ -257,31 +250,15 @@ impl<'a> Printer<'a> {
 
                 self.write_punct("!");
             }
-            Expression::Member {
-                left,
-                name,
-                generic_arguments,
-            } => {
+            Expression::Member { left, name } => {
                 self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
                 self.write_punct(".");
                 self.write_string_id(*name);
-
-                if self.include_types && !generic_arguments.is_empty() {
-                    self.print_type_arguments(generic_arguments)?;
-                }
             }
-            Expression::PrivateMember {
-                left,
-                name,
-                generic_arguments,
-            } => {
+            Expression::PrivateMember { left, name } => {
                 self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
                 self.write_punct(".#");
                 self.write_string_id(*name);
-
-                if self.include_types && !generic_arguments.is_empty() {
-                    self.print_type_arguments(generic_arguments)?;
-                }
             }
             Expression::Index {
                 position,

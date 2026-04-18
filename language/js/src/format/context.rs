@@ -2,7 +2,7 @@ use crate::{
     Annotation, Argument, ArrayElement, Block, CatchClause, Declaration, Declarator,
     DependencyItem, EnumField, Expression, GenericParameter, LocalNodeId, LocalNodeIdAny, Member,
     Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Property, Statement,
-    SwitchCase, TupleElement, Type, TypeMember,
+    SwitchCase, TupleElement, TypeExpression, TypeMember,
 };
 use destack_core::ImmutableStringPool;
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
@@ -300,7 +300,7 @@ impl<'a> Format<JsFormatContext<'a>> for LocalNodeIdAny {
             NodeType::Declaration => LocalNodeId::<Declaration>::new(self.id).format(f),
             NodeType::Property => LocalNodeId::<Property>::new(self.id).format(f),
             NodeType::Member => LocalNodeId::<Member>::new(self.id).format(f),
-            NodeType::Type => LocalNodeId::<Type>::new(self.id).format(f),
+            NodeType::TypeExpression => LocalNodeId::<TypeExpression>::new(self.id).format(f),
             NodeType::TupleElement => LocalNodeId::<TupleElement>::new(self.id).format(f),
             NodeType::TypeMember => LocalNodeId::<TypeMember>::new(self.id).format(f),
             NodeType::EnumField => LocalNodeId::<EnumField>::new(self.id).format(f),

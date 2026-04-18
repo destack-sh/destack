@@ -8,7 +8,7 @@ use crate::{
     Annotation, Argument, ArrayElement, Block, CatchClause, Declaration, Declarator,
     DependencyItem, EnumField, Expression, GenericParameter, JsSourceMap, LocalNodeId,
     LocalNodeIdAny, Member, NOOP_JS_SOURCE_MAP, NodeTree, NodeType, Parameter, Pattern,
-    PatternField, Property, Statement, SwitchCase, TupleElement, Type, TypeMember,
+    PatternField, Property, Statement, SwitchCase, TupleElement, TypeExpression, TypeMember,
 };
 
 /// The result type for direct JS printing.
@@ -195,7 +195,7 @@ impl<'a> Printer<'a> {
             NodeType::Declarator => self.print_declarator_id(LocalNodeId::new(root_id.id)),
             NodeType::Property => self.print_property_id(LocalNodeId::new(root_id.id)),
             NodeType::Member => self.print_member_id(LocalNodeId::new(root_id.id)),
-            NodeType::Type => self.print_type_id(LocalNodeId::new(root_id.id)),
+            NodeType::TypeExpression => self.print_type_id(LocalNodeId::new(root_id.id)),
             NodeType::TupleElement => self.print_tuple_element_id(LocalNodeId::new(root_id.id)),
             NodeType::TypeMember => self.print_type_member_id(LocalNodeId::new(root_id.id)),
             NodeType::EnumField => self.print_enum_field_id(LocalNodeId::new(root_id.id)),
@@ -383,7 +383,10 @@ impl<'a> Printer<'a> {
     }
 
     /// Print one comma-separated type list.
-    pub(crate) fn print_type_list(&mut self, types: &[LocalNodeId<Type>]) -> JsPrintResult<()> {
+    pub(crate) fn print_type_list(
+        &mut self,
+        types: &[LocalNodeId<TypeExpression>],
+    ) -> JsPrintResult<()> {
         for (index, type_id) in types.iter().enumerate() {
             if index > 0 {
                 self.write_punct(",");
@@ -398,7 +401,7 @@ impl<'a> Printer<'a> {
     /// Print one generic type argument list.
     pub(crate) fn print_type_arguments(
         &mut self,
-        generic_arguments: &[LocalNodeId<Type>],
+        generic_arguments: &[LocalNodeId<TypeExpression>],
     ) -> JsPrintResult<()> {
         self.write_punct("<");
         self.print_type_list(generic_arguments)?;
@@ -582,7 +585,10 @@ impl<'a> Printer<'a> {
     }
 
     /// Print one type id.
-    pub(crate) fn print_type_id(&mut self, type_id: LocalNodeId<Type>) -> JsPrintResult<()> {
+    pub(crate) fn print_type_id(
+        &mut self,
+        type_id: LocalNodeId<TypeExpression>,
+    ) -> JsPrintResult<()> {
         self.print_with_node_markers(type_id.id, |this| {
             let tree = this.tree;
             let ty = tree.get(type_id);
@@ -740,7 +746,7 @@ impl<'a> Printer<'a> {
         match argument {
             // parser placeholders should never leak into emitted call syntax
             Argument::Positional { value } => self.expression_emits_code(*value),
-            Argument::Spread { .. } | Argument::Dynamic { .. } => true,
+            Argument::Spread { .. } => true,
         }
     }
 

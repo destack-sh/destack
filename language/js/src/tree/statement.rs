@@ -1,7 +1,7 @@
 use crate::{
-    Argument, AssignOperator, Asynchrony, Block, CatchClause, Declaration, DeclarationDescriptor,
-    Declarator, DependencyItem, DependencyKind, Expression, LocalNodeId, Mutability, Node,
-    NodeType, Pattern, StringId, SwitchCase,
+    AssignOperator, Asynchrony, Block, CatchClause, Declaration, DeclarationDescriptor, Declarator,
+    DependencyItem, DependencyKind, Expression, LocalNodeId, Mutability, Node, NodeType, Pattern,
+    Property, StringId, SwitchCase,
 };
 use destack_source::ModuleId;
 
@@ -19,8 +19,8 @@ pub enum DependencyAttributeClauseKind {
 pub struct DependencyAttributeClause {
     /// The clause introducer.
     pub kind: DependencyAttributeClauseKind,
-    /// The attribute arguments inside the clause body.
-    pub arguments: Vec<LocalNodeId<Argument>>,
+    /// The attribute entries inside the clause body.
+    pub properties: Vec<LocalNodeId<Property>>,
 }
 
 /// A Statement is a JS/TS top-level statement in some container/block.

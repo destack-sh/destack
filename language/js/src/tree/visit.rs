@@ -4,11 +4,11 @@ use crate::{
     Annotation, Argument, ArrayElement, Block, CatchClause, Declaration, Declarator,
     DependencyItem, EnumField, Expression, GenericParameter, LocalNodeId, Member, NodeTree,
     NodeType, Parameter, Pattern, PatternField, Property, Statement, SwitchCase, TupleElement,
-    Type, TypeMember, walk_annotation, walk_argument, walk_array_element, walk_block,
+    TypeExpression, TypeMember, walk_annotation, walk_argument, walk_array_element, walk_block,
     walk_catch_clause, walk_declaration, walk_declarator, walk_dependency_item, walk_enum_field,
     walk_expression, walk_generic_parameter, walk_member, walk_parameter, walk_pattern,
     walk_pattern_field, walk_property, walk_statement, walk_switch_case, walk_tuple_element,
-    walk_type, walk_type_member,
+    walk_type_expression, walk_type_member,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -162,9 +162,14 @@ pub trait NodeVisitor {
         walk_pattern_field(self, tree, id, field);
     }
 
-    /// Visit a type.
-    fn visit_type(&mut self, tree: &NodeTree, id: LocalNodeId<Type>, ty: &Type) {
-        walk_type(self, tree, id, ty);
+    /// Visit a type expression.
+    fn visit_type_expression(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<TypeExpression>,
+        type_expression: &TypeExpression,
+    ) {
+        walk_type_expression(self, tree, id, type_expression);
     }
 
     /// Visit a tuple element.
@@ -360,8 +365,13 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::PatternField, id.id);
     }
 
-    fn visit_type(&mut self, tree: &NodeTree, id: LocalNodeId<Type>, _ty: &Type) {
-        self.visit_any(tree, NodeType::Type, id.id);
+    fn visit_type_expression(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<TypeExpression>,
+        _type_expression: &TypeExpression,
+    ) {
+        self.visit_any(tree, NodeType::TypeExpression, id.id);
     }
 
     fn visit_tuple_element(

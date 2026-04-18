@@ -93,7 +93,6 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 modifiers,
                 key,
                 value,
-                default,
             } => {
                 // modifiers
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
@@ -102,13 +101,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // value
-                if let Some(value) = value {
-                    write!(f, [token(":"), space(), value])?;
-                }
-                // default
-                if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
-                }
+                write!(f, [token(":"), space(), value])?;
             }
             Property::Method {
                 modifiers,

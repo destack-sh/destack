@@ -734,7 +734,6 @@ mod tests {
             Expression::Member {
                 left: import_meta,
                 name: strings.intern("url"),
-                generic_arguments: None,
             },
         );
         let new_target = insert_expression(&mut tree, Expression::NewTarget);
@@ -743,7 +742,6 @@ mod tests {
             Expression::Member {
                 left: new_target,
                 name: strings.intern("name"),
-                generic_arguments: None,
             },
         );
         let printed = print_javascript_roots_minified(
@@ -777,9 +775,8 @@ mod tests {
             &mut tree,
             Property::Field {
                 modifiers: None,
-                key: Some(Key::Name(Name::Identifier(strings.intern("type")))),
-                value: Some(type_value),
-                default: None,
+                key: Key::Name(Name::Identifier(strings.intern("type"))),
+                value: type_value,
             },
         );
         let with_value = insert_expression(
@@ -792,9 +789,8 @@ mod tests {
             &mut tree,
             Property::Field {
                 modifiers: None,
-                key: Some(Key::Name(Name::Identifier(strings.intern("with")))),
-                value: Some(with_value),
-                default: None,
+                key: Key::Name(Name::Identifier(strings.intern("with"))),
+                value: with_value,
             },
         );
         let options = insert_expression(
@@ -827,7 +823,7 @@ mod tests {
             &mut tree,
             Expression::Path {
                 path: build_path(&strings, &["import", "meta"]),
-                generic_arguments: None,
+                generic_arguments: vec![],
             },
         );
         let target = insert_expression(
@@ -863,7 +859,7 @@ mod tests {
             &mut tree,
             Expression::Path {
                 path: build_path(&strings, &["foo"]),
-                generic_arguments: None,
+                generic_arguments: vec![],
             },
         );
         let optional_object = insert_expression(
@@ -878,14 +874,13 @@ mod tests {
             Expression::Member {
                 left: optional_object,
                 name: strings.intern("bar"),
-                generic_arguments: None,
             },
         );
         let fallback = insert_expression(
             &mut tree,
             Expression::Path {
                 path: build_path(&strings, &["fallback"]),
-                generic_arguments: None,
+                generic_arguments: vec![],
             },
         );
         let expression = insert_expression(
@@ -911,21 +906,21 @@ mod tests {
             &mut tree,
             Expression::Path {
                 path: build_path(&strings, &["a"]),
-                generic_arguments: None,
+                generic_arguments: vec![],
             },
         );
         let b = insert_expression(
             &mut tree,
             Expression::Path {
                 path: build_path(&strings, &["b"]),
-                generic_arguments: None,
+                generic_arguments: vec![],
             },
         );
         let c = insert_expression(
             &mut tree,
             Expression::Path {
                 path: build_path(&strings, &["c"]),
-                generic_arguments: None,
+                generic_arguments: vec![],
             },
         );
         let b_or_c = insert_expression(
@@ -1008,7 +1003,7 @@ mod tests {
             &mut tree,
             Expression::Path {
                 path: build_path(&strings, &["foo"]),
-                generic_arguments: None,
+                generic_arguments: vec![],
             },
         );
         let optional_foo = insert_expression(
@@ -1023,7 +1018,6 @@ mod tests {
             Expression::Member {
                 left: optional_foo,
                 name: strings.intern("bar"),
-                generic_arguments: None,
             },
         );
         let plain_chain = insert_expression(
@@ -1031,7 +1025,6 @@ mod tests {
             Expression::Member {
                 left: optional_member,
                 name: strings.intern("baz"),
-                generic_arguments: None,
             },
         );
         let grouped_optional_member = insert_expression(
@@ -1045,7 +1038,6 @@ mod tests {
             Expression::Member {
                 left: grouped_optional_member,
                 name: strings.intern("baz"),
-                generic_arguments: None,
             },
         );
         let printed = print_javascript_roots_minified(

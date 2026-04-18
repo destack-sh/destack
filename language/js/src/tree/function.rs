@@ -1,4 +1,4 @@
-use crate::{Asynchrony, GenericParameter, Keyword, LocalNodeId, Parameter, Type};
+use crate::{Asynchrony, GenericParameter, Keyword, LocalNodeId, Parameter, TypeExpression};
 
 /// The cardinality of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -69,5 +69,5 @@ pub struct FunctionSignature {
     /// The runtime parameters of the function.
     pub parameters: Vec<LocalNodeId<Parameter>>,
     /// The return type of the function.
-    pub return_type: Option<LocalNodeId<Type>>,
+    pub return_type: Option<LocalNodeId<TypeExpression>>,
 }

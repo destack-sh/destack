@@ -1,5 +1,6 @@
 use crate::{
-    Expression, LocalNodeId, Mutability, Node, NodeType, Pattern, StringId, Type, Visibility,
+    Expression, LocalNodeId, Mutability, Node, NodeType, Pattern, StringId, TypeExpression,
+    Visibility,
 };
 
 /// The type of a binding.
@@ -71,15 +72,8 @@ pub enum GenericParameter {
     Type {
         modifiers: Option<BindingModifier>,
         name: StringId,
-        constraint: Option<LocalNodeId<Type>>,
-        default: Option<LocalNodeId<Type>>,
-    },
-    /// Value parameter.
-    Value {
-        name: StringId,
-        declared_type: Option<LocalNodeId<Type>>,
-        default: Option<LocalNodeId<Expression>>,
-        is_comptime: bool,
+        constraint: Option<LocalNodeId<TypeExpression>>,
+        default: Option<LocalNodeId<TypeExpression>>,
     },
 }
 
@@ -94,27 +88,27 @@ pub enum Parameter {
     Named {
         modifiers: Option<BindingModifier>,
         name: StringId,
-        ty: Option<LocalNodeId<Type>>,
+        ty: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
     },
     /// Pattern parameter (like `_` or `{ x }` or `{ x, ..rest }: MyType = Foo`).
     Pattern {
         modifiers: Option<BindingModifier>,
         pattern: LocalNodeId<Pattern>,
-        ty: Option<LocalNodeId<Type>>,
+        ty: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
     },
     /// Variadic parameter with a named binding (like `...args: int32[]`).
     VariadicNamed {
         modifiers: Option<BindingModifier>,
         name: StringId,
-        ty: Option<LocalNodeId<Type>>,
+        ty: Option<LocalNodeId<TypeExpression>>,
     },
     /// Variadic parameter with a pattern binding (like `...[a, b]`).
     VariadicPattern {
         modifiers: Option<BindingModifier>,
         pattern: LocalNodeId<Pattern>,
-        ty: Option<LocalNodeId<Type>>,
+        ty: Option<LocalNodeId<TypeExpression>>,
     },
 }
 
@@ -129,11 +123,6 @@ pub enum Argument {
     Positional { value: LocalNodeId<Expression> },
     /// Spread argument (like `...args`).
     Spread { value: LocalNodeId<Expression> },
-    /// Dynamic argument (like `[variable]: 2`).
-    Dynamic {
-        key: LocalNodeId<Expression>,
-        value: LocalNodeId<Expression>,
-    },
 }
 
 impl Node for Argument {

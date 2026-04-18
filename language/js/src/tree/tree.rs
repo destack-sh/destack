@@ -9,8 +9,8 @@ use destack_source::ModuleId;
 use crate::{
     Annotation, Argument, ArrayElement, Block, CatchClause, Declaration, Declarator,
     DependencyItem, EnumField, Expression, GenericParameter, LocalNodeId, Member, Node, NodeType,
-    Parameter, Pattern, PatternField, Property, Statement, SwitchCase, TupleElement, Type,
-    TypeMember,
+    Parameter, Pattern, PatternField, Property, Statement, SwitchCase, TupleElement,
+    TypeExpression, TypeMember,
 };
 
 /// The local binding base name for one synthetic non-code module default.
@@ -58,7 +58,7 @@ pub struct NodeTree {
     pub(crate) declarators: Arena<Declarator>,
     pub(crate) properties: Arena<Property>,
     pub(crate) members: Arena<Member>,
-    pub(crate) types: Arena<Type>,
+    pub(crate) type_expressions: Arena<TypeExpression>,
     pub(crate) tuple_elements: Arena<TupleElement>,
     pub(crate) type_members: Arena<TypeMember>,
     pub(crate) enum_fields: Arena<EnumField>,
@@ -115,7 +115,7 @@ impl NodeTree {
             declarators: Arena::new(),
             properties: Arena::new(),
             members: Arena::new(),
-            types: Arena::new(),
+            type_expressions: Arena::new(),
             tuple_elements: Arena::new(),
             type_members: Arena::new(),
             enum_fields: Arena::new(),
@@ -355,7 +355,7 @@ impl_node_tree_stores! {
     Declarator => declarators,
     Property => properties,
     Member => members,
-    Type => types,
+    TypeExpression => type_expressions,
     TupleElement => tuple_elements,
     TypeMember => type_members,
     EnumField => enum_fields,
