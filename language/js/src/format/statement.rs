@@ -122,7 +122,7 @@ fn format_dependency_attributes<'ast>(
             space(),
             keyword,
             space(),
-            list_like("{", "}", ",", &attributes.arguments).include_space()
+            list_like("{", "}", ",", &attributes.properties).include_space()
         ]
     )
 }

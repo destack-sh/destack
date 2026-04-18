@@ -1,17 +1,17 @@
 use super::printer::Printer;
 use crate::{
     Argument, EnumField, FunctionMode, GenericParameter, JsPrintResult, Keyword, LocalNodeId,
-    Mutability, Parameter, Pattern, PatternField, TupleElement, Type, TypeMember, TypeModifier,
-    TypePredicateSubject,
+    Mutability, Parameter, Pattern, PatternField, TupleElement, TypeExpression, TypeMember,
+    TypeModifier, TypePredicateSubject,
 };
 
 impl<'a> Printer<'a> {
     /// Print one type.
-    pub(crate) fn print_type(&mut self, ty: &Type) -> JsPrintResult<()> {
+    pub(crate) fn print_type(&mut self, ty: &TypeExpression) -> JsPrintResult<()> {
         match ty {
-            Type::Scalar(scalar) => self.print_type_literal(scalar),
-            Type::This => self.write_keyword(Keyword::This),
-            Type::Path {
+            TypeExpression::Scalar(scalar) => self.print_type_literal(scalar),
+            TypeExpression::This => self.write_keyword(Keyword::This),
+            TypeExpression::Path {
                 path,
                 generic_arguments,
             } => {
@@ -21,54 +21,51 @@ impl<'a> Printer<'a> {
                     self.print_type_arguments(generic_arguments)?;
                 }
             }
-            Type::Expression(expression) => {
-                self.print_expression_id(*expression)?;
-            }
-            Type::Readonly { target_type } => {
+            TypeExpression::Readonly { target_type } => {
                 self.write_keyword(Keyword::Readonly);
                 self.write_punct(" ");
                 self.print_type_id(*target_type)?;
             }
-            Type::KeyOf { target_type } => {
+            TypeExpression::KeyOf { target_type } => {
                 self.write_keyword(Keyword::Keyof);
                 self.write_punct(" ");
                 self.print_type_id(*target_type)?;
             }
-            Type::Must { target_type } => {
+            TypeExpression::Must { target_type } => {
                 self.print_type_id(*target_type)?;
                 self.write_punct("!");
             }
-            Type::AsComptime { target_type } => {
+            TypeExpression::AsComptime { target_type } => {
                 self.print_type_id(*target_type)?;
                 self.write_punct(" ");
                 self.write_punct("as comptime");
             }
-            Type::Not { target_type } => {
+            TypeExpression::Not { target_type } => {
                 self.write_punct("!");
                 self.print_type_id(*target_type)?;
             }
-            Type::In { left, right } => {
+            TypeExpression::In { left, right } => {
                 self.print_type_id(*left)?;
                 self.write_punct(" ");
                 self.write_keyword(Keyword::In);
                 self.write_punct(" ");
                 self.print_type_id(*right)?;
             }
-            Type::Extends { left, right } => {
+            TypeExpression::Extends { left, right } => {
                 self.print_type_id(*left)?;
                 self.write_punct(" ");
                 self.write_keyword(Keyword::Extends);
                 self.write_punct(" ");
                 self.print_type_id(*right)?;
             }
-            Type::Implements { left, right } => {
+            TypeExpression::Implements { left, right } => {
                 self.print_type_id(*left)?;
                 self.write_punct(" ");
                 self.write_keyword(Keyword::Implements);
                 self.write_punct(" ");
                 self.print_type_id(*right)?;
             }
-            Type::Conditional {
+            TypeExpression::Conditional {
                 left,
                 right,
                 then_type,
@@ -84,7 +81,7 @@ impl<'a> Printer<'a> {
                 self.write_punct(":");
                 self.print_type_id(*else_type)?;
             }
-            Type::Mapped {
+            TypeExpression::Mapped {
                 parameter,
                 modifiers,
                 value,
@@ -114,7 +111,7 @@ impl<'a> Printer<'a> {
                 self.write_punct(" ");
                 self.write_keyword(Keyword::In);
                 self.write_punct(" ");
-                self.print_type_id(parameter.constraint)?;
+                self.print_type_id(parameter.source_type)?;
 
                 if let Some(key_remap) = parameter.key_remap {
                     self.write_punct(" ");
@@ -136,13 +133,13 @@ impl<'a> Printer<'a> {
                 self.print_type_id(*value)?;
                 self.write_punct("}");
             }
-            Type::Index { left, index } => {
+            TypeExpression::Index { left, index } => {
                 self.print_type_id(*left)?;
                 self.write_punct("[");
                 self.print_type_id(*index)?;
                 self.write_punct("]");
             }
-            Type::TemplateLiteral(template) => {
+            TypeExpression::TemplateLiteral(template) => {
                 self.write_punct("`");
 
                 for (index, string) in template.strings.iter().enumerate() {
@@ -157,7 +154,7 @@ impl<'a> Printer<'a> {
 
                 self.write_punct("`");
             }
-            Type::Import {
+            TypeExpression::Import {
                 target,
                 qualifier,
                 generic_arguments,
@@ -176,7 +173,7 @@ impl<'a> Printer<'a> {
                     self.print_type_arguments(generic_arguments)?;
                 }
             }
-            Type::Infer { name, constraint } => {
+            TypeExpression::Infer { name, constraint } => {
                 self.write_keyword(Keyword::Infer);
                 self.write_punct(" ");
                 self.write_string_id(*name);
@@ -188,7 +185,7 @@ impl<'a> Printer<'a> {
                     self.print_type_id(*constraint)?;
                 }
             }
-            Type::Predicate {
+            TypeExpression::Predicate {
                 asserts,
                 subject,
                 target,
@@ -199,7 +196,7 @@ impl<'a> Printer<'a> {
                 }
 
                 match subject {
-                    TypePredicateSubject::Name(name) => self.write_string_id(*name),
+                    TypePredicateSubject::Identifier(name) => self.write_string_id(*name),
                     TypePredicateSubject::This => self.write_keyword(Keyword::This),
                 }
 
@@ -210,25 +207,21 @@ impl<'a> Printer<'a> {
                     self.print_type_id(*target)?;
                 }
             }
-            Type::Array { element } => {
-                if let Some(element) = element {
-                    self.print_type_id(*element)?;
-                    self.write_punct("[]");
-                } else {
-                    self.write_punct("Array<any>");
-                }
+            TypeExpression::Array { element } => {
+                self.print_type_id(*element)?;
+                self.write_punct("[]");
             }
-            Type::Tuple { elements } => {
+            TypeExpression::Tuple { elements } => {
                 self.write_punct("[");
                 self.print_tuple_element_list(elements)?;
                 self.write_punct("]");
             }
-            Type::Object { properties } => {
+            TypeExpression::Object { members } => {
                 self.write_punct("{");
-                self.print_type_member_list(properties)?;
+                self.print_type_member_list(members)?;
                 self.write_punct("}");
             }
-            Type::Union { elements } => {
+            TypeExpression::Union { elements } => {
                 for (index, type_id) in elements.iter().enumerate() {
                     if index > 0 {
                         self.write_punct("|");
@@ -237,7 +230,7 @@ impl<'a> Printer<'a> {
                     self.print_type_id(*type_id)?;
                 }
             }
-            Type::Intersection { elements } => {
+            TypeExpression::Intersection { elements } => {
                 for (index, type_id) in elements.iter().enumerate() {
                     if index > 0 {
                         self.write_punct("&");
@@ -246,7 +239,7 @@ impl<'a> Printer<'a> {
                     self.print_type_id(*type_id)?;
                 }
             }
-            Type::Function { signature } => {
+            TypeExpression::Function { signature } => {
                 if let Some(mode) = signature.mode
                     && mode == FunctionMode::New
                 {
@@ -268,7 +261,7 @@ impl<'a> Printer<'a> {
                     self.print_type_id(return_type)?;
                 }
             }
-            Type::Error => self.write_punct("/* ERROR */"),
+            TypeExpression::Error => self.write_punct("/* ERROR */"),
         }
 
         Ok(())
@@ -326,7 +319,7 @@ impl<'a> Printer<'a> {
         match type_member {
             TypeMember::Field { modifiers, key, ty } => {
                 self.print_binding_modifiers_prefix(*modifiers);
-                self.print_optional_key(*key)?;
+                self.print_key(*key)?;
                 self.print_binding_modifiers_postfix(*modifiers);
                 self.write_punct(":");
                 self.print_type_id(*ty)?;
@@ -623,30 +616,6 @@ impl<'a> Printer<'a> {
                     self.print_type_id(*default)?;
                 }
             }
-            GenericParameter::Value {
-                name,
-                declared_type,
-                default,
-                is_comptime,
-            } => {
-                if *is_comptime {
-                    self.write_keyword(Keyword::Comptime);
-                }
-
-                self.write_string_id(*name);
-
-                if self.include_types
-                    && let Some(declared_type) = declared_type
-                {
-                    self.write_punct(":");
-                    self.print_type_id(*declared_type)?;
-                }
-
-                if let Some(default) = default {
-                    self.write_punct("=");
-                    self.print_expression_id(*default)?;
-                }
-            }
         }
 
         Ok(())
@@ -677,12 +646,6 @@ impl<'a> Printer<'a> {
                 self.write_punct("...");
                 self.print_expression_id(*value)?;
             }
-            Argument::Dynamic { key, value } => {
-                self.write_punct("[");
-                self.print_expression_id(*key)?;
-                self.write_punct("]:");
-                self.print_expression_id(*value)?;
-            }
         }
 
         Ok(())
@@ -700,7 +663,7 @@ mod tests {
     use crate::{
         Asynchrony, FunctionCardinality, FunctionKind, FunctionSignature, GenericParameter,
         JsFormatContext, JsFormatOptions, LocalNodeId, LocalNodeIdAny, NOOP_JS_SOURCE_MAP,
-        NodeTree, Parameter, Path, PrimitiveType, ScalarLiteral, Type, TypeLiteral,
+        NodeTree, Parameter, Path, PrimitiveType, ScalarLiteral, TypeExpression, TypeLiteral,
         TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypePredicateSubject,
         TypeTemplateLiteral, format_roots, print_roots_minified,
     };
@@ -709,7 +672,7 @@ mod tests {
         dir::LocalNodeIdAny::new(0, dir::NodeType::Expression)
     }
 
-    fn insert_type(tree: &mut NodeTree, ty: Type) -> LocalNodeId<Type> {
+    fn insert_type(tree: &mut NodeTree, ty: Type) -> LocalNodeId<TypeExpression> {
         tree.insert_from_source_any(ty, ModuleId::EPHEMERAL, dummy_source_id())
     }
 
@@ -736,7 +699,7 @@ mod tests {
     fn build_modern_type_roots(tree: &mut NodeTree, strings: &StringPool) -> Vec<LocalNodeIdAny> {
         let type_parameter_t = insert_type(
             tree,
-            Type::Path {
+            TypeExpression::Path {
                 path: build_path(strings, &["T"]),
                 generic_arguments: vec![],
             },
@@ -746,29 +709,29 @@ mod tests {
 
         let infer_u = insert_type(
             tree,
-            Type::Infer {
+            TypeExpression::Infer {
                 name: type_parameter_u,
                 constraint: None,
             },
         );
         let boxed_u_span = insert_type(
             tree,
-            Type::Path {
+            TypeExpression::Path {
                 path: build_path(strings, &["U"]),
                 generic_arguments: vec![],
             },
         );
         let boxed_u = insert_type(
             tree,
-            Type::TemplateLiteral(TypeTemplateLiteral {
+            TypeExpression::TemplateLiteral(TypeTemplateLiteral {
                 strings: vec![strings.intern("box:"), strings.intern("")],
                 spans: vec![boxed_u_span],
             }),
         );
-        let never = insert_type(tree, Type::Scalar(TypeLiteral::Never));
+        let never = insert_type(tree, TypeExpression::Scalar(TypeLiteral::Never));
         let conditional = insert_type(
             tree,
-            Type::Conditional {
+            TypeExpression::Conditional {
                 left: type_parameter_t,
                 right: infer_u,
                 then_type: boxed_u,
@@ -778,11 +741,11 @@ mod tests {
 
         let string_type = insert_type(
             tree,
-            Type::Scalar(TypeLiteral::Primitive(PrimitiveType::String)),
+            TypeExpression::Scalar(TypeLiteral::Primitive(PrimitiveType::String)),
         );
         let imported_box = insert_type(
             tree,
-            Type::Import {
+            TypeExpression::Import {
                 target: strings.intern("./shared"),
                 qualifier: Some(build_path(strings, &["Box"])),
                 generic_arguments: vec![string_type],
@@ -790,13 +753,13 @@ mod tests {
         );
         let value_key = insert_type(
             tree,
-            Type::Scalar(TypeLiteral::ScalarLiteral(ScalarLiteral::String(
+            TypeExpression::Scalar(TypeLiteral::ScalarLiteral(ScalarLiteral::String(
                 strings.intern("value"),
             ))),
         );
         let import_index = insert_type(
             tree,
-            Type::Index {
+            TypeExpression::Index {
                 left: imported_box,
                 index: value_key,
             },
@@ -804,58 +767,58 @@ mod tests {
 
         let keyof_target = insert_type(
             tree,
-            Type::Path {
+            TypeExpression::Path {
                 path: build_path(strings, &["T"]),
                 generic_arguments: vec![],
             },
         );
         let keyof_t = insert_type(
             tree,
-            Type::KeyOf {
+            TypeExpression::KeyOf {
                 target_type: keyof_target,
             },
         );
         let key_remap_span = insert_type(
             tree,
-            Type::Path {
+            TypeExpression::Path {
                 path: build_path(strings, &["K"]),
                 generic_arguments: vec![],
             },
         );
         let key_remap = insert_type(
             tree,
-            Type::TemplateLiteral(TypeTemplateLiteral {
+            TypeExpression::TemplateLiteral(TypeTemplateLiteral {
                 strings: vec![strings.intern("box:"), strings.intern("")],
                 spans: vec![key_remap_span],
             }),
         );
         let mapped_value_left = insert_type(
             tree,
-            Type::Path {
+            TypeExpression::Path {
                 path: build_path(strings, &["T"]),
                 generic_arguments: vec![],
             },
         );
         let mapped_value_index = insert_type(
             tree,
-            Type::Path {
+            TypeExpression::Path {
                 path: build_path(strings, &["K"]),
                 generic_arguments: vec![],
             },
         );
         let mapped_value = insert_type(
             tree,
-            Type::Index {
+            TypeExpression::Index {
                 left: mapped_value_left,
                 index: mapped_value_index,
             },
         );
         let mapped = insert_type(
             tree,
-            Type::Mapped {
+            TypeExpression::Mapped {
                 parameter: TypeMappedParameter {
                     name: type_parameter_k,
-                    constraint: keyof_t,
+                    source_type: keyof_t,
                     key_remap: Some(key_remap),
                 },
                 modifiers: TypeMappedModifiers {
@@ -868,13 +831,13 @@ mod tests {
 
         let predicate_argument = insert_type(
             tree,
-            Type::Scalar(TypeLiteral::ScalarLiteral(ScalarLiteral::String(
+            TypeExpression::Scalar(TypeLiteral::ScalarLiteral(ScalarLiteral::String(
                 strings.intern("alpha"),
             ))),
         );
         let predicate_target = insert_type(
             tree,
-            Type::Import {
+            TypeExpression::Import {
                 target: strings.intern("./shared"),
                 qualifier: Some(build_path(strings, &["Box"])),
                 generic_arguments: vec![predicate_argument],
@@ -882,20 +845,20 @@ mod tests {
         );
         let predicate = insert_type(
             tree,
-            Type::Predicate {
+            TypeExpression::Predicate {
                 asserts: true,
-                subject: TypePredicateSubject::Name(strings.intern("value")),
+                subject: TypePredicateSubject::Identifier(strings.intern("value")),
                 target: Some(predicate_target),
             },
         );
 
         let generic_constraint = insert_type(
             tree,
-            Type::Scalar(TypeLiteral::Primitive(PrimitiveType::String)),
+            TypeExpression::Scalar(TypeLiteral::Primitive(PrimitiveType::String)),
         );
         let generic_default = insert_type(
             tree,
-            Type::Scalar(TypeLiteral::ScalarLiteral(ScalarLiteral::String(
+            TypeExpression::Scalar(TypeLiteral::ScalarLiteral(ScalarLiteral::String(
                 strings.intern("alpha"),
             ))),
         );
@@ -910,7 +873,7 @@ mod tests {
         );
         let dynamic_parameter_type = insert_type(
             tree,
-            Type::Path {
+            TypeExpression::Path {
                 path: build_path(strings, &["T"]),
                 generic_arguments: vec![],
             },
@@ -926,14 +889,14 @@ mod tests {
         );
         let function_return_type = insert_type(
             tree,
-            Type::Path {
+            TypeExpression::Path {
                 path: build_path(strings, &["T"]),
                 generic_arguments: vec![],
             },
         );
         let function_type = insert_type(
             tree,
-            Type::Function {
+            TypeExpression::Function {
                 signature: FunctionSignature {
                     is_abstract: false,
                     is_override: false,

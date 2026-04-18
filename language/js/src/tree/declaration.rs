@@ -1,6 +1,6 @@
 use crate::{
     BindingAnchor, Block, DependencyMode, Expression, FunctionSignature, GenericParameter,
-    LocalNodeId, Member, Name, Node, NodeType, Statement, StringId, Type,
+    LocalNodeId, Member, Name, Node, NodeType, Statement, StringId, TypeExpression, TypeMember,
 };
 
 /// The kind of declaration.
@@ -62,7 +62,7 @@ pub struct TypeDeclaration {
     /// The generic parameters of the declaration.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The declared type value.
-    pub value: LocalNodeId<Type>,
+    pub value: LocalNodeId<TypeExpression>,
 }
 
 /// A class declaration.
@@ -74,8 +74,10 @@ pub struct ClassDeclaration {
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The optional extended class expression.
     pub extends_expression: Option<LocalNodeId<Expression>>,
+    /// The generic arguments applied to the extended class expression.
+    pub extends_generic_arguments: Vec<LocalNodeId<TypeExpression>>,
     /// The implemented interface types.
-    pub implements_types: Vec<LocalNodeId<Type>>,
+    pub implements_types: Vec<LocalNodeId<TypeExpression>>,
     /// The class members.
     pub members: Vec<LocalNodeId<Member>>,
 }
@@ -88,9 +90,9 @@ pub struct InterfaceDeclaration {
     /// The generic parameters of the declaration.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The extended interface types.
-    pub extends_types: Vec<LocalNodeId<Type>>,
+    pub extends_types: Vec<LocalNodeId<TypeExpression>>,
     /// The interface members.
-    pub members: Vec<LocalNodeId<Member>>,
+    pub members: Vec<LocalNodeId<TypeMember>>,
 }
 
 /// An enum declaration.

@@ -39,7 +39,7 @@ impl<'a> Printer<'a> {
 
                     self.write_keyword(keyword);
                     self.write_punct("{");
-                    self.print_argument_list(&attributes.arguments)?;
+                    self.print_property_list(&attributes.properties)?;
                     self.write_punct("}");
                 }
             }
@@ -67,7 +67,7 @@ impl<'a> Printer<'a> {
 
                     self.write_keyword(keyword);
                     self.write_punct("{");
-                    self.print_argument_list(&attributes.arguments)?;
+                    self.print_property_list(&attributes.properties)?;
                     self.write_punct("}");
                 }
             }

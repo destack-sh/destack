@@ -1,5 +1,6 @@
 use crate::{
-    BindingModifier, Block, Expression, FunctionSignature, Key, LocalNodeId, Node, NodeType, Type,
+    BindingModifier, Block, Expression, FunctionSignature, Key, LocalNodeId, Node, NodeType,
+    TypeExpression,
 };
 
 /// A Property is a property of an object literal (may be a field, method, or spread).
@@ -8,9 +9,8 @@ pub enum Property {
     /// Named field (like `x: int32`).
     Field {
         modifiers: Option<BindingModifier>,
-        key: Option<Key>,
-        value: Option<LocalNodeId<Expression>>,
-        default: Option<LocalNodeId<Expression>>,
+        key: Key,
+        value: LocalNodeId<Expression>,
     },
     /// Named member function (like `foo()` or `<T>(): T`).
     Method {
@@ -36,8 +36,8 @@ pub enum Member {
     /// Named field (like `x: int32`).
     Field {
         modifiers: Option<BindingModifier>,
-        key: Option<Key>,
-        value: Option<LocalNodeId<Type>>,
+        key: Key,
+        value: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
     },
     /// Named member function (like `foo()` or `<T>(): T`).

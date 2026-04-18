@@ -1,6 +1,6 @@
 use crate::{
-    BindingModifier, Expression, FunctionSignature, Key, LocalNodeId, Node, NodeType, Path,
-    ScalarLiteral, StringId,
+    BindingModifier, FunctionSignature, Key, LocalNodeId, Node, NodeType, Path, ScalarLiteral,
+    StringId,
 };
 
 /// A PrimitiveType is a primitive type node.
@@ -70,17 +70,17 @@ pub struct TypeMappedModifiers {
 pub struct TypeMappedParameter {
     /// The parameter name.
     pub name: StringId,
-    /// The parameter constraint.
-    pub constraint: LocalNodeId<Type>,
+    /// The source type iterated by `in`.
+    pub source_type: LocalNodeId<TypeExpression>,
     /// The optional key remap.
-    pub key_remap: Option<LocalNodeId<Type>>,
+    pub key_remap: Option<LocalNodeId<TypeExpression>>,
 }
 
 /// One type predicate subject.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypePredicateSubject {
-    /// One named subject.
-    Name(StringId),
+    /// One identifier subject.
+    Identifier(StringId),
     /// The `this` subject.
     This,
 }
@@ -91,12 +91,12 @@ pub struct TypeTemplateLiteral {
     /// The raw template strings.
     pub strings: Vec<StringId>,
     /// The interpolated type spans.
-    pub spans: Vec<LocalNodeId<Type>>,
+    pub spans: Vec<LocalNodeId<TypeExpression>>,
 }
 
-/// A Type is a Typescript type.
+/// A TypeExpression is a TypeScript type expression.
 #[derive(Debug, Clone, PartialEq)]
-pub enum Type {
+pub enum TypeExpression {
     /// Scalar type literal.
     Scalar(TypeLiteral),
     /// This type.
@@ -104,52 +104,60 @@ pub enum Type {
     /// Path to something.
     Path {
         path: Path,
-        generic_arguments: Vec<LocalNodeId<Type>>,
+        generic_arguments: Vec<LocalNodeId<TypeExpression>>,
     },
-    /// Expression (unevaluated).
-    Expression(LocalNodeId<Expression>),
     /// `readonly T`.
-    Readonly { target_type: LocalNodeId<Type> },
+    Readonly {
+        target_type: LocalNodeId<TypeExpression>,
+    },
     /// `keyof T`.
-    KeyOf { target_type: LocalNodeId<Type> },
+    KeyOf {
+        target_type: LocalNodeId<TypeExpression>,
+    },
     /// `T!`.
-    Must { target_type: LocalNodeId<Type> },
+    Must {
+        target_type: LocalNodeId<TypeExpression>,
+    },
     /// `T as comptime`.
-    AsComptime { target_type: LocalNodeId<Type> },
+    AsComptime {
+        target_type: LocalNodeId<TypeExpression>,
+    },
     /// `!T`.
-    Not { target_type: LocalNodeId<Type> },
+    Not {
+        target_type: LocalNodeId<TypeExpression>,
+    },
     /// `T in U`.
     In {
-        left: LocalNodeId<Type>,
-        right: LocalNodeId<Type>,
+        left: LocalNodeId<TypeExpression>,
+        right: LocalNodeId<TypeExpression>,
     },
     /// `T extends U`.
     Extends {
-        left: LocalNodeId<Type>,
-        right: LocalNodeId<Type>,
+        left: LocalNodeId<TypeExpression>,
+        right: LocalNodeId<TypeExpression>,
     },
     /// `T implements U`.
     Implements {
-        left: LocalNodeId<Type>,
-        right: LocalNodeId<Type>,
+        left: LocalNodeId<TypeExpression>,
+        right: LocalNodeId<TypeExpression>,
     },
     /// Conditional type.
     Conditional {
-        left: LocalNodeId<Type>,
-        right: LocalNodeId<Type>,
-        then_type: LocalNodeId<Type>,
-        else_type: LocalNodeId<Type>,
+        left: LocalNodeId<TypeExpression>,
+        right: LocalNodeId<TypeExpression>,
+        then_type: LocalNodeId<TypeExpression>,
+        else_type: LocalNodeId<TypeExpression>,
     },
     /// Mapped type.
     Mapped {
         parameter: TypeMappedParameter,
         modifiers: TypeMappedModifiers,
-        value: LocalNodeId<Type>,
+        value: LocalNodeId<TypeExpression>,
     },
     /// Index access type.
     Index {
-        left: LocalNodeId<Type>,
-        index: LocalNodeId<Type>,
+        left: LocalNodeId<TypeExpression>,
+        index: LocalNodeId<TypeExpression>,
     },
     /// Template literal type.
     TemplateLiteral(TypeTemplateLiteral),
@@ -157,34 +165,40 @@ pub enum Type {
     Import {
         target: StringId,
         qualifier: Option<Path>,
-        generic_arguments: Vec<LocalNodeId<Type>>,
+        generic_arguments: Vec<LocalNodeId<TypeExpression>>,
     },
     /// Infer type binding.
     Infer {
         name: StringId,
-        constraint: Option<LocalNodeId<Type>>,
+        constraint: Option<LocalNodeId<TypeExpression>>,
     },
     /// Type predicate.
     Predicate {
         asserts: bool,
         subject: TypePredicateSubject,
-        target: Option<LocalNodeId<Type>>,
+        target: Option<LocalNodeId<TypeExpression>>,
     },
 
     /// Array type `T[]`.
-    Array { element: Option<LocalNodeId<Type>> },
+    Array {
+        element: LocalNodeId<TypeExpression>,
+    },
     /// Tuple type `[T1, T2, ...]`.
     Tuple {
         elements: Vec<LocalNodeId<TupleElement>>,
     },
     /// Object type `{ a: T1, b: T2, ... }`.
     Object {
-        properties: Vec<LocalNodeId<TypeMember>>,
+        members: Vec<LocalNodeId<TypeMember>>,
     },
     /// Union type `A | B | C`.
-    Union { elements: Vec<LocalNodeId<Type>> },
+    Union {
+        elements: Vec<LocalNodeId<TypeExpression>>,
+    },
     /// Intersection type `A & B & C`.
-    Intersection { elements: Vec<LocalNodeId<Type>> },
+    Intersection {
+        elements: Vec<LocalNodeId<TypeExpression>>,
+    },
     /// Function type `(T1, T2, ...) -> T`.
     Function { signature: FunctionSignature },
 
@@ -192,8 +206,8 @@ pub enum Type {
     Error,
 }
 
-impl Node for Type {
-    const TYPE: NodeType = NodeType::Type;
+impl Node for TypeExpression {
+    const TYPE: NodeType = NodeType::TypeExpression;
 }
 
 /// One tuple type element.
@@ -202,7 +216,7 @@ pub struct TupleElement {
     /// The optional element label.
     pub label: Option<StringId>,
     /// The element type.
-    pub ty: LocalNodeId<Type>,
+    pub ty: LocalNodeId<TypeExpression>,
     /// Whether the element is optional.
     pub is_optional: bool,
     /// Whether the element is readonly.
@@ -221,8 +235,8 @@ pub enum TypeMember {
     /// Named field (like `a: T`).
     Field {
         modifiers: Option<BindingModifier>,
-        key: Option<Key>,
-        ty: LocalNodeId<Type>,
+        key: Key,
+        ty: LocalNodeId<TypeExpression>,
     },
     /// Named method (like `foo(): T`).
     Method {
@@ -234,8 +248,8 @@ pub enum TypeMember {
     IndexSignature {
         modifiers: Option<BindingModifier>,
         name: StringId,
-        key_type: LocalNodeId<Type>,
-        value_type: LocalNodeId<Type>,
+        key_type: LocalNodeId<TypeExpression>,
+        value_type: LocalNodeId<TypeExpression>,
     },
 }
 

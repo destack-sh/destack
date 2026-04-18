@@ -1,6 +1,7 @@
 use crate::{
     Argument, AssignOperator, BinaryOperator, Block, Declaration, FunctionSignature, LocalNodeId,
-    Node, NodeType, Path, Property, ScalarLiteral, StringId, TemplateLiteral, Type, UnaryOperator,
+    Node, NodeType, Path, Property, ScalarLiteral, StringId, TemplateLiteral, TypeExpression,
+    UnaryOperator,
 };
 use destack_source::ModuleId;
 
@@ -24,7 +25,7 @@ pub enum Expression {
     /// Path.
     Path {
         path: Path,
-        generic_arguments: Vec<LocalNodeId<Type>>,
+        generic_arguments: Vec<LocalNodeId<TypeExpression>>,
     },
     /// Import meta expression.
     ImportMeta,
@@ -59,17 +60,12 @@ pub enum Expression {
     /// TypeScript-style `as` assertion.
     As {
         expression: LocalNodeId<Expression>,
-        target_type: LocalNodeId<Type>,
+        target_type: LocalNodeId<TypeExpression>,
     },
     /// TypeScript-style `satisfies` expression.
     Satisfies {
         expression: LocalNodeId<Expression>,
-        target_type: LocalNodeId<Type>,
-    },
-    /// Runtime type guard.
-    Is {
-        value: LocalNodeId<Expression>,
-        target_type: LocalNodeId<Type>,
+        target_type: LocalNodeId<TypeExpression>,
     },
     /// Runtime constructor guard.
     InstanceOf {
@@ -114,13 +110,11 @@ pub enum Expression {
     Member {
         left: LocalNodeId<Expression>,
         name: StringId,
-        generic_arguments: Vec<LocalNodeId<Type>>,
     },
     /// Private member access.
     PrivateMember {
         left: LocalNodeId<Expression>,
         name: StringId,
-        generic_arguments: Vec<LocalNodeId<Type>>,
     },
     /// Index.
     Index {
@@ -131,13 +125,13 @@ pub enum Expression {
     /// Instantiation expression.
     Instantiation {
         left: LocalNodeId<Expression>,
-        generic_arguments: Vec<LocalNodeId<Type>>,
+        generic_arguments: Vec<LocalNodeId<TypeExpression>>,
     },
     /// Call.
     Call {
         position: PostfixPosition,
         left: LocalNodeId<Expression>,
-        generic_arguments: Vec<LocalNodeId<Type>>,
+        generic_arguments: Vec<LocalNodeId<TypeExpression>>,
         arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Dynamic import call.
@@ -156,7 +150,7 @@ pub enum Expression {
     /// New.
     New {
         left: LocalNodeId<Expression>,
-        generic_arguments: Vec<LocalNodeId<Type>>,
+        generic_arguments: Vec<LocalNodeId<TypeExpression>>,
         arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Arrow function expression.
@@ -312,10 +306,9 @@ impl Expression {
             Self::Assign { .. } | Self::AssignBinary { .. } => Precedence::Assignment,
             Self::IfTernary { .. } => Precedence::Conditional,
             Self::Binary { operator, .. } => operator.precedence(),
-            Self::As { .. }
-            | Self::Satisfies { .. }
-            | Self::Is { .. }
-            | Self::InstanceOf { .. } => Precedence::Compare,
+            Self::As { .. } | Self::Satisfies { .. } | Self::InstanceOf { .. } => {
+                Precedence::Compare
+            }
             Self::Await { .. } | Self::Unary { .. } => Precedence::Prefix,
             Self::Maybe { .. }
             | Self::Must { .. }

@@ -203,28 +203,6 @@ pub(crate) fn format_type_parameter<'ast>(
                 write!(f, [space(), token("="), space(), default])?;
             }
         }
-        GenericParameter::Value {
-            name,
-            declared_type,
-            default,
-            is_comptime,
-        } => {
-            if *is_comptime {
-                write!(f, [Keyword::Comptime, space()])?;
-            }
-
-            write!(f, [name])?;
-
-            if f.context().include_types()
-                && let Some(declared_type) = declared_type
-            {
-                write!(f, [token(":"), space(), declared_type])?;
-            }
-
-            if let Some(default) = default {
-                write!(f, [space(), token("="), space(), default])?;
-            }
-        }
     }
 
     Ok(())
@@ -365,9 +343,6 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
             }
             Argument::Spread { value } => {
                 write!(f, [token("..."), value])?;
-            }
-            Argument::Dynamic { key, value } => {
-                write!(f, [token("["), key, token("]"), token(":"), space(), value])?;
             }
         }
         Ok(())

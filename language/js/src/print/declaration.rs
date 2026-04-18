@@ -62,6 +62,7 @@ impl<'a> Printer<'a> {
                 let descriptor = &class.descriptor;
                 let generic_parameters = &class.generic_parameters;
                 let extends_expression = class.extends_expression;
+                let extends_generic_arguments = &class.extends_generic_arguments;
                 let implements_types = &class.implements_types;
                 let members = &class.members;
 
@@ -81,6 +82,10 @@ impl<'a> Printer<'a> {
                         extends_expression_node,
                         Precedence::Lowest,
                     )?;
+
+                    if self.include_types && !extends_generic_arguments.is_empty() {
+                        self.print_type_arguments(extends_generic_arguments)?;
+                    }
                 }
 
                 if self.include_types && !implements_types.is_empty() {
@@ -112,7 +117,7 @@ impl<'a> Printer<'a> {
                 }
 
                 self.write_punct("{");
-                self.print_member_list(members)?;
+                self.print_type_member_list(members)?;
                 self.write_punct("}");
             }
             Declaration::Enum(enum_declaration) => {
@@ -265,21 +270,12 @@ impl<'a> Printer<'a> {
                 modifiers,
                 key,
                 value,
-                default,
             } => {
                 self.print_binding_modifiers_prefix(*modifiers);
-                self.print_optional_key(*key)?;
+                self.print_key(*key)?;
                 self.print_binding_modifiers_postfix(*modifiers);
-
-                if let Some(value) = value {
-                    self.write_punct(":");
-                    self.print_expression_id(*value)?;
-                }
-
-                if let Some(default) = default {
-                    self.write_punct("=");
-                    self.print_expression_id(*default)?;
-                }
+                self.write_punct(":");
+                self.print_expression_id(*value)?;
             }
             Property::Method {
                 modifiers,
@@ -313,7 +309,7 @@ impl<'a> Printer<'a> {
                 default,
             } => {
                 self.print_binding_modifiers_prefix(*modifiers);
-                self.print_optional_key(*key)?;
+                self.print_key(*key)?;
                 self.print_binding_modifiers_postfix(*modifiers);
 
                 if let Some(value) = value {

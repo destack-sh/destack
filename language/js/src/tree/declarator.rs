@@ -1,4 +1,4 @@
-use crate::{Expression, LocalNodeId, Node, NodeType, Pattern, Type};
+use crate::{Expression, LocalNodeId, Node, NodeType, Pattern, TypeExpression};
 
 /// A Declarator is an individual variable declaration within a let/const/var statement.
 /// For example, in `let a: T1 = v1, b: T2 = v2`, there are two declarators.
@@ -7,7 +7,7 @@ pub struct Declarator {
     /// The pattern to bind (can be a simple identifier or destructuring pattern).
     pub pattern: LocalNodeId<Pattern>,
     /// Optional type annotation.
-    pub ty: Option<LocalNodeId<Type>>,
+    pub ty: Option<LocalNodeId<TypeExpression>>,
     /// Optional value expression.
     pub value: Option<LocalNodeId<Expression>>,
 }

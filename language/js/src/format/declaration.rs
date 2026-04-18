@@ -1,13 +1,13 @@
 use crate::{
     Asynchrony, Declaration, DeclarationKind, DependencyMode, EnumField, FunctionCardinality,
-    Keyword, LocalNodeId, Type, Visibility,
+    Keyword, LocalNodeId, TypeExpression, Visibility,
 };
 use destack_fir::format::FormatResult;
 
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 
-use crate::format::argument::format_type_parameter_list;
+use crate::format::argument::{format_type_parameter_list, list_like};
 use crate::format::block::format_block_of_statements;
 use crate::format::function::format_function_signature_parameters;
 use crate::{FormatNode, JsFormatContext, JsFormatter};
@@ -16,7 +16,7 @@ use crate::{FormatNode, JsFormatContext, JsFormatter};
 pub(crate) fn format_super_type_clause<'ast>(
     f: &mut JsFormatter<'ast, '_>,
     keyword: Keyword,
-    types: &[LocalNodeId<Type>],
+    types: &[LocalNodeId<TypeExpression>],
 ) -> FormatResult<()> {
     assert!(!types.is_empty());
 
@@ -167,6 +167,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 let descriptor = &class.descriptor;
                 let generic_parameters = &class.generic_parameters;
                 let extends_expression = class.extends_expression;
+                let extends_generic_arguments = &class.extends_generic_arguments;
                 let implements_types = &class.implements_types;
                 let members = &class.members;
 
@@ -196,6 +197,10 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 // extends expression
                 if let Some(extends_expression) = extends_expression {
                     write!(f, [space(), Keyword::Extends, space(), extends_expression])?;
+
+                    if f.context().include_types() && !extends_generic_arguments.is_empty() {
+                        write!(f, [list_like("<", ">", ",", extends_generic_arguments)])?;
+                    }
                 }
 
                 // implements types
