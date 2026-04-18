@@ -270,12 +270,16 @@ impl<'a> Printer<'a> {
                 modifiers,
                 key,
                 value,
+                is_shorthand,
             } => {
                 self.print_binding_modifiers_prefix(*modifiers);
                 self.print_key(*key)?;
                 self.print_binding_modifiers_postfix(*modifiers);
-                self.write_punct(":");
-                self.print_expression_id(*value)?;
+
+                if !is_shorthand {
+                    self.write_punct(":");
+                    self.print_expression_id(*value)?;
+                }
             }
             Property::Method {
                 modifiers,

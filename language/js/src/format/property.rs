@@ -93,6 +93,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 modifiers,
                 key,
                 value,
+                is_shorthand,
             } => {
                 // modifiers
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
@@ -100,8 +101,11 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 write!(f, [key])?;
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+
                 // value
-                write!(f, [token(":"), space(), value])?;
+                if !is_shorthand {
+                    write!(f, [token(":"), space(), value])?;
+                }
             }
             Property::Method {
                 modifiers,

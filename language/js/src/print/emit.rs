@@ -777,6 +777,7 @@ mod tests {
                 modifiers: None,
                 key: Key::Name(Name::Identifier(strings.intern("type"))),
                 value: type_value,
+                is_shorthand: false,
             },
         );
         let with_value = insert_expression(
@@ -791,6 +792,7 @@ mod tests {
                 modifiers: None,
                 key: Key::Name(Name::Identifier(strings.intern("with"))),
                 value: with_value,
+                is_shorthand: false,
             },
         );
         let options = insert_expression(

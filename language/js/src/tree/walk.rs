@@ -953,6 +953,7 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
             modifiers: _,
             key,
             value,
+            is_shorthand: _,
         } => {
             walk_key(visitor, tree, key);
 
