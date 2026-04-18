@@ -130,7 +130,7 @@ impl ModuleLowerer<'_> {
                     return Err(CodegenJsError::UnsupportedConstruct {
                         node: declaration_id.into_global_any(self.module.id),
                         message: Some(
-                            "type declarations need semantic types before js lowering".to_string(),
+                            "type declarations need semantic types before JS lowering".to_string(),
                         ),
                     });
                 };
@@ -173,6 +173,7 @@ impl ModuleLowerer<'_> {
                     descriptor,
                     generic_parameters,
                     extends_expression: None,
+                    extends_generic_arguments: Vec::new(),
                     implements_types,
                     members,
                 };
@@ -202,6 +203,8 @@ impl ModuleLowerer<'_> {
                             )
                     })
                     .transpose()?;
+                let extends_generic_arguments =
+                    self.lower_static_type_arguments(&declaration.extends_generic_arguments)?;
 
                 // implements
                 let implements_types =
@@ -218,6 +221,7 @@ impl ModuleLowerer<'_> {
                     descriptor,
                     generic_parameters,
                     extends_expression,
+                    extends_generic_arguments,
                     implements_types,
                     members,
                 };

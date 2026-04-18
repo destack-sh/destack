@@ -200,12 +200,12 @@ impl ModuleLowerer<'_> {
             }
             dir::Parameter::Error { .. } => Err(CodegenJsError::UnsupportedConstruct {
                 node: parameter_id.into_global_any(self.module.id),
-                message: Some("parameter error slots are not lowered to js".to_string()),
+                message: Some("parameter error slots are not lowered to JS".to_string()),
             }),
         }
     }
 
-    /// Lower a argument from DIR into JS AST.
+    /// Lower an argument from DIR into JS AST.
     pub fn lower_argument(
         &mut self,
         argument_id: dir::LocalNodeId<dir::Argument>,
@@ -233,7 +233,7 @@ impl ModuleLowerer<'_> {
             dir::Argument::Error { value } => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: value.into_global_any(self.module.id),
-                    message: Some("argument error slots are not lowered to js".to_string()),
+                    message: Some("argument error slots are not lowered to JS".to_string()),
                 });
             }
         };

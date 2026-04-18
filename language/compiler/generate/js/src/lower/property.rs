@@ -43,21 +43,16 @@ impl ModuleLowerer<'_> {
                 symbol: _,
             } => {
                 let modifiers = None;
-                let key = Some(self.lower_key(*key)?);
-                let value = Some(
-                    self.lower_expression(*value)
-                        .expect_node::<js::Expression>(
-                            value.into_global_any(self.module.id),
-                            self,
-                        )?,
-                );
-                let default = None;
+                let key = self.lower_key(*key)?;
+                let value = self
+                    .lower_expression(*value)
+                    .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
 
                 js::Property::Field {
                     modifiers,
                     key,
                     value,
-                    default,
+                    is_shorthand: false,
                 }
             }
             dir::Property::Method {
@@ -91,7 +86,7 @@ impl ModuleLowerer<'_> {
             dir::Property::Error { .. } => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: property_id.into_global_any(self.module.id),
-                    message: Some("property error slots are not lowered to js".to_string()),
+                    message: Some("property error slots are not lowered to JS".to_string()),
                 });
             }
         };
@@ -107,7 +102,7 @@ impl ModuleLowerer<'_> {
     pub fn lower_type_member(
         &mut self,
         member_id: dir::LocalNodeId<dir::TypeMember>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Member>> {
+    ) -> CodegenJsResult<js::LocalNodeId<js::TypeMember>> {
         let member = self.dir_tree.get(member_id);
         let member = match member {
             dir::TypeMember::Field {
@@ -133,15 +128,10 @@ impl ModuleLowerer<'_> {
                     None,
                     None,
                 );
-                let key = Some(self.lower_key(*key)?);
-                let value = Some(self.lower_type_annotation_expression(*declared_type)?);
+                let key = self.lower_key(*key)?;
+                let ty = self.lower_type_annotation_expression(*declared_type)?;
 
-                js::Member::Field {
-                    modifiers,
-                    key,
-                    value,
-                    default: None,
-                }
+                js::TypeMember::Field { modifiers, key, ty }
             }
             dir::TypeMember::Method {
                 is_optional,
@@ -150,6 +140,17 @@ impl ModuleLowerer<'_> {
                 body,
                 ..
             } => {
+                // default methods on nominal interfaces still need explicit JS elaboration
+                if body.is_some() {
+                    return Err(CodegenJsError::UnsupportedConstruct {
+                        node: member_id.into_global_any(self.module.id),
+                        message: Some(
+                            "nominal interface default methods are not lowered to JS yet"
+                                .to_string(),
+                        ),
+                    });
+                }
+
                 let modifiers = self.build_member_modifier(
                     if *is_optional {
                         Some(js::BindingKind::Maybe)
@@ -164,15 +165,11 @@ impl ModuleLowerer<'_> {
                 );
                 let key = key.map(|key| self.lower_key(key)).transpose()?;
                 let signature = self.lower_function_signature(signature)?;
-                let body = body
-                    .map(|body| self.lower_expression_as_block(body))
-                    .transpose()?;
 
-                js::Member::Method {
+                js::TypeMember::Method {
                     modifiers,
                     key,
                     signature,
-                    body,
                 }
             }
             dir::TypeMember::AssociatedType { .. } => {
@@ -189,16 +186,51 @@ impl ModuleLowerer<'_> {
                     ),
                 });
             }
-            dir::TypeMember::IndexSignature { .. } | dir::TypeMember::Embed { .. } => {
+            dir::TypeMember::IndexSignature {
+                is_optional,
+                is_readonly,
+                name,
+                key_type,
+                value_type,
+                ..
+            } => {
+                let modifiers = self.build_member_modifier(
+                    if *is_optional {
+                        Some(js::BindingKind::Maybe)
+                    } else {
+                        None
+                    },
+                    None,
+                    if *is_readonly {
+                        Some(js::Mutability::Immutable)
+                    } else {
+                        None
+                    },
+                    None,
+                    None,
+                    None,
+                );
+                let name = self.strings.intern_from(self.source_strings, *name);
+                let key_type = self.lower_type_annotation_expression(*key_type)?;
+                let value_type = self.lower_type_annotation_expression(*value_type)?;
+
+                js::TypeMember::IndexSignature {
+                    modifiers,
+                    name,
+                    key_type,
+                    value_type,
+                }
+            }
+            dir::TypeMember::Embed { .. } => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: member_id.into_global_any(self.module.id),
-                    message: Some("interface-only type members are not lowered to js".to_string()),
+                    message: Some("embedded type members are not lowered to JS".to_string()),
                 });
             }
             dir::TypeMember::Error { .. } => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: member_id.into_global_any(self.module.id),
-                    message: Some("type member error slots are not lowered to js".to_string()),
+                    message: Some("type member error slots are not lowered to JS".to_string()),
                 });
             }
         };
@@ -273,7 +305,7 @@ impl ModuleLowerer<'_> {
                         None
                     },
                 );
-                let key = Some(self.lower_key(*key)?);
+                let key = self.lower_key(*key)?;
                 let value = declared_type
                     .map(|value| self.lower_type_annotation_expression(value))
                     .transpose()?;
@@ -353,7 +385,7 @@ impl ModuleLowerer<'_> {
             dir::Member::Error { .. } => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: member_id.into_global_any(self.module.id),
-                    message: Some("member error slots are not lowered to js".to_string()),
+                    message: Some("member error slots are not lowered to JS".to_string()),
                 });
             }
         };

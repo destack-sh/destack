@@ -187,7 +187,7 @@ impl ModuleLowerer<'_> {
             dir::PatternField::Computed { .. } => Err(CodegenJsError::UnsupportedConstruct {
                 node: pattern_field_id.into_global_any(self.module.id),
                 message: Some(
-                    "computed array or tuple pattern fields are not lowered to js".to_string(),
+                    "computed array or tuple pattern fields are not lowered to JS".to_string(),
                 ),
             }),
             _ => self.lower_pattern_field_in_mode(pattern_field_id, mode),
