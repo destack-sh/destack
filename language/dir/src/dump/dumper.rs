@@ -1044,20 +1044,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
-            Expression::Member {
-                left: _,
-                name,
-                generic_arguments: _,
-            } => {
+            Expression::Member { left: _, name } => {
                 self.node("Expression::Member", id.id)
                     .field("name", name)
                     .end();
             }
-            Expression::PrivateMember {
-                left: _,
-                name,
-                generic_arguments: _,
-            } => {
+            Expression::PrivateMember { left: _, name } => {
                 self.node("Expression::PrivateMember", id.id)
                     .field("name", name)
                     .end();
@@ -1164,7 +1156,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("value", value)
                     .end();
             }
-            Expression::TaggedTemplateExpression { tag: _, value } => {
+            Expression::TaggedTemplateExpression {
+                tag: _,
+                generic_arguments: _,
+                value,
+            } => {
                 self.node("Expression::TaggedTemplateExpression", id.id)
                     .field("value", value)
                     .end();
@@ -1196,6 +1192,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::TreeExpression {
                 left: _,
+                generic_arguments: _,
                 arguments: _,
                 elements: _,
             } => {
