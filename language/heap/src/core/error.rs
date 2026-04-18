@@ -172,6 +172,10 @@ pub enum HeapError {
     CapturePinsActive,
     /// One managed collection was requested while another collection was active.
     ManagedCollectionActive,
+    /// One shared managed collection was requested while another collection was active.
+    SharedCollectionActive,
+    /// One shared managed mark operation was requested while shared mark was inactive.
+    SharedCollectionNotMarking,
     /// One managed collection was requested while scoped pins were active.
     ManagedCollectionPinsActive,
     /// One managed pin count could not represent one additional scoped pin.
@@ -627,6 +631,15 @@ impl Display for HeapError {
             }
             Self::ManagedCollectionActive => {
                 write!(formatter, "managed heap collection is already active")
+            }
+            Self::SharedCollectionActive => {
+                write!(
+                    formatter,
+                    "shared managed heap collection is already active"
+                )
+            }
+            Self::SharedCollectionNotMarking => {
+                write!(formatter, "shared managed heap is not currently marking")
             }
             Self::ManagedCollectionPinsActive => {
                 write!(
