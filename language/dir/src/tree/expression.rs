@@ -159,17 +159,15 @@ pub enum Expression {
         right: LocalNodeId<Expression>,
     },
 
-    /// Member access (like `a.foo` or `a.foo<T>`).
+    /// Member access (like `a.foo`).
     Member {
         left: LocalNodeId<Expression>,
         name: Option<StringId>,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
     },
-    /// Private member access (like `a.#foo` or `a.#foo<T>`).
+    /// Private member access (like `a.#foo`).
     PrivateMember {
         left: LocalNodeId<Expression>,
         name: Option<StringId>,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
     },
     /// Call to a function.
     Call {
@@ -255,6 +253,7 @@ pub enum Expression {
     /// Tagged template expression.
     TaggedTemplateExpression {
         tag: LocalNodeId<Expression>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
         value: TemplateLiteral,
     },
     /// Array expression (anonymous).
@@ -277,6 +276,7 @@ pub enum Expression {
     /// Tree expression.
     TreeExpression {
         left: Option<LocalNodeId<Expression>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
         elements: Option<Vec<LocalNodeId<Argument>>>,
     },
@@ -555,10 +555,10 @@ impl Expression {
             | Expression::GlobalReference {
                 generic_arguments, ..
             }
-            | Expression::Member {
+            | Expression::TaggedTemplateExpression {
                 generic_arguments, ..
             }
-            | Expression::PrivateMember {
+            | Expression::TreeExpression {
                 generic_arguments, ..
             }
             | Expression::Call {

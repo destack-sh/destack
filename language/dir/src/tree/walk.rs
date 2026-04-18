@@ -709,29 +709,13 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 let right_expression = tree.get(*right);
                 visitor.visit_expression(tree, *right, right_expression);
             }
-            Expression::Member {
-                left,
-                name: _,
-                generic_arguments,
-            } => {
+            Expression::Member { left, name: _ } => {
                 let left_expression = tree.get(*left);
                 visitor.visit_expression(tree, *left, left_expression);
-                for argument_id in generic_arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_generic_argument(tree, *argument_id, argument);
-                }
             }
-            Expression::PrivateMember {
-                left,
-                name: _,
-                generic_arguments,
-            } => {
+            Expression::PrivateMember { left, name: _ } => {
                 let left_expression = tree.get(*left);
                 visitor.visit_expression(tree, *left, left_expression);
-                for argument_id in generic_arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_generic_argument(tree, *argument_id, argument);
-                }
             }
             Expression::Instantiation {
                 left,
@@ -858,9 +842,19 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                     }
                 }
             }
-            Expression::TaggedTemplateExpression { tag, value } => {
+            Expression::TaggedTemplateExpression {
+                tag,
+                generic_arguments,
+                value,
+            } => {
                 let tag_expression = tree.get(*tag);
                 visitor.visit_expression(tree, *tag, tag_expression);
+
+                for argument_id in generic_arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_generic_argument(tree, *argument_id, argument);
+                }
+
                 match value {
                     TemplateLiteral::String { .. } => {
                         // nothing to do
@@ -906,6 +900,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
             Expression::TreeExpression {
                 left,
+                generic_arguments,
                 arguments,
                 elements,
             } => {
@@ -913,6 +908,12 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                     let left_expression = tree.get(*left_id);
                     visitor.visit_expression(tree, *left_id, left_expression);
                 }
+
+                for argument_id in generic_arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_generic_argument(tree, *argument_id, argument);
+                }
+
                 if let Some(arguments) = arguments {
                     for argument_id in arguments {
                         let argument = tree.get(*argument_id);

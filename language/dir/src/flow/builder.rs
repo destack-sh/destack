@@ -1676,18 +1676,8 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 let left_block_id = self.build_expression(*left, current_block_id)?;
                 self.build_expression(*right, left_block_id)
             }
-            Expression::Member {
-                left,
-                generic_arguments,
-                ..
-            }
-            | Expression::PrivateMember {
-                left,
-                generic_arguments,
-                ..
-            } => {
-                let left_block_id = self.build_expression(*left, current_block_id)?;
-                self.build_generic_arguments(generic_arguments.as_slice(), left_block_id)
+            Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
+                self.build_expression(*left, current_block_id)
             }
             Expression::Instantiation {
                 left,
@@ -1756,8 +1746,14 @@ impl<'tree> FlowGraphBuilder<'tree> {
             Expression::TemplateExpression { value } => {
                 self.build_template_literal(value, current_block_id)
             }
-            Expression::TaggedTemplateExpression { tag, value } => {
+            Expression::TaggedTemplateExpression {
+                tag,
+                generic_arguments,
+                value,
+            } => {
                 let tag_block_id = self.build_expression(*tag, current_block_id)?;
+                let tag_block_id =
+                    self.build_generic_arguments(generic_arguments.as_slice(), tag_block_id)?;
                 self.build_template_literal(value, tag_block_id)
             }
             Expression::ArrayExpression { elements } | Expression::TupleExpression { elements } => {
@@ -1777,6 +1773,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             }
             Expression::TreeExpression {
                 left,
+                generic_arguments,
                 arguments,
                 elements,
             } => {
@@ -1784,6 +1781,8 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 if let Some(left_id) = left {
                     tree_block_id = self.build_expression(*left_id, tree_block_id)?;
                 }
+                tree_block_id =
+                    self.build_generic_arguments(generic_arguments.as_slice(), tree_block_id)?;
                 tree_block_id = self.build_arguments(arguments.as_deref(), tree_block_id)?;
                 self.build_arguments(elements.as_deref(), tree_block_id)
             }
