@@ -940,6 +940,26 @@ impl Compiler {
                         SymbolSpaceOrder::TypeThenValue,
                     )
                 });
+                let extends_generic_arguments = declaration
+                    .extends_generic_arguments
+                    .iter()
+                    .map(|argument| {
+                        self.bind_generic_argument(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            declaration_scope,
+                            *argument,
+                            Some(declaration_id),
+                            tree,
+                            symbols,
+                            types,
+                            SymbolSpaceOrder::TypeThenValue,
+                        )
+                    })
+                    .collect();
                 let implements_types = declaration
                     .implements_types
                     .iter()
@@ -994,6 +1014,7 @@ impl Compiler {
                     generic_parameters,
                     where_clauses,
                     extends_expression,
+                    extends_generic_arguments,
                     implements_types,
                     members,
                 })

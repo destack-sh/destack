@@ -260,7 +260,6 @@ impl Compiler {
             Expression::Member {
                 left: receiver,
                 name: Some(member_name),
-                generic_arguments: Vec::new(),
             },
         );
 

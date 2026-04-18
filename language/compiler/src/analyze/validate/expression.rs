@@ -952,17 +952,9 @@ impl Compiler {
         }
 
         // member form covers parenthesized `new.target`
-        let Expression::Member {
-            left,
-            name,
-            generic_arguments,
-        } = tree.get(expression_id)
-        else {
+        let Expression::Member { left, name } = tree.get(expression_id) else {
             return false;
         };
-        if !generic_arguments.is_empty() {
-            return false;
-        }
 
         let target_name = self.repository.strings.intern("target");
         if *name != Some(target_name) {
@@ -2140,13 +2132,8 @@ impl Compiler {
             }
             | Expression::GlobalReference {
                 generic_arguments, ..
-            }
-            | Expression::Member {
-                generic_arguments, ..
-            }
-            | Expression::PrivateMember {
-                generic_arguments, ..
             } => generic_arguments.is_empty(),
+            Expression::Member { .. } | Expression::PrivateMember { .. } => true,
             Expression::Index { .. } => true,
             _ => false,
         }
@@ -2575,13 +2562,7 @@ impl Compiler {
         }
 
         // allow enum member references
-        if let Expression::Member {
-            left,
-            generic_arguments,
-            ..
-        } = expression
-            && generic_arguments.is_empty()
-        {
+        if let Expression::Member { left, .. } = expression {
             return self.is_ambient_const_enum_reference(&mut ctx.reborrow(), *left);
         }
 

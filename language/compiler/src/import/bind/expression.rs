@@ -854,11 +854,7 @@ impl Compiler {
                 }
             }
 
-            ast::Expression::Member {
-                left,
-                name,
-                generic_arguments,
-            } => {
+            ast::Expression::Member { left, name } => {
                 let left = self.bind_expression(
                     module,
                     ast,
@@ -874,41 +870,10 @@ impl Compiler {
                     space_order,
                 );
                 let name = name.map(|name| self.repository.strings.intern_from(&ast.strings, name));
-                let generic_argument_space_order = if module.language_type.is_destack() {
-                    SymbolSpaceOrder::ValueThenType
-                } else {
-                    SymbolSpaceOrder::TypeThenValue
-                };
-                let generic_arguments = generic_arguments
-                    .iter()
-                    .map(|argument| {
-                        self.bind_generic_argument(
-                            module,
-                            ast,
-                            namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
-                            scope,
-                            *argument,
-                            Some(expression_id),
-                            tree,
-                            symbols,
-                            types,
-                            generic_argument_space_order,
-                        )
-                    })
-                    .collect();
-                Expression::Member {
-                    left,
-                    name,
-                    generic_arguments,
-                }
+
+                Expression::Member { left, name }
             }
-            ast::Expression::PrivateMember {
-                left,
-                name,
-                generic_arguments,
-            } => {
+            ast::Expression::PrivateMember { left, name } => {
                 let left = self.bind_expression(
                     module,
                     ast,
@@ -924,35 +889,8 @@ impl Compiler {
                     space_order,
                 );
                 let name = name.map(|name| self.repository.strings.intern_from(&ast.strings, name));
-                let generic_argument_space_order = if module.language_type.is_destack() {
-                    SymbolSpaceOrder::ValueThenType
-                } else {
-                    SymbolSpaceOrder::TypeThenValue
-                };
-                let generic_arguments = generic_arguments
-                    .iter()
-                    .map(|argument| {
-                        self.bind_generic_argument(
-                            module,
-                            ast,
-                            namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
-                            scope,
-                            *argument,
-                            Some(expression_id),
-                            tree,
-                            symbols,
-                            types,
-                            generic_argument_space_order,
-                        )
-                    })
-                    .collect();
-                Expression::PrivateMember {
-                    left,
-                    name,
-                    generic_arguments,
-                }
+
+                Expression::PrivateMember { left, name }
             }
             ast::Expression::Call {
                 position: _,
@@ -1287,7 +1225,11 @@ impl Compiler {
                 );
                 Expression::TemplateExpression { value }
             }
-            ast::Expression::TaggedTemplateExpression { tag, value } => {
+            ast::Expression::TaggedTemplateExpression {
+                tag,
+                generic_arguments,
+                value,
+            } => {
                 let tag = self.bind_expression(
                     module,
                     ast,
@@ -1302,6 +1244,30 @@ impl Compiler {
                     types,
                     space_order,
                 );
+                let generic_argument_space_order = if module.language_type.is_destack() {
+                    SymbolSpaceOrder::ValueThenType
+                } else {
+                    SymbolSpaceOrder::TypeThenValue
+                };
+                let generic_arguments = generic_arguments
+                    .iter()
+                    .map(|argument| {
+                        self.bind_generic_argument(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            *argument,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                            generic_argument_space_order,
+                        )
+                    })
+                    .collect();
                 let value = self.bind_template_literal(
                     module,
                     ast,
@@ -1315,7 +1281,12 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                Expression::TaggedTemplateExpression { tag, value }
+
+                Expression::TaggedTemplateExpression {
+                    tag,
+                    generic_arguments,
+                    value,
+                }
             }
             ast::Expression::ObjectExpression { ty, properties } => {
                 let properties = properties
@@ -1427,6 +1398,7 @@ impl Compiler {
             }
             ast::Expression::TreeExpression {
                 left,
+                generic_arguments,
                 arguments,
                 elements,
             } => {
@@ -1446,6 +1418,30 @@ impl Compiler {
                         space_order,
                     )
                 });
+                let generic_argument_space_order = if module.language_type.is_destack() {
+                    SymbolSpaceOrder::ValueThenType
+                } else {
+                    SymbolSpaceOrder::TypeThenValue
+                };
+                let generic_arguments = generic_arguments
+                    .iter()
+                    .map(|argument| {
+                        self.bind_generic_argument(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            *argument,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                            generic_argument_space_order,
+                        )
+                    })
+                    .collect();
                 let arguments = arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
@@ -1490,6 +1486,7 @@ impl Compiler {
                 });
                 Expression::TreeExpression {
                     left,
+                    generic_arguments,
                     arguments,
                     elements,
                 }

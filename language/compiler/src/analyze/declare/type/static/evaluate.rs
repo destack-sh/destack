@@ -339,11 +339,7 @@ impl Compiler {
 
                 return Ok(None);
             }
-            Expression::Member {
-                left,
-                name,
-                generic_arguments: _,
-            } => {
+            Expression::Member { left, name } => {
                 let node_id = expression_id.into_global_any(ctx.module.id);
                 let Some(name) = *name else {
                     let error_type_id = ctx

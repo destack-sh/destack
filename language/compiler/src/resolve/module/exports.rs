@@ -101,18 +101,13 @@ impl NodeVisitor for ExportDependencyCollector<'_> {
         expression: &Expression,
     ) {
         // member access: resolve the member symbol once at export publication time
-        if let Expression::Member {
-            left,
-            name,
-            generic_arguments,
-        } = expression
+        if let Expression::Member { left, name } = expression
             && let Some(name) = *name
         {
             let left_expression = tree.get(*left);
             let member_key = StaticKey::Name(name);
 
-            if generic_arguments.is_empty()
-                && let Some(target_symbol) = left_expression.target_symbol()
+            if let Some(target_symbol) = left_expression.target_symbol()
                 && let Some(namespace_target) = self.namespace_target_symbol_maybe(target_symbol)
             {
                 if let Ok(Some(member_symbol)) = self.compiler.resolve_symbol_in_namespace(

@@ -454,24 +454,8 @@ impl<'a> FunctionLowerer<'a> {
                 self.lower_array_expression(expression_id, elements)
             }
 
-            dir::Expression::Member {
-                left,
-                name,
-                generic_arguments,
-            }
-            | dir::Expression::PrivateMember {
-                left,
-                name,
-                generic_arguments,
-            } => {
-                if !generic_arguments.is_empty() {
-                    return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
-                        message: "generic arguments on member access are not supported".to_string(),
-                    })?;
-                }
+            dir::Expression::Member { left, name }
+            | dir::Expression::PrivateMember { left, name } => {
                 let Some(name) = *name else {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
@@ -732,23 +716,11 @@ impl<'a> FunctionLowerer<'a> {
             dir::Expression::Member {
                 left: receiver_id,
                 name,
-                generic_arguments,
             }
             | dir::Expression::PrivateMember {
                 left: receiver_id,
                 name,
-                generic_arguments,
             } => {
-                // reject generic arguments on assignment
-                if !generic_arguments.is_empty() {
-                    return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
-                        message: "generic arguments on member assignment not supported".to_string(),
-                    });
-                }
-
                 // only support assignments to this fields in constructors
                 let receiver = self.context.dir_tree.get(*receiver_id);
                 if !matches!(receiver, dir::Expression::This) {

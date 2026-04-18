@@ -33,19 +33,29 @@ impl Compiler {
         let segments = &remaining_path.segments;
         for (i, &segment) in segments.iter().enumerate() {
             let is_last = i == segments.len() - 1;
-            let member_generic_arguments = if is_last {
-                generic_arguments.clone().unwrap_or_default()
-            } else {
-                Vec::new()
-            };
             let member_expression = Expression::Member {
                 left: current_id,
                 name: Some(segment),
-                generic_arguments: member_generic_arguments,
             };
 
             // return the final member expression
             if is_last {
+                if let Some(generic_arguments) = generic_arguments.clone() {
+                    let member_id = tree.reserve_from(
+                        NodeType::Expression,
+                        expression_id.into_any(),
+                        original_scope,
+                        Some(expression_id.into_any()),
+                        Some(ProvenanceReason::Resolved),
+                    );
+                    let member_id = tree.insert_as_owner(member_id, member_expression);
+
+                    return Expression::Instantiation {
+                        left: member_id,
+                        generic_arguments,
+                    };
+                }
+
                 return member_expression;
             }
             // create intermediate member node

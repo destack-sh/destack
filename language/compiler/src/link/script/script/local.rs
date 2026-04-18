@@ -106,9 +106,9 @@ impl Compiler {
                 let property = module.tree.insert_from(
                     js::Property::Field {
                         modifiers: None,
-                        key: Some(js::Key::Name(js::Name::Identifier(default_name))),
-                        value: Some(resource_value),
-                        default: None,
+                        key: js::Key::Name(js::Name::Identifier(default_name)),
+                        value: resource_value,
+                        is_shorthand: false,
                     },
                     statement_id,
                 );
@@ -490,15 +490,26 @@ impl Compiler {
             let property = module.tree.get(property_id).clone();
             let js::Property::Field {
                 modifiers: None,
-                key: Some(js::Key::Name(js::Name::Identifier(key))),
-                value: None,
-                default: None,
+                key: js::Key::Name(js::Name::Identifier(key)),
+                value,
+                is_shorthand,
             } = property
             else {
                 continue;
             };
 
             if key != binding_name {
+                continue;
+            }
+
+            let is_target_value = matches!(
+                module.tree.get(value),
+                js::Expression::Path { path, generic_arguments }
+                    if path.segments.len() == 1
+                        && path.segments[0] == target_name
+                        && generic_arguments.is_empty()
+            );
+            if is_shorthand && is_target_value {
                 continue;
             }
 
@@ -517,12 +528,15 @@ impl Compiler {
 
             let property = module.tree.get_mut(property_id);
             let js::Property::Field {
-                value: field_value, ..
+                value: field_value,
+                is_shorthand,
+                ..
             } = property
             else {
                 continue;
             };
-            *field_value = Some(value);
+            *field_value = value;
+            *is_shorthand = false;
         }
     }
 

@@ -445,6 +445,22 @@ impl Compiler {
                         context,
                     )
                 });
+                let extends_generic_arguments = declaration
+                    .extends_generic_arguments
+                    .iter()
+                    .map(|argument| {
+                        self.unbind_generic_argument(
+                            module,
+                            *argument,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
                 let implements_types = declaration
                     .implements_types
                     .iter()
@@ -486,6 +502,7 @@ impl Compiler {
                     generic_parameters,
                     where_clauses,
                     extends_expression,
+                    extends_generic_arguments,
                     implements_types,
                     members,
                 })

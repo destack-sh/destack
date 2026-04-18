@@ -1433,7 +1433,6 @@ impl Compiler {
             Expression::Member {
                 left: value,
                 name: Some(name),
-                generic_arguments: Vec::new(),
             },
         );
 

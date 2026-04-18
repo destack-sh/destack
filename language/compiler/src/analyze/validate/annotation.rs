@@ -57,12 +57,6 @@ impl DecoratorStaticArgumentScanner {
             | Expression::New {
                 generic_arguments, ..
             }
-            | Expression::Member {
-                generic_arguments, ..
-            }
-            | Expression::PrivateMember {
-                generic_arguments, ..
-            }
             | Expression::UnresolvedPath {
                 generic_arguments, ..
             }

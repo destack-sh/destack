@@ -484,47 +484,17 @@ impl Compiler {
                     ast::Expression::Assign { left, operator, right }
                 }
 
-                dir::Expression::Member {
-                    left,
-                    name,
-                    generic_arguments,
-                } => {
+                dir::Expression::Member { left, name } => {
                     let left = self.unbind_expression(module, *left, tree, symbols, types, ast_tree, ast_strings, context);
                     let name = name.map(|name| ast_strings.intern_from(&self.repository.strings, name));
-                    let generic_arguments = generic_arguments.iter().map(|argument| {
-                        self.unbind_generic_argument(
-                            module,
-                            *argument,
-                            tree,
-                            symbols,
-                            types,
-                            ast_tree,
-                            ast_strings,
-                            context,
-                        )
-                    }).collect();
-                    ast::Expression::Member { left, name, generic_arguments }
+
+                    ast::Expression::Member { left, name }
                 }
-                dir::Expression::PrivateMember {
-                    left,
-                    name,
-                    generic_arguments,
-                } => {
+                dir::Expression::PrivateMember { left, name } => {
                     let left = self.unbind_expression(module, *left, tree, symbols, types, ast_tree, ast_strings, context);
                     let name = name.map(|name| ast_strings.intern_from(&self.repository.strings, name));
-                    let generic_arguments = generic_arguments.iter().map(|argument| {
-                        self.unbind_generic_argument(
-                            module,
-                            *argument,
-                            tree,
-                            symbols,
-                            types,
-                            ast_tree,
-                            ast_strings,
-                            context,
-                        )
-                    }).collect();
-                    ast::Expression::PrivateMember { left, name, generic_arguments }
+
+                    ast::Expression::PrivateMember { left, name }
                 }
 
                 dir::Expression::Call {
@@ -722,8 +692,27 @@ impl Compiler {
                     ast::Expression::TemplateExpression { value }
                 }
 
-                dir::Expression::TaggedTemplateExpression { tag, value } => {
+                dir::Expression::TaggedTemplateExpression {
+                    tag,
+                    generic_arguments,
+                    value,
+                } => {
                     let tag = self.unbind_expression(module, *tag, tree, symbols, types, ast_tree, ast_strings, context);
+                    let generic_arguments = generic_arguments
+                        .iter()
+                        .map(|argument| {
+                            self.unbind_generic_argument(
+                                module,
+                                *argument,
+                                tree,
+                                symbols,
+                                types,
+                                ast_tree,
+                                ast_strings,
+                                context,
+                            )
+                        })
+                        .collect();
                     let value = self.unbind_template_literal(
                         module,
                         value,
@@ -734,7 +723,12 @@ impl Compiler {
                         ast_strings,
                         context,
                     );
-                    ast::Expression::TaggedTemplateExpression { tag, value }
+
+                    ast::Expression::TaggedTemplateExpression {
+                        tag,
+                        generic_arguments,
+                        value,
+                    }
                 }
 
                 dir::Expression::ArrayExpression { elements } => {
@@ -777,8 +771,25 @@ impl Compiler {
                     ast::Expression::ObjectExpression { ty, properties }
                 }
 
-                dir::Expression::TreeExpression { left, arguments, elements } => {
+                dir::Expression::TreeExpression {
+                    left,
+                    generic_arguments,
+                    arguments,
+                    elements,
+                } => {
                     let left = left.map(|l| self.unbind_expression(module, l, tree, symbols, types, ast_tree, ast_strings, context));
+                    let generic_arguments = generic_arguments.iter().map(|argument| {
+                        self.unbind_generic_argument(
+                            module,
+                            *argument,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    }).collect();
                     let arguments = arguments.as_ref().map(|args| {
                         args.iter().map(|arg| {
                             self.unbind_argument(module, *arg, tree, symbols, types, ast_tree, ast_strings, context)
@@ -789,7 +800,13 @@ impl Compiler {
                             self.unbind_argument(module, *el, tree, symbols, types, ast_tree, ast_strings, context)
                         }).collect()
                     });
-                    ast::Expression::TreeExpression { left, arguments, elements }
+
+                    ast::Expression::TreeExpression {
+                        left,
+                        generic_arguments,
+                        arguments,
+                        elements,
+                    }
                 }
 
                 dir::Expression::TaggedScalarExpression { ty, value } => {

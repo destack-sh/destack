@@ -93,7 +93,13 @@ impl Compiler {
 
         // prepare callee metadata for overload resolution
         let callee_symbol = self.reference_symbol_for_expression(ctx.tree_symbol_view(), tag_id);
-        let generic_arguments = match ctx.tree.get(tag_id) {
+        let generic_arguments = match ctx.tree.get(expression_id) {
+            Expression::TaggedTemplateExpression {
+                generic_arguments, ..
+            } => Some(generic_arguments.as_slice()),
+            _ => None,
+        }
+        .or_else(|| match ctx.tree.get(tag_id) {
             Expression::LocalReference {
                 generic_arguments, ..
             }
@@ -102,12 +108,9 @@ impl Compiler {
             }
             | Expression::GlobalReference {
                 generic_arguments, ..
-            }
-            | Expression::Member {
-                generic_arguments, ..
             } => Some(generic_arguments.as_slice()),
             _ => None,
-        };
+        });
 
         // resolve the applicable tagged template overload
         let mut resolved_signature = None;

@@ -28,8 +28,8 @@ impl Rewriter<'_, '_> {
     }
 
     /// Return one rewritten property key spelling when output syntax changes it.
-    pub(super) fn rewritten_property_name(&self, key: Option<&js::Key>) -> Option<js::Name> {
-        let Some(js::Key::Name(name)) = key else {
+    pub(super) fn rewritten_property_name(&self, key: &js::Key) -> Option<js::Name> {
+        let js::Key::Name(name) = key else {
             return None;
         };
 
@@ -53,12 +53,12 @@ impl Rewriter<'_, '_> {
     }
 
     /// Rewrite one property key to the minified output spelling.
-    pub(super) fn set_property_key_name(key: &mut Option<js::Key>, name: js::Name) {
-        let Some(js::Key::Name(_)) = key else {
+    pub(super) fn set_property_key_name(key: &mut js::Key, name: js::Name) {
+        let js::Key::Name(_) = key else {
             return;
         };
 
-        *key = Some(js::Key::Name(name));
+        *key = js::Key::Name(name);
     }
 
     /// Return whether one property name may use identifier syntax in output.
@@ -72,6 +72,23 @@ impl Rewriter<'_, '_> {
         }
 
         js::Keyword::from_str(name).is_err()
+    }
+
+    /// Return whether one expression is a direct identifier reference with the given name.
+    fn is_matching_identifier_reference(
+        module: &js::ScriptModule,
+        expression_id: js::LocalNodeId<js::Expression>,
+        name: StringId,
+    ) -> bool {
+        let js::Expression::Path {
+            path,
+            generic_arguments,
+        } = module.tree.get(expression_id)
+        else {
+            return false;
+        };
+
+        path.segments.len() == 1 && path.segments[0] == name && generic_arguments.is_empty()
     }
 
     /// Rewrite `let x = undefined` into `let x` for simple mutable bindings.
@@ -362,19 +379,6 @@ impl Rewriter<'_, '_> {
         }
     }
 
-    /// Return whether one expression is a direct identifier reference with the given name.
-    fn is_matching_identifier_reference(
-        module: &js::ScriptModule,
-        expression_id: js::LocalNodeId<js::Expression>,
-        name: StringId,
-    ) -> bool {
-        let js::Expression::Path { path, .. } = module.tree.get(expression_id) else {
-            return false;
-        };
-
-        path.segments.len() == 1 && path.segments[0] == name
-    }
-
     /// Rewrite one object field into shorthand form when the final binding name matches.
     pub(super) fn use_object_shorthand_fields(&mut self) {
         if !self.can_use_object_shorthand() {
@@ -386,28 +390,27 @@ impl Rewriter<'_, '_> {
 
             let js::Property::Field {
                 modifiers,
-                key: Some(js::Key::Name(js::Name::Identifier(key))),
-                value: Some(value),
-                default: None,
+                key: js::Key::Name(js::Name::Identifier(key)),
+                value,
+                is_shorthand,
             } = property
             else {
                 continue;
             };
 
-            if modifiers.is_some()
-                || !Self::is_matching_identifier_reference(self.module, value, key)
-            {
+            if modifiers.is_some() || is_shorthand {
+                continue;
+            }
+
+            if !Self::is_matching_identifier_reference(self.module, value, key) {
                 continue;
             }
 
             let property = self.module.tree.get_mut(property_id);
-            let js::Property::Field {
-                value: field_value, ..
-            } = property
-            else {
+            let js::Property::Field { is_shorthand, .. } = property else {
                 continue;
             };
-            *field_value = None;
+            *is_shorthand = true;
         }
     }
 }

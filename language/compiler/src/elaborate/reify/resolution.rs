@@ -18,19 +18,11 @@ impl Compiler {
         scope: dir::LocalScope,
     ) -> LocalNodeId<Expression> {
         let cloned_expression = match expression {
-            Expression::Member {
-                left,
-                name,
-                generic_arguments,
-            } => {
+            Expression::Member { left, name } => {
                 let left_expression = state.tree.get(*left).clone();
                 let left = self.clone_resolution_expression(state, *left, &left_expression, scope);
 
-                Expression::Member {
-                    left,
-                    name: *name,
-                    generic_arguments: generic_arguments.clone(),
-                }
+                Expression::Member { left, name: *name }
             }
 
             Expression::Call {

@@ -2449,11 +2449,7 @@ impl Compiler {
                     Ok(return_ty_id)
                 }
             }
-            Expression::Member {
-                left,
-                name,
-                generic_arguments,
-            } => {
+            Expression::Member { left, name } => {
                 let Some(name) = *name else {
                     return Ok(ctx
                         .types
@@ -2464,15 +2460,11 @@ impl Compiler {
                     expression_id,
                     *left,
                     name,
-                    Some(generic_arguments.as_slice()),
+                    None,
                     state,
                 )
             }
-            Expression::PrivateMember {
-                left,
-                name,
-                generic_arguments,
-            } => {
+            Expression::PrivateMember { left, name } => {
                 let Some(name) = *name else {
                     return Ok(ctx
                         .types
@@ -2484,7 +2476,7 @@ impl Compiler {
                     expression_id,
                     *left,
                     private_name,
-                    Some(generic_arguments.as_slice()),
+                    None,
                     state,
                 )
             }
@@ -2507,7 +2499,7 @@ impl Compiler {
                 arguments,
                 state,
             ),
-            Expression::TaggedTemplateExpression { tag, value } => {
+            Expression::TaggedTemplateExpression { tag, value, .. } => {
                 let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_TEMPLATE);
 
                 self.validate_call_expression(ctx, expression_id, *tag, false);
@@ -2537,6 +2529,7 @@ impl Compiler {
             ),
             Expression::TreeExpression {
                 left,
+                generic_arguments: _,
                 arguments,
                 elements,
             } => self.infer_tree_expression(
@@ -3706,18 +3699,7 @@ impl Compiler {
             | Expression::GlobalReference { .. }
             | Expression::This => Addressability::Place,
             Expression::Super => Addressability::Value,
-            Expression::Member {
-                generic_arguments, ..
-            }
-            | Expression::PrivateMember {
-                generic_arguments, ..
-            } => {
-                if !generic_arguments.is_empty() {
-                    Addressability::Value
-                } else {
-                    Addressability::Place
-                }
-            }
+            Expression::Member { .. } | Expression::PrivateMember { .. } => Addressability::Place,
             Expression::Index { .. } => Addressability::Place,
             _ => Addressability::Value,
         };
