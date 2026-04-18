@@ -551,7 +551,6 @@ const x: Drawable = { draw() {} };  // OK: structural match
 newtype interface Add<T, R = this> {
     add(other: T): R;
 }
-const x: Drawable = { draw() {} };  // ERROR: structura
 ```
 
 Nominal interfaces require **explicit `implements`** declarations.
@@ -561,7 +560,21 @@ Nominal interfaces (often represented as `traits`) are used for:
 - **Operator interfaces**: `Add`, `Compare`, etc.
 - **Capability traits**: `Send`, `Sync`, `Copy`, `Clone`
 
-The `newtype` modifier on `interface` follows the same pattern as `newtype` on type aliases.
+The `newtype` modifier on `interface` follows the same pattern as `newtype` on type aliases, making a `newtype interface` more like a nominal trait in other languages.
+
+```ds
+// structural interface: requirements only
+interface Drawable {
+    draw(): void;
+}
+
+// nominal interface: defaults allowed
+newtype interface Print<T> {
+    print() {
+        // do nothing by default
+    }
+}
+```
 
 ### Overloading
 
