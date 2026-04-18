@@ -2,7 +2,7 @@ use crate::Parser;
 
 use destack_ast::{
     Ambientness, BinaryOperator, Declaration, ExportMode, Expression, FunctionDeclaration,
-    FunctionKind, Keyword, LocalNodeId, TokenType,
+    FunctionKind, GenericArgument, Keyword, LocalNodeId, TokenType,
 };
 
 use super::super::PendingDecorators;
@@ -157,6 +157,20 @@ impl Parser {
             }
         }
         current
+    }
+
+    /// Split one instantiation expression into its receiver and generic arguments.
+    pub(crate) fn split_instantiation_expression(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> (LocalNodeId<Expression>, Vec<LocalNodeId<GenericArgument>>) {
+        match self.tree.get(expression_id) {
+            Expression::Instantiation {
+                left,
+                generic_arguments,
+            } => (*left, generic_arguments.clone()),
+            _ => (expression_id, Vec::new()),
+        }
     }
 
     /// Return true when an expression is a lambda declaration without wrapping parentheses.

@@ -30,7 +30,7 @@ fn test_parse_generic_arrow_with_extends_before_tree() {
                 });
             });
             let body_id = body.expect("expected body");
-            assert_node!(parser.tree, body_id, Expression::TreeExpression { left, arguments, elements } => {
+            assert_node!(parser.tree, body_id, Expression::TreeExpression { left, arguments, elements, .. } => {
                 let left_id = left.expect("expected tag");
                 assert_expression_path!(parser, parser.tree.get(left_id), "Foo");
                 assert!(arguments.as_ref().is_none_or(|items| items.is_empty()));
@@ -65,7 +65,7 @@ fn test_parse_parenthesized_tree_callback_body() {
                     });
 
                     assert_node!(parser.tree, *body, Expression::Parenthesized { expression } => {
-                        assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+                        assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
                             assert_expression_path!(parser, parser.tree.get(*left), "option");
                             assert!(arguments.is_none());
 

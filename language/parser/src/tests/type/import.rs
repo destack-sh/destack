@@ -168,11 +168,10 @@ fn test_parse_type_import_expression_missing_close_parenthesis_with_member_targe
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Import { target, arguments, qualifier, generic_arguments } => {
-                assert_node!(parser.tree, *target, Expression::Member { left, name, generic_arguments: target_generic_arguments } => {
+                assert_node!(parser.tree, *target, Expression::Member { left, name } => {
                     assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
                         assert_string!(parser, *string_id, "mod");
                     });
-                    assert!(target_generic_arguments.is_empty());
                     assert_string!(parser, *name, "Type");
                 });
                 assert_eq!(arguments.len(), 1);

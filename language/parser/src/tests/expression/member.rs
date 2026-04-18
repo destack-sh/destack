@@ -13,8 +13,7 @@ fn test_parse_member_expression_as_member_chain() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Member { left, name, generic_arguments } => {
-        assert!(generic_arguments.is_empty());
+    assert_node!(parser.tree, expression_id, Expression::Member { left, name } => {
         assert_string!(parser, *name, "bar");
         assert_node!(parser.tree, *left, Expression::Identifier { name } => {
             assert_string!(parser, *name, "foo");
@@ -154,10 +153,9 @@ fn test_parse_private_member_expression_with_newline_before_dot() {
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
     test.assert_no_errors(&parser);
-    assert_node!(parser.tree, expression_id, Expression::PrivateMember { left, name, generic_arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::PrivateMember { left, name } => {
         assert_node!(parser.tree, *left, Expression::This);
         assert_string!(parser, *name, "value");
-        assert!(generic_arguments.is_empty());
     });
 }
 
@@ -290,10 +288,9 @@ fn test_parse_object_property_private_member_cast_with_newline_before_dot() {
                 assert_string!(parser, *name, "value");
                 assert_node!(parser.tree, *value, Expression::As { expression, target_type } => {
                     assert_node!(parser.tree, *expression, Expression::As { expression, target_type } => {
-                        assert_node!(parser.tree, *expression, Expression::PrivateMember { left, name, generic_arguments } => {
+                        assert_node!(parser.tree, *expression, Expression::PrivateMember { left, name } => {
                             assert_node!(parser.tree, *left, Expression::This);
                             assert_string!(parser, *name, "javascriptTransformer");
-                            assert!(generic_arguments.is_empty());
                         });
                         assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
                             assert_eq!(*value, TypeLiteral::Unknown);

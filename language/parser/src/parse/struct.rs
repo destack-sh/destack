@@ -111,6 +111,22 @@ impl Parser {
 
         // struct or class
         let declaration = if is_class {
+            let extends_clause = extends_clause.and_then(|mut expressions| {
+                if expressions.is_empty() {
+                    None
+                } else {
+                    Some(expressions.remove(0))
+                }
+            });
+            let (extends_expression, extends_generic_arguments) =
+                if let Some(expression_id) = extends_clause {
+                    let (extends_expression, extends_generic_arguments) =
+                        self.split_instantiation_expression(expression_id);
+                    (Some(extends_expression), extends_generic_arguments)
+                } else {
+                    (None, vec![])
+                };
+
             Declaration::Class(ClassDeclaration {
                 name,
                 export: header.export,
@@ -118,13 +134,8 @@ impl Parser {
                 is_abstract: header.is_abstract,
                 generic_parameters: generic_parameters.unwrap_or_default(),
                 where_clauses: where_clauses.unwrap_or_default(),
-                extends_expression: extends_clause.and_then(|mut expressions| {
-                    if expressions.is_empty() {
-                        None
-                    } else {
-                        Some(expressions.remove(0))
-                    }
-                }),
+                extends_expression,
+                extends_generic_arguments,
                 implements_types: implements_types.unwrap_or_default(),
                 members,
             })
