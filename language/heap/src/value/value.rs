@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use super::meta::ReferenceMeta;
 use super::pointer::{
     GlobalPointer, LocalPointer, ManagedReference, POINTER_BASE_MASK, POINTER_SLOT_SHIFT,
-    REF_META_MASK, REF_META_SHIFT, RawPointer, STACK_INDEX_MASK, STACK_SLOT_SHIFT, SharedPointer,
-    StackPointer,
+    REF_META_MASK, REF_META_SHIFT, RawPointer, STACK_INDEX_MASK, STACK_SLOT_SHIFT,
+    SharedManagedReference, SharedRawPointer, StackPointer,
 };
 use super::tag::ValueTag;
 
@@ -72,6 +72,19 @@ impl std::fmt::Debug for Value {
                     )
                 }
             }
+            ValueTag::SharedManagedReference => {
+                let reference = SharedManagedReference::from_bits(self.data);
+                if reference.slot_offset() == 0 {
+                    write!(f, "SharedManagedReference({})", reference.id())
+                } else {
+                    write!(
+                        f,
+                        "SharedManagedReference({}, slot {})",
+                        reference.id(),
+                        reference.slot_offset()
+                    )
+                }
+            }
             ValueTag::RawPointer => {
                 let pointer = RawPointer::from_bits(self.data);
                 if pointer.slot_offset() == 0 {
@@ -85,14 +98,14 @@ impl std::fmt::Debug for Value {
                     )
                 }
             }
-            ValueTag::SharedPointer => {
-                let pointer = SharedPointer::from_bits(self.data);
+            ValueTag::SharedRawPointer => {
+                let pointer = SharedRawPointer::from_bits(self.data);
                 if pointer.byte_offset() == 0 {
-                    write!(f, "SharedPointer({})", pointer.id())
+                    write!(f, "SharedRawPointer({})", pointer.id())
                 } else {
                     write!(
                         f,
-                        "SharedPointer({}, offset: {})",
+                        "SharedRawPointer({}, offset: {})",
                         pointer.id(),
                         pointer.byte_offset()
                     )
@@ -355,6 +368,24 @@ impl Value {
         Self::managed_reference(reference).with_reference_meta(meta)
     }
 
+    /// Create a shared managed heap reference value.
+    #[inline]
+    pub const fn shared_managed_reference(reference: SharedManagedReference) -> Self {
+        Self {
+            data: reference.0,
+            meta: Self::make_meta(ValueTag::SharedManagedReference, 0),
+        }
+    }
+
+    /// Create a shared managed heap reference value with explicit metadata.
+    #[inline]
+    pub fn shared_managed_reference_with_meta(
+        reference: SharedManagedReference,
+        meta: ReferenceMeta,
+    ) -> Self {
+        Self::shared_managed_reference(reference).with_reference_meta(meta)
+    }
+
     /// Create a raw pointer value.
     #[inline]
     pub const fn raw_pointer(ptr: RawPointer) -> Self {
@@ -364,12 +395,12 @@ impl Value {
         }
     }
 
-    /// Create a shared pointer value.
+    /// Create a shared raw pointer value.
     #[inline]
-    pub const fn shared_pointer(ptr: SharedPointer) -> Self {
+    pub const fn shared_raw_pointer(ptr: SharedRawPointer) -> Self {
         Self {
             data: ptr.0,
-            meta: Self::make_meta(ValueTag::SharedPointer, 0),
+            meta: Self::make_meta(ValueTag::SharedRawPointer, 0),
         }
     }
 
@@ -379,10 +410,10 @@ impl Value {
         Self::raw_pointer(ptr).with_reference_meta(meta)
     }
 
-    /// Create a shared pointer value with explicit metadata.
+    /// Create a shared raw pointer value with explicit metadata.
     #[inline]
-    pub fn shared_pointer_with_meta(ptr: SharedPointer, meta: ReferenceMeta) -> Self {
-        Self::shared_pointer(ptr).with_reference_meta(meta)
+    pub fn shared_raw_pointer_with_meta(ptr: SharedRawPointer, meta: ReferenceMeta) -> Self {
+        Self::shared_raw_pointer(ptr).with_reference_meta(meta)
     }
 
     /// Create a stack pointer value.
@@ -477,8 +508,9 @@ impl Value {
             ValueTag::Float64 => f64::from_bits(self.data) != 0.0,
             ValueTag::Char => true,
             ValueTag::ManagedReference => self.data != 0,
+            ValueTag::SharedManagedReference => self.data != 0,
             ValueTag::RawPointer => self.data != 0,
-            ValueTag::SharedPointer => self.data != 0,
+            ValueTag::SharedRawPointer => self.data != 0,
             ValueTag::StackPointer => true,
             ValueTag::LocalPointer => true,
             ValueTag::GlobalPointer => true,
@@ -538,11 +570,26 @@ impl Value {
         self.tag() == ValueTag::ManagedReference
     }
 
+    /// Check if value is a shared managed reference.
+    #[inline]
+    pub fn is_shared_managed_reference(&self) -> bool {
+        self.tag() == ValueTag::SharedManagedReference
+    }
+
     /// Try to get this value as a managed reference.
     #[inline]
     pub fn as_managed_reference(&self) -> Option<ManagedReference> {
         match self.tag() {
             ValueTag::ManagedReference => Some(ManagedReference(self.data)),
+            _ => None,
+        }
+    }
+
+    /// Try to get this value as a shared managed reference.
+    #[inline]
+    pub fn as_shared_managed_reference(&self) -> Option<SharedManagedReference> {
+        match self.tag() {
+            ValueTag::SharedManagedReference => Some(SharedManagedReference(self.data)),
             _ => None,
         }
     }
@@ -557,11 +604,11 @@ impl Value {
         }
     }
 
-    /// Try to get this value as a shared pointer.
+    /// Try to get this value as a shared raw pointer.
     #[inline]
-    pub fn as_shared_pointer(&self) -> Option<SharedPointer> {
-        if self.tag() == ValueTag::SharedPointer {
-            Some(SharedPointer(self.data))
+    pub fn as_shared_raw_pointer(&self) -> Option<SharedRawPointer> {
+        if self.tag() == ValueTag::SharedRawPointer {
+            Some(SharedRawPointer(self.data))
         } else {
             None
         }

@@ -68,6 +68,7 @@ impl ReferenceAddressSpace {
                 | ReferenceAddressSpace::Stack
                 | ReferenceAddressSpace::Global
                 | ReferenceAddressSpace::Constant
+                | ReferenceAddressSpace::Shared
         )
     }
 

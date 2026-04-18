@@ -28,8 +28,8 @@ pub struct Arena {
     reserved_segment_count: AtomicUsize,
     /// The current fresh segment used for monotonic single-segment allocation.
     fresh_segment: AtomicUsize,
-    /// The reusable free-run index.
-    free_run_set: Mutex<FreeRunSet>,
+    /// The reusable page-run pool.
+    page_run_pool: Mutex<PageRunPool>,
 }
 
 // segment slots, fresh allocation, and run refcounts are synchronized internally
@@ -38,12 +38,12 @@ unsafe impl Send for Arena {}
 // payload access is external, arena metadata is synchronized internally
 unsafe impl Sync for Arena {}
 
-/// One free-run index.
+/// One reusable page-run pool.
 #[derive(Debug)]
-struct FreeRunSet {
-    /// The reusable free physical runs keyed by page count.
+struct PageRunPool {
+    /// The reusable physical runs keyed by page count.
     by_len: BTreeMap<usize, Vec<PageRun>>,
-    /// The reusable free physical runs keyed by first page index.
+    /// The reusable physical runs keyed by first page index.
     by_start: BTreeMap<usize, PageRun>,
 }
 
@@ -86,7 +86,7 @@ impl Arena {
                 .collect(),
             reserved_segment_count: AtomicUsize::new(0),
             fresh_segment: AtomicUsize::new(MISSING_SEGMENT_INDEX),
-            free_run_set: Mutex::new(FreeRunSet::new()),
+            page_run_pool: Mutex::new(PageRunPool::new()),
         }
     }
 
@@ -105,7 +105,7 @@ impl Arena {
                 .collect(),
             reserved_segment_count: AtomicUsize::new(0),
             fresh_segment: AtomicUsize::new(MISSING_SEGMENT_INDEX),
-            free_run_set: Mutex::new(FreeRunSet::new()),
+            page_run_pool: Mutex::new(PageRunPool::new()),
         })
     }
 
@@ -188,7 +188,7 @@ impl Arena {
         }
 
         // reuse an existing run when possible
-        if let Some(run) = self.take_free_run(page_count)? {
+        if let Some(run) = self.take_page_run(page_count)? {
             self.zero_run(run)?;
             self.initialize_run_refcount(run)?;
 
@@ -272,9 +272,9 @@ impl Arena {
                 continue;
             }
 
-            // return the fully released run to the global free-run pool
+            // return the fully released run to the global page-run pool
             if next_refcount == 0 {
-                self.insert_free_run(run)?;
+                self.return_page_run(run)?;
             }
 
             return Ok(());
@@ -326,38 +326,10 @@ impl Arena {
         Ok(())
     }
 
-    /// Return one free run large enough for the requested size.
-    fn take_free_run(&self, page_count: usize) -> HeapResult<Option<PageRun>> {
-        let mut free_run_set = self.free_run_set.lock();
-        let Some((run_len, run)) = free_run_set
-            .by_len
-            .range_mut(page_count..)
-            .find_map(|(&run_len, runs)| runs.pop().map(|run| (run_len, run)))
-        else {
-            return Ok(None);
-        };
-
-        // drop the selected extent from both free-run indexes
-        free_run_set.by_start.remove(&run.first_page.index());
-
-        // drop empty buckets after one successful pop
-        if free_run_set.by_len.get(&run_len).is_some_and(Vec::is_empty) {
-            free_run_set.by_len.remove(&run_len);
-        }
-
-        let (allocation, remainder) =
-            run.split_prefix(page_count)
-                .ok_or(HeapError::InvalidPageRun {
-                    first_page: run.first_page,
-                    page_count,
-                })?;
-
-        // return any remainder to the free-run indexes
-        if !remainder.is_empty() {
-            self.insert_free_run_locked(&mut free_run_set, remainder)?;
-        }
-
-        Ok(Some(allocation))
+    /// Return one reusable run large enough for the requested size.
+    fn take_page_run(&self, page_count: usize) -> HeapResult<Option<PageRun>> {
+        let mut page_run_pool = self.page_run_pool.lock();
+        page_run_pool.take(page_count)
     }
 
     /// Return one fresh run that fits inside one existing or new segment.
@@ -523,7 +495,7 @@ impl Arena {
             )?);
             let segment_ptr = Box::into_raw(segment);
 
-            // publish one newly materialized segment once
+            // install one newly materialized segment once
             if let Err(existing_ptr) =
                 slot.compare_exchange(null_mut(), segment_ptr, Ordering::AcqRel, Ordering::Acquire)
             {
@@ -693,117 +665,30 @@ impl Arena {
         self.pages_per_segment as usize
     }
 
-    /// Insert one free run and coalesce it with adjacent free runs.
-    fn insert_free_run(&self, run: PageRun) -> HeapResult<()> {
-        let mut free_run_set = self.free_run_set.lock();
+    /// Return one reusable run to the arena page-run pool.
+    fn return_page_run(&self, run: PageRun) -> HeapResult<()> {
+        let mut page_run_pool = self.page_run_pool.lock();
 
-        self.insert_free_run_locked(&mut free_run_set, run)
+        page_run_pool.insert(run)
     }
 
-    /// Release one cached run back into the arena free-run pool.
-    pub(super) fn recycle_cached_run(&self, run: PageRun) {
+    /// Release one cache-owned run back into the arena page-run pool.
+    pub(super) fn release_cached_run(&self, run: PageRun) -> HeapResult<()> {
         if run.is_empty() {
-            return;
+            return Ok(());
         }
 
-        let refcount = match self.run_refcount(run) {
-            Ok(refcount) => refcount,
-            Err(error) => panic!("cached run lost arena refcount: {error}"),
-        };
+        let refcount = self.run_refcount(run)?;
 
         let current_refcount = refcount.swap(0, Ordering::AcqRel);
         if current_refcount != 1 {
-            panic!(
-                "cached run had invalid refcount {} at page {}",
-                current_refcount,
-                run.first_page.index()
-            );
+            return Err(HeapError::InvalidRunRefcount {
+                first_page: run.first_page,
+                refcount: current_refcount,
+            });
         }
 
-        if let Err(error) = self.insert_free_run(run) {
-            panic!("cached run could not reenter free-run index: {error}");
-        }
-    }
-
-    /// Insert one free run while holding the arena state lock.
-    fn insert_free_run_locked(
-        &self,
-        free_run_set: &mut FreeRunSet,
-        run: PageRun,
-    ) -> HeapResult<()> {
-        let mut run = run;
-
-        // merge the immediate predecessor when it touches this run
-        if let Some(previous_run) = self.find_previous_free_run(free_run_set, run)
-            && previous_run.is_immediately_before(run)
-        {
-            self.remove_free_run(free_run_set, previous_run);
-            run = PageRun::new(
-                previous_run.first_page,
-                previous_run
-                    .len()
-                    .checked_add(run.len())
-                    .ok_or(HeapError::InvariantOverflow {
-                        context: "arena free-run merge length",
-                    })?,
-            )?;
-        }
-
-        // merge the immediate successor when it touches this run
-        if let Some(next_run) = self.find_next_free_run(free_run_set, run)
-            && run.is_immediately_before(next_run)
-        {
-            self.remove_free_run(free_run_set, next_run);
-            run = PageRun::new(
-                run.first_page,
-                run.len()
-                    .checked_add(next_run.len())
-                    .ok_or(HeapError::InvariantOverflow {
-                        context: "arena free-run merge length",
-                    })?,
-            )?;
-        }
-
-        // publish the merged run into both indexes
-        free_run_set.by_len.entry(run.len()).or_default().push(run);
-        free_run_set.by_start.insert(run.first_page.index(), run);
-
-        Ok(())
-    }
-
-    /// Remove one free run from both free-run indexes.
-    fn remove_free_run(&self, free_run_set: &mut FreeRunSet, run: PageRun) {
-        // drop the exact run from the size bucket
-        if let Some(runs) = free_run_set.by_len.get_mut(&run.len()) {
-            if let Some(run_index) = runs.iter().position(|candidate| *candidate == run) {
-                runs.swap_remove(run_index);
-            }
-
-            if runs.is_empty() {
-                free_run_set.by_len.remove(&run.len());
-            }
-        }
-
-        // drop the exact run from the start index
-        free_run_set.by_start.remove(&run.first_page.index());
-    }
-
-    /// Return the immediately preceding free run when one exists.
-    fn find_previous_free_run(&self, free_run_set: &FreeRunSet, run: PageRun) -> Option<PageRun> {
-        free_run_set
-            .by_start
-            .range(..run.start_page_index())
-            .next_back()
-            .map(|(_, run)| *run)
-    }
-
-    /// Return the immediately following free run when one exists.
-    fn find_next_free_run(&self, free_run_set: &FreeRunSet, run: PageRun) -> Option<PageRun> {
-        free_run_set
-            .by_start
-            .range(run.end_page_index()..)
-            .next()
-            .map(|(_, run)| *run)
+        self.return_page_run(run)
     }
 
     /// Raise one segment fresh-allocation cursor to the given high watermark.
@@ -843,13 +728,119 @@ impl Arena {
     }
 }
 
-impl FreeRunSet {
-    /// Create one empty free-run index.
+impl PageRunPool {
+    /// Create one empty page-run pool.
     fn new() -> Self {
         Self {
             by_len: BTreeMap::new(),
             by_start: BTreeMap::new(),
         }
+    }
+
+    /// Return one reusable run large enough for the requested size.
+    fn take(&mut self, page_count: usize) -> HeapResult<Option<PageRun>> {
+        let Some((run_len, run)) = self
+            .by_len
+            .range_mut(page_count..)
+            .find_map(|(&run_len, runs)| runs.pop().map(|run| (run_len, run)))
+        else {
+            return Ok(None);
+        };
+
+        // drop the selected extent from both indexes
+        self.by_start.remove(&run.first_page.index());
+
+        // drop empty buckets after one successful pop
+        if self.by_len.get(&run_len).is_some_and(Vec::is_empty) {
+            self.by_len.remove(&run_len);
+        }
+
+        let (allocation, remainder) =
+            run.split_prefix(page_count)
+                .ok_or(HeapError::InvalidPageRun {
+                    first_page: run.first_page,
+                    page_count,
+                })?;
+
+        // return any remainder to the indexes
+        if !remainder.is_empty() {
+            self.insert(remainder)?;
+        }
+
+        Ok(Some(allocation))
+    }
+
+    /// Return one reusable run and coalesce it with adjacent reusable runs.
+    fn insert(&mut self, run: PageRun) -> HeapResult<()> {
+        let mut run = run;
+
+        // merge the immediate predecessor when it touches this run
+        if let Some(previous_run) = self.previous(run)
+            && previous_run.is_immediately_before(run)
+        {
+            self.remove(previous_run);
+            run = PageRun::new(
+                previous_run.first_page,
+                previous_run
+                    .len()
+                    .checked_add(run.len())
+                    .ok_or(HeapError::InvariantOverflow {
+                        context: "arena page-run merge length",
+                    })?,
+            )?;
+        }
+
+        // merge the immediate successor when it touches this run
+        if let Some(next_run) = self.next(run)
+            && run.is_immediately_before(next_run)
+        {
+            self.remove(next_run);
+            run = PageRun::new(
+                run.first_page,
+                run.len()
+                    .checked_add(next_run.len())
+                    .ok_or(HeapError::InvariantOverflow {
+                        context: "arena page-run merge length",
+                    })?,
+            )?;
+        }
+
+        // record the merged run in both indexes
+        self.by_len.entry(run.len()).or_default().push(run);
+        self.by_start.insert(run.first_page.index(), run);
+
+        Ok(())
+    }
+
+    /// Remove one reusable run from both indexes.
+    fn remove(&mut self, run: PageRun) {
+        if let Some(runs) = self.by_len.get_mut(&run.len()) {
+            if let Some(run_index) = runs.iter().position(|candidate| *candidate == run) {
+                runs.swap_remove(run_index);
+            }
+
+            if runs.is_empty() {
+                self.by_len.remove(&run.len());
+            }
+        }
+
+        self.by_start.remove(&run.first_page.index());
+    }
+
+    /// Return the immediately preceding reusable run when one exists.
+    fn previous(&self, run: PageRun) -> Option<PageRun> {
+        self.by_start
+            .range(..run.start_page_index())
+            .next_back()
+            .map(|(_, run)| *run)
+    }
+
+    /// Return the immediately following reusable run when one exists.
+    fn next(&self, run: PageRun) -> Option<PageRun> {
+        self.by_start
+            .range(run.end_page_index()..)
+            .next()
+            .map(|(_, run)| *run)
     }
 }
 

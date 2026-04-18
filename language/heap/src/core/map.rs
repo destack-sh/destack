@@ -1,91 +1,46 @@
-use serde::{Deserialize, Serialize};
+use destack_mir::EdgeMap;
 
-use crate::value::Value;
-use crate::{HeapError, HeapResult};
+use crate::{HeapError, HeapResult, Value};
 
-/// Reference-scanning metadata for one managed entry payload.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ReferenceMap {
-    /// Payload contains no managed references.
-    None,
-    /// Payload stores direct managed-reference words at fixed byte offsets.
-    ReferenceOffsets {
-        /// Byte offsets of encoded managed references.
-        offsets: Box<[u32]>,
-    },
-    /// Payload stores full VM values at fixed byte offsets.
-    ValueOffsets {
-        /// Byte offsets of encoded VM values.
-        offsets: Box<[u32]>,
-    },
-    /// Payload stores repeated elements with managed-reference words at fixed element offsets.
-    RepeatedReferenceOffsets {
-        /// The number of elements in the payload.
-        count: u32,
-        /// The element byte stride.
-        element_size: u32,
-        /// Managed-reference byte offsets within each element.
-        offsets: Box<[u32]>,
-    },
-}
-
-impl ReferenceMap {
-    /// Return an empty reference map.
-    pub const fn empty() -> Self {
-        Self::None
+/// Return whether one write range may overlap any managed-edge bytes.
+pub(crate) fn touches_managed_range(
+    map: &EdgeMap,
+    start: usize,
+    len: usize,
+    managed_reference_bytes: u8,
+) -> HeapResult<bool> {
+    if len == 0 {
+        return Ok(false);
     }
 
-    /// Report whether this reference map can reach managed references.
-    pub fn has_managed_edges(&self) -> bool {
-        match self {
-            Self::None => false,
-            Self::ReferenceOffsets { offsets } => !offsets.is_empty(),
-            Self::ValueOffsets { offsets } => !offsets.is_empty(),
-            Self::RepeatedReferenceOffsets { count, offsets, .. } => {
-                *count > 0 && !offsets.is_empty()
-            }
+    let Some(end) = start.checked_add(len) else {
+        return Ok(true);
+    };
+
+    let managed_reference_bytes = managed_reference_width(managed_reference_bytes)?;
+    let is_overlapping = match map {
+        EdgeMap::None => false,
+        EdgeMap::ReferenceOffsets { offsets } => {
+            touches_reference_offsets(offsets, start, end, managed_reference_bytes)
         }
-    }
-
-    /// Report whether one write range may overlap any managed-reference bytes.
-    pub fn touches_managed_range(
-        &self,
-        start: usize,
-        len: usize,
-        managed_reference_bytes: u8,
-    ) -> HeapResult<bool> {
-        if len == 0 {
-            return Ok(false);
+        EdgeMap::ValueOffsets { offsets } => {
+            touches_value_offsets(offsets, start, end, Value::BYTE_LEN)
         }
+        EdgeMap::RepeatedReferenceOffsets {
+            count,
+            element_size,
+            offsets,
+        } => touches_repeated_reference_offsets(
+            *count,
+            *element_size,
+            offsets,
+            start,
+            end,
+            managed_reference_bytes,
+        ),
+    };
 
-        let Some(end) = start.checked_add(len) else {
-            return Ok(true);
-        };
-
-        let managed_reference_bytes = managed_reference_width(managed_reference_bytes)?;
-
-        let is_overlapping = match self {
-            Self::None => false,
-            Self::ReferenceOffsets { offsets } => {
-                touches_reference_offsets(offsets, start, end, managed_reference_bytes)
-            }
-            Self::ValueOffsets { offsets } => touches_value_offsets(offsets, start, end),
-            Self::RepeatedReferenceOffsets {
-                count,
-                element_size,
-                offsets,
-            } => touches_repeated_reference_offsets(
-                *count,
-                *element_size,
-                offsets,
-                start,
-                end,
-                managed_reference_bytes,
-            ),
-        };
-
-        Ok(is_overlapping)
-    }
+    Ok(is_overlapping)
 }
 
 /// Return the validated byte width for one traced managed reference.
@@ -112,11 +67,11 @@ fn touches_reference_offsets(
 }
 
 /// Report whether one value table overlaps the given byte range.
-fn touches_value_offsets(offsets: &[u32], start: usize, end: usize) -> bool {
+fn touches_value_offsets(offsets: &[u32], start: usize, end: usize, value_bytes: usize) -> bool {
     offsets
         .iter()
         .copied()
-        .any(|offset| ranges_overlap(start, end, offset as usize, Value::BYTE_LEN))
+        .any(|offset| ranges_overlap(start, end, offset as usize, value_bytes))
 }
 
 /// Report whether one repeated managed-reference table overlaps the given byte range.

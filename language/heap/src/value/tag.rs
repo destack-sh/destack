@@ -20,18 +20,20 @@ pub enum ValueTag {
     Char = 6,
     /// GC-tracked heap reference.
     ManagedReference = 7,
+    /// Shared GC-tracked heap reference.
+    SharedManagedReference = 8,
     /// Manually managed heap pointer.
-    RawPointer = 8,
-    /// Shared-memory pointer.
-    SharedPointer = 9,
+    RawPointer = 9,
+    /// Shared raw-memory pointer.
+    SharedRawPointer = 10,
     /// Frame-scoped stack pointer.
-    StackPointer = 10,
+    StackPointer = 11,
     /// Frame-local pointer.
-    LocalPointer = 11,
+    LocalPointer = 12,
     /// Global variable pointer.
-    GlobalPointer = 12,
+    GlobalPointer = 13,
     /// Function pointer.
-    FunctionPointer = 13,
+    FunctionPointer = 14,
 }
 
 impl ValueTag {
@@ -46,12 +48,13 @@ impl ValueTag {
             5 => Some(Self::Float64),
             6 => Some(Self::Char),
             7 => Some(Self::ManagedReference),
-            8 => Some(Self::RawPointer),
-            9 => Some(Self::SharedPointer),
-            10 => Some(Self::StackPointer),
-            11 => Some(Self::LocalPointer),
-            12 => Some(Self::GlobalPointer),
-            13 => Some(Self::FunctionPointer),
+            8 => Some(Self::SharedManagedReference),
+            9 => Some(Self::RawPointer),
+            10 => Some(Self::SharedRawPointer),
+            11 => Some(Self::StackPointer),
+            12 => Some(Self::LocalPointer),
+            13 => Some(Self::GlobalPointer),
+            14 => Some(Self::FunctionPointer),
             _ => None,
         }
     }
