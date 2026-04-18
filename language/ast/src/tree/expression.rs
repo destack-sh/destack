@@ -421,11 +421,13 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// sql`SELECT * FROM users`
+    /// sql<User>`SELECT * FROM users`
     /// sql`${stmt}`
     /// (sql.expr)`SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
     /// ```
     TaggedTemplateExpression {
         tag: LocalNodeId<Expression>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
         value: TemplateLiteral,
     },
 
@@ -501,6 +503,7 @@ pub enum Expression {
     /// ```
     TreeExpression {
         left: Option<LocalNodeId<Expression>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
         elements: Option<Vec<LocalNodeId<Argument>>>,
     },
@@ -635,12 +638,10 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// foo.bar
-    /// foo.bar<T>
     /// ```
     Member {
         left: LocalNodeId<Expression>,
         name: Option<StringId>,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
     },
 
     /// Private member access.
@@ -648,12 +649,10 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// foo.#bar
-    /// foo.#bar<T>
     /// ```
     PrivateMember {
         left: LocalNodeId<Expression>,
         name: Option<StringId>,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
     },
 
     /// Index into a receiver expression.
