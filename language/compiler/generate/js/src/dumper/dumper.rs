@@ -906,12 +906,6 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             } => {
                 self.node("js::Expression::Satisfies", id.id).end();
             }
-            js::Expression::Is {
-                value: _,
-                target_type: _,
-            } => {
-                self.node("js::Expression::Is", id.id).end();
-            }
             js::Expression::InstanceOf {
                 value: _,
                 target: _,
@@ -965,20 +959,12 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
                     .field("position", position)
                     .end();
             }
-            js::Expression::Member {
-                left: _,
-                name,
-                generic_arguments: _,
-            } => {
+            js::Expression::Member { left: _, name } => {
                 self.node("js::Expression::Member", id.id)
                     .field("name", name)
                     .end();
             }
-            js::Expression::PrivateMember {
-                left: _,
-                name,
-                generic_arguments: _,
-            } => {
+            js::Expression::PrivateMember { left: _, name } => {
                 self.node("js::Expression::PrivateMember", id.id)
                     .field("name", name)
                     .end();
@@ -1109,6 +1095,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
                 descriptor,
                 generic_parameters: _,
                 extends_expression: _,
+                extends_generic_arguments: _,
                 implements_types: _,
                 members: _,
             }) => {
@@ -1161,11 +1148,11 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
                 modifiers,
                 key,
                 value: _,
-                default: _,
+                is_shorthand: _,
             } => {
                 self.node("js::Property::Field", id.id)
                     .field_optional("modifiers", modifiers)
-                    .field_optional("key", key)
+                    .field("key", key)
                     .end();
             }
             js::Property::Method {
@@ -1209,7 +1196,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             } => {
                 self.node("js::Member::Field", id.id)
                     .field_optional("modifiers", modifiers)
-                    .field_optional("key", key)
+                    .field("key", key)
                     .end();
             }
             js::Member::Method {
@@ -1332,9 +1319,6 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             js::Argument::Spread { value: _ } => {
                 self.node("js::Argument::Spread", id.id).end();
             }
-            js::Argument::Dynamic { key: _, value: _ } => {
-                self.node("js::Argument::Dynamic", id.id).end();
-            }
         }
         self.with_depth(|dumper| {
             js::walk_argument(dumper, tree, id, argument);
@@ -1454,115 +1438,122 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_type(&mut self, tree: &js::NodeTree, id: js::LocalNodeId<js::Type>, ty: &js::Type) {
-        match ty {
-            js::Type::Scalar(literal) => {
-                self.node("js::Type::Scalar", id.id).value(literal).end();
+    fn visit_type_expression(
+        &mut self,
+        tree: &js::NodeTree,
+        id: js::LocalNodeId<js::TypeExpression>,
+        type_expression: &js::TypeExpression,
+    ) {
+        match type_expression {
+            js::TypeExpression::Scalar(literal) => {
+                self.node("js::TypeExpression::Scalar", id.id)
+                    .value(literal)
+                    .end();
             }
-            js::Type::This => {
-                self.node("js::Type::This", id.id).end();
+            js::TypeExpression::This => {
+                self.node("js::TypeExpression::This", id.id).end();
             }
-            js::Type::Path {
+            js::TypeExpression::Path {
                 path,
                 generic_arguments: _,
             } => {
-                self.node("js::Type::Path", id.id).field("path", path).end();
+                self.node("js::TypeExpression::Path", id.id)
+                    .field("path", path)
+                    .end();
             }
-            js::Type::Expression(_) => {
-                self.node("js::Type::Expression", id.id).end();
+            js::TypeExpression::Readonly { target_type: _ } => {
+                self.node("js::TypeExpression::Readonly", id.id).end();
             }
-            js::Type::Readonly { target_type: _ } => {
-                self.node("js::Type::Readonly", id.id).end();
+            js::TypeExpression::KeyOf { target_type: _ } => {
+                self.node("js::TypeExpression::KeyOf", id.id).end();
             }
-            js::Type::KeyOf { target_type: _ } => {
-                self.node("js::Type::KeyOf", id.id).end();
+            js::TypeExpression::Must { target_type: _ } => {
+                self.node("js::TypeExpression::Must", id.id).end();
             }
-            js::Type::Must { target_type: _ } => {
-                self.node("js::Type::Must", id.id).end();
+            js::TypeExpression::AsComptime { target_type: _ } => {
+                self.node("js::TypeExpression::AsComptime", id.id).end();
             }
-            js::Type::AsComptime { target_type: _ } => {
-                self.node("js::Type::AsComptime", id.id).end();
+            js::TypeExpression::Not { target_type: _ } => {
+                self.node("js::TypeExpression::Not", id.id).end();
             }
-            js::Type::Not { target_type: _ } => {
-                self.node("js::Type::Not", id.id).end();
+            js::TypeExpression::In { left: _, right: _ } => {
+                self.node("js::TypeExpression::In", id.id).end();
             }
-            js::Type::In { left: _, right: _ } => {
-                self.node("js::Type::In", id.id).end();
+            js::TypeExpression::Extends { left: _, right: _ } => {
+                self.node("js::TypeExpression::Extends", id.id).end();
             }
-            js::Type::Extends { left: _, right: _ } => {
-                self.node("js::Type::Extends", id.id).end();
+            js::TypeExpression::Implements { left: _, right: _ } => {
+                self.node("js::TypeExpression::Implements", id.id).end();
             }
-            js::Type::Implements { left: _, right: _ } => {
-                self.node("js::Type::Implements", id.id).end();
-            }
-            js::Type::Conditional {
+            js::TypeExpression::Conditional {
                 left: _,
                 right: _,
                 then_type: _,
                 else_type: _,
             } => {
-                self.node("js::Type::Conditional", id.id).end();
+                self.node("js::TypeExpression::Conditional", id.id).end();
             }
-            js::Type::Mapped {
+            js::TypeExpression::Mapped {
                 parameter: _,
                 modifiers: _,
                 value: _,
             } => {
-                self.node("js::Type::Mapped", id.id).end();
+                self.node("js::TypeExpression::Mapped", id.id).end();
             }
-            js::Type::Index { left: _, index: _ } => {
-                self.node("js::Type::Index", id.id).end();
+            js::TypeExpression::Index { left: _, index: _ } => {
+                self.node("js::TypeExpression::Index", id.id).end();
             }
-            js::Type::TemplateLiteral(_) => {
-                self.node("js::Type::TemplateLiteral", id.id).end();
+            js::TypeExpression::TemplateLiteral(_) => {
+                self.node("js::TypeExpression::TemplateLiteral", id.id)
+                    .end();
             }
-            js::Type::Import {
+            js::TypeExpression::Import {
                 target: _,
                 qualifier: _,
                 generic_arguments: _,
             } => {
-                self.node("js::Type::Import", id.id).end();
+                self.node("js::TypeExpression::Import", id.id).end();
             }
-            js::Type::Infer {
+            js::TypeExpression::Infer {
                 name: _,
                 constraint: _,
             } => {
-                self.node("js::Type::Infer", id.id).end();
+                self.node("js::TypeExpression::Infer", id.id).end();
             }
-            js::Type::Predicate {
+            js::TypeExpression::Predicate {
                 asserts: _,
                 subject: _,
                 target: _,
             } => {
-                self.node("js::Type::Predicate", id.id).end();
+                self.node("js::TypeExpression::Predicate", id.id).end();
             }
-            js::Type::Array { .. } => {
-                self.node("js::Type::Array", id.id).end();
+            js::TypeExpression::Array { .. } => {
+                self.node("js::TypeExpression::Array", id.id).end();
             }
-            js::Type::Tuple { elements: _ } => {
-                self.node("js::Type::Tuple", id.id).end();
+            js::TypeExpression::Tuple { elements: _ } => {
+                self.node("js::TypeExpression::Tuple", id.id).end();
             }
-            js::Type::Object { properties: _ } => {
-                self.node("js::Type::Object", id.id).end();
+            js::TypeExpression::Object { members: _ } => {
+                self.node("js::TypeExpression::Object", id.id).end();
             }
-            js::Type::Union { elements: _ } => {
-                self.node("js::Type::Union", id.id).end();
+            js::TypeExpression::Union { elements: _ } => {
+                self.node("js::TypeExpression::Union", id.id).end();
             }
-            js::Type::Intersection { elements: _ } => {
-                self.node("js::Type::Intersection", id.id).end();
+            js::TypeExpression::Intersection { elements: _ } => {
+                self.node("js::TypeExpression::Intersection", id.id).end();
             }
-            js::Type::Function { signature } => {
-                self.node("js::Type::Function", id.id)
+            js::TypeExpression::Function { signature } => {
+                self.node("js::TypeExpression::Function", id.id)
                     .field("signature", signature)
                     .end();
             }
 
-            js::Type::Error => {
-                self.node("js::Type::Error", id.id).end();
+            js::TypeExpression::Error => {
+                self.node("js::TypeExpression::Error", id.id).end();
             }
         }
         self.with_depth(|dumper| {
-            js::walk_type(dumper, tree, id, ty);
+            js::walk_type_expression(dumper, tree, id, type_expression);
         });
     }
 

@@ -87,39 +87,6 @@ impl ModuleLowerer<'_> {
         Ok(block_id)
     }
 
-    /// Lower one expression into a JS type.
-    pub fn lower_expression_as_type(
-        &mut self,
-        source_expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Type>> {
-        let lowered_id = self.lower_expression(source_expression_id)?;
-
-        let type_id = match lowered_id.ty {
-            js::NodeType::Type => lowered_id.try_into().unwrap(),
-            js::NodeType::Expression => {
-                let lowered_expression_id: js::LocalNodeId<js::Expression> =
-                    lowered_id.try_into().unwrap();
-                let ty = js::Type::Expression(lowered_expression_id);
-                self.tree.insert_from_source_any(
-                    ty,
-                    self.module.id,
-                    source_expression_id.into_any(),
-                )
-            }
-            _ => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: source_expression_id.into_global_any(self.module.id),
-                    message: Some(format!(
-                        "type lowering expected expression or type, got {}",
-                        lowered_id.ty.name()
-                    )),
-                });
-            }
-        };
-
-        Ok(type_id)
-    }
-
     /// Lower a block from DIR into JS AST.
     pub fn lower_block(
         &mut self,

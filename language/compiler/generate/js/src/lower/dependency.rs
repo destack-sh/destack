@@ -35,7 +35,7 @@ impl ModuleLowerer<'_> {
                 dir::DependencyItem::Error => {
                     return Err(CodegenJsError::UnsupportedConstruct {
                         node: item_id.into_global_any(self.module.id),
-                        message: Some("dependency error slots are not lowered to js".to_string()),
+                        message: Some("dependency error slots are not lowered to JS".to_string()),
                     });
                 }
                 dir::DependencyItem::UnresolvedRemote {

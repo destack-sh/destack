@@ -35,7 +35,7 @@ impl ModuleLowerer<'_> {
             dir::UnaryOperator::WrappingNegate => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: expression_id.into_global_any(self.module.id),
-                    message: Some("wrapping negate is not lowered to js".to_string()),
+                    message: Some("wrapping negate is not lowered to JS".to_string()),
                 });
             }
             dir::UnaryOperator::ElementwiseNot => unary(js::UnaryOperator::ElementwiseNot),
@@ -45,7 +45,7 @@ impl ModuleLowerer<'_> {
             dir::UnaryOperator::Spread => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: expression_id.into_global_any(self.module.id),
-                    message: Some("spread unary expressions are not lowered to js".to_string()),
+                    message: Some("spread unary expressions are not lowered to JS".to_string()),
                 });
             }
         };

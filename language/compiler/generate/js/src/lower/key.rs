@@ -71,7 +71,7 @@ impl ModuleLowerer<'_> {
                     return Err(CodegenJsError::UnsupportedConstruct {
                         node: source_id.into_global(self.module.id),
                         message: Some(
-                            "remote unique symbol keys need source-backed lowering in js output"
+                            "remote unique symbol keys need source-backed lowering in JS output"
                                 .to_string(),
                         ),
                     });
@@ -82,7 +82,7 @@ impl ModuleLowerer<'_> {
                     return Err(CodegenJsError::UnsupportedConstruct {
                         node: source_id.into_global(self.module.id),
                         message: Some(
-                            "unique symbol keys need identifier-backed symbols in js output"
+                            "unique symbol keys need identifier-backed symbols in JS output"
                                 .to_string(),
                         ),
                     });

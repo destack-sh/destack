@@ -27,7 +27,7 @@ impl ModuleLowerer<'_> {
     ) -> CodegenJsResult<js::LocalNodeId<js::Annotation>> {
         let _ = self.dir_tree.get(decorator_id);
 
-        // decorators are still rejected during js lowering
+        // decorators are still rejected during JS lowering
         Err(CodegenJsError::UnsupportedConstruct {
             node: decorator_id.into_global_any(self.module.id),
             message: None,

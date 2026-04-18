@@ -72,7 +72,7 @@ impl CodegenJsSourceMap<'_> {
             return None;
         }
 
-        // js nodes carry dir ids, so resolve them back to ast ids first
+        // JS nodes carry DIR ids, so resolve them back to AST ids first
         if !self.dir.tree.has_node_id(source_id) {
             return None;
         }
@@ -136,7 +136,7 @@ fn print_script_module_pretty(
     let mut state = FormatState::new(context);
     let mut buffer = VecBuffer::new(&mut state);
 
-    // format the root list through the pure js formatter
+    // format the root list through the pure JS formatter
     {
         let mut formatter = Formatter::new(&mut buffer);
         js::format_roots(&mut formatter, roots).map_err(|error| CodegenJsError::Internal {
