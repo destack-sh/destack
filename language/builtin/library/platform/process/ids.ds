@@ -57,7 +57,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function pid(): Result<ProcessId, PlatformError>;
@@ -87,7 +86,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function ppid(): Result<ProcessId, PlatformError>;
@@ -117,7 +115,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function uid(): Result<UserId, PlatformError>;
@@ -147,7 +144,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function gid(): Result<GroupId, PlatformError>;
@@ -177,7 +173,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function euid(): Result<UserId, PlatformError>;
@@ -207,7 +202,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function egid(): Result<GroupId, PlatformError>;
@@ -237,7 +231,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function userIds(): Result<ProcessUserIds, PlatformError>;
@@ -267,7 +260,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function groupIds(): Result<ProcessGroupIds, PlatformError>;
@@ -297,7 +289,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function setUid(userId: UserId): Result<void, PlatformError>;
@@ -327,7 +318,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function setEuid(userId: UserId): Result<void, PlatformError>;
@@ -357,7 +347,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function setGid(groupId: GroupId): Result<void, PlatformError>;
@@ -387,7 +376,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function setEgid(groupId: GroupId): Result<void, PlatformError>;
@@ -417,7 +405,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function setUserIds(ids: ProcessUserIds): Result<void, PlatformError>;
@@ -447,7 +434,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function setGroupIds(ids: ProcessGroupIds): Result<void, PlatformError>;
@@ -477,7 +463,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function groups(): Result<Slice<GroupId>, PlatformError>;
@@ -507,7 +492,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function setGroups(groups: Slice<GroupId>): Result<void, PlatformError>;

@@ -31,7 +31,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function deviceOpen(
@@ -65,7 +64,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function deviceClose(handle: DeviceHandle): Result<void, PlatformError>;
@@ -95,7 +93,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function deviceRead(
@@ -128,7 +125,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function deviceWrite(
@@ -161,7 +157,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function deviceControl(

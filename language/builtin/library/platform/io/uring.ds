@@ -53,7 +53,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function uringOpen(parameters: UringParameters): Result<UringHandle, PlatformError>;
@@ -83,7 +82,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function uringClose(handle: UringHandle): Result<void, PlatformError>;
@@ -113,7 +111,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function uringFeatures(handle: UringHandle): Result<UringFeatures, PlatformError>;
@@ -143,7 +140,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function uringRegisterFiles(
@@ -176,7 +172,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function uringUnregisterFiles(handle: UringHandle): Result<void, PlatformError>;
@@ -206,7 +201,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function uringRegisterBuffers(
@@ -240,7 +234,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function uringUnregisterBuffers(handle: UringHandle): Result<void, PlatformError>;

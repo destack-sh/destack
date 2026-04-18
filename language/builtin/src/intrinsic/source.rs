@@ -141,8 +141,6 @@ pub const INTRINSIC_SOURCES: &[BuiltinSource] = &[
     REFLECT_DECORATOR,
     REFLECT_TYPE,
     REFLECT_INDEX,
-    // intrinsic root
-    INTRINSIC_OWNERSHIP,
     INTRINSIC_ROOT_INDEX,
     INTRINSIC_PRELUDE,
 ];

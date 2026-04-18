@@ -28,7 +28,6 @@ declare namespace ffi {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function symbolLookup(
@@ -61,7 +60,6 @@ declare namespace ffi {
         simulation: "stub",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function symbolAddress(symbol: SymbolHandle): Result<uint64, PlatformError>;

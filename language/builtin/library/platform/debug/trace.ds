@@ -41,7 +41,6 @@ declare namespace debug {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function traceStart(
@@ -74,7 +73,6 @@ declare namespace debug {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function traceStop(handle: TraceHandle): Result<void, PlatformError>;
@@ -105,7 +103,6 @@ declare namespace debug {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function traceEmit(

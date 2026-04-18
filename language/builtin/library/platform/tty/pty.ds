@@ -36,7 +36,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function ptyOpen(
@@ -70,7 +69,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function ptyClose(handle: PtyHandle): Result<void, PlatformError>;

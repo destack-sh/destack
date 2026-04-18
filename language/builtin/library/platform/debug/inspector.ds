@@ -36,7 +36,6 @@ declare namespace debug {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function inspectorStart(
@@ -69,7 +68,6 @@ declare namespace debug {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function inspectorStop(handle: InspectorHandle): Result<void, PlatformError>;
@@ -99,7 +97,6 @@ declare namespace debug {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function inspectorEndpoint(handle: InspectorHandle): Result<InspectorEndpoint, PlatformError>;

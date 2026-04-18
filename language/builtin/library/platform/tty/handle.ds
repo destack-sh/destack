@@ -29,7 +29,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function stdioStdin(): Result<TtyHandle, PlatformError>;
@@ -60,7 +59,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function stdioStdout(): Result<TtyHandle, PlatformError>;
@@ -91,7 +89,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function stdioStderr(): Result<TtyHandle, PlatformError>;
@@ -121,7 +118,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function close(handle: TtyHandle): Result<void, PlatformError>;
@@ -151,7 +147,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function isTerminalFile(handle: FileHandle): Result<boolean, PlatformError>;

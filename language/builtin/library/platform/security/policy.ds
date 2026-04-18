@@ -47,7 +47,6 @@ declare namespace security {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function policyGet(scope: string): Result<Slice<PlatformCapability>, PlatformError>;
@@ -77,7 +76,6 @@ declare namespace security {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function policyGetRules(scope: string): Result<Slice<SecurityPolicyRule>, PlatformError>;
@@ -107,7 +105,6 @@ declare namespace security {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function policySet(
@@ -140,7 +137,6 @@ declare namespace security {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function policySetRules(

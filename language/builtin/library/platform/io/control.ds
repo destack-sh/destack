@@ -55,7 +55,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function controlFcntl(
@@ -90,7 +89,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function controlIoctl(

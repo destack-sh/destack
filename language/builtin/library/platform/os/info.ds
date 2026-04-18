@@ -49,7 +49,6 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function systemSnapshot(): Result<SystemSnapshot, PlatformError>;
@@ -79,7 +78,6 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function uptimeNs(): Result<uint64, PlatformError>;
@@ -109,7 +107,6 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function loadAverage(): Result<LoadAverage, PlatformError>;
@@ -139,7 +136,6 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function bootTimeUnixNs(): Result<uint64, PlatformError>;

@@ -38,7 +38,6 @@ declare namespace debug {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function profileStart(kind: ProfileKind): Result<ProfileHandle, PlatformError>;
@@ -68,7 +67,6 @@ declare namespace debug {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function profileStop(handle: ProfileHandle): Result<void, PlatformError>;
@@ -98,7 +96,6 @@ declare namespace debug {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function profileSnapshot(handle: ProfileHandle): Result<Array<uint8>, PlatformError>;

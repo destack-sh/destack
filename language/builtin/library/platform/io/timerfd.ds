@@ -52,7 +52,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function timerFdOpen(
@@ -85,7 +84,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function timerFdSet(
@@ -119,7 +117,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function timerFdGet(handle: TimerFdHandle): Result<TimerFdSpec, PlatformError>;
@@ -149,7 +146,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function timerFdRead(handle: TimerFdHandle): Result<uint64, PlatformError>;
@@ -179,7 +175,6 @@ declare namespace io {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function timerFdClose(handle: TimerFdHandle): Result<void, PlatformError>;

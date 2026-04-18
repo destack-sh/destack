@@ -540,7 +540,6 @@ export declare namespace error {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function takePlatformError(errorId: uint64): Result<PlatformError, PlatformError>;

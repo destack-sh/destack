@@ -340,7 +340,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function storeProbeKinds(): Result<Array<CryptoStoreKind>, PlatformError>;
@@ -369,7 +368,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function storeProbeCapability(
@@ -406,7 +404,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function storeOpen(options: CryptoStoreOptions): Result<CryptoStoreHandle, PlatformError>;
@@ -437,7 +434,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function storeClose(handle: CryptoStoreHandle): Result<void, PlatformError>;
@@ -468,7 +464,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function storeListKeys(
@@ -502,7 +497,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function storeListCertificates(

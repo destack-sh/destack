@@ -36,7 +36,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function sharedMemoryCreate(
@@ -70,7 +69,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function sharedMemoryOpen(
@@ -103,7 +101,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function sharedMemoryClose(handle: SharedMemoryHandle): Result<void, PlatformError>;
@@ -133,7 +130,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function sharedMemoryMap(
@@ -168,7 +164,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function sharedMemoryUnmap(address: uint64, length: uint64): Result<void, PlatformError>;

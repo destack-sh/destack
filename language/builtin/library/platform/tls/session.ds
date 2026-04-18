@@ -48,7 +48,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function sessionOpen(
@@ -82,7 +81,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function sessionHandshake(handle: TlsSessionHandle): Result<TlsHandshakeStatus, PlatformError>;
@@ -112,7 +110,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function sessionRead(
@@ -145,7 +142,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function sessionWrite(
@@ -178,7 +174,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function sessionShutdown(handle: TlsSessionHandle): Result<void, PlatformError>;
@@ -208,7 +203,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function sessionClose(handle: TlsSessionHandle): Result<void, PlatformError>;
@@ -238,7 +232,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function sessionNegotiatedAlpn(handle: TlsSessionHandle): Result<Slice<uint8>, PlatformError>;
@@ -268,7 +261,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function sessionPeerCertificatesPem(handle: TlsSessionHandle): Result<Slice<uint8>, PlatformError>;
@@ -299,7 +291,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function sessionExportKeyingMaterial(
@@ -334,7 +325,6 @@ declare namespace tls {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function sessionResumptionState(handle: TlsSessionHandle): Result<TlsSessionResumptionState, PlatformError>;

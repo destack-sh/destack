@@ -80,7 +80,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function termiosGetAttributes(handle: TtyHandle): Result<TtyTermiosAttributes, PlatformError>;
@@ -110,7 +109,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function termiosSetAttributes(
@@ -144,7 +142,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function termiosDrain(handle: TtyHandle): Result<void, PlatformError>;
@@ -174,7 +171,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function termiosFlush(
@@ -207,7 +203,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function termiosFlow(
@@ -240,7 +235,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function termiosSendBreak(
@@ -273,7 +267,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function termiosGetProcessGroup(handle: TtyHandle): Result<ProcessId, PlatformError>;
@@ -303,7 +296,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function termiosSetProcessGroup(

@@ -37,7 +37,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function pipeOpen(flags: uint32): Result<PipePair, PlatformError>;
@@ -67,7 +66,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function pipeClose(handle: PipeHandle): Result<void, PlatformError>;
@@ -97,7 +95,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function pipeRead(
@@ -130,7 +127,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function pipeWrite(

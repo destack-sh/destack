@@ -67,7 +67,6 @@ declare namespace time {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function wallNs(): Result<uint64, PlatformError>;
@@ -97,7 +96,6 @@ declare namespace time {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function monoNs(): Result<uint64, PlatformError>;
@@ -127,7 +125,6 @@ declare namespace time {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function processCpuNs(): Result<uint64, PlatformError>;
@@ -157,7 +154,6 @@ declare namespace time {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function threadCpuNs(): Result<uint64, PlatformError>;
@@ -187,7 +183,6 @@ declare namespace time {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function nowNs(clock: ClockId): Result<uint64, PlatformError>;
@@ -217,7 +212,6 @@ declare namespace time {
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
         affinity: "any",
     })
     export function clockMetadata(clock: ClockId): Result<ClockMetadata, PlatformError>;

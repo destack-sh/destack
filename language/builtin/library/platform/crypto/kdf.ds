@@ -92,7 +92,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function kdfHkdf(request: CryptoHkdfRequest): Result<Slice<uint8>, PlatformError>;
@@ -119,7 +118,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function kdfPbkdf2(request: CryptoPbkdf2Request): Result<Slice<uint8>, PlatformError>;
@@ -146,7 +144,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function kdfScrypt(request: CryptoScryptRequest): Result<Slice<uint8>, PlatformError>;
@@ -173,7 +170,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function kdfArgon2id(request: CryptoArgon2idRequest): Result<Slice<uint8>, PlatformError>;

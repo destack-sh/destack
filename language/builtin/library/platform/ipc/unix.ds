@@ -49,7 +49,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function unixSend(
@@ -83,7 +82,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function unixReceive(

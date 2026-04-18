@@ -37,7 +37,6 @@ declare namespace memory {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function allocate(
@@ -73,7 +72,6 @@ declare namespace memory {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function reserve(
@@ -107,7 +105,6 @@ declare namespace memory {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function commit(
@@ -141,7 +138,6 @@ declare namespace memory {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function decommit(address: uint64, length: uint64): Result<void, PlatformError>;
@@ -172,7 +168,6 @@ declare namespace memory {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function release(address: uint64, length: uint64): Result<void, PlatformError>;

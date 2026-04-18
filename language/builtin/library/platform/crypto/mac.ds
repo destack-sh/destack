@@ -39,7 +39,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function macCompute(
@@ -70,7 +69,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function macVerify(
@@ -102,7 +100,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function macOpen(
@@ -132,7 +129,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function macUpdate(
@@ -162,7 +158,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function macFinish(handle: CryptoMacHandle): Result<Slice<uint8>, PlatformError>;
@@ -189,7 +184,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function macReset(handle: CryptoMacHandle): Result<void, PlatformError>;
@@ -216,7 +210,6 @@ declare namespace crypto {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function macClose(handle: CryptoMacHandle): Result<void, PlatformError>;

@@ -42,7 +42,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function getMode(handle: TtyHandle): Result<TtyMode, PlatformError>;
@@ -73,7 +72,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function setMode(handle: TtyHandle, mode: TtyMode): Result<void, PlatformError>;
@@ -104,7 +102,6 @@ declare namespace tty {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function setRawMode(handle: TtyHandle, enabled: boolean): Result<void, PlatformError>;

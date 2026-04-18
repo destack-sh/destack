@@ -51,7 +51,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function kill(pid: ProcessId, signal: Signal): Result<void, PlatformError>;
@@ -81,7 +80,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function signalSubscribe(signal: Signal): Result<SignalHandle, PlatformError>;
@@ -111,7 +109,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function signalUnsubscribe(handle: SignalHandle): Result<void, PlatformError>;
@@ -141,7 +138,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function signalReceive(handle: SignalHandle): Result<SignalEvent, PlatformError>;
@@ -171,7 +167,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function signalTryReceive(handle: SignalHandle): Result<SignalEvent, PlatformError>;
@@ -201,7 +196,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function signalMaskRead(): Result<Signal[], PlatformError>;
@@ -231,7 +225,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function signalMaskUpdate(
@@ -264,7 +257,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function signalWait(signals: Slice<Signal>): Result<SignalEvent, PlatformError>;
@@ -294,7 +286,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function signalTryWait(signals: Slice<Signal>): Result<SignalEvent, PlatformError>;

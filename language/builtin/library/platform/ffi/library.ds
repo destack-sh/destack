@@ -29,7 +29,6 @@ declare namespace ffi {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function open(path: OsPath, flags: uint32): Result<LibraryHandle, PlatformError>;
@@ -59,7 +58,6 @@ declare namespace ffi {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function close(handle: LibraryHandle): Result<void, PlatformError>;

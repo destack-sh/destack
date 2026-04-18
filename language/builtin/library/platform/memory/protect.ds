@@ -36,7 +36,6 @@ declare namespace memory {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function protect(
@@ -70,7 +69,6 @@ declare namespace memory {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function remap(
@@ -105,7 +103,6 @@ declare namespace memory {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function flushInstructionCache(

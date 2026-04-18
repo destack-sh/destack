@@ -37,7 +37,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function messageQueueOpen(
@@ -73,7 +72,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function messageQueueClose(handle: MessageQueueHandle): Result<void, PlatformError>;
@@ -103,7 +101,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function messageQueueUnlink(name: string): Result<void, PlatformError>;
@@ -133,7 +130,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function messageQueueSend(
@@ -168,7 +164,6 @@ declare namespace ipc {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function messageQueueReceive(

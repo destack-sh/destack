@@ -28,7 +28,6 @@ declare namespace process {
         simulation: "model",
         scope: "host",
         blocking: "never",
-
         affinity: "any",
     })
     export function args(): Result<Slice<string>, PlatformError>;
