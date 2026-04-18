@@ -1,50 +1,53 @@
 use std::sync::Arc;
 
-use super::{SharedEntry, SharedSpaceUsage};
-use crate::{AllocationTotals, Arena, HeapDomain, HeapError, HeapResult, SharedPointer};
+use super::SharedRawEntry;
+use crate::{
+    AllocationTotals, Arena, HeapDomain, HeapError, HeapResult, SharedRawPointer,
+    SharedRawSpaceUsage,
+};
 
-/// The first allocated shared-space entry id.
+/// The first allocated shared raw-space entry id.
 const FIRST_SHARED_ENTRY_ID: u64 = 1;
 
 /// Convert a stable shared entry id into its packed representation.
 fn checked_shared_entry_id(entry_id: u64) -> HeapResult<u32> {
     if entry_id == 0 || entry_id > u32::MAX as u64 {
-        return Err(HeapError::InvalidSharedPointerId { id: entry_id });
+        return Err(HeapError::InvalidSharedRawPointerId { id: entry_id });
     }
 
     Ok(entry_id as u32)
 }
 
-/// One live shared-space store rooted in one arena.
+/// One live shared raw-space store rooted in one arena.
 #[derive(Debug)]
-pub struct SharedSpace {
-    /// The shared-space arena for every entry.
+pub struct SharedRawSpace {
+    /// The shared raw-space arena for every entry.
     pub(crate) arena: Arc<Arena>,
 
-    /// Stable shared-space entries keyed by entry id minus one.
-    pub(crate) entries: Vec<SharedEntry>,
-    /// Free shared-space entry ids available for reuse.
+    /// Stable shared raw-space entries keyed by entry id minus one.
+    pub(crate) entries: Vec<SharedRawEntry>,
+    /// Free shared raw-space entry ids available for reuse.
     pub(crate) free_ids: Vec<u64>,
-    /// The next shared-space entry id to allocate.
+    /// The next shared raw-space entry id to allocate.
     pub(crate) next_unused_id: u64,
 
-    /// The exact live shared-space totals.
+    /// The exact live shared raw-space totals.
     pub(crate) totals: AllocationTotals,
 }
 
-impl Default for SharedSpace {
+impl Default for SharedRawSpace {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl SharedSpace {
-    /// Create a new empty shared-space store.
+impl SharedRawSpace {
+    /// Create a new empty shared raw-space store.
     pub fn new() -> Self {
         Self::with_arena(Arc::new(Arena::new()))
     }
 
-    /// Create a new empty shared-space store over one shared arena.
+    /// Create a new empty shared raw-space store over one shared arena.
     pub fn with_arena(arena: Arc<Arena>) -> Self {
         Self {
             arena,
@@ -60,7 +63,7 @@ impl SharedSpace {
         self.arena.page_bytes()
     }
 
-    /// Return the exact active shared-space bytes.
+    /// Return the exact active shared raw-space bytes.
     pub fn active_bytes(&self) -> u64 {
         self.mapped_bytes()
     }
@@ -77,9 +80,9 @@ impl SharedSpace {
             .borrowed_bytes_for_page_views(self.entries.iter().map(|entry| &entry.pages))
     }
 
-    /// Return the exact usage for this live shared-space store.
-    pub fn usage(&self) -> HeapResult<SharedSpaceUsage> {
-        Ok(SharedSpaceUsage {
+    /// Return the exact usage for this live shared raw-space store.
+    pub fn usage(&self) -> HeapResult<SharedRawSpaceUsage> {
+        Ok(SharedRawSpaceUsage {
             allocation_count: self.totals.allocation_count(),
             allocated_bytes: self.totals.allocated_bytes(),
             active_bytes: self.active_bytes(),
@@ -88,22 +91,22 @@ impl SharedSpace {
         })
     }
 
-    /// Return whether one shared pointer currently refers to one live entry slot.
-    pub fn is_live(&self, pointer: SharedPointer) -> bool {
+    /// Return whether one shared raw pointer currently refers to one live entry slot.
+    pub fn is_live(&self, pointer: SharedRawPointer) -> bool {
         self.entry(pointer).is_some()
     }
 
-    /// Allocate one shared byte entry.
-    pub fn allocate_bytes(&mut self, bytes: &[u8]) -> HeapResult<SharedPointer> {
+    /// Allocate one shared raw byte entry.
+    pub fn allocate_bytes(&mut self, bytes: &[u8]) -> HeapResult<SharedRawPointer> {
         let entry_id = self.allocate_entry_id()?;
         let pages = self.arena.allocate_bytes(bytes)?;
-        let entry = SharedEntry::new(bytes.len(), pages);
+        let entry = SharedRawEntry::new(bytes.len(), pages);
 
         // install the live entry slot and usage
         self.set_entry(entry_id, entry)?;
         self.totals.allocate(bytes.len(), HeapDomain::Shared)?;
 
-        Ok(SharedPointer::new(entry_id))
+        Ok(SharedRawPointer::new(entry_id))
     }
 
     /// Return the projected mapped-byte delta for one shared entry.
@@ -111,20 +114,20 @@ impl SharedSpace {
         self.round_up_allocation_bytes(byte_len) as i64
     }
 
-    /// Return the remaining byte length for one shared entry pointer.
-    pub fn byte_len(&self, pointer: SharedPointer) -> HeapResult<usize> {
+    /// Return the remaining byte length for one shared raw pointer.
+    pub fn byte_len(&self, pointer: SharedRawPointer) -> HeapResult<usize> {
         let Some(entry) = self.entry(pointer) else {
-            return Err(HeapError::InvalidSharedPointer { pointer });
+            return Err(HeapError::InvalidSharedRawPointer { pointer });
         };
 
         checked_remaining_byte_len(pointer, entry.len)
     }
 
-    /// Return the bytes for one shared entry pointer.
-    pub fn read_bytes(&self, pointer: SharedPointer) -> HeapResult<Vec<u8>> {
+    /// Return the bytes for one shared raw pointer.
+    pub fn read_bytes(&self, pointer: SharedRawPointer) -> HeapResult<Vec<u8>> {
         // resolve the live entry first
         let Some(entry) = self.entry(pointer) else {
-            return Err(HeapError::InvalidSharedPointer { pointer });
+            return Err(HeapError::InvalidSharedRawPointer { pointer });
         };
         let byte_offset = pointer.byte_offset();
         let byte_len = checked_remaining_byte_len(pointer, entry.len)?;
@@ -134,19 +137,19 @@ impl SharedSpace {
             .bytes_to_vec_from(&entry.pages, byte_offset, byte_len)
     }
 
-    /// Replace the bytes for one shared entry pointer.
-    pub fn replace_bytes(&mut self, pointer: SharedPointer, bytes: &[u8]) -> HeapResult<()> {
+    /// Replace the bytes for one shared raw pointer.
+    pub fn replace_bytes(&mut self, pointer: SharedRawPointer, bytes: &[u8]) -> HeapResult<()> {
         // resolve the live entry and shared arena first
         let arena = self.arena.clone();
         let Some(previous_entry) = self.entry(pointer) else {
-            return Err(HeapError::InvalidSharedPointer { pointer });
+            return Err(HeapError::InvalidSharedRawPointer { pointer });
         };
         let previous_pages = previous_entry.pages;
         let next_pages = arena.allocate_bytes(bytes)?;
         let previous_len = previous_entry.len;
 
         let Some(entry) = self.entry_mut(pointer) else {
-            return Err(HeapError::InvalidSharedPointer { pointer });
+            return Err(HeapError::InvalidSharedRawPointer { pointer });
         };
 
         // commit the replacement before releasing the previous pages
@@ -163,12 +166,12 @@ impl SharedSpace {
         Ok(())
     }
 
-    /// Free one shared-space entry.
-    pub fn free(&mut self, pointer: SharedPointer) -> HeapResult<bool> {
+    /// Free one shared raw-space entry.
+    pub fn free(&mut self, pointer: SharedRawPointer) -> HeapResult<bool> {
         // resolve the live entry first
         let entry_id = pointer.id();
         let Some(entry) = self.entry(pointer) else {
-            return Err(HeapError::InvalidSharedPointer { pointer });
+            return Err(HeapError::InvalidSharedRawPointer { pointer });
         };
         let pages = entry.pages;
         let previous_len = entry.len as u64;
@@ -190,11 +193,11 @@ impl SharedSpace {
     /// Return the projected mapped-byte delta for one shared replacement.
     pub fn replace_mapped_delta(
         &self,
-        pointer: SharedPointer,
+        pointer: SharedRawPointer,
         next_byte_len: usize,
     ) -> HeapResult<i64> {
         let Some(entry) = self.entry(pointer) else {
-            return Err(HeapError::InvalidSharedPointer { pointer });
+            return Err(HeapError::InvalidSharedRawPointer { pointer });
         };
 
         let previous_mapped_bytes = self.round_up_allocation_bytes(entry.len);
@@ -204,7 +207,7 @@ impl SharedSpace {
     }
 
     /// Return one allocated shared entry by pointer.
-    fn entry(&self, pointer: SharedPointer) -> Option<&SharedEntry> {
+    fn entry(&self, pointer: SharedRawPointer) -> Option<&SharedRawEntry> {
         // resolve the dense entry slot first
         let index = pointer.id().checked_sub(1)? as usize;
         let entry = self.entries.get(index)?;
@@ -214,7 +217,7 @@ impl SharedSpace {
     }
 
     /// Return one live shared entry mutably by pointer.
-    fn entry_mut(&mut self, pointer: SharedPointer) -> Option<&mut SharedEntry> {
+    fn entry_mut(&mut self, pointer: SharedRawPointer) -> Option<&mut SharedRawEntry> {
         // resolve the dense entry slot first
         let index = pointer.id().checked_sub(1)? as usize;
         let entry = self.entries.get_mut(index)?;
@@ -226,7 +229,7 @@ impl SharedSpace {
     /// Return the dense table index for one shared pointer id.
     fn entry_index(entry_id: u32) -> HeapResult<usize> {
         let Some(index) = entry_id.checked_sub(1) else {
-            return Err(HeapError::InvalidSharedPointerId {
+            return Err(HeapError::InvalidSharedRawPointerId {
                 id: entry_id.into(),
             });
         };
@@ -244,7 +247,7 @@ impl SharedSpace {
             if index > self.entries.len() {
                 self.free_ids.push(entry_id.into());
 
-                return Err(HeapError::InvalidSharedPointerId {
+                return Err(HeapError::InvalidSharedRawPointerId {
                     id: entry_id.into(),
                 });
             }
@@ -256,7 +259,7 @@ impl SharedSpace {
             {
                 self.free_ids.push(entry_id.into());
 
-                return Err(HeapError::InvalidSharedPointerId {
+                return Err(HeapError::InvalidSharedRawPointerId {
                     id: entry_id.into(),
                 });
             }
@@ -271,7 +274,7 @@ impl SharedSpace {
             self.next_unused_id =
                 self.next_unused_id
                     .checked_add(1)
-                    .ok_or(HeapError::InvalidSharedPointerId {
+                    .ok_or(HeapError::InvalidSharedRawPointerId {
                         id: self.next_unused_id,
                     })?;
 
@@ -280,11 +283,11 @@ impl SharedSpace {
     }
 
     /// Store one dense shared entry by stable entry id.
-    fn set_entry(&mut self, entry_id: u32, entry: SharedEntry) -> HeapResult<()> {
+    fn set_entry(&mut self, entry_id: u32, entry: SharedRawEntry) -> HeapResult<()> {
         let index = Self::entry_index(entry_id)?;
 
         if index > self.entries.len() {
-            return Err(HeapError::InvalidSharedPointerId {
+            return Err(HeapError::InvalidSharedRawPointerId {
                 id: entry_id.into(),
             });
         }
@@ -302,7 +305,7 @@ impl SharedSpace {
     fn retire_entry(&mut self, entry_id: u32) -> HeapResult<()> {
         let index = Self::entry_index(entry_id)?;
         let Some(entry) = self.entries.get_mut(index) else {
-            return Err(HeapError::InvalidSharedPointerId {
+            return Err(HeapError::InvalidSharedRawPointerId {
                 id: entry_id.into(),
             });
         };
@@ -322,12 +325,12 @@ impl SharedSpace {
     }
 }
 
-/// Return the visible byte length for one shared pointer.
-fn checked_remaining_byte_len(pointer: SharedPointer, byte_len: usize) -> HeapResult<usize> {
+/// Return the visible byte length for one shared raw pointer.
+fn checked_remaining_byte_len(pointer: SharedRawPointer, byte_len: usize) -> HeapResult<usize> {
     let byte_offset = pointer.byte_offset();
 
     if byte_offset > byte_len {
-        return Err(HeapError::InvalidSharedPointer { pointer });
+        return Err(HeapError::InvalidSharedRawPointer { pointer });
     }
 
     Ok(byte_len - byte_offset)

@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use super::{SharedEntry, SharedSpace};
+use super::{SharedRawEntry, SharedRawSpace};
 use crate::{AllocationTotals, Arena, HeapResult, PageId, PageView};
 
-/// One frozen shared-space entry root.
+/// One frozen shared raw-space entry root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SharedEntryImage {
+pub struct SharedRawEntryImage {
     /// Whether this entry id is live.
     pub is_live: bool,
     /// The logical byte length of this entry.
@@ -15,26 +15,26 @@ pub struct SharedEntryImage {
     pub pages: PageView,
 }
 
-/// One frozen shared-space root.
+/// One frozen shared raw-space root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SharedSpaceImage {
-    /// Captured shared-space entries keyed by entry id minus one.
-    entries: Box<[SharedEntryImage]>,
-    /// The captured free shared-space entry ids.
+pub struct SharedRawSpaceImage {
+    /// Captured shared raw-space entries keyed by entry id minus one.
+    entries: Box<[SharedRawEntryImage]>,
+    /// The captured free shared raw-space entry ids.
     free_ids: Box<[u64]>,
-    /// The next shared-space entry id to allocate.
+    /// The next shared raw-space entry id to allocate.
     next_unused_id: u64,
 
-    /// The number of allocated shared-space entries.
+    /// The number of allocated shared raw-space entries.
     allocated_count: usize,
-    /// The number of allocated shared-space bytes.
+    /// The number of allocated shared raw-space bytes.
     allocated_bytes: u64,
 }
 
-impl SharedSpaceImage {
-    /// Create one frozen shared-space root.
+impl SharedRawSpaceImage {
+    /// Create one frozen shared raw-space root.
     pub fn new(
-        entries: Box<[SharedEntryImage]>,
+        entries: Box<[SharedRawEntryImage]>,
         free_ids: Box<[u64]>,
         next_unused_id: u64,
         allocated_count: usize,
@@ -50,12 +50,12 @@ impl SharedSpaceImage {
     }
 
     /// Return one shared entry image by index.
-    pub fn entry(&self, index: usize) -> Option<&SharedEntryImage> {
+    pub fn entry(&self, index: usize) -> Option<&SharedRawEntryImage> {
         self.entries.get(index)
     }
 
-    /// Return the frozen shared-space entries.
-    pub fn entries(&self) -> &[SharedEntryImage] {
+    /// Return the frozen shared raw-space entries.
+    pub fn entries(&self) -> &[SharedRawEntryImage] {
         &self.entries
     }
 
@@ -64,7 +64,7 @@ impl SharedSpaceImage {
         &self.free_ids
     }
 
-    /// Return the next shared-space entry id.
+    /// Return the next shared raw-space entry id.
     pub const fn next_unused_id(&self) -> u64 {
         self.next_unused_id
     }
@@ -79,7 +79,7 @@ impl SharedSpaceImage {
         self.allocated_bytes
     }
 
-    /// Return every arena page reachable from this shared-space image.
+    /// Return every arena page reachable from this shared raw-space image.
     pub fn page_ids(&self) -> Vec<PageId> {
         let mut pages = Vec::new();
 
@@ -92,8 +92,8 @@ impl SharedSpaceImage {
     }
 }
 
-impl SharedSpace {
-    /// Fork one shared-space root over the same shared arena.
+impl SharedRawSpace {
+    /// Fork one shared raw-space root over the same shared arena.
     pub fn fork(&self) -> HeapResult<Self> {
         let mut retained = Vec::new();
 
@@ -119,8 +119,11 @@ impl SharedSpace {
         })
     }
 
-    /// Create one shared-space root from one frozen shared-space image over one shared arena.
-    pub fn from_image_with_arena(arena: Arc<Arena>, image: &SharedSpaceImage) -> HeapResult<Self> {
+    /// Create one shared raw-space root from one frozen shared raw-space image over one shared arena.
+    pub fn from_image_with_arena(
+        arena: Arc<Arena>,
+        image: &SharedRawSpaceImage,
+    ) -> HeapResult<Self> {
         let mut retained = Vec::new();
 
         // retain the shared backing first
@@ -143,9 +146,9 @@ impl SharedSpace {
             .iter()
             .map(|entry| {
                 if entry.is_live {
-                    SharedEntry::new(entry.len, entry.pages)
+                    SharedRawEntry::new(entry.len, entry.pages)
                 } else {
-                    SharedEntry::vacant()
+                    SharedRawEntry::vacant()
                 }
             })
             .collect();
@@ -156,12 +159,12 @@ impl SharedSpace {
         Ok(shared)
     }
 
-    /// Return one frozen shared-space root.
-    pub fn image(&self) -> SharedSpaceImage {
-        SharedSpaceImage::new(
+    /// Return one frozen shared raw-space root.
+    pub fn image(&self) -> SharedRawSpaceImage {
+        SharedRawSpaceImage::new(
             self.entries
                 .iter()
-                .map(|entry| SharedEntryImage {
+                .map(|entry| SharedRawEntryImage {
                     is_live: !entry.is_vacant(),
                     len: entry.len,
                     pages: entry.pages,
@@ -175,7 +178,7 @@ impl SharedSpace {
         )
     }
 
-    /// Return every arena page reachable from this live shared space.
+    /// Return every arena page reachable from this live shared raw space.
     pub fn page_ids(&self) -> Vec<PageId> {
         let mut pages = Vec::new();
 

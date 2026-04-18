@@ -1,8 +1,8 @@
 use crate::PageView;
 
-/// One logical shared-space entry.
+/// One logical shared raw-space entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SharedEntry {
+pub(crate) struct SharedRawEntry {
     /// Whether this entry id is live.
     pub(crate) is_live: bool,
     /// The logical byte length of this entry.
@@ -11,7 +11,7 @@ pub(crate) struct SharedEntry {
     pub(crate) pages: PageView,
 }
 
-impl SharedEntry {
+impl SharedRawEntry {
     /// Return one vacant shared entry slot.
     pub(crate) const fn vacant() -> Self {
         Self {

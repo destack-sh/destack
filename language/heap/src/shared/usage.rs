@@ -1,14 +1,29 @@
 use serde::{Deserialize, Serialize};
 
-use crate::heap::sum_bytes;
-use crate::{HeapResult, HeapUsage};
+use crate::HeapResult;
+use crate::core::sum_bytes;
 
-/// Exact shared-space usage for one live shared-space store.
+/// Exact shared managed-space usage for one live shared managed space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct SharedSpaceUsage {
-    /// The number of live shared-space entries.
+pub struct SharedManagedSpaceUsage {
+    /// The number of live shared managed allocations.
     pub allocation_count: usize,
-    /// The logical live shared-space payload bytes.
+    /// The logical live shared managed payload bytes.
+    pub allocated_bytes: u64,
+    /// The exact active shared managed allocator bytes.
+    pub active_bytes: u64,
+    /// The exact mapped shared managed page-arena bytes.
+    pub mapped_bytes: u64,
+    /// The exact borrowed shared managed image bytes.
+    pub borrowed_bytes: u64,
+}
+
+/// Exact shared raw-space usage for one live shared raw-space store.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct SharedRawSpaceUsage {
+    /// The number of live shared raw-space entries.
+    pub allocation_count: usize,
+    /// The logical live shared raw-space payload bytes.
     pub allocated_bytes: u64,
     /// The exact active shared allocator bytes.
     pub active_bytes: u64,
@@ -18,33 +33,33 @@ pub struct SharedSpaceUsage {
     pub borrowed_bytes: u64,
 }
 
-/// Exact memory-context usage across local and shared space.
+/// Exact shared-heap usage for one live shared heap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct MemoryContextUsage {
-    /// The local heap usage.
-    pub heap: HeapUsage,
-    /// The world-shared space usage.
-    pub shared: SharedSpaceUsage,
+pub struct SharedHeapUsage {
+    /// The exact shared managed-space usage.
+    pub managed: SharedManagedSpaceUsage,
+    /// The exact shared raw-space usage.
+    pub raw: SharedRawSpaceUsage,
 }
 
-impl MemoryContextUsage {
+impl SharedHeapUsage {
     /// Return the exact total live allocated bytes.
     pub fn allocated_bytes(&self) -> HeapResult<u64> {
-        sum_bytes(self.heap.allocated_bytes()?, self.shared.allocated_bytes)
+        sum_bytes(self.managed.allocated_bytes, self.raw.allocated_bytes)
     }
 
     /// Return the exact total active bytes.
     pub fn active_bytes(&self) -> HeapResult<u64> {
-        sum_bytes(self.heap.active_bytes()?, self.shared.active_bytes)
+        sum_bytes(self.managed.active_bytes, self.raw.active_bytes)
     }
 
     /// Return the exact total mapped bytes.
     pub fn mapped_bytes(&self) -> HeapResult<u64> {
-        sum_bytes(self.heap.mapped_bytes()?, self.shared.mapped_bytes)
+        sum_bytes(self.managed.mapped_bytes, self.raw.mapped_bytes)
     }
 
     /// Return the exact total borrowed image bytes.
     pub fn borrowed_bytes(&self) -> HeapResult<u64> {
-        sum_bytes(self.heap.borrowed_bytes()?, self.shared.borrowed_bytes)
+        sum_bytes(self.managed.borrowed_bytes, self.raw.borrowed_bytes)
     }
 }
