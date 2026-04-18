@@ -381,6 +381,63 @@ impl NodeSourceMap {
             .map(|(key, _)| key)
     }
 
+    /// Find the innermost non-enclosing source part that fully contains a span.
+    pub fn find_innermost_part_owner(&self, span: Span) -> Option<SourcePartKey> {
+        let mut best_owner = None;
+        let mut best_length = u32::MAX;
+
+        // dense main and type spans
+        for (index, flags) in self.side_span_flags.iter().copied().enumerate() {
+            let source_id = index as u32;
+
+            if (flags & MAIN_SPAN_FLAG) != 0 {
+                let part_span = self.main_spans[index];
+                if part_span.file == span.file
+                    && part_span.start <= span.start
+                    && part_span.end >= span.end
+                {
+                    let part_length = part_span.end - part_span.start;
+                    if part_length < best_length {
+                        best_owner = Some(SourcePartKey::new(source_id, NodeSpanType::Main));
+                        best_length = part_length;
+                    }
+                }
+            }
+
+            if (flags & TYPE_SPAN_FLAG) != 0 {
+                let part_span = self.type_spans[index];
+                if part_span.file == span.file
+                    && part_span.start <= span.start
+                    && part_span.end >= span.end
+                {
+                    let part_length = part_span.end - part_span.start;
+                    if part_length < best_length {
+                        best_owner = Some(SourcePartKey::new(source_id, NodeSpanType::Type));
+                        best_length = part_length;
+                    }
+                }
+            }
+        }
+
+        // sparse side spans
+        for (key, part_span) in &self.side_spans {
+            if part_span.file != span.file
+                || part_span.start > span.start
+                || part_span.end < span.end
+            {
+                continue;
+            }
+
+            let part_length = part_span.end - part_span.start;
+            if part_length < best_length {
+                best_owner = Some(*key);
+                best_length = part_length;
+            }
+        }
+
+        best_owner
+    }
+
     /// Find the innermost enclosing owner that fully contains a span.
     pub fn find_innermost_enclosing_owner(&self, span: Span) -> Option<SourcePartKey> {
         let end_inclusive = span.end.saturating_sub(1);
