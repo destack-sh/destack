@@ -68,7 +68,7 @@ pub(crate) fn submit_background_request(
             )))
         }
         HostRequest::OsBackgroundRegister { options } => {
-            let binding = BindingCallContext::from_current_agent_for_native()?;
+            let binding = BindingCallContext::from_current_worker_for_native()?;
             let options = HostBackgroundTaskOptions::from_value(&binding, options.clone());
             let call_status =
                 unsafe { destack_host_android_background_register_task(runtime_id, options) };
@@ -112,7 +112,7 @@ pub(crate) fn submit_background_request(
             execution_id,
             result,
         } => {
-            let binding = BindingCallContext::from_current_agent_for_native()?;
+            let binding = BindingCallContext::from_current_worker_for_native()?;
             let payload = HostBackgroundCompleteRequest {
                 execution_id: NativeStringRef::from(execution_id),
                 result: <HostBackgroundTaskResult as NativeAbiCodec>::from_value(&binding, *result),

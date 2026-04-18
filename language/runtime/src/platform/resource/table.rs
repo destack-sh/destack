@@ -403,6 +403,24 @@ impl ResourceTable {
         self.entries.read().is_empty()
     }
 
+    /// Fork one quiescent resource table for one child worker.
+    pub(crate) fn try_fork(&self, hooks: Arc<Hooks>) -> Option<Self> {
+        // direct live fork only supports empty live resource tables
+        if !self.entries.read().is_empty() {
+            return None;
+        }
+
+        // clone shared providers and allocator state onto one fresh table
+        let forked = Self {
+            next_id: AtomicU64::new(self.next_id.load(Ordering::Relaxed)),
+            entries: RwLock::new(HashMap::new()),
+            providers: RwLock::new(self.providers.read().clone()),
+            hooks: RwLock::new(Some(hooks)),
+        };
+
+        Some(forked)
+    }
+
     /// Allocate and insert a resource entry.
     pub(crate) fn insert(
         &self,

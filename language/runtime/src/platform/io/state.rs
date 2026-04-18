@@ -14,7 +14,7 @@ type EventAttachmentTargets = HashMap<ResourceId, u64>;
 /// Event attachment registry keyed by token.
 type EventAttachmentRegistry = HashMap<EventAttachmentKey, EventAttachmentTargets>;
 
-/// Agent-owned I/O module state.
+/// Worker-owned I/O module state.
 #[derive(Debug, Default)]
 pub(crate) struct PlatformIoState {
     /// Attachment routes from event tokens into poll targets.

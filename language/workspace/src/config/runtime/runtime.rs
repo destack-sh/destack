@@ -28,12 +28,12 @@ use super::{
     SchedulerOptionsJson, TimeOptions, TimeOptionsJson,
 };
 
-/// Default identity options for one runtime primary agent.
+/// Default identity options for one runtime primary worker.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct RuntimeAgentOptions {
-    /// Default primary agent name for policy selection.
+pub struct RuntimeWorkerOptions {
+    /// Default primary worker name for policy selection.
     pub name: Option<String>,
-    /// Default primary agent labels for policy selection.
+    /// Default primary worker labels for policy selection.
     pub labels: BTreeMap<String, String>,
 }
 
@@ -457,8 +457,8 @@ pub struct RuntimeOptions {
     pub name: Option<String>,
     /// Runtime labels for policy selection.
     pub labels: BTreeMap<String, String>,
-    /// Default primary agent identity for policy selection.
-    pub primary_agent: RuntimeAgentOptions,
+    /// Default primary worker identity for policy selection.
+    pub primary_worker: RuntimeWorkerOptions,
     /// Resolved target app declaration for host availability checks.
     pub app: RuntimeAppDeclaration,
     /// Execution mode for runtime scheduling and replay.
@@ -588,8 +588,8 @@ pub struct RuntimeOptionsJson {
     pub name: Option<String>,
     /// Runtime labels for policy selection.
     pub labels: Option<BTreeMap<String, String>>,
-    /// Default primary agent identity for policy selection.
-    pub primary_agent: Option<RuntimeAgentOptionsJson>,
+    /// Default primary worker identity for policy selection.
+    pub primary_worker: Option<RuntimeWorkerOptionsJson>,
     /// Execution mode for runtime scheduling and replay.
     pub execution: Option<ExecutionModeJson>,
     /// Default world for bindings without matching world rules.
@@ -654,26 +654,26 @@ pub struct RuntimeOptionsJson {
     pub platform: Option<PlatformOptionsJson>,
 }
 
-/// Primary runtime agent options for JSON deserialization.
+/// Primary runtime worker options for JSON deserialization.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct RuntimeAgentOptionsJson {
-    /// Primary agent name for policy selection.
+pub struct RuntimeWorkerOptionsJson {
+    /// Primary worker name for policy selection.
     pub name: Option<String>,
-    /// Primary agent labels for policy selection.
+    /// Primary worker labels for policy selection.
     pub labels: Option<BTreeMap<String, String>>,
 }
 
-impl RuntimeAgentOptionsJson {
-    /// Apply primary agent overrides to one base set of runtime agent options.
-    pub fn apply_to(&self, options: &mut RuntimeAgentOptions) {
-        // apply primary agent name override
+impl RuntimeWorkerOptionsJson {
+    /// Apply primary worker overrides to one base set of runtime worker options.
+    pub fn apply_to(&self, options: &mut RuntimeWorkerOptions) {
+        // apply primary worker name override
         if let Some(name) = &self.name {
             options.name = Some(name.clone());
         }
 
-        // apply primary agent label override
+        // apply primary worker label override
         if let Some(labels) = &self.labels {
             options.labels = labels.clone();
         }
@@ -695,8 +695,8 @@ impl RuntimeOptionsJson {
         if self.labels.is_none() {
             self.labels = parent.labels.clone();
         }
-        if self.primary_agent.is_none() {
-            self.primary_agent = parent.primary_agent.clone();
+        if self.primary_worker.is_none() {
+            self.primary_worker = parent.primary_worker.clone();
         }
         if self.execution.is_none() {
             self.execution = parent.execution;
@@ -821,9 +821,9 @@ impl RuntimeOptionsJson {
             options.labels = labels.clone();
         }
 
-        // apply default primary agent identity overrides
-        if let Some(primary_agent) = &self.primary_agent {
-            primary_agent.apply_to(&mut options.primary_agent);
+        // apply default primary worker identity overrides
+        if let Some(primary_worker) = &self.primary_worker {
+            primary_worker.apply_to(&mut options.primary_worker);
         }
 
         // apply execution mode overrides

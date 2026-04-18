@@ -196,7 +196,7 @@ pub(crate) unsafe fn destack_process_signal_subscribe(
         });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -298,7 +298,7 @@ pub(crate) unsafe fn destack_process_signal_unsubscribe(
 ) -> RuntimeResult<()> {
     let _ = core_process::resolve_signal_subscription(binding, handle)?;
 
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),

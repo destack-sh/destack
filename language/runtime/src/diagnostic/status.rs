@@ -22,7 +22,7 @@ impl RuntimeStatus {
     pub fn from_error(error: Box<RuntimeError>, context: Option<&BindingCallContext>) -> Self {
         let code = error.sub_code().saturating_add(1);
         let error_id = context
-            .map(|context| context.agent().diagnostics.record_error(error).to_raw())
+            .map(|context| context.worker().diagnostics.record_error(error).to_raw())
             .unwrap_or(0);
         Self { code, error_id }
     }

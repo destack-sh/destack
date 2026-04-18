@@ -87,7 +87,7 @@ pub(super) fn pipe_handle(
     operation: &'static str,
 ) -> RuntimeResult<HANDLE> {
     let resolved = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Pipe {
@@ -114,7 +114,7 @@ pub(super) fn shared_memory_handle(
     operation: &'static str,
 ) -> RuntimeResult<HANDLE> {
     let resolved = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::SharedMemory {
@@ -141,7 +141,7 @@ pub(super) fn semaphore_handle(
     operation: &'static str,
 ) -> RuntimeResult<HANDLE> {
     let resolved = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Semaphore {
@@ -179,7 +179,7 @@ pub(super) fn register_pipe_handle(
     );
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -199,7 +199,7 @@ pub(super) fn register_shared_memory_handle(
     );
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -219,7 +219,7 @@ pub(super) fn register_semaphore_handle(
     );
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 

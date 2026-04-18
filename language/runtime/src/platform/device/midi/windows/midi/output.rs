@@ -34,7 +34,7 @@ pub(crate) fn midi_output_port_list(
     options: MidiPortListOptions,
 ) -> RuntimeResult<Vec<MidiPortDescriptorValue>> {
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .windows_midi_service("destack.device.midi.output.port.list")?;
@@ -53,7 +53,7 @@ pub(crate) fn midi_output_port_open(
     options: MidiOutputPortOpenOptions,
 ) -> RuntimeResult<resource::MidiOutputPortHandle> {
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .windows_midi_service("destack.device.midi.output.port.open")?;
@@ -168,7 +168,7 @@ pub(crate) fn midi_output_virtual_create(
 
     // shared service and host strings
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .windows_midi_service("destack.device.midi.output.virtual.create")?;

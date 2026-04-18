@@ -117,7 +117,7 @@ pub(crate) unsafe fn monitor_event_open(
     runtime_state.initialize_monitor_topology_snapshot(snapshots);
 
     // register the resource and stream entry
-    let resource_id = binding.agent().resources.insert(
+    let resource_id = binding.worker().resources.insert(
         &binding.world(),
         ResourceEntry::new(ResourceKind::Display)
             .with_label(win32_core::DISPLAY_EVENT_RESOURCE_LABEL)
@@ -150,7 +150,7 @@ pub(crate) unsafe fn monitor_event_close(
     trim_monitor_events(&runtime_state);
 
     let removed = binding
-        .agent()
+        .worker()
         .resources
         .remove(&binding.world(), handle.0, Some(binding.engine()))
         .is_some();

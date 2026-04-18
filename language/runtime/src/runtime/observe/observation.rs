@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::platform::{ResourceBacking, ResourceCapture, ResourcePortability};
 use crate::runtime::time::WorldInstant;
 use crate::runtime::world::{Moment, WorldResourceId};
-use crate::runtime::{AgentId, RuntimeId};
+use crate::runtime::{WorkerId, RuntimeId};
 
 /// Stable sequence number for one observation entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -73,12 +73,12 @@ pub enum ObservationScope {
         /// Runtime identifier for this scope.
         runtime_id: RuntimeId,
     },
-    /// One agent-scoped observation.
-    Agent {
+    /// One worker-scoped observation.
+    Worker {
         /// Optional owning runtime identifier when known.
         runtime_id: Option<RuntimeId>,
-        /// Agent identifier for this scope.
-        agent_id: AgentId,
+        /// Worker identifier for this scope.
+        worker_id: WorkerId,
     },
     /// One topology entity-scoped observation.
     Entity {
@@ -92,8 +92,8 @@ pub enum ObservationScope {
     },
     /// One resource-scoped observation.
     Resource {
-        /// Agent identifier that owns the resource.
-        agent_id: AgentId,
+        /// Worker identifier that owns the resource.
+        worker_id: WorkerId,
         /// Logical world resource identifier.
         resource_id: WorldResourceId,
     },
@@ -110,11 +110,11 @@ impl ObservationScope {
         Self::Runtime { runtime_id }
     }
 
-    /// Create one agent scope.
-    pub const fn agent(runtime_id: Option<RuntimeId>, agent_id: AgentId) -> Self {
-        Self::Agent {
+    /// Create one worker scope.
+    pub const fn worker(runtime_id: Option<RuntimeId>, worker_id: WorkerId) -> Self {
+        Self::Worker {
             runtime_id,
-            agent_id,
+            worker_id,
         }
     }
 
@@ -133,9 +133,9 @@ impl ObservationScope {
     }
 
     /// Create one resource scope.
-    pub const fn resource(agent_id: AgentId, resource_id: WorldResourceId) -> Self {
+    pub const fn resource(worker_id: WorkerId, resource_id: WorldResourceId) -> Self {
         Self::Resource {
-            agent_id,
+            worker_id,
             resource_id,
         }
     }
@@ -144,7 +144,7 @@ impl ObservationScope {
     pub const fn runtime_id(&self) -> Option<RuntimeId> {
         match self {
             Self::Runtime { runtime_id } => Some(*runtime_id),
-            Self::Agent {
+            Self::Worker {
                 runtime_id: Some(runtime_id),
                 ..
             } => Some(*runtime_id),
@@ -152,11 +152,11 @@ impl ObservationScope {
         }
     }
 
-    /// Return the agent id for this scope when present.
-    pub const fn agent_id(&self) -> Option<AgentId> {
+    /// Return the worker id for this scope when present.
+    pub const fn worker_id(&self) -> Option<WorkerId> {
         match self {
-            Self::Agent { agent_id, .. } => Some(*agent_id),
-            Self::Resource { agent_id, .. } => Some(*agent_id),
+            Self::Worker { worker_id, .. } => Some(*worker_id),
+            Self::Resource { worker_id, .. } => Some(*worker_id),
             _ => None,
         }
     }
@@ -297,11 +297,11 @@ impl Observation {
         )
     }
 
-    /// Create one agent-scoped structured-annotation observation.
+    /// Create one worker-scoped structured-annotation observation.
     pub fn agent_annotations<K, V>(
         category: ObservationCategory,
         runtime_id: Option<RuntimeId>,
-        agent_id: AgentId,
+        worker_id: WorkerId,
         name: impl Into<String>,
         annotations: impl IntoIterator<Item = (K, V)>,
     ) -> Self
@@ -311,7 +311,7 @@ impl Observation {
     {
         Self::annotations(
             category,
-            ObservationScope::agent(runtime_id, agent_id),
+            ObservationScope::worker(runtime_id, worker_id),
             name,
             annotations,
         )
@@ -377,7 +377,7 @@ impl Observation {
 
     /// Create one resource-attached observation.
     pub fn resource_attached(
-        agent_id: AgentId,
+        worker_id: WorkerId,
         resource_id: WorldResourceId,
         backing: ResourceBacking,
         capture: ResourceCapture,
@@ -385,10 +385,10 @@ impl Observation {
     ) -> Self {
         Self::annotations(
             ObservationCategory::Resource,
-            ObservationScope::resource(agent_id, resource_id),
+            ObservationScope::resource(worker_id, resource_id),
             "resource.attached",
             [
-                ("agent_id", agent_id.0.to_string()),
+                ("worker_id", worker_id.0.to_string()),
                 ("resource_id", resource_id.resource_id.0.to_string()),
                 ("backing", format!("{backing:?}")),
                 ("capture", format!("{capture:?}")),
@@ -398,13 +398,13 @@ impl Observation {
     }
 
     /// Create one resource-detached observation.
-    pub fn resource_detached(agent_id: AgentId, resource_id: WorldResourceId) -> Self {
+    pub fn resource_detached(worker_id: WorkerId, resource_id: WorldResourceId) -> Self {
         Self::annotations(
             ObservationCategory::Resource,
-            ObservationScope::resource(agent_id, resource_id),
+            ObservationScope::resource(worker_id, resource_id),
             "resource.detached",
             [
-                ("agent_id", agent_id.0.to_string()),
+                ("worker_id", worker_id.0.to_string()),
                 ("resource_id", resource_id.resource_id.0.to_string()),
             ],
         )

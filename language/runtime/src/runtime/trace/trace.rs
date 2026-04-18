@@ -7,7 +7,7 @@ use crate::runtime::trace::{
     BindingCallEvent, EntropyEvent, Outcome, TraceCursor, TraceCursorImage, TraceHeader, TraceLog,
     TraceLogImage, TraceRecord, TraceSequence,
 };
-use crate::runtime::world::{BranchId, Input};
+use crate::runtime::world::{BranchId, Command};
 use destack_workspace::ExecutionMode;
 use parking_lot::Mutex;
 use postcard::experimental::serialized_size;
@@ -92,15 +92,6 @@ pub struct TraceImage {
     pub(crate) cursor: Option<TraceCursorImage>,
     /// The captured trace validator state.
     pub(crate) validator: Validator,
-}
-
-/// Serialized snapshot for one trace image.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TraceSnapshot {
-    /// The trace snapshot format version.
-    pub format_version: u32,
-    /// The captured trace image.
-    pub(crate) image: TraceImage,
 }
 
 /// Trace controller for record and replay pipelines.
@@ -264,19 +255,6 @@ impl Trace {
         Ok(())
     }
 
-    /// Encode one trace image as one trace snapshot.
-    pub(crate) fn encode_snapshot(image: &TraceImage) -> TraceSnapshot {
-        TraceSnapshot {
-            format_version: 1,
-            image: image.clone(),
-        }
-    }
-
-    /// Decode one trace snapshot back into one trace image.
-    pub(crate) fn decode_snapshot(snapshot: &TraceSnapshot) -> TraceImage {
-        snapshot.image.clone()
-    }
-
     /// Return one trace mismatch error for one event channel.
     fn trace_mismatch_error(name: &str) -> Box<RuntimeError> {
         RuntimeError::TraceMismatch {
@@ -341,9 +319,9 @@ impl Trace {
         Ok(())
     }
 
-    /// Record one authoritative trace input.
-    pub(crate) fn record_input(&self, input: Input) -> RuntimeResult<()> {
-        self.record_event(TraceRecord::Input(input))
+    /// Record one authoritative trace command.
+    pub(crate) fn record_command(&self, command: Command) -> RuntimeResult<()> {
+        self.record_event(TraceRecord::Command(command))
     }
 
     /// Record one authoritative trace outcome.
@@ -480,35 +458,35 @@ impl Trace {
         }
     }
 
-    /// Read the next input from replay.
-    pub(crate) fn next_input(&self) -> RuntimeResult<Input> {
+    /// Read the next command from replay.
+    pub(crate) fn next_command(&self) -> RuntimeResult<Command> {
         // read the next event from the log
         let event = self.next_required_record("world")?;
 
         // validate the world input event shape
-        let TraceRecord::Input(input) = event else {
+        let TraceRecord::Command(command) = event else {
             return Err(Self::trace_mismatch_error("world"));
         };
 
-        Ok(input)
+        Ok(command)
     }
 
-    /// Resolve one input under the active replay mode.
-    pub(crate) fn resolve_input(&self, requested_input: Input) -> RuntimeResult<Input> {
+    /// Resolve one command under the active replay mode.
+    pub(crate) fn resolve_command(&self, requested_command: Command) -> RuntimeResult<Command> {
         match self.mode() {
-            // fast execution applies requested input directly
-            ExecutionMode::Fast => Ok(requested_input),
-            // replay execution aligns requested input with the replay log
+            // fast execution applies the requested command directly
+            ExecutionMode::Fast => Ok(requested_command),
+            // replay execution aligns the requested command with the replay log
             ExecutionMode::Replay => {
-                let replayed_input = self.next_input()?;
-                if replayed_input != requested_input {
+                let replayed_command = self.next_command()?;
+                if replayed_command != requested_command {
                     return Err(Self::trace_mismatch_error("world"));
                 }
 
-                Ok(replayed_input)
+                Ok(replayed_command)
             }
-            // deterministic and record modes keep local input behavior
-            ExecutionMode::Deterministic | ExecutionMode::Record => Ok(requested_input),
+            // deterministic and record modes keep local command behavior
+            ExecutionMode::Deterministic | ExecutionMode::Record => Ok(requested_command),
         }
     }
 
@@ -702,15 +680,15 @@ impl Capture for Trace {
 }
 
 impl SnapshotCodec for Trace {
-    type Snapshot = TraceSnapshot;
+    type Snapshot = TraceImage;
 
     /// Encode one trace image as one trace snapshot.
     fn encode_snapshot(image: &Self::Image) -> Result<Self::Snapshot, Self::Error> {
-        Ok(Trace::encode_snapshot(image))
+        Ok(image.clone())
     }
 
     /// Decode one trace snapshot back into one trace image.
     fn decode_snapshot(snapshot: &Self::Snapshot) -> Result<Self::Image, Self::Error> {
-        Ok(Trace::decode_snapshot(snapshot))
+        Ok(snapshot.clone())
     }
 }

@@ -412,7 +412,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_subscribe(
         .with_payload(Arc::new(MacBluetoothSubscriptionResource {
             queue: queue.clone(),
         }))
-        .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
             MacBluetoothSubscriptionFinalizer {
                 peripheral: resource.peripheral.clone(),
                 characteristic: characteristic.characteristic.clone(),
@@ -424,7 +424,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_subscribe(
         ));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 

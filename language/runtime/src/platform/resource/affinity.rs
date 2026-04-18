@@ -6,7 +6,7 @@ use crate::runtime::{ExecutionContext, ExecutionContextId, execution_context_sat
 /// Stored resource-affinity requirement for one live resource entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ResourceAffinity {
-    /// Require the owning agent event-loop context.
+    /// Require the owning worker event-loop context.
     EventLoop,
     /// Require the captured owner execution context.
     Owner(ExecutionContextId),

@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use destack_core::{CaptureMode, LocalStringPool};
-use destack_engine::{Continuation, FrameImage, FrameLayoutId, FrameValue, ResumePointId};
+use destack_engine::{Continuation, FrameImage, FrameLayoutId, MaterializedValue, ResumePointId};
 use destack_mir::NodeTree;
 use destack_workspace::{RuntimeOptions, SchedulerOptions};
 use {destack_heap as heap, destack_vm as vm};
@@ -12,11 +12,11 @@ use crate::host::{
     HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState,
     Session,
 };
+use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
-use crate::platform::{PlatformError, ResourceId};
 use crate::runtime::engine::{
-    Engine, EngineImage, EngineSnapshot, Entry, ExecutionOutcome, ExecutionOutput,
-    LiveContinuation, NativeContinuationHandle,
+    Engine, EngineImage, EngineLayout, Entry, ExecutionOutcome, ExecutionOutput, LiveContinuation,
+    NativeContinuationHandle,
 };
 use crate::runtime::poller::{
     HostPoller, HostPollerFlags, PlatformHandle, PlatformInterest, PollerEvent, PollerEventFlags,
@@ -26,8 +26,8 @@ use crate::runtime::scheduler::{
     Microtask, MicrotaskId, Task, TaskId, TaskStatus, Timer, TimerDeadline,
 };
 use crate::runtime::time::{HostClockSource, Nanos};
-use crate::runtime::world::{Branch, CheckpointId, RevisionId, WorldEntityKindDefinition};
-use crate::runtime::{Agent, AgentId, DropCounts, RuntimeId, TickOutcome, World, WorldRef};
+use crate::runtime::world::{Branch, CheckpointId, Revision, WorldEntityKindDefinition};
+use crate::runtime::{Worker, WorkerId, DropCounts, RuntimeId, TickOutcome, World, WorldRef};
 
 /// Scripted host clock source for deterministic host-time runtime tests.
 #[derive(Debug, Default)]
@@ -94,7 +94,7 @@ impl HostClockSource for ScriptedHostClockSource {
 }
 
 /// Validate capture support for one synthetic native test continuation.
-fn validate_native_capture_mode(
+pub(super) fn validate_native_capture_mode(
     continuation: &LiveContinuation,
     mode: CaptureMode,
 ) -> RuntimeResult<()> {
@@ -113,24 +113,8 @@ fn validate_native_capture_mode(
     Ok(())
 }
 
-/// Clone one synthetic native continuation for repeatable watch dispatch.
-fn clone_native_repeatable_dispatch(
-    continuation: &LiveContinuation,
-) -> RuntimeResult<LiveContinuation> {
-    match continuation {
-        LiveContinuation::Native(handle) => Ok(LiveContinuation::Native(*handle)),
-        LiveContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::from(
-            PlatformError::invalid_argument_value(
-                "watch.runnable",
-                "vm continuations are not supported for event loop watches",
-            ),
-        )
-        .boxed()),
-    }
-}
-
 /// Test engine that yields once, then completes.
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub(super) struct TestEngine {
     /// Number of resume calls executed.
     pub(super) resume_calls: usize,
@@ -146,27 +130,10 @@ pub(super) struct AllocatingEngine {
 }
 
 impl Engine for TestEngine {
-    /// Return the managed-reference width required by this test engine.
-    fn heap_managed_reference_bytes(&self) -> u8 {
-        8
-    }
-
     /// Run one entrypoint without yielding.
     fn run(
         &mut self,
-        _memory: &mut heap::MemoryContext<'_>,
-        _entry: &Entry,
-        _args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
-        Ok(ExecutionOutcome::Completed {
-            output: void_output(),
-        })
-    }
-
-    /// Run one replayable entrypoint without yielding.
-    fn run_replayable_entry(
-        &mut self,
-        _memory: &mut heap::MemoryContext<'_>,
+        _memory: &mut vm::MemoryContext<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
     ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
@@ -178,7 +145,7 @@ impl Engine for TestEngine {
     /// Resume one continuation and yield once before completion.
     fn resume(
         &mut self,
-        _memory: &mut heap::MemoryContext<'_>,
+        _memory: &mut vm::MemoryContext<'_>,
         _continuation: LiveContinuation,
         _value: heap::Value,
     ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
@@ -200,29 +167,17 @@ impl Engine for TestEngine {
         })
     }
 
-    /// Validate capture support for one continuation.
-    fn validate_capture_mode(
-        &self,
-        continuation: &LiveContinuation,
-        mode: CaptureMode,
-    ) -> RuntimeResult<()> {
-        validate_native_capture_mode(continuation, mode)
-    }
-
-    /// Clone one continuation for repeatable watch dispatch.
-    fn clone_for_repeatable_dispatch(
-        &self,
-        continuation: &LiveContinuation,
-    ) -> RuntimeResult<LiveContinuation> {
-        clone_native_repeatable_dispatch(continuation)
-    }
-
     /// Capture one immutable engine image for tests.
     fn image(&mut self) -> RuntimeResult<EngineImage> {
         Err(crate::diagnostic::RuntimeError::Internal {
             message: "test engine images are not implemented".to_string(),
         }
         .boxed())
+    }
+
+    /// Fork one live test engine.
+    fn fork(&mut self, _heap: &mut heap::Heap) -> RuntimeResult<Box<dyn Engine>> {
+        Ok(Box::new(self.clone()))
     }
 
     /// Restore one immutable engine image for tests.
@@ -239,7 +194,10 @@ impl Engine for TestEngine {
     fn continuation_image(
         &mut self,
         continuation: &LiveContinuation,
+        mode: CaptureMode,
     ) -> RuntimeResult<Continuation> {
+        validate_native_capture_mode(continuation, mode)?;
+
         match continuation {
             LiveContinuation::Native(continuation) => Ok(native_continuation_image(*continuation)),
             LiveContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
@@ -257,19 +215,19 @@ impl Engine for TestEngine {
         Ok(LiveContinuation::Native(continuation_from_image(image)))
     }
 
-    /// Capture one serialized engine snapshot for tests.
-    fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot> {
+    /// Capture one serialized engine image for tests.
+    fn snapshot(&mut self) -> RuntimeResult<EngineImage> {
         Err(crate::diagnostic::RuntimeError::Internal {
             message: "test engine snapshots are not implemented".to_string(),
         }
         .boxed())
     }
 
-    /// Restore one serialized engine snapshot for tests.
+    /// Restore one serialized engine image for tests.
     fn restore_snapshot(
         &mut self,
         _heap: &mut heap::Heap,
-        snapshot: &EngineSnapshot,
+        snapshot: &EngineImage,
     ) -> RuntimeResult<()> {
         let _ = snapshot;
 
@@ -280,30 +238,18 @@ impl Engine for TestEngine {
     }
 }
 
-impl Engine for AllocatingEngine {
+impl EngineLayout for TestEngine {
     /// Return the managed-reference width required by this test engine.
-    fn heap_managed_reference_bytes(&self) -> u8 {
+    fn managed_reference_bytes(&self) -> u8 {
         8
     }
+}
 
+impl Engine for AllocatingEngine {
     /// Run one entrypoint after allocating into the heap.
     fn run(
         &mut self,
-        memory: &mut heap::MemoryContext<'_>,
-        _entry: &Entry,
-        _args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
-        self.allocate(memory.heap())?;
-
-        Ok(ExecutionOutcome::Completed {
-            output: void_output(),
-        })
-    }
-
-    /// Run one replayable entrypoint after allocating into the heap.
-    fn run_replayable_entry(
-        &mut self,
-        memory: &mut heap::MemoryContext<'_>,
+        memory: &mut vm::MemoryContext<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
     ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
@@ -317,7 +263,7 @@ impl Engine for AllocatingEngine {
     /// Resume one continuation after allocating into the heap.
     fn resume(
         &mut self,
-        memory: &mut heap::MemoryContext<'_>,
+        memory: &mut vm::MemoryContext<'_>,
         _continuation: LiveContinuation,
         _value: heap::Value,
     ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
@@ -328,29 +274,17 @@ impl Engine for AllocatingEngine {
         })
     }
 
-    /// Validate capture support for one continuation.
-    fn validate_capture_mode(
-        &self,
-        continuation: &LiveContinuation,
-        mode: CaptureMode,
-    ) -> RuntimeResult<()> {
-        validate_native_capture_mode(continuation, mode)
-    }
-
-    /// Clone one continuation for repeatable watch dispatch.
-    fn clone_for_repeatable_dispatch(
-        &self,
-        continuation: &LiveContinuation,
-    ) -> RuntimeResult<LiveContinuation> {
-        clone_native_repeatable_dispatch(continuation)
-    }
-
     /// Capture one immutable engine image for tests.
     fn image(&mut self) -> RuntimeResult<EngineImage> {
         Err(crate::diagnostic::RuntimeError::Internal {
             message: "allocating test engine images are not implemented".to_string(),
         }
         .boxed())
+    }
+
+    /// Fork one live allocating test engine.
+    fn fork(&mut self, _heap: &mut heap::Heap) -> RuntimeResult<Box<dyn Engine>> {
+        Ok(Box::new(*self))
     }
 
     /// Restore one immutable engine image for tests.
@@ -367,7 +301,10 @@ impl Engine for AllocatingEngine {
     fn continuation_image(
         &mut self,
         continuation: &LiveContinuation,
+        mode: CaptureMode,
     ) -> RuntimeResult<Continuation> {
+        validate_native_capture_mode(continuation, mode)?;
+
         match continuation {
             LiveContinuation::Native(continuation) => Ok(native_continuation_image(*continuation)),
             LiveContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
@@ -386,19 +323,19 @@ impl Engine for AllocatingEngine {
         Ok(LiveContinuation::Native(continuation_from_image(image)))
     }
 
-    /// Capture one serialized engine snapshot for tests.
-    fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot> {
+    /// Capture one serialized engine image for tests.
+    fn snapshot(&mut self) -> RuntimeResult<EngineImage> {
         Err(crate::diagnostic::RuntimeError::Internal {
             message: "allocating test engine snapshots are not implemented".to_string(),
         }
         .boxed())
     }
 
-    /// Restore one serialized engine snapshot for tests.
+    /// Restore one serialized engine image for tests.
     fn restore_snapshot(
         &mut self,
         _heap: &mut heap::Heap,
-        snapshot: &EngineSnapshot,
+        snapshot: &EngineImage,
     ) -> RuntimeResult<()> {
         let _ = snapshot;
 
@@ -409,13 +346,20 @@ impl Engine for AllocatingEngine {
     }
 }
 
+impl EngineLayout for AllocatingEngine {
+    /// Return the managed-reference width required by this test engine.
+    fn managed_reference_bytes(&self) -> u8 {
+        8
+    }
+}
+
 impl AllocatingEngine {
     /// Allocate the configured managed and raw payload into the heap.
     fn allocate(&self, heap: &mut heap::Heap) -> RuntimeResult<()> {
         // managed payload
         if self.managed_values > 0 {
             let bytes = vec![0; self.managed_values * heap::Value::BYTE_LEN];
-            let _ = heap.allocate_managed_bytes(&bytes, heap::ReferenceMap::empty(), None)?;
+            let _ = heap.allocate_managed_bytes(&bytes, heap::EdgeMap::empty(), None)?;
         }
 
         // raw payload
@@ -428,18 +372,18 @@ impl AllocatingEngine {
     }
 }
 
-/// Test harness for agent scheduling tests.
+/// Test harness for worker scheduling tests.
 #[derive(Debug)]
 pub(super) struct TestRuntime {
-    /// Test world that owns the agent lifetime.
+    /// Test world that owns the worker lifetime.
     world: World,
-    /// Wrapped agent under test.
-    agent: Agent,
+    /// Wrapped worker under test.
+    worker: Worker,
     /// Wrapped host under test.
     host: Session,
 }
 
-/// Test harness for multi-agent runtime scheduler tests.
+/// Test harness for multi-worker runtime scheduler tests.
 #[derive(Debug)]
 pub(super) struct TestMultiAgentRuntime {
     /// Test world that owns the runtime lifetime.
@@ -517,7 +461,7 @@ impl TestWorld {
     pub(super) fn spawn_runtime(
         &mut self,
         options: &RuntimeOptions,
-        engine: impl Engine + 'static,
+        engine: impl Engine + EngineLayout + 'static,
     ) -> RuntimeId {
         self.world_mut()
             .spawn_runtime(Vec::new(), options, engine)
@@ -529,15 +473,15 @@ impl TestWorld {
         self.spawn_runtime(options, Self::vm_engine())
     }
 
-    /// Return the primary agent id for one runtime.
-    pub(super) fn primary_agent_id(&self, runtime_id: RuntimeId) -> AgentId {
+    /// Return the primary worker id for one runtime.
+    pub(super) fn primary_worker_id(&self, runtime_id: RuntimeId) -> WorkerId {
         self.world
             .runtime(runtime_id)
             .expect("runtime should exist")
-            .primary_agent_id()
+            .primary_worker_id()
     }
 
-    /// Allocate one managed heap value in the primary agent VM isolate.
+    /// Allocate one managed heap value in the primary worker VM isolate.
     pub(super) fn allocate_vm_managed_value(
         &mut self,
         runtime_id: RuntimeId,
@@ -547,22 +491,22 @@ impl TestWorld {
             .world_mut()
             .runtime_mut(runtime_id)
             .expect("runtime should exist");
-        let agent_id = runtime.primary_agent_id();
-        let agent = runtime
-            .agent_mut(agent_id)
-            .expect("runtime should keep its primary agent");
-        let engine = &mut *agent.engine as &mut dyn std::any::Any;
+        let worker_id = runtime.primary_worker_id();
+        let worker = runtime
+            .worker_mut(worker_id)
+            .expect("runtime should keep its primary worker");
+        let engine = &mut *worker.engine as &mut dyn std::any::Any;
         let _isolate = engine
             .downcast_mut::<vm::Isolate>()
-            .expect("agent should use a vm engine");
+            .expect("worker should use a vm engine");
         let bytes = value.to_byte_array();
-        agent
+        worker
             .heap
-            .allocate_managed_bytes(&bytes, heap::ReferenceMap::empty(), None)
+            .allocate_managed_bytes(&bytes, heap::EdgeMap::empty(), None)
             .expect("managed allocation should succeed")
     }
 
-    /// Allocate one managed heap value in the primary agent VM isolate.
+    /// Allocate one managed heap value in the primary worker VM isolate.
     pub(super) fn allocate_vm_heap_allocation(
         &mut self,
         runtime_id: RuntimeId,
@@ -570,21 +514,21 @@ impl TestWorld {
         self.allocate_vm_managed_value(runtime_id, heap::Value::int32(7))
     }
 
-    /// Return the managed heap allocation count for the primary agent VM isolate.
+    /// Return the managed heap allocation count for the primary worker VM isolate.
     pub(super) fn vm_heap_allocation_count(&mut self, runtime_id: RuntimeId) -> usize {
         let runtime = self
             .world_mut()
             .runtime_mut(runtime_id)
             .expect("runtime should exist");
-        let agent_id = runtime.primary_agent_id();
-        let agent = runtime
-            .agent_mut(agent_id)
-            .expect("runtime should keep its primary agent");
+        let worker_id = runtime.primary_worker_id();
+        let worker = runtime
+            .worker_mut(worker_id)
+            .expect("runtime should keep its primary worker");
 
-        agent.heap.managed_allocation_count()
+        worker.heap.managed_allocation_count()
     }
 
-    /// Allocate one raw span in the primary agent heap.
+    /// Allocate one raw span in the primary worker heap.
     pub(super) fn allocate_vm_raw_bytes(
         &mut self,
         runtime_id: RuntimeId,
@@ -594,18 +538,18 @@ impl TestWorld {
             .world_mut()
             .runtime_mut(runtime_id)
             .expect("runtime should exist");
-        let agent_id = runtime.primary_agent_id();
-        let agent = runtime
-            .agent_mut(agent_id)
-            .expect("runtime should keep its primary agent");
+        let worker_id = runtime.primary_worker_id();
+        let worker = runtime
+            .worker_mut(worker_id)
+            .expect("runtime should keep its primary worker");
 
-        agent
+        worker
             .heap
             .allocate_raw_bytes(bytes)
             .expect("raw heap allocation should succeed")
     }
 
-    /// Mutate one raw byte in the primary agent heap.
+    /// Mutate one raw byte in the primary worker heap.
     pub(super) fn mutate_vm_raw_byte(
         &mut self,
         runtime_id: RuntimeId,
@@ -617,26 +561,29 @@ impl TestWorld {
             .world_mut()
             .runtime_mut(runtime_id)
             .expect("runtime should exist");
-        let agent_id = runtime.primary_agent_id();
-        let agent = runtime
-            .agent_mut(agent_id)
-            .expect("runtime should keep its primary agent");
+        let worker_id = runtime.primary_worker_id();
+        let worker = runtime
+            .worker_mut(worker_id)
+            .expect("runtime should keep its primary worker");
 
-        assert!(agent.heap.set_raw_byte(pointer, index, byte));
+        worker
+            .heap
+            .set_raw_byte(pointer, index, byte)
+            .expect("raw byte write should succeed");
     }
 
-    /// Capture the primary agent heap image for one runtime.
+    /// Capture the primary worker heap image for one runtime.
     pub(super) fn runtime_heap_image(&mut self, runtime_id: RuntimeId) -> heap::HeapImage {
         let runtime = self
             .world_mut()
             .runtime_mut(runtime_id)
             .expect("runtime should exist");
-        let agent_id = runtime.primary_agent_id();
-        let agent = runtime
-            .agent_mut(agent_id)
-            .expect("runtime should keep its primary agent");
+        let worker_id = runtime.primary_worker_id();
+        let worker = runtime
+            .worker_mut(worker_id)
+            .expect("runtime should keep its primary worker");
 
-        agent
+        worker
             .heap
             .image()
             .map_err(|error| {
@@ -660,7 +607,7 @@ impl TestWorld {
     }
 
     /// Commit one suspend revision for the wrapped world.
-    pub(super) fn suspend(&mut self) -> RevisionId {
+    pub(super) fn suspend(&mut self) -> Revision {
         self.world_mut()
             .suspend()
             .expect("world suspend should succeed")
@@ -730,62 +677,62 @@ impl HostPoller for TestPoller {
 }
 
 impl TestRuntime {
-    /// Create one test agent with default options.
+    /// Create one test worker with default options.
     pub(super) fn new() -> Self {
-        let (world, agent, host) =
+        let (world, worker, host) =
             agent_for_options_with_engine(&RuntimeOptions::default(), TestEngine::default());
 
-        Self { world, agent, host }
+        Self { world, worker, host }
     }
 
-    /// Create one test agent with explicit runtime options.
+    /// Create one test worker with explicit runtime options.
     #[allow(dead_code)]
     pub(super) fn with_options(options: &RuntimeOptions) -> Self {
-        let (world, agent, host) = agent_for_options_with_engine(options, TestEngine::default());
+        let (world, worker, host) = agent_for_options_with_engine(options, TestEngine::default());
 
-        Self { world, agent, host }
+        Self { world, worker, host }
     }
 
-    /// Create one test agent with explicit options and one explicit engine.
+    /// Create one test worker with explicit options and one explicit engine.
     pub(super) fn with_options_and_engine(
         options: &RuntimeOptions,
-        engine: impl Engine + 'static,
+        engine: impl Engine + EngineLayout + 'static,
     ) -> Self {
-        let (world, agent, host) = agent_for_options_with_engine(options, engine);
+        let (world, worker, host) = agent_for_options_with_engine(options, engine);
 
-        Self { world, agent, host }
+        Self { world, worker, host }
     }
 
-    /// Create one test agent with explicit options and one host clock source.
+    /// Create one test worker with explicit options and one host clock source.
     #[allow(dead_code)]
     pub(super) fn with_options_and_host_clock_source(
         options: &RuntimeOptions,
         host_clock_source: Arc<dyn HostClockSource>,
     ) -> Self {
-        let (world, agent, host) =
+        let (world, worker, host) =
             agent_for_options_with_host_clock_source(options, Some(host_clock_source));
 
-        Self { world, agent, host }
+        Self { world, worker, host }
     }
 
-    /// Create one test agent with explicit options, one explicit engine, and one host clock source.
+    /// Create one test worker with explicit options, one explicit engine, and one host clock source.
     pub(super) fn with_options_engine_and_host_clock_source(
         options: &RuntimeOptions,
-        engine: impl Engine + 'static,
+        engine: impl Engine + EngineLayout + 'static,
         host_clock_source: Arc<dyn HostClockSource>,
     ) -> Self {
-        let (world, agent, host) = agent_for_options_with_engine_and_host_clock_source(
+        let (world, worker, host) = agent_for_options_with_engine_and_host_clock_source(
             options,
             engine,
             Some(host_clock_source),
         );
 
-        Self { world, agent, host }
+        Self { world, worker, host }
     }
 
     /// Enqueue one native task with explicit identifiers.
     pub(super) fn enqueue_task_native(&mut self, task_id: u64, continuation_id: u64, priority: u8) {
-        self.agent.event_loop.enqueue_task(Task {
+        self.worker.event_loop.enqueue_task(Task {
             id: TaskId::new(task_id),
             runnable: LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(
                 continuation_id,
@@ -798,7 +745,7 @@ impl TestRuntime {
 
     /// Enqueue one native microtask with explicit identifiers.
     pub(super) fn enqueue_microtask_native(&mut self, microtask_id: u64, continuation_id: u64) {
-        self.agent.event_loop.enqueue_microtask(Microtask {
+        self.worker.event_loop.enqueue_microtask(Microtask {
             id: MicrotaskId::new(microtask_id),
             continuation: LiveContinuation::Native(NativeContinuationHandle::new(
                 continuation_handle(continuation_id),
@@ -810,7 +757,7 @@ impl TestRuntime {
 
     /// Configure scheduler options and fail loudly in tests.
     pub(super) fn configure_scheduler(&mut self, options: SchedulerOptions) {
-        self.agent
+        self.worker
             .event_loop
             .configure(options)
             .expect("scheduler options should configure");
@@ -821,19 +768,22 @@ impl TestRuntime {
         self.world.world_ref()
     }
 
-    /// Return the exact live heap usage for this test agent.
+    /// Return the exact live heap usage for this test worker.
     pub(super) fn heap_usage(&self) -> heap::HeapUsage {
-        self.agent.heap.usage()
+        self.worker
+            .heap
+            .usage()
+            .expect("test heap usage should resolve")
     }
 
-    /// Return the heap managed-reference width for this test agent.
+    /// Return the heap managed-reference width for this test worker.
     pub(super) fn heap_managed_reference_bytes(&self) -> u8 {
-        self.agent.heap.layout().managed_reference_bytes
+        self.worker.heap.managed_reference_bytes()
     }
 
-    /// Replace the hard heap limits for this test agent.
+    /// Replace the hard heap limits for this test worker.
     pub(super) fn set_heap_limits(&mut self, limits: heap::HeapLimits) {
-        self.agent
+        self.worker
             .heap
             .set_limits(limits)
             .expect("heap limits should configure");
@@ -841,7 +791,7 @@ impl TestRuntime {
 
     /// Register one native timer watch.
     pub(super) fn watch_timer_native(&mut self, handle: u64, continuation_id: u64, priority: u8) {
-        self.agent
+        self.worker
             .watch_timer(
                 ResourceId(handle),
                 LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(
@@ -855,7 +805,7 @@ impl TestRuntime {
 
     /// Remove one timer watch and return whether one watch was present.
     pub(super) fn unwatch_timer(&mut self, handle: u64) -> bool {
-        self.agent.unwatch_timer(ResourceId(handle)).is_some()
+        self.worker.unwatch_timer(ResourceId(handle)).is_some()
     }
 
     /// Schedule one timer in the event loop.
@@ -876,7 +826,7 @@ impl TestRuntime {
         fire_at_nanos: u64,
         interval_nanos: Option<u64>,
     ) {
-        self.agent
+        self.worker
             .event_loop
             .schedule_timer(Timer {
                 handle: ResourceId(handle).into(),
@@ -891,7 +841,7 @@ impl TestRuntime {
 
     /// Register one native event watch.
     pub(super) fn watch_event_native(&mut self, token: u64, continuation_id: u64, priority: u8) {
-        self.agent
+        self.worker
             .watch_event(
                 PollerToken(token),
                 LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(
@@ -910,7 +860,7 @@ impl TestRuntime {
         continuation_id: u64,
         priority: u8,
     ) {
-        self.agent
+        self.worker
             .watch_host_event(
                 kind,
                 LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(
@@ -924,7 +874,7 @@ impl TestRuntime {
 
     /// Enqueue one synthetic I/O event for dispatch tests.
     pub(super) fn enqueue_io_event(&mut self, resource_id: u64, token: u64, data: u64) {
-        self.agent.event_loop.enqueue_events(vec![PollerEvent {
+        self.worker.event_loop.enqueue_events(vec![PollerEvent {
             resource_id: ResourceId(resource_id),
             source: PollerEventSource::Io,
             mask: PollerEventMask::READABLE,
@@ -936,7 +886,7 @@ impl TestRuntime {
 
     /// Enqueue one synthetic lifecycle host event for dispatch tests.
     pub(super) fn enqueue_lifecycle_host_event(&mut self, state: HostLifecycleState) {
-        self.agent
+        self.worker
             .event_loop
             .enqueue_host_events(vec![HostEvent::Lifecycle(HostLifecycleEvent {
                 source_kind: HostLifecycleSourceKind::Application,
@@ -948,7 +898,7 @@ impl TestRuntime {
     pub(super) fn tick(&mut self) -> bool {
         let world = self.world_ref();
 
-        self.agent
+        self.worker
             .tick(&world, &self.host)
             .expect("tick should execute runtime work")
     }
@@ -957,7 +907,7 @@ impl TestRuntime {
     pub(super) fn tick_until_idle(&mut self) {
         let world = self.world_ref();
 
-        self.agent
+        self.worker
             .tick_until_idle(&world, &self.host)
             .expect("tick until idle should complete");
     }
@@ -966,7 +916,7 @@ impl TestRuntime {
     pub(super) fn run_entrypoint(&mut self) -> RuntimeResult<ExecutionOutput> {
         let world = self.world_ref();
 
-        self.agent
+        self.worker
             .run_entrypoint(&world, &self.host, &Entry::new("test.entry"), &[])
     }
 
@@ -977,7 +927,7 @@ impl TestRuntime {
     ) -> RuntimeResult<ExecutionOutput> {
         let world = self.world_ref();
 
-        self.agent
+        self.worker
             .run_loop_until_task_complete(&world, &self.host, TaskId::new(task_id))
     }
 
@@ -989,7 +939,7 @@ impl TestRuntime {
     ) -> RuntimeResult<Option<ExecutionOutput>> {
         let world = self.world_ref();
 
-        self.agent.run_loop_until_task_complete_with_timeout(
+        self.worker.run_loop_until_task_complete_with_timeout(
             &world,
             &self.host,
             TaskId::new(task_id),
@@ -999,27 +949,27 @@ impl TestRuntime {
 
     /// Return whether the event loop has pending work.
     pub(super) fn has_pending_work(&self) -> bool {
-        self.agent.event_loop.has_pending_work()
+        self.worker.event_loop.has_pending_work()
     }
 
     /// Return whether the event loop has pending microtasks.
     pub(super) fn has_microtasks(&self) -> bool {
-        self.agent.event_loop.has_microtasks()
+        self.worker.event_loop.has_microtasks()
     }
 
-    /// Run one closure with one stored agent engine by explicit type.
+    /// Run one closure with one stored worker engine by explicit type.
     pub(super) fn with_engine<T: Engine, R>(&self, callback: impl FnOnce(&T) -> R) -> R {
-        let engine = self.agent.engine.as_ref() as &dyn std::any::Any;
+        let engine = self.worker.engine.as_ref() as &dyn std::any::Any;
         let engine = engine
             .downcast_ref::<T>()
-            .expect("agent engine should exist");
+            .expect("worker engine should exist");
 
         callback(engine)
     }
 
     /// Return event-loop drop accounting.
     pub(super) fn drop_counts(&self) -> DropCounts {
-        self.agent.drop_counts()
+        self.worker.drop_counts()
     }
 
     /// Return current runtime wall time in nanoseconds.
@@ -1037,7 +987,7 @@ impl TestMultiAgentRuntime {
     /// Create one runtime with explicit options and one explicit engine.
     pub(super) fn with_options_and_engine(
         options: &RuntimeOptions,
-        engine: impl Engine + 'static,
+        engine: impl Engine + EngineLayout + 'static,
     ) -> Self {
         let mut world = World::from_options(options).expect("world should build");
         let runtime_id = world
@@ -1053,36 +1003,36 @@ impl TestMultiAgentRuntime {
         Self { world, runtime_id }
     }
 
-    /// Return the primary agent id.
-    pub(super) fn primary_agent_id(&self) -> AgentId {
+    /// Return the primary worker id.
+    pub(super) fn primary_worker_id(&self) -> WorkerId {
         self.world
             .runtime(self.runtime_id)
             .expect("runtime should exist")
-            .primary_agent_id()
+            .primary_worker_id()
     }
 
-    /// Spawn one additional agent with one explicit engine and return its id.
-    pub(super) fn spawn_agent(&mut self, engine: impl Engine + 'static) -> AgentId {
+    /// Spawn one additional worker with one explicit engine and return its id.
+    pub(super) fn spawn_worker(&mut self, engine: impl Engine + EngineLayout + 'static) -> WorkerId {
         self.world
-            .spawn_agent(self.runtime_id, engine)
-            .expect("agent should spawn")
+            .spawn_worker(self.runtime_id, engine)
+            .expect("worker should spawn")
     }
 
-    /// Run one closure with one mutable agent by id.
-    pub(super) fn with_agent_mut<R>(
+    /// Run one closure with one mutable worker by id.
+    pub(super) fn with_worker_mut<R>(
         &mut self,
-        agent_id: AgentId,
-        callback: impl FnOnce(&mut Agent) -> R,
+        worker_id: WorkerId,
+        callback: impl FnOnce(&mut Worker) -> R,
     ) -> R {
         let runtime = self
             .world
             .runtime_mut(self.runtime_id)
             .expect("runtime should exist");
-        let agent = runtime
-            .agent_mut(agent_id)
-            .expect("agent should exist in runtime");
+        let worker = runtime
+            .worker_mut(worker_id)
+            .expect("worker should exist in runtime");
 
-        callback(agent)
+        callback(worker)
     }
 
     /// Execute one runtime tick and fail loudly on runtime errors.
@@ -1122,7 +1072,7 @@ impl TestMultiAgentRuntime {
         &mut self.world
     }
 
-    /// Run one closure with one stored primary-agent engine by explicit type.
+    /// Run one closure with one stored primary-worker engine by explicit type.
     #[allow(dead_code)]
     pub(super) fn with_engine<T: Engine, R>(&self, callback: impl FnOnce(&T) -> R) -> R {
         self.with_primary_engine(callback)
@@ -1133,58 +1083,58 @@ impl TestMultiAgentRuntime {
         self.world.mono_nanos()
     }
 
-    /// Run one closure with one stored primary-agent engine by explicit type.
+    /// Run one closure with one stored primary-worker engine by explicit type.
     pub(super) fn with_primary_engine<T: Engine, R>(&self, callback: impl FnOnce(&T) -> R) -> R {
         let runtime = self
             .world
             .runtime(self.runtime_id)
             .expect("runtime should exist");
-        let primary_agent_id = runtime.primary_agent_id();
-        let agent = runtime
-            .agent(primary_agent_id)
-            .expect("primary agent should exist");
-        let engine = agent.engine.as_ref() as &dyn std::any::Any;
+        let primary_worker_id = runtime.primary_worker_id();
+        let worker = runtime
+            .worker(primary_worker_id)
+            .expect("primary worker should exist");
+        let engine = worker.engine.as_ref() as &dyn std::any::Any;
         let engine = engine
             .downcast_ref::<T>()
-            .expect("agent engine should exist");
+            .expect("worker engine should exist");
 
         callback(engine)
     }
 
-    /// Run one closure with one stored agent engine by explicit type.
-    pub(super) fn with_agent_engine<T: Engine, R>(
+    /// Run one closure with one stored worker engine by explicit type.
+    pub(super) fn with_worker_engine<T: Engine, R>(
         &self,
-        agent_id: AgentId,
+        worker_id: WorkerId,
         callback: impl FnOnce(&T) -> R,
     ) -> R {
         let runtime = self
             .world
             .runtime(self.runtime_id)
             .expect("runtime should exist");
-        let agent = runtime
-            .agent(agent_id)
-            .expect("agent should exist in runtime");
-        let engine = agent.engine.as_ref() as &dyn std::any::Any;
+        let worker = runtime
+            .worker(worker_id)
+            .expect("worker should exist in runtime");
+        let engine = worker.engine.as_ref() as &dyn std::any::Any;
         let engine = engine
             .downcast_ref::<T>()
-            .expect("agent engine should exist");
+            .expect("worker engine should exist");
 
         callback(engine)
     }
 }
 
-/// Build one agent configured for runtime tests.
+/// Build one worker configured for runtime tests.
 #[allow(dead_code)]
-fn agent_for_options(options: &RuntimeOptions) -> (World, Agent, Session) {
+fn worker_for_options(options: &RuntimeOptions) -> (World, Worker, Session) {
     agent_for_options_with_engine(options, TestEngine::default())
 }
 
-/// Build one agent configured for runtime tests and one optional host clock source.
+/// Build one worker configured for runtime tests and one optional host clock source.
 #[allow(dead_code)]
 fn agent_for_options_with_host_clock_source(
     options: &RuntimeOptions,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
-) -> (World, Agent, Session) {
+) -> (World, Worker, Session) {
     agent_for_options_with_engine_and_host_clock_source(
         options,
         TestEngine::default(),
@@ -1192,48 +1142,48 @@ fn agent_for_options_with_host_clock_source(
     )
 }
 
-/// Build one agent configured for runtime tests with one explicit engine.
+/// Build one worker configured for runtime tests with one explicit engine.
 fn agent_for_options_with_engine(
     options: &RuntimeOptions,
-    engine: impl Engine + 'static,
-) -> (World, Agent, Session) {
+    engine: impl Engine + EngineLayout + 'static,
+) -> (World, Worker, Session) {
     agent_for_options_with_engine_and_host_clock_source(options, engine, None)
 }
 
-/// Build one agent configured for runtime tests with one explicit engine and one optional host clock source.
+/// Build one worker configured for runtime tests with one explicit engine and one optional host clock source.
 fn agent_for_options_with_engine_and_host_clock_source(
     options: &RuntimeOptions,
-    engine: impl Engine + 'static,
+    engine: impl Engine + EngineLayout + 'static,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
-) -> (World, Agent, Session) {
+) -> (World, Worker, Session) {
     let mut world = if let Some(host_clock_source) = host_clock_source.clone() {
         World::new(options, Some(host_clock_source)).expect("runtime test world should build")
     } else {
         World::from_options(options).expect("runtime test world should build")
     };
 
-    // construct one runtime agent from explicit options
+    // construct one runtime worker from explicit options
     let world_ref = world.world_ref();
-    let mut agent = Agent::new_in_world(Vec::new(), options, &world_ref, Box::new(engine))
-        .expect("runtime test agent should build");
+    let mut worker = Worker::new_in_world(Vec::new(), options, &world_ref, engine)
+        .expect("runtime test worker should build");
 
     // configure scheduler options for deterministic tests
-    agent
+    worker
         .event_loop
         .configure(options.scheduler.clone())
         .expect("scheduler options should configure");
 
     // apply runtime options to binding policy state
-    agent.bindings.apply_runtime_defaults(options);
+    worker.bindings.apply_runtime_defaults(options);
 
-    // build the host for this test agent
-    let host = Session::from_runtime_options(options, agent.runtime_id);
+    // build the host for this test worker
+    let host = Session::from_runtime_options(options, worker.runtime_id);
 
     // drain initial host bootstrap events for deterministic scheduler tests
     host.poll(Some(0))
         .expect("host bootstrap events should drain");
 
-    (world, agent, host)
+    (world, worker, host)
 }
 
 /// Build one void runtime output.
@@ -1254,11 +1204,11 @@ pub(super) fn native_continuation_image(continuation: NativeContinuationHandle) 
             frame_layout: FrameLayoutId(0),
             resume_point: ResumePointId(0),
             transfer: None,
-            slots: vec![FrameValue::UInt {
+            slots: vec![MaterializedValue::UInt {
                 value: continuation.get() as u64,
                 width: 64,
             }],
-            stack_allocations: Vec::new(),
+            allocations: Vec::new(),
         }],
         stats: Default::default(),
     }
@@ -1274,7 +1224,7 @@ pub(super) fn continuation_from_image(image: &Continuation) -> NativeContinuatio
         .slots
         .first()
         .expect("synthetic native continuation frame should contain one slot");
-    let FrameValue::UInt { value, .. } = slot else {
+    let MaterializedValue::UInt { value, .. } = slot else {
         panic!("synthetic native continuation image should encode one u64 handle");
     };
 

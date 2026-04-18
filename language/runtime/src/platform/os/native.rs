@@ -63,7 +63,7 @@ fn take_document_pick_result(
     handle: resource::DocumentPickHandle,
     operation: &'static str,
 ) -> RuntimeResult<Vec<DocumentDescriptor>> {
-    let result = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let result = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != resource::ResourceKind::DocumentPick {
             return None;
         }
@@ -95,7 +95,7 @@ fn take_notification_permission_result(
     handle: resource::NotificationPermissionRequestHandle,
     operation: &'static str,
 ) -> RuntimeResult<NotificationPermissionState> {
-    let result = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let result = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != resource::ResourceKind::NotificationPermissionRequest {
             return None;
         }
@@ -130,7 +130,7 @@ fn take_permission_request_result(
     handle: resource::PermissionRequestHandle,
     operation: &'static str,
 ) -> RuntimeResult<Vec<PermissionEntry>> {
-    let result = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let result = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != resource::ResourceKind::PermissionRequest {
             return None;
         }
@@ -1085,7 +1085,7 @@ pub(crate) unsafe fn destack_os_document_pick_close(
     handle: resource::DocumentPickHandle,
 ) -> RuntimeResult<()> {
     // remove the one-shot transaction resource
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -1137,7 +1137,7 @@ pub(crate) unsafe fn destack_os_document_pick_open(
             result: Some(result),
         });
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -2789,7 +2789,7 @@ pub(crate) unsafe fn destack_os_notification_request_permission_close(
     handle: resource::NotificationPermissionRequestHandle,
 ) -> RuntimeResult<()> {
     // remove the one-shot transaction resource
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -2839,7 +2839,7 @@ pub(crate) unsafe fn destack_os_notification_request_permission_open(
             result: Some(result),
         });
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -3009,7 +3009,7 @@ pub(crate) unsafe fn destack_os_permission_request_close(
     handle: resource::PermissionRequestHandle,
 ) -> RuntimeResult<()> {
     // remove the one-shot transaction resource
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -3062,7 +3062,7 @@ pub(crate) unsafe fn destack_os_permission_request_many_open(
             result: Some(result),
         });
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -3109,7 +3109,7 @@ pub(crate) unsafe fn destack_os_permission_request_open(
             result: Some(result),
         });
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 

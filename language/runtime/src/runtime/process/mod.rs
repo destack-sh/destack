@@ -1,4 +1,4 @@
-mod agent;
+mod r#loop;
 mod call;
 mod callback;
 mod context;
@@ -14,7 +14,8 @@ pub(crate) mod service;
 pub(crate) mod thread;
 mod worker;
 
-pub use agent::*;
+pub(crate) use r#loop::*;
+pub use worker::*;
 pub use call::*;
 pub(crate) use callback::*;
 pub use context::*;
@@ -26,4 +27,3 @@ pub(crate) use policy::*;
 pub use runtime::*;
 pub use service::*;
 pub(crate) use thread::*;
-pub(crate) use worker::*;

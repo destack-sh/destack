@@ -6,8 +6,15 @@ use destack_workspace::{PollerBackend, RuntimeOptions};
 pub(super) fn poller_for_options(
     options: &RuntimeOptions,
 ) -> RuntimeResult<Option<Box<dyn HostPoller>>> {
+    poller_for_backend(options.scheduler.poller_backend)
+}
+
+/// Build a poller instance from one explicit backend selector.
+pub(super) fn poller_for_backend(
+    backend: PollerBackend,
+) -> RuntimeResult<Option<Box<dyn HostPoller>>> {
     // map runtime config enum into the canonical platform backend selector
-    let backend = map_runtime_backend(options.scheduler.poller_backend);
+    let backend = map_runtime_backend(backend);
 
     // create one poller instance using shared platform policy
     let poller = create_host_poller_for_runtime(backend)?;

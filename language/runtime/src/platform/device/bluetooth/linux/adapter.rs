@@ -25,7 +25,7 @@ pub(crate) unsafe fn destack_device_bluetooth_adapter_watch_open(
 
     // capture the initial adapter snapshot before registering the watcher
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .linux_bluetooth_service("destack.device.bluetooth.adapterWatchOpen")?;
@@ -53,7 +53,7 @@ pub(crate) unsafe fn destack_device_bluetooth_adapter_watch_open(
     let entry = ResourceEntry::new(ResourceKind::BluetoothAdapterWatch)
         .with_label(BLUETOOTH_ADAPTER_WATCH_RESOURCE_LABEL)
         .with_payload(resource)
-        .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
             LinuxBluetoothAdapterWatchFinalizer {
                 service,
                 registration_id,
@@ -61,7 +61,7 @@ pub(crate) unsafe fn destack_device_bluetooth_adapter_watch_open(
             },
         ));
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 

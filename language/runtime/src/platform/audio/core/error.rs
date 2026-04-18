@@ -140,7 +140,7 @@ fn resolve_resource_payload<T: Clone + 'static>(
     resource_kind: ResourceKind,
     resource_label: &'static str,
 ) -> Option<T> {
-    let resolved = ctx.agent().resources.with_entry(resource_id, |entry| {
+    let resolved = ctx.worker().resources.with_entry(resource_id, |entry| {
         if entry.kind != resource_kind {
             return None;
         }

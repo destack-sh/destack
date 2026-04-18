@@ -52,7 +52,7 @@ pub(crate) struct VmMmapRuntimeState {
 /// Return runtime-owned vm mmap mutable state.
 fn vm_mmap_runtime_state(binding: &BindingCallContext) -> Arc<VmMmapRuntimeState> {
     binding
-        .agent()
+        .worker()
         .platform_state
         .fs
         .vm_mmap_runtime_state(VmMmapRuntimeState::default)
@@ -60,7 +60,7 @@ fn vm_mmap_runtime_state(binding: &BindingCallContext) -> Arc<VmMmapRuntimeState
 
 /// Build a stable vm mapping key from one slice.
 fn vm_mapping_key(mapping: VmSlice<u8>) -> u64 {
-    mapping.data.id()
+    u64::from(mapping.data.id())
 }
 
 /// Validate common mmap flags.

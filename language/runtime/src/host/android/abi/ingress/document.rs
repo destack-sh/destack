@@ -1,1 +1,0 @@
-include!("document.generated.rs");

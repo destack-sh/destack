@@ -1,24 +1,25 @@
 use std::collections::VecDeque;
 use std::sync::OnceLock;
 
+use destack_engine::Continuation;
 use destack_heap as heap;
 use destack_workspace::{SchedulerOptions, SchedulerPolicy};
 use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde::{Deserialize, Serialize};
 
 use super::{Microtask, MicrotaskId, Task, TaskId, Timer, TimerHandle, TimerQueue};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{HostEvent, HostEventKind};
 use crate::platform::{PlatformError, ResourceId};
-use crate::runtime::engine::LiveContinuation;
 use crate::runtime::poller::{PollerEvent, PollerToken};
 use crate::runtime::{DropCounts, ExecutionContext, ExecutionContextId};
 
 /// Watch payload that can be dispatched as one event loop task.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EventLoopWatch {
-    /// Runnable continuation to execute when dispatched.
-    pub runnable: LiveContinuation,
+    /// Runnable continuation image to restore when dispatched.
+    pub runnable: Continuation,
     /// Resume value passed into the continuation.
     pub resume_value: heap::Value,
     /// Task priority used when queueing watched tasks.

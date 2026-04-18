@@ -504,13 +504,13 @@ pub(crate) unsafe fn destack_device_camera_device_open(
         .with_payload(Arc::new(LinuxCameraDeviceResource { info }))
         .with_finalizer(
             binding
-                .agent()
+                .worker()
                 .platform_state
                 .device
                 .retain_runtime_activity(),
         );
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 

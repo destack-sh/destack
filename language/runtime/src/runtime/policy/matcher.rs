@@ -13,8 +13,8 @@ pub(crate) fn selector_matches(
     selector: &RuntimeSelector,
     runtime_name: &str,
     runtime_labels: &BTreeMap<String, String>,
-    agent_name: &str,
-    agent_labels: &BTreeMap<String, String>,
+    worker_name: &str,
+    worker_labels: &BTreeMap<String, String>,
     descriptor: Option<BindingDescriptor>,
     mode: ExecutionMode,
     engine: Option<BindingEngine>,
@@ -31,9 +31,9 @@ pub(crate) fn selector_matches(
         return false;
     }
 
-    // match agent identity selector
-    if let Some(agent_selector) = &selector.agent
-        && !matches_identity_selector(agent_selector, agent_name, agent_labels)
+    // match worker identity selector
+    if let Some(worker_selector) = &selector.worker
+        && !matches_identity_selector(worker_selector, worker_name, worker_labels)
     {
         return false;
     }

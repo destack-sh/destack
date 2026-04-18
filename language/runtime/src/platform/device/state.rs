@@ -35,49 +35,49 @@ use super::usb::{UsbService, usb_service};
 #[cfg(target_os = "android")]
 use crate::runtime::BindingCallContext;
 
-/// Agent-owned device module state.
+/// Worker-owned device module state.
 #[derive(Default)]
 pub(crate) struct PlatformDeviceState {
-    /// Cached Android MIDI backend description for this agent.
+    /// Cached Android MIDI backend description for this worker.
     #[cfg(target_os = "android")]
     android_backend_description: std::sync::OnceLock<AndroidBackendDescription>,
-    /// Shared ALSA service handle for this agent.
+    /// Shared ALSA service handle for this worker.
     #[cfg(target_os = "linux")]
     alsa_service: ServiceHandle<AlsaService>,
-    /// Shared JACK service handle for this agent.
+    /// Shared JACK service handle for this worker.
     #[cfg(target_os = "linux")]
     jack_service: ServiceHandle<JackService>,
-    /// Shared CoreMIDI service handle for this agent.
+    /// Shared CoreMIDI service handle for this worker.
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     core_midi_service: ServiceHandle<CoreMidiService>,
-    /// Shared WinRT service handle for this agent.
+    /// Shared WinRT service handle for this worker.
     #[cfg(windows)]
     winrt_service: ServiceHandle<WinRtService>,
-    /// Shared Windows MIDI service handle for this agent.
+    /// Shared Windows MIDI service handle for this worker.
     #[cfg(windows)]
     windows_midi_service: ServiceHandle<WindowsMidiService>,
-    /// Shared WinMM service handle for this agent.
+    /// Shared WinMM service handle for this worker.
     #[cfg(windows)]
     winmm_service: ServiceHandle<WinMmService>,
-    /// Shared Linux BlueZ service handle for this agent.
+    /// Shared Linux BlueZ service handle for this worker.
     #[cfg(target_os = "linux")]
     linux_bluetooth_service: ServiceHandle<LinuxBluetoothService>,
-    /// Shared Linux camera topology service handle for this agent.
+    /// Shared Linux camera topology service handle for this worker.
     #[cfg(target_os = "linux")]
     linux_camera_watch_service: ServiceHandle<LinuxCameraWatchService>,
-    /// Shared macOS camera topology service handle for this agent.
+    /// Shared macOS camera topology service handle for this worker.
     #[cfg(target_os = "macos")]
     macos_camera_watch_service: ServiceHandle<MacosCameraWatchService>,
-    /// Shared unix serial topology service handle for this agent.
+    /// Shared unix serial topology service handle for this worker.
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     unix_serial_watch_service: ServiceHandle<UnixSerialWatchService>,
-    /// Shared Windows serial ingress service handle for this agent.
+    /// Shared Windows serial ingress service handle for this worker.
     #[cfg(windows)]
     windows_serial_service: ServiceHandle<WindowsSerialService>,
-    /// Shared test-only virtual serial registry for this agent.
+    /// Shared test-only virtual serial registry for this worker.
     #[cfg(test)]
     serial_test_registry: Arc<SerialTestRegistry>,
-    /// Shared USB service handle for this agent.
+    /// Shared USB service handle for this worker.
     usb_service: ServiceHandle<UsbService>,
     /// Number of live device resources that currently hold runtime activity.
     runtime_activity_count: Arc<AtomicUsize>,
@@ -92,7 +92,7 @@ impl std::fmt::Debug for PlatformDeviceState {
 }
 
 impl PlatformDeviceState {
-    /// Return one cached Android MIDI backend description for this agent.
+    /// Return one cached Android MIDI backend description for this worker.
     #[cfg(target_os = "android")]
     pub(crate) fn describe_android_backend(
         &self,
@@ -112,21 +112,21 @@ impl PlatformDeviceState {
             .unwrap_or(&description))
     }
 
-    /// Return one shared ALSA service handle for this agent.
+    /// Return one shared ALSA service handle for this worker.
     #[cfg(target_os = "linux")]
     pub(crate) fn alsa_service(&self, operation: &'static str) -> RuntimeResult<Arc<AlsaService>> {
         self.alsa_service
             .get_or_try_init(|| alsa_service(operation))
     }
 
-    /// Return one shared JACK service handle for this agent.
+    /// Return one shared JACK service handle for this worker.
     #[cfg(target_os = "linux")]
     pub(crate) fn jack_service(&self, operation: &'static str) -> RuntimeResult<Arc<JackService>> {
         self.jack_service
             .get_or_try_init(|| jack_service(operation))
     }
 
-    /// Return one shared CoreMIDI service handle for this agent.
+    /// Return one shared CoreMIDI service handle for this worker.
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     pub(crate) fn core_midi_service(
         &self,
@@ -136,7 +136,7 @@ impl PlatformDeviceState {
             .get_or_try_init(|| core_midi_service(operation))
     }
 
-    /// Return one shared WinRT service handle for this agent.
+    /// Return one shared WinRT service handle for this worker.
     #[cfg(windows)]
     pub(crate) fn winrt_service(
         &self,
@@ -146,7 +146,7 @@ impl PlatformDeviceState {
             .get_or_try_init(|| winrt_service(operation))
     }
 
-    /// Return one shared Windows MIDI service handle for this agent.
+    /// Return one shared Windows MIDI service handle for this worker.
     #[cfg(windows)]
     pub(crate) fn windows_midi_service(
         &self,
@@ -156,7 +156,7 @@ impl PlatformDeviceState {
             .get_or_try_init(|| windows_midi_service(operation))
     }
 
-    /// Return one shared WinMM service handle for this agent.
+    /// Return one shared WinMM service handle for this worker.
     #[cfg(windows)]
     pub(crate) fn winmm_service(
         &self,
@@ -166,7 +166,7 @@ impl PlatformDeviceState {
             .get_or_try_init(|| winmm_service(operation))
     }
 
-    /// Return one shared Linux BlueZ service handle for this agent.
+    /// Return one shared Linux BlueZ service handle for this worker.
     #[cfg(target_os = "linux")]
     pub(crate) fn linux_bluetooth_service(
         &self,
@@ -176,7 +176,7 @@ impl PlatformDeviceState {
             .get_or_try_init(|| linux_bluetooth_service(operation))
     }
 
-    /// Return one shared Linux camera topology service handle for this agent.
+    /// Return one shared Linux camera topology service handle for this worker.
     #[cfg(target_os = "linux")]
     pub(crate) fn linux_camera_watch_service(
         &self,
@@ -186,7 +186,7 @@ impl PlatformDeviceState {
             .get_or_try_init(|| linux_camera_watch_service(operation))
     }
 
-    /// Return one shared macOS camera topology service handle for this agent.
+    /// Return one shared macOS camera topology service handle for this worker.
     #[cfg(target_os = "macos")]
     pub(crate) fn macos_camera_watch_service(
         &self,
@@ -196,7 +196,7 @@ impl PlatformDeviceState {
             .get_or_try_init(|| macos_camera_watch_service(operation))
     }
 
-    /// Return one shared unix serial topology service handle for this agent.
+    /// Return one shared unix serial topology service handle for this worker.
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     pub(crate) fn unix_serial_watch_service(
         &self,
@@ -206,7 +206,7 @@ impl PlatformDeviceState {
             .get_or_try_init(|| unix_serial_watch_service(operation))
     }
 
-    /// Return one shared Windows serial ingress service handle for this agent.
+    /// Return one shared Windows serial ingress service handle for this worker.
     #[cfg(windows)]
     pub(crate) fn windows_serial_service(
         &self,
@@ -216,18 +216,18 @@ impl PlatformDeviceState {
             .get_or_try_init(|| windows_serial_service(operation))
     }
 
-    /// Return the shared virtual serial registry for this agent.
+    /// Return the shared virtual serial registry for this worker.
     #[cfg(test)]
     pub(crate) fn serial_test_registry(&self) -> Arc<SerialTestRegistry> {
         Arc::clone(&self.serial_test_registry)
     }
 
-    /// Return one shared USB service handle for this agent.
+    /// Return one shared USB service handle for this worker.
     pub(crate) fn usb_service(&self, operation: &'static str) -> RuntimeResult<Arc<UsbService>> {
         self.usb_service.get_or_try_init(|| usb_service(operation))
     }
 
-    /// Return whether any agent-owned device runtime state is active.
+    /// Return whether any worker-owned device runtime state is active.
     fn has_runtime_state(&self) -> bool {
         self.runtime_activity_count.load(Ordering::Acquire) != 0
     }

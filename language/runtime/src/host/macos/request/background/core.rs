@@ -46,7 +46,7 @@ pub(crate) fn register_background_task(
     let plist_directory = plist_path.parent().ok_or_else(|| {
         RuntimeError::from(PlatformError::generic(
             Some(PlatformErrorCode::IoInvalidData),
-            "destack.os.background.register: invalid launch agent path",
+            "destack.os.background.register: invalid launch worker path",
         ))
         .boxed()
     })?;
@@ -73,12 +73,12 @@ pub(crate) fn register_background_task(
     )?;
 
     let registration_result = (|| {
-        // launch agent files
+        // launch worker files
         fs::create_dir_all(plist_directory).map_err(|error| {
             RuntimeError::from(PlatformError::generic(
                 Some(PlatformErrorCode::IoPermissionDenied),
                 format!(
-                    "destack.os.background.register: failed to create launch agent directory {}: {error}",
+                    "destack.os.background.register: failed to create launch worker directory {}: {error}",
                     plist_directory.display()
                 ),
             ))
@@ -89,7 +89,7 @@ pub(crate) fn register_background_task(
             RuntimeError::from(PlatformError::generic(
                 Some(PlatformErrorCode::IoPermissionDenied),
                 format!(
-                    "destack.os.background.register: failed to write launch agent {}: {error}",
+                    "destack.os.background.register: failed to write launch worker {}: {error}",
                     plist_path.display()
                 ),
             ))

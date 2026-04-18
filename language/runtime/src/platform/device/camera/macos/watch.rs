@@ -61,7 +61,7 @@ pub(crate) unsafe fn destack_device_camera_device_watch_open(
 
     // register the opened watch with the shared topology service
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .macos_camera_watch_service("destack.device.camera.device.watchOpen")?;
@@ -71,7 +71,7 @@ pub(crate) unsafe fn destack_device_camera_device_watch_open(
     let entry = ResourceEntry::new(ResourceKind::CameraWatch)
         .with_label(CAMERA_WATCH_RESOURCE_LABEL)
         .with_payload(resource)
-        .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
             MacosCameraWatchFinalizer {
                 service,
                 registration_id,
@@ -79,7 +79,7 @@ pub(crate) unsafe fn destack_device_camera_device_watch_open(
             },
         ));
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 

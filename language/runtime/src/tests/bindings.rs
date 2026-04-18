@@ -53,8 +53,8 @@ fn run_vm_random_call(
 
     // runtime and isolate setup
     let mut isolate = Isolate::build(tree, strings).expect("isolate init");
-    let mut heap = destack_vm::Heap::default();
-    let mut shared = destack_vm::SharedSpace::default();
+    let mut heap = destack_vm::Heap::new().expect("default heap should build");
+    let mut shared = destack_vm::SharedHeap::default();
     runtime.install_vm_defaults(&mut isolate);
 
     // execute entry function

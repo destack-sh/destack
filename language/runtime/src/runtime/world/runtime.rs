@@ -5,12 +5,12 @@ use destack_heap as heap;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::resource::ResourceRebinders;
-use crate::runtime::engine::{Engine, Entry, ExecutionOutput};
-use crate::runtime::trace::Outcome;
-use crate::runtime::{Agent, AgentId, AgentImage, Runtime, RuntimeImage};
+use crate::runtime::engine::{Engine, EngineLayout, Entry, ExecutionOutput};
+use crate::runtime::trace::{Outcome, SpawnedWorkerImage};
+use crate::runtime::{Runtime, RuntimeImage, Worker, WorkerId, WorkerImage};
 use destack_workspace::{ExecutionMode, RuntimeOptions};
 
-use super::{Input, RuntimeId, World};
+use super::{Command, RuntimeId, World};
 
 impl World {
     /// Spawn one live runtime owned by this world and return its identifier.
@@ -18,12 +18,11 @@ impl World {
         &mut self,
         platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
-        engine: impl Engine + 'static,
+        engine: impl Engine + EngineLayout + 'static,
     ) -> RuntimeResult<RuntimeId> {
         let mode = self.trace.mode();
         let world = self.world_ref();
-        let mut runtime =
-            Runtime::from_options_in_world(platform_args, options, &world, Box::new(engine))?;
+        let mut runtime = Runtime::from_options_in_world(platform_args, options, &world, engine)?;
         let runtime_id = runtime.runtime_id();
 
         // fast and deterministic modes do not need one structural spawn image
@@ -46,20 +45,59 @@ impl World {
         }
 
         // record mode needs one structural spawn record for suffix replay
-        if let Some((runtime, agents)) = replay_image {
-            self.accept(Outcome::RuntimeSpawned { runtime, agents })?;
+        if let Some((runtime, workers)) = replay_image {
+            let workers = workers
+                .into_iter()
+                .map(|(worker_id, worker)| {
+                    let worker_name = self
+                        .runtimes
+                        .get(&runtime_id)
+                        .and_then(|runtime| runtime.worker(worker_id))
+                        .map(|worker| worker.name().to_string())
+                        .ok_or_else(|| {
+                            RuntimeError::WorkerNotFound {
+                                worker_id: worker_id.0,
+                            }
+                            .boxed()
+                        })?;
+
+                    Ok((
+                        worker_id,
+                        SpawnedWorkerImage {
+                            name: worker_name,
+                            image: worker,
+                        },
+                    ))
+                })
+                .collect::<RuntimeResult<_>>()?;
+
+            self.accept(Outcome::RuntimeSpawned {
+                runtime_id,
+                runtime_name: self
+                    .runtimes
+                    .get(&runtime_id)
+                    .map(|runtime| runtime.name().to_string())
+                    .ok_or_else(|| {
+                        RuntimeError::RuntimeNotFound {
+                            runtime_id: runtime_id.0,
+                        }
+                        .boxed()
+                    })?,
+                runtime,
+                workers,
+            })?;
         }
 
         Ok(runtime_id)
     }
 
-    /// Remove one stored runtime and all of its agents.
+    /// Remove one stored runtime and all of its workers.
     pub fn remove_runtime(&mut self, runtime_id: RuntimeId) -> RuntimeResult<Box<Runtime>> {
-        let input = Input::RemoveRuntime { runtime_id };
-        let input = self.resolve_input(input)?;
+        let command = Command::RemoveRuntime { runtime_id };
+        let command = self.resolve_command(command)?;
 
         if self.trace.mode() == ExecutionMode::Record {
-            self.ingest(input.clone())?;
+            self.ingest(command.clone())?;
         }
 
         let runtime = self.remove_runtime_inner(runtime_id)?;
@@ -67,22 +105,22 @@ impl World {
         Ok(runtime)
     }
 
-    /// Spawn one additional agent in one stored runtime.
-    pub fn spawn_agent(
+    /// Spawn one additional worker in one stored runtime.
+    pub fn spawn_worker(
         &mut self,
         runtime_id: RuntimeId,
-        engine: impl Engine + 'static,
-    ) -> RuntimeResult<AgentId> {
-        self.spawn_agent_with_options(runtime_id, &RuntimeOptions::default(), engine)
+        engine: impl Engine + EngineLayout + 'static,
+    ) -> RuntimeResult<WorkerId> {
+        self.spawn_worker_with_options(runtime_id, &RuntimeOptions::default(), engine)
     }
 
-    /// Spawn one additional agent with explicit options in one stored runtime.
-    pub fn spawn_agent_with_options(
+    /// Spawn one additional worker with explicit options in one stored runtime.
+    pub fn spawn_worker_with_options(
         &mut self,
         runtime_id: RuntimeId,
         options: &RuntimeOptions,
-        engine: impl Engine + 'static,
-    ) -> RuntimeResult<AgentId> {
+        engine: impl Engine + EngineLayout + 'static,
+    ) -> RuntimeResult<WorkerId> {
         let world = self.world_ref();
         let runtime = self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
             RuntimeError::RuntimeNotFound {
@@ -92,27 +130,41 @@ impl World {
         })?;
 
         let mode = self.trace.mode();
-        let agent_id = runtime.spawn_agent_with_options(&world, options, Box::new(engine))?;
+        let worker_id = runtime.spawn_worker_with_options(&world, options, engine)?;
 
         // record mode needs one structural spawn record for suffix replay
         let replay_image = if mode == ExecutionMode::Record {
-            let agent = runtime.agent_mut(agent_id).ok_or_else(|| {
-                RuntimeError::AgentNotFound {
-                    agent_id: agent_id.0,
+            let worker = runtime.worker_mut(worker_id).ok_or_else(|| {
+                RuntimeError::WorkerNotFound {
+                    worker_id: worker_id.0,
                 }
                 .boxed()
             })?;
 
-            Some(agent.capture_image(CaptureMode::Suspend)?)
+            Some(worker.capture_image(CaptureMode::Suspend)?)
         } else {
             None
         };
 
-        if let Some(agent) = replay_image {
-            self.accept(Outcome::AgentSpawned { agent })?;
+        if let Some(worker) = replay_image {
+            let worker_name = runtime
+                .worker(worker_id)
+                .map(|worker| worker.name().to_string())
+                .ok_or_else(|| {
+                    RuntimeError::WorkerNotFound {
+                        worker_id: worker_id.0,
+                    }
+                    .boxed()
+                })?;
+            self.accept(Outcome::WorkerSpawned {
+                runtime_id,
+                worker_id,
+                worker_name,
+                worker: Arc::new(worker),
+            })?;
         }
 
-        Ok(agent_id)
+        Ok(worker_id)
     }
 
     /// Run one entrypoint on one stored runtime.
@@ -122,15 +174,15 @@ impl World {
         entry: &Entry,
         args: &[heap::Value],
     ) -> RuntimeResult<ExecutionOutput> {
-        let input = Input::RunEntrypoint {
+        let command = Command::RunEntrypoint {
             runtime_id,
             entry: entry.clone(),
             args: args.to_vec(),
         };
-        let input = self.resolve_input(input)?;
+        let command = self.resolve_command(command)?;
 
         if self.trace.mode() == ExecutionMode::Record {
-            self.ingest(input.clone())?;
+            self.ingest(command.clone())?;
         }
 
         self.run_entrypoint_inner(runtime_id, entry, args)
@@ -180,10 +232,10 @@ impl World {
             .boxed()
         })?;
 
-        // remove all owned agents through the normal world mutation path
-        let agent_ids = runtime.agent_ids();
-        for agent_id in agent_ids {
-            self.remove_agent(agent_id)?;
+        // remove all owned workers through the normal world mutation path
+        let worker_ids = runtime.worker_ids();
+        for worker_id in worker_ids {
+            self.remove_worker(worker_id)?;
         }
 
         Ok(runtime)
@@ -207,34 +259,57 @@ impl World {
         runtime.run_entrypoint(&world, entry, args)
     }
 
-    /// Run one replayable entrypoint without tracing the outer invocation.
-    pub(crate) fn run_replayable_entrypoint_inner(
-        &mut self,
-        runtime_id: RuntimeId,
-        entry: &Entry,
-        args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutput> {
-        let world = self.world_ref();
-        let runtime = self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
-            RuntimeError::RuntimeNotFound {
-                runtime_id: runtime_id.0,
-            }
-            .boxed()
-        })?;
-
-        runtime.run_replayable_entrypoint_for_agent(&world, runtime.primary_agent_id(), entry, args)
-    }
-
     /// Install one restored runtime image without tracing the outer invocation.
     pub(crate) fn install_runtime_image(
         &mut self,
-        runtime_image: &RuntimeImage,
-        agent_images: &std::collections::BTreeMap<AgentId, AgentImage>,
+        runtime_id: RuntimeId,
+        runtime_name: String,
+        runtime_image: &Arc<RuntimeImage>,
+        worker_images: &std::collections::BTreeMap<WorkerId, SpawnedWorkerImage>,
         rebind_context: Option<&ResourceRebinders>,
     ) -> RuntimeResult<()> {
         let world = self.world_ref();
-        let runtime = Runtime::from_image(&world, runtime_image, agent_images, rebind_context)?;
-        let runtime_id = runtime.runtime_id();
+        let primary_worker = worker_images
+            .get(&runtime_image.primary_worker_id)
+            .ok_or_else(|| {
+                RuntimeError::PrimaryWorkerMissing {
+                    runtime_id: runtime_id.0,
+                    worker_id: runtime_image.primary_worker_id.0,
+                }
+                .boxed()
+            })?;
+        let primary_worker_labels = primary_worker
+            .image
+            .options
+            .resolve(Some(&runtime_image.worker_options))?
+            .labels
+            .clone();
+        world.register_runtime_topology(
+            runtime_id,
+            runtime_name.clone(),
+            runtime_image.worker_options.labels.clone(),
+            runtime_image.primary_worker_id,
+            primary_worker.name.clone(),
+            primary_worker_labels,
+        )?;
+
+        let worker_names = worker_images
+            .iter()
+            .map(|(worker_id, worker)| (*worker_id, worker.name.clone()))
+            .collect();
+        let worker_images = worker_images
+            .iter()
+            .map(|(worker_id, worker)| (*worker_id, worker.image.clone()))
+            .collect();
+        let runtime = Runtime::from_image(
+            &world,
+            runtime_id,
+            runtime_name,
+            runtime_image.as_ref(),
+            &worker_names,
+            &worker_images,
+            rebind_context,
+        )?;
 
         if self
             .runtimes
@@ -250,37 +325,53 @@ impl World {
         Ok(())
     }
 
-    /// Install one restored agent image without tracing the outer invocation.
-    pub(crate) fn install_agent_image(
+    /// Install one restored worker image without tracing the outer invocation.
+    pub(crate) fn install_worker_image(
         &mut self,
-        agent_image: &AgentImage,
+        runtime_id: RuntimeId,
+        worker_id: WorkerId,
+        worker_name: String,
+        worker_image: &Arc<WorkerImage>,
         rebind_context: Option<&ResourceRebinders>,
     ) -> RuntimeResult<()> {
         let platform_args = self
             .runtimes
-            .get(&agent_image.runtime_id)
+            .get(&runtime_id)
             .ok_or_else(|| {
                 RuntimeError::RuntimeNotFound {
-                    runtime_id: agent_image.runtime_id.0,
+                    runtime_id: runtime_id.0,
                 }
                 .boxed()
             })?
             .platform_args_arc();
 
         let world = self.world_ref();
-        let agent = Agent::from_image(&world, platform_args, agent_image, rebind_context)?;
+        let worker_labels = worker_image.options.resolve(None)?.labels.clone();
+        world.register_worker_topology(
+            runtime_id,
+            worker_id,
+            worker_name.clone(),
+            worker_labels,
+        )?;
+        let worker = Worker::from_image(
+            &world,
+            runtime_id,
+            worker_id,
+            worker_name,
+            platform_args,
+            worker_image.as_ref(),
+            None,
+            rebind_context,
+        )?;
 
-        let runtime = self
-            .runtimes
-            .get_mut(&agent_image.runtime_id)
-            .ok_or_else(|| {
-                RuntimeError::RuntimeNotFound {
-                    runtime_id: agent_image.runtime_id.0,
-                }
-                .boxed()
-            })?;
+        let runtime = self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
+            RuntimeError::RuntimeNotFound {
+                runtime_id: runtime_id.0,
+            }
+            .boxed()
+        })?;
 
-        runtime.insert_restored_agent(agent)?;
+        runtime.insert_restored_worker(worker)?;
 
         Ok(())
     }

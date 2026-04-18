@@ -18,16 +18,19 @@ use crate::platform::random::{
 };
 use crate::runtime::bindings::BindingEngine;
 use crate::runtime::{
-    Agent, BindingCallContext, World, WorldRef, enter_binding_call_context,
-    enter_current_agent_context,
+    Worker, BindingCallContext, World, WorldRef, enter_binding_call_context,
+    enter_current_worker_context,
 };
+
+/// The canonical string type fixture used by runtime VM tests.
+const STRING_TYPE_ALIAS: &str = "type String {\n    lengthUtf16: uint32;\n    lengthBytes: uint32;\n    data: ref<uint8, raw>;\n}\n";
 
 /// Runtime harness for runtime tests.
 pub(crate) struct TestRuntime {
-    /// World that owns the agent lifetime.
+    /// World that owns the worker lifetime.
     world: World,
-    /// Agent under test.
-    pub agent: Box<Agent>,
+    /// Worker under test.
+    pub worker: Box<Worker>,
     /// Host under test.
     host: Session,
     /// VM isolate backing VM bindings in tests.
@@ -35,7 +38,7 @@ pub(crate) struct TestRuntime {
     /// Heap backing the VM isolate in tests.
     vm_heap: std::cell::RefCell<vm::Heap>,
     /// Shared memory backing the VM isolate in tests.
-    vm_shared: std::cell::RefCell<vm::SharedSpace>,
+    vm_shared: std::cell::RefCell<vm::SharedHeap>,
 }
 
 impl TestRuntime {
@@ -109,36 +112,36 @@ impl TestRuntime {
         // build runtime state from explicit options
         let mut world = World::from_options(&options).expect("runtime test world should build");
 
-        // agent execution isolate
+        // worker execution isolate
         let agent_tree = NodeTree::new();
         let agent_strings = LocalStringPool::new().into_immutable();
         let agent_engine =
-            vm::Isolate::build(agent_tree, agent_strings).expect("agent engine should build");
+            vm::Isolate::build(agent_tree, agent_strings).expect("worker engine should build");
 
         let world_ref = world.world_ref();
-        let mut agent =
-            Agent::new_in_world(Vec::new(), &options, &world_ref, Box::new(agent_engine))
-                .expect("runtime test agent should build");
+        let mut worker =
+            Worker::new_in_world(Vec::new(), &options, &world_ref, Box::new(agent_engine))
+                .expect("runtime test worker should build");
         let host = if is_native_ingress_enabled {
-            Session::from_runtime_options(&options, agent.runtime_id)
+            Session::from_runtime_options(&options, worker.runtime_id)
         } else {
-            Session::from_runtime_options_with_native_ingress(&options, agent.runtime_id, false)
+            Session::from_runtime_options_with_native_ingress(&options, worker.runtime_id, false)
         };
 
         // vm binding isolate
         let (tree, strings) = test_vm_isolate_module();
         let mut vm_isolate =
             vm::Isolate::build(tree, strings).expect("test vm isolate should build");
-        agent
+        worker
             .bindings
             .install_vm_defaults(&mut vm_isolate)
             .expect("test vm bindings should install");
-        let vm_heap = vm::Heap::default();
-        let vm_shared = vm::SharedSpace::default();
+        let vm_heap = vm::Heap::new().expect("default heap should build");
+        let vm_shared = vm::SharedHeap::default();
 
         Self {
             world,
-            agent: Box::new(agent),
+            worker: Box::new(worker),
             host,
             vm_isolate: std::cell::RefCell::new(vm_isolate),
             vm_heap: std::cell::RefCell::new(vm_heap),
@@ -146,10 +149,10 @@ impl TestRuntime {
         }
     }
 
-    /// Install default VM bindings using the test agent.
+    /// Install default VM bindings using the test worker.
     #[cfg(test)]
     pub(crate) fn install_vm_defaults(&mut self, isolate: &mut vm::Isolate) {
-        self.agent
+        self.worker
             .bindings
             .install_vm_defaults(isolate)
             .expect("test vm bindings should install");
@@ -162,12 +165,12 @@ impl TestRuntime {
     ) -> T {
         let world = self.world_ref();
 
-        // install current agent context for vm callback bridges
-        let runtime = self.agent.as_ref() as *const Agent;
-        let event_loop = self.agent.event_loop.as_ref() as *const _;
+        // install current worker context for vm callback bridges
+        let runtime = self.worker.as_ref() as *const Worker;
+        let event_loop = self.worker.event_loop.as_ref() as *const _;
         let host = &self.host as *const Session;
         let world_ptr = &world as *const _;
-        let _agent_guard = enter_current_agent_context(
+        let _agent_guard = enter_current_worker_context(
             runtime,
             event_loop,
             host,
@@ -177,8 +180,8 @@ impl TestRuntime {
 
         // enter a native call context for the binding
         let call_context = BindingCallContext::from_raw(
-            self.agent.as_ref() as *const Agent,
-            self.agent.event_loop.as_ref() as *const _,
+            self.worker.as_ref() as *const Worker,
+            self.worker.event_loop.as_ref() as *const _,
             &self.host as *const Session,
             &world as *const WorldRef,
             BindingEngine::Native,
@@ -202,12 +205,12 @@ impl TestRuntime {
     ) -> T {
         let world = self.world_ref();
 
-        // install current agent context for vm callback bridges
-        let runtime = self.agent.as_ref() as *const Agent;
-        let event_loop = self.agent.event_loop.as_ref() as *const _;
+        // install current worker context for vm callback bridges
+        let runtime = self.worker.as_ref() as *const Worker;
+        let event_loop = self.worker.event_loop.as_ref() as *const _;
         let host = &self.host as *const Session;
         let world_ptr = &world as *const _;
-        let _agent_guard = enter_current_agent_context(
+        let _agent_guard = enter_current_worker_context(
             runtime,
             event_loop,
             host,
@@ -222,8 +225,8 @@ impl TestRuntime {
         let mut memory = vm::MemoryContext::new(&mut heap, &mut shared);
         isolate.with_runtime_context(&mut memory, |context| {
             let call_context = BindingCallContext::from_raw(
-                self.agent.as_ref() as *const Agent,
-                self.agent.event_loop.as_ref() as *const _,
+                self.worker.as_ref() as *const Worker,
+                self.worker.event_loop.as_ref() as *const _,
                 &self.host as *const Session,
                 &world as *const WorldRef,
                 BindingEngine::Vm,
@@ -287,7 +290,7 @@ impl TestRuntime {
         // take the stored runtime error
         let error_id = DiagnosticId::from_raw(status.error_id);
         let error = self
-            .agent
+            .worker
             .diagnostics
             .take_error(error_id)
             .unwrap_or_else(|| {
@@ -303,13 +306,10 @@ impl TestRuntime {
 
 /// Build the minimal MIR module required for one VM binding test isolate.
 fn test_vm_isolate_module() -> (NodeTree, ImmutableStringPool) {
-    let (mut tree, strings) = Parser::parse(
-        FileId::new(0),
-        vm::STRING_TYPE_ALIAS,
-        ParseOptions::default(),
-    )
-    .validate()
-    .expect("runtime vm test isolate should parse");
+    let (mut tree, strings) =
+        Parser::parse(FileId::new(0), STRING_TYPE_ALIAS, ParseOptions::default())
+            .validate()
+            .expect("runtime vm test isolate should parse");
 
     // keep runtime VM tests explicit about the well known String contract
     let string_type = tree.iter_nodes::<TypeAlias>().find_map(|(_, type_alias)| {

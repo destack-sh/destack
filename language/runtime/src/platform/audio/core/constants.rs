@@ -326,7 +326,7 @@ pub(crate) fn host_monotonic_nanos() -> u64 {
 #[cfg(target_os = "linux")]
 pub(crate) fn resolved_event_monitor_poll_interval_ns(default_ns: u64) -> u64 {
     let configured = with_binding_call_context(|context| {
-        Ok(context.agent().options.audio.event_monitor_poll_interval_ns)
+        Ok(context.worker().options.audio.event_monitor_poll_interval_ns)
     })
     .ok()
     .flatten();
@@ -338,14 +338,14 @@ pub(crate) fn resolved_event_monitor_poll_interval_ns(default_ns: u64) -> u64 {
 
 /// Return the configured default queue capacity for audio event subscriptions.
 pub(crate) fn resolved_default_event_queue_capacity(ctx: &BindingCallContext) -> u32 {
-    let configured = ctx.agent().options.audio.event_queue_capacity;
+    let configured = ctx.worker().options.audio.event_queue_capacity;
     let configured = core_platform::option_u64_to_u32(configured);
     configured.unwrap_or(DEFAULT_EVENT_QUEUE_CAPACITY).max(1)
 }
 
 /// Return the configured default poll interval for audio event subscriptions.
 pub(crate) fn resolved_default_event_poll_interval_ns(ctx: &BindingCallContext) -> u64 {
-    let configured = ctx.agent().options.audio.default_event_poll_interval_ns;
+    let configured = ctx.worker().options.audio.default_event_poll_interval_ns;
     configured
         .unwrap_or(EVENT_POLL_INTERVAL_NS)
         .clamp(MIN_EVENT_POLL_INTERVAL_NS, MAX_EVENT_POLL_INTERVAL_NS)
@@ -354,7 +354,7 @@ pub(crate) fn resolved_default_event_poll_interval_ns(ctx: &BindingCallContext) 
 #[cfg(unix)]
 /// Return the configured maximum bytes accepted per audio stream read call.
 pub(crate) fn resolved_max_stream_read_bytes(ctx: &BindingCallContext) -> u32 {
-    let configured = ctx.agent().options.audio.max_stream_read_bytes;
+    let configured = ctx.worker().options.audio.max_stream_read_bytes;
     let configured = core_platform::option_u64_to_u32(configured);
     configured
         .unwrap_or(MAX_STREAM_READ_BYTES)
@@ -364,7 +364,7 @@ pub(crate) fn resolved_max_stream_read_bytes(ctx: &BindingCallContext) -> u32 {
 /// Return the configured maximum queued stream frame budget.
 pub(crate) fn resolved_max_queued_frames() -> usize {
     let configured =
-        with_binding_call_context(|context| Ok(context.agent().options.audio.max_queued_frames))
+        with_binding_call_context(|context| Ok(context.worker().options.audio.max_queued_frames))
             .ok()
             .flatten();
     let configured = core_platform::option_u64_to_usize(configured);
@@ -383,7 +383,7 @@ pub(crate) fn resolved_worker_poll_period(period_frames: u32, sample_rate: u32) 
         .max(MIN_WORKER_POLL_INTERVAL_NS);
 
     let configured = with_binding_call_context(|context| {
-        Ok(context.agent().options.audio.worker_poll_interval_ns)
+        Ok(context.worker().options.audio.worker_poll_interval_ns)
     })
     .ok()
     .flatten();

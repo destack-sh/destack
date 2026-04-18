@@ -163,7 +163,7 @@ pub(crate) fn midi_output_write(
 ) -> RuntimeResult<u32> {
     let session = output_resource(binding, handle, "destack.device.midi.output.write")?;
     let description = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .describe_android_backend(binding, "destack.device.midi.output.write")?;

@@ -142,7 +142,7 @@ fn splice_endpoint(
     label: &str,
 ) -> RuntimeResult<SpliceEndpoint> {
     // resolve one resource entry and map it into a supported endpoint
-    let endpoint = binding.agent().resources.with_entry(resource, |entry| {
+    let endpoint = binding.worker().resources.with_entry(resource, |entry| {
         if entry.kind == ResourceKind::File {
             return Some(SpliceEndpoint::File(FileHandle(resource)));
         }

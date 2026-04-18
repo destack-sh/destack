@@ -42,7 +42,7 @@ pub(super) fn serial_watch_payload<T: Clone + 'static>(
     handle: resource::SerialWatchHandle,
     operation: &'static str,
 ) -> Result<T, Box<RuntimeError>> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::SerialWatch {
             return None;
         }
@@ -62,7 +62,7 @@ pub(super) fn close_serial_watch_resource(
     operation: &'static str,
 ) -> Result<(), Box<RuntimeError>> {
     let kind = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| entry.kind)
         .ok_or_else(|| invalid_serial_watch_handle(operation))?;
@@ -70,7 +70,7 @@ pub(super) fn close_serial_watch_resource(
         return Err(invalid_serial_watch_handle(operation));
     }
 
-    if !binding.agent().resources.remove_and_finalize(
+    if !binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),

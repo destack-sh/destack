@@ -102,13 +102,13 @@ pub(crate) unsafe fn destack_device_camera_device_open(
             capture: capture_reference.clone(),
             info,
         }))
-        .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
             WindowsCameraDeviceFinalizer {
                 capture: capture_reference,
             },
         ));
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 

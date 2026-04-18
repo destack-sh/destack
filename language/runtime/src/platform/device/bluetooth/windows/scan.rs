@@ -216,7 +216,7 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_open(
     let entry = ResourceEntry::new(ResourceKind::BluetoothScan)
         .with_label(BLUETOOTH_SCAN_RESOURCE_LABEL)
         .with_payload(Arc::new(WindowsBluetoothScanResource { event_queue }))
-        .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
             WindowsBluetoothScanFinalizer {
                 watcher: finalizer_watcher,
                 received_token,
@@ -225,7 +225,7 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_open(
             },
         ));
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 

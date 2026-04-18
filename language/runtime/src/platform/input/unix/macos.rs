@@ -915,7 +915,7 @@ fn resolve_subscription_id(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
-    let subscription = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let subscription = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -991,7 +991,7 @@ pub(super) fn release_macos_session_subscription(
     binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
 ) {
-    let subscription = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let subscription = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }

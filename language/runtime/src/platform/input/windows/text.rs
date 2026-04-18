@@ -482,7 +482,7 @@ fn pop_queued_text_session_event(
     operation: &'static str,
 ) -> RuntimeResult<Option<InputTextSessionEvent>> {
     let next = binding
-        .agent()
+        .worker()
         .resources
         .with_entry_mut(session.0, |entry| {
             if entry.kind != ResourceKind::InputTextSession {
@@ -554,7 +554,7 @@ fn resolve_text_session(
     session: resource::InputTextSessionHandle,
     operation: &'static str,
 ) -> RuntimeResult<WindowsTextRepository> {
-    let session = binding.agent().resources.with_entry(session.0, |entry| {
+    let session = binding.worker().resources.with_entry(session.0, |entry| {
         if entry.kind != ResourceKind::InputTextSession {
             return None;
         }
@@ -896,7 +896,7 @@ fn text_set_geometry(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     let updated = binding
-        .agent()
+        .worker()
         .resources
         .with_entry_mut(session.0, |entry| {
             if entry.kind != ResourceKind::InputTextSession {
@@ -929,7 +929,7 @@ fn text_set_state(
     validate_text_session_state(&state)?;
 
     let updated = binding
-        .agent()
+        .worker()
         .resources
         .with_entry_mut(session.0, |entry| {
             if entry.kind != ResourceKind::InputTextSession {
@@ -959,7 +959,7 @@ fn text_read_event(
     operation: &'static str,
 ) -> RuntimeResult<InputTextSessionEvent> {
     let event = binding
-        .agent()
+        .worker()
         .resources
         .with_entry_mut(session.0, |entry| {
             if entry.kind != ResourceKind::InputTextSession {
@@ -1120,7 +1120,7 @@ pub(crate) unsafe fn destack_input_text_open(
                 .with_payload(session);
             let resource_id =
                 binding
-                    .agent()
+                    .worker()
                     .resources
                     .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -1190,7 +1190,7 @@ pub(crate) unsafe fn destack_input_text_open(
             });
         let resource_id =
             binding
-                .agent()
+                .worker()
                 .resources
                 .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -1240,7 +1240,7 @@ pub(crate) unsafe fn destack_input_text_close(
         win32_display::deactivate_window_text_session(binding, target_window, session)?;
     }
 
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         session.0,
         Some(binding.engine()),

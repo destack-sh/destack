@@ -689,7 +689,7 @@ impl<'call> FsHarnessContext<'call> {
     /// Read the port assigned to a listener handle.
     #[cfg(any(unix, windows))]
     pub(crate) fn listener_port(&self, handle: ListenerHandle) -> u16 {
-        super::listener_port(self.call_context.agent(), handle)
+        super::listener_port(self.call_context.worker(), handle)
     }
 
     /// Start listening on the given address.

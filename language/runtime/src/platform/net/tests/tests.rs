@@ -19,7 +19,7 @@ use crate::platform::resource::{ListenerHandle, ResourceKind, SocketHandle};
 use crate::platform::{
     NativeArray, PlatformError, VmArray, VmSlice, VmValueCodec, net as platform_net,
 };
-use crate::runtime::{Agent, BindingCallContext};
+use crate::runtime::{Worker, BindingCallContext};
 #[cfg(windows)]
 pub(crate) use crate::tests::platform::assert_not_supported_result;
 pub(crate) use crate::tests::platform::{
@@ -42,8 +42,8 @@ pub(crate) struct NetHarnessContext<'call> {
 
 /// Read the port assigned to one listener handle.
 #[cfg(unix)]
-pub(super) fn listener_port(agent: &Agent, handle: ListenerHandle) -> u16 {
-    let fd = agent
+pub(super) fn listener_port(worker: &Worker, handle: ListenerHandle) -> u16 {
+    let fd = worker
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Listener {
@@ -75,13 +75,13 @@ pub(super) fn listener_port(agent: &Agent, handle: ListenerHandle) -> u16 {
 
 /// Read the port assigned to one listener handle.
 #[cfg(windows)]
-pub(super) fn listener_port(agent: &Agent, handle: ListenerHandle) -> u16 {
+pub(super) fn listener_port(worker: &Worker, handle: ListenerHandle) -> u16 {
     use windows_sys::Win32::Networking::WinSock::{
         AF_INET, AF_INET6, SOCKADDR, SOCKADDR_IN, SOCKADDR_IN6, SOCKADDR_STORAGE, SOCKET,
         getsockname,
     };
 
-    let socket = agent
+    let socket = worker
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Listener {
@@ -113,8 +113,8 @@ pub(super) fn listener_port(agent: &Agent, handle: ListenerHandle) -> u16 {
 
 /// Return whether one socket handle is in nonblocking mode.
 #[cfg(unix)]
-pub(super) fn socket_is_nonblocking(agent: &Agent, handle: SocketHandle) -> bool {
-    let fd = agent
+pub(super) fn socket_is_nonblocking(worker: &Worker, handle: SocketHandle) -> bool {
+    let fd = worker
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Socket {
@@ -133,8 +133,8 @@ pub(super) fn socket_is_nonblocking(agent: &Agent, handle: SocketHandle) -> bool
 
 /// Return whether one socket handle is close-on-exec or non-inheritable.
 #[cfg(unix)]
-pub(super) fn socket_is_close_on_exec(agent: &Agent, handle: SocketHandle) -> bool {
-    let fd = agent
+pub(super) fn socket_is_close_on_exec(worker: &Worker, handle: SocketHandle) -> bool {
+    let fd = worker
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Socket {
@@ -153,11 +153,11 @@ pub(super) fn socket_is_close_on_exec(agent: &Agent, handle: SocketHandle) -> bo
 
 /// Return whether one socket handle is close-on-exec or non-inheritable.
 #[cfg(windows)]
-pub(super) fn socket_is_close_on_exec(agent: &Agent, handle: SocketHandle) -> bool {
+pub(super) fn socket_is_close_on_exec(worker: &Worker, handle: SocketHandle) -> bool {
     use windows_sys::Win32::Foundation::{GetHandleInformation, HANDLE_FLAG_INHERIT};
     use windows_sys::Win32::Networking::WinSock::SOCKET;
 
-    let socket = agent
+    let socket = worker
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Socket {

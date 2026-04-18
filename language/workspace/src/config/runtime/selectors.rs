@@ -38,7 +38,7 @@ pub enum BindingBlocking {
 pub enum BindingAffinity {
     /// Match bindings callable from any execution context.
     Any,
-    /// Match bindings that require the agent event-loop context.
+    /// Match bindings that require the worker event-loop context.
     EventLoop,
     /// Match bindings that require the creating execution context.
     Owner,
@@ -178,12 +178,12 @@ impl RuntimeLabelSelector {
     }
 }
 
-/// Runtime identity selector for agent and runtime scopes.
+/// Runtime identity selector for worker and runtime scopes.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct RuntimeIdentitySelector {
-    /// Name selector for one runtime or one agent.
+    /// Name selector for one runtime or one worker.
     pub name: Option<String>,
-    /// Label selector for one runtime or one agent.
+    /// Label selector for one runtime or one worker.
     pub labels: Option<RuntimeLabelSelector>,
 }
 
@@ -239,8 +239,8 @@ pub struct RuntimeSelector {
     pub effect: Option<BindingEffect>,
     /// Runtime identity selector.
     pub runtime: Option<RuntimeIdentitySelector>,
-    /// Agent identity selector.
-    pub agent: Option<RuntimeIdentitySelector>,
+    /// Worker identity selector.
+    pub worker: Option<RuntimeIdentitySelector>,
 }
 
 impl RuntimeSelector {
@@ -342,9 +342,9 @@ impl RuntimeSelector {
         self
     }
 
-    /// Set the agent identity selector.
-    pub fn agent(mut self, agent: RuntimeIdentitySelector) -> Self {
-        self.agent = Some(agent);
+    /// Set the worker identity selector.
+    pub fn worker(mut self, worker: RuntimeIdentitySelector) -> Self {
+        self.worker = Some(worker);
         self
     }
 
@@ -370,25 +370,25 @@ impl RuntimeSelector {
         self
     }
 
-    /// Set agent name selector.
-    pub fn agent_name(mut self, name: impl Into<String>) -> Self {
-        let mut selector = self.agent.take().unwrap_or_default();
+    /// Set worker name selector.
+    pub fn worker_name(mut self, name: impl Into<String>) -> Self {
+        let mut selector = self.worker.take().unwrap_or_default();
         selector.name = Some(name.into());
-        self.agent = Some(selector);
+        self.worker = Some(selector);
         self
     }
 
-    /// Set agent label selector.
-    pub fn agent_labels(mut self, labels: RuntimeLabelSelector) -> Self {
-        let selector = self.agent.take().unwrap_or_default().labels(labels);
-        self.agent = Some(selector);
+    /// Set worker label selector.
+    pub fn worker_labels(mut self, labels: RuntimeLabelSelector) -> Self {
+        let selector = self.worker.take().unwrap_or_default().labels(labels);
+        self.worker = Some(selector);
         self
     }
 
-    /// Add one agent label requirement.
-    pub fn agent_label(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
-        let selector = self.agent.take().unwrap_or_default().label(key, value);
-        self.agent = Some(selector);
+    /// Add one worker label requirement.
+    pub fn worker_label(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        let selector = self.worker.take().unwrap_or_default().label(key, value);
+        self.worker = Some(selector);
         self
     }
 
@@ -407,7 +407,7 @@ impl RuntimeSelector {
             && self.affinity.is_none()
             && self.effect.is_none()
             && self.runtime.is_none()
-            && self.agent.is_none()
+            && self.worker.is_none()
     }
 }
 /// Runtime label operator for JSON deserialization.
@@ -493,9 +493,9 @@ impl From<&RuntimeLabelSelectorJson> for RuntimeLabelSelector {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeIdentitySelectorJson {
-    /// Name selector for one runtime or one agent.
+    /// Name selector for one runtime or one worker.
     pub name: Option<String>,
-    /// Label selector for one runtime or one agent.
+    /// Label selector for one runtime or one worker.
     pub labels: Option<RuntimeLabelSelectorJson>,
 }
 
@@ -539,8 +539,8 @@ pub struct RuntimeSelectorJson {
     pub effect: Option<BindingEffectJson>,
     /// Runtime identity selector.
     pub runtime: Option<RuntimeIdentitySelectorJson>,
-    /// Agent identity selector.
-    pub agent: Option<RuntimeIdentitySelectorJson>,
+    /// Worker identity selector.
+    pub worker: Option<RuntimeIdentitySelectorJson>,
 }
 
 impl From<&RuntimeSelectorJson> for RuntimeSelector {
@@ -562,7 +562,7 @@ impl From<&RuntimeSelectorJson> for RuntimeSelector {
             affinity: value.affinity.map(BindingAffinity::from),
             effect: value.effect.map(BindingEffect::from),
             runtime: value.runtime.as_ref().map(RuntimeIdentitySelector::from),
-            agent: value.agent.as_ref().map(RuntimeIdentitySelector::from),
+            worker: value.worker.as_ref().map(RuntimeIdentitySelector::from),
         }
     }
 }
@@ -658,7 +658,7 @@ impl From<BindingBlockingJson> for BindingBlocking {
 pub enum BindingAffinityJson {
     /// Match bindings callable from any execution context.
     Any,
-    /// Match bindings that require the agent event-loop context.
+    /// Match bindings that require the worker event-loop context.
     EventLoop,
     /// Match bindings that require the creating execution context.
     Owner,

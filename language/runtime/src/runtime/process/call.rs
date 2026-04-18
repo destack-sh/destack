@@ -15,8 +15,8 @@ use crate::runtime::world::WorldRef;
 use crate::simulation::Simulation;
 
 use super::{
-    Agent, BindingCallBuilder, EventLoopScope, ExecutionContext, ExecutionContextId,
-    binding_affinity_name, current_agent_context, current_event_loop_scope,
+    Worker, BindingCallBuilder, EventLoopScope, ExecutionContext, ExecutionContextId,
+    binding_affinity_name, current_worker_context, current_event_loop_scope,
     with_binding_call_arena,
 };
 use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
@@ -26,8 +26,8 @@ use destack_workspace::{RuntimeAccess, RuntimeDiagnosticLevel, TimeMode};
 /// TLS payload for native runtime calls.
 #[derive(Debug, Clone)]
 pub struct BindingCallContext {
-    /// Agent state for platform bindings.
-    agent: *const Agent,
+    /// Worker state for platform bindings.
+    worker: *const Worker,
     /// Event loop for task queues and timers.
     event_loop: *const EventLoop,
     /// Host state for platform callbacks.
@@ -64,7 +64,7 @@ impl BindingCallContext {
     /// Create a binding call context for tests.
     #[cfg(test)]
     pub(crate) fn new(
-        agent: &Agent,
+        worker: &Worker,
         event_loop: &EventLoop,
         host: &Session,
         world: &WorldRef,
@@ -72,7 +72,7 @@ impl BindingCallContext {
         let execution_context = event_loop.execution_context(host.is_process_main_context());
 
         Self {
-            agent,
+            worker,
             event_loop,
             host,
             world,
@@ -84,7 +84,7 @@ impl BindingCallContext {
 
     /// Create a binding call context from raw pointers.
     pub(crate) fn from_raw(
-        agent: *const Agent,
+        worker: *const Worker,
         event_loop: *const EventLoop,
         host: *const Session,
         world: *const WorldRef,
@@ -95,7 +95,7 @@ impl BindingCallContext {
         let execution_context = event_loop.execution_context(host.is_process_main_context());
 
         Self {
-            agent,
+            worker,
             event_loop: event_loop as *const EventLoop,
             host: host as *const Session,
             world,
@@ -105,22 +105,22 @@ impl BindingCallContext {
         }
     }
 
-    /// Create one VM binding call context from the current-agent execution scope.
-    pub(crate) fn from_current_agent_for_vm() -> RuntimeResult<Self> {
-        Self::from_current_agent(BindingEngine::Vm)
+    /// Create one VM binding call context from the current-worker execution scope.
+    pub(crate) fn from_current_worker_for_vm() -> RuntimeResult<Self> {
+        Self::from_current_worker(BindingEngine::Vm)
     }
 
-    /// Create one native binding call context from the current-agent execution scope.
-    pub(crate) fn from_current_agent_for_native() -> RuntimeResult<Self> {
-        Self::from_current_agent(BindingEngine::Native)
+    /// Create one native binding call context from the current-worker execution scope.
+    pub(crate) fn from_current_worker_for_native() -> RuntimeResult<Self> {
+        Self::from_current_worker(BindingEngine::Native)
     }
 
-    /// Create one binding call context from the current-agent execution scope.
-    fn from_current_agent(engine: BindingEngine) -> RuntimeResult<Self> {
-        let context = current_agent_context()
+    /// Create one binding call context from the current-worker execution scope.
+    fn from_current_worker(engine: BindingEngine) -> RuntimeResult<Self> {
+        let context = current_worker_context()
             .ok_or_else(|| RuntimeError::BindingCallContextMissing.boxed())?;
         Ok(Self::from_raw(
-            context.agent,
+            context.worker,
             context.event_loop,
             context.host,
             context.world,
@@ -138,17 +138,17 @@ impl BindingCallContext {
         self
     }
 
-    /// Borrow the agent state.
+    /// Borrow the worker state.
     #[inline]
-    pub fn agent(&self) -> &Agent {
+    pub fn worker(&self) -> &Worker {
         // safety: pointer is owned by the runtime caller
-        unsafe { &*self.agent }
+        unsafe { &*self.worker }
     }
 
     /// Borrow the runtime diagnostics store.
     #[inline]
     pub fn diagnostics(&self) -> &DiagnosticStore {
-        self.agent().diagnostics.as_ref()
+        self.worker().diagnostics.as_ref()
     }
 
     /// Record one runtime diagnostic event.
@@ -191,7 +191,7 @@ impl BindingCallContext {
     /// Borrow immutable process arguments.
     #[inline]
     pub fn platform_args(&self) -> &[String] {
-        self.agent().platform_args()
+        self.worker().platform_args()
     }
 
     /// Borrow the trace state.
@@ -200,17 +200,17 @@ impl BindingCallContext {
         self.world().trace()
     }
 
-    /// Borrow the binding policy for this agent.
+    /// Borrow the binding policy for this worker.
     #[inline]
     fn policy(&self) -> parking_lot::RwLockReadGuard<'_, BindingPolicy> {
-        self.agent().bindings.policy().read()
+        self.worker().bindings.policy().read()
     }
 
     /// Build one entropy replay subject for the current call and one binding.
     pub fn entropy_subject(&self, spec: BindingDescriptor) -> EntropySubject {
         EntropySubject {
-            runtime_id: self.agent().runtime_id,
-            agent_id: self.agent().id,
+            runtime_id: self.worker().runtime_id,
+            worker_id: self.worker().id,
             binding_id: spec.id,
             engine: Some(self.engine()),
             task_id: self.task_id(),
@@ -221,7 +221,7 @@ impl BindingCallContext {
     /// Borrow the runtime hook state.
     #[inline]
     pub fn hooks(&self) -> &Hooks {
-        self.agent().hooks.as_ref()
+        self.worker().hooks.as_ref()
     }
 
     /// Borrow the runtime host state.
@@ -264,8 +264,8 @@ impl BindingCallContext {
         // host owned ingress
         self.host().advance_ingress()?;
 
-        // agent local runtime callbacks
-        self.agent().service_runtime_callbacks(self)
+        // worker local runtime callbacks
+        self.worker().service_runtime_callbacks(self)
     }
 
     /// Wait for one binding result while runtime-owned host ingress makes progress.
@@ -316,9 +316,9 @@ impl BindingCallContext {
 
     /// Return the current random stream identifier.
     pub fn random_stream_id(&self) -> RandomStreamId {
-        // resolve runtime and agent scoped stream selection policy
-        let agent = self.agent();
-        let is_per_runnable = agent.options.random.per_runnable;
+        // resolve runtime and worker scoped stream selection policy
+        let worker = self.worker();
+        let is_per_runnable = worker.options.random.per_runnable;
         let task_id = if is_per_runnable {
             self.scope.task_id().map(TaskId::get)
         } else {
@@ -332,8 +332,8 @@ impl BindingCallContext {
 
         // resolve one stable world scoped stream id
         self.world().random().scoped_stream_id(
-            agent.runtime_id.0,
-            agent.id.0,
+            worker.runtime_id.0,
+            worker.id.0,
             task_id,
             microtask_id,
         )
@@ -537,8 +537,8 @@ impl BindingCallContext {
         policy.ensure_allowed_for_engine(spec, Some(self.engine))?;
         let decision = self.world().resolve_binding_dispatch(
             self.hooks().execution_mode(),
-            self.agent().runtime_id,
-            self.agent().id,
+            self.worker().runtime_id,
+            self.worker().id,
             spec,
             Some(self.engine),
             policy.default_access(),
@@ -612,8 +612,8 @@ impl BindingCallContext {
         let policy = self.policy();
         let decision = self.world().resolve_binding_dispatch(
             self.hooks().execution_mode(),
-            self.agent().runtime_id,
-            self.agent().id,
+            self.worker().runtime_id,
+            self.worker().id,
             spec,
             Some(self.engine),
             policy.default_access(),
@@ -633,8 +633,8 @@ impl BindingCallContext {
         let policy = self.policy();
         let decision = self.world().resolve_binding_dispatch(
             self.hooks().execution_mode(),
-            self.agent().runtime_id,
-            self.agent().id,
+            self.worker().runtime_id,
+            self.worker().id,
             spec,
             Some(self.engine),
             policy.default_access(),

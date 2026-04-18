@@ -305,7 +305,7 @@ fn usb_watch_resource(
     handle: resource::UsbWatchHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<AndroidUsbWatchResource>> {
-    let resource = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resource = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::UsbWatch {
             return None;
         }
@@ -479,7 +479,7 @@ pub(crate) unsafe fn destack_device_usb_watch_open(
     let entry = ResourceEntry::new(ResourceKind::UsbWatch)
         .with_label(USB_WATCH_RESOURCE_LABEL)
         .with_payload(resource)
-        .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
             AndroidUsbWatchFinalizer {
                 runtime_id,
                 watch_id,
@@ -487,7 +487,7 @@ pub(crate) unsafe fn destack_device_usb_watch_open(
         ));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -504,7 +504,7 @@ pub(crate) unsafe fn destack_device_usb_watch_close(
     handle: resource::UsbWatchHandle,
 ) -> RuntimeResult<()> {
     let kind = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| entry.kind)
         .ok_or_else(|| {
@@ -517,7 +517,7 @@ pub(crate) unsafe fn destack_device_usb_watch_close(
         ));
     }
 
-    if !binding.agent().resources.remove_and_finalize(
+    if !binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -610,7 +610,7 @@ pub(crate) unsafe fn destack_device_usb_open(
     host_status_result(status, "destack.device.usb.open", "usb device open")?;
 
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .usb_service("destack.device.usb.open")?;
@@ -629,7 +629,7 @@ pub(crate) unsafe fn destack_device_usb_open(
         ResourceEntry::new(ResourceKind::UsbDevice)
             .with_label(USB_DEVICE_RESOURCE_LABEL)
             .with_payload(resource)
-            .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+            .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
                 UsbDeviceFinalizer {
                     service: service.state.clone(),
                     handle,
@@ -638,7 +638,7 @@ pub(crate) unsafe fn destack_device_usb_open(
             ));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 

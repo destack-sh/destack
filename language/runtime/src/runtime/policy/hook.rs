@@ -9,11 +9,10 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{
     ResourceBacking, ResourceCapture, ResourceId, ResourceKind, ResourcePortability,
 };
-use crate::runtime::AgentId;
+use crate::runtime::WorkerId;
 use crate::runtime::bindings::{BindingDescriptor, BindingEngine};
-use crate::runtime::world::{
-    Observation, RuntimeId, WorldEntityKind, WorldRef, WorldResource, WorldResourceId,
-};
+use crate::runtime::observe::Observation;
+use crate::runtime::world::{RuntimeId, WorldEntityKind, WorldRef, WorldResource, WorldResourceId};
 use destack_source::matches as glob_matches;
 use destack_workspace::ExecutionMode;
 
@@ -42,7 +41,7 @@ pub enum Hook {
     SchedulerDequeue,
     /// Trigger when one timer fires.
     SchedulerTimerFire,
-    /// Trigger when one ingress event is enqueued into the agent loop.
+    /// Trigger when one ingress event is enqueued into the worker loop.
     IngressEnqueue,
     /// Trigger when time is read.
     TimeRead,
@@ -63,8 +62,8 @@ pub struct PolicyCallId(pub u64);
 pub enum HookEvent {
     /// Event fired before invoking one binding.
     BindingBefore {
-        /// Agent identifier for this event.
-        agent_id: AgentId,
+        /// Worker identifier for this event.
+        worker_id: WorkerId,
         /// Binding call identifier for before and after correlation.
         call_id: PolicyCallId,
         /// Binding metadata for this event.
@@ -76,8 +75,8 @@ pub enum HookEvent {
     },
     /// Event fired after invoking one binding.
     BindingAfter {
-        /// Agent identifier for this event.
-        agent_id: AgentId,
+        /// Worker identifier for this event.
+        worker_id: WorkerId,
         /// Binding call identifier for before and after correlation.
         call_id: PolicyCallId,
         /// Binding metadata for this event.
@@ -89,36 +88,36 @@ pub enum HookEvent {
     },
     /// Event fired when one task is enqueued.
     SchedulerEnqueue {
-        /// Agent identifier for this event.
-        agent_id: AgentId,
+        /// Worker identifier for this event.
+        worker_id: WorkerId,
         /// Virtual timestamp for this event.
         virtual_time_ns: u64,
     },
     /// Event fired when one task is dequeued.
     SchedulerDequeue {
-        /// Agent identifier for this event.
-        agent_id: AgentId,
+        /// Worker identifier for this event.
+        worker_id: WorkerId,
         /// Virtual timestamp for this event.
         virtual_time_ns: u64,
     },
     /// Event fired when one timer is dispatched.
     SchedulerTimerFire {
-        /// Agent identifier for this event.
-        agent_id: AgentId,
+        /// Worker identifier for this event.
+        worker_id: WorkerId,
         /// Virtual timestamp for this event.
         virtual_time_ns: u64,
     },
     /// Event fired when one ingress event is enqueued.
     IngressEnqueue {
-        /// Agent identifier for this event.
-        agent_id: AgentId,
+        /// Worker identifier for this event.
+        worker_id: WorkerId,
         /// Virtual timestamp for this event.
         virtual_time_ns: u64,
     },
     /// Event fired when time is read.
     TimeRead {
-        /// Agent identifier for this event.
-        agent_id: AgentId,
+        /// Worker identifier for this event.
+        worker_id: WorkerId,
         /// Engine kind for this event.
         engine: Option<BindingEngine>,
         /// Virtual timestamp for this event.
@@ -126,8 +125,8 @@ pub enum HookEvent {
     },
     /// Event fired when random data is read.
     RandomRead {
-        /// Agent identifier for this event.
-        agent_id: AgentId,
+        /// Worker identifier for this event.
+        worker_id: WorkerId,
         /// Engine kind for this event.
         engine: Option<BindingEngine>,
         /// Virtual timestamp for this event.
@@ -135,15 +134,15 @@ pub enum HookEvent {
     },
     /// Event fired when one resource is attached.
     ResourceAttach {
-        /// Agent identifier for this event.
-        agent_id: AgentId,
+        /// Worker identifier for this event.
+        worker_id: WorkerId,
         /// Virtual timestamp for this event.
         virtual_time_ns: u64,
     },
     /// Event fired when one resource is detached.
     ResourceDetach {
-        /// Agent identifier for this event.
-        agent_id: AgentId,
+        /// Worker identifier for this event.
+        worker_id: WorkerId,
         /// Virtual timestamp for this event.
         virtual_time_ns: u64,
     },
@@ -166,19 +165,19 @@ impl HookEvent {
         }
     }
 
-    /// Return the agent identifier for this event.
-    pub(crate) const fn agent_id(&self) -> AgentId {
+    /// Return the worker identifier for this event.
+    pub(crate) const fn worker_id(&self) -> WorkerId {
         match self {
-            Self::BindingBefore { agent_id, .. }
-            | Self::BindingAfter { agent_id, .. }
-            | Self::SchedulerEnqueue { agent_id, .. }
-            | Self::SchedulerDequeue { agent_id, .. }
-            | Self::SchedulerTimerFire { agent_id, .. }
-            | Self::IngressEnqueue { agent_id, .. }
-            | Self::TimeRead { agent_id, .. }
-            | Self::RandomRead { agent_id, .. }
-            | Self::ResourceAttach { agent_id, .. }
-            | Self::ResourceDetach { agent_id, .. } => *agent_id,
+            Self::BindingBefore { worker_id, .. }
+            | Self::BindingAfter { worker_id, .. }
+            | Self::SchedulerEnqueue { worker_id, .. }
+            | Self::SchedulerDequeue { worker_id, .. }
+            | Self::SchedulerTimerFire { worker_id, .. }
+            | Self::IngressEnqueue { worker_id, .. }
+            | Self::TimeRead { worker_id, .. }
+            | Self::RandomRead { worker_id, .. }
+            | Self::ResourceAttach { worker_id, .. }
+            | Self::ResourceDetach { worker_id, .. } => *worker_id,
         }
     }
 
@@ -306,8 +305,8 @@ pub struct CustomEffectInvocation {
     pub rule_id: String,
     /// Hook that produced this effect.
     pub hook: Hook,
-    /// Agent identifier for this effect.
-    pub agent_id: AgentId,
+    /// Worker identifier for this effect.
+    pub worker_id: WorkerId,
     /// Binding call identifier when this effect comes from one call event.
     pub call_id: Option<PolicyCallId>,
     /// Stable custom effect handler key.
@@ -434,8 +433,8 @@ impl HookRegistry {
 pub struct Hooks {
     /// Runtime identifier for selector matching.
     runtime_id: RuntimeId,
-    /// Agent identifier for selector matching.
-    agent_id: AgentId,
+    /// Worker identifier for selector matching.
+    worker_id: WorkerId,
     /// Execution mode used for rule matching.
     mode: ExecutionMode,
     /// Callback-style hook registry.
@@ -456,7 +455,7 @@ impl std::fmt::Debug for Hooks {
 
         f.debug_struct("Hooks")
             .field("runtime_id", &self.runtime_id)
-            .field("agent_id", &self.agent_id)
+            .field("worker_id", &self.worker_id)
             .field("mode", &self.mode)
             .field("callback_count", &callback_count)
             .field("custom_effect_handler_count", &custom_effect_handler_count)
@@ -466,11 +465,11 @@ impl std::fmt::Debug for Hooks {
 }
 
 impl Hooks {
-    /// Create runtime hooks for one agent in one world.
-    pub(crate) fn new(runtime_id: RuntimeId, agent_id: AgentId, mode: ExecutionMode) -> Self {
+    /// Create runtime hooks for one worker in one world.
+    pub(crate) fn new(runtime_id: RuntimeId, worker_id: WorkerId, mode: ExecutionMode) -> Self {
         Self {
             runtime_id,
-            agent_id,
+            worker_id,
             mode,
             registry: RwLock::new(HookRegistry::default()),
             custom_effect_handlers: RwLock::new(HashMap::new()),
@@ -527,6 +526,21 @@ impl Hooks {
             next_call_id: self.next_call_id.load(Ordering::Relaxed),
             unapplied_policy_decisions: self.unapplied_policy_decisions.load(Ordering::Relaxed),
         })
+    }
+
+    /// Fork one quiescent hook state for one child worker.
+    pub(crate) fn try_fork(&self) -> RuntimeResult<Option<Self>> {
+        // require one quiescent hook state first
+        let snapshot = match self.snapshot() {
+            Ok(snapshot) => snapshot,
+            Err(_) => return Ok(None),
+        };
+
+        // rebuild one fresh hook container with the same scalar state
+        let forked = Self::new(self.runtime_id, self.worker_id, self.mode);
+        forked.restore_snapshot(&snapshot)?;
+
+        Ok(Some(forked))
     }
 
     /// Restore one durable hook snapshot.
@@ -613,7 +627,7 @@ impl Hooks {
         let decision = self.on_policy_event(
             world,
             HookEvent::BindingBefore {
-                agent_id: self.agent_id,
+                worker_id: self.worker_id,
                 call_id,
                 descriptor,
                 engine,
@@ -638,7 +652,7 @@ impl Hooks {
         self.on_policy_event(
             world,
             HookEvent::BindingAfter {
-                agent_id: self.agent_id,
+                worker_id: self.worker_id,
                 call_id,
                 descriptor,
                 engine,
@@ -652,7 +666,7 @@ impl Hooks {
         self.on_policy_event(
             world,
             HookEvent::SchedulerEnqueue {
-                agent_id: self.agent_id,
+                worker_id: self.worker_id,
                 virtual_time_ns: world.mono_nanos(),
             },
         );
@@ -663,7 +677,7 @@ impl Hooks {
         self.on_policy_event(
             world,
             HookEvent::SchedulerDequeue {
-                agent_id: self.agent_id,
+                worker_id: self.worker_id,
                 virtual_time_ns: world.mono_nanos(),
             },
         );
@@ -674,7 +688,7 @@ impl Hooks {
         self.on_policy_event(
             world,
             HookEvent::SchedulerTimerFire {
-                agent_id: self.agent_id,
+                worker_id: self.worker_id,
                 virtual_time_ns: world.mono_nanos(),
             },
         );
@@ -685,7 +699,7 @@ impl Hooks {
         self.on_policy_event(
             world,
             HookEvent::IngressEnqueue {
-                agent_id: self.agent_id,
+                worker_id: self.worker_id,
                 virtual_time_ns: world.mono_nanos(),
             },
         );
@@ -696,7 +710,7 @@ impl Hooks {
         self.on_policy_event(
             world,
             HookEvent::TimeRead {
-                agent_id: self.agent_id,
+                worker_id: self.worker_id,
                 engine,
                 virtual_time_ns: world.mono_nanos(),
             },
@@ -708,7 +722,7 @@ impl Hooks {
         self.on_policy_event(
             world,
             HookEvent::RandomRead {
-                agent_id: self.agent_id,
+                worker_id: self.worker_id,
                 engine,
                 virtual_time_ns: world.mono_nanos(),
             },
@@ -728,7 +742,7 @@ impl Hooks {
         _engine: Option<BindingEngine>,
     ) -> RuntimeResult<()> {
         let resource = WorldResource::new(
-            WorldResourceId::new(self.agent_id, resource_id),
+            WorldResourceId::new(self.worker_id, resource_id),
             WorldEntityKind::from(resource_kind.kind_id()),
             resource_label.map(ToString::to_string),
             resource_backing,
@@ -750,8 +764,8 @@ impl Hooks {
             })?;
         world.resources_mut().insert(resource.id, resource);
         world.observe(Observation::resource_attached(
-            self.agent_id,
-            WorldResourceId::new(self.agent_id, resource_id),
+            self.worker_id,
+            WorldResourceId::new(self.worker_id, resource_id),
             resource_backing,
             resource_capture,
             resource_portability,
@@ -760,7 +774,7 @@ impl Hooks {
         self.on_policy_event(
             world,
             HookEvent::ResourceAttach {
-                agent_id: self.agent_id,
+                worker_id: self.worker_id,
                 virtual_time_ns: world.mono_nanos(),
             },
         );
@@ -778,18 +792,18 @@ impl Hooks {
         _engine: Option<BindingEngine>,
     ) -> RuntimeResult<()> {
         let _resource_label = resource_label;
-        let world_resource_id = WorldResourceId::new(self.agent_id, resource_id);
+        let world_resource_id = WorldResourceId::new(self.worker_id, resource_id);
         world.topology_mut().detach_resource(world_resource_id);
         world.resources_mut().remove(&world_resource_id);
         world.observe(Observation::resource_detached(
-            self.agent_id,
+            self.worker_id,
             world_resource_id,
         ));
 
         self.on_policy_event(
             world,
             HookEvent::ResourceDetach {
-                agent_id: self.agent_id,
+                worker_id: self.worker_id,
                 virtual_time_ns: world.mono_nanos(),
             },
         );
@@ -812,7 +826,7 @@ impl Hooks {
 
         // TODO #Incomplete: execute policy decisions after trigger evaluation
         let decisions =
-            match world.evaluate_policy_event(self.mode, self.runtime_id, self.agent_id, &event) {
+            match world.evaluate_policy_event(self.mode, self.runtime_id, self.worker_id, &event) {
                 Ok(decisions) => decisions,
                 Err(error) => {
                     return HookDecision::Deny {
@@ -888,7 +902,7 @@ impl Hooks {
         let invocation = CustomEffectInvocation {
             rule_id: decision.rule_id.0.clone(),
             hook: decision.hook,
-            agent_id: decision.agent_id,
+            worker_id: decision.worker_id,
             call_id: decision.call_id,
             handler: custom.handler.clone(),
             payload: custom.payload.clone(),

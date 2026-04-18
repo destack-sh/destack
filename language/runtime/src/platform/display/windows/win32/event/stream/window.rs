@@ -102,7 +102,7 @@ pub(crate) unsafe fn window_event_open(
         filter,
     });
 
-    let resource_id = binding.agent().resources.insert(
+    let resource_id = binding.worker().resources.insert(
         &binding.world(),
         ResourceEntry::new(ResourceKind::Window)
             .with_label(win32_core::WINDOW_EVENT_RESOURCE_LABEL)
@@ -135,7 +135,7 @@ pub(crate) unsafe fn window_event_close(
     trim_window_events(&runtime_state);
 
     let removed = binding
-        .agent()
+        .worker()
         .resources
         .remove(&binding.world(), handle.0, Some(binding.engine()))
         .is_some();

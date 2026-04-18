@@ -249,7 +249,7 @@ pub(crate) unsafe fn destack_device_bluetooth_adapter_watch_open(
         .with_payload(Arc::new(WindowsBluetoothAdapterWatchResource {
             event_queue: event_queue.clone(),
         }))
-        .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
             WindowsBluetoothAdapterWatchFinalizer {
                 watcher,
                 added_token,
@@ -261,7 +261,7 @@ pub(crate) unsafe fn destack_device_bluetooth_adapter_watch_open(
             },
         ));
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 

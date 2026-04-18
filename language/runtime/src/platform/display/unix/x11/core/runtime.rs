@@ -18,7 +18,7 @@ use crate::runtime::{
     BindingCallContext, RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry,
 };
 
-/// Callback-safe reference to the owning agent resource table.
+/// Callback-safe reference to the owning worker resource table.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct X11ResourceTableRef(*const ResourceTable);
 
@@ -27,7 +27,7 @@ unsafe impl Sync for X11ResourceTableRef {}
 
 /// Runtime-owned X11 display backend state.
 pub(crate) struct X11RuntimeState {
-    /// Agent resource table used for callback-owned text-session updates.
+    /// Worker resource table used for callback-owned text-session updates.
     pub(crate) resources: X11ResourceTableRef,
     /// Lazy X11 connection state.
     pub(crate) connection: Mutex<Option<Arc<X11ConnectionState>>>,
@@ -140,9 +140,9 @@ impl X11RuntimeState {
     /// Create one runtime-owned X11 state value.
     pub(crate) fn from_context(binding: &BindingCallContext) -> Self {
         Self {
-            resources: X11ResourceTableRef(&binding.agent().resources),
+            resources: X11ResourceTableRef(&binding.worker().resources),
             connection: Mutex::new(None),
-            diagnostics: Arc::clone(&binding.agent().diagnostics),
+            diagnostics: Arc::clone(&binding.worker().diagnostics),
             monitor_events: Mutex::new(RuntimeEventLog::default()),
             monitor_event_signal: Condvar::new(),
             window_events: Mutex::new(RuntimeEventLog::default()),
@@ -158,7 +158,7 @@ impl X11RuntimeState {
         }
     }
 
-    /// Borrow the agent resource table captured by this runtime.
+    /// Borrow the worker resource table captured by this runtime.
     pub(crate) fn resource_table(&self) -> &ResourceTable {
         unsafe { &*self.resources.0 }
     }
@@ -323,7 +323,7 @@ impl X11RuntimeState {
     pub(crate) fn ensure_service_registration(self: &Arc<Self>, context: &BindingCallContext) {
         // register once so repeated binding calls do not keep re-entering the ingress setup path
         self.service_registration.get_or_init(|| {
-            let service = context.agent().platform_state.display.x11_service();
+            let service = context.worker().platform_state.display.x11_service();
             service.register_runtime(context, self);
         });
     }
@@ -332,7 +332,7 @@ impl X11RuntimeState {
 /// Return runtime-owned X11 state for this binding call.
 pub(crate) fn runtime_state(binding: &BindingCallContext) -> Arc<X11RuntimeState> {
     let runtime_state = binding
-        .agent()
+        .worker()
         .platform_state
         .display
         .x11_runtime_state(|| X11RuntimeState::from_context(binding));

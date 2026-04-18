@@ -1,20 +1,39 @@
-use crate::runtime::AgentId;
-use crate::runtime::policy::{Policy, Rule, RuleId};
+use destack_heap as heap;
 use serde::{Deserialize, Serialize};
 
-use super::resource::{WorldResource, WorldResourceId};
-use super::topology::{
-    WorldEdge, WorldEdgeId, WorldEdgeKindDefinition, WorldEntity, WorldEntityId,
+use crate::runtime::engine::Entry;
+use crate::runtime::policy::{Policy, Rule, RuleId};
+use crate::runtime::{WorkerId, WorldResource, WorldResourceId};
+
+use super::{
+    RuntimeId, WorldEdge, WorldEdgeId, WorldEdgeKindDefinition, WorldEntity, WorldEntityId,
     WorldEntityKindDefinition,
 };
 
-/// One explicit structural world-state mutation.
+/// One world command recorded in authoritative trace.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Mutation {
-    /// Remove one agent from the world.
-    RemoveAgent {
-        /// Agent identifier to remove.
-        agent_id: AgentId,
+#[allow(clippy::large_enum_variant)]
+pub enum Command {
+    /// One world tick command.
+    Tick,
+    /// One runtime removal command.
+    RemoveRuntime {
+        /// Runtime identifier to remove.
+        runtime_id: RuntimeId,
+    },
+    /// One runtime entrypoint command.
+    RunEntrypoint {
+        /// Runtime identifier that owns the entrypoint execution.
+        runtime_id: RuntimeId,
+        /// Replayable entrypoint reference.
+        entry: Entry,
+        /// Invocation arguments.
+        args: Vec<heap::Value>,
+    },
+    /// Remove one worker from the world.
+    RemoveWorker {
+        /// Worker identifier to remove.
+        worker_id: WorkerId,
     },
     /// Create one logical world resource.
     CreateResource {
@@ -90,11 +109,14 @@ pub enum Mutation {
     },
 }
 
-impl Mutation {
-    /// Return the stable mutation name.
+impl Command {
+    /// Return the stable command name.
     pub fn name(&self) -> &'static str {
         match self {
-            Self::RemoveAgent { .. } => "agent.remove",
+            Self::Tick => "world.tick",
+            Self::RemoveRuntime { .. } => "runtime.remove",
+            Self::RunEntrypoint { .. } => "runtime.run_entrypoint",
+            Self::RemoveWorker { .. } => "worker.remove",
             Self::CreateResource { .. } => "resource.create",
             Self::DestroyResource { .. } => "resource.destroy",
             Self::SetPolicy { .. } => "policy.set",

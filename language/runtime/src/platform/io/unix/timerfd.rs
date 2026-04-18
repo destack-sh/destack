@@ -108,7 +108,7 @@ fn timerfd_fd(
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<RawFd> {
     let fd = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::TimerFd {
@@ -129,7 +129,7 @@ fn close_timerfd(
 ) -> RuntimeResult<()> {
     // remove one timerfd entry from the resource table
     let entry = binding
-        .agent()
+        .worker()
         .resources
         .remove(&binding.world(), handle.0, Some(binding.engine()))
         .ok_or_else(invalid_timerfd_handle_error)?;
@@ -342,7 +342,7 @@ pub(crate) unsafe fn destack_io_timer_fd_open(
             .with_fd(fd);
         let resource_id =
             binding
-                .agent()
+                .worker()
                 .resources
                 .insert(&binding.world(), entry, Some(binding.engine()));
         let handle = resource::TimerFdHandle(resource_id);

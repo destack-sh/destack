@@ -83,7 +83,7 @@ where
     }
 }
 
-/// Process-global weak subscriber registry keyed by one stable runtime or agent id.
+/// Process-global weak subscriber registry keyed by one stable runtime or worker id.
 #[derive(Debug)]
 pub struct ProcessSubscriberRegistry<K, T> {
     /// Weak subscribers keyed by one stable subscriber id.

@@ -373,7 +373,7 @@ fn register_input_target_window(context: &mut InputHarnessContext<'_>) -> Window
     #[cfg(windows)]
     let entry = entry.with_handle(1usize as *mut c_void);
 
-    let resource_id = context.call_context.agent().resources.insert(
+    let resource_id = context.call_context.worker().resources.insert(
         context.call_context.world(),
         entry,
         Some(context.call_context.engine()),
@@ -965,7 +965,7 @@ fn test_input_linux_list_uses_stable_runtime_ids() {
 #[test]
 fn test_input_close_rejects_non_input_handle() {
     with_harness_context(|mut context| {
-        let forged = context.call_context.agent().resources.insert(
+        let forged = context.call_context.worker().resources.insert(
             context.call_context.world(),
             ResourceEntry::new(ResourceKind::File),
             Some(context.call_context.engine()),

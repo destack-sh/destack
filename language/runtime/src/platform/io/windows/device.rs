@@ -50,7 +50,7 @@ fn device_handle(
     operation: &'static str,
 ) -> RuntimeResult<HANDLE> {
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Device {
@@ -187,7 +187,7 @@ pub(crate) unsafe fn destack_io_device_open(
         .with_finalizer(WindowsDeviceFinalizer { handle });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -203,7 +203,7 @@ pub(crate) unsafe fn destack_io_device_close(
     binding: &BindingCallContext,
     handle: resource::DeviceHandle,
 ) -> RuntimeResult<()> {
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),

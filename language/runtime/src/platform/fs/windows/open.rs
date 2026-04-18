@@ -152,7 +152,7 @@ pub(crate) unsafe fn destack_fs_open_bytes(
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
@@ -246,7 +246,7 @@ pub(crate) unsafe fn destack_fs_open_utf16(
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
@@ -336,7 +336,7 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
@@ -426,7 +426,7 @@ pub(crate) unsafe fn destack_fs_openat_utf16(
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {

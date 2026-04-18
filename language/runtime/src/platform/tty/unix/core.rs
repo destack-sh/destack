@@ -104,7 +104,7 @@ pub(super) fn tty_descriptor(
     operation: &'static str,
 ) -> RuntimeResult<RawFd> {
     let descriptor = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Tty {
@@ -126,7 +126,7 @@ pub(super) fn pty_descriptor(
     operation: &'static str,
 ) -> RuntimeResult<RawFd> {
     let descriptor = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Pty {
@@ -167,7 +167,7 @@ pub(super) fn register_pty_pair(
         .with_finalizer(UnixDescriptorFinalizer {
             descriptor: controller_descriptor,
         });
-    let controller_id = binding.agent().resources.insert(
+    let controller_id = binding.worker().resources.insert(
         &binding.world(),
         controller_entry,
         Some(binding.engine()),
@@ -181,7 +181,7 @@ pub(super) fn register_pty_pair(
         });
     let worker_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), worker_entry, Some(binding.engine()));
 

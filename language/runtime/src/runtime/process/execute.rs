@@ -9,12 +9,12 @@ use crate::runtime::scheduler::{
 };
 use crate::runtime::time::timer::on_event_loop_timer_fire;
 use crate::runtime::world::WorldRef;
-use destack_heap as heap;
 use destack_workspace::TimeMode;
+use {destack_heap as heap, destack_vm as vm};
 
 use super::{
-    Agent, BindingCallContext, EventLoopScope, RuntimeScheduledCallbackHandle,
-    current_event_loop_scope, enter_binding_call_context, enter_current_agent_context,
+    Worker, BindingCallContext, EventLoopScope, RuntimeScheduledCallbackHandle,
+    current_event_loop_scope, enter_binding_call_context, enter_current_worker_context,
     enter_event_loop_scope,
 };
 
@@ -23,7 +23,7 @@ fn host_limit(value: u64, label: &str) -> usize {
     usize::try_from(value).unwrap_or_else(|_| panic!("runtime {label} exceeds host usize: {value}"))
 }
 
-impl Agent {
+impl Worker {
     /// Run an entrypoint through the event loop.
     #[cfg(test)]
     pub(crate) fn run_entrypoint(
@@ -46,11 +46,11 @@ impl Agent {
         args: &[heap::Value],
         poller: &mut Option<Box<dyn HostPoller>>,
     ) -> RuntimeResult<ExecutionOutput> {
-        let agent_ptr = self as *const Agent;
+        let agent_ptr = self as *const Worker;
         let event_loop = self.event_loop.as_ref() as *const _;
         let host_ptr = host as *const Session;
         let world_ptr = world as *const WorldRef;
-        let _context_guard = enter_current_agent_context(
+        let _context_guard = enter_current_worker_context(
             agent_ptr,
             event_loop,
             host_ptr,
@@ -61,10 +61,10 @@ impl Agent {
         // execute the entrypoint with yielding enabled
         let _guard = enter_event_loop_scope(EventLoopScope::empty());
         let mut shared = world.shared_mut();
-        let mut memory = heap::MemoryContext::with_shared_limits(
+        let mut memory = vm::MemoryContext::with_shared_raw_limits(
             &mut self.heap,
             &mut shared,
-            world.shared_limits,
+            world.shared_raw_limits,
         );
         let outcome = self.engine.run(&mut memory, entry, args)?;
 
@@ -73,57 +73,6 @@ impl Agent {
             ExecutionOutcome::Completed { output } => Ok(output),
             ExecutionOutcome::Yielded { yielded } => {
                 // enqueue the yielded continuation
-                let task_id = self.event_loop.next_task_id();
-                self.enqueue_task(world, task_id, yielded.continuation, yielded.value)?;
-
-                let output = self.run_until_task_complete(world, host, task_id, None, poller)?;
-                output.ok_or_else(|| {
-                    RuntimeError::EventLoopIdle {
-                        task_id: task_id.get(),
-                    }
-                    .boxed()
-                })
-            }
-        }?;
-
-        Ok(output)
-    }
-
-    /// Run one replayable entrypoint through the event loop with one external poller.
-    pub(crate) fn run_replayable_entrypoint_with_host_and_poller(
-        &mut self,
-        world: &WorldRef,
-        host: &Session,
-        entry: &Entry,
-        args: &[heap::Value],
-        poller: &mut Option<Box<dyn HostPoller>>,
-    ) -> RuntimeResult<ExecutionOutput> {
-        let agent_ptr = self as *const Agent;
-        let event_loop = self.event_loop.as_ref() as *const _;
-        let host_ptr = host as *const Session;
-        let world_ptr = world as *const WorldRef;
-        let _context_guard = enter_current_agent_context(
-            agent_ptr,
-            event_loop,
-            host_ptr,
-            world_ptr,
-            host.is_process_main_context(),
-        );
-
-        // execute the entrypoint with yielding enabled
-        let _guard = enter_event_loop_scope(EventLoopScope::empty());
-        let mut shared = world.shared_mut();
-        let mut memory = heap::MemoryContext::with_shared_limits(
-            &mut self.heap,
-            &mut shared,
-            world.shared_limits,
-        );
-        let outcome = self.engine.run_replayable_entry(&mut memory, entry, args)?;
-
-        // handle the entry outcome
-        let output = match outcome {
-            ExecutionOutcome::Completed { output } => Ok(output),
-            ExecutionOutcome::Yielded { yielded } => {
                 let task_id = self.event_loop.next_task_id();
                 self.enqueue_task(world, task_id, yielded.continuation, yielded.value)?;
 
@@ -234,7 +183,7 @@ impl Agent {
         }
     }
 
-    /// Execute one local agent tick.
+    /// Execute one local worker tick.
     pub(crate) fn tick(&mut self, world: &WorldRef, host: &Session) -> RuntimeResult<bool> {
         self.tick_once(world, host)
     }
@@ -256,7 +205,7 @@ impl Agent {
         Ok(())
     }
 
-    /// Execute one local agent tick.
+    /// Execute one local worker tick.
     fn tick_once(&mut self, world: &WorldRef, host: &Session) -> RuntimeResult<bool> {
         // run one event loop tick and capture progress
         let (mut progressed, _) = self.tick_loop(world, host, None)?;
@@ -277,11 +226,11 @@ impl Agent {
         host: &Session,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<(bool, Option<ExecutionOutput>)> {
-        let agent_ptr = self as *const Agent;
+        let agent_ptr = self as *const Worker;
         let event_loop = self.event_loop.as_ref() as *const _;
         let host_ptr = host as *const Session;
         let world_ptr = world as *const WorldRef;
-        let _context_guard = enter_current_agent_context(
+        let _context_guard = enter_current_worker_context(
             agent_ptr,
             event_loop,
             host_ptr,
@@ -351,7 +300,7 @@ impl Agent {
                 }
                 Runnable::PollerEvent(event) => {
                     // dispatch an external-event watch task when one is registered
-                    if let Some(task) = self.event_loop.task_for_event(event, self.engine.as_ref())
+                    if let Some(task) = self.event_loop.task_for_event(event, self.engine.as_mut())
                     {
                         self.enqueue_prepared_task(world, task)?;
                     }
@@ -365,7 +314,7 @@ impl Agent {
                     // dispatch one host-event watch task when one is registered
                     if let Some(task) = self
                         .event_loop
-                        .task_for_host_event(event, self.engine.as_ref())
+                        .task_for_host_event(event, self.engine.as_mut())
                     {
                         self.enqueue_prepared_task(world, task)?;
                     }
@@ -398,7 +347,7 @@ impl Agent {
         // runtime-owned scheduled callbacks
         match timer.handle {
             TimerHandle::Internal(handle) => {
-                let binding = BindingCallContext::from_current_agent_for_native()?;
+                let binding = BindingCallContext::from_current_worker_for_native()?;
                 let _guard = enter_binding_call_context(&binding);
 
                 self.runtime_callbacks.service_due_callback(
@@ -417,7 +366,7 @@ impl Agent {
                 )?;
                 if should_dispatch {
                     // dispatch a timer watch task when one is registered
-                    if let Some(task) = self.event_loop.task_for_timer(timer, self.engine.as_ref())
+                    if let Some(task) = self.event_loop.task_for_timer(timer, self.engine.as_mut())
                     {
                         self.enqueue_prepared_task(world, task)?;
                     }
@@ -586,10 +535,10 @@ impl Agent {
         resume_value: heap::Value,
     ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
         let mut shared = world.shared_mut();
-        let mut memory = heap::MemoryContext::with_shared_limits(
+        let mut memory = vm::MemoryContext::with_shared_raw_limits(
             &mut self.heap,
             &mut shared,
-            world.shared_limits,
+            world.shared_raw_limits,
         );
         self.engine.resume(&mut memory, runnable, resume_value)
     }

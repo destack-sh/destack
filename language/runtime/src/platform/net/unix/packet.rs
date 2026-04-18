@@ -703,7 +703,7 @@ pub(crate) unsafe fn destack_net_packet_open(
             .with_finalizer(UnixPacketFinalizer { fd });
         let resource_id =
             binding
-                .agent()
+                .worker()
                 .resources
                 .insert(&binding.world(), entry, Some(binding.engine()));
         PACKET_SOCKET_STATES.lock().insert(
@@ -796,7 +796,7 @@ pub(crate) unsafe fn destack_net_packet_open(
             .with_finalizer(UnixPacketFinalizer { fd: descriptor });
         let resource_id =
             binding
-                .agent()
+                .worker()
                 .resources
                 .insert(&binding.world(), entry, Some(binding.engine()));
         PACKET_SOCKET_STATES.lock().insert(

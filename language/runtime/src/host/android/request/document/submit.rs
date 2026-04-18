@@ -14,7 +14,7 @@ pub(crate) fn submit_document_request(
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     match request {
         HostRequest::OsDocumentPick { options } => {
-            let binding = BindingCallContext::from_current_agent_for_native()?;
+            let binding = BindingCallContext::from_current_worker_for_native()?;
             let abi_request = HostDocumentRequest {
                 request_id: context.request_id.0,
                 mime_types: NativeStringSlice::from_value(&binding, options.mime_types.clone()),

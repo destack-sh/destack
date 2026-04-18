@@ -760,7 +760,7 @@ pub(super) fn resolve_input(
     operation: &'static str,
 ) -> RuntimeResult<WindowsInputResolved> {
     // resolve and validate resource entry shape
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -823,7 +823,7 @@ pub(super) fn next_sequence(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
-    let sequence = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let sequence = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -855,7 +855,7 @@ pub(super) fn now_timestamp_ns() -> u64 {
 /// Return the configured raw-input queue capacity.
 pub(super) fn windows_raw_input_queue_capacity(binding: &BindingCallContext) -> usize {
     binding
-        .agent()
+        .worker()
         .options
         .input
         .event_queue_capacity
@@ -867,7 +867,7 @@ pub(super) fn windows_raw_input_queue_capacity(binding: &BindingCallContext) -> 
 /// Return the configured raw monitor queue capacity.
 pub(super) fn windows_raw_monitor_queue_capacity(binding: &BindingCallContext) -> usize {
     binding
-        .agent()
+        .worker()
         .options
         .input
         .event_queue_capacity
@@ -879,7 +879,7 @@ pub(super) fn windows_raw_monitor_queue_capacity(binding: &BindingCallContext) -
 /// Return the configured raw HID queue capacity.
 pub(super) fn windows_raw_hid_queue_capacity(binding: &BindingCallContext) -> usize {
     binding
-        .agent()
+        .worker()
         .options
         .input
         .event_queue_capacity
@@ -891,7 +891,7 @@ pub(super) fn windows_raw_hid_queue_capacity(binding: &BindingCallContext) -> us
 /// Return the configured raw touch queue capacity.
 pub(super) fn windows_raw_touch_queue_capacity(binding: &BindingCallContext) -> usize {
     binding
-        .agent()
+        .worker()
         .options
         .input
         .event_queue_capacity
@@ -916,7 +916,7 @@ pub(super) fn set_xinput_player_index_override(
         .boxed());
     }
 
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -988,7 +988,7 @@ pub(super) fn resolve_window_target_handle(
         .expect("explicit window targets should carry one handle")
         .0;
     let hwnd = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(window_resource_id, |entry| {
             if entry.kind != ResourceKind::Window {
@@ -1112,7 +1112,7 @@ pub(super) fn set_pointer_snapshot(
     y: f64,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -1143,7 +1143,7 @@ pub(super) fn set_relative_mode_flag(
     enabled: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -1174,7 +1174,7 @@ pub(super) fn set_sensor_stream_enabled(
     enabled: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -1213,7 +1213,7 @@ pub(super) fn set_sensor_stream_config(
     // update stream-enabled state before storing effective configuration
     set_sensor_stream_enabled(binding, handle, sensor_kind, config.enabled, operation)?;
 
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -1252,7 +1252,7 @@ pub(super) fn is_sensor_stream_enabled(
     sensor_kind: InputSensorKind,
     operation: &'static str,
 ) -> RuntimeResult<bool> {
-    let enabled = binding.agent().resources.with_entry(handle.0, |entry| {
+    let enabled = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }

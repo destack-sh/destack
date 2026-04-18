@@ -54,7 +54,7 @@ fn register_non_terminal_file(binding: &BindingCallContext) -> RuntimeResult<Fil
         .with_finalizer(UnixFileFinalizer { descriptor });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -113,7 +113,7 @@ fn test_tty_handle_is_terminal_file_reports_false_for_non_terminal_file() {
         let is_terminal = context.destack_tty_is_terminal_file(handle)?;
         assert!(!is_terminal);
 
-        context.call_context.agent().resources.remove_and_finalize(
+        context.call_context.worker().resources.remove_and_finalize(
             context.call_context.world(),
             handle.0,
             Some(context.call_context.engine()),
@@ -146,7 +146,7 @@ fn test_tty_handle_is_terminal_file_reports_true_for_terminal_file() {
             .with_finalizer(UnixFileFinalizer {
                 descriptor: file_descriptor,
             });
-        let file_id = context.call_context.agent().resources.insert(
+        let file_id = context.call_context.worker().resources.insert(
             context.call_context.world(),
             file_entry,
             Some(context.call_context.engine()),
@@ -156,7 +156,7 @@ fn test_tty_handle_is_terminal_file_reports_true_for_terminal_file() {
         let is_terminal = context.destack_tty_is_terminal_file(file_handle)?;
         assert!(is_terminal);
 
-        context.call_context.agent().resources.remove_and_finalize(
+        context.call_context.worker().resources.remove_and_finalize(
             context.call_context.world(),
             file_handle.0,
             Some(context.call_context.engine()),

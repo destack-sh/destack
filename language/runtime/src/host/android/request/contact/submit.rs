@@ -78,7 +78,7 @@ fn submit_contact_list(
     operation: &'static str,
     query: &ContactQueryValue,
 ) -> RuntimeResult<ContactPageValue> {
-    let binding = BindingCallContext::from_current_agent_for_native()?;
+    let binding = BindingCallContext::from_current_worker_for_native()?;
     let query = HostContactQuery::from_value(&binding, query.clone());
     let mut response = MaybeUninit::<HostContactPageResponse>::uninit();
     let status =
@@ -108,7 +108,7 @@ fn submit_contact_search(
     query_text: &str,
     query: &ContactQueryValue,
 ) -> RuntimeResult<ContactPageValue> {
-    let binding = BindingCallContext::from_current_agent_for_native()?;
+    let binding = BindingCallContext::from_current_worker_for_native()?;
     let query = HostContactQuery::from_value(&binding, query.clone());
     let mut response = MaybeUninit::<HostContactPageResponse>::uninit();
     let status = unsafe {
@@ -175,7 +175,7 @@ fn submit_contact_create(
     operation: &'static str,
     contact: &ContactDraftValue,
 ) -> RuntimeResult<String> {
-    let binding = BindingCallContext::from_current_agent_for_native()?;
+    let binding = BindingCallContext::from_current_worker_for_native()?;
     let draft = HostContactDraft::from_value(&binding, contact.clone());
     let mut response = MaybeUninit::<HostContactCreateResponse>::uninit();
     let status =
@@ -205,7 +205,7 @@ fn submit_contact_update(
     id: &str,
     contact: &ContactDraftValue,
 ) -> RuntimeResult<()> {
-    let binding = BindingCallContext::from_current_agent_for_native()?;
+    let binding = BindingCallContext::from_current_worker_for_native()?;
     let draft = HostContactDraft::from_value(&binding, contact.clone());
     let call_status = unsafe {
         destack_host_android_contact_update(runtime_id, NativeStringRef::from(id), draft)

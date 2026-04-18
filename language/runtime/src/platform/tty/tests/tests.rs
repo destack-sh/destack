@@ -155,7 +155,7 @@ pub(crate) fn close_tty_worker_resource(
     binding: &BindingCallContext,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    let removed = binding.agent().resources.remove_and_finalize(
+    let removed = binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -178,7 +178,7 @@ pub(crate) fn pty_descriptor(
     handle: resource::PtyHandle,
 ) -> RuntimeResult<libc::c_int> {
     let descriptor = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Pty {
@@ -206,7 +206,7 @@ pub(crate) fn tty_descriptor(
     handle: resource::TtyHandle,
 ) -> RuntimeResult<libc::c_int> {
     let descriptor = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Tty {

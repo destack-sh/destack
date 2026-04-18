@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::AgentId;
+use crate::runtime::WorkerId;
+use crate::runtime::observe::ObservationSubscriptionId;
 use crate::runtime::trace::TraceCursor;
-use crate::runtime::world::{
-    Image, ObservationSubscriptionId, Revision, RuntimeId, Snapshot as WorldSnapshot, World,
-};
+use crate::runtime::world::{Revision, RevisionState, RuntimeId, World, WorldImage, WorldSnapshot};
 
 use super::Control;
 use super::handle::{ControlHandleId, ControlKind, WorldLabels};
@@ -28,15 +27,15 @@ pub(crate) struct RuntimeEntry {
     pub runtime_id: RuntimeId,
 }
 
-/// One live agent-handle entry.
+/// One live worker-handle entry.
 #[derive(Debug, Clone)]
-pub(crate) struct AgentEntry {
+pub(crate) struct WorkerEntry {
     /// The owning world handle.
     pub world_handle_id: ControlHandleId,
     /// The owning runtime identifier inside that world.
     pub runtime_id: RuntimeId,
-    /// The agent identifier inside that world.
-    pub agent_id: AgentId,
+    /// The worker identifier inside that world.
+    pub worker_id: WorkerId,
 }
 
 /// One live observation-handle entry.
@@ -64,10 +63,12 @@ pub(crate) struct WorldViewEntry {
     pub world_handle_id: ControlHandleId,
     /// The stored world labels.
     pub labels: WorldLabels,
+    /// The pinned revision handle.
+    pub revision_handle: Revision,
     /// The pinned revision metadata.
-    pub revision: Revision,
+    pub revision: RevisionState,
     /// The pinned world image.
-    pub image: Arc<Image>,
+    pub image: Arc<WorldImage>,
 }
 
 /// One stored snapshot entry.
@@ -90,8 +91,8 @@ pub(super) enum ControlObject {
     World(WorldEntry),
     /// One live runtime handle.
     Runtime(RuntimeEntry),
-    /// One live agent handle.
-    Agent(AgentEntry),
+    /// One live worker handle.
+    Worker(WorkerEntry),
     /// One live observation handle.
     Observation(ObservationEntry),
     /// One live trace-cursor handle.
@@ -127,10 +128,10 @@ impl ControlObject {
         }
     }
 
-    /// Return one borrowed agent entry when this is an agent object.
-    fn as_agent(&self) -> Option<&AgentEntry> {
+    /// Return one borrowed worker entry when this is an worker object.
+    fn as_worker(&self) -> Option<&WorkerEntry> {
         match self {
-            ControlObject::Agent(entry) => Some(entry),
+            ControlObject::Worker(entry) => Some(entry),
             _ => None,
         }
     }
@@ -172,7 +173,7 @@ impl ControlObject {
         match self {
             ControlObject::World(_) => None,
             ControlObject::Runtime(entry) => Some(entry.world_handle_id),
-            ControlObject::Agent(entry) => Some(entry.world_handle_id),
+            ControlObject::Worker(entry) => Some(entry.world_handle_id),
             ControlObject::Observation(entry) => Some(entry.world_handle_id),
             ControlObject::TraceCursor(entry) => Some(entry.world_handle_id),
             ControlObject::WorldView(entry) => Some(entry.world_handle_id),
@@ -305,21 +306,24 @@ impl Control {
         }
     }
 
-    /// Resolve one agent entry.
-    pub(super) fn get_agent_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&AgentEntry> {
+    /// Resolve one worker entry.
+    pub(super) fn get_worker_entry(
+        &self,
+        handle_id: ControlHandleId,
+    ) -> RuntimeResult<&WorkerEntry> {
         let object = self.objects.get(&handle_id).ok_or_else(|| {
             RuntimeError::ControlHandleNotFound {
                 handle_id: handle_id.get(),
-                kind: ControlKind::Agent.name().to_string(),
+                kind: ControlKind::Worker.name().to_string(),
             }
             .boxed()
         })?;
 
-        object.as_agent().ok_or_else(|| {
+        object.as_worker().ok_or_else(|| {
             RuntimeError::Internal {
                 message: format!(
                     "control object kind mismatch for {} handle {}",
-                    ControlKind::Agent.name(),
+                    ControlKind::Worker.name(),
                     handle_id.get()
                 ),
             }
@@ -327,24 +331,24 @@ impl Control {
         })
     }
 
-    /// Remove one agent entry.
-    pub(super) fn take_agent_entry(
+    /// Remove one worker entry.
+    pub(super) fn take_worker_entry(
         &mut self,
         handle_id: ControlHandleId,
-    ) -> RuntimeResult<AgentEntry> {
+    ) -> RuntimeResult<WorkerEntry> {
         match self.objects.remove(&handle_id) {
-            Some(ControlObject::Agent(entry)) => Ok(entry),
+            Some(ControlObject::Worker(entry)) => Ok(entry),
             Some(_) => Err(RuntimeError::Internal {
                 message: format!(
                     "control object kind mismatch for {} handle {}",
-                    ControlKind::Agent.name(),
+                    ControlKind::Worker.name(),
                     handle_id.get()
                 ),
             }
             .boxed()),
             None => Err(RuntimeError::ControlHandleNotFound {
                 handle_id: handle_id.get(),
-                kind: ControlKind::Agent.name().to_string(),
+                kind: ControlKind::Worker.name().to_string(),
             }
             .boxed()),
         }

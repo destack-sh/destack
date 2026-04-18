@@ -535,7 +535,7 @@ pub(crate) fn certificate_delete(
     // remove certificate resource entry
     let Some(entry) =
         binding
-            .agent()
+            .worker()
             .resources
             .remove(&binding.world(), handle.0, Some(binding.engine()))
     else {

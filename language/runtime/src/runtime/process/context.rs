@@ -1,14 +1,14 @@
 #![allow(clippy::missing_const_for_thread_local)]
 
+use std::alloc::{Layout, alloc_zeroed, dealloc, handle_alloc_error};
 use std::cell::{Cell, RefCell};
 use std::marker::PhantomData;
 use std::mem::{align_of, needs_drop, size_of};
 use std::ptr;
 
-use destack_heap::{DEFAULT_PAGE_BYTES, allocate_page_segment_bytes, free_page_segment_bytes};
 use serde::{Deserialize, Serialize};
 
-use super::agent::Agent;
+use super::worker::Worker;
 use super::call::BindingCallContext;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::Session;
@@ -20,8 +20,8 @@ use crate::runtime::world::WorldRef;
 
 thread_local! {
     /// TLS slot for the current runtime execution context.
-    static CURRENT_AGENT_CONTEXT: Cell<CurrentAgentContext> =
-        const { Cell::new(CurrentAgentContext::empty()) };
+    static CURRENT_WORKER_CONTEXT: Cell<CurrentWorkerContext> =
+        const { Cell::new(CurrentWorkerContext::empty()) };
     /// TLS slot for the current binding call context.
     static CURRENT_BINDING_CALL_CONTEXT: Cell<*const BindingCallContext> =
         const { Cell::new(ptr::null()) };
@@ -64,9 +64,9 @@ impl ExecutionContext {
 
 /// Current runtime execution context for VM callback bridging.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct CurrentAgentContext {
-    /// Agent pointer for callback dispatch.
-    pub agent: *const Agent,
+pub(crate) struct CurrentWorkerContext {
+    /// Worker pointer for callback dispatch.
+    pub worker: *const Worker,
     /// Event loop pointer for callback dispatch.
     pub event_loop: *const EventLoop,
     /// Host pointer for callback dispatch.
@@ -79,11 +79,11 @@ pub(crate) struct CurrentAgentContext {
     pub is_process_main: bool,
 }
 
-impl CurrentAgentContext {
+impl CurrentWorkerContext {
     /// Return one empty runtime execution context.
     pub(crate) const fn empty() -> Self {
         Self {
-            agent: ptr::null(),
+            worker: ptr::null(),
             event_loop: ptr::null(),
             host: ptr::null(),
             world: ptr::null(),
@@ -94,24 +94,24 @@ impl CurrentAgentContext {
 
     /// Return whether this execution context is available.
     pub(crate) const fn is_empty(self) -> bool {
-        self.agent.is_null()
+        self.worker.is_null()
             || self.event_loop.is_null()
             || self.host.is_null()
             || self.world.is_null()
     }
 }
 
-/// Guard that restores the previous current-agent execution context.
+/// Guard that restores the previous current-worker execution context.
 #[derive(Debug)]
-pub(crate) struct CurrentAgentContextGuard {
-    /// Previous current-agent execution context.
-    previous: CurrentAgentContext,
+pub(crate) struct CurrentWorkerContextGuard {
+    /// Previous current-worker execution context.
+    previous: CurrentWorkerContext,
 }
 
-impl Drop for CurrentAgentContextGuard {
-    /// Restore the previous current-agent execution context.
+impl Drop for CurrentWorkerContextGuard {
+    /// Restore the previous current-worker execution context.
     fn drop(&mut self) {
-        CURRENT_AGENT_CONTEXT.with(|slot| slot.set(self.previous));
+        CURRENT_WORKER_CONTEXT.with(|slot| slot.set(self.previous));
     }
 }
 
@@ -200,6 +200,8 @@ impl Drop for BindingCallGuard {
 
 /// The number of fixed-width pages reserved in one call-arena block.
 const PAGES_PER_CALL_BLOCK: usize = 64;
+/// The native binding-call scratch page width.
+const CALL_ARENA_PAGE_BYTES: usize = 4 * 1024;
 
 /// Per-call storage for native ABI references returned by bindings.
 ///
@@ -234,7 +236,7 @@ impl CallBlock {
     /// Create one empty block with the given byte length.
     fn new(byte_len: usize) -> Self {
         Self {
-            data: allocate_page_segment_bytes(byte_len),
+            data: allocate_call_block_bytes(byte_len, CALL_ARENA_PAGE_BYTES),
             byte_len,
             used: 0,
         }
@@ -263,7 +265,7 @@ impl CallBlock {
 impl Drop for CallBlock {
     /// Release the owned block pages.
     fn drop(&mut self) {
-        free_page_segment_bytes(self.data, self.byte_len);
+        free_call_block_bytes(self.data, self.byte_len, CALL_ARENA_PAGE_BYTES);
     }
 }
 
@@ -298,9 +300,9 @@ impl CallPageArena {
 
         let block_bytes = self.block_bytes_for(byte_len, align);
         let mut block = CallBlock::new(block_bytes);
-        let ptr = block
-            .allocate(byte_len, align)
-            .expect("fresh call-arena block must fit requested allocation");
+        let Some(ptr) = block.allocate(byte_len, align) else {
+            handle_alloc_error(Layout::new::<u8>());
+        };
         self.blocks.push(block);
 
         ptr
@@ -413,12 +415,44 @@ fn align_offset(offset: usize, align: usize) -> usize {
     }
 
     let mask = align - 1;
-    (offset + mask) & !mask
+    offset.saturating_add(mask) & !mask
 }
 
 /// Round one byte length up to the next whole page.
 fn round_up_to_page(byte_len: usize, page_bytes: usize) -> usize {
-    byte_len.div_ceil(page_bytes) * page_bytes
+    byte_len.div_ceil(page_bytes).saturating_mul(page_bytes)
+}
+
+/// Allocate zeroed page-aligned bytes for native binding-call scratch storage.
+fn allocate_call_block_bytes(byte_len: usize, page_bytes: usize) -> *mut u8 {
+    let layout = call_block_layout(byte_len, page_bytes);
+    let data = unsafe { alloc_zeroed(layout) };
+
+    if data.is_null() {
+        handle_alloc_error(layout);
+    }
+
+    data
+}
+
+/// Free page-aligned bytes allocated by the native binding-call scratch arena.
+fn free_call_block_bytes(data: *mut u8, byte_len: usize, page_bytes: usize) {
+    if data.is_null() {
+        return;
+    }
+
+    let layout = call_block_layout(byte_len, page_bytes);
+    unsafe { dealloc(data, layout) };
+}
+
+/// Return one allocation layout for a native binding-call scratch block.
+fn call_block_layout(byte_len: usize, page_bytes: usize) -> Layout {
+    let byte_len = byte_len.max(1);
+
+    match Layout::from_size_align(byte_len, page_bytes) {
+        Ok(layout) => layout,
+        Err(_) => handle_alloc_error(Layout::new::<u8>()),
+    }
 }
 
 /// Drop one contiguous arena-stored value range.
@@ -436,7 +470,7 @@ impl BindingCallArena {
     /// Create an empty call arena.
     pub const fn new() -> Self {
         Self {
-            pages: RefCell::new(CallPageArena::new(DEFAULT_PAGE_BYTES)),
+            pages: RefCell::new(CallPageArena::new(CALL_ARENA_PAGE_BYTES)),
             drops: RefCell::new(Vec::new()),
         }
     }
@@ -705,36 +739,36 @@ pub const fn binding_affinity_name(affinity: BindingAffinity) -> &'static str {
     }
 }
 
-/// Enter one current-agent execution context for VM callback dispatch.
-pub(crate) fn enter_current_agent_context(
-    agent: *const Agent,
+/// Enter one current-worker execution context for VM callback dispatch.
+pub(crate) fn enter_current_worker_context(
+    worker: *const Worker,
     event_loop: *const EventLoop,
     host: *const Session,
     world: *const WorldRef,
     is_process_main: bool,
-) -> CurrentAgentContextGuard {
+) -> CurrentWorkerContextGuard {
     let event_loop = unsafe { &*event_loop };
     let execution_context_id = event_loop.execution_context_id();
-    let next = CurrentAgentContext {
-        agent,
+    let next = CurrentWorkerContext {
+        worker,
         event_loop: event_loop as *const EventLoop,
         host,
         world,
         execution_context_id,
         is_process_main,
     };
-    let previous = CURRENT_AGENT_CONTEXT.with(|slot| {
+    let previous = CURRENT_WORKER_CONTEXT.with(|slot| {
         let previous = slot.get();
         slot.set(next);
         previous
     });
 
-    CurrentAgentContextGuard { previous }
+    CurrentWorkerContextGuard { previous }
 }
 
-/// Return the current-agent execution context when available.
-pub(crate) fn current_agent_context() -> Option<CurrentAgentContext> {
-    CURRENT_AGENT_CONTEXT.with(|slot| {
+/// Return the current-worker execution context when available.
+pub(crate) fn current_worker_context() -> Option<CurrentWorkerContext> {
+    CURRENT_WORKER_CONTEXT.with(|slot| {
         let context = slot.get();
         if context.is_empty() {
             return None;

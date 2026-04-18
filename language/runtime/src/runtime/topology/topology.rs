@@ -3,9 +3,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 
 use crate::runtime::world::{
-    BUILTIN_AGENT_KIND_ID, BUILTIN_AGENT_OWNS_RESOURCE_EDGE_KIND_ID, BUILTIN_RUNTIME_KIND_ID,
-    BUILTIN_RUNTIME_OWNS_AGENT_EDGE_KIND_ID, LABEL_AGENT_NAME, LABEL_RESOURCE_LABEL,
-    LABEL_RUNTIME_NAME,
+    BUILTIN_RUNTIME_KIND_ID, BUILTIN_RUNTIME_OWNS_WORKER_EDGE_KIND_ID, BUILTIN_WORKER_KIND_ID,
+    BUILTIN_WORKER_OWNS_RESOURCE_EDGE_KIND_ID, LABEL_RESOURCE_LABEL, LABEL_RUNTIME_NAME,
+    LABEL_WORKER_NAME,
 };
 
 use super::builtin::{
@@ -17,7 +17,7 @@ use super::{
     WorldEdgeKind, WorldEdgeKindDefinition, WorldEntity, WorldEntityId, WorldEntityKind,
     WorldEntityKindDefinition,
 };
-use crate::runtime::AgentId;
+use crate::runtime::WorkerId;
 use crate::runtime::world::WorldResourceId;
 
 /// World topology graph and kind catalog.
@@ -100,26 +100,32 @@ impl Topology {
         Some((name.as_str(), &entity.labels))
     }
 
-    /// Return the rule subject metadata for one agent.
-    pub(crate) fn agent_subject(
+    /// Return the rule subject metadata for one worker.
+    pub(crate) fn worker_subject(
         &self,
-        agent_id: AgentId,
+        worker_id: WorkerId,
     ) -> Option<(&str, &BTreeMap<String, String>)> {
-        let entity = self.entities.get(&agent_id.entity_id())?;
-        let name = entity.labels.get(LABEL_AGENT_NAME)?;
+        let entity = self.entities.get(&worker_id.entity_id())?;
+        let name = entity.labels.get(LABEL_WORKER_NAME)?;
 
         Some((name.as_str(), &entity.labels))
     }
 
-    /// Add one runtime and its primary agent metadata.
+    /// Return whether one runtime owns one worker.
+    pub(crate) fn runtime_owns_worker(&self, runtime_id: RuntimeId, worker_id: WorkerId) -> bool {
+        self.edges
+            .contains_key(&runtime_id.owns_worker_edge_id(worker_id))
+    }
+
+    /// Add one runtime and its primary worker metadata.
     pub(crate) fn add_runtime(
         &mut self,
         runtime_id: RuntimeId,
         runtime_name: String,
         runtime_labels: BTreeMap<String, String>,
-        primary_agent_id: AgentId,
-        primary_agent_name: String,
-        primary_agent_labels: BTreeMap<String, String>,
+        primary_worker_id: WorkerId,
+        primary_worker_name: String,
+        primary_worker_labels: BTreeMap<String, String>,
     ) -> TopologyResult<()> {
         // reject duplicate metadata upfront
         if self.entities.contains_key(&runtime_id.entity_id()) {
@@ -127,9 +133,9 @@ impl Topology {
                 entity_id: runtime_id.entity_id(),
             });
         }
-        if self.entities.contains_key(&primary_agent_id.entity_id()) {
+        if self.entities.contains_key(&primary_worker_id.entity_id()) {
             return Err(TopologyError::DuplicateEntity {
-                entity_id: primary_agent_id.entity_id(),
+                entity_id: primary_worker_id.entity_id(),
             });
         }
 
@@ -140,32 +146,34 @@ impl Topology {
             );
         self.upsert_entity(runtime_entity)?;
 
-        // primary agent entity
-        let agent_entity =
-            WorldEntity::new(primary_agent_id.entity_id(), BUILTIN_AGENT_KIND_ID).labels(
-                entity_labels_with_name(primary_agent_labels, LABEL_AGENT_NAME, primary_agent_name),
-            );
-        self.upsert_entity(agent_entity)?;
+        // primary worker entity
+        let worker_entity = WorldEntity::new(primary_worker_id.entity_id(), BUILTIN_WORKER_KIND_ID)
+            .labels(entity_labels_with_name(
+                primary_worker_labels,
+                LABEL_WORKER_NAME,
+                primary_worker_name,
+            ));
+        self.upsert_entity(worker_entity)?;
 
         // ownership edge
         let edge = WorldEdge::new(
-            runtime_id.owns_agent_edge_id(primary_agent_id),
-            BUILTIN_RUNTIME_OWNS_AGENT_EDGE_KIND_ID,
+            runtime_id.owns_worker_edge_id(primary_worker_id),
+            BUILTIN_RUNTIME_OWNS_WORKER_EDGE_KIND_ID,
             runtime_id.entity_id(),
-            primary_agent_id.entity_id(),
+            primary_worker_id.entity_id(),
         );
         self.upsert_edge(edge)?;
 
         Ok(())
     }
 
-    /// Add one additional agent metadata record.
-    pub(crate) fn add_agent(
+    /// Add one additional worker metadata record.
+    pub(crate) fn add_worker(
         &mut self,
         runtime_id: RuntimeId,
-        agent_id: AgentId,
-        agent_name: String,
-        agent_labels: BTreeMap<String, String>,
+        worker_id: WorkerId,
+        worker_name: String,
+        worker_labels: BTreeMap<String, String>,
     ) -> TopologyResult<()> {
         // reject missing owning runtime
         if !self.entities.contains_key(&runtime_id.entity_id()) {
@@ -175,45 +183,45 @@ impl Topology {
             });
         }
 
-        // reject duplicate agent metadata
-        if self.entities.contains_key(&agent_id.entity_id()) {
+        // reject duplicate worker metadata
+        if self.entities.contains_key(&worker_id.entity_id()) {
             return Err(TopologyError::DuplicateEntity {
-                entity_id: agent_id.entity_id(),
+                entity_id: worker_id.entity_id(),
             });
         }
 
-        // agent entity
-        let agent_entity = WorldEntity::new(agent_id.entity_id(), BUILTIN_AGENT_KIND_ID).labels(
-            entity_labels_with_name(agent_labels, LABEL_AGENT_NAME, agent_name),
+        // worker entity
+        let worker_entity = WorldEntity::new(worker_id.entity_id(), BUILTIN_WORKER_KIND_ID).labels(
+            entity_labels_with_name(worker_labels, LABEL_WORKER_NAME, worker_name),
         );
-        self.upsert_entity(agent_entity)?;
+        self.upsert_entity(worker_entity)?;
 
         // ownership edge
         let edge = WorldEdge::new(
-            runtime_id.owns_agent_edge_id(agent_id),
-            BUILTIN_RUNTIME_OWNS_AGENT_EDGE_KIND_ID,
+            runtime_id.owns_worker_edge_id(worker_id),
+            BUILTIN_RUNTIME_OWNS_WORKER_EDGE_KIND_ID,
             runtime_id.entity_id(),
-            agent_id.entity_id(),
+            worker_id.entity_id(),
         );
         self.upsert_edge(edge)?;
 
         Ok(())
     }
 
-    /// Remove one agent metadata record and any now-orphaned runtime/resource metadata.
-    pub(crate) fn remove_agent(&mut self, agent_id: AgentId) -> bool {
-        let agent_entity_id = agent_id.entity_id();
-        let Some(runtime_entity_id) = self.agent_runtime_entity_id(agent_id) else {
+    /// Remove one worker metadata record and any now-orphaned runtime/resource metadata.
+    pub(crate) fn remove_worker(&mut self, worker_id: WorkerId) -> bool {
+        let worker_entity_id = worker_id.entity_id();
+        let Some(runtime_entity_id) = self.worker_runtime_entity_id(worker_id) else {
             return false;
         };
 
-        // resource metadata owned by the agent
+        // resource metadata owned by the worker
         let owned_resource_ids = self
             .edges
             .values()
             .filter(|edge| {
-                edge.kind.as_str() == BUILTIN_AGENT_OWNS_RESOURCE_EDGE_KIND_ID
-                    && edge.from == agent_entity_id
+                edge.kind.as_str() == BUILTIN_WORKER_OWNS_RESOURCE_EDGE_KIND_ID
+                    && edge.from == worker_entity_id
             })
             .map(|edge| edge.to.clone())
             .collect::<Vec<_>>();
@@ -221,31 +229,31 @@ impl Topology {
             self.remove_entity(resource_entity_id.as_str());
         }
 
-        // agent metadata
-        let is_agent_removed = self.remove_entity(agent_entity_id.as_str());
+        // worker metadata
+        let is_worker_removed = self.remove_entity(worker_entity_id.as_str());
 
-        // remove the runtime metadata when the last agent disappears
-        if !self.runtime_has_agents(runtime_entity_id.as_str()) {
+        // remove the runtime metadata when the last worker disappears
+        if !self.runtime_has_workers(runtime_entity_id.as_str()) {
             self.remove_entity(runtime_entity_id.as_str());
         }
 
-        is_agent_removed
+        is_worker_removed
     }
 
-    /// Attach one resource metadata record to one agent.
+    /// Attach one resource metadata record to one worker.
     pub(crate) fn attach_resource(
         &mut self,
         resource_id: WorldResourceId,
         resource_kind: WorldEntityKind,
         resource_label: Option<&str>,
     ) -> TopologyResult<()> {
-        // reject missing owning agent
+        // reject missing owning worker
         if !self
             .entities
-            .contains_key(&resource_id.agent_id.entity_id())
+            .contains_key(&resource_id.worker_id.entity_id())
         {
             return Err(TopologyError::UnknownEntity {
-                entity_id: resource_id.agent_id.entity_id(),
+                entity_id: resource_id.worker_id.entity_id(),
                 role: TopologyEntityRole::Source,
             });
         }
@@ -262,8 +270,8 @@ impl Topology {
         // ownership edge
         let edge = WorldEdge::new(
             resource_id.ownership_edge_id(),
-            BUILTIN_AGENT_OWNS_RESOURCE_EDGE_KIND_ID,
-            resource_id.agent_id.entity_id(),
+            BUILTIN_WORKER_OWNS_RESOURCE_EDGE_KIND_ID,
+            resource_id.worker_id.entity_id(),
             resource_id.entity_id(),
         );
         self.upsert_edge(edge)?;
@@ -271,7 +279,7 @@ impl Topology {
         Ok(())
     }
 
-    /// Detach one resource metadata record from one agent.
+    /// Detach one resource metadata record from one worker.
     pub(crate) fn detach_resource(&mut self, resource_id: WorldResourceId) -> bool {
         self.remove_entity(resource_id.entity_id().as_str())
     }
@@ -403,21 +411,21 @@ impl Topology {
         before_edge_count.saturating_sub(self.edges.len())
     }
 
-    /// Return the owning runtime id for one agent entity.
-    fn agent_runtime_entity_id(&self, agent_id: AgentId) -> Option<WorldEntityId> {
-        let agent_entity_id = agent_id.entity_id();
+    /// Return the owning runtime id for one worker entity.
+    fn worker_runtime_entity_id(&self, worker_id: WorkerId) -> Option<WorldEntityId> {
+        let worker_entity_id = worker_id.entity_id();
         let edge = self.edges.values().find(|edge| {
-            edge.kind.as_str() == BUILTIN_RUNTIME_OWNS_AGENT_EDGE_KIND_ID
-                && edge.to == agent_entity_id
+            edge.kind.as_str() == BUILTIN_RUNTIME_OWNS_WORKER_EDGE_KIND_ID
+                && edge.to == worker_entity_id
         })?;
 
         Some(edge.from.clone())
     }
 
-    /// Return whether one runtime still owns any agent metadata.
-    fn runtime_has_agents(&self, runtime_entity_id: &str) -> bool {
+    /// Return whether one runtime still owns any worker metadata.
+    fn runtime_has_workers(&self, runtime_entity_id: &str) -> bool {
         self.edges.values().any(|edge| {
-            edge.kind.as_str() == BUILTIN_RUNTIME_OWNS_AGENT_EDGE_KIND_ID
+            edge.kind.as_str() == BUILTIN_RUNTIME_OWNS_WORKER_EDGE_KIND_ID
                 && edge.from.as_str() == runtime_entity_id
         })
     }

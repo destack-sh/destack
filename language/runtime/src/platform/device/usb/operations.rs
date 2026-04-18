@@ -14,7 +14,7 @@ pub(crate) unsafe fn destack_device_usb_list(
 
     // enumerate current devices through the shared libusb service
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .usb_service("destack.device.usb.list")?;
@@ -41,7 +41,7 @@ pub(crate) unsafe fn destack_device_usb_watch_open(
 
     // start the shared runtime before registering one live watch
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .usb_service("destack.device.usb.watchOpen")?;
@@ -60,7 +60,7 @@ pub(crate) unsafe fn destack_device_usb_watch_open(
         ResourceEntry::new(ResourceKind::UsbWatch)
             .with_label(USB_WATCH_RESOURCE_LABEL)
             .with_payload(resource.clone())
-            .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+            .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
                 UsbWatchFinalizer {
                     service: service.state.clone(),
                     queue: resource.clone(),
@@ -68,7 +68,7 @@ pub(crate) unsafe fn destack_device_usb_watch_open(
             ));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -113,7 +113,7 @@ pub(crate) unsafe fn destack_device_usb_watch_close(
     handle: resource::UsbWatchHandle,
 ) -> RuntimeResult<()> {
     let kind = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| entry.kind)
         .ok_or_else(|| {
@@ -126,7 +126,7 @@ pub(crate) unsafe fn destack_device_usb_watch_close(
         ));
     }
 
-    if !binding.agent().resources.remove_and_finalize(
+    if !binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -213,7 +213,7 @@ pub(crate) unsafe fn destack_device_usb_open(
 
     // start the shared runtime before opening one device that may use async transfers
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .usb_service("destack.device.usb.open")?;
@@ -230,7 +230,7 @@ pub(crate) unsafe fn destack_device_usb_open(
         ResourceEntry::new(ResourceKind::UsbDevice)
             .with_label(USB_DEVICE_RESOURCE_LABEL)
             .with_payload(resource.clone())
-            .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+            .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
                 UsbDeviceFinalizer {
                     service: service.state.clone(),
                     handle,
@@ -239,7 +239,7 @@ pub(crate) unsafe fn destack_device_usb_open(
             ));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -256,7 +256,7 @@ pub(crate) unsafe fn destack_device_usb_close(
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
     let kind = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| entry.kind)
         .ok_or_else(|| {
@@ -269,7 +269,7 @@ pub(crate) unsafe fn destack_device_usb_close(
         ));
     }
 
-    if !binding.agent().resources.remove_and_finalize(
+    if !binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),

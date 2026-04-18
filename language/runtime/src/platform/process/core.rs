@@ -166,7 +166,7 @@ pub(crate) fn resolve_signal_subscription(
     binding: &BindingCallContext,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<Vec<Signal>> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         entry
             .payload
             .as_ref()

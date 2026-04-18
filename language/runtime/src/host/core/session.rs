@@ -73,6 +73,23 @@ impl std::fmt::Debug for Session {
 }
 
 impl Session {
+    /// Capture host restore configuration from runtime options.
+    pub(crate) fn restore_config_from_runtime_options(
+        options: &RuntimeOptions,
+    ) -> (
+        PlatformHostOptions,
+        PlatformOsOptions,
+        RuntimeAppDeclaration,
+    ) {
+        // resolve compile-target host integration once
+        let (platform, _adapter, _cleanup) = default_compile_target_parts();
+        let host_options = host_options_for_target(platform, options);
+        let os_options = options.os.clone();
+        let app_declaration = options.app.clone();
+
+        (host_options, os_options, app_declaration)
+    }
+
     /// Create one session from one explicit host adapter and host options.
     pub(crate) fn new_with_options(
         adapter: Arc<dyn HostAdapter>,
@@ -141,10 +158,30 @@ impl Session {
     /// Create one session from runtime options and one explicit runtime id.
     pub fn from_runtime_options(options: &RuntimeOptions, runtime_id: RuntimeId) -> Self {
         // resolve compile-target host integration once
-        let (platform, adapter, cleanup) = default_compile_target_parts();
-        let host_options = host_options_for_target(platform, options);
-        let os_options = options.os.clone();
-        let app_declaration = options.app.clone();
+        let (_platform, adapter, cleanup) = default_compile_target_parts();
+        let (host_options, os_options, app_declaration) =
+            Self::restore_config_from_runtime_options(options);
+
+        Self::new_with_options(
+            adapter,
+            cleanup,
+            runtime_id,
+            host_options,
+            os_options,
+            app_declaration,
+            true,
+        )
+    }
+
+    /// Create one session from one captured host-restore configuration.
+    pub(crate) fn from_restore_config(
+        runtime_id: RuntimeId,
+        host_options: PlatformHostOptions,
+        os_options: PlatformOsOptions,
+        app_declaration: RuntimeAppDeclaration,
+    ) -> Self {
+        // resolve compile-target host integration once
+        let (_platform, adapter, cleanup) = default_compile_target_parts();
 
         Self::new_with_options(
             adapter,
@@ -164,10 +201,9 @@ impl Session {
         is_native_ingress_enabled: bool,
     ) -> Self {
         // resolve compile-target host integration once
-        let (platform, adapter, cleanup) = default_compile_target_parts();
-        let host_options = host_options_for_target(platform, options);
-        let os_options = options.os.clone();
-        let app_declaration = options.app.clone();
+        let (_platform, adapter, cleanup) = default_compile_target_parts();
+        let (host_options, os_options, app_declaration) =
+            Self::restore_config_from_runtime_options(options);
 
         Self::new_with_options_inner(
             adapter,

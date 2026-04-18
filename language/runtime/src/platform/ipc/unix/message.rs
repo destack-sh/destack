@@ -46,7 +46,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_close(
     #[cfg(target_os = "linux")]
     {
         // remove one queue resource and close it through the registered finalizer
-        let removed = binding.agent().resources.remove_and_finalize(
+        let removed = binding.worker().resources.remove_and_finalize(
             &binding.world(),
             handle.0,
             Some(binding.engine()),

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::runtime::bindings::BindingReplayPayload;
 use crate::runtime::trace::TraceSequence;
-use crate::runtime::world::{BranchId, CheckpointId, RevisionId};
+use crate::runtime::world::{BranchId, CheckpointId, Revision};
 use destack_workspace::{ExecutionMode, RandomMode, TimeMode};
 
 /// Trace header describing the execution environment.
@@ -116,7 +116,7 @@ pub struct TraceCheckpointIndex {
     /// Checkpoint identifier.
     pub checkpoint_id: CheckpointId,
     /// Revision identifier anchored by this checkpoint.
-    pub revision_id: RevisionId,
+    pub revision: Revision,
     /// Sequence number associated with the checkpoint.
     pub sequence: TraceSequence,
     /// Path to the checkpoint file.

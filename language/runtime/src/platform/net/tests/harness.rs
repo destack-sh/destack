@@ -45,18 +45,18 @@ impl<'call> NetHarnessContext<'call> {
 
     /// Read the port assigned to a listener handle.
     pub(crate) fn listener_port(&self, handle: ListenerHandle) -> u16 {
-        super::listener_port(self.call_context.agent(), handle)
+        super::listener_port(self.call_context.worker(), handle)
     }
 
     /// Return whether one socket handle is in nonblocking mode on unix.
     #[cfg(unix)]
     pub(crate) fn socket_is_nonblocking(&self, handle: SocketHandle) -> bool {
-        super::socket_is_nonblocking(self.call_context.agent(), handle)
+        super::socket_is_nonblocking(self.call_context.worker(), handle)
     }
 
     /// Return whether one socket handle is close-on-exec or non-inheritable.
     pub(crate) fn socket_is_close_on_exec(&self, handle: SocketHandle) -> bool {
-        super::socket_is_close_on_exec(self.call_context.agent(), handle)
+        super::socket_is_close_on_exec(self.call_context.worker(), handle)
     }
 
     /// Connect to a host and port through the VM text helper.

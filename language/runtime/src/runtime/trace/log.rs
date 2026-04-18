@@ -485,7 +485,7 @@ pub(super) fn compute_log_hash(
 
     for checkpoint in checkpoints {
         hash = fnv1a_128_update(hash, &checkpoint.checkpoint_id.get().to_le_bytes());
-        hash = fnv1a_128_update(hash, &checkpoint.revision_id.get().to_le_bytes());
+        hash = fnv1a_128_update(hash, &checkpoint.revision.get().to_le_bytes());
         hash = fnv1a_128_update(hash, &checkpoint.sequence.get().to_le_bytes());
         hash = fnv1a_128_update(hash, &checkpoint.size_bytes.to_le_bytes());
         hash = fnv1a_128_update(hash, &checkpoint.hash.to_le_bytes());
@@ -502,7 +502,7 @@ mod tests {
     use super::*;
     use crate::runtime::time::WorldInstant;
     use crate::runtime::trace::{EnvironmentConfig, Outcome, TraceRecord};
-    use crate::runtime::world::{CheckpointId, RevisionId};
+    use crate::runtime::world::{CheckpointId, Revision};
 
     /// Build one explicit trace header for log tests.
     fn test_trace_header() -> TraceHeader {
@@ -566,7 +566,7 @@ mod tests {
 
         log.record_checkpoint_exact(TraceCheckpointIndex {
             checkpoint_id: CheckpointId::new(2),
-            revision_id: RevisionId::new(2),
+            revision: Revision::new(2),
             sequence: TraceSequence::new(5),
             path: "memory://checkpoint/2".to_string(),
             hash: 22,
@@ -575,7 +575,7 @@ mod tests {
         .expect("record later checkpoint");
         log.record_checkpoint_exact(TraceCheckpointIndex {
             checkpoint_id: CheckpointId::new(1),
-            revision_id: RevisionId::new(1),
+            revision: Revision::new(1),
             sequence: TraceSequence::new(3),
             path: "memory://checkpoint/1".to_string(),
             hash: 11,

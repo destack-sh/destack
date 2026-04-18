@@ -17,7 +17,7 @@ use crate::runtime::{
     BindingCallContext, RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry,
 };
 
-/// Callback-safe reference to the owning agent resource table.
+/// Callback-safe reference to the owning worker resource table.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct WaylandResourceTableRef(*const ResourceTable);
 
@@ -46,7 +46,7 @@ pub(crate) struct WaylandWindowDispatchToken {
 
 /// Runtime-owned Wayland display backend state.
 pub(crate) struct WaylandRuntimeState {
-    /// Agent resource table used for callback-owned text-session updates.
+    /// Worker resource table used for callback-owned text-session updates.
     pub(crate) resources: WaylandResourceTableRef,
     /// Lazy wayland host connection state.
     pub(crate) connection_state: Mutex<Option<Arc<WaylandConnectionState>>>,
@@ -94,7 +94,7 @@ impl WaylandRuntimeState {
     /// Create one runtime-owned Wayland state value.
     pub(crate) fn from_context(_context: &BindingCallContext) -> Self {
         Self {
-            resources: WaylandResourceTableRef(&_context.agent().resources),
+            resources: WaylandResourceTableRef(&_context.worker().resources),
             connection_state: Mutex::new(None),
             monitor_events: Mutex::new(RuntimeEventLog::default()),
             monitor_event_signal: Condvar::new(),
@@ -113,7 +113,7 @@ impl WaylandRuntimeState {
         }
     }
 
-    /// Borrow the agent resource table captured by this runtime.
+    /// Borrow the worker resource table captured by this runtime.
     pub(crate) fn resource_table(&self) -> &ResourceTable {
         unsafe { &*self.resources.0 }
     }
@@ -291,7 +291,7 @@ impl WaylandRuntimeState {
     fn ensure_service_registration(self: &Arc<Self>, context: &BindingCallContext) {
         // register once so repeated binding calls do not keep re-entering the ingress setup path
         self.service_registration.get_or_init(|| {
-            let service = context.agent().platform_state.display.wayland_service();
+            let service = context.worker().platform_state.display.wayland_service();
             service.register_runtime(context, self);
         });
     }
@@ -323,7 +323,7 @@ pub(crate) fn selected_backend() -> DisplayBackend {
 /// Return runtime-owned Wayland state for this binding call.
 pub(crate) fn runtime_state(context: &BindingCallContext) -> Arc<WaylandRuntimeState> {
     let runtime_state = context
-        .agent()
+        .worker()
         .platform_state
         .display
         .wayland_runtime_state(|| WaylandRuntimeState::from_context(context));

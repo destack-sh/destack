@@ -30,7 +30,7 @@ pub(crate) unsafe fn destack_fs_close(
 ) -> RuntimeResult<()> {
     // validate the handle kind
     let is_file = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| entry.kind == ResourceKind::File)
         .unwrap_or(false);
@@ -43,7 +43,7 @@ pub(crate) unsafe fn destack_fs_close(
     }
 
     // remove the resource and close the descriptor
-    if !binding.agent().resources.remove_and_finalize(
+    if !binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -81,7 +81,7 @@ pub(crate) unsafe fn destack_fs_closedir(
 ) -> RuntimeResult<()> {
     // validate the handle kind
     let is_directory = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| entry.kind == ResourceKind::Directory)
         .unwrap_or(false);
@@ -94,7 +94,7 @@ pub(crate) unsafe fn destack_fs_closedir(
     }
 
     // remove the resource entry
-    if !binding.agent().resources.remove_and_finalize(
+    if !binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),
@@ -441,7 +441,7 @@ pub(crate) unsafe fn destack_fs_dup(
         });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
@@ -489,7 +489,7 @@ pub(crate) unsafe fn destack_fs_dup2(
     // replace the target resource entry
     if let Some(entry) =
         binding
-            .agent()
+            .worker()
             .resources
             .remove(&binding.world(), target.0, Some(binding.engine()))
     {
@@ -501,7 +501,7 @@ pub(crate) unsafe fn destack_fs_dup2(
             fd: dup_fd,
             directory_stream: None,
         });
-    binding.agent().resources.insert_with_id(
+    binding.worker().resources.insert_with_id(
         &binding.world(),
         target.0,
         entry,
@@ -564,7 +564,7 @@ pub(crate) unsafe fn destack_fs_dup3(
     // replace the target resource entry
     if let Some(entry) =
         binding
-            .agent()
+            .worker()
             .resources
             .remove(&binding.world(), target.0, Some(binding.engine()))
     {
@@ -576,7 +576,7 @@ pub(crate) unsafe fn destack_fs_dup3(
             fd: dup_fd,
             directory_stream: None,
         });
-    binding.agent().resources.insert_with_id(
+    binding.worker().resources.insert_with_id(
         &binding.world(),
         target.0,
         entry,
@@ -663,7 +663,7 @@ pub(crate) unsafe fn destack_fs_dirfd(
         });
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), resource, Some(binding.engine()));
     unsafe {

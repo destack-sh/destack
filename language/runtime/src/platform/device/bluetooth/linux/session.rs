@@ -13,7 +13,7 @@ pub(crate) unsafe fn destack_device_bluetooth_open(
 
     // resolve the selected adapter and device
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .linux_bluetooth_service("destack.device.bluetooth.session.open")?;
@@ -78,7 +78,7 @@ pub(crate) unsafe fn destack_device_bluetooth_open(
     let entry = ResourceEntry::new(ResourceKind::BluetoothDevice)
         .with_label(BLUETOOTH_DEVICE_RESOURCE_LABEL)
         .with_payload(resource.clone())
-        .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
             LinuxBluetoothDeviceFinalizer {
                 service,
                 registration_id,
@@ -87,7 +87,7 @@ pub(crate) unsafe fn destack_device_bluetooth_open(
             },
         ));
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -162,7 +162,7 @@ pub(crate) unsafe fn destack_device_bluetooth_unpair(
     deviceid: NativeStringRef,
 ) -> RuntimeResult<()> {
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .linux_bluetooth_service("destack.device.bluetooth.session.unpair")?;

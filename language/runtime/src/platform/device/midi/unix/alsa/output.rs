@@ -35,7 +35,7 @@ pub(crate) fn midi_output_port_list(
     options: MidiPortListOptions,
 ) -> RuntimeResult<Vec<MidiPortDescriptorValue>> {
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .alsa_service("destack.device.midi.output.port.list")?;
@@ -54,7 +54,7 @@ pub(crate) fn midi_output_port_open(
     options: MidiOutputPortOpenOptions,
 ) -> RuntimeResult<resource::MidiOutputPortHandle> {
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .alsa_service("destack.device.midi.output.port.open")?;
@@ -294,7 +294,7 @@ pub(crate) fn midi_output_virtual_create(
     let _version = native_optional_string(options.version)?;
 
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .alsa_service("destack.device.midi.output.virtual.create")?;

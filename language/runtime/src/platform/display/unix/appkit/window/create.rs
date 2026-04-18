@@ -119,7 +119,7 @@ pub(crate) unsafe fn window_open(
     let entry = appkit::resource::window_resource_entry(context, Arc::clone(&host_state));
     let resource_id =
         context
-            .agent()
+            .worker()
             .resources
             .insert(&context.world(), entry, Some(context.engine()));
     let window_handle = resource::WindowHandle(resource_id);
@@ -289,7 +289,7 @@ pub(crate) unsafe fn window_open(
             }
         });
 
-        drop(context.agent().resources.remove(
+        drop(context.worker().resources.remove(
             context.world(),
             window_handle.0,
             Some(context.engine()),

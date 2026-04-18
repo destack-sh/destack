@@ -3,7 +3,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::AgentId;
+use crate::runtime::WorkerId;
 
 /// Stable identifier for one runtime instance in one world.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -15,9 +15,9 @@ impl RuntimeId {
         WorldEntityId::new(format!("runtime.{}", self.0))
     }
 
-    /// Return the canonical ownership edge id for one agent owned by this runtime.
-    pub fn owns_agent_edge_id(self, agent_id: AgentId) -> WorldEdgeId {
-        WorldEdgeId::new(format!("runtime.{}.owns.agent.{}", self.0, agent_id.0))
+    /// Return the canonical ownership edge id for one worker owned by this runtime.
+    pub fn owns_worker_edge_id(self, worker_id: WorkerId) -> WorldEdgeId {
+        WorldEdgeId::new(format!("runtime.{}.owns.worker.{}", self.0, worker_id.0))
     }
 }
 
@@ -27,10 +27,10 @@ impl fmt::Display for RuntimeId {
     }
 }
 
-impl AgentId {
-    /// Return the canonical topology entity id for this agent.
+impl WorkerId {
+    /// Return the canonical topology entity id for this worker.
     pub fn entity_id(self) -> WorldEntityId {
-        WorldEntityId::new(format!("agent.{}", self.0))
+        WorldEntityId::new(format!("worker.{}", self.0))
     }
 }
 

@@ -48,7 +48,7 @@ pub(crate) struct MacosRouteRuntimeState {
 #[cfg(target_os = "macos")]
 fn macos_route_runtime_state(binding: &BindingCallContext) -> Arc<MacosRouteRuntimeState> {
     binding
-        .agent()
+        .worker()
         .platform_state
         .net
         .macos_route_runtime_state(|| MacosRouteRuntimeState {

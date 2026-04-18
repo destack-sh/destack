@@ -28,7 +28,7 @@ fn resolve_directory_fd(
     binding: &BindingCallContext,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<i32> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != resource::ResourceKind::Directory {
             return None;
         }
@@ -49,7 +49,7 @@ fn resolve_file_fd(
     binding: &BindingCallContext,
     handle: resource::FileHandle,
 ) -> RuntimeResult<i32> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != resource::ResourceKind::File {
             return None;
         }

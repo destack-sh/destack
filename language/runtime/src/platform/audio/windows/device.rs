@@ -109,7 +109,7 @@ pub(crate) unsafe fn destack_audio_device_close(
 ) -> RuntimeResult<()> {
     let removed =
         binding
-            .agent()
+            .worker()
             .resources
             .remove(&binding.world(), handle.0, Some(binding.engine()));
     if removed.is_none() {
@@ -374,7 +374,7 @@ pub(crate) unsafe fn destack_audio_device_open(
         opened_direction: options.direction,
         options,
     });
-    let handle_id = binding.agent().resources.insert(
+    let handle_id = binding.worker().resources.insert(
         &binding.world(),
         ResourceEntry::new(ResourceKind::AudioDevice)
             .with_label(AUDIO_DEVICE_RESOURCE_LABEL)

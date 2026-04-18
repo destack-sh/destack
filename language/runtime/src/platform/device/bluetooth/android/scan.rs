@@ -87,14 +87,14 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_open(
     let entry = ResourceEntry::new(ResourceKind::BluetoothScan)
         .with_label(BLUETOOTH_SCAN_RESOURCE_LABEL)
         .with_payload(resource)
-        .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
             AndroidBluetoothScanFinalizer {
                 runtime_id,
                 session_id,
             },
         ));
     let handle = binding
-        .agent()
+        .worker()
         .resources
         .insert(&binding.world(), entry, Some(binding.engine()));
 

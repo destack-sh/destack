@@ -9,7 +9,7 @@ use crate::runtime::process::service::executor::periodic::{
     PeriodicTaskHandle, open_periodic_task,
 };
 use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
-use crate::runtime::{AgentId, ProcessSubscriberRegistry};
+use crate::runtime::{WorkerId, ProcessSubscriberRegistry};
 
 use super::constants::host_monotonic_nanos;
 use super::event::publish::publish_device_events_from_snapshot;
@@ -50,8 +50,8 @@ struct AudioMonitorDemand {
 
 /// One process-global backend monitor state for one backend.
 struct AudioBackendMonitorState {
-    /// Registered agent runtimes keyed by owning agent id.
-    subscribers: ProcessSubscriberRegistry<AgentId, AudioRuntimeState>,
+    /// Registered worker runtimes keyed by owning worker id.
+    subscribers: ProcessSubscriberRegistry<WorkerId, AudioRuntimeState>,
     /// Shared native backend monitor handle when the backend supports one.
     native_handle: Option<Box<dyn AudioMonitorHandle>>,
     /// Shared synthetic polling worker when one is required.
@@ -210,7 +210,7 @@ impl AudioMonitorService {
             let mut empty_backends = Vec::new();
 
             for (backend, monitor) in &mut *backends {
-                monitor.subscribers.unregister(runtime_state.agent_id);
+                monitor.subscribers.unregister(runtime_state.worker_id);
                 let runtimes = monitor.live_runtime_states();
                 let demand = aggregate_backend_monitor_demand(&runtimes, *backend);
 
@@ -296,9 +296,9 @@ impl AudioMonitorService {
         if wants_backend {
             monitor
                 .subscribers
-                .register(runtime_state.agent_id, runtime_state);
+                .register(runtime_state.worker_id, runtime_state);
         } else {
-            monitor.subscribers.unregister(runtime_state.agent_id);
+            monitor.subscribers.unregister(runtime_state.worker_id);
         }
 
         let runtimes = monitor.live_runtime_states();

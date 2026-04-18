@@ -113,7 +113,7 @@ pub(crate) fn midi_output_port_list(
         "destack.device.midi.output.port.list",
     )?;
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .core_midi_service("destack.device.midi.output.port.list")?;
@@ -137,7 +137,7 @@ pub(crate) fn midi_output_port_open(
         "destack.device.midi.output.port.open",
     )?;
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .core_midi_service("destack.device.midi.output.port.open")?;
@@ -347,7 +347,7 @@ pub(crate) fn midi_output_virtual_create(
         "destack.device.midi.output.virtual.create",
     )?;
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .core_midi_service("destack.device.midi.output.virtual.create")?;

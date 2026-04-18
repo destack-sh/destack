@@ -93,7 +93,7 @@ pub(crate) unsafe fn window_close(
     }
 
     // remove the finalized resource entry
-    let removed = context.agent().resources.remove_and_finalize(
+    let removed = context.worker().resources.remove_and_finalize(
         context.world(),
         window.0,
         Some(context.engine()),

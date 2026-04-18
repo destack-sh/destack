@@ -94,7 +94,7 @@ pub(crate) fn close_drag_session(
     // remove the resource and validate the handle kind
     let removed =
         binding
-            .agent()
+            .worker()
             .resources
             .remove(&binding.world(), session.0, Some(binding.engine()));
 
@@ -118,7 +118,7 @@ pub(crate) fn set_drag_session_operation(
 ) -> RuntimeResult<()> {
     // update the current proposed operation in place
     let updated = binding
-        .agent()
+        .worker()
         .resources
         .with_entry_mut(session.0, |entry| {
             if entry.kind != ResourceKind::DisplayDragSession {

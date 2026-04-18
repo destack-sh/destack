@@ -132,32 +132,32 @@ pub enum RuntimeError {
         /// Missing runtime identifier.
         runtime_id: u64,
     } = 127,
-    /// Runtime agent identifier was not found.
-    AgentNotFound {
-        /// Missing agent identifier.
-        agent_id: u64,
+    /// Runtime worker identifier was not found.
+    WorkerNotFound {
+        /// Missing worker identifier.
+        worker_id: u64,
     } = 128,
     /// World or runtime already contains the requested runtime identifier.
     RuntimeAlreadyExists {
         /// Conflicting runtime identifier.
         runtime_id: u64,
     } = 129,
-    /// Runtime already contains the requested agent identifier.
-    AgentAlreadyExists {
-        /// Conflicting agent identifier.
-        agent_id: u64,
+    /// Runtime already contains the requested worker identifier.
+    WorkerAlreadyExists {
+        /// Conflicting worker identifier.
+        worker_id: u64,
     } = 130,
-    /// Runtime image is missing its declared primary agent.
-    PrimaryAgentMissing {
-        /// Runtime identifier with the invalid primary-agent reference.
+    /// Runtime image is missing its declared primary worker.
+    PrimaryWorkerMissing {
+        /// Runtime identifier with the invalid primary-worker reference.
         runtime_id: u64,
-        /// Missing primary agent identifier.
-        agent_id: u64,
+        /// Missing primary worker identifier.
+        worker_id: u64,
     } = 131,
-    /// Runtime cannot remove its last remaining agent.
-    LastAgentRemoval = 132,
-    /// Runtime cannot remove the primary agent until a replacement is selected.
-    PrimaryAgentRemoval = 133,
+    /// Runtime cannot remove its last remaining worker.
+    LastWorkerRemoval = 132,
+    /// Runtime cannot remove the primary worker until a replacement is selected.
+    PrimaryWorkerRemoval = 133,
     /// Runtime capability profile configuration is invalid.
     CapabilityProfileInvalid {
         /// Invalid capability profile name.
@@ -170,10 +170,10 @@ pub enum RuntimeError {
         /// Missing runtime identifier.
         runtime_id: u64,
     } = 135,
-    /// World topology is missing one agent identity record.
-    TopologyAgentMissing {
-        /// Missing agent identifier.
-        agent_id: u64,
+    /// World topology is missing one worker identity record.
+    TopologyWorkerMissing {
+        /// Missing worker identifier.
+        worker_id: u64,
     } = 136,
     /// World-controlled virtual time cannot advance while host time is active.
     HostTimeAdvance = 137,
@@ -191,13 +191,20 @@ pub enum RuntimeError {
         /// Continuation kind that was requested.
         continuation: String,
     } = 139,
-    /// Runtime image contains duplicate agent records.
-    DuplicateAgentImage {
-        /// Runtime identifier owning the duplicate agent image.
+    /// Runtime image contains duplicate worker records.
+    DuplicateWorkerImage {
+        /// Runtime identifier owning the duplicate worker image.
         runtime_id: u64,
-        /// Duplicate agent identifier.
-        agent_id: u64,
+        /// Duplicate worker identifier.
+        worker_id: u64,
     } = 140,
+    /// Runtime configuration is invalid.
+    ConfigurationInvalid {
+        /// The configuration scope that failed validation.
+        scope: String,
+        /// Human-readable validation detail.
+        detail: String,
+    } = 147,
     /// One revision points at one missing world image.
     RevisionImageMissing {
         /// Revision identifier with the dangling image reference.
@@ -335,24 +342,24 @@ impl RuntimeError {
             RuntimeError::RuntimeNotFound { runtime_id } => {
                 format!("runtime not found: {runtime_id}")
             }
-            RuntimeError::AgentNotFound { agent_id } => {
-                format!("agent not found: {agent_id}")
+            RuntimeError::WorkerNotFound { worker_id } => {
+                format!("worker not found: {worker_id}")
             }
             RuntimeError::RuntimeAlreadyExists { runtime_id } => {
                 format!("runtime already exists: {runtime_id}")
             }
-            RuntimeError::AgentAlreadyExists { agent_id } => {
-                format!("agent already exists: {agent_id}")
+            RuntimeError::WorkerAlreadyExists { worker_id } => {
+                format!("worker already exists: {worker_id}")
             }
-            RuntimeError::PrimaryAgentMissing {
+            RuntimeError::PrimaryWorkerMissing {
                 runtime_id,
-                agent_id,
+                worker_id,
             } => {
-                format!("runtime {runtime_id} is missing primary agent {agent_id}")
+                format!("runtime {runtime_id} is missing primary worker {worker_id}")
             }
-            RuntimeError::LastAgentRemoval => "runtime must keep at least one agent".to_string(),
-            RuntimeError::PrimaryAgentRemoval => {
-                "cannot remove primary agent: set a new primary agent first".to_string()
+            RuntimeError::LastWorkerRemoval => "runtime must keep at least one worker".to_string(),
+            RuntimeError::PrimaryWorkerRemoval => {
+                "cannot remove primary worker: set a new primary worker first".to_string()
             }
             RuntimeError::CapabilityProfileInvalid { profile, detail } => {
                 format!("runtime capability profile `{profile}` is invalid: {detail}")
@@ -360,8 +367,8 @@ impl RuntimeError {
             RuntimeError::TopologyRuntimeMissing { runtime_id } => {
                 format!("runtime {runtime_id} is not registered in world topology")
             }
-            RuntimeError::TopologyAgentMissing { agent_id } => {
-                format!("agent {agent_id} is not registered in world topology")
+            RuntimeError::TopologyWorkerMissing { worker_id } => {
+                format!("worker {worker_id} is not registered in world topology")
             }
             RuntimeError::HostTimeAdvance => {
                 "cannot advance virtual time while world uses host time".to_string()
@@ -375,11 +382,14 @@ impl RuntimeError {
             } => {
                 format!("{engine} engine cannot handle {continuation} continuation")
             }
-            RuntimeError::DuplicateAgentImage {
+            RuntimeError::DuplicateWorkerImage {
                 runtime_id,
-                agent_id,
+                worker_id,
             } => {
-                format!("runtime {runtime_id} image contains duplicate agent {agent_id}")
+                format!("runtime {runtime_id} image contains duplicate worker {worker_id}")
+            }
+            RuntimeError::ConfigurationInvalid { scope, detail } => {
+                format!("invalid runtime configuration for {scope}: {detail}")
             }
             RuntimeError::RevisionImageMissing {
                 revision_id,
@@ -500,47 +510,43 @@ impl From<vm::RuntimeError> for Box<RuntimeError> {
     }
 }
 
-impl From<heap::HeapLimitError> for Box<RuntimeError> {
-    /// Convert one heap limit violation into one runtime error.
-    fn from(error: heap::HeapLimitError) -> Self {
-        RuntimeError::HeapLimitExceeded {
-            scope: error.scope.name().to_string(),
-            used_bytes: error.used_bytes,
-            max_bytes: error.max_bytes,
-        }
-        .boxed()
-    }
-}
+impl From<heap::HeapError> for Box<RuntimeError> {
+    /// Convert one heap failure into one runtime error.
+    fn from(error: heap::HeapError) -> Self {
+        match error {
+            heap::HeapError::UnsupportedManagedReferenceWidth { .. }
+            | heap::HeapError::InvalidPageBytes { .. }
+            | heap::HeapError::InvalidArenaSegmentBytes { .. }
+            | heap::HeapError::MisalignedArenaSegmentBytes { .. }
+            | heap::HeapError::ArenaPageBytesMismatch { .. }
+            | heap::HeapError::ArenaSegmentBytesMismatch { .. }
+            | heap::HeapError::ManagedYoungThresholdExceedsCapacity { .. }
+            | heap::HeapError::InvalidCardBytes { .. }
+            | heap::HeapError::InvalidSmallAllocationAlignmentBytes { .. }
+            | heap::HeapError::InvalidTableChunkLen { .. }
+            | heap::HeapError::InvalidSizeClass { .. }
+            | heap::HeapError::MisalignedSizeClass { .. } => RuntimeError::ConfigurationInvalid {
+                scope: "heap".into(),
+                detail: error.to_string(),
+            }
+            .boxed(),
 
-impl From<heap::HeapLayoutError> for Box<RuntimeError> {
-    /// Convert one heap layout failure into one runtime error.
-    fn from(error: heap::HeapLayoutError) -> Self {
-        RuntimeError::Internal {
-            message: error.to_string(),
-        }
-        .boxed()
-    }
-}
+            heap::HeapError::LimitExceeded {
+                domain,
+                used_bytes,
+                max_bytes,
+            } => RuntimeError::HeapLimitExceeded {
+                scope: domain.to_string().into(),
+                used_bytes,
+                max_bytes,
+            }
+            .boxed(),
 
-impl From<heap::ManagedCollectError> for Box<RuntimeError> {
-    /// Convert one managed collection failure into one runtime error.
-    fn from(error: heap::ManagedCollectError) -> Self {
-        RuntimeError::Internal {
-            message: error.to_string(),
+            error => RuntimeError::Internal {
+                message: error.to_string(),
+            }
+            .boxed(),
         }
-        .boxed()
-    }
-}
-
-impl From<heap::SharedLimitError> for Box<RuntimeError> {
-    /// Convert one shared-memory limit violation into one runtime error.
-    fn from(error: heap::SharedLimitError) -> Self {
-        RuntimeError::HeapLimitExceeded {
-            scope: "shared".to_string(),
-            used_bytes: error.used_bytes,
-            max_bytes: error.max_bytes,
-        }
-        .boxed()
     }
 }
 

@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
 use crate::platform::{ResourceBacking, ResourceCapture, ResourceId, ResourcePortability};
-use crate::runtime::AgentId;
+use crate::runtime::WorkerId;
 use serde::{Deserialize, Serialize};
 
 use super::topology::{WorldEdgeId, WorldEntityId, WorldEntityKind};
@@ -9,17 +9,17 @@ use super::topology::{WorldEdgeId, WorldEntityId, WorldEntityKind};
 /// Stable identifier for one world resource record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct WorldResourceId {
-    /// Agent owner of this resource.
-    pub agent_id: AgentId,
-    /// Resource identifier in the owning agent table.
+    /// Worker owner of this resource.
+    pub worker_id: WorkerId,
+    /// Resource identifier in the owning worker table.
     pub resource_id: ResourceId,
 }
 
 impl WorldResourceId {
     /// Create one world resource identifier.
-    pub const fn new(agent_id: AgentId, resource_id: ResourceId) -> Self {
+    pub const fn new(worker_id: WorkerId, resource_id: ResourceId) -> Self {
         Self {
-            agent_id,
+            worker_id,
             resource_id,
         }
     }
@@ -28,15 +28,15 @@ impl WorldResourceId {
     pub fn entity_id(self) -> WorldEntityId {
         WorldEntityId::new(format!(
             "resource.{}.{}",
-            self.agent_id.0, self.resource_id.0
+            self.worker_id.0, self.resource_id.0
         ))
     }
 
     /// Return the canonical ownership edge id for this resource.
     pub fn ownership_edge_id(self) -> WorldEdgeId {
         WorldEdgeId::new(format!(
-            "agent.{}.owns.resource.{}",
-            self.agent_id.0, self.resource_id.0
+            "worker.{}.owns.resource.{}",
+            self.worker_id.0, self.resource_id.0
         ))
     }
 }
@@ -49,7 +49,7 @@ impl PartialOrd for WorldResourceId {
 
 impl Ord for WorldResourceId {
     fn cmp(&self, other: &Self) -> Ordering {
-        (self.agent_id.0, self.resource_id.0).cmp(&(other.agent_id.0, other.resource_id.0))
+        (self.worker_id.0, self.resource_id.0).cmp(&(other.worker_id.0, other.resource_id.0))
     }
 }
 

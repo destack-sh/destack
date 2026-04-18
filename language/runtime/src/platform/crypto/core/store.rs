@@ -198,7 +198,7 @@ struct HostStoreHandleCache {
 
 /// Return one stable cache key for the active runtime state.
 fn runtime_cache_key(binding: &BindingCallContext) -> usize {
-    binding.agent() as *const _ as usize
+    binding.worker() as *const _ as usize
 }
 
 /// Acquire one host-store cache guard and recover from poisoning.
@@ -225,7 +225,7 @@ fn resolve_cached_host_key_handle(
 
     // keep only cache entries that still point to the same key resource
     let is_valid = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != CRYPTO_KEY_RESOURCE_KIND {
@@ -286,7 +286,7 @@ fn resolve_cached_host_certificate_handle(
 
     // keep only cache entries that still point to the requested lane
     let is_valid = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != CRYPTO_CERTIFICATE_RESOURCE_KIND {
@@ -1164,7 +1164,7 @@ pub(crate) fn store_close(
     // remove store resource entry
     let Some(entry) =
         binding
-            .agent()
+            .worker()
             .resources
             .remove(&binding.world(), handle.0, Some(binding.engine()))
     else {
@@ -1210,7 +1210,7 @@ pub(crate) fn store_list_keys(
     // collect key descriptors that satisfy the query
     let mut filtered = Vec::new();
     for key_handle in &key_handles {
-        let Some(key_resource) = binding.agent().resources.with_entry(key_handle.0, |entry| {
+        let Some(key_resource) = binding.worker().resources.with_entry(key_handle.0, |entry| {
             if entry.kind != CRYPTO_KEY_RESOURCE_KIND {
                 return None;
             }
@@ -1290,7 +1290,7 @@ pub(crate) fn store_list_certificates(
     for certificate_handle in &certificate_handles {
         let Some(certificate_resource) =
             binding
-                .agent()
+                .worker()
                 .resources
                 .with_entry(certificate_handle.0, |entry| {
                     if entry.kind != CRYPTO_CERTIFICATE_RESOURCE_KIND {
@@ -1472,7 +1472,7 @@ fn insert_store_resource(
         .with_payload(Arc::new(Mutex::new(resource_value)));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 

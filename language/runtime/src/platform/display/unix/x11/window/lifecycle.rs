@@ -181,7 +181,7 @@ pub(crate) unsafe fn window_close(
         .unwrap_or_else(|error| error.into_inner())
         .remove(&window_handle);
     let removed = context
-        .agent()
+        .worker()
         .resources
         .remove(&context.world(), window_handle.0, Some(context.engine()))
         .is_some();

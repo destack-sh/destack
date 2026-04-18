@@ -334,7 +334,7 @@ pub(crate) unsafe fn destack_device_serial_open(
     let entry = ResourceEntry::new(ResourceKind::SerialPort)
         .with_label(SERIAL_PORT_RESOURCE_LABEL)
         .with_payload(Arc::clone(&resource))
-        .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
             UnixSerialDescriptorFinalizer {
                 runtime: event_runtime,
                 descriptor,
@@ -343,7 +343,7 @@ pub(crate) unsafe fn destack_device_serial_open(
         ));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 

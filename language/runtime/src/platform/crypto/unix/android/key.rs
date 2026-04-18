@@ -355,7 +355,7 @@ pub(crate) fn host_store_supports_hardware_backed_key(
     }
 
     // require one active callback runtime id and lane selector
-    let runtime_id = binding.agent().runtime_id.0;
+    let runtime_id = binding.worker().runtime_id.0;
     let Ok(encoded_kind) = host_store_kind(kind, "destack.crypto.store.probeCapability") else {
         return false;
     };
@@ -431,7 +431,7 @@ pub(crate) fn host_store_supports_hardware_backed_pair_algorithm(
     }
 
     // resolve runtime id and lane selector
-    let runtime_id = binding.agent().runtime_id.0;
+    let runtime_id = binding.worker().runtime_id.0;
     let Ok(encoded_kind) = host_store_kind(kind, "destack.crypto.store.probeCapability") else {
         return false;
     };
@@ -465,7 +465,7 @@ pub(crate) fn host_store_supports_hardware_backed_secret_key(
     }
 
     // resolve runtime id and lane selector
-    let runtime_id = binding.agent().runtime_id.0;
+    let runtime_id = binding.worker().runtime_id.0;
     let Ok(encoded_kind) = host_store_kind(kind, "destack.crypto.store.probeCapability") else {
         return false;
     };

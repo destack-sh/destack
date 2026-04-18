@@ -48,7 +48,7 @@ pub(crate) fn midi_input_port_list(
         "destack.device.midi.input.port.list",
     )?;
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .core_midi_service("destack.device.midi.input.port.list")?;
@@ -72,7 +72,7 @@ pub(crate) fn midi_input_port_open(
         "destack.device.midi.input.port.open",
     )?;
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .core_midi_service("destack.device.midi.input.port.open")?;
@@ -324,7 +324,7 @@ pub(crate) fn midi_input_virtual_create(
         "destack.device.midi.input.virtual.create",
     )?;
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .core_midi_service("destack.device.midi.input.virtual.create")?;

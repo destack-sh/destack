@@ -27,7 +27,7 @@ pub(crate) fn midi_input_port_list(
     options: MidiPortListOptions,
 ) -> RuntimeResult<Vec<MidiPortDescriptorValue>> {
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .winrt_service("destack.device.midi.input.port.list")?;
@@ -46,7 +46,7 @@ pub(crate) fn midi_input_port_open(
     options: MidiInputPortOpenOptions,
 ) -> RuntimeResult<resource::MidiInputPortHandle> {
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .winrt_service("destack.device.midi.input.port.open")?;

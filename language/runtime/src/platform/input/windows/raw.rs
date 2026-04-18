@@ -64,7 +64,7 @@ use crate::platform::input::{
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::process::service::Service;
 use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
-use crate::runtime::{AgentId, BindingCallContext, ProcessSubscriberRegistry};
+use crate::runtime::{BindingCallContext, ProcessSubscriberRegistry, WorkerId};
 
 /// Prefix for monitor event device identifiers derived from raw device handles.
 pub(super) const WINDOWS_INPUT_MONITOR_ID_PREFIX: &str = "raw:device:";
@@ -518,8 +518,8 @@ impl RawInputState {
 /// Process-global windows raw-input service.
 #[derive(Debug)]
 pub(crate) struct WindowsRawInputService {
-    /// Registered raw-input runtimes keyed by agent id.
-    runtimes: Mutex<ProcessSubscriberRegistry<AgentId, WindowsRawInputRuntimeState>>,
+    /// Registered raw-input runtimes keyed by worker id.
+    runtimes: Mutex<ProcessSubscriberRegistry<WorkerId, WindowsRawInputRuntimeState>>,
     /// Worker-thread control payload.
     worker: Mutex<Option<RawInputWorker>>,
     /// Liveness state for the raw-input message worker.
@@ -549,21 +549,21 @@ impl WindowsRawInputService {
         }
     }
 
-    /// Register one agent-local raw-input runtime.
+    /// Register one worker-local raw-input runtime.
     fn register_runtime(
         &self,
-        agent_id: AgentId,
+        worker_id: WorkerId,
         runtime_state: &Arc<WindowsRawInputRuntimeState>,
     ) {
         let mut runtimes = self.runtimes.lock();
-        runtimes.register(agent_id, runtime_state);
+        runtimes.register(worker_id, runtime_state);
     }
 
-    /// Unregister one agent-local raw-input runtime.
-    fn unregister_runtime(&self, agent_id: AgentId) {
+    /// Unregister one worker-local raw-input runtime.
+    fn unregister_runtime(&self, worker_id: WorkerId) {
         let should_shutdown = {
             let mut runtimes = self.runtimes.lock();
-            runtimes.unregister(agent_id);
+            runtimes.unregister(worker_id);
             runtimes.is_empty()
         };
 
@@ -628,7 +628,7 @@ impl WindowsRawInputService {
     }
 }
 
-/// Agent-owned mutable state for windows raw-input streams.
+/// Worker-owned mutable state for windows raw-input streams.
 #[derive(Debug)]
 pub(crate) struct WindowsRawInputRuntimeState {
     /// Runtime-configured queue capacity for keyboard and mouse packets.
@@ -639,7 +639,7 @@ pub(crate) struct WindowsRawInputRuntimeState {
     raw_hid_queue_limit: AtomicUsize,
     /// Runtime-configured queue capacity for touch snapshots.
     raw_touch_queue_limit: AtomicUsize,
-    /// Shared queue state for this agent-local runtime.
+    /// Shared queue state for this worker-local runtime.
     state: Arc<RawInputState>,
     /// Whether runtime finalizers were already registered.
     finalizer_registered: AtomicBool,
@@ -650,8 +650,8 @@ pub(crate) struct WindowsRawInputRuntimeState {
 }
 
 impl WindowsRawInputRuntimeState {
-    /// Build one agent-owned raw-input state payload.
-    pub(crate) fn new(_agent_id: AgentId) -> Self {
+    /// Build one worker-owned raw-input state payload.
+    pub(crate) fn new(_worker_id: WorkerId) -> Self {
         Self {
             raw_input_queue_limit: AtomicUsize::new(RAW_INPUT_QUEUE_LIMIT),
             raw_monitor_queue_limit: AtomicUsize::new(RAW_MONITOR_QUEUE_LIMIT),
@@ -668,16 +668,16 @@ impl WindowsRawInputRuntimeState {
 impl Default for WindowsRawInputRuntimeState {
     /// Build one default raw-input runtime state for tests and fallback construction.
     fn default() -> Self {
-        Self::new(AgentId(0))
+        Self::new(WorkerId(0))
     }
 }
 
-/// Return one agent-owned raw-input mutable state.
+/// Return one worker-owned raw-input mutable state.
 pub(super) fn windows_raw_input_runtime_state(
     binding: &BindingCallContext,
 ) -> Arc<WindowsRawInputRuntimeState> {
     binding
-        .agent()
+        .worker()
         .platform_state
         .input
         .windows_raw_input_runtime_state(binding)
@@ -1870,11 +1870,11 @@ fn register_runtime_finalizer(
         return;
     }
 
-    let agent_id = binding.agent().id;
+    let worker_id = binding.worker().id;
     let service = Arc::clone(service);
     let runtime_state = Arc::clone(runtime_state);
-    binding.agent().finalizers.register(move || {
-        service.unregister_runtime(agent_id);
+    binding.worker().finalizers.register(move || {
+        service.unregister_runtime(worker_id);
         clear_raw_gamepad_decoder_cache(&runtime_state);
     });
 }
@@ -3199,7 +3199,7 @@ fn ensure_raw_service(
     configure_raw_queue_limits(&runtime_state, binding);
 
     let service = binding
-        .agent()
+        .worker()
         .platform_state
         .input
         .windows_raw_input_service(operation)?;
@@ -3225,7 +3225,7 @@ fn ensure_runtime_registration(
     }
 
     register_runtime_finalizer(binding, service, runtime_state);
-    service.register_runtime(binding.agent().id, runtime_state);
+    service.register_runtime(binding.worker().id, runtime_state);
 }
 
 /// Ensure the raw service is initialized for one binding operation.

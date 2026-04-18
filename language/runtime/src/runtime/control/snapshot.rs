@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
-use crate::runtime::world::{RevisionId, Snapshot as WorldSnapshot};
+use crate::runtime::world::{Revision, WorldSnapshot};
 
 use super::handle::{ControlEntry, ControlHandleId, ControlKind, WorldLabels};
 use super::object::{ControlObject, SnapshotEntry, WorldViewEntry};
@@ -96,11 +96,12 @@ impl Control {
     pub(crate) fn open_world_view(
         &mut self,
         world_handle_id: ControlHandleId,
-        revision_id: RevisionId,
+        revision: Revision,
     ) -> RuntimeResult<ControlHandleId> {
         let labels = self.world_labels(world_handle_id)?;
         let world = self.world(world_handle_id)?;
-        let (revision, image, _) = world.revision_data(revision_id)?;
+        let revision_handle = revision;
+        let (revision, image, _) = world.revision_data(revision_handle)?;
         let handle_id = self.allocate_handle_id();
 
         // process-global world-view handle
@@ -117,6 +118,7 @@ impl Control {
             ControlObject::WorldView(WorldViewEntry {
                 world_handle_id,
                 labels: WorldLabels { labels },
+                revision_handle,
                 revision,
                 image,
             }),

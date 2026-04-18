@@ -695,7 +695,7 @@ pub(crate) fn usb_device_resource(
     handle: resource::UsbDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<UsbDeviceResource>> {
-    let resource = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resource = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::UsbDevice {
             return None;
         }
@@ -715,7 +715,7 @@ pub(crate) fn usb_watch_resource(
     handle: resource::UsbWatchHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<UsbWatchResource>> {
-    let resource = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resource = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::UsbWatch {
             return None;
         }

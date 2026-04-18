@@ -6,7 +6,7 @@ fn resolve_stream_id(
     handle: resource::ResourceId,
     invalid_detail: &'static str,
 ) -> RuntimeResult<u64> {
-    let resolved = binding.agent().resources.with_entry(handle, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle, |entry| {
         entry
             .payload
             .as_ref()
@@ -25,7 +25,7 @@ fn resolve_watch_id(
     handle: resource::ResourceId,
     invalid_detail: &'static str,
 ) -> RuntimeResult<String> {
-    let resolved = binding.agent().resources.with_entry(handle, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle, |entry| {
         entry
             .payload
             .as_ref()

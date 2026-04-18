@@ -30,7 +30,7 @@ pub(crate) fn host_store_supports_certificate_write(
     }
 
     // require one callback runtime id and both certificate callbacks
-    let runtime_id = binding.agent().runtime_id.0;
+    let runtime_id = binding.worker().runtime_id.0;
     let Ok(encoded_kind) = host_store_kind(kind, "destack.crypto.store.probeCapability") else {
         return false;
     };

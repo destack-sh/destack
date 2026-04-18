@@ -8,7 +8,7 @@ use super::{BranchId, LineageView, Moment};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransitionKind {
     /// One input step.
-    Input,
+    Command,
     /// One outcome step.
     Outcome,
     /// One anchor step.
@@ -31,7 +31,7 @@ pub struct Transition {
 impl Transition {
     /// Report whether this transition was caused by one input.
     pub const fn is_input(&self) -> bool {
-        matches!(self.kind, TransitionKind::Input)
+        matches!(self.kind, TransitionKind::Command)
     }
 
     /// Report whether this transition was caused by one outcome.
@@ -108,7 +108,7 @@ impl TransitionSet {
 
     /// Keep only transitions caused by projected inputs.
     pub fn inputs(self) -> Self {
-        self.kind(TransitionKind::Input)
+        self.kind(TransitionKind::Command)
     }
 
     /// Keep only transitions caused by projected outcomes.
@@ -213,7 +213,7 @@ impl Trace {
             })?;
             let after = Moment::new(branch_id, self.sequence()?);
             let kind = match cause {
-                TraceRecord::Input(_) => TransitionKind::Input,
+                TraceRecord::Command(_) => TransitionKind::Command,
                 TraceRecord::Outcome(_) => TransitionKind::Outcome,
                 TraceRecord::Anchor(_) => TransitionKind::Anchor,
             };

@@ -22,7 +22,7 @@ pub(crate) fn ensure_resource_affinity(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     let affinity = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle, |entry| entry.affinity)
         .flatten();
@@ -57,7 +57,7 @@ pub(crate) fn resolve_payload<T: Clone + Send + Sync + 'static>(
 
     // resolve the typed payload after validating kind and label
     Ok(binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle, |entry| {
             // reject mismatched resource kinds

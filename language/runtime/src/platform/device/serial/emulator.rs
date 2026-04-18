@@ -33,7 +33,7 @@ const TEST_SERIAL_EVENT_QUEUE_CAPACITY: usize = 128;
 /// Default line configuration for one virtual serial endpoint.
 const TEST_SERIAL_DEFAULT_BAUD_RATE: u32 = 115_200;
 
-/// Shared per-agent registry for test-only virtual serial endpoints.
+/// Shared per-worker registry for test-only virtual serial endpoints.
 #[derive(Default)]
 pub(crate) struct SerialTestRegistry {
     /// Installed test ports keyed by their stable binding id.
@@ -408,7 +408,7 @@ pub(crate) fn install_test_serial_port(
     name: &str,
 ) -> SerialTestController {
     binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .serial_test_registry()
@@ -430,7 +430,7 @@ pub(crate) fn try_open_test_serial(
     }
 
     let Some(port) = binding
-        .agent()
+        .worker()
         .platform_state
         .device
         .serial_test_registry()
@@ -467,7 +467,7 @@ pub(crate) fn try_open_test_serial(
     let entry = ResourceEntry::new(ResourceKind::SerialPort)
         .with_label(SERIAL_PORT_RESOURCE_LABEL)
         .with_payload(Arc::clone(&resource))
-        .with_finalizer(binding.agent().platform_state.device.wrap_finalizer(
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
             TestSerialPortFinalizer {
                 port,
                 registration_id,
@@ -476,7 +476,7 @@ pub(crate) fn try_open_test_serial(
         ));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -488,7 +488,7 @@ pub(crate) fn test_serial_resource(
     binding: &BindingCallContext,
     handle: resource::SerialPortHandle,
 ) -> Option<Arc<TestSerialPortResource>> {
-    binding.agent().resources.with_entry(handle.0, |entry| {
+    binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::SerialPort {
             return None;
         }
@@ -504,7 +504,7 @@ pub(crate) fn close_test_serial_resource(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     let kind = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle.0, |entry| entry.kind)
         .ok_or_else(|| invalid_test_serial_handle(operation))?;
@@ -512,7 +512,7 @@ pub(crate) fn close_test_serial_resource(
         return Err(invalid_test_serial_handle(operation));
     }
 
-    if !binding.agent().resources.remove_and_finalize(
+    if !binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle.0,
         Some(binding.engine()),

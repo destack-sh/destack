@@ -200,7 +200,7 @@ pub(crate) fn insert_context_resource(
         .with_payload(Arc::new(Mutex::new(value)));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -213,7 +213,7 @@ pub(crate) fn resolve_context_resource(
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<Arc<Mutex<TlsContextResource>>> {
     // resolve one binding payload
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != TLS_CONTEXT_RESOURCE_KIND {
             return None;
         }
@@ -242,7 +242,7 @@ pub(crate) fn remove_context_resource(
     // remove one binding payload
     let Some(entry) =
         binding
-            .agent()
+            .worker()
             .resources
             .remove(&binding.world(), handle.0, Some(binding.engine()))
     else {
@@ -287,7 +287,7 @@ pub(crate) fn insert_session_resource(
         .with_payload(Arc::new(resource));
     let resource_id =
         binding
-            .agent()
+            .worker()
             .resources
             .insert(&binding.world(), entry, Some(binding.engine()));
 
@@ -300,7 +300,7 @@ pub(crate) fn resolve_session_resource(
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<Arc<TlsSessionResource>> {
     // resolve one session payload
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle.0, |entry| {
         if entry.kind != TLS_SESSION_RESOURCE_KIND {
             return None;
         }
@@ -329,7 +329,7 @@ pub(crate) fn remove_session_resource(
     // remove one session payload
     let Some(entry) =
         binding
-            .agent()
+            .worker()
             .resources
             .remove(&binding.world(), handle.0, Some(binding.engine()))
     else {

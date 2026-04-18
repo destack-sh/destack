@@ -71,7 +71,7 @@ pub(super) fn bluetooth_payload<T: Clone + 'static>(
     operation: &'static str,
     label: &'static str,
 ) -> RuntimeResult<T> {
-    let resolved = binding.agent().resources.with_entry(handle, |entry| {
+    let resolved = binding.worker().resources.with_entry(handle, |entry| {
         if entry.kind != kind {
             return None;
         }
@@ -93,7 +93,7 @@ pub(super) fn close_bluetooth_resource(
     label: &'static str,
 ) -> RuntimeResult<()> {
     let entry_kind = binding
-        .agent()
+        .worker()
         .resources
         .with_entry(handle, |entry| entry.kind)
         .ok_or_else(|| invalid_bluetooth_handle(operation, label))?;
@@ -101,7 +101,7 @@ pub(super) fn close_bluetooth_resource(
         return Err(invalid_bluetooth_handle(operation, label));
     }
 
-    if !binding.agent().resources.remove_and_finalize(
+    if !binding.worker().resources.remove_and_finalize(
         &binding.world(),
         handle,
         Some(binding.engine()),

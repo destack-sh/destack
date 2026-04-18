@@ -6,17 +6,18 @@ use crate::runtime::bindings::{BindingEngine, BindingId, CodecId};
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::scheduler::{MicrotaskId, TaskId};
 use crate::runtime::time::WorldInstant;
-use crate::runtime::world::Input;
-use crate::runtime::{AgentId, AgentImage, RuntimeId, RuntimeImage};
+use crate::runtime::world::Command;
+use crate::runtime::{WorkerId, WorkerImage, RuntimeId, RuntimeImage};
 use destack_vm as vm;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 /// One authoritative replay record.
 #[allow(clippy::large_enum_variant)] // NOTE #Performance #Cleanup: trace entropy payloads are intentionally inline for now
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TraceRecord {
     /// One input that entered the world.
-    Input(Input),
+    Command(Command),
     /// One observed outcome that replay cannot derive.
     Outcome(Outcome),
     /// One retained or user-visible history anchor.
@@ -35,16 +36,35 @@ pub enum Outcome {
     BindingCall(BindingCallEvent),
     /// One runtime spawn outcome that must be replayed structurally.
     RuntimeSpawned {
+        /// The created runtime identifier.
+        runtime_id: RuntimeId,
+        /// The created runtime name.
+        runtime_name: String,
         /// Captured runtime metadata for the created runtime.
-        runtime: RuntimeImage,
-        /// Captured agents keyed by agent identifier.
-        agents: BTreeMap<AgentId, AgentImage>,
+        runtime: Arc<RuntimeImage>,
+        /// Captured workers keyed by worker identifier.
+        workers: BTreeMap<WorkerId, SpawnedWorkerImage>,
     },
-    /// One agent spawn outcome that must be replayed structurally.
-    AgentSpawned {
-        /// Captured agent metadata for the created agent.
-        agent: AgentImage,
+    /// One worker spawn outcome that must be replayed structurally.
+    WorkerSpawned {
+        /// The owning runtime identifier.
+        runtime_id: RuntimeId,
+        /// The created worker identifier.
+        worker_id: WorkerId,
+        /// The created worker name.
+        worker_name: String,
+        /// Captured worker metadata for the created worker.
+        worker: Arc<WorkerImage>,
     },
+}
+
+/// One worker image paired with its spawn identity.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpawnedWorkerImage {
+    /// The created worker name.
+    pub name: String,
+    /// The captured worker payload.
+    pub image: Arc<WorkerImage>,
 }
 
 impl Outcome {
@@ -55,7 +75,7 @@ impl Outcome {
             Self::Entropy(_) => "entropy",
             Self::BindingCall(_) => "binding.call",
             Self::RuntimeSpawned { .. } => "runtime.spawned",
-            Self::AgentSpawned { .. } => "agent.spawned",
+            Self::WorkerSpawned { .. } => "worker.spawned",
         }
     }
 }
@@ -80,8 +100,8 @@ pub enum EntropyKind {
 pub struct EntropySubject {
     /// Runtime identifier for this entropy event.
     pub runtime_id: RuntimeId,
-    /// Agent identifier for this entropy event.
-    pub agent_id: AgentId,
+    /// Worker identifier for this entropy event.
+    pub worker_id: WorkerId,
     /// Binding identifier for this entropy event.
     pub binding_id: BindingId,
     /// Optional engine for this entropy event.

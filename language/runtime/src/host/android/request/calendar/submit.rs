@@ -85,7 +85,7 @@ fn submit_calendar_event_list(
     operation: &'static str,
     query: &CalendarEventQueryValue,
 ) -> RuntimeResult<Vec<CalendarEventValue>> {
-    let binding = BindingCallContext::from_current_agent_for_native()?;
+    let binding = BindingCallContext::from_current_worker_for_native()?;
     let query = HostCalendarEventQuery::from_value(&binding, query.clone());
     let mut output_events = MaybeUninit::<HostCalendarEventListResponse>::uninit();
     let status = unsafe {
@@ -137,7 +137,7 @@ fn submit_calendar_event_create(
     operation: &'static str,
     event: &CalendarEventDraftValue,
 ) -> RuntimeResult<String> {
-    let binding = BindingCallContext::from_current_agent_for_native()?;
+    let binding = BindingCallContext::from_current_worker_for_native()?;
     let event = HostCalendarEventDraft::from_value(&binding, event.clone());
     let mut output_id = MaybeUninit::<HostCalendarEventCreateResponse>::uninit();
     let status = unsafe {
@@ -168,7 +168,7 @@ fn submit_calendar_event_update(
     id: &str,
     event: &CalendarEventDraftValue,
 ) -> RuntimeResult<()> {
-    let binding = BindingCallContext::from_current_agent_for_native()?;
+    let binding = BindingCallContext::from_current_worker_for_native()?;
     let event = HostCalendarEventDraft::from_value(&binding, event.clone());
     let call_status = unsafe {
         destack_host_android_calendar_event_update(runtime_id, NativeStringRef::from(id), event)

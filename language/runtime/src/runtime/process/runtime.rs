@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{HostEvent, Session};
 use crate::platform::resource::ResourceRebinders;
-use crate::runtime::engine::{Engine, Entry, ExecutionOutput};
+use crate::runtime::engine::{Engine, EngineLayout, Entry, ExecutionOutput};
 use crate::runtime::poller::{HostPoller, PollerEvent};
 use crate::runtime::scheduler::Timer;
 use crate::runtime::time::WorldInstant;
@@ -11,12 +11,58 @@ use crate::runtime::world::{RuntimeId, Wake, WorldRef};
 use crate::runtime::{DropCounts, DropReason};
 use destack_core::CaptureMode;
 use destack_heap as heap;
-use destack_workspace::RuntimeOptions;
+use destack_workspace::{
+    ExecutionMode, PlatformHostOptions, PlatformOsOptions, PollerBackend, RuntimeAppDeclaration,
+    RuntimeOptions,
+};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use super::poller::poller_for_options;
-use super::{Agent, AgentId, AgentImage};
+use super::poller::{poller_for_backend, poller_for_options};
+use super::{Worker, WorkerId, WorkerImage, WorkerOptionsImage};
+
+/// Immutable runtime host reconstruction settings.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeHostOptions {
+    /// Captured platform host options for runtime restore.
+    pub host_options: PlatformHostOptions,
+    /// Captured OS service options for runtime restore.
+    pub os_options: PlatformOsOptions,
+    /// Captured app declaration for runtime restore.
+    pub app_declaration: RuntimeAppDeclaration,
+    /// Captured poller backend for runtime restore.
+    pub poller_backend: PollerBackend,
+}
+
+impl RuntimeHostOptions {
+    /// Build one runtime host reconstruction configuration from runtime options.
+    fn from_runtime_options(options: &RuntimeOptions) -> Self {
+        let (host_options, os_options, app_declaration) =
+            Session::restore_config_from_runtime_options(options);
+
+        Self {
+            host_options,
+            os_options,
+            app_declaration,
+            poller_backend: options.scheduler.poller_backend,
+        }
+    }
+
+    /// Build one host session for the given runtime id.
+    fn host_session(&self, runtime_id: RuntimeId) -> Session {
+        Session::from_restore_config(
+            runtime_id,
+            self.host_options.clone(),
+            self.os_options.clone(),
+            self.app_declaration.clone(),
+        )
+    }
+
+    /// Build one poller for this runtime configuration.
+    fn poller(&self) -> RuntimeResult<Option<Box<dyn HostPoller>>> {
+        poller_for_backend(self.poller_backend)
+    }
+}
 
 /// Runtime-local arrived work that is not caused by world time advancing.
 #[derive(Debug, Clone, PartialEq)]
@@ -33,43 +79,41 @@ enum RuntimeIngress {
     },
 }
 
-/// Runtime container that owns one or more agents in one shared world.
+/// Runtime container that owns one or more workers in one shared world.
 pub struct Runtime {
     /// Runtime identifier in world topology.
     id: RuntimeId,
     /// Runtime name used for identity selection and diagnostics.
     name: String,
-    /// Immutable process arguments shared by newly spawned agents.
+    /// Immutable process arguments shared by newly spawned workers.
     platform_args: Arc<[String]>,
-    /// Runtime options used for agent creation.
-    options: RuntimeOptions,
-    /// Shared host integration for all agents in this runtime.
+    /// Runtime-owned worker defaults.
+    worker_options: Arc<RuntimeOptions>,
+    /// Runtime host reconstruction settings.
+    host_options: RuntimeHostOptions,
+    /// Shared host integration for all workers in this runtime.
     host: Session,
     /// Shared platform poller for external events.
     poller: Option<Box<dyn HostPoller>>,
     /// Drop accounting at the runtime coordination boundary.
     drop_counts: DropCounts,
-    /// All active agents keyed by identifier.
-    agents: BTreeMap<AgentId, Box<Agent>>,
-    /// Default agent used by convenience accessors.
-    primary_agent_id: AgentId,
+    /// All active workers keyed by identifier.
+    workers: BTreeMap<WorkerId, Box<Worker>>,
+    /// Default worker used by convenience accessors.
+    primary_worker_id: WorkerId,
 }
 
 /// Materialized runtime metadata captured in one world image.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeImage {
-    /// Runtime identifier in the world.
-    pub runtime_id: RuntimeId,
-    /// Primary agent identifier for this runtime.
-    pub primary_agent_id: AgentId,
-    /// Runtime display name.
-    pub name: String,
+    /// Primary worker identifier for this runtime.
+    pub primary_worker_id: WorkerId,
     /// Runtime launch arguments.
-    pub platform_args: Vec<String>,
-    /// Runtime options captured for reconstruction.
-    pub options: RuntimeOptions,
-    /// Runtime drop counts.
-    pub drop_counts: DropCounts,
+    pub platform_args: Arc<[String]>,
+    /// Runtime-owned worker defaults captured for reconstruction.
+    pub worker_options: Arc<RuntimeOptions>,
+    /// Runtime host reconstruction settings captured for reconstruction.
+    pub host_options: RuntimeHostOptions,
 }
 
 /// Result of one runtime scheduler tick.
@@ -96,26 +140,45 @@ impl std::fmt::Debug for Runtime {
             .field("runtime_id", &self.id)
             .field("name", &self.name)
             .field("platform_args", &self.platform_args)
-            .field("options", &self.options)
+            .field("worker_options", &self.worker_options)
+            .field("host_options", &self.host_options)
             .field("host", &self.host)
-            .field("agents", &self.agents)
-            .field("primary_agent_id", &self.primary_agent_id)
+            .field("workers", &self.workers)
+            .field("primary_worker_id", &self.primary_worker_id)
             .field("poller", &"<shared platform poller>")
             .finish()
     }
 }
 
 impl Runtime {
-    /// Create a runtime with one primary agent in one explicit shared world.
+    /// Reuse one explicit options payload when it already exists.
+    fn intern_worker_options(
+        interned_options: &mut Vec<Arc<RuntimeOptions>>,
+        options: Arc<RuntimeOptions>,
+    ) -> Arc<RuntimeOptions> {
+        // reuse one existing payload before cloning more options
+        if let Some(existing_options) = interned_options
+            .iter()
+            .find(|existing_options| existing_options.as_ref() == options.as_ref())
+        {
+            return existing_options.clone();
+        }
+
+        interned_options.push(options.clone());
+
+        options
+    }
+
+    /// Create a runtime with one primary worker in one explicit shared world.
     pub(crate) fn from_options_in_world(
         platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
         world: &WorldRef,
-        engine: Box<dyn Engine>,
+        engine: impl Engine + EngineLayout + 'static,
     ) -> RuntimeResult<Self> {
         let platform_args = platform_args.into();
-        let primary_agent = Agent::new_in_world(platform_args.clone(), options, world, engine)?;
-        let mut runtime = Self::new(platform_args, options, primary_agent)?;
+        let primary_worker = Worker::new_in_world(platform_args.clone(), options, world, engine)?;
+        let mut runtime = Self::new(platform_args, options, primary_worker)?;
         if let Some(poller) = poller_for_options(options)? {
             runtime.set_poller(poller);
         }
@@ -133,9 +196,9 @@ impl Runtime {
         self.platform_args.clone()
     }
 
-    /// Return the current primary agent id.
-    pub fn primary_agent_id(&self) -> AgentId {
-        self.primary_agent_id
+    /// Return the current primary worker id.
+    pub fn primary_worker_id(&self) -> WorkerId {
+        self.primary_worker_id
     }
 
     /// Return the world topology runtime id.
@@ -153,162 +216,142 @@ impl Runtime {
         self.drop_counts
     }
 
-    /// Set one explicit primary agent.
-    pub fn set_primary_agent(&mut self, agent_id: AgentId) -> RuntimeResult<()> {
-        if self.agents.contains_key(&agent_id) {
-            self.primary_agent_id = agent_id;
+    /// Set one explicit primary worker.
+    pub fn set_primary_worker(&mut self, worker_id: WorkerId) -> RuntimeResult<()> {
+        if self.workers.contains_key(&worker_id) {
+            self.primary_worker_id = worker_id;
             return Ok(());
         }
 
-        Err(RuntimeError::AgentNotFound {
-            agent_id: agent_id.0,
+        Err(RuntimeError::WorkerNotFound {
+            worker_id: worker_id.0,
         }
         .boxed())
     }
 
-    /// Return all active agent ids.
-    pub fn agent_ids(&self) -> Vec<AgentId> {
-        self.agents.keys().copied().collect()
+    /// Return all active worker ids.
+    pub fn worker_ids(&self) -> Vec<WorkerId> {
+        self.workers.keys().copied().collect()
     }
 
-    /// Return the number of active agents.
-    pub fn agent_count(&self) -> usize {
-        self.agents.len()
+    /// Return the number of active workers.
+    pub fn worker_count(&self) -> usize {
+        self.workers.len()
     }
 
-    /// Return one immutable agent by id.
-    pub fn agent(&self, agent_id: AgentId) -> Option<&Agent> {
-        self.agents.get(&agent_id).map(Box::as_ref)
+    /// Return one immutable worker by id.
+    pub fn worker(&self, worker_id: WorkerId) -> Option<&Worker> {
+        self.workers.get(&worker_id).map(Box::as_ref)
     }
 
-    /// Return one mutable agent by id.
-    pub fn agent_mut(&mut self, agent_id: AgentId) -> Option<&mut Agent> {
-        self.agents.get_mut(&agent_id).map(Box::as_mut)
+    /// Return one mutable worker by id.
+    pub fn worker_mut(&mut self, worker_id: WorkerId) -> Option<&mut Worker> {
+        self.workers.get_mut(&worker_id).map(Box::as_mut)
     }
 
-    /// Spawn one additional agent with explicit options in the shared runtime world.
-    pub(crate) fn spawn_agent_with_options(
+    /// Spawn one additional worker with explicit options in the shared runtime world.
+    pub(crate) fn spawn_worker_with_options(
         &mut self,
         world: &WorldRef,
         options: &RuntimeOptions,
-        engine: Box<dyn Engine>,
-    ) -> RuntimeResult<AgentId> {
-        // force runtime identity to stay shared across all agents in this runtime
+        engine: impl Engine + EngineLayout + 'static,
+    ) -> RuntimeResult<WorkerId> {
+        // force runtime identity to stay shared across all workers in this runtime
         let mut options = options.clone();
-        options.name = self.options.name.clone();
-        options.labels = self.options.labels.clone();
+        options.name = Some(self.name.clone());
+        options.labels = self.worker_options.labels.clone();
         self.align_spawn_options_with_runtime(&mut options);
 
-        // create one new agent attached to the runtime world
-        let agent =
-            Agent::new_in_runtime(self.platform_args.clone(), &options, world, self.id, engine)?;
+        // create one new worker attached to the runtime world
+        let worker =
+            Worker::new_in_runtime(self.platform_args.clone(), &options, world, self.id, engine)?;
 
-        self.insert_agent(agent)
+        self.insert_worker(worker)
     }
 
-    /// Remove one agent from this runtime and return its boxed handle.
-    pub fn remove_agent(&mut self, agent_id: AgentId) -> RuntimeResult<Box<Agent>> {
-        // remove the target agent from the registry
-        let removed_agent = self.agents.remove(&agent_id).ok_or_else(|| {
-            RuntimeError::AgentNotFound {
-                agent_id: agent_id.0,
+    /// Remove one worker from this runtime and return its boxed handle.
+    pub fn remove_worker(&mut self, worker_id: WorkerId) -> RuntimeResult<Box<Worker>> {
+        // remove the target worker from the registry
+        let removed_worker = self.workers.remove(&worker_id).ok_or_else(|| {
+            RuntimeError::WorkerNotFound {
+                worker_id: worker_id.0,
             }
             .boxed()
         })?;
 
-        // reject removing the last remaining agent
-        if self.agents.is_empty() {
-            self.agents.insert(agent_id, removed_agent);
-            return Err(RuntimeError::LastAgentRemoval.boxed());
+        // reject removing the last remaining worker
+        if self.workers.is_empty() {
+            self.workers.insert(worker_id, removed_worker);
+            return Err(RuntimeError::LastWorkerRemoval.boxed());
         }
 
         // reject implicit primary fallback to keep ownership explicit
-        if self.primary_agent_id == agent_id {
-            self.agents.insert(agent_id, removed_agent);
-            return Err(RuntimeError::PrimaryAgentRemoval.boxed());
+        if self.primary_worker_id == worker_id {
+            self.workers.insert(worker_id, removed_worker);
+            return Err(RuntimeError::PrimaryWorkerRemoval.boxed());
         }
 
-        Ok(removed_agent)
+        Ok(removed_worker)
     }
 
-    /// Attach a shared platform poller for all agents in this runtime.
+    /// Attach a shared platform poller for all workers in this runtime.
     pub fn set_poller(&mut self, poller: Box<dyn HostPoller>) {
         self.poller = Some(poller);
     }
 
-    /// Run one entrypoint through the default runtime agent event loop.
+    /// Run one entrypoint through the default runtime worker event loop.
     pub(crate) fn run_entrypoint(
         &mut self,
         world: &WorldRef,
         entry: &Entry,
         args: &[heap::Value],
     ) -> RuntimeResult<ExecutionOutput> {
-        self.run_entrypoint_for_agent(world, self.primary_agent_id, entry, args)
+        self.run_entrypoint_for_worker(world, self.primary_worker_id, entry, args)
     }
 
-    /// Run one entrypoint through one explicit runtime agent event loop.
-    pub(crate) fn run_entrypoint_for_agent(
+    /// Run one entrypoint through one explicit runtime worker event loop.
+    pub(crate) fn run_entrypoint_for_worker(
         &mut self,
         world: &WorldRef,
-        agent_id: AgentId,
+        worker_id: WorkerId,
         entry: &Entry,
         args: &[heap::Value],
     ) -> RuntimeResult<ExecutionOutput> {
         let host = &self.host;
         let poller = &mut self.poller;
-        let agent = self
-            .agents
-            .get_mut(&agent_id)
+        let worker = self
+            .workers
+            .get_mut(&worker_id)
             .map(Box::as_mut)
             .ok_or_else(|| {
-                RuntimeError::AgentNotFound {
-                    agent_id: agent_id.0,
+                RuntimeError::WorkerNotFound {
+                    worker_id: worker_id.0,
                 }
                 .boxed()
             })?;
-        agent.run_entrypoint_with_host_and_poller(world, host, entry, args, poller)
+        worker.run_entrypoint_with_host_and_poller(world, host, entry, args, poller)
     }
 
-    /// Run one replayable entrypoint through one explicit runtime agent event loop.
-    pub(crate) fn run_replayable_entrypoint_for_agent(
-        &mut self,
-        world: &WorldRef,
-        agent_id: AgentId,
-        entry: &Entry,
-        args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutput> {
-        let host = &self.host;
-        let poller = &mut self.poller;
-        let agent = self
-            .agents
-            .get_mut(&agent_id)
-            .map(Box::as_mut)
-            .ok_or_else(|| {
-                RuntimeError::AgentNotFound {
-                    agent_id: agent_id.0,
-                }
-                .boxed()
-            })?;
-        agent.run_replayable_entrypoint_with_host_and_poller(world, host, entry, args, poller)
-    }
-
-    /// Execute one runtime tick across all agents without advancing world time.
+    /// Execute one runtime tick across all workers without advancing world time.
     pub(crate) fn tick(&mut self, world: &WorldRef) -> RuntimeResult<TickOutcome> {
         // poll and handle runtime ingress first
         let ingress_handled = self.poll_ingress(world)?;
 
-        // run one local agent tick in stable id order
-        let agent_ids = self.agent_ids();
+        // run one local worker tick in stable id order
+        let worker_ids = self.worker_ids();
         let host = &self.host;
-        let agents = &mut self.agents;
-        for agent_id in agent_ids {
-            let agent = agents.get_mut(&agent_id).map(Box::as_mut).ok_or_else(|| {
-                RuntimeError::AgentNotFound {
-                    agent_id: agent_id.0,
-                }
-                .boxed()
-            })?;
-            if agent.tick(world, host)? {
+        let workers = &mut self.workers;
+        for worker_id in worker_ids {
+            let worker = workers
+                .get_mut(&worker_id)
+                .map(Box::as_mut)
+                .ok_or_else(|| {
+                    RuntimeError::WorkerNotFound {
+                        worker_id: worker_id.0,
+                    }
+                    .boxed()
+                })?;
+            if worker.tick(world, host)? {
                 return Ok(TickOutcome::Progressed);
             }
         }
@@ -320,93 +363,97 @@ impl Runtime {
 
         Ok(TickOutcome::Idle)
     }
-    /// Create one runtime from one already-constructed primary agent.
+
+    /// Create one runtime from one already-constructed primary worker.
     fn new(
         platform_args: Arc<[String]>,
         options: &RuntimeOptions,
-        primary_agent: Agent,
+        primary_worker: Worker,
     ) -> RuntimeResult<Self> {
         // seed runtime identity from runtime options
-        let primary_agent = Box::new(primary_agent);
-        let primary_agent_id = primary_agent.id;
-        let runtime_id = primary_agent.runtime_id;
-        let host = Session::from_runtime_options(options, runtime_id);
+        let primary_worker = Box::new(primary_worker);
+        let primary_worker_id = primary_worker.id;
+        let runtime_id = primary_worker.runtime_id;
+        let worker_options = Arc::new(options.clone());
+        let host_options = RuntimeHostOptions::from_runtime_options(options);
+        let host = host_options.host_session(runtime_id);
         let runtime_name = options
             .name
             .clone()
             .unwrap_or_else(|| "runtime".to_string());
-        let mut agents = BTreeMap::new();
-        agents.insert(primary_agent_id, primary_agent);
+        let mut workers = BTreeMap::new();
+        workers.insert(primary_worker_id, primary_worker);
 
         // store runtime state
         Ok(Self {
             id: runtime_id,
             name: runtime_name,
             platform_args,
-            options: options.clone(),
+            worker_options,
+            host_options,
             host,
             poller: None,
             drop_counts: DropCounts::default(),
-            agents,
-            primary_agent_id,
+            workers,
+            primary_worker_id,
         })
     }
 
-    /// Insert one agent and return its id.
-    fn insert_agent(&mut self, agent: Agent) -> RuntimeResult<AgentId> {
+    /// Insert one worker and return its id.
+    fn insert_worker(&mut self, worker: Worker) -> RuntimeResult<WorkerId> {
         // derive one stable id from the underlying runtime context
-        let agent = Box::new(agent);
-        let agent_id = agent.id;
+        let worker = Box::new(worker);
+        let worker_id = worker.id;
 
         // reject duplicate ids loudly: runtime ownership must stay one to one
-        if self.agents.insert(agent_id, agent).is_some() {
-            return Err(RuntimeError::AgentAlreadyExists {
-                agent_id: agent_id.0,
+        if self.workers.insert(worker_id, worker).is_some() {
+            return Err(RuntimeError::WorkerAlreadyExists {
+                worker_id: worker_id.0,
             }
             .boxed());
         }
 
-        Ok(agent_id)
+        Ok(worker_id)
     }
 
-    /// Insert one restored agent image into this runtime.
-    pub(crate) fn insert_restored_agent(&mut self, agent: Agent) -> RuntimeResult<AgentId> {
-        self.insert_agent(agent)
+    /// Insert one restored worker image into this runtime.
+    pub(crate) fn insert_restored_worker(&mut self, worker: Worker) -> RuntimeResult<WorkerId> {
+        self.insert_worker(worker)
     }
 
-    /// Return the next virtual deadline across all agents and simulation.
+    /// Return the next virtual deadline across all workers and simulation.
     pub(crate) fn next_deadline(&self, world: &WorldRef) -> Option<WorldInstant> {
         // current virtual timestamps: monotonic deadlines are projected onto wall time
         let wall_now = world.wall();
         let mono_now = world.mono();
 
         world.next_deadline(
-            self.agents
+            self.workers
                 .values()
-                .map(|agent| agent.event_loop.next_deadline(wall_now, mono_now)),
+                .map(|worker| worker.event_loop.next_deadline(wall_now, mono_now)),
         )
     }
 
-    /// Drain due agent timers after the world advances time.
+    /// Drain due worker timers after the world advances time.
     pub(crate) fn collect_due_timers(
         &mut self,
         world: &WorldRef,
-    ) -> RuntimeResult<Vec<(RuntimeId, AgentId, Timer)>> {
+    ) -> RuntimeResult<Vec<(RuntimeId, WorkerId, Timer)>> {
         let wall_now = world.wall();
         let mono_now = world.mono();
-        let mut agent_timers = Vec::new();
+        let mut worker_timers = Vec::new();
 
-        for agent in self.agents.values_mut() {
-            let ready_timers = agent.event_loop.poll_timers(wall_now, mono_now)?;
+        for worker in self.workers.values_mut() {
+            let ready_timers = worker.event_loop.poll_timers(wall_now, mono_now)?;
             for timer in ready_timers {
-                agent_timers.push((self.id, agent.id, timer));
+                worker_timers.push((self.id, worker.id, timer));
             }
         }
 
-        Ok(agent_timers)
+        Ok(worker_timers)
     }
 
-    /// Poll runtime-owned ingress sources and deliver arrivals to agent event loops.
+    /// Poll runtime-owned ingress sources and deliver arrivals to worker event loops.
     fn poll_ingress(&mut self, world: &WorldRef) -> RuntimeResult<bool> {
         let mut ingress = Vec::new();
 
@@ -431,7 +478,7 @@ impl Runtime {
         self.deliver_ingress(world, ingress)
     }
 
-    /// Deliver coordinator-owned ingress into agent event loops.
+    /// Deliver coordinator-owned ingress into worker event loops.
     fn deliver_ingress(
         &mut self,
         world: &WorldRef,
@@ -444,11 +491,11 @@ impl Runtime {
                 RuntimeIngress::Host { event } => {
                     let kind = event.kind();
                     let targets = self
-                        .agent_ids()
+                        .worker_ids()
                         .into_iter()
-                        .filter(|agent_id| {
-                            self.agent(*agent_id)
-                                .map(|agent| agent.watches_host_event(kind))
+                        .filter(|worker_id| {
+                            self.worker(*worker_id)
+                                .map(|worker| worker.watches_host_event(kind))
                                 .unwrap_or(false)
                         })
                         .collect::<Vec<_>>();
@@ -461,25 +508,25 @@ impl Runtime {
                     }
 
                     // matched host ingress
-                    for agent_id in targets {
-                        let agent = self.agent_mut(agent_id).ok_or_else(|| {
-                            RuntimeError::AgentNotFound {
-                                agent_id: agent_id.0,
+                    for worker_id in targets {
+                        let worker = self.worker_mut(worker_id).ok_or_else(|| {
+                            RuntimeError::WorkerNotFound {
+                                worker_id: worker_id.0,
                             }
                             .boxed()
                         })?;
-                        agent.event_loop.enqueue_host_events(vec![event.clone()]);
-                        agent.hooks.on_ingress_enqueue(world);
+                        worker.event_loop.enqueue_host_events(vec![event.clone()]);
+                        worker.hooks.on_ingress_enqueue(world);
                         handled_any = true;
                     }
                 }
                 RuntimeIngress::Poller { event } => {
                     let targets = self
-                        .agent_ids()
+                        .worker_ids()
                         .into_iter()
-                        .filter(|agent_id| {
-                            self.agent(*agent_id)
-                                .map(|agent| agent.watches_event(event.token))
+                        .filter(|worker_id| {
+                            self.worker(*worker_id)
+                                .map(|worker| worker.watches_event(event.token))
                                 .unwrap_or(false)
                         })
                         .collect::<Vec<_>>();
@@ -492,15 +539,15 @@ impl Runtime {
                     }
 
                     // matched poller ingress
-                    for agent_id in targets {
-                        let agent = self.agent_mut(agent_id).ok_or_else(|| {
-                            RuntimeError::AgentNotFound {
-                                agent_id: agent_id.0,
+                    for worker_id in targets {
+                        let worker = self.worker_mut(worker_id).ok_or_else(|| {
+                            RuntimeError::WorkerNotFound {
+                                worker_id: worker_id.0,
                             }
                             .boxed()
                         })?;
-                        agent.event_loop.enqueue_events(vec![event]);
-                        agent.hooks.on_ingress_enqueue(world);
+                        worker.event_loop.enqueue_events(vec![event]);
+                        worker.hooks.on_ingress_enqueue(world);
                         handled_any = true;
                     }
                 }
@@ -510,7 +557,7 @@ impl Runtime {
         Ok(handled_any)
     }
 
-    /// Deliver one batch of due agent-timer wakes.
+    /// Deliver one batch of due worker-timer wakes.
     pub(crate) fn deliver_wakes(
         &mut self,
         world: &WorldRef,
@@ -518,22 +565,22 @@ impl Runtime {
     ) -> RuntimeResult<()> {
         for wake in wakes {
             match wake {
-                Wake::AgentTimer {
+                Wake::WorkerTimer {
                     runtime_id,
-                    agent_id,
+                    worker_id,
                     timer,
                 } => {
                     if runtime_id != self.id {
                         continue;
                     }
 
-                    let agent = self.agent_mut(agent_id).ok_or_else(|| {
-                        RuntimeError::AgentNotFound {
-                            agent_id: agent_id.0,
+                    let worker = self.worker_mut(worker_id).ok_or_else(|| {
+                        RuntimeError::WorkerNotFound {
+                            worker_id: worker_id.0,
                         }
                         .boxed()
                     })?;
-                    agent.deliver_timer_wake(world, timer)?;
+                    worker.deliver_timer_wake(world, timer)?;
                 }
             }
         }
@@ -541,98 +588,158 @@ impl Runtime {
         Ok(())
     }
 
-    /// Align world-scoped options for agents spawned in one existing runtime.
+    /// Align world-scoped options for workers spawned in one existing runtime.
     fn align_spawn_options_with_runtime(&self, options: &mut RuntimeOptions) {
-        // world scoped settings: all agents in one runtime share one world
-        options.execution = self.options.execution;
-        options.world = self.options.world;
-        options.access = self.options.access;
-        options.replay = self.options.replay.clone();
-        options.time = self.options.time.clone();
-        options.random = self.options.random.clone();
-        options.rules = self.options.rules.clone();
+        // world scoped settings: all workers in one runtime share one world
+        options.execution = self.worker_options.execution;
+        options.world = self.worker_options.world;
+        options.access = self.worker_options.access;
+        options.replay = self.worker_options.replay.clone();
+        options.time = self.worker_options.time.clone();
+        options.random = self.worker_options.random.clone();
+        options.rules = self.worker_options.rules.clone();
     }
 
-    /// Capture one materialized runtime image and all owned agent images.
+    /// Capture one materialized runtime image and all owned worker images.
     pub(crate) fn capture_image(
         &mut self,
         mode: CaptureMode,
-    ) -> RuntimeResult<(RuntimeImage, BTreeMap<AgentId, AgentImage>)> {
-        // runtime metadata
-        let runtime_image = RuntimeImage {
-            runtime_id: self.id,
-            primary_agent_id: self.primary_agent_id,
-            name: self.name.clone(),
-            platform_args: self.platform_args.iter().cloned().collect(),
-            options: self.options.clone(),
-            drop_counts: self.drop_counts,
-        };
+    ) -> RuntimeResult<(Arc<RuntimeImage>, BTreeMap<WorkerId, Arc<WorkerImage>>)> {
+        // shared worker options
+        let mut interned_options = vec![self.worker_options.clone()];
 
-        // agent images
-        let mut agent_images = BTreeMap::new();
-        for agent in self.agents.values_mut() {
-            let image = agent.capture_image(mode)?;
-            let agent_id = image.agent_id;
-            if agent_images.insert(agent_id, image).is_some() {
-                return Err(RuntimeError::DuplicateAgentImage {
+        // runtime metadata
+        let runtime_image = Arc::new(RuntimeImage {
+            primary_worker_id: self.primary_worker_id,
+            platform_args: self.platform_args.clone(),
+            worker_options: self.worker_options.clone(),
+            host_options: self.host_options.clone(),
+        });
+
+        // worker images
+        let mut worker_images = BTreeMap::new();
+        for worker in self.workers.values_mut() {
+            let mut image = worker.capture_image(mode)?;
+
+            // collapse one shared options payload across matching workers
+            if let Some(options) = image.options.explicit_options() {
+                image.options = if options.as_ref() == self.worker_options.as_ref() {
+                    WorkerOptionsImage::Shared
+                } else {
+                    WorkerOptionsImage::Explicit(Self::intern_worker_options(
+                        &mut interned_options,
+                        options.clone(),
+                    ))
+                };
+            }
+
+            if worker_images.insert(worker.id, Arc::new(image)).is_some() {
+                return Err(RuntimeError::DuplicateWorkerImage {
                     runtime_id: self.id.0,
-                    agent_id: agent_id.0,
+                    worker_id: worker.id.0,
                 }
                 .boxed());
             }
         }
 
-        Ok((runtime_image, agent_images))
+        Ok((runtime_image, worker_images))
+    }
+
+    /// Fork one live runtime when all owned workers are quiescent.
+    pub(crate) fn try_fork(
+        &mut self,
+        execution_mode: ExecutionMode,
+    ) -> RuntimeResult<Option<Self>> {
+        // fork each owned worker first
+        let mut workers = BTreeMap::new();
+        for (worker_id, worker) in &mut self.workers {
+            let Some(worker) = worker.try_fork(execution_mode)? else {
+                return Ok(None);
+            };
+            workers.insert(*worker_id, Box::new(worker));
+        }
+
+        // rebuild one fresh host integration boundary
+        let host = self.host_options.host_session(self.id);
+        let poller = self.host_options.poller()?;
+
+        Ok(Some(Self {
+            id: self.id,
+            name: self.name.clone(),
+            platform_args: self.platform_args.clone(),
+            worker_options: self.worker_options.clone(),
+            host_options: self.host_options.clone(),
+            host,
+            poller,
+            drop_counts: self.drop_counts,
+            workers,
+            primary_worker_id: self.primary_worker_id,
+        }))
     }
 
     /// Restore one runtime from one materialized runtime image.
     pub(crate) fn from_image(
         world: &WorldRef,
+        runtime_id: RuntimeId,
+        runtime_name: String,
         image: &RuntimeImage,
-        agent_images: &BTreeMap<AgentId, AgentImage>,
+        worker_names: &BTreeMap<WorkerId, String>,
+        worker_images: &BTreeMap<WorkerId, Arc<WorkerImage>>,
         rebind_context: Option<&ResourceRebinders>,
     ) -> RuntimeResult<Self> {
         // runtime-wide reconstructed state
-        let platform_args: Arc<[String]> = image.platform_args.clone().into();
-        let host = Session::from_runtime_options(&image.options, image.runtime_id);
-        let poller = poller_for_options(&image.options)?;
-        let mut agents = BTreeMap::new();
+        let platform_args = image.platform_args.clone();
+        let host = image.host_options.host_session(runtime_id);
+        let poller = image.host_options.poller()?;
+        let mut workers = BTreeMap::new();
 
-        // agents
-        for agent_image in agent_images.values() {
-            let agent =
-                Agent::from_image(world, platform_args.clone(), agent_image, rebind_context)?;
-            if agents
-                .insert(agent_image.agent_id, Box::new(agent))
-                .is_some()
-            {
-                return Err(RuntimeError::DuplicateAgentImage {
-                    runtime_id: image.runtime_id.0,
-                    agent_id: agent_image.agent_id.0,
+        // workers
+        for (worker_id, worker_image) in worker_images {
+            let worker_name = worker_names.get(worker_id).ok_or_else(|| {
+                RuntimeError::WorkerNotFound {
+                    worker_id: worker_id.0,
+                }
+                .boxed()
+            })?;
+            let worker = Worker::from_image(
+                world,
+                runtime_id,
+                *worker_id,
+                worker_name.clone(),
+                platform_args.clone(),
+                worker_image.as_ref(),
+                Some(&image.worker_options),
+                rebind_context,
+            )?;
+            if workers.insert(*worker_id, Box::new(worker)).is_some() {
+                return Err(RuntimeError::DuplicateWorkerImage {
+                    runtime_id: runtime_id.0,
+                    worker_id: worker_id.0,
                 }
                 .boxed());
             }
         }
 
-        // validate the primary agent after reconstruction
-        if !agents.contains_key(&image.primary_agent_id) {
-            return Err(RuntimeError::PrimaryAgentMissing {
-                runtime_id: image.runtime_id.0,
-                agent_id: image.primary_agent_id.0,
+        // validate the primary worker after reconstruction
+        if !workers.contains_key(&image.primary_worker_id) {
+            return Err(RuntimeError::PrimaryWorkerMissing {
+                runtime_id: runtime_id.0,
+                worker_id: image.primary_worker_id.0,
             }
             .boxed());
         }
 
         Ok(Self {
-            id: image.runtime_id,
-            name: image.name.clone(),
+            id: runtime_id,
+            name: runtime_name,
             platform_args,
-            options: image.options.clone(),
+            worker_options: image.worker_options.clone(),
+            host_options: image.host_options.clone(),
             host,
             poller,
-            drop_counts: image.drop_counts,
-            agents,
-            primary_agent_id: image.primary_agent_id,
+            drop_counts: DropCounts::default(),
+            workers,
+            primary_worker_id: image.primary_worker_id,
         })
     }
 }
