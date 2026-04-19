@@ -83,6 +83,25 @@ fn test_parse_unary_negate_allows_line_comment_before_operand() {
     });
 }
 
+/// Parse a unary operand with an explicit parenthesized comment wrapper.
+#[test]
+fn test_parse_unary_negate_preserves_parenthesized_comment_wrapper() {
+    let mut test = TestParser::new_with_options("-(/* comment */ 1)", LanguageType::JavaScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Unary { operator, right } => {
+        assert_eq!(*operator, UnaryOperator::Negate);
+        assert_node!(parser.tree, *right, Expression::Parenthesized { expression } => {
+            assert_node!(
+                parser.tree,
+                *expression,
+                Expression::ScalarLiteral(ScalarLiteral::Integer(1))
+            );
+        });
+    });
+}
+
 /// Parse await parenthesized `new` with generic receiver and `void` type argument.
 #[test]
 fn test_parse_await_parenthesized_new_expression_with_void_type_argument() {

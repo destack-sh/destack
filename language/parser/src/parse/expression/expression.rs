@@ -1452,6 +1452,7 @@ impl Parser {
 
         // consume the grouped body
         self.bump(); // eat open parenthesis
+        let open_parenthesis_end = self.prev_token_end();
         self.eat_newlines_maybe()?;
 
         // empty tuple when we immediately see a closing parenthesis
@@ -1465,6 +1466,7 @@ impl Parser {
         }
 
         let expression_id = self.eat_type_parenthesized_inner_expression()?;
+        self.set_node_leading_span(expression_id, open_parenthesis_end);
         let parenthesized_id = self.finish_type_parenthesized_expression(start, expression_id);
 
         Ok(parenthesized_id)
@@ -1573,15 +1575,66 @@ impl Parser {
 
         // separator and following trivia
         self.bump(); // eat elementwise operator
+        let separator_end = self.prev_token_end();
         self.eat_newlines_maybe()?;
 
         // operand
         let expression_id = self.eat_type_expression_inner_with_stack_guard()?;
+        let operand_span = self.tree.get_span(expression_id);
 
-        // preserve the full root span and explicit leading separator
-        let _ = leading_binary_operator;
+        // explicit leading separators always keep the corresponding chain shell
+        let full_span = self.get_span_from(start);
+        let expression_id = match (
+            leading_binary_operator,
+            self.tree.get(expression_id).clone(),
+        ) {
+            (BinaryOperator::ElementwiseOr, TypeExpression::Union { .. })
+            | (BinaryOperator::ElementwiseAnd, TypeExpression::Intersection { .. }) => {
+                expression_id
+            }
+
+            (BinaryOperator::ElementwiseOr, _) => self.insert_node(
+                TypeExpression::Union {
+                    elements: vec![expression_id],
+                },
+                operand_span,
+            ),
+
+            (BinaryOperator::ElementwiseAnd, _) => self.insert_node(
+                TypeExpression::Intersection {
+                    elements: vec![expression_id],
+                },
+                operand_span,
+            ),
+
+            _ => unreachable!(),
+        };
+
+        // the chain shell owns the explicit leading prefix
+        let shell_leading_span = Span::new(full_span.file, full_span.start, operand_span.start);
+
+        // preserve the full root span
+        self.tree.set_span(expression_id, full_span);
+
+        self.tree
+            .set_side_span(expression_id, NodeSpanType::Leading, shell_leading_span);
+
+        // the first arm owns trivia after the explicit separator
+        let first_element_id = match (leading_binary_operator, self.tree.get(expression_id)) {
+            (BinaryOperator::ElementwiseOr, TypeExpression::Union { elements }) => {
+                *elements.first().expect("union has no elements")
+            }
+
+            (BinaryOperator::ElementwiseAnd, TypeExpression::Intersection { elements }) => {
+                *elements.first().expect("intersection has no elements")
+            }
+
+            _ => expression_id,
+        };
+        self.set_node_leading_span(first_element_id, separator_end);
+
+        // preserve the explicit leading separator
         let head_span = self.type_expression_head_span(expression_id);
-        self.tree.set_span(expression_id, self.get_span_from(start));
         self.tree.set_head_span(expression_id, head_span);
 
         Ok(expression_id)
@@ -2162,6 +2215,9 @@ impl Parser {
         let left_type_id = self.eat_type_postfix_continuation(&start, left_type_id)?;
         let left_type_id = self.eat_type_infix_continuation(&start, left_type_id)?;
 
+        // attach parsed decorators before finishing the outer tail
+        self.attach_pending_decorators_to_type_expression(&mut expression_decorators, left_type_id);
+
         self.finish_type_expression_tail(left_type_id)
     }
 
@@ -2322,6 +2378,19 @@ impl Parser {
 
         let target_node_id = self.decorator_target_node_id(expression_id);
         self.attach_decorators(target_node_id, std::mem::take(decorators));
+    }
+
+    /// Attach pending decorators to one parsed type expression.
+    fn attach_pending_decorators_to_type_expression(
+        &mut self,
+        decorators: &mut PendingDecorators,
+        type_expression_id: LocalNodeId<TypeExpression>,
+    ) {
+        if decorators.is_empty() {
+            return;
+        }
+
+        self.attach_decorators(type_expression_id.id, std::mem::take(decorators));
     }
 
     /// Return the structural node id that should own prefix decorators.

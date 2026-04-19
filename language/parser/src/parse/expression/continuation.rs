@@ -1362,6 +1362,7 @@ impl Parser {
                         head_span,
                         left_type_id,
                         right_operator,
+                        operator_span,
                         right_type_id,
                     )?
                 };
@@ -1390,6 +1391,7 @@ impl Parser {
         &mut self,
         left_expression_id: LocalNodeId<Expression>,
         right_operator: ParseInfixOperator,
+        operator_span: Span,
         right_context: ParserOptions,
     ) -> ParseResult<(Expression, Option<u32>)> {
         // `as const`
@@ -1409,6 +1411,7 @@ impl Parser {
                 NodeType::Expression,
             )?
         };
+        self.set_node_leading_span(target_type, operator_span.end);
 
         // `as` and `satisfies` wrap the left expression
         let expression = match right_operator {
@@ -1626,6 +1629,7 @@ impl Parser {
                     let (expression, operator_end) = self.eat_assertion_infix_expression(
                         left_expression_id,
                         right_operator,
+                        operator_span,
                         right_context,
                     )?;
                     as_const_operator_end = operator_end;
@@ -1664,6 +1668,7 @@ impl Parser {
                         head_span,
                         left_type_id,
                         right_operator,
+                        operator_span,
                         right_type_id,
                     )?;
 

@@ -87,7 +87,9 @@ impl Parser {
         let mut key_remap = None;
         self.eat_newlines_maybe()?;
         if self.is_keyword(Keyword::As) {
-            self.eat_keyword(Keyword::As)?;
+            let as_span = self.eat_keyword(Keyword::As)?.span;
+            self.set_node_trailing_span(source_type, as_span.start);
+            let remap_boundary_start = as_span.end;
             self.eat_newlines_maybe()?;
             let remap_expression = self.eat_type_expression_or_recover_missing(
                 self.options
@@ -96,6 +98,7 @@ impl Parser {
                     .in_type(),
                 NodeType::TypeExpression,
             )?;
+            self.set_node_leading_span(remap_expression, remap_boundary_start);
 
             key_remap = Some(remap_expression);
         }
@@ -110,14 +113,17 @@ impl Parser {
         self.eat_newlines_maybe()?;
         let value = if self.peek_is(TokenType::Colon) {
             self.eat_token(TokenType::Colon)?;
+            let value_boundary_start = self.prev_token_end();
             self.eat_newlines_maybe()?;
-            self.eat_type_expression_node_or_recover_missing(
+            let value = self.eat_type_expression_node_or_recover_missing(
                 self.options
                     .not_in_position()
                     .not_in_left_precedence()
                     .in_type(),
                 NodeType::TypeExpression,
-            )?
+            )?;
+            self.set_node_leading_span(value, value_boundary_start);
+            value
         } else {
             self.recover_missing_type_expression_here(NodeType::TypeExpression)
         };
@@ -126,6 +132,11 @@ impl Parser {
             self.bump();
             self.eat_newlines_maybe()?;
         }
+
+        // mapped value trailing boundary
+        let mapped_close_start = self.peek()?.span.start;
+        self.set_node_trailing_span(value, mapped_close_start);
+
         self.eat_type_token_or_recover_missing(TokenType::CloseBrace, NodeType::TypeExpression)?;
 
         // mapped type node
