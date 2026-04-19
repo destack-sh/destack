@@ -61,6 +61,8 @@ pub struct BindingModifier {
     pub visibility: Option<Visibility> = None,
     /// The operator to apply to the binding.
     pub operator: Option<BindingOperator> = None,
+    /// Whether the binding uses a definite assignment assertion.
+    pub definite: bool = false,
     /// The accessor kind of the binding.
     pub accessor: Option<AccessorKind> = None,
 }

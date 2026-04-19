@@ -291,7 +291,7 @@ impl Compiler {
                 is_abstract,
                 is_override,
                 is_static,
-                is_const_asserted,
+                is_definite,
                 is_accessor,
                 is_comptime,
                 ..
@@ -320,7 +320,7 @@ impl Compiler {
                         || *is_optional
                         || *is_readonly
                         || mutability.is_some()
-                        || *is_const_asserted
+                        || *is_definite
                         || *is_accessor
                         || *is_comptime
                         || is_index_signature)

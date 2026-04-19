@@ -477,7 +477,7 @@ impl Compiler {
                 is_abstract,
                 is_override,
                 is_static,
-                is_const_asserted,
+                is_definite,
                 is_accessor,
                 is_comptime,
             } => {
@@ -544,7 +544,7 @@ impl Compiler {
                         is_abstract: *is_abstract,
                         is_override: *is_override,
                         is_static: *is_static,
-                        is_const_asserted: *is_const_asserted,
+                        is_definite: *is_definite,
                         is_accessor: *is_accessor,
                         is_comptime: *is_comptime,
                         symbol: symbol_id,

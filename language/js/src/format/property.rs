@@ -68,6 +68,11 @@ pub(crate) fn format_binding_modifiers_postfix<'ast>(
     if modifiers.kind == Some(BindingKind::Maybe) {
         write!(f, [token("?")])?;
     }
+
+    // definite assignment
+    if modifiers.definite {
+        write!(f, [token("!")])?;
+    }
     Ok(())
 }
 

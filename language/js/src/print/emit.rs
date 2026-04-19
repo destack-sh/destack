@@ -197,6 +197,10 @@ impl<'a> Printer<'a> {
         if modifiers.is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe)) {
             self.write_punct("?");
         }
+
+        if modifiers.is_some_and(|modifiers| modifiers.definite) {
+            self.write_punct("!");
+        }
     }
 
     /// Print one visibility keyword.
