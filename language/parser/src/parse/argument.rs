@@ -1751,7 +1751,10 @@ impl Parser {
 
     /// Eat top-level generic arguments.
     #[inline]
-    fn eat_generic_arguments_body(&mut self) -> ParseResult<Vec<LocalNodeId<GenericArgument>>> {
+    fn eat_generic_arguments_body(
+        &mut self,
+        mut next_argument_boundary_start: u32,
+    ) -> ParseResult<Vec<LocalNodeId<GenericArgument>>> {
         let mut arguments = smallvec::SmallVec::<[LocalNodeId<GenericArgument>; 4]>::new();
         self.eat_newlines_maybe()?;
 
@@ -1780,13 +1783,16 @@ impl Parser {
                     self.insert_node(GenericArgument::Error, self.get_span_from(&argument_start))
                 }
             };
+            self.set_node_leading_span(argument_id, next_argument_boundary_start);
 
             arguments.push(argument_id);
             self.eat_newlines_maybe()?;
 
             // continue through separators
             if self.peek_is(TokenType::Comma) {
-                self.eat_item_stop_with_newlines()?;
+                self.bump();
+                next_argument_boundary_start = self.prev_token_end();
+                self.eat_newlines_maybe()?;
             }
             // recovered slots may continue across newline separators only
             else if !self
@@ -1820,6 +1826,7 @@ impl Parser {
         } else {
             return Err(ParseError::expected(self.peek()?.span, TokenType::LessThan));
         }
+        let first_argument_boundary_start = self.prev_token_end();
         self.eat_newlines_maybe()?;
 
         // empty generic arguments only recover in committed type-like contexts
@@ -1860,7 +1867,7 @@ impl Parser {
                 self.options
                     .with_ambient_context(ambient_context)
                     .with_expression_context(expression_context),
-                |parser| parser.eat_generic_arguments_body(),
+                |parser| parser.eat_generic_arguments_body(first_argument_boundary_start),
             )?
         };
 

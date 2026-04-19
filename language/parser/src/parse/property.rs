@@ -485,7 +485,6 @@ impl Parser {
             } else {
                 self.eat_method_return_type(owner)?
             };
-
             (Some(return_type), Some(self.get_span_from(&type_start)))
         } else {
             (None, None)
@@ -1188,7 +1187,6 @@ impl Parser {
         } else {
             self.eat_method_return_type(NodeType::TypeMember)?
         };
-
         let member = TypeMember::Field {
             is_optional,
             is_readonly,

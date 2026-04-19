@@ -493,6 +493,7 @@ impl Parser {
         head_span: Span,
         left_type_id: LocalNodeId<TypeExpression>,
         operator: ParseInfixOperator,
+        operator_span: Span,
         right_type_id: LocalNodeId<TypeExpression>,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         match operator {
@@ -507,6 +508,7 @@ impl Parser {
                     source_span,
                     head_span,
                     binary_operator,
+                    operator_span,
                     left_type_id,
                     right_type_id,
                 );
@@ -545,9 +547,13 @@ impl Parser {
         source_span: Span,
         head_span: Span,
         operator: BinaryOperator,
+        operator_span: Span,
         left: LocalNodeId<TypeExpression>,
         right: LocalNodeId<TypeExpression>,
     ) -> LocalNodeId<TypeExpression> {
+        self.set_node_trailing_span(left, operator_span.start);
+        self.set_node_leading_span(right, operator_span.end);
+
         let expression = match (operator, self.tree.get(left).clone()) {
             (BinaryOperator::ElementwiseOr, TypeExpression::Union { mut elements }) => {
                 elements.push(right);

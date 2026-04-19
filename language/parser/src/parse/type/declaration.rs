@@ -96,7 +96,6 @@ impl Parser {
             let value_id = self.with_options(value_options, |parser| {
                 parser.eat_type_alias_right_hand_side()
             })?;
-
             // declaration node
             let declaration = Declaration::Type(TypeDeclaration {
                 name,
