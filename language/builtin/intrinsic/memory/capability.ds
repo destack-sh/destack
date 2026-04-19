@@ -1,0 +1,11 @@
+/// Mark a type as copyable without ownership transfer.
+export newtype interface Copy {}
+
+/// Mark a type as explicitly cloneable.
+export newtype interface Clone {}
+
+/// Mark a type as safe to send across threads.
+export newtype interface Send {}
+
+/// Mark a type as safe to share across threads.
+export newtype interface Sync {}

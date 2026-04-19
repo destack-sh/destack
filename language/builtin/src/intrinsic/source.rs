@@ -61,10 +61,9 @@ builtin_source!(INTRINSIC_PRELUDE, "prelude.ds");
 // memory
 builtin_source!(MEMORY_INDEX, "memory", "index.ds");
 builtin_source!(MEMORY_BYTES, "memory", "bytes.ds");
-builtin_source!(MEMORY_COPY, "memory", "copy.ds");
+builtin_source!(MEMORY_CAPABILITY, "memory", "capability.ds");
 builtin_source!(MEMORY_DISPOSE, "memory", "dispose.ds");
-builtin_source!(MEMORY_OWNERSHIP, "memory", "ownership.ds");
-builtin_source!(MEMORY_THREAD, "memory", "thread.ds");
+builtin_source!(MEMORY_FORM, "memory", "form.ds");
 
 // operator
 builtin_source!(OPERATOR_ARITHMETIC, "operator", "arithmetic.ds");
@@ -105,10 +104,9 @@ builtin_source!(PRIMITIVE_VECTOR, "primitive", "vector.ds");
 /// Dependencies should be loaded before dependents.
 pub const INTRINSIC_SOURCES: &[BuiltinSource] = &[
     // memory
-    MEMORY_OWNERSHIP,
-    MEMORY_COPY,
+    MEMORY_FORM,
+    MEMORY_CAPABILITY,
     MEMORY_DISPOSE,
-    MEMORY_THREAD,
     MEMORY_BYTES,
     MEMORY_INDEX,
     // operator

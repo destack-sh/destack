@@ -1,0 +1,131 @@
+/// Region marker for borrowed validity.
+///
+/// `Region` is a compiler known static parameter kind.
+/// It is not a runtime value type and has no interface behavior.
+export newtype Region = unknown;
+
+/// Space tag kind for qualified storage.
+///
+/// `Space` is a compiler known static parameter kind.
+/// It is not a runtime value type and has no interface behavior.
+export newtype Space = string | int;
+
+/// Ownership or access kind for qualified storage.
+///
+/// `Ownership` is a compiler known static parameter kind.
+/// It is not a runtime value type and has no interface behavior.
+export newtype Ownership = "managed" | "owned" | "borrowed" | "raw";
+
+/// Canonical qualified storage form.
+export newtype Form<
+    T,
+    O: Ownership = "managed",
+    S: Space = "local",
+    R = never,
+> = unknown;
+
+/// Managed value of `T` in the ambient space.
+///
+/// For example, `Managed<string>` is the explicit algebraic form of plain `string`
+/// in storage bearing positions.
+export type Managed<T> = Form<BaseOf<T>, "managed", SpaceOf<T>>;
+
+/// Borrowed value of `T` within region `R`.
+export type Borrowed<T, R: Region> = Form<BaseOf<T>, "borrowed", SpaceOf<T>, R>;
+
+/// Raw value of `T`.
+export type Raw<T> = Form<BaseOf<T>, "raw", SpaceOf<T>>;
+
+/// Owned value of `T`.
+export type Owned<T> = Form<BaseOf<T>, "owned", SpaceOf<T>>;
+
+/// Value `T` in space `S`.
+export type InSpace<S: Space, T> = WithSpace<T, S>;
+
+/// Rebase `T` into the shared space.
+export type Shared<T> = InSpace<"shared", T>;
+
+/// Extract the unqualified base type of `T`.
+export type BaseOf<T> =
+    T extends Form<infer U, infer O, infer S, infer R> ? U :
+    T;
+
+/// Extract the ownership of `T`, defaulting to `"managed"`.
+export type OwnershipOf<T> =
+    T extends Form<infer U, infer O, infer S, infer R> ? O :
+    "managed";
+
+/// Extract the space of `T`, defaulting to `"local"`.
+export type SpaceOf<T> =
+    T extends Form<infer U, infer O, infer S, infer R> ? S :
+    "local";
+
+/// Extract the borrow region of `T`.
+export type RegionOf<T> =
+    T extends Form<infer U, infer O, infer S, infer R> ?
+        O extends "borrowed" ? R : never :
+    never;
+
+/// Return whether `T` is managed.
+export type IsManaged<T> =
+    OwnershipOf<T> extends "managed" ? true :
+    false;
+
+/// Return whether `T` is owned.
+export type IsOwned<T> =
+    OwnershipOf<T> extends "owned" ? true :
+    false;
+
+/// Return whether `T` is borrowed.
+export type IsBorrowed<T> =
+    OwnershipOf<T> extends "borrowed" ? true :
+    false;
+
+/// Return whether `T` is raw.
+export type IsRaw<T> =
+    OwnershipOf<T> extends "raw" ? true :
+    false;
+
+/// Return whether `T` lives in the shared space.
+export type IsShared<T> =
+    SpaceOf<T> extends "shared" ? true :
+    false;
+
+/// Rebuild `Q` with base type `T`.
+///
+/// This is the main projection helper for local policy aliases such as
+/// `type TextLike<Q> = WithBase<Q, string>` or
+/// `type ArrayLike<Q, T> = WithBase<Q, Array<T>>`.
+export type WithBase<Q, T> =
+    Form<T, OwnershipOf<Q>, SpaceOf<Q>, RegionOf<Q>>;
+
+/// Rebuild `Q` with ownership `O`.
+///
+/// This changes the ownership or access form while preserving base type, space,
+/// and region when the new form is borrowed.
+export type WithOwnership<Q, O: Ownership, R = RegionOf<Q>> =
+    O extends "borrowed" ?
+        Form<BaseOf<Q>, O, SpaceOf<Q>, R> :
+        Form<BaseOf<Q>, O, SpaceOf<Q>>;
+
+/// Rebuild `Q` in space `S`.
+export type WithSpace<Q, S: Space> =
+    Form<BaseOf<Q>, OwnershipOf<Q>, S, RegionOf<Q>>;
+
+/// Rebuild borrowed `Q` with region `R`.
+export type WithRegion<Q, R: Region> =
+    OwnershipOf<Q> extends "borrowed" ?
+        Form<BaseOf<Q>, "borrowed", SpaceOf<Q>, R> :
+        never;
+
+/// Convert `T` to the managed form while preserving place.
+export type AsManaged<T> = Managed<T>;
+
+/// Convert `T` to the owned form while preserving place.
+export type AsOwned<T> = Owned<T>;
+
+/// Convert `T` to the borrowed form within region `R` while preserving place.
+export type AsBorrowed<T, R: Region> = Borrowed<T, R>;
+
+/// Convert `T` to the raw form while preserving place.
+export type AsRaw<T> = Raw<T>;
