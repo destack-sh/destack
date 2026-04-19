@@ -1544,7 +1544,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 is_abstract,
                 is_override,
                 is_static,
-                is_const_asserted,
+                is_definite,
                 is_accessor,
                 is_comptime,
             } => {
@@ -1558,7 +1558,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("is_abstract", is_abstract)
                     .field("is_override", is_override)
                     .field("is_static", is_static)
-                    .field("is_const_asserted", is_const_asserted)
+                    .field("is_definite", is_definite)
                     .field("is_accessor", is_accessor)
                     .field("is_comptime", is_comptime)
                     .end();
