@@ -8,7 +8,10 @@ export newtype Region = unknown;
 ///
 /// `Space` is a compiler known static parameter kind.
 /// It is not a runtime value type and has no interface behavior.
-export newtype Space = string | int;
+///
+/// Source-level spaces are named by string tags such as `"local"` and
+/// `"shared"`.
+export newtype Space = string;
 
 /// Ownership or access kind for qualified storage.
 ///
