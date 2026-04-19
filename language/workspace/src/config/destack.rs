@@ -4,23 +4,15 @@ use serde_json::Value;
 
 use crate::config::ProfileConfigJson;
 
-use super::account::AccountJson;
-use super::asset::AssetJson;
 use super::cache::CacheJson;
 use super::compiler::CompilerOptionsJson;
-use super::config::ConfigJson;
 use super::daemon::DaemonJson;
 use super::environment::EnvironmentJson;
-use super::feature::FeatureJson;
 use super::formatter::FormatterJson;
 use super::linter::LinterJson;
 use super::mode::ModeJson;
 use super::runtime::RuntimeConfigJson;
-use super::secret::SecretJson;
-use super::stack::StackJson;
 use super::target::TargetJson;
-use super::task::TaskJson;
-use super::telemetry::TelemetryJson;
 use super::watch::WatchJson;
 use super::workspace::WorkspaceJson;
 
@@ -65,8 +57,6 @@ pub struct DestackJson {
     pub peer_dependencies: Option<IndexMap<String, String>>,
     /// Optional dependencies.
     pub optional_dependencies: Option<IndexMap<String, String>>,
-    /// Named local workflow tasks.
-    pub tasks: Option<IndexMap<String, TaskJson>>,
     /// Repository wide workspace membership.
     pub workspace: Option<WorkspaceJson>,
     /// Extends other Destack configs or tsconfig files by path.
@@ -100,22 +90,8 @@ pub struct DestackJson {
     pub daemon: DaemonJson,
     /// Build targets.
     pub targets: Option<IndexMap<String, TargetJson>>,
-    /// Deployment stack definitions.
-    pub stacks: Option<IndexMap<String, StackJson>>,
-    /// Named control plane accounts.
-    pub accounts: Option<IndexMap<String, AccountJson>>,
-    /// Named reusable environment overlays.
+    /// Named reusable toolchain and runtime environments.
     pub environments: Option<IndexMap<String, EnvironmentJson>>,
-    /// Named reusable config bindings.
-    pub configs: Option<IndexMap<String, ConfigJson>>,
-    /// Named reusable secret bindings.
-    pub secrets: Option<IndexMap<String, SecretJson>>,
-    /// Named reusable asset collections.
-    pub assets: Option<IndexMap<String, AssetJson>>,
-    /// Named runtime feature definitions.
-    pub features: Option<IndexMap<String, FeatureJson>>,
-    /// Named telemetry definitions.
-    pub telemetry: Option<IndexMap<String, TelemetryJson>>,
     /// Named profiles for semantic configuration.
     pub profiles: Option<IndexMap<String, ProfileConfigJson>>,
     /// Named modes for emitted output policy.

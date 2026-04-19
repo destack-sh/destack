@@ -16,7 +16,6 @@ use super::super::runtime::{
     RuntimeAppDeclaration, RuntimeConfigJson, RuntimeOptions, runtime_options_with_base,
 };
 use super::super::tsconfig::{EsTarget, ModuleTarget};
-use super::super::{FeatureRefsJson, TelemetryRefsJson};
 
 use super::app::*;
 use super::bundle::*;
@@ -85,10 +84,6 @@ pub struct Target {
     pub minify: TargetMinifyOptions,
     /// App declaration for packaging and runtime capability planning.
     pub app: TargetAppDeclaration,
-    /// Referenced runtime feature definitions.
-    pub features: Vec<String>,
-    /// Referenced telemetry definitions.
-    pub telemetry: Vec<String>,
     /// Formal named outputs published by this target.
     pub outputs: TargetOutputs,
     /// Emitted artifact family (js, ts, html, wasm, native).
@@ -251,8 +246,6 @@ impl std::hash::Hash for Target {
         self.bundle_output.hash(state);
         self.minify.hash(state);
         self.app.hash(state);
-        self.features.hash(state);
-        self.telemetry.hash(state);
         self.outputs.hash(state);
         self.emit.hash(state);
         self.runtime.hash(state);
@@ -1257,10 +1250,6 @@ pub struct TargetOptions {
     pub minify: TargetMinifyOptions,
     /// App declaration for packaging and runtime capability planning.
     pub app: TargetAppDeclaration,
-    /// Referenced runtime feature definitions.
-    pub features: Vec<String>,
-    /// Referenced telemetry definitions.
-    pub telemetry: Vec<String>,
     /// Formal named outputs published by this target.
     pub outputs: TargetOutputs,
 
@@ -1387,8 +1376,6 @@ impl Default for TargetOptions {
             define: IndexMap::new(),
             minify: TargetMinifyOptions::default(),
             app: TargetAppDeclaration::default(),
-            features: Vec::new(),
-            telemetry: Vec::new(),
             outputs: TargetOutputs::new(),
             debug: true,
             optimize: false,
@@ -1506,8 +1493,6 @@ impl TargetOptions {
             define: self.define.clone(),
             minify: self.minify.clone(),
             app: self.app.clone(),
-            features: self.features.clone(),
-            telemetry: self.telemetry.clone(),
             outputs: self.outputs.clone(),
             debug: self.debug,
             optimize: self.optimize,
@@ -1739,16 +1724,6 @@ impl TargetOptions {
             define,
             minify,
             app,
-            features: json
-                .features
-                .as_ref()
-                .map(FeatureRefsJson::names)
-                .unwrap_or_default(),
-            telemetry: json
-                .telemetry
-                .as_ref()
-                .map(TelemetryRefsJson::names)
-                .unwrap_or_default(),
             outputs,
             debug: json.debug,
             optimize: json.optimize,
@@ -1830,7 +1805,7 @@ impl From<&TargetJson> for TargetOptions {
 /// A build artifact node.
 ///
 /// Inputs: source discovery, build settings, runtime selection, and packaging declarations.
-/// Outputs: built artifacts and target metadata consumed by stacks.
+/// Outputs: built artifacts and target metadata consumed by deployment tooling.
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
@@ -1961,10 +1936,6 @@ pub struct TargetJson {
     pub minify: Option<TargetMinifyOptionsJson>,
     /// App declaration for packaging and runtime capability planning.
     pub app: Option<TargetAppDeclarationJson>,
-    /// Referenced runtime feature definitions.
-    pub features: Option<FeatureRefsJson>,
-    /// Referenced telemetry definitions.
-    pub telemetry: Option<TelemetryRefsJson>,
     // optimization
     /// Whether this is a debug build.
     #[serde(default)]
