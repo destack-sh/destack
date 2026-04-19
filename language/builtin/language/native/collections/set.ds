@@ -1,19 +1,43 @@
-/// Native hash set using open addressing with Robin Hood hashing.
+/// Ordered hash set with one hash index and one ordered entry array.
+///
+/// The raw table and entry pointers are internal storage owned by `Set<T>`
+/// itself.
+/// `Set<T>` is responsible for value lifetime and tracing over stored values,
+/// while heap forking and CoW stay below this type.
 export struct Set<T> {
     /// Number of elements in the set.
     length: uint32;
-    /// Number of allocated buckets.
-    capacity: uint32;
-    /// Control bytes for SIMD-friendly probing.
-    ctrl: *uint8;
-    /// Pointer to element storage.
-    buckets: *T;
+    /// Number of allocated hash slots.
+    tableCapacity: uint32;
+    /// Number of allocated entry slots.
+    entryCapacity: uint32;
+    /// Raw control-byte storage owned by this set.
+    control: *uint8;
+    /// Raw bucket-to-entry index storage owned by this set.
+    buckets: *uint32;
+    /// Raw ordered entry storage owned by this set.
+    entries: *SetEntry<T>;
+}
+
+/// One stored set value in insertion order.
+struct SetEntry<T> {
+    /// Cached hash for lookup.
+    hash: uint64;
+    /// The stored value.
+    value: T;
 }
 
 extension<T> of Set<T> implements Iterable<T> {
     /// Create an empty set.
     static new(): Set<T> {
-        Set { length: 0, capacity: 0, ctrl: null as *uint8, buckets: null as *T }
+        Set {
+            length: 0,
+            tableCapacity: 0,
+            entryCapacity: 0,
+            control: null as *uint8,
+            buckets: null as *uint32,
+            entries: null as *SetEntry<T>,
+        }
     }
 
     /// Get the number of elements.
@@ -27,7 +51,7 @@ extension<T> of Set<T> implements Iterable<T> {
     }
 
     /// Add an element.
-    add(value: T): Set<T> {
+    add(value: T): this {
         // #Incomplete
         this
     }
@@ -77,7 +101,14 @@ extension<T> of Set<T> implements Iterable<T> {
     /// Intersection of two sets.
     intersection(other: Set<T>): Set<T> {
         // #Incomplete
-        Set { length: 0, capacity: 0, ctrl: null as *uint8, buckets: null as *T }
+        Set {
+            length: 0,
+            tableCapacity: 0,
+            entryCapacity: 0,
+            control: null as *uint8,
+            buckets: null as *uint32,
+            entries: null as *SetEntry<T>,
+        }
     }
 
     /// Difference (this - other).

@@ -1,10 +1,14 @@
-/// Native dynamic array.
+/// Growable contiguous array.
+///
+/// The raw element pointer is internal storage owned by `Array<T>` itself.
+/// `Array<T>` is responsible for element lifetime and tracing over initialized
+/// slots, while heap forking and CoW stay below this type.
 export struct Array<T> {
     /// Number of elements in the array.
     length: uint32;
     /// Allocated capacity (in elements).
     capacity: uint32;
-    /// Pointer to contiguous element storage.
+    /// Raw contiguous element storage owned by this array.
     data: *T;
 }
 
@@ -166,13 +170,13 @@ extension<T> of Array<T> implements Index<number, T>, IndexSet<number, T>, Itera
     }
 
     /// Reverse the array in place.
-    reverse(): Array<T> {
+    reverse(): this {
         // #Incomplete
         this
     }
 
     /// Sort the array in place.
-    sort(compareFn?: (a: T, b: T) => number): Array<T> {
+    sort(compareFn?: (a: T, b: T) => number): this {
         // #Incomplete
         this
     }

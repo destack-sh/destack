@@ -1,18 +1,26 @@
-/// Native hash map using open addressing with Robin Hood hashing.
+/// Ordered hash map with one hash index and one ordered entry array.
 export struct Map<K, V> {
     /// Number of entries in the map.
     length: uint32;
-    /// Number of allocated buckets.
-    capacity: uint32;
-    /// Control bytes for SIMD-friendly probing (like Swiss Table).
-    ctrl: *uint8;
-    /// Pointer to bucket storage.
-    buckets: *MapEntry<K, V>;
+    /// Number of allocated hash slots.
+    tableCapacity: uint32;
+    /// Number of allocated entry slots.
+    entryCapacity: uint32;
+    /// Raw control-byte storage owned by this map.
+    control: *uint8;
+    /// Raw bucket-to-entry index storage owned by this map.
+    buckets: *uint32;
+    /// Raw ordered entry storage owned by this map.
+    entries: *MapEntry<K, V>;
 }
 
-// internal entry structure
+/// One stored key-value pair in insertion order.
 struct MapEntry<K, V> {
+    /// Cached hash for lookup.
+    hash: uint64;
+    /// The entry key.
     key: K;
+    /// The entry value.
     value: V;
 }
 
@@ -38,7 +46,7 @@ extension<K, V> of Map<K, V> implements Index<K, V>, IndexSet<K, V>, Iterable<[K
     }
 
     /// Set a key-value pair.
-    set(key: K, value: V): Map<K, V> {
+    set(key: K, value: V): this {
         // #Incomplete
         this
     }
