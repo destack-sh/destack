@@ -1,6 +1,6 @@
 use super::super::common::{clamp_min, memcmp_bytes, mix_result};
 use super::super::{Program, scale_axis};
-use destack_heap::Value;
+use destack_vm::Value;
 
 declare_program! {
     /// Prefix comparisons using the memcmp intrinsic.

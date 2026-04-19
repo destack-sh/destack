@@ -1,5 +1,5 @@
 use super::super::{Program, scale_axis};
-use destack_heap::Value;
+use destack_vm::Value;
 
 /// Default iteration count for the global counter.
 const DEFAULT_ITERS: i64 = 1000;

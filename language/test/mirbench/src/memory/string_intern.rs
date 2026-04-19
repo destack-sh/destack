@@ -1,6 +1,6 @@
 use super::super::common::mix_result;
 use super::super::{Program, scale_axis};
-use destack_heap::Value;
+use destack_vm::Value;
 
 const INTERN_TABLE_LEN: i64 = 256;
 const INTERN_HASH_MUL: i64 = 1103515245;

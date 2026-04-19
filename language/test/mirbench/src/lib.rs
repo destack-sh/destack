@@ -36,9 +36,8 @@ mod program;
 
 use std::path::{Path, PathBuf};
 
-use destack_heap::Value;
 use destack_mir as mir;
-use destack_vm::Isolate;
+use destack_vm::{Isolate, Value};
 
 /// Return the function id for a named function in the isolate.
 pub fn function_id_by_name(isolate: &Isolate, name: &str) -> mir::LocalNodeId<mir::Function> {

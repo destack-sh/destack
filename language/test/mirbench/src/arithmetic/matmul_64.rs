@@ -1,6 +1,6 @@
 use super::super::common::clamp_min;
 use super::super::{Program, scale_axis};
-use destack_heap::Value;
+use destack_vm::Value;
 
 declare_program! {
     /// Matrix multiply with fixed 64x64 tiles.

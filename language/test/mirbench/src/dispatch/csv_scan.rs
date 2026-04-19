@@ -1,6 +1,6 @@
 use super::super::common::mix_result;
 use super::super::{Program, scale_axis};
-use destack_heap::Value;
+use destack_vm::Value;
 
 const CSV_HASH_MUL: i64 = 1664525;
 const CSV_HASH_ADD: i64 = 1013904223;

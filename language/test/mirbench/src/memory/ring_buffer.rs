@@ -1,6 +1,6 @@
 use super::super::common::{clamp_min, mix_result};
 use super::super::{Program, scale_axis};
-use destack_heap::Value;
+use destack_vm::Value;
 
 declare_program! {
     /// Ring buffer updates with wraparound indexing.

@@ -1,6 +1,6 @@
 use super::super::common::mix_result;
 use super::super::{Program, scale_axis};
-use destack_heap::Value;
+use destack_vm::Value;
 
 const PATH_STATE_EMPTY: i64 = 0;
 const PATH_STATE_DOT: i64 = 1;

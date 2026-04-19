@@ -1,5 +1,5 @@
 use super::super::{Program, ProgramRunner, scale_axis_range};
-use destack_heap::Value;
+use destack_vm::Value;
 
 /// Resolve awaitable values by incrementing them.
 fn resume_from_awaitable(_: &[Value], _: usize, yielded: Value) -> Value {

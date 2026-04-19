@@ -1,5 +1,5 @@
 use super::super::{Program, function_pointer_by_name, scale_axis};
-use destack_heap::Value;
+use destack_vm::Value;
 
 declare_program! {
     /// Vtable like dispatch through indirect calls.

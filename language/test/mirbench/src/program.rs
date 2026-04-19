@@ -7,12 +7,14 @@ use std::time::{Duration, Instant};
 
 #[cfg(feature = "cli")]
 use clap::ValueEnum;
-use destack_heap::{Heap, MemoryContext, SharedSpace, Value};
+use destack_heap::Heap;
 use destack_mir as mir;
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
 use destack_vm::diagnostic::RuntimeResult;
-use destack_vm::{CheckPolicy, ExecutionOutcome, ExecutionOutput, Isolate, IsolateOptions};
+use destack_vm::{
+    CheckPolicy, Isolate, IsolateOptions, MemoryContext, RunOutcome, RunOutput, SharedHeap, Value,
+};
 
 use super::{arithmetic, calls, dispatch, function_id_by_name, intrinsics, memory, perf};
 
@@ -930,7 +932,7 @@ fn calibrate_scale(
     program: &Program,
     isolate: &mut Isolate,
     heap: &mut Heap,
-    shared: &mut SharedSpace,
+    shared: &mut SharedHeap,
     entry_id: mir::LocalNodeId<mir::Function>,
     args: &mut [Value],
     axis: ScaleAxis,
@@ -1013,11 +1015,11 @@ fn matches_filters(entry: &ProgramEntry, options: &BenchOptions) -> bool {
 fn run_coroutine(
     isolate: &mut Isolate,
     heap: &mut Heap,
-    shared: &mut SharedSpace,
+    shared: &mut SharedHeap,
     entry_id: mir::LocalNodeId<mir::Function>,
     args: &[Value],
     resume_value: ResumeValueFn,
-) -> RuntimeResult<ExecutionOutput> {
+) -> RuntimeResult<RunOutput> {
     // start execution
     let mut memory = MemoryContext::new(heap, shared);
     let mut outcome = isolate.run_function_yielding(&mut memory, entry_id, args)?;
@@ -1028,9 +1030,9 @@ fn run_coroutine(
         // handle completion or yield
         match outcome {
             // return on completion
-            ExecutionOutcome::Completed { output } => return Ok(output),
+            RunOutcome::Completed { output } => return Ok(output),
             // resume after suspension
-            ExecutionOutcome::Yielded { yielded } => {
+            RunOutcome::Yielded { yielded } => {
                 // compute resume value
                 let resume = resume_value(args, yield_index, yielded.value);
                 yield_index += 1;
@@ -1093,10 +1095,10 @@ impl Program {
         &self,
         isolate: &mut Isolate,
         heap: &mut Heap,
-        shared: &mut SharedSpace,
+        shared: &mut SharedHeap,
         entry_id: mir::LocalNodeId<mir::Function>,
         args: &[Value],
-    ) -> RuntimeResult<ExecutionOutput> {
+    ) -> RuntimeResult<RunOutput> {
         // dispatch to the selected runner
         match self.runner {
             ProgramRunner::Function => {
@@ -1114,10 +1116,10 @@ impl Program {
         &self,
         isolate: &mut Isolate,
         heap: &mut Heap,
-        shared: &mut SharedSpace,
+        shared: &mut SharedHeap,
         entry_id: mir::LocalNodeId<mir::Function>,
         args: &[Value],
-    ) -> ExecutionOutput {
+    ) -> RunOutput {
         // execute program
         self.run_once(isolate, heap, shared, entry_id, args)
             .unwrap_or_else(|e| panic!("'{}' failed: {:?}", self.name, e))
@@ -1139,8 +1141,8 @@ impl Program {
     #[allow(dead_code)]
     pub fn actual_instruction_count(&self, args: &[Value]) -> u64 {
         let mut isolate = self.isolate();
-        let mut heap = Heap::default();
-        let mut shared = SharedSpace::default();
+        let mut heap = Heap::new().expect("default heap should build");
+        let mut shared = SharedHeap::default();
         let entry_id = self.entry_id(&isolate);
         let result = self.run_or_panic(&mut isolate, &mut heap, &mut shared, entry_id, args);
         result.stats.lowered_instructions_executed
@@ -1153,8 +1155,8 @@ impl Program {
 
         // build isolate and arguments
         let mut isolate = self.isolate();
-        let mut heap = Heap::default();
-        let mut shared = SharedSpace::default();
+        let mut heap = Heap::new().expect("default heap should build");
+        let mut shared = SharedHeap::default();
         let args = (self.default_args)(&isolate);
         let entry_id = self.entry_id(&isolate);
         let result = self.run_or_panic(&mut isolate, &mut heap, &mut shared, entry_id, &args);
@@ -1597,8 +1599,8 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
 
         // build isolate and arguments
         let mut isolate = entry.program.isolate_with_options(options);
-        let mut heap = Heap::default();
-        let mut shared = SharedSpace::default();
+        let mut heap = Heap::new().expect("default heap should build");
+        let mut shared = SharedHeap::default();
         let entry_id = entry.program.entry_id(&isolate);
         let mut args = entry.program.args_for_profile(&isolate, profile.kind);
 
@@ -1956,8 +1958,8 @@ pub fn print_stats(options: &BenchOptions) {
 
         // build isolate and arguments
         let mut isolate = entry.program.isolate_with_options(options);
-        let mut heap = Heap::default();
-        let mut shared = SharedSpace::default();
+        let mut heap = Heap::new().expect("default heap should build");
+        let mut shared = SharedHeap::default();
         let args = entry
             .program
             .args_for_profile(&isolate, options.profile.kind);
