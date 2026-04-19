@@ -201,9 +201,12 @@ impl Parser {
         }
 
         // reject optional + definite assignment combo
-        if modifiers.is_some_and(|modifiers| modifiers.is_optional) && self.peek_is(TokenType::Not)
-        {
-            return Err(ParseError::unexpected(self.peek()?.span));
+        if modifiers.is_some_and(|modifiers| modifiers.is_optional && modifiers.is_definite) {
+            let error_span = self
+                .prev()
+                .map(|token| token.span)
+                .unwrap_or(self.peek()?.span);
+            return Err(ParseError::unexpected(error_span));
         }
 
         // reject async? method(...) token glue
@@ -1703,6 +1706,14 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_member_rejects_optional_definite_assignment_combo() {
+        let mut test = TestParser::new_with_options("prop!?: Foo", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+
+        assert!(parser.eat_member().is_err());
+    }
+
+    #[test]
     fn test_parse_member_override_field() {
         let mut test =
             TestParser::new_with_options("override foo: int32", LanguageType::TypeScript);
@@ -2260,6 +2271,14 @@ foo(): string;"#,
                 });
             });
         });
+    }
+
+    #[test]
+    fn test_parse_property_rejects_optional_definite_assignment_combo() {
+        let mut test = TestParser::new_with_options("prop!?: LongType[]", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+
+        assert!(parser.eat_property().is_err());
     }
 
     #[test]
