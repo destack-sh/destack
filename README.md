@@ -24,7 +24,7 @@ Open source cross-platform TypeScript(++) toolchain, VM, AOT compiler, runtime, 
 ## The Destack
 
 **Destack is a universal software engine with a language, compiler, toolchain, runtime, libraries, services, and apps built on top of TypeScript and the open web ecosystem.**
-Conceptually, Destack is the antithesis to the very idea of a "stack":
+Mechanically, Destack is a complete stack for building a specific subset of software systems extremely well, but conceptually, Destack is the antithesis to the very idea of a "stack":
 instead of wrangling many disparate languages, tools, libraries, approaches, runtimes, services, and apps, Destack unifies the processes of software production into _one_ universal computing stack:
 
 - [**Destack Language**](language/README.md): TypeScript(++) toolchain, VM, AOT compiler, runtime.
@@ -43,13 +43,18 @@ We do provide some common [apps](app/README.md) and [templates](template/README.
 
 ## Higher-Order Programming
 
-It has been more than 50 years since [C introduced higher order programming](https://en.wikipedia.org/wiki/C_(programming_language)#History) as we know it today, yet programming is still astoundingly immature.
-Our tools are a little nicer, sure: prettier GUIs, faster GCs, fatter libraries, fancier PaaS and SaaS, and .. that's it - fundamentally, we're still text in, green tests out plus some logs out, and then we ship without any [_real_ confidence](https://apple.github.io/foundationdb/flow.html).
+It has been more than half a century years since [C introduced higher order programming](https://en.wikipedia.org/wiki/C_(programming_language)#History) as we know it today, yet programming is still astoundingly immature.
+Our tools are a little nicer, sure: prettier GUIs, faster GCs, fatter libraries, fancier SaaS, and .. that's it - fundamentally, we're still text in, tests results with _maybe_ some logs out, and then we ship without any [_real_ confidence](https://apple.github.io/foundationdb/flow.html).
 We've just grown accustomed to software being clunky, broken, and slow.
 
 Software "engineering" bears little resemblence to real engineering: 
 we routinely fail to build trivial software correctly, and even when it works, it is incredibly inefficient, and even when it is, it is not well integrated with other software.
 The inscrutability, inefficiency, and instability of software spans the entire lifecycle, and it must be solved by reimagining software production end-to-end across _all_ incidentally disparate sub-processes.
+
+At a deeper level, Destack is not really a "stack" at all, it is a system for understanding systems.
+We believe that the processes and scaffolding to build and maintain the system are inextricably linked to the system itself.
+Further, the "scaffolding" is really just a different way of discovering, specifying and evolving the shape of the problem the system is trying to solve.
+And thus we cannot program at a higher level without precise specification across _all_ levels.
 
 Software is very useful, we have a lot of it, and there is about to be much, much more, with exciting new possibilities to integrate probabilistic into symbolic computation.
 The more we can express in software, the higher order the tasks we can program -
