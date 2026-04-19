@@ -3,8 +3,6 @@ mod safepoint;
 pub use frame::*;
 pub use safepoint::*;
 
-use destack_heap as heap;
-
 /// Shared runtime entry descriptor for all execution backends.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Entry {
@@ -26,11 +24,11 @@ impl Entry {
 
 /// Output from one execution step that completed normally.
 #[derive(Debug, Clone, Default, PartialEq)]
-pub struct ExecutionOutput {
+pub struct RunOutput<V> {
     /// Return value of the executed entrypoint.
-    pub value: heap::Value,
-    /// Execution statistics payload.
-    pub stats: ExecutionStats,
+    pub value: V,
+    /// Run statistics payload.
+    pub stats: RunStats,
     /// Number of managed allocations at end of execution.
     pub managed_allocation_count: usize,
     /// Number of raw allocations at end of execution.
@@ -39,31 +37,31 @@ pub struct ExecutionOutput {
 
 /// Yield result from one suspended execution step.
 #[derive(Debug)]
-pub struct ExecutionYield<C> {
+pub struct Yielded<C, V> {
     /// The continuation used to resume execution.
     pub continuation: C,
     /// The value yielded to the caller.
-    pub value: heap::Value,
+    pub value: V,
 }
 
 /// Execution outcome produced by one backend.
 #[derive(Debug)]
-pub enum ExecutionOutcome<C> {
+pub enum RunOutcome<C, V> {
     /// Execution completed with a result.
     Completed {
         /// Completed execution output.
-        output: ExecutionOutput,
+        output: RunOutput<V>,
     },
     /// Execution yielded a continuation and resume value.
     Yielded {
         /// Yield information for the suspended execution.
-        yielded: ExecutionYield<C>,
+        yielded: Yielded<C, V>,
     },
 }
 
-/// Execution statistics produced when execution completes.
+/// Run statistics produced when execution completes.
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct ExecutionStats {
+pub struct RunStats {
     /// Total number of MIR instructions executed.
     pub mir_instructions_executed: u64,
     /// Total number of lowered instructions executed.

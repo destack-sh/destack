@@ -15,15 +15,6 @@ pub enum MaterializationValue {
     Undefined,
 }
 
-/// One slot reconstruction entry inside one materialized frame.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct MaterializationSlot {
-    /// The logical slot index inside the frame layout.
-    pub slot: u32,
-    /// The materialization recipe for this slot.
-    pub value: MaterializationValue,
-}
-
 /// One fixed-slot logical frame reconstruction recipe.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MaterializationFrame {
@@ -31,8 +22,8 @@ pub struct MaterializationFrame {
     pub frame_layout: FrameLayoutId,
     /// The resume point to restore for the rebuilt frame.
     pub resume_point: ResumePointId,
-    /// The materialized logical slots for the frame.
-    pub slots: Vec<MaterializationSlot>,
+    /// The materialization recipe for each logical slot in layout order.
+    pub slots: Vec<MaterializationValue>,
 }
 
 /// One fixed-slot logical frame materialization recipe for one safepoint.

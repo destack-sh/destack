@@ -1,21 +1,10 @@
 use destack_mir as mir;
 
-use crate::{FrameTransfer, FrameValue, ResumePointId};
+use crate::{ControlTransfer, MaterializedValue, ResumePointId};
 
 /// The identifier for one frame layout table entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct FrameLayoutId(pub u32);
-
-/// The semantic role of one logical frame slot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum FrameSlotKind {
-    /// One SSA value slot.
-    Value,
-    /// One mutable local slot.
-    Local,
-    /// The function environment slot.
-    Environment,
-}
 
 /// The originating MIR entity represented by one frame slot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -30,47 +19,13 @@ pub enum FrameSlotSource {
     Environment,
 }
 
-/// The runtime payload class stored in one frame slot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum FrameSlotValueClass {
-    /// One plain scalar or non-reference payload.
-    Plain,
-    /// One managed heap reference.
-    ManagedReference,
-    /// One raw heap pointer.
-    RawPointer,
-    /// One shared byte-space pointer.
-    SharedPointer,
-    /// One stack pointer.
-    StackPointer,
-    /// One local pointer.
-    LocalPointer,
-    /// One global pointer.
-    GlobalPointer,
-    /// One MIR function reference.
-    Function,
-    /// One pointer-like value with unresolved storage class.
-    UnknownPointer,
-}
-
-impl FrameSlotValueClass {
-    /// Return whether this slot class may hold one managed GC root.
-    pub fn contains_managed_references(self) -> bool {
-        matches!(self, Self::ManagedReference)
-    }
-}
-
 /// One logical slot in one frame layout.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct FrameSlot {
-    /// The semantic role of the slot.
-    pub kind: FrameSlotKind,
     /// The originating MIR entity represented by this slot.
     pub source: FrameSlotSource,
     /// The MIR type stored in this slot.
     pub ty: mir::LocalNodeId<mir::Type>,
-    /// The runtime payload class stored in this slot.
-    pub value_class: FrameSlotValueClass,
 }
 
 /// The logical layout of one function activation.
@@ -95,24 +50,11 @@ impl FrameLayout {
     pub fn slot(&self, slot: u32) -> Option<&FrameSlot> {
         self.slots.get(slot as usize)
     }
-
-    /// Return the value slot at the given value index.
-    pub fn value_slot(&self, value: mir::Value) -> Option<&FrameSlot> {
-        let slot = self.value_slots.start.checked_add(value.0)?;
-        self.slot(slot)
-    }
-
-    /// Return whether the given layout slot may hold one managed root.
-    pub fn contains_managed_references(&self, slot: u32) -> bool {
-        self.slot(slot)
-            .map(|slot| slot.value_class.contains_managed_references())
-            .unwrap_or(false)
-    }
 }
 
 /// One captured frame-local stack allocation.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct FrameStackAllocation {
+pub struct AllocationImage {
     /// The raw byte storage for this allocation.
     pub bytes: Vec<u8>,
     /// The stored raw storage type.
@@ -127,9 +69,9 @@ pub struct FrameImage {
     /// The current resume point for this activation.
     pub resume_point: ResumePointId,
     /// The pending transfer owned by this frame when another frame is active.
-    pub transfer: Option<FrameTransfer>,
+    pub transfer: Option<ControlTransfer>,
     /// The logical slot payloads in layout order.
-    pub slots: Vec<FrameValue>,
+    pub slots: Vec<MaterializedValue>,
     /// The captured frame-local stack allocations.
-    pub stack_allocations: Vec<Option<FrameStackAllocation>>,
+    pub allocations: Vec<Option<AllocationImage>>,
 }

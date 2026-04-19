@@ -1,20 +1,37 @@
-use destack_heap::{
-    LocalPointer, ManagedReference, RawPointer, ReferenceMeta, SharedPointer, StackPointer,
-};
+use destack_heap::{ManagedReference, RawPointer, SharedManagedReference, SharedRawPointer};
 use destack_mir as mir;
 
-/// One pointer into one global value.
+/// One durable address into one captured frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct GlobalPointer {
-    /// The referenced MIR global.
-    pub global: mir::LocalNodeId<mir::Global>,
-    /// The slot offset within the global value.
-    pub slot_offset: u32,
+pub enum FrameAddress {
+    /// One address into one captured frame allocation.
+    Allocation {
+        /// The captured allocation index.
+        allocation: u32,
+        /// The byte offset within the captured allocation.
+        byte_offset: u32,
+    },
+    /// One address into one captured local slot.
+    Local {
+        /// The local slot index.
+        local: u32,
+        /// The byte offset within the local slot.
+        byte_offset: u32,
+    },
 }
 
-/// One logical materialized slot value.
+/// One durable address into one global value.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum FrameValue {
+pub struct GlobalAddress {
+    /// The referenced MIR global.
+    pub global: mir::LocalNodeId<mir::Global>,
+    /// The byte offset within the global value.
+    pub byte_offset: u32,
+}
+
+/// One durable logical slot value.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum MaterializedValue {
     /// One slot that is not materialized at this boundary.
     Undefined,
     /// The void value.
@@ -48,47 +65,17 @@ pub enum FrameValue {
     /// One character value.
     Char(char),
     /// One managed heap reference.
-    ManagedReference {
-        /// The managed reference payload.
-        reference: ManagedReference,
-        /// The reference metadata for this value.
-        meta: ReferenceMeta,
-    },
+    ManagedReference(ManagedReference),
+    /// One shared managed heap reference.
+    SharedManagedReference(SharedManagedReference),
     /// One raw heap pointer.
-    RawPointer {
-        /// The raw pointer payload.
-        pointer: RawPointer,
-        /// The reference metadata for this value.
-        meta: ReferenceMeta,
-    },
-    /// One shared byte-space pointer.
-    SharedPointer {
-        /// The shared pointer payload.
-        pointer: SharedPointer,
-        /// The reference metadata for this value.
-        meta: ReferenceMeta,
-    },
-    /// One frame-local stack pointer.
-    StackPointer {
-        /// The stack pointer payload.
-        pointer: StackPointer,
-        /// The reference metadata for this value.
-        meta: ReferenceMeta,
-    },
-    /// One frame-local local-slot pointer.
-    LocalPointer {
-        /// The local pointer payload.
-        pointer: LocalPointer,
-        /// The reference metadata for this value.
-        meta: ReferenceMeta,
-    },
-    /// One pointer into one global value.
-    GlobalPointer {
-        /// The global pointer payload.
-        pointer: GlobalPointer,
-        /// The reference metadata for this value.
-        meta: ReferenceMeta,
-    },
+    RawPointer(RawPointer),
+    /// One shared raw-space pointer.
+    SharedRawPointer(SharedRawPointer),
+    /// One durable address into one captured frame allocation.
+    FrameAddress(FrameAddress),
+    /// One durable address into one global value.
+    GlobalAddress(GlobalAddress),
     /// One MIR function reference.
     Function(mir::LocalNodeId<mir::Function>),
 }

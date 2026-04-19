@@ -1,4 +1,4 @@
-use crate::{ExecutionStats, FrameImage, ResumePointId};
+use crate::{FrameImage, ResumePointId, RunStats};
 
 /// One pending call transfer captured on a suspended frame.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -14,7 +14,7 @@ pub enum CallTransfer {
 
 /// One pending control transfer captured on a suspended frame.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum FrameTransfer {
+pub enum ControlTransfer {
     /// One pending call continuation.
     Call(CallTransfer),
 }
@@ -26,6 +26,6 @@ pub struct Continuation {
     pub isolate_id: u64,
     /// The captured frames from outermost to innermost.
     pub frames: Vec<FrameImage>,
-    /// The execution statistics captured at suspension.
-    pub stats: ExecutionStats,
+    /// The run statistics captured at suspension.
+    pub stats: RunStats,
 }
