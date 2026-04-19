@@ -4,7 +4,7 @@ type Pair {
 }
 function structShuffle(v0: int64): int64 {
 b0(v0: int64):
-    v1: ref<Pair, raw, addressSpace(stack)> = stack.alloc Pair
+    v1: ref<Pair, raw, space(stack)> = stack.alloc Pair
     v2: int64 = 1int64
     v3: int64 = 2int64
     v4: ref<int64, borrowed> = field.address v1, 0
