@@ -1,4 +1,4 @@
-use crate::{FrameLayoutId, FrameValue, SafepointId};
+use crate::{FrameLayoutId, MaterializedValue, SafepointId};
 
 /// The identifier for one stack-map table entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -25,7 +25,7 @@ pub enum ValueLocation {
     /// One stack location.
     Stack(StackLocation),
     /// One constant value materialized directly from metadata.
-    Constant(FrameValue),
+    Constant(MaterializedValue),
     /// One dead slot with no live value at this safepoint.
     Dead,
 }
