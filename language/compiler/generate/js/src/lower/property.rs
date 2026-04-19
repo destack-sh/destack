@@ -20,6 +20,7 @@ impl ModuleLowerer<'_> {
             mutability,
             visibility,
             operator,
+            definite: false,
             accessor,
         };
 
@@ -272,7 +273,7 @@ impl ModuleLowerer<'_> {
                 mutability,
                 visibility,
                 is_static,
-                is_const_asserted,
+                is_definite,
                 is_accessor,
                 symbol: _,
                 ..
@@ -294,17 +295,17 @@ impl ModuleLowerer<'_> {
                         mutability.map(|mutability| self.lower_mutability(mutability))
                     },
                     visibility.map(|visibility| self.lower_visibility(visibility)),
-                    if *is_const_asserted {
-                        Some(js::BindingOperator::AsConst)
-                    } else {
-                        None
-                    },
+                    None,
                     if *is_accessor {
                         Some(js::AccessorKind::Accessor)
                     } else {
                         None
                     },
                 );
+                let modifiers = modifiers.map(|mut modifiers| {
+                    modifiers.definite = *is_definite;
+                    modifiers
+                });
                 let key = self.lower_key(*key)?;
                 let value = declared_type
                     .map(|value| self.lower_type_annotation_expression(value))

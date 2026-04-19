@@ -21,6 +21,7 @@ impl ModuleLowerer<'_> {
             mutability,
             visibility,
             operator,
+            definite: false,
             accessor,
         };
 
