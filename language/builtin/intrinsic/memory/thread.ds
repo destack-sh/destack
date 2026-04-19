@@ -1,5 +1,0 @@
-/// Mark a type as safe to send across threads.
-export newtype interface Send {}
-
-/// Mark a type as safe to share across threads.
-export newtype interface Sync {}
