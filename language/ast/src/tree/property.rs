@@ -137,7 +137,7 @@ pub enum Member {
         is_abstract: bool,
         is_override: bool,
         is_static: bool,
-        is_const_asserted: bool,
+        is_definite: bool,
         is_accessor: bool,
         is_comptime: bool,
     },

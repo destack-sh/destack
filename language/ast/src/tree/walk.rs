@@ -1502,7 +1502,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             is_abstract: _,
             is_override: _,
             is_static: _,
-            is_const_asserted: _,
+            is_definite: _,
             is_accessor: _,
             is_comptime: _,
         } => {
