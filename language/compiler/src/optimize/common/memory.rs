@@ -844,7 +844,7 @@ impl MemoryLocation {
                 kind,
                 address_space,
                 ..
-            } => (Some(*kind), Some(*address_space)),
+            } => (Some(*kind), Some(address_space.clone())),
             _ => (None, None),
         };
         Self {
@@ -1231,8 +1231,8 @@ pub fn resolve_pointer_address_space(
     let ty_id = value_types.require_value_type(pointer);
     let ty = tree.get(ty_id);
     match ty {
-        mir::Type::Reference { address_space, .. } => Some(*address_space),
-        mir::Type::TensorReference { address_space, .. } => Some(*address_space),
+        mir::Type::Reference { address_space, .. } => Some(address_space.clone()),
+        mir::Type::TensorReference { address_space, .. } => Some(address_space.clone()),
         _ => None,
     }
 }

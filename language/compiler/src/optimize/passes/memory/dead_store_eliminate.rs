@@ -708,7 +708,9 @@ mod tests {
             panic!("expected store instruction");
         };
 
-        *pointer
+        pointer
+            .value()
+            .expect("store instruction should reference a concrete pointer value")
     }
 
     /// Attach store access metadata for a store instruction.

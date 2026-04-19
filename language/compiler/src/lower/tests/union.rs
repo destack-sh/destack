@@ -77,7 +77,10 @@ entry0(value0: takeShape.value#union):
             panic!("expected inline payload array for union");
         };
         assert_eq!(*length, 1);
-        assert!(matches!(tree.get(*element), mir::Type::Usize));
+        assert!(matches!(
+            tree.get(element.ty().expect("array element should be concrete")),
+            mir::Type::Usize
+        ));
 
         let union_layout = test.union_layout(tree, union_type);
         assert!(matches!(
@@ -153,7 +156,10 @@ entry0(value0: takeFrame.value#union):
         else {
             panic!("expected managed reference payload for boxed union");
         };
-        assert!(matches!(tree.get(*pointee), mir::Type::Void));
+        assert!(matches!(
+            tree.get(pointee.ty().expect("payload pointee should be concrete")),
+            mir::Type::Void
+        ));
 
         let union_layout = test.union_layout(tree, union_type);
         assert!(matches!(
@@ -271,7 +277,11 @@ entry0(value0: ref?<Circle, managed, readonly>):
             kind: parameter_kind,
             is_nullable: parameter_nullable,
             ..
-        } = tree.get(parameter_type)
+        } = tree.get(
+            parameter_type
+                .ty()
+                .expect("parameter type should be concrete"),
+        )
         else {
             panic!("expected nullable reference parameter type");
         };
@@ -283,7 +293,7 @@ entry0(value0: ref?<Circle, managed, readonly>):
             kind: return_kind,
             is_nullable: return_nullable,
             ..
-        } = tree.get(return_type)
+        } = tree.get(return_type.ty().expect("return type should be concrete"))
         else {
             panic!("expected nullable reference return type");
         };

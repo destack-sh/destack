@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use destack_mir::{self as mir, Lifetime};
+use destack_mir::{self as mir, BorrowRegion};
 
 use crate::optimize::{
     Analysis, AnalysisId, ModuleAnalyses, ModuleAnalysis, borrowed_parameter_indices_for_function,
@@ -127,12 +127,12 @@ impl LifetimeAnalysis {
         }
 
         // check explicit annotation
-        match &function.return_lifetime {
-            Lifetime::Static => return ResolvedLifetime::Static,
-            Lifetime::Parameters(params) => {
+        match &function.return_region {
+            BorrowRegion::Static => return ResolvedLifetime::Static,
+            BorrowRegion::Parameters(params) => {
                 return ResolvedLifetime::Parameters(params.clone());
             }
-            Lifetime::Inferred => {
+            BorrowRegion::Inferred => {
                 // fall through to inference
             }
         }
@@ -316,7 +316,7 @@ b0(v0: ref<int32, borrowed>):
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         {
             let function = program.tree.get_mut(function_id);
-            function.return_lifetime = mir::Lifetime::Static;
+            function.return_region = mir::BorrowRegion::Static;
         }
 
         let _function = program.tree.get(function_id);
@@ -343,7 +343,7 @@ b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         {
             let function = program.tree.get_mut(function_id);
-            function.return_lifetime = mir::Lifetime::param(0);
+            function.return_region = mir::BorrowRegion::param(0);
         }
 
         let _function = program.tree.get(function_id);
@@ -399,8 +399,8 @@ b0:
             is_signed: true,
         });
         let signature = program.tree.insert_type(mir::Type::FunctionPointer {
-            parameters: vec![int_ty],
-            result: int_ty,
+            parameters: vec![int_ty.into()],
+            result: int_ty.into(),
         });
 
         let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);
@@ -424,14 +424,14 @@ b0:
         });
         let borrowed_ref = program.tree.insert_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
-            address_space: mir::AddressSpace::Generic,
+            address_space: mir::AddressSpace::Local,
             mutability: mir::Mutability::Immutable,
-            pointee: int_ty,
+            pointee: int_ty.into(),
             is_nullable: false,
         });
         let signature = program.tree.insert_type(mir::Type::FunctionPointer {
-            parameters: vec![int_ty],
-            result: borrowed_ref,
+            parameters: vec![int_ty.into()],
+            result: borrowed_ref.into(),
         });
 
         let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);
@@ -455,14 +455,14 @@ b0:
         });
         let borrowed_ref = program.tree.insert_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
-            address_space: mir::AddressSpace::Generic,
+            address_space: mir::AddressSpace::Local,
             mutability: mir::Mutability::Immutable,
-            pointee: int_ty,
+            pointee: int_ty.into(),
             is_nullable: false,
         });
         let signature = program.tree.insert_type(mir::Type::FunctionPointer {
-            parameters: vec![int_ty, borrowed_ref],
-            result: borrowed_ref,
+            parameters: vec![int_ty.into(), borrowed_ref.into()],
+            result: borrowed_ref.into(),
         });
 
         let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);

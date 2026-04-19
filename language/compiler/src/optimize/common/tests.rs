@@ -121,12 +121,12 @@ impl TestProgram {
             .0
     }
 
-    /// Set the return lifetime for a named function.
-    pub(crate) fn set_function_lifetime(&mut self, name: &str, lifetime: mir::Lifetime) {
+    /// Set the return borrow region for a named function.
+    pub(crate) fn set_function_lifetime(&mut self, name: &str, region: mir::BorrowRegion) {
         // update the target function
         let function_id = self.function_id_by_name(name);
         let function = self.tree.get_mut(function_id);
-        function.return_lifetime = lifetime;
+        function.return_region = region;
     }
 
     /// Return the entry block id for a function.
@@ -290,7 +290,9 @@ impl TestProgram {
             panic!("expected stack allocation");
         };
 
-        *destination
+        destination
+            .value()
+            .expect("stack allocation should produce a concrete value")
     }
 
     /// Return stack allocation destinations from the entry block.
@@ -310,7 +312,11 @@ impl TestProgram {
                 if let mir::Instruction::StackAlloc { destination, .. } =
                     self.tree.get(*instruction_id)
                 {
-                    Some(*destination)
+                    Some(
+                        destination
+                            .value()
+                            .expect("stack allocation should produce a concrete value"),
+                    )
                 } else {
                     None
                 }
@@ -445,7 +451,12 @@ impl TestProgram {
             panic!("expected call instruction");
         };
 
-        (call_inst, *callee)
+        (
+            call_inst,
+            callee
+                .function()
+                .expect("call instruction should reference a concrete function"),
+        )
     }
 
     /// Insert a function pointer type for a callee signature.
@@ -538,19 +549,29 @@ impl TestProgram {
         // read the entry block
         let entry = function.entry.expect("missing entry block");
         let entry_block = self.tree.get(entry);
+        let terminator = self.tree.get(entry_block.terminator);
 
         // extract the branch targets
         let mir::Terminator::Branch {
             then_target,
             else_target,
             ..
-        } = &entry_block.terminator
+        } = terminator
         else {
             panic!("expected entry branch");
         };
 
         // return the targets
-        (*then_target, *else_target)
+        (
+            then_target
+                .block
+                .block()
+                .expect("branch should reference a concrete then block"),
+            else_target
+                .block
+                .block()
+                .expect("branch should reference a concrete else block"),
+        )
     }
 
     /// Return the jump target for a block.
@@ -560,12 +581,16 @@ impl TestProgram {
     ) -> mir::LocalNodeId<mir::Block> {
         // read the block terminator
         let block = self.tree.get(block_id);
-        let mir::Terminator::Jump { target, .. } = &block.terminator else {
+        let terminator = self.tree.get(block.terminator);
+        let mir::Terminator::Jump { target, .. } = terminator else {
             panic!("expected jump terminator");
         };
 
         // return the target
-        *target
+        target
+            .block
+            .block()
+            .expect("jump should reference a concrete block")
     }
 
     /// Record a jump edge profile count.
@@ -1322,7 +1347,7 @@ b0(v0: int32, v1: int32):
             kind: mir::ReferenceKind::Borrowed,
             address_space: mir::AddressSpace::Stack,
             mutability: mir::Mutability::Mutable,
-            pointee,
+            pointee: pointee.into(),
             is_nullable: false,
         });
 
@@ -1333,25 +1358,25 @@ b0(v0: int32, v1: int32):
         let index = mir::Value::new(3);
 
         let local_addr = mir::Instruction::LocalAddr {
-            destination,
-            local,
-            result_type: borrowed_ref,
+            destination: destination.into(),
+            local: local.into(),
+            result_type: borrowed_ref.into(),
         };
         assert!(!instruction_is_speculatable(&local_addr, &tree));
 
         let field_addr = mir::Instruction::FieldAddr {
-            destination,
-            aggregate,
+            destination: destination.into(),
+            aggregate: aggregate.into(),
             index: 0,
-            result_type: borrowed_ref,
+            result_type: borrowed_ref.into(),
         };
         assert!(!instruction_is_speculatable(&field_addr, &tree));
 
         let element_addr = mir::Instruction::ElementAddr {
-            destination,
-            array,
-            index,
-            result_type: borrowed_ref,
+            destination: destination.into(),
+            array: array.into(),
+            index: index.into(),
+            result_type: borrowed_ref.into(),
         };
         assert!(!instruction_is_speculatable(&element_addr, &tree));
     }
@@ -1369,14 +1394,14 @@ b0(v0: int32, v1: int32):
             kind: mir::ReferenceKind::Raw,
             address_space: mir::AddressSpace::Stack,
             mutability: mir::Mutability::Mutable,
-            pointee,
+            pointee: pointee.into(),
             is_nullable: false,
         });
         let borrowed_ref = tree.insert_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
             address_space: mir::AddressSpace::Stack,
             mutability: mir::Mutability::Mutable,
-            pointee,
+            pointee: pointee.into(),
             is_nullable: false,
         });
 
@@ -1384,14 +1409,14 @@ b0(v0: int32, v1: int32):
         let local = mir::LocalNodeId::new(0);
 
         let raw_addr = mir::Instruction::LocalAddr {
-            destination,
-            local,
-            result_type: raw_ref,
+            destination: destination.into(),
+            local: local.into(),
+            result_type: raw_ref.into(),
         };
         let borrowed_addr = mir::Instruction::LocalAddr {
-            destination,
-            local,
-            result_type: borrowed_ref,
+            destination: destination.into(),
+            local: local.into(),
+            result_type: borrowed_ref.into(),
         };
 
         assert!(instruction_is_speculatable(&raw_addr, &tree));

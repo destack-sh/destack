@@ -74,7 +74,7 @@ impl FunctionLowerer<'_> {
                 }
             }
 
-            // this follows the same storage rules as ordinary locals
+            // 'this' follows the same storage rules as ordinary locals
             dir::Expression::This => {
                 if let Some(binding) = self.state.bindings.this_binding {
                     return match binding.storage {

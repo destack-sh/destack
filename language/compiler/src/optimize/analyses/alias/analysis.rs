@@ -393,7 +393,10 @@ b0(v0: ref<int32, raw>):
         let function_id = program.entry_function_id();
         let param_value = {
             let function = program.tree.get(function_id);
-            function.parameters[0].value
+            function.parameters[0]
+                .value
+                .value()
+                .expect("parameter value should be concrete")
         };
         let (call_inst, _callee) = program.first_call_in_entry(function_id);
 
@@ -454,8 +457,16 @@ b0:
             let arg_slice = call_inst.argument_slice().expect("missing call args");
             program.tree.get_arguments(arg_slice).to_vec()
         };
-        let loc0 = MemoryLocation::from_ptr(arg_values[0]);
-        let loc1 = MemoryLocation::from_ptr(arg_values[1]);
+        let loc0 = MemoryLocation::from_ptr(
+            arg_values[0]
+                .value()
+                .expect("first argument value should be concrete"),
+        );
+        let loc1 = MemoryLocation::from_ptr(
+            arg_values[1]
+                .value()
+                .expect("second argument value should be concrete"),
+        );
 
         assert!(aa.get_mod_ref_info(call_inst, &loc0).is_ref());
         assert!(aa.get_mod_ref_info(call_inst, &loc1).is_no_mod_ref());

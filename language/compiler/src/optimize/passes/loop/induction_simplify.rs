@@ -1105,11 +1105,26 @@ b2(v8: int32):
 
         let canonical_signatures = [CanonicalSignature {
             signature: signature_left.unwrap(),
-            ty: TypeKey::from_type(param_left.ty, &test.tree),
-            value: param_left.value,
+            ty: TypeKey::from_type(
+                param_left
+                    .ty
+                    .ty()
+                    .expect("left parameter type should be concrete"),
+                &test.tree,
+            ),
+            value: param_left
+                .value
+                .value()
+                .expect("left parameter value should be concrete"),
         }];
         let canonical_value = signature_right.and_then(|signature| {
-            let param_right_ty = TypeKey::from_type(param_right.ty, &test.tree);
+            let param_right_ty = TypeKey::from_type(
+                param_right
+                    .ty
+                    .ty()
+                    .expect("right parameter type should be concrete"),
+                &test.tree,
+            );
             canonical_signatures.iter().find_map(|entry| {
                 if entry.ty == param_right_ty && entry.signature == signature {
                     Some(entry.value)
@@ -1118,6 +1133,14 @@ b2(v8: int32):
                 }
             })
         });
-        assert_eq!(canonical_value, Some(param_left.value));
+        assert_eq!(
+            canonical_value,
+            Some(
+                param_left
+                    .value
+                    .value()
+                    .expect("left parameter value should be concrete"),
+            )
+        );
     }
 }

@@ -831,7 +831,7 @@ fn reference_address_space(
     let ty_id = ty_id.ty()?;
 
     match tree.get(ty_id) {
-        mir::Type::Reference { address_space, .. } => Some(*address_space),
+        mir::Type::Reference { address_space, .. } => Some(address_space.clone()),
         _ => None,
     }
 }
@@ -1524,7 +1524,10 @@ b3:
         }
 
         let store_id = store_id.expect("missing store instruction");
-        let store_ptr = store_ptr.expect("missing store pointer");
+        let store_ptr = store_ptr
+            .expect("missing store pointer")
+            .value()
+            .expect("store pointer should be concrete");
         test.insert_pointer_access_with_options(
             store_id,
             mir::MemoryAccessKind::Write,

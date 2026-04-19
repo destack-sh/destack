@@ -342,7 +342,7 @@ impl TestProgram {
             };
 
             if strings.get(name_id) == field_name {
-                return Some(field.ty);
+                return field.ty.ty();
             }
         }
 
@@ -388,7 +388,7 @@ impl TestProgram {
         layout
             .fields
             .iter()
-            .find(|field| field.name == expected_name)
+            .find(|field| field.name == Some(expected_name))
             .map(|field| field.offset)
     }
 
@@ -498,7 +498,10 @@ impl TestProgram {
         let function = tree.get(function_id);
 
         // resolve the parameter type
-        function.parameters.get(index).map(|param| param.ty)
+        function
+            .parameters
+            .get(index)
+            .and_then(|param| param.ty.ty())
     }
 
     /// Find the first interface dispatch call in a function body.
@@ -519,7 +522,9 @@ impl TestProgram {
                 } = tree.get(*instruction_id)
                 {
                     return Some(InterfaceCall {
-                        declaring_type: *declaring_type,
+                        declaring_type: declaring_type
+                            .ty()
+                            .expect("interface call should name a concrete declaring type"),
                         slot_id: *slot_id,
                     });
                 }
@@ -547,7 +552,9 @@ impl TestProgram {
                 } = tree.get(*instruction_id)
                 {
                     return Some(VirtualCall {
-                        declaring_type: *declaring_type,
+                        declaring_type: declaring_type
+                            .ty()
+                            .expect("virtual call should name a concrete declaring type"),
                         slot_id: *slot_id,
                     });
                 }

@@ -29,9 +29,10 @@ impl TypeBasedAA {
             (loc_a.pointer_kind, loc_b.pointer_kind),
             (Some(destack_mir::ReferenceKind::Raw), _) | (_, Some(destack_mir::ReferenceKind::Raw))
         ) {
-            if let (Some(space_a), Some(space_b)) =
-                (loc_a.pointer_address_space, loc_b.pointer_address_space)
-                && space_a != space_b
+            if let (Some(space_a), Some(space_b)) = (
+                loc_a.pointer_address_space.clone(),
+                loc_b.pointer_address_space.clone(),
+            ) && space_a != space_b
             {
                 return AliasResult::NoAlias;
             }
@@ -182,8 +183,8 @@ impl TypeBasedAA {
     /// Return the address space for reference-like types.
     fn address_space_of(ty: &TypeKey) -> Option<destack_mir::AddressSpace> {
         match ty {
-            TypeKey::Reference { address_space, .. } => Some(*address_space),
-            TypeKey::TensorReference { address_space, .. } => Some(*address_space),
+            TypeKey::Reference { address_space, .. } => Some(address_space.clone()),
+            TypeKey::TensorReference { address_space, .. } => Some(address_space.clone()),
             _ => None,
         }
     }
@@ -457,7 +458,7 @@ mod tests {
 
         let ref_i32 = TypeKey::Reference {
             kind: destack_mir::ReferenceKind::Raw,
-            address_space: destack_mir::AddressSpace::Generic,
+            address_space: destack_mir::AddressSpace::Local,
             mutability: destack_mir::Mutability::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
@@ -467,7 +468,7 @@ mod tests {
         };
         let ref_f64 = TypeKey::Reference {
             kind: destack_mir::ReferenceKind::Raw,
-            address_space: destack_mir::AddressSpace::Generic,
+            address_space: destack_mir::AddressSpace::Local,
             mutability: destack_mir::Mutability::Mutable,
             pointee: Box::new(TypeKey::Float { width: 64 }),
             is_nullable: false,
@@ -513,7 +514,7 @@ mod tests {
 
         let ref_ty = TypeKey::Reference {
             kind: destack_mir::ReferenceKind::Raw,
-            address_space: destack_mir::AddressSpace::Generic,
+            address_space: destack_mir::AddressSpace::Local,
             mutability: destack_mir::Mutability::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
@@ -539,7 +540,7 @@ mod tests {
 
         let ref_ty = TypeKey::Reference {
             kind: destack_mir::ReferenceKind::Raw,
-            address_space: destack_mir::AddressSpace::Generic,
+            address_space: destack_mir::AddressSpace::Local,
             mutability: destack_mir::Mutability::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
@@ -562,7 +563,7 @@ mod tests {
 
         let ref_generic = TypeKey::Reference {
             kind: destack_mir::ReferenceKind::Raw,
-            address_space: destack_mir::AddressSpace::Generic,
+            address_space: destack_mir::AddressSpace::Local,
             mutability: destack_mir::Mutability::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,

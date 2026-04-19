@@ -4107,6 +4107,7 @@ b0:
 
         for &block_id in &function.blocks {
             let block = tree.get(block_id);
+            let terminator = tree.get(block.terminator);
             let check_edge = |target: mir::LocalNodeId<mir::Block>,
                               arguments: &[mir::Value],
                               mismatches: &mut Vec<String>| {
@@ -4122,85 +4123,243 @@ b0:
                 }
             };
 
-            match &block.terminator {
-                mir::Terminator::Jump { target, arguments } => {
-                    check_edge(*target, arguments, &mut mismatches);
+            match terminator {
+                mir::Terminator::Jump { target } => {
+                    check_edge(
+                        target
+                            .block
+                            .block()
+                            .expect("jump target should be concrete"),
+                        &target
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value())
+                            .collect::<Vec<_>>(),
+                        &mut mismatches,
+                    );
                 }
                 mir::Terminator::Branch {
                     then_target,
-                    then_arguments,
                     else_target,
-                    else_arguments,
                     ..
                 } => {
-                    check_edge(*then_target, then_arguments, &mut mismatches);
-                    check_edge(*else_target, else_arguments, &mut mismatches);
+                    check_edge(
+                        then_target
+                            .block
+                            .block()
+                            .expect("then target should be concrete"),
+                        &then_target
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value())
+                            .collect::<Vec<_>>(),
+                        &mut mismatches,
+                    );
+                    check_edge(
+                        else_target
+                            .block
+                            .block()
+                            .expect("else target should be concrete"),
+                        &else_target
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value())
+                            .collect::<Vec<_>>(),
+                        &mut mismatches,
+                    );
                 }
                 mir::Terminator::Check {
                     success, failure, ..
                 } => {
-                    check_edge(success.target, &success.arguments, &mut mismatches);
-                    check_edge(failure.target, &failure.arguments, &mut mismatches);
+                    check_edge(
+                        success
+                            .block
+                            .block()
+                            .expect("check success target should be concrete"),
+                        &success
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value())
+                            .collect::<Vec<_>>(),
+                        &mut mismatches,
+                    );
+                    check_edge(
+                        failure
+                            .block
+                            .block()
+                            .expect("check failure target should be concrete"),
+                        &failure
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value())
+                            .collect::<Vec<_>>(),
+                        &mut mismatches,
+                    );
                 }
-                mir::Terminator::Switch {
-                    default,
-                    default_arguments,
-                    cases,
-                    ..
-                } => {
-                    check_edge(*default, default_arguments, &mut mismatches);
+                mir::Terminator::Switch { default, cases, .. } => {
+                    check_edge(
+                        default
+                            .block
+                            .block()
+                            .expect("switch default target should be concrete"),
+                        &default
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value())
+                            .collect::<Vec<_>>(),
+                        &mut mismatches,
+                    );
                     for case in cases {
-                        check_edge(case.target, &case.arguments, &mut mismatches);
+                        check_edge(
+                            case.target
+                                .block
+                                .block()
+                                .expect("switch case target should be concrete"),
+                            &case
+                                .target
+                                .arguments
+                                .iter()
+                                .filter_map(|value| value.value())
+                                .collect::<Vec<_>>(),
+                            &mut mismatches,
+                        );
                     }
                 }
-                mir::Terminator::Yield {
-                    resume,
-                    resume_arguments,
-                    ..
-                } => {
-                    check_edge(*resume, resume_arguments, &mut mismatches);
+                mir::Terminator::Yield { resume, .. } => {
+                    check_edge(
+                        resume
+                            .block
+                            .block()
+                            .expect("yield resume target should be concrete"),
+                        &resume
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value())
+                            .collect::<Vec<_>>(),
+                        &mut mismatches,
+                    );
                 }
                 mir::Terminator::Invoke {
                     normal_target,
-                    normal_arguments,
                     unwind_target,
-                    unwind_arguments,
                     ..
                 } => {
-                    check_edge(*normal_target, normal_arguments, &mut mismatches);
-                    check_edge(*unwind_target, unwind_arguments, &mut mismatches);
+                    check_edge(
+                        normal_target
+                            .block
+                            .block()
+                            .expect("invoke success target should be concrete"),
+                        &normal_target
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value())
+                            .collect::<Vec<_>>(),
+                        &mut mismatches,
+                    );
+                    check_edge(
+                        unwind_target
+                            .block
+                            .block()
+                            .expect("invoke unwind target should be concrete"),
+                        &unwind_target
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value())
+                            .collect::<Vec<_>>(),
+                        &mut mismatches,
+                    );
                 }
                 mir::Terminator::InvokeIndirect {
                     normal_target,
-                    normal_arguments,
                     unwind_target,
-                    unwind_arguments,
                     ..
                 } => {
-                    check_edge(*normal_target, normal_arguments, &mut mismatches);
-                    check_edge(*unwind_target, unwind_arguments, &mut mismatches);
+                    check_edge(
+                        normal_target
+                            .block
+                            .block()
+                            .expect("invokeIndirect success target should be concrete"),
+                        &normal_target
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value())
+                            .collect::<Vec<_>>(),
+                        &mut mismatches,
+                    );
+                    check_edge(
+                        unwind_target
+                            .block
+                            .block()
+                            .expect("invokeIndirect unwind target should be concrete"),
+                        &unwind_target
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value())
+                            .collect::<Vec<_>>(),
+                        &mut mismatches,
+                    );
                 }
                 mir::Terminator::InvokeVirtual {
                     normal_target,
-                    normal_arguments,
                     unwind_target,
-                    unwind_arguments,
                     ..
                 } => {
-                    check_edge(*normal_target, normal_arguments, &mut mismatches);
-                    check_edge(*unwind_target, unwind_arguments, &mut mismatches);
+                    check_edge(
+                        normal_target
+                            .block
+                            .block()
+                            .expect("invokeVirtual success target should be concrete"),
+                        &normal_target
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value())
+                            .collect::<Vec<_>>(),
+                        &mut mismatches,
+                    );
+                    check_edge(
+                        unwind_target
+                            .block
+                            .block()
+                            .expect("invokeVirtual unwind target should be concrete"),
+                        &unwind_target
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value())
+                            .collect::<Vec<_>>(),
+                        &mut mismatches,
+                    );
                 }
                 mir::Terminator::InvokeInterface {
                     normal_target,
-                    normal_arguments,
                     unwind_target,
-                    unwind_arguments,
                     ..
                 } => {
-                    check_edge(*normal_target, normal_arguments, &mut mismatches);
-                    check_edge(*unwind_target, unwind_arguments, &mut mismatches);
+                    check_edge(
+                        normal_target
+                            .block
+                            .block()
+                            .expect("invokeInterface success target should be concrete"),
+                        &normal_target
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value())
+                            .collect::<Vec<_>>(),
+                        &mut mismatches,
+                    );
+                    check_edge(
+                        unwind_target
+                            .block
+                            .block()
+                            .expect("invokeInterface unwind target should be concrete"),
+                        &unwind_target
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value())
+                            .collect::<Vec<_>>(),
+                        &mut mismatches,
+                    );
                 }
-                mir::Terminator::Throw { value: _ } => {}
+                mir::Terminator::Throw { value: _ } | mir::Terminator::Error => {}
                 mir::Terminator::Return { .. }
                 | mir::Terminator::Unreachable
                 | mir::Terminator::Trap { .. }
@@ -4220,13 +4379,22 @@ b0:
         for &block_id in &function.blocks {
             let block = tree.get(block_id);
             for param in &block.parameters {
-                defined_values.insert(param.value);
+                defined_values.insert(
+                    param
+                        .value
+                        .value()
+                        .expect("block parameter should be concrete"),
+                );
             }
 
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
                 if let Some(destination) = instruction.destination() {
-                    defined_values.insert(destination);
+                    defined_values.insert(
+                        destination
+                            .value()
+                            .expect("instruction destination should be concrete"),
+                    );
                 }
             }
         }
@@ -4235,6 +4403,7 @@ b0:
 
         for &block_id in &function.blocks {
             let block = tree.get(block_id);
+            let terminator = tree.get(block.terminator);
 
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
@@ -4244,6 +4413,7 @@ b0:
                 }
 
                 for value in uses {
+                    let value = value.value().expect("instruction use should be concrete");
                     if !defined_values.contains(&value) {
                         undefined.push(format!(
                             "block {block_id:?} instruction {instruction_id:?} uses {value:?} without definition: {instruction:?}"
@@ -4252,33 +4422,48 @@ b0:
                 }
             }
 
-            match &block.terminator {
-                mir::Terminator::Jump { arguments, .. } => {
-                    for value in arguments {
-                        if !defined_values.contains(value) {
+            match terminator {
+                mir::Terminator::Jump { target } => {
+                    for value in target.arguments.iter().filter_map(|value| value.value()) {
+                        if !defined_values.contains(&value) {
                             undefined.push(format!(
                                 "block {block_id:?} terminator uses {value:?} without definition: {terminator:?}",
-                                terminator = block.terminator
+                                terminator = terminator
                             ));
                         }
                     }
                 }
                 mir::Terminator::Branch {
                     condition,
-                    then_arguments,
-                    else_arguments,
+                    then_target,
+                    else_target,
                     ..
                 } => {
-                    let mut uses =
-                        Vec::with_capacity(1 + then_arguments.len() + else_arguments.len());
-                    uses.push(*condition);
-                    uses.extend(then_arguments.iter().copied());
-                    uses.extend(else_arguments.iter().copied());
+                    let mut uses = Vec::with_capacity(
+                        1 + then_target.arguments.len() + else_target.arguments.len(),
+                    );
+                    uses.push(
+                        condition
+                            .value()
+                            .expect("branch condition should be concrete"),
+                    );
+                    uses.extend(
+                        then_target
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value()),
+                    );
+                    uses.extend(
+                        else_target
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value()),
+                    );
                     for value in uses {
                         if !defined_values.contains(&value) {
                             undefined.push(format!(
                                 "block {:?} terminator uses {:?} without definition: {:?}",
-                                block_id, value, block.terminator
+                                block_id, value, terminator
                             ));
                         }
                     }
@@ -4289,76 +4474,79 @@ b0:
                     failure,
                 } => {
                     let mut uses = Vec::new();
-                    uses.extend(constraint.uses());
-                    uses.extend(success.arguments.iter().copied());
-                    uses.extend(failure.arguments.iter().copied());
+                    uses.extend(constraint.uses().iter().filter_map(|value| value.value()));
+                    uses.extend(success.arguments.iter().filter_map(|value| value.value()));
+                    uses.extend(failure.arguments.iter().filter_map(|value| value.value()));
                     for value in uses {
                         if !defined_values.contains(&value) {
                             undefined.push(format!(
                                 "block {:?} terminator uses {:?} without definition: {:?}",
-                                block_id, value, block.terminator
+                                block_id, value, terminator
                             ));
                         }
                     }
                 }
                 mir::Terminator::Switch {
                     value,
-                    default_arguments,
+                    default,
                     cases,
                     ..
                 } => {
-                    if !defined_values.contains(value) {
+                    let value = value.value().expect("switch value should be concrete");
+                    if !defined_values.contains(&value) {
                         undefined.push(format!(
                             "block {:?} terminator uses {:?} without definition: {:?}",
-                            block_id, value, block.terminator
+                            block_id, value, terminator
                         ));
                     }
-                    for argument in default_arguments {
-                        if !defined_values.contains(argument) {
+                    for argument in default.arguments.iter().filter_map(|value| value.value()) {
+                        if !defined_values.contains(&argument) {
                             undefined.push(format!(
                                 "block {:?} terminator uses {:?} without definition: {:?}",
-                                block_id, argument, block.terminator
+                                block_id, argument, terminator
                             ));
                         }
                     }
                     for case in cases {
-                        for argument in &case.arguments {
-                            if !defined_values.contains(argument) {
+                        for argument in case
+                            .target
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value())
+                        {
+                            if !defined_values.contains(&argument) {
                                 undefined.push(format!(
                                     "block {:?} terminator uses {:?} without definition: {:?}",
-                                    block_id, argument, block.terminator
+                                    block_id, argument, terminator
                                 ));
                             }
                         }
                     }
                 }
-                mir::Terminator::Yield {
-                    value,
-                    resume_arguments,
-                    ..
-                } => {
-                    if !defined_values.contains(value) {
+                mir::Terminator::Yield { value, resume } => {
+                    let value = value.value().expect("yield value should be concrete");
+                    if !defined_values.contains(&value) {
                         undefined.push(format!(
                             "block {:?} terminator uses {:?} without definition: {:?}",
-                            block_id, value, block.terminator
+                            block_id, value, terminator
                         ));
                     }
-                    for argument in resume_arguments {
-                        if !defined_values.contains(argument) {
+                    for argument in resume.arguments.iter().filter_map(|value| value.value()) {
+                        if !defined_values.contains(&argument) {
                             undefined.push(format!(
                                 "block {:?} terminator uses {:?} without definition: {:?}",
-                                block_id, argument, block.terminator
+                                block_id, argument, terminator
                             ));
                         }
                     }
                 }
                 mir::Terminator::Return { value } => {
-                    if let Some(value) = value
-                        && !defined_values.contains(value)
+                    if let Some(value) = value.and_then(|value| value.value())
+                        && !defined_values.contains(&value)
                     {
                         undefined.push(format!(
                             "block {:?} terminator uses {:?} without definition: {:?}",
-                            block_id, value, block.terminator
+                            block_id, value, terminator
                         ));
                     }
                 }
@@ -4367,11 +4555,11 @@ b0:
                 | mir::Terminator::InvokeVirtual { .. }
                 | mir::Terminator::InvokeInterface { .. }
                 | mir::Terminator::Throw { value: _ } => {
-                    for value in block.terminator.uses() {
+                    for value in terminator.uses().iter().filter_map(|value| value.value()) {
                         if !defined_values.contains(&value) {
                             undefined.push(format!(
                                 "block {:?} terminator uses {:?} without definition: {:?}",
-                                block_id, value, block.terminator
+                                block_id, value, terminator
                             ));
                         }
                     }
@@ -4381,7 +4569,8 @@ b0:
                 | mir::Terminator::TailCall { .. }
                 | mir::Terminator::TailCallVirtual { .. }
                 | mir::Terminator::TailCallInterface { .. }
-                | mir::Terminator::TailCallIndirect { .. } => {}
+                | mir::Terminator::TailCallIndirect { .. }
+                | mir::Terminator::Error => {}
             }
         }
 

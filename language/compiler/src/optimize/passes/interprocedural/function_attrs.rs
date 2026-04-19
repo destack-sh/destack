@@ -118,8 +118,8 @@ impl MemoryEffectBuilder {
             (Some(existing), Some(other)) => {
                 // append missing address spaces
                 for space in &other.spaces {
-                    if !existing.contains(*space) {
-                        existing.spaces.push(*space);
+                    if !existing.contains(space.clone()) {
+                        existing.spaces.push(space.clone());
                     }
                 }
             }
@@ -784,7 +784,7 @@ fn memory_effect_for_access(access: &mir::MemoryAccessMetadata) -> mir::MemoryEf
 
     // apply ordering and address space annotations
     effect.nosync = true;
-    if let Some(space) = access.address_space {
+    if let Some(space) = access.address_space.clone() {
         effect.address_spaces = Some(mir::AddressSpaceMask::new(vec![space]));
     }
     if access.is_volatile
@@ -914,7 +914,7 @@ fn merge_address_space_set(
     match (left, right) {
         (Some(mut left), Some(right)) => {
             for space in right.spaces {
-                if !left.contains(space) {
+                if !left.contains(space.clone()) {
                     left.spaces.push(space);
                 }
             }

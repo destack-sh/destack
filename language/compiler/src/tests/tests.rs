@@ -495,7 +495,7 @@ impl TestIsolate {
         &mut self,
         function: &str,
         arguments: &[Value],
-    ) -> destack_vm::RuntimeResult<destack_vm::ExecutionOutput> {
+    ) -> destack_vm::RuntimeResult<destack_vm::RunOutput> {
         let mut memory = MemoryContext::new(&mut self.heap, &mut self.shared);
 
         self.isolate

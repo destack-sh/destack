@@ -1302,8 +1302,12 @@ b3:
 
         let function_id = test.entry_function_id();
         let entry_block = test.entry_block_id(function_id);
-        let header_block = match &test.tree.get(entry_block).terminator {
-            mir::Terminator::Jump { target, .. } => *target,
+        let entry_terminator = test.tree.get(test.tree.get(entry_block).terminator);
+        let header_block = match entry_terminator {
+            mir::Terminator::Jump { target, .. } => target
+                .block
+                .block()
+                .expect("loop header jump should reference a concrete block"),
             _ => panic!("missing loop header jump"),
         };
 

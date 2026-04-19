@@ -148,7 +148,7 @@ struct SplitCandidate {
 }
 
 /// Reference attributes used to rebuild stack slot types.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct ReferenceSpec {
     /// The reference kind.
     kind: mir::ReferenceKind,
@@ -176,7 +176,7 @@ impl ReferenceSpec {
 
         Some(Self {
             kind: *kind,
-            address_space: *address_space,
+            address_space: address_space.clone(),
             mutability: *mutability,
             is_nullable: *is_nullable,
         })
@@ -524,7 +524,7 @@ fn split_allocation(
     for &elem_type in &candidate.element_types {
         let result_type = tree.insert_type(mir::Type::Reference {
             kind: candidate.reference_spec.kind,
-            address_space: candidate.reference_spec.address_space,
+            address_space: candidate.reference_spec.address_space.clone(),
             mutability: candidate.reference_spec.mutability,
             pointee: elem_type.into(),
             is_nullable: candidate.reference_spec.is_nullable,

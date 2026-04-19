@@ -792,7 +792,7 @@ impl<'a> ModuleLowerer<'a> {
         Ok(())
     }
 
-    /// Ensure all nominal types are lowered into the type cache.
+    /// Ensure all nominal types are lowered into the primitive type index.
     fn lower_declared_types(&mut self) -> LowerResult<()> {
         // track symbols we've already finalized
         let mut seen = HashSet::new();
