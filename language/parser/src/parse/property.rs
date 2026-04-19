@@ -1548,8 +1548,7 @@ impl Parser {
                     is_abstract: modifiers.is_some_and(|modifiers| modifiers.is_abstract),
                     is_override: modifiers.is_some_and(|modifiers| modifiers.is_override),
                     is_static: modifiers.is_some_and(|modifiers| modifiers.is_static),
-                    is_const_asserted: modifiers
-                        .is_some_and(|modifiers| modifiers.is_const_asserted),
+                    is_definite: modifiers.is_some_and(|modifiers| modifiers.is_definite),
                     is_accessor: modifiers.is_some_and(|modifiers| modifiers.is_accessor),
                     is_comptime: modifiers.is_some_and(|modifiers| modifiers.is_comptime),
                 }
