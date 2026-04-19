@@ -1,24 +1,24 @@
 
-type Node { value: int64, next: ref<Node, raw, addressSpace(heap)> }
+type Node { value: int64, next: ref<Node, raw, space(local)> }
 
-function buildList(v0: int64, v1: ref<Node, raw, addressSpace(heap)>): ref<Node, raw, addressSpace(heap)> {
+function buildList(v0: int64, v1: ref<Node, raw, space(local)>): ref<Node, raw, space(local)> {
 
 // entry, init state
-b0(v0: int64, v1: ref<Node, raw, addressSpace(heap)>):
+b0(v0: int64, v1: ref<Node, raw, space(local)>):
     v2: int64 = 0int64
     v3: boolean = int.eq v0, v2
     branch v3, b2, b1
 
 // return accumulated value
 b1:
-    v4: ref<Node, raw, addressSpace(heap)> = raw.alloc Node
-    v5: ref<int64, raw, addressSpace(heap)> = field.address v4, 0
+    v4: ref<Node, raw, space(local)> = raw.alloc Node
+    v5: ref<int64, raw, space(local)> = field.address v4, 0
     store v5, v0
-    v6: ref<ref<Node, raw, addressSpace(heap)>, raw, addressSpace(heap)> = field.address v4, 1
+    v6: ref<ref<Node, raw, space(local)>, raw, space(local)> = field.address v4, 1
     store v6, v1
     v7: int64 = 1int64
     v8: int64 = int.sub v0, v7
-    v9: ref<Node, raw, addressSpace(heap)> = call buildList(v8, v4): (int64, ref<Node, raw, addressSpace(heap)>) -> ref<Node, raw, addressSpace(heap)>
+    v9: ref<Node, raw, space(local)> = call buildList(v8, v4): (int64, ref<Node, raw, space(local)>) -> ref<Node, raw, space(local)>
     return v9
 
 // return result
@@ -26,11 +26,11 @@ b2:
     return v1
 }
 
-function walkList(v0: ref<Node, raw, addressSpace(heap)>, v1: int64): int64 {
+function walkList(v0: ref<Node, raw, space(local)>, v1: int64): int64 {
 
 // entry, init state
-b0(v0: ref<Node, raw, addressSpace(heap)>, v1: int64):
-    v2: ref<int64, raw, addressSpace(heap)> = field.address v0, 0
+b0(v0: ref<Node, raw, space(local)>, v1: int64):
+    v2: ref<int64, raw, space(local)> = field.address v0, 0
     v3: int64 = load v2
     v4: int64 = 0int64
     v5: boolean = int.eq v3, v4
@@ -39,9 +39,9 @@ b0(v0: ref<Node, raw, addressSpace(heap)>, v1: int64):
 // return accumulated value
 b1:
     v6: int64 = int.add v1, v3
-    v7: ref<ref<Node, raw, addressSpace(heap)>, raw, addressSpace(heap)> = field.address v0, 1
-    v8: ref<Node, raw, addressSpace(heap)> = load v7
-    v9: int64 = call walkList(v8, v6): (ref<Node, raw, addressSpace(heap)>, int64) -> int64
+    v7: ref<ref<Node, raw, space(local)>, raw, space(local)> = field.address v0, 1
+    v8: ref<Node, raw, space(local)> = load v7
+    v9: int64 = call walkList(v8, v6): (ref<Node, raw, space(local)>, int64) -> int64
     return v9
 
 // return result
@@ -50,19 +50,19 @@ b2:
 }
 
 function linkedWalk(v0: int64): int64 {
-local local0: ref<Node, raw, addressSpace(heap)>
+local local0: ref<Node, raw, space(local)>
 
 // entry, init allocations, call helper
 b0(v0: int64):
-    v1: ref<Node, raw, addressSpace(heap)> = raw.alloc Node
+    v1: ref<Node, raw, space(local)> = raw.alloc Node
     v2: int64 = 0int64
     local.set local0, v1
-    v3: ref<Node, raw, addressSpace(heap)> = local.get local0
-    v4: ref<int64, raw, addressSpace(heap)> = field.address v1, 0
+    v3: ref<Node, raw, space(local)> = local.get local0
+    v4: ref<int64, raw, space(local)> = field.address v1, 0
     store v4, v2
-    v5: ref<ref<Node, raw, addressSpace(heap)>, raw, addressSpace(heap)> = field.address v1, 1
+    v5: ref<ref<Node, raw, space(local)>, raw, space(local)> = field.address v1, 1
     store v5, v3
-    v6: ref<Node, raw, addressSpace(heap)> = call buildList(v0, v1): (int64, ref<Node, raw, addressSpace(heap)>) -> ref<Node, raw, addressSpace(heap)>
-    v7: int64 = call walkList(v6, v2): (ref<Node, raw, addressSpace(heap)>, int64) -> int64
+    v6: ref<Node, raw, space(local)> = call buildList(v0, v1): (int64, ref<Node, raw, space(local)>) -> ref<Node, raw, space(local)>
+    v7: int64 = call walkList(v6, v2): (ref<Node, raw, space(local)>, int64) -> int64
     return v7
 }

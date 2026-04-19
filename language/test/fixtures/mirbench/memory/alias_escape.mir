@@ -5,38 +5,38 @@ function aliasEscape(v0: int64): int64 {
 
 // entry, init state
 b0(v0: int64):
-    v1: ref<Pair, raw, addressSpace(stack)> = stack.alloc Pair
-    v2: ref<Pair, raw, addressSpace(heap)> = raw.alloc Pair
+    v1: ref<Pair, raw, space(stack)> = stack.alloc Pair
+    v2: ref<Pair, raw, space(local)> = raw.alloc Pair
     v3: int64 = 1int64
     v4: int64 = 2int64
-    v5: ref<int64, raw, addressSpace(stack)> = field.address v1, 0
+    v5: ref<int64, raw, space(stack)> = field.address v1, 0
     store v5, v3
-    v6: ref<int64, raw, addressSpace(stack)> = field.address v1, 1
+    v6: ref<int64, raw, space(stack)> = field.address v1, 1
     store v6, v4
-    v7: ref<int64, raw, addressSpace(heap)> = field.address v2, 0
+    v7: ref<int64, raw, space(local)> = field.address v2, 0
     store v7, v4
-    v8: ref<int64, raw, addressSpace(heap)> = field.address v2, 1
+    v8: ref<int64, raw, space(local)> = field.address v2, 1
     store v8, v3
     v9: int64 = 0int64
     v10: int64 = 0int64
     jump b1(v9, v10, v1, v2)
 
 // loop condition, check limit
-b1(v11: int64, v12: int64, v13: ref<Pair, raw, addressSpace(stack)>, v14: ref<Pair, raw, addressSpace(heap)>):
+b1(v11: int64, v12: int64, v13: ref<Pair, raw, space(stack)>, v14: ref<Pair, raw, space(local)>):
     v15: boolean = int.ge.s v11, v0
     branch v15, b3(v12, v13, v14), b2
 
 // loop body, update aggregates
 b2:
-    v16: ref<int64, raw, addressSpace(stack)> = field.address v13, 0
+    v16: ref<int64, raw, space(stack)> = field.address v13, 0
     v17: int64 = load v16
-    v18: ref<int64, raw, addressSpace(heap)> = field.address v14, 1
+    v18: ref<int64, raw, space(local)> = field.address v14, 1
     v19: int64 = load v18
     v20: int64 = int.add v17, v19
     v21: int64 = int.add v20, v11
-    v22: ref<int64, raw, addressSpace(stack)> = field.address v13, 1
+    v22: ref<int64, raw, space(stack)> = field.address v13, 1
     store v22, v21
-    v23: ref<int64, raw, addressSpace(heap)> = field.address v14, 0
+    v23: ref<int64, raw, space(local)> = field.address v14, 0
     store v23, v20
     v24: int64 = int.add v12, v20
     v25: int64 = 1int64
@@ -44,12 +44,12 @@ b2:
     jump b1(v26, v24, v13, v14)
 
 // return result
-b3(v27: int64, v28: ref<Pair, raw, addressSpace(stack)>, v29: ref<Pair, raw, addressSpace(heap)>):
-    v30: ref<int64, raw, addressSpace(stack)> = field.address v28, 0
+b3(v27: int64, v28: ref<Pair, raw, space(stack)>, v29: ref<Pair, raw, space(local)>):
+    v30: ref<int64, raw, space(stack)> = field.address v28, 0
     v31: int64 = load v30
-    v32: ref<int64, raw, addressSpace(stack)> = field.address v28, 1
+    v32: ref<int64, raw, space(stack)> = field.address v28, 1
     v33: int64 = load v32
-    v34: ref<int64, raw, addressSpace(heap)> = field.address v29, 0
+    v34: ref<int64, raw, space(local)> = field.address v29, 0
     v35: int64 = load v34
     v36: int64 = int.add v31, v33
     v37: int64 = int.add v36, v35

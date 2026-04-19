@@ -4,13 +4,13 @@ use destack_core::StringId;
 
 use crate::{LocalNodeId, Node, NodeType, TypeReference};
 
-/// Lifetime bounds for a returned borrowed value.
+/// Borrow-region bounds for a returned borrowed value.
 ///
 /// Specifies which function parameters a returned reference (or aggregate
 /// containing references) may borrow from. Used by the borrow checker to
 /// track borrows across function calls.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub enum Lifetime {
+pub enum BorrowRegion {
     /// Infer lifetime based on function signature:
     /// - Single `&T` parameter: return borrows from it
     /// - `&self`/`&this` receiver: return borrows from receiver
@@ -26,31 +26,31 @@ pub enum Lifetime {
     Static,
 }
 
-impl Lifetime {
-    /// Create a lifetime bound for a single parameter.
+impl BorrowRegion {
+    /// Create a borrow region bound for a single parameter.
     pub fn param(index: u32) -> Self {
-        Lifetime::Parameters(vec![index])
+        BorrowRegion::Parameters(vec![index])
     }
 
-    /// Create a lifetime bound for multiple parameters.
+    /// Create a borrow region bound for multiple parameters.
     pub fn params(indices: impl IntoIterator<Item = u32>) -> Self {
-        Lifetime::Parameters(indices.into_iter().collect())
+        BorrowRegion::Parameters(indices.into_iter().collect())
     }
 
-    /// Check if this is the inferred/default lifetime.
+    /// Check if this is the inferred default borrow region.
     pub fn is_inferred(&self) -> bool {
-        matches!(self, Lifetime::Inferred)
+        matches!(self, BorrowRegion::Inferred)
     }
 
-    /// Check if this is a static lifetime.
+    /// Check if this is a static borrow region.
     pub fn is_static(&self) -> bool {
-        matches!(self, Lifetime::Static)
+        matches!(self, BorrowRegion::Static)
     }
 
-    /// Check if this lifetime includes a specific parameter.
+    /// Check if this borrow region includes a specific parameter.
     pub fn includes_param(&self, index: u32) -> bool {
         match self {
-            Lifetime::Parameters(params) => params.contains(&index),
+            BorrowRegion::Parameters(params) => params.contains(&index),
             _ => false,
         }
     }
@@ -66,54 +66,50 @@ pub enum Mutability {
 }
 
 /// Address space for a reference.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum AddressSpace {
-    /// Target default address space.
+    /// Local runtime storage.
     #[default]
-    Generic,
+    Local,
+    /// Shared runtime storage.
+    Shared,
     /// Stack or function-local memory.
     Stack,
+    /// Frame-slot storage inside one activation.
+    Frame,
     /// Global or module-static memory.
     Global,
-    /// Target shared or workgroup memory.
-    Shared,
-    /// Target local or thread-local memory.
-    Local,
-    /// Target constant or read-only memory.
-    Constant,
-    /// Target-specific custom address space.
-    Target(u32),
+    /// Named backend-specific storage space.
+    Named(String),
 }
 
 impl AddressSpace {
-    /// Check if this is the default address space.
-    pub fn is_generic(self) -> bool {
-        matches!(self, AddressSpace::Generic)
+    /// Check if this is the local runtime storage space.
+    pub fn is_local(&self) -> bool {
+        matches!(self, AddressSpace::Local)
     }
 
     /// Parse a named address space.
-    pub fn from_name(name: &str) -> Option<Self> {
+    pub fn from_name(name: &str) -> Self {
         match name {
-            "generic" => Some(AddressSpace::Generic),
-            "stack" => Some(AddressSpace::Stack),
-            "global" => Some(AddressSpace::Global),
-            "shared" => Some(AddressSpace::Shared),
-            "local" => Some(AddressSpace::Local),
-            "constant" => Some(AddressSpace::Constant),
-            _ => None,
+            "local" => AddressSpace::Local,
+            "shared" => AddressSpace::Shared,
+            "stack" => AddressSpace::Stack,
+            "frame" => AddressSpace::Frame,
+            "global" => AddressSpace::Global,
+            _ => AddressSpace::Named(name.to_string()),
         }
     }
 
-    /// Return the canonical name when this address space is named.
-    pub fn keyword(self) -> Option<&'static str> {
+    /// Return the canonical source name for this address space.
+    pub fn label(&self) -> &str {
         match self {
-            AddressSpace::Generic => Some("generic"),
-            AddressSpace::Stack => Some("stack"),
-            AddressSpace::Global => Some("global"),
-            AddressSpace::Shared => Some("shared"),
-            AddressSpace::Local => Some("local"),
-            AddressSpace::Constant => Some("constant"),
-            AddressSpace::Target(_) => None,
+            AddressSpace::Local => "local",
+            AddressSpace::Shared => "shared",
+            AddressSpace::Stack => "stack",
+            AddressSpace::Frame => "frame",
+            AddressSpace::Global => "global",
+            AddressSpace::Named(name) => name.as_str(),
         }
     }
 }

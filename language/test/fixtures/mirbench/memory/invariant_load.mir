@@ -1,6 +1,6 @@
 function invariantLoad(v0: int64): int64 {
 b0(v0: int64):
-    v1: ref<int64, raw, addressSpace(stack)> = stack.alloc int64
+    v1: ref<int64, raw, space(stack)> = stack.alloc int64
     v2: int64 = 7int64
     store v1, v2
     v3: int64 = 0int64
