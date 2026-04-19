@@ -5,13 +5,9 @@ use destack_source::{File, FileId};
 use serde_json::Value;
 
 use crate::config::{
-    DestackJson, PackageOptions, ProfileConfig, ProfileConfigJson, StackOptions, TargetJson,
-    TargetOptions, WorkspaceOptions, account_options_from_json, asset_options_from_json,
-    config_options_from_json, environment_options_from_json, extend_account_options,
-    extend_asset_options, extend_config_options, extend_environment_options,
-    extend_feature_options, extend_secret_options, extend_telemetry_options,
-    feature_options_from_json, parse_jsonc_file, runtime_options_with_base,
-    secret_options_from_json, telemetry_options_from_json,
+    DestackJson, PackageOptions, ProfileConfig, ProfileConfigJson, TargetJson, TargetOptions,
+    WorkspaceOptions, environment_options_from_json, extend_environment_options, parse_jsonc_file,
+    runtime_options_with_base,
 };
 
 /// Parsed `destack.json` declaration.
@@ -147,24 +143,6 @@ impl DestackDeclaration {
             }
         } else {
             self.workspace_options.membership = parent_workspace.membership.clone();
-        }
-
-        // tasks
-        if let Some(tasks) = &self.json.tasks {
-            for (name, task_json) in tasks {
-                let mut options = crate::config::TaskOptions::from(task_json);
-                if let Some(parent_task) = parent_package.tasks.get(name) {
-                    options.extend_from(parent_task);
-                }
-                self.package_options.tasks.insert(name.clone(), options);
-            }
-        }
-        for (name, task) in &parent_package.tasks {
-            if !self.package_options.tasks.contains_key(name) {
-                self.package_options
-                    .tasks
-                    .insert(name.clone(), task.clone());
-            }
         }
 
         // source selection
@@ -597,33 +575,9 @@ impl DestackDeclaration {
             runtime_options_with_base(&parent_package.runtime, Some(&self.json.runtime));
 
         // declaration maps
-        let mut accounts = account_options_from_json(&self.json.accounts);
-        extend_account_options(&mut accounts, &parent_package.accounts);
-        self.package_options.accounts = accounts;
-
-        let mut configs = config_options_from_json(&self.json.configs);
-        extend_config_options(&mut configs, &parent_package.configs);
-        self.package_options.configs = configs;
-
-        let mut secrets = secret_options_from_json(&self.json.secrets);
-        extend_secret_options(&mut secrets, &parent_package.secrets);
-        self.package_options.secrets = secrets;
-
-        let mut assets = asset_options_from_json(&self.json.assets);
-        extend_asset_options(&mut assets, &parent_package.assets);
-        self.package_options.assets = assets;
-
         let mut environments = environment_options_from_json(&self.json.environments);
         extend_environment_options(&mut environments, &parent_package.environments);
         self.package_options.environments = environments;
-
-        let mut features = feature_options_from_json(&self.json.features);
-        extend_feature_options(&mut features, &parent_package.features);
-        self.package_options.features = features;
-
-        let mut telemetry = telemetry_options_from_json(&self.json.telemetry);
-        extend_telemetry_options(&mut telemetry, &parent_package.telemetry);
-        self.package_options.telemetry = telemetry;
 
         // watch and daemon
         if self.json.watch.debounce_ms.is_none() {
@@ -654,24 +608,6 @@ impl DestackDeclaration {
                 self.package_options
                     .targets
                     .insert(name.clone(), target.clone());
-            }
-        }
-
-        // stacks
-        if let Some(stacks) = &self.json.stacks {
-            for (name, stack_json) in stacks {
-                let mut options = StackOptions::from(stack_json);
-                if let Some(parent_stack) = parent_package.stacks.get(name) {
-                    options.extend_from(parent_stack);
-                }
-                self.package_options.stacks.insert(name.clone(), options);
-            }
-        }
-        for (name, stack) in &parent_package.stacks {
-            if !self.package_options.stacks.contains_key(name) {
-                self.package_options
-                    .stacks
-                    .insert(name.clone(), stack.clone());
             }
         }
 
