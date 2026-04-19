@@ -119,7 +119,7 @@ impl ModuleLowerer<'_> {
             mir::ReferenceKind::Managed,
             env_type,
             mir::Mutability::Mutable,
-            mir::AddressSpace::Generic,
+            mir::AddressSpace::Local,
             false,
         );
 
@@ -156,7 +156,7 @@ impl ModuleLowerer<'_> {
                     mir::ReferenceKind::Managed,
                     value_type,
                     mutability,
-                    mir::AddressSpace::Generic,
+                    mir::AddressSpace::Local,
                     false,
                 )
             }
@@ -222,7 +222,7 @@ impl ModuleLowerer<'_> {
             mir::ReferenceKind::Managed,
             env_type,
             mir::Mutability::Mutable,
-            mir::AddressSpace::Generic,
+            mir::AddressSpace::Local,
             true,
         );
         self.empty_function_environment_type = Some(env_type);
@@ -243,7 +243,7 @@ impl ModuleLowerer<'_> {
             mir::ReferenceKind::Managed,
             env_type,
             mir::Mutability::Mutable,
-            mir::AddressSpace::Generic,
+            mir::AddressSpace::Local,
             true,
         );
         self.empty_function_environment_pointer_type = Some(env_pointer_type);

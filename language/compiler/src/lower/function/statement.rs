@@ -957,7 +957,7 @@ impl FunctionLowerer<'_> {
                 mir::ReferenceKind::Managed,
                 value_type,
                 mir_mutability,
-                mir::AddressSpace::Generic,
+                mir::AddressSpace::Local,
                 false,
             );
             let reference_value = self.state.builder.managed_alloc(value_type, reference_type);
@@ -1021,7 +1021,7 @@ impl FunctionLowerer<'_> {
                 mir::ReferenceKind::Managed,
                 value_type,
                 mir_mutability,
-                mir::AddressSpace::Generic,
+                mir::AddressSpace::Local,
                 false,
             );
             let reference_value = self.state.builder.managed_alloc(value_type, reference_type);

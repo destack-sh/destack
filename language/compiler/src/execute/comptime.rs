@@ -462,7 +462,7 @@ impl<'a> ComptimeLowerer<'a> {
             mir::ReferenceKind::Managed,
             env_type,
             mir::Mutability::Mutable,
-            mir::AddressSpace::Generic,
+            mir::AddressSpace::Local,
             false,
         );
         self.empty_function_environment_type = Some(env_type);
@@ -484,7 +484,7 @@ impl<'a> ComptimeLowerer<'a> {
             mir::ReferenceKind::Managed,
             env_type,
             mir::Mutability::Mutable,
-            mir::AddressSpace::Generic,
+            mir::AddressSpace::Local,
             false,
         );
         self.empty_function_environment_pointer_type = Some(env_pointer_type);

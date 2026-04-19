@@ -695,7 +695,7 @@ b0:
 function test(): ref<int32, borrowed> {
     local local0: int32, owned
 b0:
-    v0: ref<int32, borrowed, space(stack)> = local.address local0
+    v0: ref<int32, borrowed, space(frame)> = local.address local0
     return v0
 }"#;
 
@@ -1016,7 +1016,7 @@ function test(): int32 {
 b0:
     v0: int32 = 1int32
     local.set local0, v0
-    v1: ref<int32, borrowed, space(stack)> = local.address local0
+    v1: ref<int32, borrowed, space(frame)> = local.address local0
     yield v0, b1
 b1(v2: int32):
     v3: int32 = load v1
@@ -1216,7 +1216,7 @@ b0:
 }"#;
 
         let mut test = TestProgram::new(input);
-        test.set_function_lifetime("getStatic", mir::Lifetime::Static);
+        test.set_function_lifetime("getStatic", mir::BorrowRegion::Static);
         test.run_pass(&StackCheck);
 
         // with static lifetime, v2 doesn't inherit stack pointer status from v0
@@ -1250,7 +1250,7 @@ b0:
         let mut test = TestProgram::new(input);
 
         // explicit lifetime: return borrows from param 0 only
-        test.set_function_lifetime("pick", mir::Lifetime::param(0));
+        test.set_function_lifetime("pick", mir::BorrowRegion::param(0));
         test.run_pass(&StackCheck);
 
         // v3 borrows from v0 (param 0) which is managed, not stack
@@ -1283,7 +1283,7 @@ b0:
         let mut test = TestProgram::new(input);
 
         // explicit lifetime: return borrows from param 1 only
-        test.set_function_lifetime("pick", mir::Lifetime::param(1));
+        test.set_function_lifetime("pick", mir::BorrowRegion::param(1));
         test.run_pass(&StackCheck);
 
         // v3 borrows from v1 (param 1) which is stack

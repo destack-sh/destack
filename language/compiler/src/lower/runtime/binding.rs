@@ -119,7 +119,7 @@ impl ModuleLowerer<'_> {
             mir::ReferenceKind::Raw,
             err_mir_type,
             mir::Mutability::Mutable,
-            mir::AddressSpace::Generic,
+            mir::AddressSpace::Stack,
             false,
         );
         let error_id_type = self.builder.type_u64();

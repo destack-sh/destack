@@ -104,7 +104,7 @@ function borrowLocal(value0: int32): ref<int32, borrowed> {
 
 entry0(value0: int32):
     local.set local0, value0
-    value1: ref<int32, borrowed> = local.address local0
+    value1: ref<int32, borrowed, space(frame)> = local.address local0
     return value1
 }
 "#,
@@ -139,7 +139,7 @@ entry0(value0: int32):
     value1: int32 = 1int32
     value2: int32 = int.add value0, value1
     local.set local0, value2
-    value3: ref<int32, borrowed> = local.address local0
+    value3: ref<int32, borrowed, space(frame)> = local.address local0
     return value3
 }
 "#,
@@ -390,7 +390,7 @@ function borrowGreeter(value0: Greeter): ref<Greeter, borrowed> {
 
 entry0(value0: Greeter):
     local.set local0, value0
-    value1: ref<Greeter, borrowed> = local.address local0
+    value1: ref<Greeter, borrowed, space(frame)> = local.address local0
     return value1
 }
 "#,
