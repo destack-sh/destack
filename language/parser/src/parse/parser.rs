@@ -1,12 +1,13 @@
 use crate::{Lexer, LexerSnapshot, is_semantic};
 use core::fmt;
 use destack_ast::{
-    BlockFormat, Comment, Expression, Keyword, LocalNodeId, Node, NodeTree, NodeTreeImpl,
-    NodeTreeMark, NodeType, StringId, Token, TokenSpan, TokenType, TypeExpression,
+    BlockFormat, Expression, Keyword, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeTreeMark,
+    NodeType, StringId, Token, TokenSpan, TokenType, TypeExpression,
 };
 use destack_core::LocalStringPool;
 use destack_source::{
-    DiagnosticCollector, EnclosingSpan, File, FileId, LanguageType, MultiSpan, NodeSearchMode, Span,
+    DiagnosticCollector, EnclosingSpan, File, FileId, LanguageType, MultiSpan, NodeSearchMode,
+    NodeSpanType, Span,
 };
 use std::fmt::Debug;
 #[cfg(feature = "timings")]
@@ -1867,24 +1868,8 @@ impl Parser {
             return;
         }
 
-        // structural comment owners
-        let comment_owners = self
-            .lexer
-            .trivia_comments()
-            .iter()
-            .map(|comment| {
-                comment
-                    .attached_part(&self.tree.source_map)
-                    .expect("every retained comment must have a structural source owner")
-            })
-            .collect::<Vec<_>>();
-
-        // finalize structural comments in parse order
-        for (raw_comment, attached_part) in self.lexer.trivia_comments().iter().zip(comment_owners)
-        {
-            let mut comment = Comment::new(raw_comment.span, raw_comment.kind, attached_part);
-            comment.newlines = raw_comment.newlines;
-            comment.content = raw_comment.content;
+        // finalize raw comments in parse order
+        for comment in self.lexer.trivia_comments().iter().copied() {
             self.tree.push_comment(comment);
         }
     }
@@ -2048,6 +2033,38 @@ impl Parser {
         self.tree.insert_during_parse(node, span)
     }
 
+    /// Attach one child-owned leading boundary span.
+    pub(crate) fn set_node_leading_span<T>(&mut self, node_id: LocalNodeId<T>, boundary_start: u32)
+    where
+        T: Node + Clone,
+        NodeTree: NodeTreeImpl<T>,
+    {
+        let node_span = self.tree.get_span(node_id);
+        if boundary_start >= node_span.start {
+            return;
+        }
+
+        let leading_span = Span::new(node_span.file, boundary_start, node_span.start);
+        self.tree
+            .set_side_span(node_id, NodeSpanType::Leading, leading_span);
+    }
+
+    /// Attach one child-owned trailing boundary span.
+    pub(crate) fn set_node_trailing_span<T>(&mut self, node_id: LocalNodeId<T>, boundary_end: u32)
+    where
+        T: Node + Clone,
+        NodeTree: NodeTreeImpl<T>,
+    {
+        let node_span = self.tree.get_span(node_id);
+        if boundary_end <= node_span.end {
+            return;
+        }
+
+        let trailing_span = Span::new(node_span.file, node_span.end, boundary_end);
+        self.tree
+            .set_side_span(node_id, NodeSpanType::Trailing, trailing_span);
+    }
+
     /// Get a mark and return the span of the current position.
     #[inline(always)]
     pub fn get_span_from(&self, mark: &ParserMark) -> Span {
@@ -2105,6 +2122,12 @@ impl Parser {
         self.prev()
             .map(|token| token.token.ty)
             .unwrap_or(TokenType::End)
+    }
+
+    /// Return the end offset of the previously consumed semantic token.
+    #[inline]
+    pub(crate) fn prev_token_end(&self) -> u32 {
+        self.previous_token_end
     }
 
     /// Peek the next Token or error.

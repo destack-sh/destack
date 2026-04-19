@@ -1,10 +1,10 @@
 use destack_ast::{
-    Argument, Block, BlockContext, BlockFormat, ClassDeclaration, Comment, CommentKind,
-    Declaration, Declarator, Decorator, DecoratorPosition, Expression, FunctionDeclaration,
-    LocalNodeId, Member, Parameter, Property, StructDeclaration, TokenType, TypeDeclaration,
-    TypeExpression, normalize_comment_payload,
+    Argument, Block, BlockContext, BlockFormat, ClassDeclaration, Comment, CommentContent,
+    CommentKind, CommentPosition, Declaration, Declarator, Decorator, DecoratorPosition,
+    Expression, FunctionDeclaration, LocalNodeId, Member, Parameter, Property, StructDeclaration,
+    TokenType, TypeDeclaration, TypeExpression, normalize_comment_payload,
 };
-use destack_source::{LanguageType, NodeSpanType, SourcePartKey};
+use destack_source::LanguageType;
 
 use crate::{Parser, TestParser, assert_comment, assert_expression_path, assert_node};
 
@@ -235,6 +235,37 @@ fn test_comment_trivia_normalizes_payload_and_style() {
 }
 
 #[test]
+fn test_comment_trivia_classifies_annotation_content() {
+    let source = r#"
+/*! keep */
+/** docs */
+/** @license keep */
+/* #__PURE__ */
+/* webpackChunkName: "main" */
+/* @vite-ignore */
+value
+"#;
+    let (parser, expressions) = parse_source(source, LanguageType::TypeScript);
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(comments(&parser).len(), 6);
+
+    let expected = [
+        CommentContent::Legal,
+        CommentContent::Jsdoc,
+        CommentContent::JsdocLegal,
+        CommentContent::None,
+        CommentContent::None,
+        CommentContent::None,
+    ];
+
+    for (comment, expected_content) in comments(&parser).iter().zip(expected) {
+        assert_eq!(comment.content, expected_content);
+        assert_eq!(comment.position, CommentPosition::Leading);
+    }
+}
+
+#[test]
 fn test_doc_comments_attach_semantically_and_skip_raw_comments() {
     let (parser, expressions) = parse_source("/// docs\nfunction f() {}", LanguageType::TypeScript);
 
@@ -252,10 +283,8 @@ fn test_doc_comments_attach_semantically_and_skip_raw_comments() {
         assert_eq!(comments(&parser).len(), 1);
         let comment = comments(&parser)[0];
         assert_eq!(comment_text(&parser, comment), "docs");
-        assert_eq!(
-            comment.attached_part,
-            SourcePartKey::new(declaration_id.id, NodeSpanType::Enclosing),
-        );
+        assert_eq!(comment.position, CommentPosition::Leading);
+        assert_eq!(comment.attached_to, parser.tree.get_span(*declaration_id).start);
     });
 }
 
@@ -376,6 +405,8 @@ fn test_comment_after_open_parenthesis_attaches_to_inner_expression_leading() {
             Some(TokenType::Identifier),
         );
         assert_comment_newline_shape(comment, false, false);
+        assert_eq!(comment.position, CommentPosition::Leading);
+        assert_eq!(comment.attached_to, parser.tree.get_span(*expression).start);
     });
 }
 
