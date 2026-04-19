@@ -351,7 +351,7 @@ export newtype lifetime = string;
 ///
 /// `space` specifies the memory region that a reference points into.
 /// Supported names include `generic`, `stack`, `global`, `heap`, `shared`,
-/// `local`, and `constant`, or a target-specific integer id.
+/// `local`, and `constant`.
 ///
 /// Non-generic address spaces are only valid for borrowed and raw references.
 /// `constant` references are always immutable.
@@ -359,7 +359,6 @@ export newtype lifetime = string;
 ///
 /// ```
 /// let p: @space("shared") &Point = ...;
-/// let q: @space(7) &i32 = ...;
-/// let r: @space("constant") &Color = ...;
+/// let q: @space("constant") &Color = ...;
 /// ```
-export newtype space = (string,) | (int,);
+export newtype space = (string,);
