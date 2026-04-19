@@ -1450,7 +1450,10 @@ b2(v7: int32):
             .unwrap();
 
         let header_block = test.tree.get(function.blocks[1]);
-        let param_value = header_block.parameters[0].value;
+        let param_value = header_block.parameters[0]
+            .value
+            .value()
+            .expect("header parameter should be concrete");
 
         let expected = Scev::AddRec {
             start: Box::new(Scev::Constant(mir::Constant::Int {
@@ -1503,7 +1506,10 @@ b2(v6: int32):
             .unwrap();
 
         let header_block = test.tree.get(function.blocks[1]);
-        let param_value = header_block.parameters[0].value;
+        let param_value = header_block.parameters[0]
+            .value
+            .value()
+            .expect("header parameter should be concrete");
 
         let actual = scev
             .scev_for_value_in_loop(loop_index, param_value)
@@ -1543,7 +1549,10 @@ b2(v6: int32):
             .unwrap();
 
         let header_block = test.tree.get(function.blocks[1]);
-        let param_value = header_block.parameters[0].value;
+        let param_value = header_block.parameters[0]
+            .value
+            .value()
+            .expect("header parameter should be concrete");
 
         let expected = Scev::AddRec {
             start: Box::new(Scev::Constant(mir::Constant::Int {
@@ -1597,7 +1606,10 @@ b3(v5: int32):
             .unwrap();
 
         let header_block = test.tree.get(function.blocks[1]);
-        let param_value = header_block.parameters[0].value;
+        let param_value = header_block.parameters[0]
+            .value
+            .value()
+            .expect("header parameter should be concrete");
 
         let expected = Scev::AddRec {
             start: Box::new(Scev::Constant(mir::Constant::Int {
@@ -1655,7 +1667,10 @@ b2(v9: int32):
         let block1 = test.tree.get(function.blocks[1]);
         let instruction_id = block1.instructions[1];
         let instruction = test.tree.get(instruction_id);
-        let derived_value = instruction.destination().unwrap();
+        let derived_value = instruction
+            .destination()
+            .and_then(|value| value.value())
+            .expect("derived value should be concrete");
 
         let expected = Scev::AddRec {
             start: Box::new(Scev::Constant(mir::Constant::Int {
@@ -1711,7 +1726,10 @@ b2(v7: int32):
 
         let block1 = test.tree.get(function.blocks[1]);
         let instruction = test.tree.get(block1.instructions[0]);
-        let derived_value = instruction.destination().unwrap();
+        let derived_value = instruction
+            .destination()
+            .and_then(|value| value.value())
+            .expect("derived value should be concrete");
 
         let expected = Scev::AddRec {
             start: Box::new(Scev::Constant(mir::Constant::Int {
@@ -1768,7 +1786,10 @@ b2(v8: int32):
 
         let block1 = test.tree.get(function.blocks[1]);
         let instruction = test.tree.get(block1.instructions[1]);
-        let derived_value = instruction.destination().unwrap();
+        let derived_value = instruction
+            .destination()
+            .and_then(|value| value.value())
+            .expect("derived value should be concrete");
 
         let expected = Scev::AddRec {
             start: Box::new(Scev::Constant(mir::Constant::Int {
@@ -1824,9 +1845,15 @@ b2(v8: int32):
 
         let block1 = test.tree.get(function.blocks[1]);
         let instruction = test.tree.get(block1.instructions[0]);
-        let derived_value = instruction.destination().unwrap();
+        let derived_value = instruction
+            .destination()
+            .and_then(|value| value.value())
+            .expect("derived value should be concrete");
 
-        let invariant_value = function.parameters[1].value;
+        let invariant_value = function.parameters[1]
+            .value
+            .value()
+            .expect("invariant parameter should be concrete");
         let expected = Scev::AddRec {
             start: Box::new(Scev::Constant(mir::Constant::Int {
                 value: 0,
@@ -1877,7 +1904,10 @@ b2(v8: int32):
             .unwrap();
 
         let header_block = test.tree.get(function.blocks[1]);
-        let param_value = header_block.parameters[0].value;
+        let param_value = header_block.parameters[0]
+            .value
+            .value()
+            .expect("header parameter should be concrete");
 
         let expected = Scev::AddRec {
             start: Box::new(Scev::Constant(mir::Constant::Int {
@@ -1933,7 +1963,10 @@ b2(v8: int32):
             .unwrap();
 
         let header_block = test.tree.get(function.blocks[1]);
-        let param_value = header_block.parameters[0].value;
+        let param_value = header_block.parameters[0]
+            .value
+            .value()
+            .expect("header parameter should be concrete");
 
         let expected = Scev::AddRec {
             start: Box::new(Scev::Constant(mir::Constant::Int {
@@ -1990,7 +2023,10 @@ b2(v8: int32):
 
         let block1 = test.tree.get(function.blocks[1]);
         let instruction = test.tree.get(block1.instructions[1]);
-        let divide_value = instruction.destination().unwrap();
+        let divide_value = instruction
+            .destination()
+            .and_then(|value| value.value())
+            .expect("divide value should be concrete");
 
         let expected = Scev::AddRec {
             start: Box::new(Scev::Constant(mir::Constant::Int {
@@ -2046,15 +2082,28 @@ b2(v8: int32):
             .unwrap();
 
         let header_block = test.tree.get(function.blocks[1]);
-        let param_value = header_block.parameters[0].value;
+        let param_value = header_block.parameters[0]
+            .value
+            .value()
+            .expect("header parameter should be concrete");
         let param_scev = scev
             .scev_for_value_in_loop(loop_index, param_value)
             .unwrap()
             .clone();
 
         let block1 = test.tree.get(function.blocks[1]);
-        let arithmetic_value = test.tree.get(block1.instructions[1]).destination().unwrap();
-        let logical_value = test.tree.get(block1.instructions[2]).destination().unwrap();
+        let arithmetic_value = test
+            .tree
+            .get(block1.instructions[1])
+            .destination()
+            .and_then(|value| value.value())
+            .expect("arithmetic shift value should be concrete");
+        let logical_value = test
+            .tree
+            .get(block1.instructions[2])
+            .destination()
+            .and_then(|value| value.value())
+            .expect("logical shift value should be concrete");
 
         let expected_arithmetic = Scev::ArithmeticShiftRight(
             Box::new(param_scev.clone()),
@@ -2122,18 +2171,46 @@ b2(v13: int64):
             .unwrap();
 
         let header_block = test.tree.get(function.blocks[1]);
-        let param_value = header_block.parameters[0].value;
+        let param_value = header_block.parameters[0]
+            .value
+            .value()
+            .expect("header parameter should be concrete");
         let param_scev = scev
             .scev_for_value_in_loop(loop_index, param_value)
             .unwrap()
             .clone();
 
         let block1 = test.tree.get(function.blocks[1]);
-        let divide_value = test.tree.get(block1.instructions[1]).destination().unwrap();
-        let shift_value = test.tree.get(block1.instructions[3]).destination().unwrap();
-        let remainder_value = test.tree.get(block1.instructions[5]).destination().unwrap();
-        let sext_value = test.tree.get(block1.instructions[6]).destination().unwrap();
-        let uext_value = test.tree.get(block1.instructions[7]).destination().unwrap();
+        let divide_value = test
+            .tree
+            .get(block1.instructions[1])
+            .destination()
+            .and_then(|value| value.value())
+            .expect("divide value should be concrete");
+        let shift_value = test
+            .tree
+            .get(block1.instructions[3])
+            .destination()
+            .and_then(|value| value.value())
+            .expect("shift value should be concrete");
+        let remainder_value = test
+            .tree
+            .get(block1.instructions[5])
+            .destination()
+            .and_then(|value| value.value())
+            .expect("remainder value should be concrete");
+        let sext_value = test
+            .tree
+            .get(block1.instructions[6])
+            .destination()
+            .and_then(|value| value.value())
+            .expect("sign-extend value should be concrete");
+        let uext_value = test
+            .tree
+            .get(block1.instructions[7])
+            .destination()
+            .and_then(|value| value.value())
+            .expect("zero-extend value should be concrete");
 
         let expected_divide = Scev::SignedDivide(
             Box::new(param_scev.clone()),

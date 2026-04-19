@@ -278,7 +278,7 @@ fn build_value_use_maps(
                     for arg in tree
                         .get_arguments(args)
                         .iter()
-                        .copied()
+                        .cloned()
                         .filter_map(|value| value.value())
                     {
                         uses.entry(arg).or_default().push(instruction_id);
@@ -709,7 +709,6 @@ fn function_memory_writes_from_tree(
 mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
-    use destack_source::{FileId, Span};
 
     /// Loads from immutable globals are rewritten to global.const.
     #[test]
@@ -832,6 +831,8 @@ b0:
         };
 
         let root_name = test.tree.get(root_id).name;
+        let global_id = global_id.global().expect("global should be concrete");
+        let destination = destination.value().expect("destination should be concrete");
         let global_type = test.tree.get(global_id).ty;
         let scope_id =
             test.tree
@@ -845,7 +846,7 @@ b0:
             .insert(root_id, scope_id);
         let binding_id = test.tree.metadata.debug.create_binding(
             root_name,
-            global_type,
+            global_type.ty().expect("global type should be concrete"),
             scope_id,
             None,
             mir::DebugBindingKind::Local,

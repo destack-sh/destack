@@ -609,7 +609,7 @@ impl BasicAA {
         access: &mir::MemoryAccessMetadata,
         tree: &mir::NodeTree,
     ) -> mir::MemoryRegionSet {
-        if let Some(address_space) = access.address_space {
+        if let Some(address_space) = access.address_space.clone() {
             return self.location_set_for_address_space(address_space);
         }
 
@@ -631,7 +631,7 @@ impl BasicAA {
         access: &mir::MemoryAccessMetadata,
         tree: &mir::NodeTree,
     ) -> Option<mir::AddressSpace> {
-        if let Some(address_space) = access.address_space {
+        if let Some(address_space) = access.address_space.clone() {
             return Some(address_space);
         }
 
@@ -653,11 +653,11 @@ impl BasicAA {
     ) -> mir::MemoryRegionSet {
         match address_space {
             mir::AddressSpace::Stack => mir::MemoryRegionSet::STACK,
+            mir::AddressSpace::Frame => mir::MemoryRegionSet::STACK,
             mir::AddressSpace::Global => mir::MemoryRegionSet::GLOBAL,
             mir::AddressSpace::Shared => mir::MemoryRegionSet::SHARED,
             mir::AddressSpace::Local => mir::MemoryRegionSet::LOCAL,
-            mir::AddressSpace::Constant => mir::MemoryRegionSet::CONSTANT,
-            mir::AddressSpace::Generic | mir::AddressSpace::Target(_) => mir::MemoryRegionSet::ANY,
+            mir::AddressSpace::Named(_) => mir::MemoryRegionSet::ANY,
         }
     }
 
@@ -947,7 +947,7 @@ impl BasicAA {
         match decomposed.base {
             PointerBase::StackAlloc(_) | PointerBase::Local(_) => Some(mir::AddressSpace::Stack),
             PointerBase::ManagedAlloc(_) | PointerBase::RawAlloc(_) => {
-                Some(mir::AddressSpace::Generic)
+                Some(mir::AddressSpace::Local)
             }
             PointerBase::Global(_) => Some(mir::AddressSpace::Global),
             PointerBase::Parameter { index, .. } => {
@@ -957,7 +957,9 @@ impl BasicAA {
 
                 match tree.get(ty) {
                     mir::Type::Reference { address_space, .. }
-                    | mir::Type::TensorReference { address_space, .. } => Some(*address_space),
+                    | mir::Type::TensorReference { address_space, .. } => {
+                        Some(address_space.clone())
+                    }
                     _ => None,
                 }
             }
@@ -1208,7 +1210,7 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
 function test(): void {
     local local0: int32, owned
 b0:
-    v0: ref<int32, raw, space(stack)> = local.address local0
+    v0: ref<int32, raw, space(frame)> = local.address local0
     v1: int8 = 0int8
     v2: int64 = 4int64
     intrinsic.memset(v0, v1, v2)
@@ -1258,7 +1260,11 @@ b0:
 
         let function = program.tree.get(function_id);
         let aa = build_basic_aa(function, &program, false);
-        let loc = MemoryLocation::from_ptr(pointer_value);
+        let loc = MemoryLocation::from_ptr(
+            pointer_value
+                .value()
+                .expect("pointer value should be concrete"),
+        );
         let mod_ref = aa.get_mod_ref_info(memset_inst, &loc, &program.tree);
 
         assert!(mod_ref.is_mod());

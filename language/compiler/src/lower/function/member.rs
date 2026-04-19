@@ -567,7 +567,7 @@ impl FunctionLowerer<'_> {
                 mir::Type::Tuple { elements, .. } => (
                     elements
                         .iter()
-                        .copied()
+                        .cloned()
                         .map(|element| element.ty())
                         .collect::<Option<Vec<_>>>()
                         .ok_or_else(|| {

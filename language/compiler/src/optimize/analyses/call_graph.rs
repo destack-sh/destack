@@ -291,7 +291,7 @@ impl SignatureType {
                 is_nullable,
             } => SignatureType::Reference {
                 kind: *kind,
-                address_space: *address_space,
+                address_space: address_space.clone(),
                 mutability: *mutability,
                 pointee: Box::new(SignatureType::from_type(tree, pointee.ty()?)?),
                 is_nullable: *is_nullable,
@@ -369,7 +369,7 @@ impl SignatureType {
                 is_nullable,
             } => SignatureType::TensorReference {
                 kind: *kind,
-                address_space: *address_space,
+                address_space: address_space.clone(),
                 mutability: *mutability,
                 element: Box::new(SignatureType::from_type(tree, element.ty()?)?),
                 shape: shape.clone(),
@@ -1844,7 +1844,7 @@ b0(v0: int32):
         else {
             panic!("expected virtual call instruction");
         };
-        *declared_target = Some(callee_id);
+        *declared_target = Some(callee_id.into());
 
         let analyses = ModuleAnalyses::new(&test.tree);
         let callgraph = analyses.get::<CallGraph>();
@@ -1885,14 +1885,15 @@ b2(v2: ref<int32, managed, readonly>):
         let function = test.tree.get(test_id);
         let block_id = *function.blocks.first().expect("missing entry block");
 
-        let block = test.tree.get_mut(block_id);
+        let terminator_id = test.tree.get(block_id).terminator;
+        let block = test.tree.get_mut(terminator_id);
         let mir::Terminator::InvokeVirtual {
             declared_target, ..
-        } = &mut block.terminator
+        } = block
         else {
             panic!("expected virtual invoke terminator");
         };
-        *declared_target = Some(callee_id);
+        *declared_target = Some(callee_id.into());
 
         let analyses = ModuleAnalyses::new(&test.tree);
         let callgraph = analyses.get::<CallGraph>();

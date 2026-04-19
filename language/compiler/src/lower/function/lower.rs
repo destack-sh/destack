@@ -79,9 +79,9 @@ pub(crate) struct FunctionLoweringContext<'a> {
     /// Resolve vtable globals for class allocations.
     pub(crate) vtable_globals_by_symbol: &'a HashMap<dir::GlobalSymbolId, VtableGlobal>,
     /// Synthetic name for call signatures in dispatch tables.
-    pub(crate) dispatch_call_name: destack_core::StringId,
+    pub(crate) dispatch_call_name: StringId,
     /// Synthetic name for construct signatures in dispatch tables.
-    pub(crate) dispatch_construct_name: destack_core::StringId,
+    pub(crate) dispatch_construct_name: StringId,
     /// Resolve function environment layouts by function symbol.
     pub(crate) function_environment_layouts:
         &'a HashMap<dir::GlobalSymbolId, FunctionEnvironmentLayout>,

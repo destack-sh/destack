@@ -567,9 +567,9 @@ fn apply_parameter_removals(
         let function = tree.get_mut(function_id);
         function.parameters = remap.filter_by_index(&function.parameters);
         function.parameter_attributes = remap.filter_by_index(&function.parameter_attributes);
-        function.return_lifetime = remap
-            .remap_return_lifetime(&function.return_lifetime)
-            .unwrap_or(mir::Lifetime::Inferred);
+        function.return_region = remap
+            .remap_return_region(&function.return_region)
+            .unwrap_or(mir::BorrowRegion::Inferred);
         function.allocation_size = remap.remap_allocation_size(function.allocation_size);
         function.entry.expect("defined function has entry block")
     };
@@ -728,7 +728,8 @@ b0:
         let signature = test.tree.get(
             instruction
                 .call_signature()
-                .expect("missing call signature"),
+                .and_then(|signature| signature.ty())
+                .expect("call signature should be concrete"),
         );
         let expected_signature = mir::Type::FunctionPointer {
             parameters: callee.parameters.iter().map(|param| param.ty).collect(),
@@ -751,7 +752,7 @@ b0:
 function callee(v0: int32): int32 {
     local local0: int32, owned
 b0(v0: int32):
-    v1: ref<int32, borrowed, space(stack)> = local.address local0
+    v1: ref<int32, borrowed, space(frame)> = local.address local0
     v2: int32 = load v1
     return v2
 }
@@ -783,7 +784,10 @@ b0:
         }
 
         let callee_load = callee_load.expect("missing callee load");
-        let callee_pointer = callee_pointer.expect("missing callee pointer");
+        let callee_pointer = callee_pointer
+            .expect("missing callee pointer")
+            .value()
+            .expect("callee pointer should be concrete");
         test.insert_pointer_access(
             callee_load,
             mir::MemoryAccessKind::Read,
@@ -823,7 +827,10 @@ b0:
         }
 
         let specialized_load = specialized_load.expect("missing specialized load");
-        let specialized_pointer = specialized_pointer.expect("missing specialized pointer");
+        let specialized_pointer = specialized_pointer
+            .expect("missing specialized pointer")
+            .value()
+            .expect("specialized pointer should be concrete");
         let accesses = test
             .tree
             .metadata

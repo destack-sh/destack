@@ -575,8 +575,14 @@ b3(v9: int32):
 
         let then_instruction = test.instructions_in_block(then_block_id)[0];
         let else_instruction = test.instructions_in_block(else_block_id)[0];
-        let then_param = test.tree.get(then_block_id).parameters[0].value;
-        let else_param = test.tree.get(else_block_id).parameters[1].value;
+        let then_param = test.tree.get(then_block_id).parameters[0]
+            .value
+            .value()
+            .expect("then block parameter should be concrete");
+        let else_param = test.tree.get(else_block_id).parameters[1]
+            .value
+            .value()
+            .expect("else block parameter should be concrete");
 
         test.insert_pointer_access_with_options(
             then_instruction,
@@ -604,8 +610,14 @@ b3(v9: int32):
         test.run_pass(&IfConvert);
 
         let header_block = test.tree.get(header_block_id);
-        let then_arg = header_block.parameters[1].value;
-        let else_arg = header_block.parameters[2].value;
+        let then_arg = header_block.parameters[1]
+            .value
+            .value()
+            .expect("converted then parameter should be concrete");
+        let else_arg = header_block.parameters[2]
+            .value
+            .value()
+            .expect("converted else parameter should be concrete");
         let mut saw_then = false;
         let mut saw_else = false;
 

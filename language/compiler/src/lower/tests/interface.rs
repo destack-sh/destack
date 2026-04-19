@@ -125,7 +125,14 @@ entry0(value0: Circle):
             panic!("expected managed reference for interface object field");
         };
         assert!(matches!(kind, mir::ReferenceKind::Managed));
-        assert!(matches!(tree.get(*pointee), mir::Type::Void));
+        assert!(matches!(
+            tree.get(
+                pointee
+                    .ty()
+                    .expect("interface object pointee should be concrete")
+            ),
+            mir::Type::Void
+        ));
 
         let itab_type = tree.get(itab_type);
         assert!(matches!(itab_type, mir::Type::Usize));

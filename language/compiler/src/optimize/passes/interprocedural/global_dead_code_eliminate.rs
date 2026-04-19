@@ -150,7 +150,6 @@ fn collect_debug_location_globals(
 mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
-    use destack_source::{FileId, Span};
 
     /// Unused globals are downgraded to imports.
     #[test]
@@ -222,7 +221,9 @@ b0:
             .entry_instructions(root_id)
             .into_iter()
             .find_map(|instruction_id| match test.tree.get(instruction_id) {
-                mir::Instruction::GlobalConst { global, .. } => Some(*global),
+                mir::Instruction::GlobalConst { global, .. } => {
+                    Some(global.global().expect("live global should be concrete"))
+                }
                 _ => None,
             })
             .expect("missing global.const");
@@ -241,7 +242,7 @@ b0:
                 .create_scope(mir::DebugScopeKind::Lexical, None, None, None);
         let binding_id = test.tree.metadata.debug.create_binding(
             global_name,
-            global_type,
+            global_type.ty().expect("global type should be concrete"),
             scope_id,
             None,
             mir::DebugBindingKind::Local,

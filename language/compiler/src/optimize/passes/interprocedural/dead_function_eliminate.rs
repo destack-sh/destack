@@ -392,7 +392,6 @@ fn scope_in_function(
 mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
-    use destack_source::{FileId, Span};
 
     /// Unreferenced local functions are removed.
     #[test]
@@ -614,9 +613,13 @@ extern function dead(int32): int32"#;
             .debug
             .function_scopes
             .insert(dead_id, function_scope);
+        let parameter = test.tree.get(dead_id).parameters[0];
         let binding_id = test.tree.metadata.debug.create_binding(
             test.tree.get(dead_id).name,
-            test.tree.get(dead_id).parameters[0].ty,
+            parameter
+                .ty
+                .ty()
+                .expect("parameter type should be concrete"),
             function_scope,
             None,
             mir::DebugBindingKind::Parameter,
@@ -626,7 +629,10 @@ extern function dead(int32): int32"#;
             vec![mir::DebugBindingLocationRange {
                 binding: binding_id,
                 location: mir::DebugValueLocation::Value(
-                    test.tree.get(dead_id).parameters[0].value,
+                    parameter
+                        .value
+                        .value()
+                        .expect("parameter value should be concrete"),
                 ),
                 start: mir::DebugRangeStart::instruction(dead_instruction),
                 end: None,

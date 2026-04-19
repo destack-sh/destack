@@ -114,7 +114,7 @@ impl ModuleLowerer<'_> {
         let mut fields = Vec::with_capacity(layout.fields.len());
         for field in &layout.fields {
             fields.push(mir::LayoutField {
-                name: field.name,
+                name: Some(field.name),
                 ty: field.ty,
                 offset: field.offset,
                 size: field.size,
@@ -140,6 +140,7 @@ impl ModuleLowerer<'_> {
             kind: layout_kind,
             size,
             alignment,
+            scan: mir::LayoutTrace::empty(),
             fields,
         };
 
@@ -172,9 +173,8 @@ impl ModuleLowerer<'_> {
             offset = align_up(offset, alignment);
 
             // record the element layout
-            let name = self.builder.intern(&index.to_string());
             fields.push(mir::LayoutField {
-                name,
+                name: None,
                 ty: *element,
                 offset,
                 size,

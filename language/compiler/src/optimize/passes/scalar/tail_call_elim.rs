@@ -390,7 +390,7 @@ fn clone_function_as_impl(
         original.return_type,
         impl_entry,
     );
-    impl_function.return_lifetime = original.return_lifetime.clone();
+    impl_function.return_region = original.return_region.clone();
     impl_function.linkage = mir::Linkage::Local;
     impl_function.allocation = original.allocation;
     impl_function.suspension = original.suspension;

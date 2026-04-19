@@ -734,7 +734,7 @@ mod tests {
             kind: mir::ReferenceKind::Borrowed,
             address_space: mir::AddressSpace::Stack,
             mutability: mir::Mutability::Mutable,
-            element,
+            element: element.into(),
             shape: vec![mir::TensorDimension::Static(4)],
             layout: mir::TensorLayout::RowMajor,
             is_nullable: false,

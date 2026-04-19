@@ -1631,7 +1631,7 @@ b2(v4: int32):
 function callee(): int32 {
     local local0: int32, owned
 b0:
-    v0: ref<int32, borrowed, space(stack)> = local.address local0
+    v0: ref<int32, borrowed, space(frame)> = local.address local0
     v1: int32 = load v0
     return v1
 }
@@ -1662,7 +1662,10 @@ b0:
         }
 
         let callee_load = callee_load.expect("missing callee load");
-        let callee_pointer = callee_pointer.expect("missing callee pointer");
+        let callee_pointer = callee_pointer
+            .expect("missing callee pointer")
+            .value()
+            .expect("callee pointer should be concrete");
         test.insert_pointer_access(
             callee_load,
             mir::MemoryAccessKind::Read,
@@ -1694,7 +1697,10 @@ b0:
         }
 
         let inlined_load = inlined_load.expect("missing inlined load");
-        let inlined_pointer = inlined_pointer.expect("missing inlined pointer");
+        let inlined_pointer = inlined_pointer
+            .expect("missing inlined pointer")
+            .value()
+            .expect("inlined pointer should be concrete");
         let accesses = test
             .tree
             .metadata

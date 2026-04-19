@@ -1273,8 +1273,8 @@ impl<'a> MemoryAccessCollector<'a> {
         access: &mir::MemoryAccessMetadata,
         location: &MemoryAccessLocation,
     ) -> (mir::MemoryRegionSet, Option<mir::AddressSpaceMask>) {
-        if let Some(address_space) = access.address_space {
-            let location_set = self.location_set_for_address_space(address_space);
+        if let Some(address_space) = access.address_space.clone() {
+            let location_set = self.location_set_for_address_space(address_space.clone());
             return (location_set, self.address_space_set(address_space));
         }
 
@@ -1303,7 +1303,7 @@ impl<'a> MemoryAccessCollector<'a> {
             return (mir::MemoryRegionSet::ANY, None);
         };
 
-        let location_set = self.location_set_for_address_space(address_space);
+        let location_set = self.location_set_for_address_space(address_space.clone());
         let address_spaces = self.address_space_set(address_space);
         (location_set, address_spaces)
     }
@@ -1315,20 +1315,16 @@ impl<'a> MemoryAccessCollector<'a> {
     ) -> mir::MemoryRegionSet {
         match address_space {
             mir::AddressSpace::Stack => mir::MemoryRegionSet::STACK,
+            mir::AddressSpace::Frame => mir::MemoryRegionSet::STACK,
             mir::AddressSpace::Global => mir::MemoryRegionSet::GLOBAL,
             mir::AddressSpace::Shared => mir::MemoryRegionSet::SHARED,
             mir::AddressSpace::Local => mir::MemoryRegionSet::LOCAL,
-            mir::AddressSpace::Constant => mir::MemoryRegionSet::CONSTANT,
-            mir::AddressSpace::Generic | mir::AddressSpace::Target(_) => mir::MemoryRegionSet::ANY,
+            mir::AddressSpace::Named(_) => mir::MemoryRegionSet::ANY,
         }
     }
 
     /// Build an address space set when the space is explicit.
     fn address_space_set(&self, address_space: mir::AddressSpace) -> Option<mir::AddressSpaceMask> {
-        if address_space.is_generic() {
-            return None;
-        }
-
         Some(mir::AddressSpaceMask::new(vec![address_space]))
     }
 
@@ -1360,8 +1356,8 @@ impl<'a> MemoryAccessCollector<'a> {
                     let spaces = pointer_spaces
                         .spaces
                         .iter()
-                        .copied()
-                        .filter(|space| call_spaces.contains(*space))
+                        .cloned()
+                        .filter(|space| call_spaces.contains(space.clone()))
                         .collect();
                     Some(mir::AddressSpaceMask::new(spaces))
                 }
@@ -3448,7 +3444,10 @@ b0(v0: ref<int32, raw>, v1: int32):
         let function_id = test.entry_function_id();
         let param_value = {
             let function = test.tree.get(function_id);
-            function.parameters[0].value
+            function.parameters[0]
+                .value
+                .value()
+                .expect("parameter value should be concrete")
         };
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
@@ -3505,7 +3504,12 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
             function
                 .parameters
                 .iter()
-                .map(|param| param.value)
+                .map(|param| {
+                    param
+                        .value
+                        .value()
+                        .expect("parameter value should be concrete")
+                })
                 .collect::<Vec<_>>()
         };
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
@@ -3570,8 +3574,20 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
         let read_ptr = pointer_from_location(&read_effect.location).expect("missing read pointer");
         let write_ptr =
             pointer_from_location(&write_effect.location).expect("missing write pointer");
-        assert_eq!(read_ptr, function.parameters[0].value);
-        assert_eq!(write_ptr, function.parameters[1].value);
+        assert_eq!(
+            read_ptr,
+            function.parameters[0]
+                .value
+                .value()
+                .expect("first parameter value should be concrete")
+        );
+        assert_eq!(
+            write_ptr,
+            function.parameters[1]
+                .value
+                .value()
+                .expect("second parameter value should be concrete")
+        );
 
         let read_size = size_from_location(&read_effect.location).expect("missing read size");
         let write_size = size_from_location(&write_effect.location).expect("missing write size");

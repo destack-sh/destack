@@ -149,7 +149,7 @@ impl TypeKey {
                 is_nullable,
             } => TypeKey::Reference {
                 kind: *kind,
-                address_space: *address_space,
+                address_space: address_space.clone(),
                 mutability: *mutability,
                 pointee: Box::new(Self::from_type_reference(*pointee, tree)),
                 is_nullable: *is_nullable,
@@ -234,7 +234,7 @@ impl TypeKey {
                 is_nullable,
             } => TypeKey::TensorReference {
                 kind: *kind,
-                address_space: *address_space,
+                address_space: address_space.clone(),
                 mutability: *mutability,
                 element: Box::new(Self::from_type_reference(*element, tree)),
                 shape: shape.clone(),
@@ -605,7 +605,7 @@ mod tests {
         // array type
         let i32_id = tree.insert_type(mir::Type::INT32);
         let array_id = tree.insert_type(mir::Type::Array {
-            element: i32_id,
+            element: i32_id.into(),
             length: 10,
             copyability: mir::Copyability::Trivial,
         });
@@ -635,12 +635,12 @@ mod tests {
         assert_ne!(i32_id_1, i32_id_2);
 
         let array_id_1 = tree.insert_type(mir::Type::Array {
-            element: i32_id_1,
+            element: i32_id_1.into(),
             length: 5,
             copyability: mir::Copyability::Trivial,
         });
         let array_id_2 = tree.insert_type(mir::Type::Array {
-            element: i32_id_2,
+            element: i32_id_2.into(),
             length: 5,
             copyability: mir::Copyability::Trivial,
         });
@@ -657,12 +657,12 @@ mod tests {
 
         let i32_id = tree.insert_type(mir::Type::INT32);
         let array_trivial_id = tree.insert_type(mir::Type::Array {
-            element: i32_id,
+            element: i32_id.into(),
             length: 4,
             copyability: mir::Copyability::Trivial,
         });
         let array_linear_id = tree.insert_type(mir::Type::Array {
-            element: i32_id,
+            element: i32_id.into(),
             length: 4,
             copyability: mir::Copyability::Linear,
         });
