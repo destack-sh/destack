@@ -1,5 +1,8 @@
-use destack_ast::{CommentContent, CommentKind, CommentNewlines, TokenSpan, TokenType};
-use destack_source::{NodeSourceMap, SourcePartKey};
+use memchr::memchr_iter;
+
+use destack_ast::{
+    Comment, CommentContent, CommentKind, CommentNewlines, CommentPosition, TokenSpan, TokenType,
+};
 
 /// Restore mark for lexer trivia during speculative lexing.
 #[derive(Debug, Copy, Clone)]
@@ -20,7 +23,7 @@ pub(super) struct TriviaMark {
 #[derive(Debug)]
 pub(super) struct Trivia {
     /// The collected comments in source order.
-    comments: Vec<TriviaComment>,
+    comments: Vec<Comment>,
     /// The number of comments already assigned to a following token.
     processed: usize,
     /// Whether a newline was seen since the last token.
@@ -29,15 +32,6 @@ pub(super) struct Trivia {
     saw_newline_for_comment: bool,
     /// The previous non-newline semantic token type.
     previous_token_type: TokenType,
-}
-
-/// Comment attachment direction before parser ownership resolution.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum TriviaCommentPlacement {
-    /// The comment belongs to the following structural owner.
-    Leading,
-    /// The comment belongs to the previous structural owner.
-    Trailing,
 }
 
 impl Trivia {
@@ -53,7 +47,7 @@ impl Trivia {
     }
 
     /// Return the collected comments.
-    pub(super) fn comments(&self) -> &[TriviaComment] {
+    pub(super) fn comments(&self) -> &[Comment] {
         &self.comments
     }
 
@@ -133,7 +127,8 @@ impl Trivia {
 
         if self.processed < self.comments.len() {
             for comment in &mut self.comments[self.processed..] {
-                comment.placement = TriviaCommentPlacement::Leading;
+                comment.position = CommentPosition::Leading;
+                comment.attached_to = token_span.span.start;
             }
 
             self.processed = self.comments.len();
@@ -144,22 +139,16 @@ impl Trivia {
     }
 
     /// Record one comment and classify its token-local attachment.
-    fn add_comment(&mut self, token_span: TokenSpan, kind: CommentKind, _source_text: &str) {
-        let mut comment = TriviaComment {
-            span: token_span.span,
-            kind,
-            placement: TriviaCommentPlacement::Trailing,
-            newlines: CommentNewlines::default(),
-            content: CommentContent::None,
-        };
+    fn add_comment(&mut self, token_span: TokenSpan, kind: CommentKind, source_text: &str) {
+        let mut comment = Comment::new(token_span.span, kind);
         comment.newlines = CommentNewlines::from_bools(self.saw_newline_for_comment, false);
-        comment.content = comment_content(token_span.token.ty);
+        comment.content = comment_content_from_raw(token_span.token.ty, source_text);
 
         // line comments always end the current line
         if kind == CommentKind::Line {
             comment.newlines.bits |= CommentNewlines::TRAILING;
 
-            if self.should_be_trailing_line_comment() {
+            if self.should_attach_comment_to_previous_token() {
                 self.processed = self.comments.len() + 1;
             }
 
@@ -174,8 +163,8 @@ impl Trivia {
         self.comments.push(comment);
     }
 
-    /// Return whether one line comment should stay trailing.
-    fn should_be_trailing_line_comment(&self) -> bool {
+    /// Return whether one same-line comment should attach to the previous token.
+    fn should_attach_comment_to_previous_token(&self) -> bool {
         !self.saw_newline
             && !matches!(
                 self.previous_token_type,
@@ -184,42 +173,105 @@ impl Trivia {
     }
 }
 
-/// One lexer comment before structural parser attachment.
-#[derive(Debug, Copy, Clone)]
-pub(crate) struct TriviaComment {
-    /// The span of the comment, including delimiters.
-    pub span: destack_source::Span,
-    /// The kind of the comment.
-    pub kind: CommentKind,
-    /// The structural owner direction.
-    placement: TriviaCommentPlacement,
-    /// The newline shape around the comment.
-    pub newlines: CommentNewlines,
-    /// The structured comment content classification.
-    pub content: CommentContent,
-}
+/// One lexer comment retained in source order.
+pub(crate) type TriviaComment = Comment;
 
-impl TriviaComment {
-    /// Return the structural source owner for this comment.
-    pub(crate) fn attached_part(&self, source_map: &NodeSourceMap) -> Option<SourcePartKey> {
-        let enclosing_owner = source_map.find_innermost_enclosing_owner(self.span);
-        let directional_owner = match self.placement {
-            TriviaCommentPlacement::Leading => {
-                source_map.find_nearest_enclosing_owner_after(self.span.file, self.span.end)
-            }
-            TriviaCommentPlacement::Trailing => {
-                source_map.find_nearest_enclosing_owner_before(self.span.file, self.span.start)
-            }
-        };
+/// Return the structured content classification for one raw comment token.
+fn comment_content_from_raw(token_type: TokenType, raw_comment: &str) -> CommentContent {
+    let content = comment_annotation_text(token_type, raw_comment);
+    let bytes = content.as_bytes();
 
-        enclosing_owner.or(directional_owner)
+    if bytes.is_empty() {
+        return CommentContent::None;
     }
+
+    match bytes[0] {
+        b'!' => return CommentContent::Legal,
+        b'*' if matches!(
+            token_type,
+            TokenType::BlockComment | TokenType::DocBlockComment
+        ) =>
+        {
+            if bytes.iter().any(|byte| *byte != b'*') {
+                if contains_license_or_preserve_comment(content) {
+                    return CommentContent::JsdocLegal;
+                }
+
+                return CommentContent::Jsdoc;
+            }
+
+            return CommentContent::None;
+        }
+        _ => {}
+    }
+
+    let mut start = 0usize;
+    while start < bytes.len() && bytes[start].is_ascii_whitespace() {
+        start += 1;
+    }
+
+    if start >= bytes.len() {
+        return CommentContent::None;
+    }
+
+    match bytes[start] {
+        b'@' => {
+            start += 1;
+
+            if start >= bytes.len() {
+                return CommentContent::None;
+            }
+
+            if bytes[start..].starts_with(b"license") || bytes[start..].starts_with(b"preserve") {
+                return CommentContent::Legal;
+            }
+        }
+
+        _ => {
+            if contains_license_or_preserve_comment(content) {
+                return CommentContent::Legal;
+            }
+
+            return CommentContent::None;
+        }
+    }
+
+    if contains_license_or_preserve_comment(content) {
+        return CommentContent::Legal;
+    }
+
+    CommentContent::None
 }
 
-/// Return the structured content classification for one comment token.
-fn comment_content(token_type: TokenType) -> CommentContent {
+/// Return the annotation body used for comment classification.
+fn comment_annotation_text(token_type: TokenType, raw_comment: &str) -> &str {
     match token_type {
-        TokenType::DocBlockComment => CommentContent::Jsdoc,
-        _ => CommentContent::None,
+        TokenType::LineComment | TokenType::DocLineComment => raw_comment.strip_prefix("//"),
+        TokenType::BlockComment | TokenType::DocBlockComment => raw_comment
+            .strip_prefix("/*")
+            .and_then(|raw_comment| raw_comment.strip_suffix("*/")),
+        _ => None,
     }
+    .unwrap_or(raw_comment)
+}
+
+/// Return whether a comment contains one legal or preserve marker.
+fn contains_license_or_preserve_comment(comment: &str) -> bool {
+    let bytes = comment.as_bytes();
+
+    if bytes.len() < 9 {
+        return false;
+    }
+
+    let search_len = bytes.len() - 8;
+
+    for index in memchr_iter(b'@', &bytes[..search_len]) {
+        match bytes[index + 1] {
+            b'l' if bytes[index + 2..index + 8] == *b"icense" => return true,
+            b'p' if bytes[index + 2..index + 9] == *b"reserve" => return true,
+            _ => {}
+        }
+    }
+
+    false
 }
