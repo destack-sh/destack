@@ -1,5 +1,5 @@
 // core types (ambient)
-export { String } from "./string/index.ds";
+export { String, StringBuilder } from "./string/index.ds";
 export { Array, arrayOf, arrayFill } from "./collections/index.ds";
 export { type ReadonlyArray, type FixedArray } from "./collections/index.ds";
 export { Slice } from "./collections/index.ds";
