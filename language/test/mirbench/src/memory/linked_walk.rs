@@ -1,5 +1,5 @@
 use super::super::{Program, scale_axis_range};
-use destack_heap::Value;
+use destack_vm::Value;
 
 declare_program! {
     /// Walk a linked list with proper node structure.

@@ -1,6 +1,6 @@
 use super::super::common::{abs_i64, clamp_min};
 use super::super::{Program, scale_axis};
-use destack_heap::Value;
+use destack_vm::Value;
 
 const NBODY_MIN_COUNT: i64 = 4;
 const NBODY_STEP_SCALE: i64 = 64;

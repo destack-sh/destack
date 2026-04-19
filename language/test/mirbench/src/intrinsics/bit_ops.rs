@@ -1,5 +1,5 @@
 use super::super::{Program, scale_axis};
-use destack_heap::Value;
+use destack_vm::Value;
 
 declare_program! {
     /// Bit manipulation intrinsics including leadingZeroCount, trailingZeroCount, and populationCount.

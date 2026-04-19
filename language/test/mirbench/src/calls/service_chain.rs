@@ -1,6 +1,6 @@
 use super::super::common::mix_result;
 use super::super::{Program, function_pointer_by_name, scale_axis};
-use destack_heap::Value;
+use destack_vm::Value;
 
 declare_program! {
     /// Decode-transform-encode service pipeline with an indirect stage.
