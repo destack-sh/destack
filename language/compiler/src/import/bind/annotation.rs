@@ -5,7 +5,7 @@ use destack_dir::{
     Decorator, DecoratorPosition, Documentation, LocalNodeId, LocalNodeIdAny, LocalScopeId,
     LocalScopeMark, ModuleBinding, NodeTree, NodeType, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
-use destack_source::{File, NodeSpanType};
+use destack_source::File;
 use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
@@ -145,15 +145,7 @@ fn source_node_documentation(ast: &Ast, file: &File, source_start: u32) -> Optio
 
     // collect all leading doc comments attached to this source start
     for comment in ast.tree.comments().iter().copied() {
-        let attached_span = ast.tree.source_map.get_side_or_enclosing(
-            comment.attached_part.source_id,
-            comment.attached_part.span_type,
-        );
-        if !matches!(
-            comment.attached_part.span_type,
-            NodeSpanType::Enclosing | NodeSpanType::Leading
-        ) || attached_span.start != source_start
-        {
+        if !comment.is_leading() || comment.attached_to != source_start {
             continue;
         }
 
@@ -179,4 +171,43 @@ fn source_node_documentation(ast: &Ast, file: &File, source_start: u32) -> Optio
         .unwrap_or(start);
 
     Some(lines[start..=end].join("\n"))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tests::TestProgram;
+
+    #[test]
+    fn test_bind_documentation_on_decorated_function_declaration() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.d.ts",
+            r#"
+/// docs
+@memo
+function f() {}
+"#,
+        );
+
+        test.bind_module(module_id);
+        test.compile();
+        test.check_clean();
+
+        let dir = test.dir_base(module_id);
+        let tree = &dir.tree;
+        let symbols = &dir.symbols;
+        let declaration_symbol = test
+            .declaration_symbol_by_name("test.d.ts", "f")
+            .expect("expected f symbol");
+        let declaration = symbols
+            .get_symbol(declaration_symbol.into_local())
+            .primary_declaration
+            .expect("expected f declaration");
+        let documentation = tree
+            .get_documentation(declaration.local_id.id)
+            .expect("expected bound documentation");
+        let documentation_text = test.program.strings.get(documentation.text);
+
+        assert_eq!(documentation_text, "docs");
+    }
 }
