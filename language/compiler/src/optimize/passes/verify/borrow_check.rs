@@ -1316,7 +1316,7 @@ function test(): void {
 b0:
     v0: int32 = 1int32
     local.set local0, v0
-    v1: ref<int32, borrowed, space(stack)> = local.address local0
+    v1: ref<int32, borrowed, space(frame)> = local.address local0
     v2: int32 = 2int32
     local.set local0, v2
     v3: int32 = load v1
@@ -1337,8 +1337,8 @@ function test(): void {
 b0:
     v0: int32 = 0int32
     local.set local0, v0
-    v1: ref<int32, borrowed, readonly, space(stack)> = local.address local0
-    v2: ref<int32, borrowed, readonly, space(stack)> = local.address local0
+    v1: ref<int32, borrowed, readonly, space(frame)> = local.address local0
+    v2: ref<int32, borrowed, readonly, space(frame)> = local.address local0
     v3: int32 = load v1
     v4: int32 = load v2
     return
@@ -1358,7 +1358,7 @@ function test(): void {
 b0:
     v0: int32 = 1int32
     local.set local0, v0
-    v1: ref<int32, borrowed, space(stack)> = local.address local0
+    v1: ref<int32, borrowed, space(frame)> = local.address local0
     jump b1(v1)
 b1(v2: ref<int32, borrowed, space(stack)>):
     v3: int32 = 2int32
@@ -1381,8 +1381,8 @@ function test(): void {
 b0:
     v0: int32 = 0int32
     local.set local0, v0
-    v1: ref<int32, borrowed, space(stack)> = local.address local0
-    v2: ref<int32, borrowed, space(stack)> = local.address local0
+    v1: ref<int32, borrowed, space(frame)> = local.address local0
+    v2: ref<int32, borrowed, space(frame)> = local.address local0
     v3: int32 = load v1
     v4: int32 = load v2
     return
@@ -2264,7 +2264,7 @@ function test(v0: boolean): int32 {
 b0(v0: boolean):
     v1: int32 = 42int32
     local.set local0, v1
-    v2: ref<int32, borrowed> = local.address local0
+    v2: ref<int32, borrowed, space(frame)> = local.address local0
     v3: ref<int32, borrowed> = select v0, v2, v2
     v4: int32 = 7int32
     local.set local0, v4
@@ -2289,7 +2289,7 @@ function test(): int32 {
 b0:
     v0: int32 = 1int32
     local.set local0, v0
-    v1: ref<int32, raw, space(stack)> = local.address local0
+    v1: ref<int32, raw, space(frame)> = local.address local0
     v2: int32 = 2int32
     local.set local0, v2
     v3: int32 = load v1

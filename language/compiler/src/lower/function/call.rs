@@ -424,7 +424,7 @@ impl FunctionLowerer<'_> {
                 mir::ReferenceKind::Raw,
                 ok_value_mir_type,
                 mir::Mutability::Mutable,
-                mir::AddressSpace::Generic,
+                mir::AddressSpace::Stack,
                 false,
             );
             let out_ptr = self
@@ -514,7 +514,7 @@ impl FunctionLowerer<'_> {
             mir::ReferenceKind::Raw,
             err_value_mir_type,
             mir::Mutability::Mutable,
-            mir::AddressSpace::Generic,
+            mir::AddressSpace::Stack,
             false,
         );
         let error_out_ptr = self

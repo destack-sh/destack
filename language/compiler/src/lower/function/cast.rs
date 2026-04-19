@@ -251,7 +251,7 @@ impl FunctionLowerer<'_> {
                         mir::ReferenceKind::Managed,
                         target_mir_type,
                         mir::Mutability::Immutable,
-                        mir::AddressSpace::Generic,
+                        mir::AddressSpace::Local,
                         false,
                     );
                     let casted = self.state.builder.bitcast(object_ptr, reference_type);
@@ -450,7 +450,7 @@ impl FunctionLowerer<'_> {
                     mir::ReferenceKind::Managed,
                     target_mir_type,
                     mir::Mutability::Immutable,
-                    mir::AddressSpace::Generic,
+                    mir::AddressSpace::Local,
                     false,
                 );
                 let casted = self.state.builder.bitcast(payload_value, reference_type);
@@ -788,7 +788,7 @@ impl FunctionLowerer<'_> {
             mir::ReferenceKind::Managed,
             value_type,
             mir::Mutability::Immutable,
-            mir::AddressSpace::Generic,
+            mir::AddressSpace::Local,
             false,
         );
 

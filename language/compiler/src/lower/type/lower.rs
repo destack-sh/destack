@@ -84,7 +84,7 @@ impl TypeLowerer {
             mir::ReferenceKind::Managed,
             ty_void,
             mir::Mutability::Mutable,
-            mir::AddressSpace::Generic,
+            mir::AddressSpace::Local,
             true,
         );
 

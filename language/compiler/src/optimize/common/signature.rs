@@ -122,11 +122,11 @@ impl ParameterRemap {
         Some((index - shift) as u32)
     }
 
-    /// Remap return lifetime indices after removals.
-    pub fn remap_return_lifetime(&self, lifetime: &mir::Lifetime) -> Option<mir::Lifetime> {
+    /// Remap return borrow-region indices after removals.
+    pub fn remap_return_region(&self, region: &mir::BorrowRegion) -> Option<mir::BorrowRegion> {
         // only remap explicit parameter lifetimes
-        let mir::Lifetime::Parameters(indices) = lifetime else {
-            return Some(lifetime.clone());
+        let mir::BorrowRegion::Parameters(indices) = region else {
+            return Some(region.clone());
         };
 
         // translate each index through the removal map
@@ -135,12 +135,12 @@ impl ParameterRemap {
             remapped.push(self.remap_parameter_index(*index)?);
         }
 
-        // drop empty lifetime sets
+        // drop empty parameter sets
         if remapped.is_empty() {
             return None;
         }
 
-        Some(mir::Lifetime::Parameters(remapped))
+        Some(mir::BorrowRegion::Parameters(remapped))
     }
 
     /// Remap allocation size parameter indices after removals.
@@ -151,8 +151,8 @@ impl ParameterRemap {
         // read the existing allocation size metadata
         let allocation_size = allocation_size?;
 
-        // remap the required element size index
-        let element_size_index = self.remap_parameter_index(allocation_size.element_size_index)?;
+        // remap the required stride index
+        let stride_index = self.remap_parameter_index(allocation_size.stride_index)?;
 
         // remap the optional element count index
         let element_count_index = match allocation_size.element_count_index {
@@ -160,10 +160,7 @@ impl ParameterRemap {
             None => None,
         };
 
-        Some(mir::AllocationSize::new(
-            element_size_index,
-            element_count_index,
-        ))
+        Some(mir::AllocationSize::new(stride_index, element_count_index))
     }
 }
 
@@ -188,8 +185,8 @@ pub fn required_parameter_indices(function: &mir::Function) -> HashSet<usize> {
     // gather required indices from metadata
     let mut required = HashSet::new();
 
-    // include explicit return lifetime parameters
-    if let mir::Lifetime::Parameters(indices) = &function.return_lifetime {
+    // include explicit return-region parameters
+    if let mir::BorrowRegion::Parameters(indices) = &function.return_region {
         for index in indices {
             required.insert(*index as usize);
         }
@@ -197,7 +194,7 @@ pub fn required_parameter_indices(function: &mir::Function) -> HashSet<usize> {
 
     // include allocation size indices
     if let Some(allocation_size) = function.allocation_size {
-        required.insert(allocation_size.element_size_index as usize);
+        required.insert(allocation_size.stride_index as usize);
         if let Some(count_index) = allocation_size.element_count_index {
             required.insert(count_index as usize);
         }

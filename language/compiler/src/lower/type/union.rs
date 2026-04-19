@@ -406,7 +406,8 @@ impl TypeLowerer {
             return Ok(None);
         };
 
-        let nullable = builder.type_reference(*kind, pointee, *mutability, *address_space, true);
+        let nullable =
+            builder.type_reference(*kind, pointee, *mutability, address_space.clone(), true);
         Ok(Some(nullable))
     }
 

@@ -5,6 +5,145 @@ use crate::{LowerError, LowerResult};
 use crate::lower::{FunctionLowerer, LocalStorage, lower_mutability};
 
 impl FunctionLowerer<'_> {
+    /// Build one borrowed reference type in the given address space.
+    fn borrowed_reference_type(
+        &mut self,
+        pointee_type: mir::LocalNodeId<mir::Type>,
+        mutability: mir::Mutability,
+        address_space: mir::AddressSpace,
+    ) -> mir::LocalNodeId<mir::Type> {
+        self.state.builder.type_reference(
+            mir::ReferenceKind::Borrowed,
+            pointee_type,
+            mutability,
+            address_space,
+            false,
+        )
+    }
+
+    /// Return the address space carried by one MIR reference type.
+    fn reference_address_space(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        reference_type: mir::LocalNodeId<mir::Type>,
+    ) -> LowerResult<mir::AddressSpace> {
+        let mir::Type::Reference { address_space, .. } =
+            self.state.builder.tree().get(reference_type)
+        else {
+            return Err(LowerError::Internal {
+                module: self.context.module_id,
+                message: format!("non-reference type in borrow lowering: {expression_id:?}"),
+            });
+        };
+
+        Ok(address_space.clone())
+    }
+
+    /// Return the address space produced when borrowing one expression.
+    fn borrow_address_space(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> LowerResult<mir::AddressSpace> {
+        match self.context.dir_tree.get(expression) {
+            // nested borrows preserve the inner storage space
+            dir::Expression::Parenthesized { expression } => {
+                self.borrow_address_space(expression_id, *expression)
+            }
+
+            // locals borrow from the current frame
+            dir::Expression::LocalReference { target_symbol, .. } => {
+                if let Some(field) = self.capture_field_for_symbol(*target_symbol) {
+                    if field.kind == dir::CaptureKind::ByReference {
+                        return self.reference_address_space(expression_id, field.ty);
+                    }
+
+                    return Ok(mir::AddressSpace::Local);
+                }
+
+                let binding = self.local_binding_for_symbol(expression, *target_symbol)?;
+                match binding.storage {
+                    LocalStorage::Local(_) => Ok(mir::AddressSpace::Frame),
+                    LocalStorage::IndirectBinding { reference_type, .. } => {
+                        self.reference_address_space(expression_id, reference_type)
+                    }
+                    LocalStorage::Variable(_) => Err(LowerError::Internal {
+                        module: self.context.module_id,
+                        message: "local borrow requires addressable storage".to_string(),
+                    }),
+                }
+            }
+
+            // this follows the same storage rules as ordinary locals
+            dir::Expression::This => {
+                if let Some(binding) = self.state.bindings.this_binding {
+                    return match binding.storage {
+                        LocalStorage::Local(_) => Ok(mir::AddressSpace::Frame),
+                        LocalStorage::IndirectBinding { reference_type, .. } => {
+                            self.reference_address_space(expression_id, reference_type)
+                        }
+                        LocalStorage::Variable(_) => Err(LowerError::Internal {
+                            module: self.context.module_id,
+                            message: "this borrow requires addressable storage".to_string(),
+                        }),
+                    };
+                }
+
+                if let Some(this_symbol) = self.state.bindings.this_symbol
+                    && let Some(field) = self.capture_field_for_symbol(this_symbol)
+                {
+                    if field.kind == dir::CaptureKind::ByReference {
+                        return self.reference_address_space(expression_id, field.ty);
+                    }
+
+                    return Ok(mir::AddressSpace::Local);
+                }
+
+                Err(LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                    message: "this reference outside of method context".to_string(),
+                })
+            }
+
+            // module and global references either hit a lowered local binding or a true global
+            dir::Expression::ModuleReference { target_symbol, .. }
+            | dir::Expression::GlobalReference { target_symbol, .. } => {
+                if let Some(binding) = self
+                    .state
+                    .bindings
+                    .locals_by_symbol
+                    .get(target_symbol)
+                    .copied()
+                {
+                    return match binding.storage {
+                        LocalStorage::Local(_) => Ok(mir::AddressSpace::Frame),
+                        LocalStorage::IndirectBinding { reference_type, .. } => {
+                            self.reference_address_space(expression_id, reference_type)
+                        }
+                        LocalStorage::Variable(_) => Err(LowerError::Internal {
+                            module: self.context.module_id,
+                            message: "local borrow requires addressable storage".to_string(),
+                        }),
+                    };
+                }
+
+                Ok(mir::AddressSpace::Global)
+            }
+
+            // field and element borrows preserve the aggregate storage space
+            dir::Expression::Member { left, .. }
+            | dir::Expression::PrivateMember { left, .. }
+            | dir::Expression::Index { left, .. } => {
+                self.borrow_address_space(expression_id, *left)
+            }
+
+            // rvalue borrows spill into a temporary local slot first
+            _ => Ok(mir::AddressSpace::Frame),
+        }
+    }
+
     /// Lower a borrow expression to a reference value.
     ///
     /// ```ds
@@ -14,7 +153,8 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref<int32, borrowed, readonly> = local.address v0 -> ref<int32, borrowed, readonly>
+    /// v1: ref<int32, borrowed, readonly, space(frame)> = local.address v0
+    ///     -> ref<int32, borrowed, readonly, space(frame)>
     /// ```
     pub(crate) fn lower_reference_of_expression(
         &mut self,
@@ -27,13 +167,8 @@ impl FunctionLowerer<'_> {
         let mir_mutability = mutability
             .map(lower_mutability)
             .unwrap_or(mir::Mutability::Mutable);
-        let result_type = self.state.builder.type_reference(
-            mir::ReferenceKind::Borrowed,
-            pointee_type,
-            mir_mutability,
-            mir::AddressSpace::Generic,
-            false,
-        );
+        let address_space = self.borrow_address_space(expression_id, right)?;
+        let result_type = self.borrowed_reference_type(pointee_type, mir_mutability, address_space);
 
         // lower the reference target to an address when possible
         match self.context.dir_tree.get(right) {
@@ -268,7 +403,7 @@ impl FunctionLowerer<'_> {
             mir::ReferenceKind::Owned,
             pointee_type,
             mutability,
-            mir::AddressSpace::Generic,
+            mir::AddressSpace::Local,
             false,
         );
 

@@ -9,15 +9,15 @@ impl ModuleLowerer<'_> {
         &self,
         symbol_id: dir::LocalSymbolId,
         signature: &dir::FunctionSignature,
-    ) -> mir::Lifetime {
+    ) -> mir::BorrowRegion {
         let symbol = self.symbols.get_symbol(symbol_id);
         let Some(lifetime) = symbol.decorators.lifetime.as_ref() else {
-            return mir::Lifetime::Inferred;
+            return mir::BorrowRegion::Inferred;
         };
 
         // short-circuit static lifetimes
         if matches!(lifetime, dir::LifetimeAnnotation::Static) {
-            return mir::Lifetime::Static;
+            return mir::BorrowRegion::Static;
         }
 
         // map parameter names to indices
@@ -38,7 +38,7 @@ impl ModuleLowerer<'_> {
 
         // resolve annotated parameter names to indices
         let dir::LifetimeAnnotation::Parameters(names) = lifetime else {
-            return mir::Lifetime::Inferred;
+            return mir::BorrowRegion::Inferred;
         };
         let mut param_indices = Vec::new();
         for name_id in names {
@@ -51,9 +51,9 @@ impl ModuleLowerer<'_> {
 
         // fall back to inferred if nothing matches
         if param_indices.is_empty() {
-            return mir::Lifetime::Inferred;
+            return mir::BorrowRegion::Inferred;
         }
 
-        mir::Lifetime::Parameters(param_indices)
+        mir::BorrowRegion::Parameters(param_indices)
     }
 }

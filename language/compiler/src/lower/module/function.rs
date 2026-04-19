@@ -308,7 +308,7 @@ impl ModuleLowerer<'_> {
         }
 
         // extract return lifetime from @lifetime decorator
-        let return_lifetime =
+        let return_region =
             self.extract_lifetime_annotation(declaration.symbol, &declaration.signature);
 
         // build a MIR signature type aligned with the lowered parameters
@@ -324,7 +324,7 @@ impl ModuleLowerer<'_> {
         {
             let function = self.builder.tree_mut().get_mut(function_id);
             function.parameter_names = parameter_names.clone();
-            function.return_lifetime = return_lifetime;
+            function.return_region = return_region;
             function.allocation = allocation_mode;
         }
 
@@ -508,7 +508,7 @@ impl ModuleLowerer<'_> {
         }
 
         // extract return lifetime from @lifetime decorator
-        let return_lifetime =
+        let return_region =
             self.extract_lifetime_annotation(declaration.symbol, &declaration.signature);
 
         // build a MIR signature type aligned with the lowered parameters
@@ -544,7 +544,7 @@ impl ModuleLowerer<'_> {
             {
                 let function = self.builder.tree_mut().get_mut(function_id);
                 function.parameter_names = parameter_names.clone();
-                function.return_lifetime = return_lifetime.clone();
+                function.return_region = return_region.clone();
                 function.allocation = allocation_mode;
             }
 
@@ -569,7 +569,7 @@ impl ModuleLowerer<'_> {
                 builder.set_parameter_name(index, *name_id);
             }
         }
-        builder.set_return_lifetime(return_lifetime);
+        builder.set_return_region(return_region);
         builder.set_allocation_mode(allocation_mode);
 
         // build lowering context
