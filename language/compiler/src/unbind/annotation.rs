@@ -22,9 +22,6 @@ impl Compiler {
             dir::DecoratorPosition::BlockPostfix => ast::DecoratorPosition::BlockPostfix,
             dir::DecoratorPosition::LinePrefix => ast::DecoratorPosition::LinePrefix,
             dir::DecoratorPosition::LinePostfix => ast::DecoratorPosition::LinePostfix,
-            dir::DecoratorPosition::LinePostfixBoundary => {
-                ast::DecoratorPosition::LinePostfixBoundary
-            }
         }
     }
 

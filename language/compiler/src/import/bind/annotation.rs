@@ -94,7 +94,6 @@ impl Compiler {
             ast::DecoratorPosition::BlockPostfix => DecoratorPosition::BlockPostfix,
             ast::DecoratorPosition::LinePrefix => DecoratorPosition::LinePrefix,
             ast::DecoratorPosition::LinePostfix => DecoratorPosition::LinePostfix,
-            ast::DecoratorPosition::LinePostfixBoundary => DecoratorPosition::LinePostfixBoundary,
         }
     }
 
