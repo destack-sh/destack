@@ -2,117 +2,148 @@ use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::Comment;
 use destack_fir::format::{Buffer, Format, FormatResult, Formatter, hard_line_break};
 use destack_fir::prelude::{
-    empty_line, expand_parent, format_with, line_suffix, soft_line_break_or_space, space, text,
+    block_indent, empty_line, expand_parent, format_with, group, line_suffix, soft_block_indent,
+    soft_line_break_or_space, space, text,
 };
 use destack_fir::write;
 use destack_source::Span;
 
-/// Format one raw comment or documentation token.
-fn format_comment_like_raw_text<'ast>(
+/// Format one comment or documentation token.
+fn format_comment_source_text<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    raw_comment: &str,
+    comment_source: &str,
     is_block_comment: bool,
 ) -> FormatResult<()> {
-    let is_multiline_comment = raw_comment.contains('\n');
+    let is_multiline_comment = comment_source.contains('\n');
 
     // render one-line comments with trailing whitespace normalized
     if !is_multiline_comment {
-        write!(f, [text(raw_comment.trim_end())])?;
+        write!(f, [text(comment_source.trim_end())])?;
         return Ok(());
     }
 
     // preserve star-aligned block comments in conventional form
-    if is_block_comment && block_comment_is_alignable(raw_comment) {
-        format_alignable_block_comment(f, raw_comment)?;
+    if is_block_comment && block_comment_is_alignable(comment_source) {
+        format_alignable_block_comment(f, comment_source)?;
         return Ok(());
     }
 
-    format_multiline_comment_raw(f, raw_comment)
+    format_multiline_comment_source(f, comment_source)
 }
 
-/// Format one raw comment.
-pub(crate) fn format_raw_comment<'ast>(
+/// Format one comment.
+pub(crate) fn format_comment<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     comment: Comment,
 ) -> FormatResult<()> {
-    f.context().comments_mut().increment_printed_count();
+    f.context_mut().comments_mut().increment_printed_count();
 
-    let raw_comment = f.context().comment_raw_text(comment);
+    let comment_source = f.context().comment_source_text(comment);
     let is_block_comment = comment.is_block();
-    format_comment_like_raw_text(f, raw_comment, is_block_comment)
+    format_comment_source_text(f, comment_source, is_block_comment)
 }
 
-/// Write raw leading comments with source-preserving separators.
-pub(crate) fn write_raw_leading_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    comments: &[Comment],
-) -> FormatResult<()> {
-    let source = f.context().source_text();
-    let mut comments = comments.iter().copied().peekable();
+/// Return one leading comment formatter for one node span.
+#[inline]
+pub(crate) const fn format_leading_comments<'a>(span: Span) -> FormatLeadingComments<'a> {
+    FormatLeadingComments::Node(span)
+}
 
-    while let Some(comment) = comments.next() {
-        format_raw_comment(f, comment)?;
+/// Format leading comments for one node or one explicit comment slice.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum FormatLeadingComments<'a> {
+    /// Leading comments before one node span.
+    Node(Span),
+    /// One explicit leading comment slice.
+    Comments(&'a [Comment]),
+}
 
-        if comment.is_block() {
-            match source.lines_after(comment.span.end) {
-                0 => {
-                    let should_nestle = comments.peek().is_some_and(|next_comment| {
-                        should_nestle_adjacent_doc_comments(comment, *next_comment)
-                    });
+impl<'a> Format<DestackFormatContext<'a>> for FormatLeadingComments<'_> {
+    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'a>>) -> FormatResult<()> {
+        fn format_leading_comments_impl<'ast>(
+            comments: &[Comment],
+            f: &mut DestackFormatter<'ast, '_>,
+        ) -> FormatResult<()> {
+            let source = f.context().source_text();
+            let mut comments = comments.iter().copied().peekable();
 
-                    if !should_nestle {
-                        write!(f, [space()])?;
+            while let Some(comment) = comments.next() {
+                format_comment(f, comment)?;
+
+                if comment.is_block() {
+                    match source.lines_after(comment.span.end) {
+                        0 => {
+                            let should_nestle =
+                                comments.peek().copied().is_some_and(|next_comment| {
+                                    should_nestle_adjacent_doc_comments(comment, next_comment)
+                                });
+
+                            if !should_nestle {
+                                write!(f, [space()])?;
+                            }
+                        }
+                        1 => {
+                            let lines_before = {
+                                let comment_cursor = f.context().comments();
+                                source.get_lines_before(comment.span, comment_cursor)
+                            };
+
+                            if lines_before == 0 {
+                                write!(f, [soft_line_break_or_space()])?;
+                            } else {
+                                write!(f, [hard_line_break()])?;
+                            }
+                        }
+                        _ => {
+                            write!(f, [empty_line()])?;
+                        }
                     }
-                }
-                1 => {
-                    let lines_before = {
-                        let comment_cursor = f.context().comments();
-                        source.get_lines_before(comment.span, &comment_cursor)
-                    };
-
-                    if lines_before == 0 {
-                        write!(f, [soft_line_break_or_space()])?;
-                    } else {
-                        write!(f, [hard_line_break()])?;
+                } else {
+                    match source.lines_after(comment.span.end) {
+                        0 | 1 => {
+                            write!(f, [hard_line_break()])?;
+                        }
+                        _ => {
+                            write!(f, [empty_line()])?;
+                        }
                     }
-                }
-                _ => {
-                    write!(f, [empty_line()])?;
                 }
             }
-        } else {
-            match source.lines_after(comment.span.end) {
-                0 | 1 => {
-                    write!(f, [hard_line_break()])?;
+
+            Ok(())
+        }
+
+        match self {
+            Self::Node(span) => {
+                let comments = f.context().comments().comments_before(span.start);
+
+                if comments.is_empty() {
+                    return Ok(());
                 }
-                _ => {
-                    write!(f, [empty_line()])?;
+
+                format_leading_comments_impl(comments, f)
+            }
+            Self::Comments(comments) => {
+                if comments.is_empty() {
+                    return Ok(());
                 }
+
+                format_leading_comments_impl(comments, f)
             }
         }
     }
-
-    Ok(())
 }
 
-/// Write raw trailing comments with upstream-shaped line-suffix behavior.
-pub(crate) fn write_raw_trailing_comments<'ast>(
+/// Write trailing comments with upstream-shaped line-suffix behavior.
+fn write_trailing_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     comments: &[Comment],
 ) -> FormatResult<()> {
-    write_raw_trailing_comments_with_options(f, comments, true)
+    write_trailing_comments_with_options(f, comments, true)
 }
 
-/// Write raw trailing comments without expanding the parent group for line comments.
-pub(crate) fn write_raw_trailing_comments_without_parent_expansion<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    comments: &[Comment],
-) -> FormatResult<()> {
-    write_raw_trailing_comments_with_options(f, comments, false)
-}
-
-/// Write raw trailing comments with configurable parent expansion for line comments.
-fn write_raw_trailing_comments_with_options<'ast>(
+/// Write trailing comments with configurable parent expansion for line comments.
+fn write_trailing_comments_with_options<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     comments: &[Comment],
     expand_parent_for_line_comments: bool,
@@ -122,13 +153,13 @@ fn write_raw_trailing_comments_with_options<'ast>(
     let mut previous_comment = None;
 
     for comment in comments.iter().copied() {
-        f.context().comments_mut().increment_printed_count();
+        f.context_mut().comments_mut().increment_printed_count();
 
-        let raw_comment = f.context().comment_raw_text(comment);
+        let comment_source = f.context().comment_source_text(comment);
         let is_block_comment = comment.is_block();
         let lines_before = {
             let comment_cursor = f.context().comments();
-            source.get_lines_before(comment.span, &comment_cursor)
+            source.get_lines_before(comment.span, comment_cursor)
         };
         total_lines_before += lines_before;
 
@@ -158,7 +189,7 @@ fn write_raw_trailing_comments_with_options<'ast>(
                             }
                         }
 
-                        format_comment_like_raw_text(f, raw_comment, is_block_comment)
+                        format_comment_source_text(f, comment_source, is_block_comment)
                     }
                 ))]
             )?;
@@ -168,7 +199,7 @@ fn write_raw_trailing_comments_with_options<'ast>(
                     write!(f, [space()])?;
                 }
 
-                format_comment_like_raw_text(f, raw_comment, is_block_comment)
+                format_comment_source_text(f, comment_source, is_block_comment)
             });
 
             if comment.is_line() {
@@ -188,8 +219,8 @@ fn write_raw_trailing_comments_with_options<'ast>(
     Ok(())
 }
 
-/// Write raw comments with direct source-preserving separators.
-pub(crate) fn write_raw_comment_slice<'ast>(
+/// Write one comment slice with direct source-preserving separators.
+pub(crate) fn write_comment_slice<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     comments: &[Comment],
 ) -> FormatResult<()> {
@@ -197,13 +228,13 @@ pub(crate) fn write_raw_comment_slice<'ast>(
     let mut previous_comment = None;
 
     for comment in comments.iter().copied() {
-        f.context().comments_mut().increment_printed_count();
+        f.context_mut().comments_mut().increment_printed_count();
 
-        let raw_comment = f.context().comment_raw_text(comment);
+        let comment_source = f.context().comment_source_text(comment);
         let is_block_comment = comment.is_block();
         let lines_before = {
             let comment_cursor = f.context().comments();
-            source.get_lines_before(comment.span, &comment_cursor)
+            source.get_lines_before(comment.span, comment_cursor)
         };
         let should_nestle = previous_comment.is_some_and(|previous_comment| {
             should_nestle_adjacent_doc_comments(previous_comment, comment)
@@ -226,11 +257,134 @@ pub(crate) fn write_raw_comment_slice<'ast>(
             }
         }
 
-        format_comment_like_raw_text(f, raw_comment, is_block_comment)?;
+        format_comment_source_text(f, comment_source, is_block_comment)?;
         previous_comment = Some(comment);
     }
 
     Ok(())
+}
+
+/// Return one dangling comment formatter for one enclosing span.
+#[inline]
+pub(crate) const fn format_dangling_comments<'a>(span: Span) -> FormatDanglingComments<'a> {
+    FormatDanglingComments::Node {
+        span,
+        indent: DanglingIndentMode::None,
+    }
+}
+
+/// Format dangling comments before one closing delimiter.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum FormatDanglingComments<'a> {
+    /// One enclosing span and indentation mode.
+    Node {
+        span: Span,
+        indent: DanglingIndentMode,
+    },
+    /// One explicit dangling comment slice and indentation mode.
+    Comments {
+        comments: &'a [Comment],
+        indent: DanglingIndentMode,
+    },
+}
+
+/// The indentation mode for dangling comments.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub(crate) enum DanglingIndentMode {
+    /// Indent dangling comments with one block indent.
+    Block,
+    /// Indent dangling comments with one soft block indent.
+    Soft,
+    /// Write dangling comments without extra indentation wrappers.
+    None,
+}
+
+impl FormatDanglingComments<'_> {
+    /// Indent dangling comments with one block indent.
+    pub(crate) fn with_block_indent(self) -> Self {
+        self.with_indent_mode(DanglingIndentMode::Block)
+    }
+
+    /// Indent dangling comments with one soft block indent.
+    pub(crate) fn with_soft_block_indent(self) -> Self {
+        self.with_indent_mode(DanglingIndentMode::Soft)
+    }
+
+    /// Set the indentation mode for one dangling comment formatter.
+    fn with_indent_mode(mut self, indent: DanglingIndentMode) -> Self {
+        match &mut self {
+            Self::Node {
+                indent: current_indent,
+                ..
+            }
+            | Self::Comments {
+                indent: current_indent,
+                ..
+            } => *current_indent = indent,
+        }
+
+        self
+    }
+}
+
+impl<'a> Format<DestackFormatContext<'a>> for FormatDanglingComments<'_> {
+    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'a>>) -> FormatResult<()> {
+        fn write_dangling_comments<'ast>(
+            f: &mut DestackFormatter<'ast, '_>,
+            comments: &[Comment],
+            indent: DanglingIndentMode,
+        ) -> FormatResult<()> {
+            let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                let mut previous_comment = None;
+
+                for comment in comments.iter().copied() {
+                    let should_nestle = previous_comment.is_some_and(|previous_comment| {
+                        should_nestle_adjacent_doc_comments(previous_comment, comment)
+                    });
+
+                    if previous_comment.is_some() && !should_nestle {
+                        write!(f, [hard_line_break()])?;
+                    }
+
+                    format_comment(f, comment)?;
+                    previous_comment = Some(comment);
+                }
+
+                if indent == DanglingIndentMode::Soft
+                    && previous_comment.is_some_and(Comment::is_line)
+                {
+                    write!(f, [hard_line_break()])?;
+                }
+
+                Ok(())
+            });
+
+            match indent {
+                DanglingIndentMode::Block => write!(f, [block_indent(&content)]),
+                DanglingIndentMode::Soft => write!(f, [group(&soft_block_indent(&content))]),
+                DanglingIndentMode::None => write!(f, [content]),
+            }
+        }
+
+        match self {
+            Self::Node { span, indent } => {
+                let comments = f.context().comments().comments_before(span.end);
+
+                if comments.is_empty() {
+                    return Ok(());
+                }
+
+                write_dangling_comments(f, comments, *indent)
+            }
+            Self::Comments { comments, indent } => {
+                if comments.is_empty() {
+                    return Ok(());
+                }
+
+                write_dangling_comments(f, comments, *indent)
+            }
+        }
+    }
 }
 
 /// Return one trailing comment formatter for one node relationship.
@@ -240,43 +394,14 @@ pub(crate) const fn format_trailing_comments(
     preceding_span: Span,
     following_span_start: u32,
 ) -> FormatTrailingComments<'static> {
-    FormatTrailingComments::Node((
-        enclosing_span,
-        preceding_span,
-        following_span_start,
-        following_span_start,
-    ))
-}
-
-/// Return one trailing comment formatter that stops before one explicit boundary.
-#[inline]
-pub(crate) const fn format_trailing_comments_before_boundary(
-    enclosing_span: Span,
-    preceding_span: Span,
-    boundary_start: u32,
-    following_span_start: u32,
-) -> FormatTrailingComments<'static> {
-    FormatTrailingComments::Node((
-        enclosing_span,
-        preceding_span,
-        boundary_start,
-        following_span_start,
-    ))
-}
-
-/// Return one trailing comment formatter for one explicit comment slice.
-#[inline]
-pub(crate) const fn format_trailing_comment_slice(
-    comments: &[Comment],
-) -> FormatTrailingComments<'_> {
-    FormatTrailingComments::Comments(comments)
+    FormatTrailingComments::Node((enclosing_span, preceding_span, following_span_start))
 }
 
 /// Format trailing comments for one node relationship.
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum FormatTrailingComments<'a> {
-    /// The enclosing span, preceding span, boundary start, and following sibling start.
-    Node((Span, Span, u32, u32)),
+    /// The enclosing span, preceding span, and following sibling start.
+    Node((Span, Span, u32)),
     /// One explicit trailing comment slice.
     Comments(&'a [Comment]),
 }
@@ -284,42 +409,36 @@ pub(crate) enum FormatTrailingComments<'a> {
 impl<'a> Format<DestackFormatContext<'a>> for FormatTrailingComments<'_> {
     fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'a>>) -> FormatResult<()> {
         match self {
-            Self::Node((enclosing_span, preceding_span, boundary_start, following_span_start)) => {
-                let comments = {
-                    let comments = f.context().comments();
-                    comments
-                        .get_trailing_comments(
-                            *enclosing_span,
-                            *preceding_span,
-                            *boundary_start,
-                            *following_span_start,
-                        )
-                        .to_vec()
-                };
+            Self::Node((enclosing_span, preceding_span, following_span_start)) => {
+                let comments = f.context().comments().get_trailing_comments(
+                    *enclosing_span,
+                    *preceding_span,
+                    *following_span_start,
+                );
 
                 if comments.is_empty() {
                     return Ok(());
                 }
 
-                write_raw_trailing_comments(f, &comments)
+                write_trailing_comments(f, comments)
             }
             Self::Comments(comments) => {
                 if comments.is_empty() {
                     return Ok(());
                 }
 
-                write_raw_trailing_comments(f, comments)
+                write_trailing_comments(f, comments)
             }
         }
     }
 }
 
-/// Format one multiline raw comment with explicit line breaks.
-fn format_multiline_comment_raw<'ast>(
+/// Format one multiline comment source with explicit line breaks.
+fn format_multiline_comment_source<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    raw_comment: &str,
+    comment_source: &str,
 ) -> FormatResult<()> {
-    let mut lines = raw_comment.lines();
+    let mut lines = comment_source.lines();
     let Some(first_line) = lines.next() else {
         return Ok(());
     };
@@ -387,9 +506,9 @@ fn common_multiline_comment_indent(lines: &[&str]) -> usize {
 /// Format one alignable multiline block comment.
 fn format_alignable_block_comment<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    raw_comment: &str,
+    comment_source: &str,
 ) -> FormatResult<()> {
-    let mut lines = raw_comment.lines();
+    let mut lines = comment_source.lines();
     let Some(first_line) = lines.next() else {
         return Ok(());
     };
@@ -414,8 +533,8 @@ fn format_alignable_block_comment<'ast>(
 }
 
 /// Return whether one multiline block comment is alignable on `*` prefixes.
-fn block_comment_is_alignable(raw_comment: &str) -> bool {
-    raw_comment
+fn block_comment_is_alignable(comment_source: &str) -> bool {
+    comment_source
         .lines()
         .skip(1)
         .all(|line| line.trim_start_matches('\r').trim_start().starts_with('*'))

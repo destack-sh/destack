@@ -37,17 +37,12 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
 /// Return whether a decorator expression requires parentheses.
 fn decorator_needs_parentheses(tree: &NodeTree, expression_id: LocalNodeId<Expression>) -> bool {
     match tree.get(expression_id) {
-        Expression::Parenthesized { .. } => false,
         Expression::Identifier { .. } => false,
         Expression::QualifiedReference {
             generic_arguments, ..
         } => !generic_arguments.is_empty(),
         Expression::Call { left, .. } => !is_identifier_or_static_member_only(tree, *left),
-        Expression::Member {
-            left,
-            generic_arguments,
-            ..
-        } => !generic_arguments.is_empty() || !is_identifier_or_static_member_only(tree, *left),
+        Expression::Member { left, .. } => !is_identifier_or_static_member_only(tree, *left),
         _ => true,
     }
 }
@@ -62,11 +57,7 @@ fn is_identifier_or_static_member_only(
         Expression::QualifiedReference {
             generic_arguments, ..
         } => generic_arguments.is_empty(),
-        Expression::Member {
-            left,
-            generic_arguments,
-            ..
-        } => generic_arguments.is_empty() && is_identifier_or_static_member_only(tree, *left),
+        Expression::Member { left, .. } => is_identifier_or_static_member_only(tree, *left),
         _ => false,
     }
 }

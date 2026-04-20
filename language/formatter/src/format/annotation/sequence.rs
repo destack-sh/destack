@@ -1,4 +1,4 @@
-use super::trivia::format_raw_comment;
+use super::trivia::format_comment;
 use crate::{Decorator, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     Comment, DecoratorPosition, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenType,
@@ -27,8 +27,8 @@ enum PrefixSequenceKind {
     DecoratorsOnly,
 }
 
-/// Return raw prefix comments for one node in source order.
-pub(crate) fn raw_prefix_comment_nodes<'ast, T>(
+/// Return prefix comments for one node in source order.
+pub(crate) fn prefix_comment_nodes<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
 ) -> Vec<Comment>
@@ -36,26 +36,29 @@ where
     T: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<T>,
 {
-    let mut comments = context.raw_prefix_comments_for(node_id);
-
-    for annotation_id in context.annotation_ids(node_id).iter().copied() {
-        if !matches!(
-            context.annotation(annotation_id).position,
-            DecoratorPosition::BlockPrefix | DecoratorPosition::LinePrefix
-        ) {
-            continue;
-        }
-
-        comments.extend(context.raw_prefix_comments_for::<Decorator>(annotation_id));
-    }
-
-    comments.sort_by_key(|comment| (comment.span.start, comment.span.end));
-    comments.dedup_by_key(|comment| (comment.span.start, comment.span.end));
-    comments
+    context
+        .comments()
+        .comments_before(context.node_token_start(node_id))
+        .to_vec()
 }
 
-/// Return raw prefix comments for one node that start at or after one offset.
-pub(crate) fn raw_prefix_comments_after_offset<'ast, T>(
+/// Return prefix comments that are not physically inside decorator spans.
+fn prefix_comment_nodes_outside_decorators<'ast, T>(
+    context: &DestackFormatContext<'ast>,
+    node_id: LocalNodeId<T>,
+) -> Vec<Comment>
+where
+    T: Node + Clone + 'ast,
+    NodeTree: NodeTreeImpl<T>,
+{
+    prefix_comment_nodes(context, node_id)
+        .into_iter()
+        .filter(|comment| !comment_is_inside_decorator_span(context, node_id, *comment))
+        .collect()
+}
+
+/// Return prefix comments for one node that start at or after one offset.
+fn prefix_comments_after_offset<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
     start_offset: u32,
@@ -64,7 +67,7 @@ where
     T: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<T>,
 {
-    raw_prefix_comment_nodes(context, node_id)
+    prefix_comment_nodes_outside_decorators(context, node_id)
         .into_iter()
         .filter(|comment| comment.span.start >= start_offset)
         .collect()
@@ -78,7 +81,7 @@ pub(crate) fn write_annotation_sequence<'ast>(
     write_annotation_sequence_with_trailing_break(f, items, true)
 }
 
-/// Format inline prefix annotations without introducing formatter-owned line breaks.
+/// Format inline prefix annotations without introducing extra line breaks.
 pub(crate) fn write_inline_prefix_annotations<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     items: &[LocalNodeId<Decorator>],
@@ -118,25 +121,6 @@ where
     format_with(move |f: &mut DestackFormatter<'ast, '_>| write_annotation_sequence(f, &items))
 }
 
-/// Format line postfix boundary annotations for one node.
-pub(crate) fn line_suffix_boundary_annotations<'ast, T>(
-    context: &DestackFormatContext<'ast>,
-    node_id: LocalNodeId<T>,
-) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
-where
-    T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
-{
-    let mut items = Vec::new();
-    for annotation_id in context.annotation_ids(node_id).iter().copied() {
-        if context.annotation(annotation_id).position == DecoratorPosition::LinePostfixBoundary {
-            items.push(annotation_id);
-        }
-    }
-
-    format_with(move |f: &mut DestackFormatter<'ast, '_>| write_annotation_sequence(f, &items))
-}
-
 /// Format prefix annotations for one node.
 pub(crate) fn prefix_annotations<'ast, T>(
     context: &DestackFormatContext<'ast>,
@@ -149,12 +133,24 @@ where
     prefix_sequence(
         context,
         node_id,
-        raw_prefix_comment_nodes(context, node_id),
+        prefix_comment_nodes_outside_decorators(context, node_id),
         PrefixSequenceKind::All,
     )
 }
 
-/// Format prefix annotations for one node after the raw prefix comment boundary.
+/// Format prefix annotations for one node without leading comments.
+pub(crate) fn prefix_annotations_without_comments<'ast, T>(
+    context: &DestackFormatContext<'ast>,
+    node_id: LocalNodeId<T>,
+) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
+where
+    T: Node + Clone + 'ast,
+    NodeTree: NodeTreeImpl<T>,
+{
+    prefix_sequence(context, node_id, Vec::new(), PrefixSequenceKind::All)
+}
+
+/// Format prefix annotations for one node after one prefix comment cutoff.
 pub(crate) fn prefix_annotations_after_offset<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
@@ -167,7 +163,7 @@ where
     prefix_sequence(
         context,
         node_id,
-        raw_prefix_comments_after_offset(context, node_id, start_offset),
+        prefix_comments_after_offset(context, node_id, start_offset),
         PrefixSequenceKind::All,
     )
 }
@@ -176,16 +172,40 @@ where
 fn prefix_sequence<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
-    raw_comments: Vec<Comment>,
+    comments: Vec<Comment>,
     kind: PrefixSequenceKind,
 ) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<T>,
 {
-    let items = collect_prefix_sequence_items(context, node_id, raw_comments, kind);
+    let items = collect_prefix_sequence_items(context, node_id, comments, kind);
 
     format_with(move |f: &mut DestackFormatter<'ast, '_>| write_prefix_sequence_items(f, &items))
+}
+
+/// Return whether one comment lies inside any decorator annotation span for the node.
+fn comment_is_inside_decorator_span<'ast, T>(
+    context: &DestackFormatContext<'ast>,
+    node_id: LocalNodeId<T>,
+    comment: Comment,
+) -> bool
+where
+    T: Node + Clone + 'ast,
+    NodeTree: NodeTreeImpl<T>,
+{
+    context
+        .annotation_ids(node_id)
+        .iter()
+        .copied()
+        .any(|annotation_id| {
+            if !matches!(context.annotation(annotation_id), Decorator { .. }) {
+                return false;
+            }
+
+            let decorator_span = context.annotation_span(annotation_id);
+            comment.span.start >= decorator_span.start && comment.span.end <= decorator_span.end
+        })
 }
 
 /// Format prefix annotations for one node without decorator items.
@@ -206,7 +226,7 @@ where
                 matches!(context.annotation(annotation_id), Decorator { .. })
                     .then(|| context.annotation_span(annotation_id).start)
             });
-    let comments = raw_prefix_comment_nodes(context, node_id)
+    let comments = prefix_comment_nodes(context, node_id)
         .into_iter()
         .filter(|comment| {
             first_decorator_start.is_none_or(|decorator_start| comment.span.end <= decorator_start)
@@ -239,11 +259,12 @@ where
                 matches!(context.annotation(annotation_id), Decorator { .. })
                     .then(|| context.annotation_span(annotation_id).start)
             });
-    let comments = raw_prefix_comment_nodes(context, node_id)
+    let comments = prefix_comment_nodes(context, node_id)
         .into_iter()
         .filter(|comment| {
             first_decorator_start
                 .is_some_and(|decorator_start| comment.span.start >= decorator_start)
+                && !comment_is_inside_decorator_span(context, node_id, *comment)
         })
         .collect();
 
@@ -263,7 +284,7 @@ where
 fn collect_prefix_sequence_items<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
-    raw_comments: Vec<Comment>,
+    comments: Vec<Comment>,
     kind: PrefixSequenceKind,
 ) -> Vec<PrefixSequenceItem>
 where
@@ -272,7 +293,7 @@ where
 {
     let mut items = Vec::new();
 
-    for comment in raw_comments {
+    for comment in comments {
         items.push(PrefixSequenceItem::Comment(comment));
     }
 
@@ -350,7 +371,7 @@ fn write_prefix_sequence_item<'ast>(
     item: PrefixSequenceItem,
 ) -> FormatResult<()> {
     match item {
-        PrefixSequenceItem::Comment(comment) => format_raw_comment(f, comment),
+        PrefixSequenceItem::Comment(comment) => format_comment(f, comment),
         PrefixSequenceItem::Decorator(annotation_id) => f
             .context()
             .annotation(annotation_id)
@@ -409,30 +430,6 @@ where
     for annotation_id in context.annotation_ids(node_id).iter().copied() {
         if matches!(
             context.annotation(annotation_id).position,
-            DecoratorPosition::BlockPostfix
-                | DecoratorPosition::LinePostfix
-                | DecoratorPosition::LinePostfixBoundary
-        ) {
-            items.push(annotation_id);
-        }
-    }
-
-    format_with(move |f: &mut DestackFormatter<'ast, '_>| write_annotation_sequence(f, &items))
-}
-
-/// Format postfix annotations for one node without line postfix boundary items.
-pub(crate) fn postfix_annotations_without_line_suffix_boundary<'ast, T>(
-    context: &DestackFormatContext<'ast>,
-    node_id: LocalNodeId<T>,
-) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
-where
-    T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
-{
-    let mut items = Vec::new();
-    for annotation_id in context.annotation_ids(node_id).iter().copied() {
-        if matches!(
-            context.annotation(annotation_id).position,
             DecoratorPosition::BlockPostfix | DecoratorPosition::LinePostfix
         ) {
             items.push(annotation_id);
@@ -444,31 +441,6 @@ where
 
 /// Format infix or postfix annotations for one node.
 pub(crate) fn infix_or_postfix_annotations<'ast, T>(
-    context: &DestackFormatContext<'ast>,
-    node_id: LocalNodeId<T>,
-) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
-where
-    T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
-{
-    let mut items = Vec::new();
-    for annotation_id in context.annotation_ids(node_id).iter().copied() {
-        if matches!(
-            context.annotation(annotation_id).position,
-            DecoratorPosition::BlockInfix
-                | DecoratorPosition::BlockPostfix
-                | DecoratorPosition::LinePostfix
-                | DecoratorPosition::LinePostfixBoundary
-        ) {
-            items.push(annotation_id);
-        }
-    }
-
-    format_with(move |f: &mut DestackFormatter<'ast, '_>| write_annotation_sequence(f, &items))
-}
-
-/// Format infix or postfix annotations for one node without line postfix boundary items.
-pub(crate) fn infix_or_postfix_annotations_without_line_suffix_boundary<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
 ) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
@@ -510,10 +482,7 @@ fn write_annotation_sequence_with_trailing_break<'ast>(
             .annotation_next_non_whitespace_token_type(annotation_id);
         let is_last_annotation = annotation_index + 1 == items.len();
 
-        let needs_leading_space = matches!(
-            position,
-            DecoratorPosition::LinePostfix | DecoratorPosition::LinePostfixBoundary
-        ) && !starts_on_own_line;
+        let needs_leading_space = position == DecoratorPosition::LinePostfix && !starts_on_own_line;
         let needs_leading_break = !needs_leading_space
             && (annotation_index > 0
                 || position != DecoratorPosition::LinePrefix
@@ -528,11 +497,11 @@ fn write_annotation_sequence_with_trailing_break<'ast>(
             .annotation(annotation_id)
             .format_node(annotation_id, f)?;
 
-        if !should_write_trailing_break && is_last_annotation {
-        } else if matches!(position, DecoratorPosition::LinePostfixBoundary) {
-            write!(f, [soft_line_break()])?;
-        } else if next_token_type.is_none() || next_token_type == Some(TokenType::End) {
-        } else {
+        let should_write_trailing_break = should_write_trailing_break
+            || !is_last_annotation
+            || matches!(next_token_type, Some(token_type) if token_type != TokenType::End);
+
+        if should_write_trailing_break {
             write!(f, [hard_line_break()])?;
         }
     }
