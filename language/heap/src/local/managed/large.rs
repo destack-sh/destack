@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use super::{CardSet, EdgeId};
-use crate::LayoutId;
+use super::CardSet;
 use crate::arena::PageView;
+use crate::{HeapError, HeapResult, ShapeId};
 
 /// One frozen managed large-entry root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -13,10 +13,8 @@ pub(crate) struct LargeEntryImage {
     pub len: usize,
     /// The arena pages for this entry.
     pub pages: PageView,
-    /// The interned edge map for this entry.
-    pub edge_id: EdgeId,
-    /// The durable layout id for this entry, if any.
-    pub layout_id: Option<LayoutId>,
+    /// The interned entry shape for this entry.
+    pub shape_id: ShapeId,
 }
 
 /// One stable managed large-entry identifier.
@@ -35,9 +33,9 @@ impl LargeEntryId {
     }
 
     /// Return the zero-based large-entry slot index.
-    pub(crate) fn index(self) -> crate::HeapResult<usize> {
+    pub(crate) fn index(self) -> HeapResult<usize> {
         let Some(index) = self.0.checked_sub(1) else {
-            return Err(crate::HeapError::InvalidLargeEntryId { id: self.0 });
+            return Err(HeapError::InvalidLargeEntryId { id: self.0 });
         };
 
         Ok(index as usize)
@@ -53,10 +51,8 @@ pub(crate) struct LargeEntry {
     pub(crate) len: usize,
     /// The arena pages for this entry.
     pub(crate) pages: PageView,
-    /// The interned edge map for this entry.
-    pub(crate) edge_id: EdgeId,
-    /// The durable layout id for this entry, if any.
-    pub(crate) layout_id: Option<LayoutId>,
+    /// The interned entry shape for this entry.
+    pub(crate) shape_id: ShapeId,
     /// The dirty cards remembered for young tracing.
     pub(crate) dirty_cards: CardSet,
     /// Whether this entry is already queued for dirty-card scanning.
@@ -69,8 +65,6 @@ impl LargeEntry {
         self.is_live = false;
         self.len = 0;
         self.pages = PageView::empty();
-        self.edge_id = EdgeId::empty();
-        self.layout_id = None;
         self.dirty_cards.clear();
         self.is_dirty_queued = false;
     }

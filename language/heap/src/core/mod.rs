@@ -1,17 +1,25 @@
+mod cow;
 mod error;
 mod gc;
-mod map;
-mod table;
-mod totals;
-mod trace;
+mod mark;
+mod overlap;
+mod scan;
+mod shape;
+mod usage;
 
-pub use destack_mir::{EdgeMap, LayoutId};
+pub(crate) use cow::*;
+pub use destack_mir::LayoutId;
 pub use error::*;
 pub use gc::*;
-pub(crate) use map::{
-    managed_reference_width, overlapping_repeated_index_range, ranges_overlap,
-    touches_managed_range,
+pub(crate) use mark::*;
+pub(crate) use overlap::{
+    overlapping_repeated_index_range, overlaps_managed_range, overlaps_shared_range, ranges_overlap,
 };
-pub(crate) use table::*;
-pub(crate) use totals::*;
-pub(crate) use trace::{visit_edge_map_in_reader, visit_edge_map_in_reader_range};
+pub use scan::trace_managed_references;
+pub(crate) use scan::{
+    visit_managed_references_in_reader, visit_managed_references_in_reader_range,
+    visit_shared_references_in_reader, visit_shared_references_in_reader_range, PACKED_VALUE_BYTES,
+};
+pub use shape::HeapScan;
+pub(crate) use shape::*;
+pub use usage::*;

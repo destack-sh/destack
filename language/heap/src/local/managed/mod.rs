@@ -1,21 +1,19 @@
 mod allocate;
 mod bytes;
-mod free;
 mod image;
 mod large;
 mod location;
+mod reference;
 mod space;
 mod span;
-mod table;
 mod young;
 
-pub(crate) use crate::core::managed_reference_width;
 pub(crate) use crate::local::gc::*;
-pub(crate) use crate::{EdgeMap, GcKind, GcState, GcStats};
+pub(crate) use crate::{GcKind, GcState, GcStats, HeapScan};
 pub(crate) use image::*;
 pub(crate) use large::*;
 pub(crate) use location::*;
+pub use reference::ManagedReference;
 pub use space::*;
 pub(crate) use span::*;
-pub(crate) use table::*;
 pub(crate) use young::*;

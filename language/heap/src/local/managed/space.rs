@@ -1,15 +1,21 @@
 use std::sync::Arc;
 
 use super::{
-    EdgeId, EdgeTable, GcState, LargeEntry, LargeEntryId, ManagedLocation, ManagedReferenceEntry,
-    ManagedYoungId, MarkSet, PinSet, SmallSpan, TraceQueue, YoungEntry, YoungSpace,
+    GcState, LargeEntry, LargeEntryId, ManagedLocation, ManagedReferenceEntry, ManagedYoungId,
+    PinSet, SmallSpan, YoungEntry, YoungSpace,
 };
 use crate::arena::{Arena, PageRunCache, PageView, SizeClassTable};
-use crate::value::ManagedReference;
 use crate::{
-    AllocationTotals, CowTable, HeapError, HeapOptions, HeapResult, ManagedSpaceUsage,
-    touches_managed_range,
+    AllocationUsage, CowTable, HeapError, HeapOptions, HeapResult, ManagedReference,
+    ManagedSpaceUsage, MarkSet, ShapeId, ShapeTable, SharedManagedReference, TraceQueue,
+    overlaps_managed_range, overlaps_shared_range,
 };
+
+/// Collector marks for local managed references.
+type ManagedMarkSet = MarkSet<ManagedReference>;
+
+/// Collector queue for local managed references.
+type ManagedTraceQueue = TraceQueue<ManagedReference>;
 
 /// The first non-null managed reference id.
 pub(crate) const FIRST_ALLOCATED_REFERENCE_ID: u64 = 1;
@@ -69,11 +75,11 @@ pub struct ManagedSpace {
 
     /// Dense managed reference metadata keyed by reference id minus one.
     pub(crate) references: CowTable<ManagedReferenceEntry>,
-    /// The interned managed edge maps.
-    pub(crate) edge_table: EdgeTable,
+    /// The interned managed entry shapes.
+    pub(crate) shape_table: ShapeTable,
 
-    /// The encoded byte width for managed references inside traced payloads.
-    pub(crate) managed_reference_bytes: u8,
+    /// The byte width for managed references inside traced payloads.
+    pub(crate) managed_reference_bytes: usize,
     /// The maximum payload size admitted into young space.
     pub(crate) max_young_allocation_bytes: usize,
     /// The byte width for one remembered card.
@@ -85,15 +91,15 @@ pub struct ManagedSpace {
     pub(crate) free_reference_ids: Vec<u64>,
     /// The next managed reference id to allocate.
     pub(crate) next_unused_reference_id: u64,
-    /// The exact live managed totals.
-    pub(crate) totals: AllocationTotals,
+    /// The exact live managed usage.
+    pub(crate) usage: AllocationUsage,
 
     /// The live GC state.
     pub(crate) gc_state: GcState,
     /// The reusable collector mark set.
-    pub(crate) marks: MarkSet,
+    pub(crate) marks: ManagedMarkSet,
     /// The reusable collector trace queue.
-    pub(crate) trace_queue: TraceQueue,
+    pub(crate) trace_queue: ManagedTraceQueue,
     /// Whether a managed collection is currently running.
     pub(crate) is_collecting: bool,
     /// The scoped managed pins that block branch boundaries and movement.
@@ -102,12 +108,20 @@ pub struct ManagedSpace {
     pub(crate) dirty_spans: Vec<usize>,
     /// Mature large entries queued for dirty-card scanning.
     pub(crate) dirty_large_entries: Vec<LargeEntryId>,
+    /// Whether one local-to-shared root scan is currently active.
+    pub(crate) is_scanning_shared_roots: bool,
+    /// The next dense reference slot to scan for shared roots.
+    pub(crate) shared_root_cursor: usize,
+    /// The pending local references whose shared edges need rescanning.
+    pub(crate) shared_root_queue: ManagedTraceQueue,
+    /// Queue-membership bits for pending shared rescans.
+    pub(crate) shared_root_pending: Vec<bool>,
 }
 
 impl ManagedSpace {
     /// Create one managed space with the default options.
     pub fn new() -> Result<Self, HeapError> {
-        let options = HeapOptions::default();
+        let options = HeapOptions::local();
         let arena = Arc::new(Arena::try_new(
             options.page_bytes,
             options.arena_segment_bytes,
@@ -129,6 +143,8 @@ impl ManagedSpace {
         arena: Arc<Arena>,
         options: &HeapOptions,
     ) -> Result<Self, HeapError> {
+        let managed_reference_bytes =
+            HeapOptions::validate_managed_reference_bytes(options.managed_reference_bytes)?;
         let mut page_run_cache = PageRunCache::new(arena.pages_per_segment());
 
         // reserve one fixed young-space page run up front
@@ -148,11 +164,11 @@ impl ManagedSpace {
         Ok(Self {
             arena,
             page_run_cache,
-            managed_reference_bytes: options.managed_reference_bytes,
+            managed_reference_bytes,
             max_young_allocation_bytes,
             card_bytes: options.card_bytes,
             table_chunk_len: options.table_chunk_len,
-            edge_table: EdgeTable::new()?,
+            shape_table: ShapeTable::new(),
             young,
             small: SmallSpace {
                 size_classes: options.size_classes.clone(),
@@ -169,7 +185,7 @@ impl ManagedSpace {
             references: CowTable::with_chunk_len(options.table_chunk_len)?,
             free_reference_ids: Vec::new(),
             next_unused_reference_id: FIRST_ALLOCATED_REFERENCE_ID,
-            totals: AllocationTotals::default(),
+            usage: AllocationUsage::default(),
             gc_state: GcState::default(),
             marks: MarkSet::default(),
             trace_queue: TraceQueue::default(),
@@ -177,6 +193,10 @@ impl ManagedSpace {
             pins: PinSet::default(),
             dirty_spans: Vec::new(),
             dirty_large_entries: Vec::new(),
+            is_scanning_shared_roots: false,
+            shared_root_cursor: 0,
+            shared_root_queue: TraceQueue::default(),
+            shared_root_pending: Vec::new(),
         })
     }
 
@@ -200,7 +220,7 @@ impl ManagedSpace {
     }
 
     /// Return the exact borrowed managed image bytes.
-    pub fn borrowed_bytes(&self) -> crate::HeapResult<u64> {
+    pub fn borrowed_bytes(&self) -> HeapResult<u64> {
         self.arena.borrowed_bytes_for_page_views(
             std::iter::once(&self.young.pages)
                 .chain(self.small.spans.iter().map(|span| &span.pages))
@@ -213,21 +233,31 @@ impl ManagedSpace {
         &self.gc_state
     }
 
+    /// Pin one local managed reference against movement.
+    pub fn pin(&mut self, reference: ManagedReference) -> HeapResult<()> {
+        self.pins.pin(reference)
+    }
+
+    /// Release one local managed pin.
+    pub fn unpin(&mut self, reference: ManagedReference) -> HeapResult<()> {
+        self.pins.unpin(reference)
+    }
+
     /// Return the number of live managed entries.
     pub fn allocation_count(&self) -> usize {
-        self.totals.allocation_count()
+        self.usage.allocation_count()
     }
 
     /// Return the number of live managed bytes.
     pub fn allocated_bytes(&self) -> u64 {
-        self.totals.allocated_bytes()
+        self.usage.allocated_bytes()
     }
 
     /// Return the exact live usage for this managed space.
-    pub fn usage(&self) -> crate::HeapResult<ManagedSpaceUsage> {
+    pub fn usage(&self) -> HeapResult<ManagedSpaceUsage> {
         Ok(ManagedSpaceUsage {
-            allocation_count: self.totals.allocation_count(),
-            allocated_bytes: self.totals.allocated_bytes(),
+            allocation_count: self.usage.allocation_count(),
+            allocated_bytes: self.usage.allocated_bytes(),
             active_bytes: self.active_bytes(),
             mapped_bytes: self.mapped_bytes(),
             borrowed_bytes: self.borrowed_bytes()?,
@@ -235,8 +265,13 @@ impl ManagedSpace {
     }
 
     /// Flush the local page-run cache back into the arena page-run pool.
-    pub(crate) fn try_flush_page_run_cache(&mut self) -> HeapResult<()> {
-        self.page_run_cache.try_flush(&self.arena)
+    pub(crate) fn flush_page_run_cache(&mut self) {
+        self.page_run_cache.flush(&self.arena);
+    }
+
+    /// Flush transient cache state before one exact branch boundary.
+    pub(crate) fn flush_branch_boundary(&mut self) {
+        self.flush_page_run_cache();
     }
 
     /// Allocate one zeroed page view through the local page-run cache.
@@ -372,18 +407,17 @@ impl ManagedSpace {
         (young_id.generation() == self.young.generation).then_some(())
     }
 
-    /// Return the edge map id for one managed location.
-    pub(crate) fn location_edge_id(&self, location: ManagedLocation) -> Option<EdgeId> {
-        // resolve the location-specific trace source
+    /// Return the shape id for one managed location.
+    pub(crate) fn location_shape_id(&self, location: ManagedLocation) -> Option<ShapeId> {
         match location {
-            ManagedLocation::Young(young_id) => Some(self.young_entry(young_id)?.edge_id),
+            ManagedLocation::Young(young_id) => Some(self.young_entry(young_id)?.shape_id),
             ManagedLocation::Small(slot) => {
                 let span = self.span(slot.span_index())?;
                 let slot_index = slot.slot_index();
 
-                span.edge_ids.get(slot_index).copied()
+                span.shape_ids.get(slot_index).copied().flatten()
             }
-            ManagedLocation::Large(entry_id) => Some(self.large_entry(entry_id)?.edge_id),
+            ManagedLocation::Large(entry_id) => Some(self.large_entry(entry_id)?.shape_id),
         }
     }
 
@@ -398,7 +432,7 @@ impl ManagedSpace {
                 continue;
             };
             let occupied = span.occupied.clone();
-            let edge_ids = span.edge_ids.clone();
+            let shape_ids = span.shape_ids.clone();
             let size_class = span.size_class;
 
             for slot_index in 0..span.slot_count {
@@ -406,20 +440,20 @@ impl ManagedSpace {
                     continue;
                 }
 
-                let Some(edge_id) = edge_ids.get(slot_index).copied() else {
+                let Some(shape_id) = shape_ids.get(slot_index).copied().flatten() else {
                     return Err(HeapError::MissingSmallSlot {
                         span_index,
                         slot_index,
                     });
                 };
-                let Some(edge_map) = self.edge_table.edge_map(edge_id) else {
+                let Some(shape) = self.shape_table.shape(shape_id) else {
                     return Err(HeapError::MissingSmallSlot {
                         span_index,
                         slot_index,
                     });
                 };
 
-                if !edge_map.has_managed_edges() {
+                if !shape.scan.has_reference() {
                     continue;
                 }
 
@@ -433,13 +467,13 @@ impl ManagedSpace {
             let Some(entry) = self.large_entry(entry_id) else {
                 continue;
             };
-            let Some(edge_map) = self.edge_table.edge_map(entry.edge_id) else {
+            let Some(shape) = self.shape_table.shape(entry.shape_id) else {
                 return Err(HeapError::MissingLargeEntry {
                     entry_id: entry_id.id(),
                 });
             };
 
-            if !edge_map.has_managed_edges() {
+            if !shape.scan.has_reference() {
                 continue;
             }
 
@@ -460,27 +494,27 @@ impl ManagedSpace {
         let Some(span) = self.span(span_index) else {
             return Err(HeapError::MissingSpan { span_index });
         };
-        let Some(edge_id) = span.edge_ids.get(slot_index).copied() else {
+        let Some(shape_id) = span.shape_ids.get(slot_index).copied().flatten() else {
             return Err(HeapError::MissingSmallSlot {
                 span_index,
                 slot_index,
             });
         };
-        let Some(edge_map) = self.edge_table.edge_map(edge_id) else {
+        let Some(shape) = self.shape_table.shape(shape_id) else {
             return Err(HeapError::MissingSmallSlot {
                 span_index,
                 slot_index,
             });
         };
 
-        let touches_managed_range = touches_managed_range(
-            edge_map,
+        let is_overlapping = overlaps_managed_range(
+            &shape.scan,
             byte_offset,
             byte_len,
             self.managed_reference_bytes,
         )?;
 
-        if !touches_managed_range {
+        if !is_overlapping {
             return Ok(());
         }
 
@@ -528,19 +562,19 @@ impl ManagedSpace {
                 entry_id: entry_id.id(),
             });
         };
-        let Some(edge_map) = self.edge_table.edge_map(entry.edge_id) else {
+        let Some(shape) = self.shape_table.shape(entry.shape_id) else {
             return Err(HeapError::MissingLargeEntry {
                 entry_id: entry_id.id(),
             });
         };
 
-        let touches_managed_range = touches_managed_range(
-            edge_map,
+        let is_overlapping = overlaps_managed_range(
+            &shape.scan,
             byte_offset,
             byte_len,
             self.managed_reference_bytes,
         )?;
-        if !touches_managed_range {
+        if !is_overlapping {
             return Ok(());
         }
 
@@ -562,10 +596,31 @@ impl ManagedSpace {
 
         Ok(())
     }
+
+    /// Return whether one local write range may overlap shared managed roots.
+    pub(crate) fn overlaps_shared_roots(
+        &self,
+        shape_id: ShapeId,
+        byte_offset: usize,
+        byte_len: usize,
+    ) -> HeapResult<bool> {
+        let Some(shape) = self.shape_table.shape(shape_id) else {
+            return Err(HeapError::InvalidShapeId {
+                index: shape_id.index(),
+            });
+        };
+
+        overlaps_shared_range(
+            &shape.scan,
+            byte_offset,
+            byte_len,
+            SharedManagedReference::BYTE_LEN,
+        )
+    }
 }
 
 impl Drop for ManagedSpace {
     fn drop(&mut self) {
-        let _ = self.try_flush_page_run_cache();
+        self.flush_page_run_cache();
     }
 }

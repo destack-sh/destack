@@ -3,12 +3,14 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use super::{
-    CardSet, EdgeId, EdgeMap, EdgeTable, GcState, LargeEntry, LargeEntryImage,
-    ManagedReferenceEntry, ManagedSpace, MarkSet, SmallSpan, SmallSpanImage, TraceQueue,
-    YoungImage, YoungSpace,
+    CardSet, GcState, LargeEntry, LargeEntryImage, ManagedReferenceEntry, ManagedSpace, SmallSpan,
+    SmallSpanImage, YoungImage, YoungSpace,
 };
 use crate::arena::{Arena, PageRunCache, PageView, SizeClassTable};
-use crate::{AllocationTotals, CowTable, HeapError, HeapOptions, HeapResult};
+use crate::{
+    AllocationUsage, CowTable, HeapError, HeapOptions, HeapResult, MarkSet, Shape, ShapeTable,
+    TraceQueue,
+};
 
 /// One frozen managed-space root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -29,8 +31,8 @@ pub(crate) struct ManagedSpaceImage {
 
     /// Dense managed reference metadata keyed by reference id minus one.
     references: Box<[ManagedReferenceEntry]>,
-    /// The captured edge maps.
-    edge_maps: Box<[EdgeMap]>,
+    /// The captured entry shapes.
+    shapes: Box<[Shape]>,
 
     /// The encoded byte width for managed references inside traced payloads.
     managed_reference_bytes: u8,
@@ -67,7 +69,7 @@ impl ManagedSpaceImage {
         page_bytes: usize,
         entries: Box<[LargeEntryImage]>,
         references: Box<[ManagedReferenceEntry]>,
-        edge_maps: Box<[EdgeMap]>,
+        shapes: Box<[Shape]>,
         managed_reference_bytes: u8,
         young_bytes: usize,
         max_young_allocation_bytes: usize,
@@ -87,7 +89,7 @@ impl ManagedSpaceImage {
             page_bytes,
             entries,
             references,
-            edge_maps,
+            shapes,
             managed_reference_bytes,
             young_bytes,
             max_young_allocation_bytes,
@@ -136,9 +138,9 @@ impl ManagedSpaceImage {
         &self.references
     }
 
-    /// Return the captured edge maps.
-    pub(crate) fn edge_maps(&self) -> &[EdgeMap] {
-        &self.edge_maps
+    /// Return the captured entry shapes.
+    pub(crate) fn shapes(&self) -> &[Shape] {
+        &self.shapes
     }
 
     /// Return the encoded byte width for managed references.
@@ -205,8 +207,9 @@ impl ManagedSpaceImage {
 
 impl ManagedSpace {
     /// Fork one managed space over the same shared arena.
-    pub(crate) fn fork(&self) -> Result<Self, HeapError> {
+    pub(crate) fn fork(&mut self) -> Result<Self, HeapError> {
         self.check_branch_boundary()?;
+        self.flush_branch_boundary();
         let page_views = live_page_views(self);
         let mut retained = Vec::new();
 
@@ -232,14 +235,14 @@ impl ManagedSpace {
                 max_young_allocation_bytes: self.max_young_allocation_bytes,
                 card_bytes: self.card_bytes,
                 table_chunk_len: self.table_chunk_len,
-                edge_table: self.edge_table.clone(),
+                shape_table: self.shape_table.clone(),
                 young: Self::fork_young_space(self),
                 small: Self::fork_small_space(self)?,
                 large: Self::fork_large_space(self)?,
                 references: self.references.clone(),
                 free_reference_ids: self.free_reference_ids.clone(),
                 next_unused_reference_id: self.next_unused_reference_id,
-                totals: self.totals,
+                usage: self.usage,
                 gc_state: self.gc_state.clone(),
                 marks: MarkSet::default(),
                 trace_queue: TraceQueue::default(),
@@ -247,6 +250,10 @@ impl ManagedSpace {
                 pins: Default::default(),
                 dirty_spans: Vec::new(),
                 dirty_large_entries: Vec::new(),
+                is_scanning_shared_roots: false,
+                shared_root_cursor: 0,
+                shared_root_queue: TraceQueue::default(),
+                shared_root_pending: Vec::new(),
             };
 
             // rebuild remembered-set state conservatively after fork
@@ -271,7 +278,8 @@ impl ManagedSpace {
         arena: Arc<Arena>,
         image: &ManagedSpaceImage,
     ) -> Result<Self, HeapError> {
-        HeapOptions::validate_managed_reference_bytes(image.managed_reference_bytes())?;
+        let managed_reference_bytes =
+            HeapOptions::validate_managed_reference_bytes(image.managed_reference_bytes())?;
         HeapOptions::validate_card_bytes(image.card_bytes())?;
         HeapOptions::validate_table_chunk_len(image.table_chunk_len())?;
 
@@ -285,11 +293,15 @@ impl ManagedSpace {
             });
         }
 
-        Self::restore_from_image(arena, image)
+        Self::restore_from_image(arena, image, managed_reference_bytes)
     }
 
     /// Restore one managed space from one checked frozen managed-space root.
-    fn restore_from_image(arena: Arc<Arena>, image: &ManagedSpaceImage) -> Result<Self, HeapError> {
+    fn restore_from_image(
+        arena: Arc<Arena>,
+        image: &ManagedSpaceImage,
+        managed_reference_bytes: usize,
+    ) -> Result<Self, HeapError> {
         let page_views = image_page_views(image).collect::<Vec<_>>();
         let mut retained = Vec::new();
 
@@ -310,7 +322,7 @@ impl ManagedSpace {
         let result = (|| {
             let references = Self::restore_reference_table(image)?;
             let free_reference_ids = Self::free_reference_ids(&references);
-            let edge_table = Self::restore_edge_table(image)?;
+            let shape_table = Self::restore_shape_table(image)?;
 
             // rebuild each live managed storage partition
             let young = Self::restore_young_space(image);
@@ -326,18 +338,18 @@ impl ManagedSpace {
             let mut space = Self {
                 arena: arena.clone(),
                 page_run_cache: PageRunCache::new(arena.pages_per_segment()),
-                managed_reference_bytes: image.managed_reference_bytes(),
+                managed_reference_bytes,
                 max_young_allocation_bytes,
                 card_bytes: image.card_bytes(),
                 table_chunk_len: image.table_chunk_len(),
-                edge_table,
+                shape_table,
                 young,
                 small,
                 large,
                 references,
                 free_reference_ids,
                 next_unused_reference_id: image.next_unused_reference_id(),
-                totals: AllocationTotals::new(image.allocated_count(), image.allocated_bytes()),
+                usage: AllocationUsage::new(image.allocated_count(), image.allocated_bytes()),
                 gc_state: image.gc_state().clone(),
                 marks: MarkSet::default(),
                 trace_queue: TraceQueue::default(),
@@ -345,6 +357,10 @@ impl ManagedSpace {
                 pins: Default::default(),
                 dirty_spans: Vec::new(),
                 dirty_large_entries: Vec::new(),
+                is_scanning_shared_roots: false,
+                shared_root_cursor: 0,
+                shared_root_queue: TraceQueue::default(),
+                shared_root_pending: Vec::new(),
             };
 
             // rebuild remembered-set state conservatively after restore
@@ -365,15 +381,16 @@ impl ManagedSpace {
     }
 
     /// Return one frozen managed-space root.
-    pub(crate) fn image(&self) -> Result<ManagedSpaceImage, HeapError> {
+    pub(crate) fn image(&mut self) -> Result<ManagedSpaceImage, HeapError> {
         self.check_branch_boundary()?;
+        self.flush_branch_boundary();
 
         // capture the live managed storage directly
         let young = self.capture_young_image();
         let spans = self.capture_span_images();
         let entries = self.capture_large_entry_images();
         let references = self.capture_reference_table();
-        let edge_maps = self.capture_edge_maps();
+        let shapes = self.capture_shapes();
 
         // freeze the current managed root
         Ok(ManagedSpaceImage::new(
@@ -384,16 +401,16 @@ impl ManagedSpace {
             self.large.page_bytes,
             entries,
             references,
-            edge_maps,
-            self.managed_reference_bytes,
+            shapes,
+            self.managed_reference_bytes as u8,
             self.young.capacity_bytes,
             self.max_young_allocation_bytes,
             self.card_bytes,
             self.table_chunk_len,
             self.next_unused_reference_id,
             self.large.next_unused_large_entry_id,
-            self.totals.allocation_count(),
-            self.totals.allocated_bytes(),
+            self.usage.allocation_count(),
+            self.usage.allocated_bytes(),
             self.gc_state.clone(),
         ))
     }
@@ -418,9 +435,9 @@ impl ManagedSpace {
         CowTable::from_vec_with_chunk_len(image.references().to_vec(), image.table_chunk_len())
     }
 
-    /// Rebuild the interned edge maps from one frozen image.
-    fn restore_edge_table(image: &ManagedSpaceImage) -> Result<EdgeTable, HeapError> {
-        EdgeTable::from_edge_maps(image.edge_maps().to_vec())
+    /// Rebuild the interned entry shapes from one frozen image.
+    fn restore_shape_table(image: &ManagedSpaceImage) -> Result<ShapeTable, HeapError> {
+        ShapeTable::from_shapes(image.shapes().to_vec())
     }
 
     /// Return the reusable managed reference ids from one frozen table.
@@ -533,13 +550,7 @@ impl ManagedSpace {
     /// Restore one managed span from one frozen span root.
     fn restore_span(span: &SmallSpanImage, card_bytes: usize) -> HeapResult<SmallSpan> {
         // rebuild the per-slot tracing table
-        let edge_ids = span
-            .edge_ids
-            .iter()
-            .copied()
-            .map(|edge_id| EdgeId::from_index(edge_id as usize))
-            .collect::<HeapResult<Vec<_>>>()?
-            .into_boxed_slice();
+        let shape_ids = span.shape_ids.clone();
 
         // rebuild the live span around the captured page view
         let dirty_card_bytes =
@@ -555,8 +566,7 @@ impl ManagedSpace {
             occupied_count: 0,
             next_free_slot: 0,
             occupied: span.occupied.clone(),
-            edge_ids,
-            layout_ids: span.layout_ids.clone(),
+            shape_ids,
             pages: span.pages,
             dirty_cards: CardSet::with_len(dirty_card_bytes, card_bytes),
             is_dirty_queued: false,
@@ -607,8 +617,7 @@ impl ManagedSpace {
             is_live: entry.is_live,
             len: entry.len,
             pages: entry.pages,
-            edge_id: entry.edge_id,
-            layout_id: entry.layout_id,
+            shape_id: entry.shape_id,
             dirty_cards: CardSet::with_len(entry.len, card_bytes),
             is_dirty_queued: false,
         }
@@ -641,9 +650,9 @@ impl ManagedSpace {
         self.references.to_boxed_slice()
     }
 
-    /// Capture the interned managed edge maps.
-    fn capture_edge_maps(&self) -> Box<[EdgeMap]> {
-        self.edge_table.edge_maps().into_boxed_slice()
+    /// Capture the interned managed entry shapes.
+    fn capture_shapes(&self) -> Box<[Shape]> {
+        self.shape_table.shapes().to_vec().into_boxed_slice()
     }
 
     /// Capture every live managed span image.
@@ -662,13 +671,12 @@ impl ManagedSpace {
             size_class: span.size_class,
             slot_count: span.slot_count,
             occupied: span.occupied.clone(),
-            edge_ids: span
-                .edge_ids
+            shape_ids: span
+                .shape_ids
                 .iter()
-                .map(|edge_id| edge_id.index() as u32)
+                .copied()
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
-            layout_ids: span.layout_ids.clone(),
             pages: span.pages,
         }
     }
@@ -689,8 +697,7 @@ impl ManagedSpace {
             is_live: entry.is_live,
             len: entry.len,
             pages: entry.pages,
-            edge_id: entry.edge_id,
-            layout_id: entry.layout_id,
+            shape_id: entry.shape_id,
         }
     }
 }

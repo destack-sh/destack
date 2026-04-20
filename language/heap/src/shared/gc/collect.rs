@@ -1,11 +1,13 @@
-use crate::core::{visit_edge_map_in_reader, visit_edge_map_in_reader_range};
 use crate::shared::gc::SharedGcPhase;
 use crate::shared::managed::{SharedManagedLocation, SharedManagedSpace};
-use crate::{GcKind, GcStats, HeapDomain, HeapError, HeapResult, SharedManagedReference, Value};
+use crate::{
+    GcKind, GcStats, HeapError, HeapResult, HeapSpace, SharedManagedReference,
+    visit_shared_references_in_reader, visit_shared_references_in_reader_range,
+};
 
 impl SharedManagedSpace {
-    /// Start one shared managed collection over explicit roots.
-    pub fn start_collection(
+    /// Start one shared managed mark phase over explicit roots.
+    pub(crate) fn start_mark(
         &mut self,
         roots: impl IntoIterator<Item = SharedManagedReference>,
     ) -> HeapResult<()> {
@@ -14,8 +16,7 @@ impl SharedManagedSpace {
         }
 
         // cycle state
-        self.marks.clear();
-        self.marks.resize(self.references.len(), false);
+        self.marks.start_cycle();
         self.trace_queue.clear();
         self.sweep_cursor = 0;
         self.cycle_freed_allocations = 0;
@@ -24,7 +25,7 @@ impl SharedManagedSpace {
 
         // explicit roots
         for reference in roots {
-            if !reference.is_null() {
+            if !reference.is_null() && !self.marks.contains(reference) {
                 self.trace_queue.push(reference);
             }
         }
@@ -32,48 +33,49 @@ impl SharedManagedSpace {
         Ok(())
     }
 
-    /// Perform bounded shared managed collector work.
-    pub fn collect_step(&mut self, work_budget: usize) -> HeapResult<Option<GcStats>> {
-        if work_budget == 0 {
-            return Ok(None);
-        }
-
-        match self.phase {
-            SharedGcPhase::Idle => Ok(None),
-            SharedGcPhase::Mark => self.mark_step(work_budget),
-            SharedGcPhase::Sweep => self.sweep_step(work_budget),
-        }
-    }
-
     /// Perform one full shared managed collection over explicit roots.
-    pub fn collect(
+    pub fn collect_full(
         &mut self,
         roots: impl IntoIterator<Item = SharedManagedReference>,
     ) -> HeapResult<GcStats> {
-        self.start_collection(roots)?;
+        self.start_mark(roots)?;
 
         // concurrent mark
-        while !self.is_mark_idle() {
-            self.collect_step(usize::MAX)?;
+        while !self.mark_idle() {
+            self.mark_step([], usize::MAX)?;
         }
 
-        // mark termination
-        self.finish_mark([])?;
+        self.start_sweep()?;
 
         // incremental sweep
         loop {
-            if let Some(stats) = self.collect_step(usize::MAX)? {
+            if let Some(stats) = self.sweep_step(usize::MAX)? {
                 return Ok(stats);
             }
         }
     }
 
     /// Perform bounded shared mark work.
-    fn mark_step(&mut self, work_budget: usize) -> HeapResult<Option<GcStats>> {
+    pub(crate) fn mark_step(
+        &mut self,
+        roots: impl IntoIterator<Item = SharedManagedReference>,
+        work_items: usize,
+    ) -> HeapResult<()> {
+        if self.phase != SharedGcPhase::Mark {
+            return Err(HeapError::SharedCollectionNotMarking);
+        }
+
+        // publish newly discovered roots before draining the queue
+        for reference in roots {
+            if !reference.is_null() && !self.marks.contains(reference) {
+                self.trace_queue.push(reference);
+            }
+        }
+
         let mut work_done = 0usize;
 
         // mark queue
-        while work_done < work_budget {
+        while work_done < work_items {
             let Some(reference) = self.trace_queue.pop() else {
                 break;
             };
@@ -82,33 +84,18 @@ impl SharedManagedSpace {
             work_done += 1;
         }
 
-        Ok(None)
+        Ok(())
     }
 
     /// Return whether concurrent mark is currently drained.
-    pub fn is_mark_idle(&self) -> bool {
+    pub(crate) fn mark_idle(&self) -> bool {
         self.phase == SharedGcPhase::Mark && self.trace_queue.is_empty()
     }
 
-    /// Finish shared marking after the final root handshake.
-    pub fn finish_mark(
-        &mut self,
-        roots: impl IntoIterator<Item = SharedManagedReference>,
-    ) -> HeapResult<()> {
+    /// Transition from concurrent mark into sweeping.
+    pub(crate) fn start_sweep(&mut self) -> HeapResult<()> {
         if self.phase != SharedGcPhase::Mark {
             return Err(HeapError::SharedCollectionNotMarking);
-        }
-
-        // final roots
-        for reference in roots {
-            if !reference.is_null() {
-                self.trace_queue.push(reference);
-            }
-        }
-
-        // final drain
-        while let Some(reference) = self.trace_queue.pop() {
-            self.trace_reference(reference)?;
         }
 
         self.phase = SharedGcPhase::Sweep;
@@ -118,11 +105,11 @@ impl SharedManagedSpace {
     }
 
     /// Perform bounded shared sweep work.
-    fn sweep_step(&mut self, work_budget: usize) -> HeapResult<Option<GcStats>> {
+    pub(crate) fn sweep_step(&mut self, work_items: usize) -> HeapResult<Option<GcStats>> {
         let mut work_done = 0usize;
 
         // reference table
-        while self.sweep_cursor < self.references.len() && work_done < work_budget {
+        while self.sweep_cursor < self.references.len() && work_done < work_items {
             let index = self.sweep_cursor;
             self.sweep_cursor += 1;
             work_done += 1;
@@ -130,10 +117,6 @@ impl SharedManagedSpace {
             let Some(record) = self.references.get(index).copied() else {
                 continue;
             };
-
-            if record.is_vacant() || self.marks.get(index).copied().unwrap_or(false) {
-                continue;
-            }
 
             let reference_id = index.checked_add(1).ok_or(HeapError::InvariantOverflow {
                 context: "shared managed reference id",
@@ -143,6 +126,12 @@ impl SharedManagedSpace {
                     id: reference_id as u64,
                 }
             })?;
+            let reference = SharedManagedReference::new(reference_id);
+
+            if record.is_vacant() || self.marks.contains(reference) {
+                continue;
+            }
+
             let released_bytes = self.free_reference(reference_id)?;
 
             self.cycle_freed_allocations = self.cycle_freed_allocations.checked_add(1).ok_or(
@@ -175,17 +164,16 @@ impl SharedManagedSpace {
         if record.is_vacant() {
             return Err(HeapError::InvalidSharedManagedReference { reference });
         }
-        if self.marks[index] {
+        if !self.marks.mark(reference) {
             return Ok(());
         }
 
-        self.marks[index] = true;
         let mut first_reader_error = None;
-        let edge_map = self.edge_map(reference)?.clone();
-        let mut trace_buffer = std::mem::take(&mut self.trace_buffer);
-        trace_buffer.clear();
-        let trace_result = visit_edge_map_in_reader(
-            &edge_map,
+        let scan = self.scan(reference)?.clone();
+        let mut edge_buffer = std::mem::take(&mut self.edge_buffer);
+        edge_buffer.clear();
+        let trace_result = visit_shared_references_in_reader(
+            &scan,
             SharedManagedReference::BYTE_LEN,
             |start, buffer| match self.read_bytes_into(reference, start, buffer) {
                 Ok(()) => true,
@@ -194,18 +182,16 @@ impl SharedManagedSpace {
                     false
                 }
             },
-            decode_shared_reference_window,
-            decode_shared_value_reference_window,
-            |reference| {
+            |reference: SharedManagedReference| {
                 if !reference.is_null() {
-                    trace_buffer.push(reference);
+                    edge_buffer.push(reference);
                 }
             },
         );
 
         if let Err(error) = trace_result {
-            trace_buffer.clear();
-            self.trace_buffer = trace_buffer;
+            edge_buffer.clear();
+            self.edge_buffer = edge_buffer;
 
             if let Some(error) = first_reader_error {
                 return Err(error);
@@ -215,9 +201,9 @@ impl SharedManagedSpace {
         }
 
         // queue newly discovered edges after the read pass
-        self.trace_queue.extend(trace_buffer.iter().copied());
-        trace_buffer.clear();
-        self.trace_buffer = trace_buffer;
+        self.trace_queue.extend(edge_buffer.iter().copied());
+        edge_buffer.clear();
+        self.edge_buffer = edge_buffer;
 
         Ok(())
     }
@@ -233,7 +219,8 @@ impl SharedManagedSpace {
         };
         let released_bytes = record.byte_len() as u64;
 
-        self.totals.check_free(released_bytes, HeapDomain::Shared)?;
+        self.usage
+            .check_free(released_bytes, HeapSpace::SharedManaged)?;
 
         // location release
         match location {
@@ -261,7 +248,7 @@ impl SharedManagedSpace {
         }
 
         // reference release
-        self.totals.free(released_bytes, HeapDomain::Shared)?;
+        self.usage.free(released_bytes, HeapSpace::SharedManaged)?;
         self.retire_reference(reference_id)?;
 
         Ok(released_bytes)
@@ -271,9 +258,9 @@ impl SharedManagedSpace {
     fn finish_collection(&mut self) -> HeapResult<GcStats> {
         let stats = GcStats {
             freed_allocations: self.cycle_freed_allocations,
-            live_allocations: self.totals.allocation_count(),
+            live_allocations: self.usage.allocation_count(),
             freed_bytes: self.cycle_freed_bytes,
-            allocated_bytes: self.totals.allocated_bytes(),
+            allocated_bytes: self.usage.allocated_bytes(),
             active_bytes: self.active_bytes(),
         };
 
@@ -298,12 +285,12 @@ impl SharedManagedSpace {
             return Ok(());
         }
 
-        let edge_map = self.edge_map(reference)?.clone();
+        let scan = self.scan(reference)?.clone();
         let mut first_reader_error = None;
-        let mut trace_buffer = std::mem::take(&mut self.trace_buffer);
-        trace_buffer.clear();
-        let trace_result = visit_edge_map_in_reader_range(
-            &edge_map,
+        let mut edge_buffer = std::mem::take(&mut self.edge_buffer);
+        edge_buffer.clear();
+        let trace_result = visit_shared_references_in_reader_range(
+            &scan,
             byte_offset,
             byte_len,
             SharedManagedReference::BYTE_LEN,
@@ -314,18 +301,16 @@ impl SharedManagedSpace {
                     false
                 }
             },
-            decode_shared_reference_window,
-            decode_shared_value_reference_window,
-            |reference| {
+            |reference: SharedManagedReference| {
                 if !reference.is_null() {
-                    trace_buffer.push(reference);
+                    edge_buffer.push(reference);
                 }
             },
         );
 
         if let Err(error) = trace_result {
-            trace_buffer.clear();
-            self.trace_buffer = trace_buffer;
+            edge_buffer.clear();
+            self.edge_buffer = edge_buffer;
 
             if let Some(error) = first_reader_error {
                 return Err(error);
@@ -335,30 +320,10 @@ impl SharedManagedSpace {
         }
 
         // queue any edges published by the completed write
-        self.trace_queue.extend(trace_buffer.iter().copied());
-        trace_buffer.clear();
-        self.trace_buffer = trace_buffer;
+        self.trace_queue.extend(edge_buffer.iter().copied());
+        edge_buffer.clear();
+        self.edge_buffer = edge_buffer;
 
         Ok(())
     }
-}
-
-/// Decode one direct shared managed reference from one traced window.
-fn decode_shared_reference_window(window: &[u8]) -> HeapResult<SharedManagedReference> {
-    let mut raw = [0u8; SharedManagedReference::BYTE_LEN];
-    raw.copy_from_slice(window);
-    let bits = u64::from_le_bytes(raw);
-
-    Ok(SharedManagedReference::from_bits(bits))
-}
-
-/// Decode one shared managed reference stored inside one full value window.
-fn decode_shared_value_reference_window(
-    window: &[u8],
-    start: usize,
-) -> HeapResult<Option<SharedManagedReference>> {
-    let value =
-        Value::from_byte_slice(window).ok_or(HeapError::InvalidReferenceValuePayload { start })?;
-
-    Ok(value.as_shared_managed_reference())
 }

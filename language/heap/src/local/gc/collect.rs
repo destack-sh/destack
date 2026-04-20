@@ -1,14 +1,19 @@
-use super::{
-    MarkSet, Promotion, TraceQueue, trace_managed_references_in_reader,
-    trace_managed_references_in_reader_range,
-};
-use crate::core::sum_bytes;
+use super::Promotion;
 use crate::local::managed::{
-    EdgeId, GcKind, GcStats, LargeEntryId, ManagedLocation, ManagedSpace, ManagedYoungId,
+    GcKind, GcStats, LargeEntryId, ManagedLocation, ManagedSpace, ManagedYoungId,
     checked_reference_id,
 };
-use crate::value::ManagedReference;
-use crate::{HeapError, HeapResult, ManagedTraceSource};
+use crate::{
+    HeapError, HeapResult, ManagedReference, MarkSet, ScanSource, ShapeId, SharedManagedReference,
+    TraceQueue, sum_bytes, visit_managed_references_in_reader,
+    visit_managed_references_in_reader_range, visit_shared_references_in_reader,
+};
+
+/// Collector marks for local managed references.
+type ManagedMarkSet = MarkSet<ManagedReference>;
+
+/// Collector queue for local managed references.
+type ManagedTraceQueue = TraceQueue<ManagedReference>;
 
 impl ManagedSpace {
     /// Return the currently live managed references.
@@ -28,8 +33,208 @@ impl ManagedSpace {
         Ok(references)
     }
 
+    /// Start one incremental local-to-shared root scan.
+    pub(crate) fn start_shared_root_scan(&mut self) {
+        self.is_scanning_shared_roots = true;
+        self.shared_root_cursor = 0;
+        self.shared_root_queue.clear();
+        self.shared_root_pending.clear();
+    }
+
+    /// Return whether the current local-to-shared scan is fully drained.
+    pub(crate) fn shared_root_scan_idle(&self) -> bool {
+        !self.is_scanning_shared_roots
+            || (self.shared_root_cursor >= self.references.len()
+                && self.shared_root_queue.is_empty())
+    }
+
+    /// Finish the current local-to-shared root scan.
+    pub(crate) fn finish_shared_root_scan(&mut self) {
+        self.is_scanning_shared_roots = false;
+        self.shared_root_cursor = 0;
+        self.shared_root_queue.clear();
+        self.shared_root_pending.clear();
+    }
+
+    /// Scan bounded local-to-shared root work into the provided root buffer.
+    pub(crate) fn scan_shared_root_step(
+        &mut self,
+        roots: &mut Vec<SharedManagedReference>,
+        work_items: usize,
+    ) -> HeapResult<usize> {
+        if !self.is_scanning_shared_roots || work_items == 0 {
+            return Ok(0);
+        }
+
+        let mut work_done = 0usize;
+
+        // drain queued rescans first
+        while work_done < work_items {
+            let Some(reference) = self.shared_root_queue.pop() else {
+                break;
+            };
+
+            self.clear_shared_root_pending(reference)?;
+            self.trace_shared_roots(reference, roots)?;
+            work_done += 1;
+        }
+
+        // then continue the full-table walk
+        while work_done < work_items {
+            let Some(reference) = self.next_shared_root_reference()? else {
+                break;
+            };
+
+            self.trace_shared_roots(reference, roots)?;
+            work_done += 1;
+        }
+
+        Ok(work_done)
+    }
+
+    /// Queue one local reference for one later shared-root rescan.
+    pub(crate) fn queue_shared_reference(&mut self, reference: ManagedReference) -> HeapResult<()> {
+        if !self.is_scanning_shared_roots || !self.reference_has_shared_roots(reference)? {
+            return Ok(());
+        }
+
+        let index = Self::reference_index(reference.id())?;
+        if self.shared_root_pending.len() <= index {
+            self.shared_root_pending.resize(index + 1, false);
+        }
+
+        if self.shared_root_pending[index] {
+            return Ok(());
+        }
+
+        self.shared_root_pending[index] = true;
+        self.shared_root_queue.push(reference);
+
+        Ok(())
+    }
+
+    /// Return the next live local reference that may contain shared roots.
+    fn next_shared_root_reference(&mut self) -> HeapResult<Option<ManagedReference>> {
+        while self.shared_root_cursor < self.references.len() {
+            let index = self.shared_root_cursor;
+            self.shared_root_cursor += 1;
+
+            let Some(record) = self.references.get(index).copied() else {
+                continue;
+            };
+            if record.is_vacant() {
+                continue;
+            }
+
+            let reference_id = checked_reference_id(index as u64 + 1)?;
+            let reference = ManagedReference::new(reference_id);
+
+            if !self.reference_has_shared_roots(reference)? {
+                continue;
+            }
+
+            return Ok(Some(reference));
+        }
+
+        Ok(None)
+    }
+
+    /// Return whether one live local reference may contain shared managed roots.
+    fn reference_has_shared_roots(&self, reference: ManagedReference) -> HeapResult<bool> {
+        let Some(record) = self.reference(reference).copied() else {
+            return Ok(false);
+        };
+        let Some(location) = record.location() else {
+            return Ok(false);
+        };
+        let Some(shape_id) = self.location_shape_id(location) else {
+            return Ok(false);
+        };
+        let Some(shape) = self.shape_table.shape(shape_id) else {
+            return Err(HeapError::InvalidShapeId {
+                index: shape_id.index(),
+            });
+        };
+
+        Ok(shape.scan.has_shared_reference())
+    }
+
+    /// Clear the queued bit for one local shared-root rescan.
+    fn clear_shared_root_pending(&mut self, reference: ManagedReference) -> HeapResult<()> {
+        let index = Self::reference_index(reference.id())?;
+
+        if let Some(is_pending) = self.shared_root_pending.get_mut(index) {
+            *is_pending = false;
+        }
+
+        Ok(())
+    }
+
+    /// Trace shared managed roots from one local managed reference.
+    fn trace_shared_roots(
+        &mut self,
+        reference: ManagedReference,
+        roots: &mut Vec<SharedManagedReference>,
+    ) -> HeapResult<()> {
+        let Some(record) = self.reference(reference).copied() else {
+            return Ok(());
+        };
+        let Some(location) = record.location() else {
+            return Ok(());
+        };
+        let Some(shape_id) = self.location_shape_id(location) else {
+            return Ok(());
+        };
+        let Some(shape) = self.shape_table.shape(shape_id) else {
+            return Err(HeapError::ManagedScanFailed {
+                source: ScanSource::Reference(reference),
+                error: Box::new(HeapError::InvalidShapeId {
+                    index: shape_id.index(),
+                }),
+            });
+        };
+
+        if !shape.scan.has_shared_reference() {
+            return Ok(());
+        }
+
+        let mut first_reader_error = None;
+        let result = visit_shared_references_in_reader(
+            &shape.scan,
+            SharedManagedReference::BYTE_LEN,
+            |start, buffer| match self.fill_location_bytes(location, start, buffer) {
+                Ok(()) => true,
+                Err(error) => {
+                    first_reader_error.get_or_insert(error);
+                    false
+                }
+            },
+            |reference: SharedManagedReference| {
+                if !reference.is_null() {
+                    roots.push(reference);
+                }
+            },
+        );
+
+        if let Err(error) = result {
+            if let Some(error) = first_reader_error {
+                return Err(HeapError::ManagedScanFailed {
+                    source: ScanSource::Reference(reference),
+                    error: Box::new(error),
+                });
+            }
+
+            return Err(HeapError::ManagedScanFailed {
+                source: ScanSource::Reference(reference),
+                error: Box::new(error),
+            });
+        }
+
+        Ok(())
+    }
+
     /// Perform one young-generation collection over explicit managed roots.
-    pub fn collect_young(
+    pub fn collect_minor(
         &mut self,
         roots: impl IntoIterator<Item = ManagedReference>,
     ) -> HeapResult<GcStats> {
@@ -75,12 +280,12 @@ impl ManagedSpace {
     }
 
     /// Perform one full managed collection over explicit managed roots.
-    pub fn collect(
+    pub fn collect_full(
         &mut self,
         roots: impl IntoIterator<Item = ManagedReference>,
     ) -> HeapResult<GcStats> {
         let roots = roots.into_iter().collect::<Vec<_>>();
-        let _minor = self.collect_young(roots.iter().copied())?;
+        let _minor = self.collect_minor(roots.iter().copied())?;
         if self.is_collecting {
             return Err(HeapError::ManagedCollectionActive);
         }
@@ -135,7 +340,7 @@ impl ManagedSpace {
 
         // resolve the shared source range once before relocating the entry
         let young_offset = self.young_entry_offset(&entry);
-        let layout_id = entry.layout_id;
+        let shape_id = entry.shape_id;
         let young_pages = self.young.pages;
 
         // prefer one mature small slot when the payload fits one size class
@@ -150,8 +355,7 @@ impl ManagedSpace {
                     &young_pages,
                     young_offset,
                     entry.byte_len,
-                    entry.edge_id,
-                    layout_id,
+                    shape_id,
                     false,
                 )
                 .map_err(|error| HeapError::ManagedPromotionFailed {
@@ -200,7 +404,7 @@ impl ManagedSpace {
             }
 
             let entry_id = self
-                .store_large_entry(entry.byte_len, pages, entry.edge_id, layout_id, false)
+                .store_large_entry(entry.byte_len, pages, shape_id, false)
                 .map_err(|error| HeapError::ManagedPromotionFailed {
                     reference,
                     error: Box::new(error),
@@ -287,7 +491,7 @@ impl ManagedSpace {
     /// Promote or free every young reference seen during one minor collection.
     fn promote_or_free_young_references(
         &mut self,
-        marks: &MarkSet,
+        marks: &ManagedMarkSet,
         promotions: &mut Vec<Promotion>,
     ) -> Result<(usize, u64), HeapError> {
         let mut freed_allocations = 0usize;
@@ -356,7 +560,7 @@ impl ManagedSpace {
     /// Free every unreachable managed reference during one full collection.
     fn free_unreachable_references(
         &mut self,
-        reachable: &MarkSet,
+        reachable: &ManagedMarkSet,
     ) -> Result<(usize, u64), HeapError> {
         let mut freed_allocations = 0usize;
         let mut freed_bytes = 0u64;
@@ -410,8 +614,8 @@ impl ManagedSpace {
     fn mark_reachable_young_references(
         &mut self,
         roots: impl IntoIterator<Item = ManagedReference>,
-        marks: &mut MarkSet,
-        pending: &mut TraceQueue,
+        marks: &mut ManagedMarkSet,
+        pending: &mut ManagedTraceQueue,
     ) -> HeapResult<()> {
         // seed the work queue from explicit young roots
         for reference in roots {
@@ -434,17 +638,16 @@ impl ManagedSpace {
             let location = record
                 .location()
                 .ok_or(HeapError::InvalidManagedReference { reference })?;
-
             if !matches!(location, ManagedLocation::Young(_)) {
                 continue;
             }
 
-            let edge_id = self.trace_edge_id(reference, location)?;
-            let Some(edge_map) = self.edge_table.edge_map(edge_id) else {
-                return Err(HeapError::ManagedTraceFailed {
-                    source: ManagedTraceSource::Reference(reference),
-                    error: Box::new(HeapError::InvalidEdgeId {
-                        index: edge_id.index(),
+            let shape_id = self.shape_id(reference, location)?;
+            let Some(shape) = self.shape_table.shape(shape_id) else {
+                return Err(HeapError::ManagedScanFailed {
+                    source: ScanSource::Reference(reference),
+                    error: Box::new(HeapError::InvalidShapeId {
+                        index: shape_id.index(),
                     }),
                 });
             };
@@ -453,8 +656,8 @@ impl ManagedSpace {
             let mut first_edge_error = None;
 
             // enqueue every non-null young edge discovered in this payload
-            let trace_result = trace_managed_references_in_reader(
-                edge_map,
+            let trace_result = visit_managed_references_in_reader(
+                &shape.scan,
                 self.managed_reference_bytes,
                 |start, buffer| match self.read_bytes_into(reference, start, buffer) {
                     Ok(()) => true,
@@ -463,7 +666,7 @@ impl ManagedSpace {
                         false
                     }
                 },
-                |reference| {
+                |reference: ManagedReference| {
                     if first_edge_error.is_some() {
                         return;
                     }
@@ -476,14 +679,14 @@ impl ManagedSpace {
 
             if let Err(error) = trace_result {
                 if let Some(error) = first_reader_error {
-                    return Err(HeapError::ManagedTraceFailed {
-                        source: ManagedTraceSource::Reference(reference),
+                    return Err(HeapError::ManagedScanFailed {
+                        source: ScanSource::Reference(reference),
                         error: Box::new(error),
                     });
                 }
 
-                return Err(HeapError::ManagedTraceFailed {
-                    source: ManagedTraceSource::Reference(reference),
+                return Err(HeapError::ManagedScanFailed {
+                    source: ScanSource::Reference(reference),
                     error: Box::new(error),
                 });
             }
@@ -500,13 +703,11 @@ impl ManagedSpace {
     fn mark_reachable_references(
         &self,
         roots: impl IntoIterator<Item = ManagedReference>,
-        marks: &mut MarkSet,
-        pending: &mut TraceQueue,
+        marks: &mut ManagedMarkSet,
+        pending: &mut ManagedTraceQueue,
     ) -> HeapResult<()> {
         // seed the work queue from the explicit roots
-        for reference in roots {
-            pending.push(reference);
-        }
+        pending.extend(roots);
 
         // drain the explicit root queue and trace each reachable payload once
         while let Some(reference) = pending.pop() {
@@ -522,12 +723,12 @@ impl ManagedSpace {
                 .location()
                 .ok_or(HeapError::InvalidManagedReference { reference })?;
 
-            let edge_id = self.trace_edge_id(reference, location)?;
-            let Some(edge_map) = self.edge_table.edge_map(edge_id) else {
-                return Err(HeapError::ManagedTraceFailed {
-                    source: ManagedTraceSource::Reference(reference),
-                    error: Box::new(HeapError::InvalidEdgeId {
-                        index: edge_id.index(),
+            let shape_id = self.shape_id(reference, location)?;
+            let Some(shape) = self.shape_table.shape(shape_id) else {
+                return Err(HeapError::ManagedScanFailed {
+                    source: ScanSource::Reference(reference),
+                    error: Box::new(HeapError::InvalidShapeId {
+                        index: shape_id.index(),
                     }),
                 });
             };
@@ -536,8 +737,8 @@ impl ManagedSpace {
             let mut first_edge_error = None;
 
             // enqueue every non-null edge discovered in this payload
-            let trace_result = trace_managed_references_in_reader(
-                edge_map,
+            let trace_result = visit_managed_references_in_reader(
+                &shape.scan,
                 self.managed_reference_bytes,
                 |start, buffer| match self.read_bytes_into(reference, start, buffer) {
                     Ok(()) => true,
@@ -546,7 +747,7 @@ impl ManagedSpace {
                         false
                     }
                 },
-                |reference| {
+                |reference: ManagedReference| {
                     if first_edge_error.is_some() {
                         return;
                     }
@@ -562,14 +763,14 @@ impl ManagedSpace {
 
             if let Err(error) = trace_result {
                 if let Some(error) = first_reader_error {
-                    return Err(HeapError::ManagedTraceFailed {
-                        source: ManagedTraceSource::Reference(reference),
+                    return Err(HeapError::ManagedScanFailed {
+                        source: ScanSource::Reference(reference),
                         error: Box::new(error),
                     });
                 }
 
-                return Err(HeapError::ManagedTraceFailed {
-                    source: ManagedTraceSource::Reference(reference),
+                return Err(HeapError::ManagedScanFailed {
+                    source: ScanSource::Reference(reference),
                     error: Box::new(error),
                 });
             }
@@ -586,7 +787,7 @@ impl ManagedSpace {
     fn enqueue_young_reference(
         &self,
         reference: ManagedReference,
-        pending: &mut TraceQueue,
+        pending: &mut ManagedTraceQueue,
     ) -> HeapResult<()> {
         if reference.is_null() {
             return Ok(());
@@ -606,13 +807,13 @@ impl ManagedSpace {
         Ok(())
     }
 
-    /// Return the edge map id for one traceable managed location.
-    fn trace_edge_id(
+    /// Return the shape id for one traceable managed location.
+    fn shape_id(
         &self,
         reference: ManagedReference,
         location: ManagedLocation,
-    ) -> HeapResult<EdgeId> {
-        let Some(edge_id) = self.location_edge_id(location) else {
+    ) -> HeapResult<ShapeId> {
+        let Some(shape_id) = self.location_shape_id(location) else {
             let error = match location {
                 ManagedLocation::Young(young_id) => HeapError::MissingYoungEntry {
                     generation: young_id.generation(),
@@ -627,17 +828,20 @@ impl ManagedSpace {
                 },
             };
 
-            return Err(HeapError::ManagedTraceFailed {
-                source: ManagedTraceSource::Reference(reference),
+            return Err(HeapError::ManagedScanFailed {
+                source: ScanSource::Reference(reference),
                 error: Box::new(error),
             });
         };
 
-        Ok(edge_id)
+        Ok(shape_id)
     }
 
     /// Queue every young reference discovered from remembered mature writes.
-    fn enqueue_dirty_young_references(&mut self, pending: &mut TraceQueue) -> HeapResult<()> {
+    fn enqueue_dirty_young_references(
+        &mut self,
+        pending: &mut ManagedTraceQueue,
+    ) -> HeapResult<()> {
         let dirty_spans = self.dirty_spans.clone();
         let dirty_large_entries = self.dirty_large_entries.clone();
 
@@ -661,16 +865,16 @@ impl ManagedSpace {
     fn enqueue_dirty_span_references(
         &mut self,
         span_index: usize,
-        pending: &mut TraceQueue,
+        pending: &mut ManagedTraceQueue,
     ) -> HeapResult<()> {
         let Some(span) = self.span(span_index) else {
-            return Err(HeapError::ManagedTraceFailed {
-                source: ManagedTraceSource::Span(span_index),
+            return Err(HeapError::ManagedScanFailed {
+                source: ScanSource::Span(span_index),
                 error: Box::new(HeapError::MissingSpan { span_index }),
             });
         };
         let occupied = span.occupied.clone();
-        let edge_ids = span.edge_ids.clone();
+        let shape_ids = span.shape_ids.clone();
         let slot_count = span.slot_count;
         let size_class = span.size_class;
         let pages = span.pages;
@@ -700,9 +904,9 @@ impl ManagedSpace {
                     continue;
                 }
 
-                let Some(edge_id) = edge_ids.get(slot_index).copied() else {
-                    first_error = Some(HeapError::ManagedTraceFailed {
-                        source: ManagedTraceSource::Span(span_index),
+                let Some(shape_id) = shape_ids.get(slot_index).copied().flatten() else {
+                    first_error = Some(HeapError::ManagedScanFailed {
+                        source: ScanSource::Span(span_index),
                         error: Box::new(HeapError::MissingSmallSlot {
                             span_index,
                             slot_index,
@@ -710,11 +914,11 @@ impl ManagedSpace {
                     });
                     return;
                 };
-                let Some(edge_map) = self.edge_table.edge_map(edge_id) else {
-                    first_error = Some(HeapError::ManagedTraceFailed {
-                        source: ManagedTraceSource::Span(span_index),
-                        error: Box::new(HeapError::InvalidEdgeId {
-                            index: edge_id.index(),
+                let Some(shape) = self.shape_table.shape(shape_id) else {
+                    first_error = Some(HeapError::ManagedScanFailed {
+                        source: ScanSource::Span(span_index),
+                        error: Box::new(HeapError::InvalidShapeId {
+                            index: shape_id.index(),
                         }),
                     });
                     return;
@@ -723,8 +927,8 @@ impl ManagedSpace {
                 let local_start = overlap_start.saturating_sub(slot_start);
                 let local_len = overlap_end.saturating_sub(overlap_start);
                 let mut first_reader_error = None;
-                let result = trace_managed_references_in_reader_range(
-                    edge_map,
+                let result = visit_managed_references_in_reader_range(
+                    &shape.scan,
                     local_start,
                     local_len,
                     self.managed_reference_bytes,
@@ -752,15 +956,15 @@ impl ManagedSpace {
 
                 if let Err(error) = result {
                     if let Some(error) = first_reader_error {
-                        first_error = Some(HeapError::ManagedTraceFailed {
-                            source: ManagedTraceSource::Span(span_index),
+                        first_error = Some(HeapError::ManagedScanFailed {
+                            source: ScanSource::Span(span_index),
                             error: Box::new(error),
                         });
                         return;
                     }
 
-                    first_error = Some(HeapError::ManagedTraceFailed {
-                        source: ManagedTraceSource::Span(span_index),
+                    first_error = Some(HeapError::ManagedScanFailed {
+                        source: ScanSource::Span(span_index),
                         error: Box::new(error),
                     });
                     return;
@@ -785,25 +989,25 @@ impl ManagedSpace {
     fn enqueue_dirty_large_entry_references(
         &mut self,
         entry_id: LargeEntryId,
-        pending: &mut TraceQueue,
+        pending: &mut ManagedTraceQueue,
     ) -> HeapResult<()> {
         let Some(entry) = self.large_entry(entry_id) else {
-            return Err(HeapError::ManagedTraceFailed {
-                source: ManagedTraceSource::LargeEntry(entry_id.id()),
+            return Err(HeapError::ManagedScanFailed {
+                source: ScanSource::LargeEntry(entry_id.id()),
                 error: Box::new(HeapError::MissingLargeEntry {
                     entry_id: entry_id.id(),
                 }),
             });
         };
-        let edge_id = entry.edge_id;
+        let shape_id = entry.shape_id;
         let pages = entry.pages;
         let dirty_cards = entry.dirty_cards.clone();
 
-        let Some(edge_map) = self.edge_table.edge_map(edge_id) else {
-            return Err(HeapError::ManagedTraceFailed {
-                source: ManagedTraceSource::LargeEntry(entry_id.id()),
-                error: Box::new(HeapError::InvalidEdgeId {
-                    index: edge_id.index(),
+        let Some(shape) = self.shape_table.shape(shape_id) else {
+            return Err(HeapError::ManagedScanFailed {
+                source: ScanSource::LargeEntry(entry_id.id()),
+                error: Box::new(HeapError::InvalidShapeId {
+                    index: shape_id.index(),
                 }),
             });
         };
@@ -817,8 +1021,8 @@ impl ManagedSpace {
             }
 
             let mut first_reader_error = None;
-            let result = trace_managed_references_in_reader_range(
-                edge_map,
+            let result = visit_managed_references_in_reader_range(
+                &shape.scan,
                 card_start,
                 card_len,
                 self.managed_reference_bytes,
@@ -842,15 +1046,15 @@ impl ManagedSpace {
 
             if let Err(error) = result {
                 if let Some(error) = first_reader_error {
-                    first_error = Some(HeapError::ManagedTraceFailed {
-                        source: ManagedTraceSource::LargeEntry(entry_id.id()),
+                    first_error = Some(HeapError::ManagedScanFailed {
+                        source: ScanSource::LargeEntry(entry_id.id()),
                         error: Box::new(error),
                     });
                     return;
                 }
 
-                first_error = Some(HeapError::ManagedTraceFailed {
-                    source: ManagedTraceSource::LargeEntry(entry_id.id()),
+                first_error = Some(HeapError::ManagedScanFailed {
+                    source: ScanSource::LargeEntry(entry_id.id()),
                     error: Box::new(error),
                 });
             }
@@ -873,9 +1077,9 @@ impl ManagedSpace {
     fn stats_after_collection(&self, freed_allocations: usize, freed_bytes: u64) -> GcStats {
         GcStats {
             freed_allocations,
-            live_allocations: self.totals.allocation_count(),
+            live_allocations: self.usage.allocation_count(),
             freed_bytes,
-            allocated_bytes: self.totals.allocated_bytes(),
+            allocated_bytes: self.usage.allocated_bytes(),
             active_bytes: self.active_bytes(),
         }
     }

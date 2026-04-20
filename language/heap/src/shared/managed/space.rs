@@ -7,15 +7,50 @@ use super::{
 use crate::arena::{Arena, PageView, SizeClassTable, SpanSlot};
 use crate::shared::gc::SharedGcPhase;
 use crate::{
-    AllocationTotals, EdgeMap, GcState, HeapDomain, HeapError, HeapOptions, HeapResult, LayoutId,
-    SharedManagedReference, SharedManagedSpaceUsage,
+    AllocationUsage, GcState, HeapError, HeapOptions, HeapResult, HeapScan, HeapSpace, LayoutId,
+    MarkSet, Shape, ShapeId, ShapeTable, SharedManagedReference, SharedManagedSpaceUsage,
+    TraceQueue,
 };
+
+/// Collector marks for shared managed references.
+type SharedMarkSet = MarkSet<SharedManagedReference>;
+
+/// Collector queue for shared managed references.
+type SharedTraceQueue = TraceQueue<SharedManagedReference>;
 
 /// The first allocated shared managed reference id.
 const FIRST_SHARED_MANAGED_REFERENCE_ID: u64 = 1;
 
 /// The first allocated shared managed large-entry id.
 const FIRST_SHARED_MANAGED_LARGE_ENTRY_ID: u64 = 1;
+
+/// One exact shared managed allocation path.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum SharedManagedAllocationPath {
+    /// One small-space allocation.
+    Small {
+        /// The resolved size-class index.
+        class_index: usize,
+        /// The resolved slot width.
+        size_class: usize,
+        /// The mapped-byte delta for this path.
+        mapped_delta: i64,
+    },
+    /// One large-space allocation.
+    Large {
+        /// The mapped-byte delta for this path.
+        mapped_delta: i64,
+    },
+}
+
+impl SharedManagedAllocationPath {
+    /// Return the mapped-byte delta for this allocation path.
+    pub(crate) fn mapped_delta(self) -> i64 {
+        match self {
+            Self::Small { mapped_delta, .. } | Self::Large { mapped_delta } => mapped_delta,
+        }
+    }
+}
 
 /// One shared managed small space.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,23 +98,25 @@ pub struct SharedManagedSpace {
     /// The shared managed large space.
     pub(crate) large: SharedLargeSpace,
 
+    /// The interned shared managed entry shapes.
+    pub(crate) shape_table: ShapeTable,
     /// Stable shared managed reference metadata keyed by reference id minus one.
     pub(crate) references: Vec<SharedManagedReferenceEntry>,
     /// Free shared managed reference ids available for reuse.
     pub(crate) free_reference_ids: Vec<u64>,
     /// The next shared managed reference id to allocate.
     pub(crate) next_unused_reference_id: u64,
+    /// The exact live shared managed-space usage.
+    pub(crate) usage: AllocationUsage,
 
-    /// The exact live shared managed-space totals.
-    pub(crate) totals: AllocationTotals,
     /// The live shared managed collector state.
     pub(crate) gc_state: GcState,
-    /// Reused mark bits for shared collection.
-    pub(crate) marks: Vec<bool>,
+    /// The reusable collector mark set.
+    pub(crate) marks: SharedMarkSet,
     /// Reused collector trace queue for shared tracing.
-    pub(crate) trace_queue: Vec<SharedManagedReference>,
+    pub(crate) trace_queue: SharedTraceQueue,
     /// Reused edge scratch buffer for shared tracing.
-    pub(crate) trace_buffer: Vec<SharedManagedReference>,
+    pub(crate) edge_buffer: Vec<SharedManagedReference>,
     /// The current shared collection phase.
     pub(crate) phase: SharedGcPhase,
     /// The next reference index to sweep.
@@ -99,13 +136,16 @@ impl Default for SharedManagedSpace {
 impl SharedManagedSpace {
     /// Create a new empty shared managed-space store.
     pub fn new() -> Self {
-        Self::with_arena(Arc::new(Arena::new()))
+        Self::with_options(Arc::new(Arena::new()), &HeapOptions::shared())
     }
 
     /// Create a new empty shared managed-space store over one shared arena.
     pub fn with_arena(arena: Arc<Arena>) -> Self {
-        let options = HeapOptions::default();
+        Self::with_options(arena, &HeapOptions::shared())
+    }
 
+    /// Create a new empty shared managed-space store over one shared arena and options.
+    pub fn with_options(arena: Arc<Arena>, options: &HeapOptions) -> Self {
         Self {
             arena: arena.clone(),
             small: SharedSmallSpace {
@@ -121,13 +161,14 @@ impl SharedManagedSpace {
                 next_unused_large_entry_id: FIRST_SHARED_MANAGED_LARGE_ENTRY_ID,
             },
             references: Vec::new(),
+            shape_table: ShapeTable::new(),
             free_reference_ids: Vec::new(),
             next_unused_reference_id: FIRST_SHARED_MANAGED_REFERENCE_ID,
-            totals: AllocationTotals::default(),
+            usage: AllocationUsage::default(),
             gc_state: GcState::default(),
-            marks: Vec::new(),
-            trace_queue: Vec::new(),
-            trace_buffer: Vec::new(),
+            marks: MarkSet::default(),
+            trace_queue: TraceQueue::default(),
+            edge_buffer: Vec::new(),
             phase: SharedGcPhase::Idle,
             sweep_cursor: 0,
             cycle_freed_allocations: 0,
@@ -170,12 +211,22 @@ impl SharedManagedSpace {
     /// Return the exact usage for this live shared managed-space store.
     pub fn usage(&self) -> HeapResult<SharedManagedSpaceUsage> {
         Ok(SharedManagedSpaceUsage {
-            allocation_count: self.totals.allocation_count(),
-            allocated_bytes: self.totals.allocated_bytes(),
+            allocation_count: self.usage.allocation_count(),
+            allocated_bytes: self.usage.allocated_bytes(),
             active_bytes: self.active_bytes(),
             mapped_bytes: self.mapped_bytes(),
             borrowed_bytes: self.borrowed_bytes()?,
         })
+    }
+
+    /// Return the number of live shared managed allocations.
+    pub fn allocation_count(&self) -> usize {
+        self.usage.allocation_count()
+    }
+
+    /// Return the number of live shared managed bytes.
+    pub fn allocated_bytes(&self) -> u64 {
+        self.usage.allocated_bytes()
     }
 
     /// Return the current shared managed collector state.
@@ -184,7 +235,7 @@ impl SharedManagedSpace {
     }
 
     /// Return the current shared managed collector phase.
-    pub fn phase(&self) -> SharedGcPhase {
+    pub fn gc_phase(&self) -> SharedGcPhase {
         self.phase
     }
 
@@ -197,21 +248,22 @@ impl SharedManagedSpace {
     pub fn allocate_bytes(
         &mut self,
         bytes: &[u8],
-        edge_map: EdgeMap,
+        scan: impl Into<HeapScan>,
         layout_id: Option<LayoutId>,
     ) -> HeapResult<SharedManagedReference> {
+        let path = self.allocation_path(bytes.len());
         let byte_len = bytes.len();
         let reference_id = self.allocate_reference_id()?;
         let reference = SharedManagedReference::new(reference_id);
 
         // allocate the backing location before installing the live reference
-        let location = self.allocate_location(byte_len, edge_map, layout_id, Some(bytes))?;
+        let location = self.allocate_location(byte_len, scan, layout_id, Some(bytes), path)?;
 
         self.set_reference(
             reference_id,
             SharedManagedReferenceEntry::new(location, byte_len),
         )?;
-        self.totals.allocate(byte_len, HeapDomain::Shared)?;
+        self.usage.allocate(byte_len, HeapSpace::SharedManaged)?;
 
         Ok(reference)
     }
@@ -220,35 +272,92 @@ impl SharedManagedSpace {
     pub fn allocate_zeroed(
         &mut self,
         byte_len: usize,
-        edge_map: EdgeMap,
+        scan: impl Into<HeapScan>,
         layout_id: Option<LayoutId>,
     ) -> HeapResult<SharedManagedReference> {
+        let path = self.allocation_path(byte_len);
         let reference_id = self.allocate_reference_id()?;
         let reference = SharedManagedReference::new(reference_id);
 
         // allocate the zeroed backing location before installing the live reference
-        let location = self.allocate_location(byte_len, edge_map, layout_id, None)?;
+        let location = self.allocate_location(byte_len, scan, layout_id, None, path)?;
 
         self.set_reference(
             reference_id,
             SharedManagedReferenceEntry::new(location, byte_len),
         )?;
-        self.totals.allocate(byte_len, HeapDomain::Shared)?;
+        self.usage.allocate(byte_len, HeapSpace::SharedManaged)?;
 
         Ok(reference)
     }
 
-    /// Return the projected mapped-byte delta for one shared managed-space entry.
-    pub fn alloc_mapped_delta(&self, byte_len: usize) -> i64 {
-        if let Some(class_index) = self.small.size_classes.class_index_for(byte_len) {
-            if self.has_available_small_slot(class_index) {
-                return 0;
-            }
+    /// Allocate one shared managed byte entry through one precomputed allocation path.
+    pub(crate) fn place_bytes(
+        &mut self,
+        bytes: &[u8],
+        scan: impl Into<HeapScan>,
+        layout_id: Option<LayoutId>,
+        path: SharedManagedAllocationPath,
+    ) -> HeapResult<SharedManagedReference> {
+        let byte_len = bytes.len();
+        let reference_id = self.allocate_reference_id()?;
+        let reference = SharedManagedReference::new(reference_id);
 
-            return self.small.span_bytes as i64;
+        // allocate the backing location before installing the live reference
+        let location = self.allocate_location(byte_len, scan, layout_id, Some(bytes), path)?;
+
+        self.set_reference(
+            reference_id,
+            SharedManagedReferenceEntry::new(location, byte_len),
+        )?;
+        self.usage.allocate(byte_len, HeapSpace::SharedManaged)?;
+
+        Ok(reference)
+    }
+
+    /// Allocate one zeroed shared managed entry through one precomputed allocation path.
+    pub(crate) fn place_zeroed(
+        &mut self,
+        byte_len: usize,
+        scan: impl Into<HeapScan>,
+        layout_id: Option<LayoutId>,
+        path: SharedManagedAllocationPath,
+    ) -> HeapResult<SharedManagedReference> {
+        let reference_id = self.allocate_reference_id()?;
+        let reference = SharedManagedReference::new(reference_id);
+
+        // allocate the zeroed backing location before installing the live reference
+        let location = self.allocate_location(byte_len, scan, layout_id, None, path)?;
+
+        self.set_reference(
+            reference_id,
+            SharedManagedReferenceEntry::new(location, byte_len),
+        )?;
+        self.usage.allocate(byte_len, HeapSpace::SharedManaged)?;
+
+        Ok(reference)
+    }
+
+    /// Return one exact shared managed allocation path for the requested byte length.
+    pub(crate) fn allocation_path(&self, byte_len: usize) -> SharedManagedAllocationPath {
+        if let Some(class_index) = self.small.size_classes.class_index_for(byte_len) {
+            let size_class = self.small.size_classes.classes[class_index].bytes;
+            let mapped_delta = if self.has_available_small_slot(class_index) {
+                0
+            } else {
+                self.small.span_bytes as i64
+            };
+
+            return SharedManagedAllocationPath::Small {
+                class_index,
+                size_class,
+                mapped_delta,
+            };
         }
 
-        self.round_up_allocation_bytes(byte_len) as i64
+        SharedManagedAllocationPath::Large {
+            mapped_delta: self.round_up_allocation_bytes(byte_len) as i64,
+        }
     }
 
     /// Return the projected mapped-byte delta for one shared managed write.
@@ -258,10 +367,7 @@ impl SharedManagedSpace {
         start: usize,
         byte_len: usize,
     ) -> HeapResult<i64> {
-        let Some(record) = self.reference(reference) else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
-        };
-        checked_byte_range(reference.slot_offset(), start, byte_len, record.byte_len())?;
+        self.checked_location_range(reference, start, byte_len)?;
 
         Ok(0)
     }
@@ -297,33 +403,17 @@ impl SharedManagedSpace {
         start: usize,
         target: &mut [u8],
     ) -> HeapResult<()> {
-        let Some(record) = self.reference(reference) else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
-        };
-        let Some(location) = record.location() else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
-        };
-
-        let byte_offset = checked_byte_range(
-            reference.slot_offset(),
-            start,
-            target.len(),
-            record.byte_len(),
-        )?;
+        let (location, byte_offset) =
+            self.checked_location_range(reference, start, target.len())?;
 
         self.fill_location_bytes(location, byte_offset, target)
     }
 
-    /// Return the traced edge map for one shared managed reference.
-    pub fn edge_map(&self, reference: SharedManagedReference) -> HeapResult<&EdgeMap> {
-        let Some(record) = self.reference(reference) else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
-        };
-        let Some(location) = record.location() else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
-        };
+    /// Return the scan metadata for one shared managed reference.
+    pub fn scan(&self, reference: SharedManagedReference) -> HeapResult<&HeapScan> {
+        let (location, _) = self.checked_location_range(reference, 0, 0)?;
 
-        self.location_edge_map(location)
+        self.location_scan(location)
     }
 
     /// Return the storage layout id for one shared managed reference.
@@ -361,19 +451,7 @@ impl SharedManagedSpace {
         start: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
-        let Some(record) = self.reference(reference).copied() else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
-        };
-        let Some(location) = record.location() else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
-        };
-
-        let byte_offset = checked_byte_range(
-            reference.slot_offset(),
-            start,
-            bytes.len(),
-            record.byte_len(),
-        )?;
+        let (location, byte_offset) = self.checked_location_range(reference, start, bytes.len())?;
 
         self.write_location_bytes(location, byte_offset, bytes)
     }
@@ -385,14 +463,29 @@ impl SharedManagedSpace {
         start: usize,
         byte_len: usize,
     ) -> HeapResult<()> {
+        let (_, byte_offset) = self.checked_location_range(reference, start, byte_len)?;
+
+        self.write_shared_barrier(reference, byte_offset, byte_len)
+    }
+
+    /// Return one checked live location and byte offset for one shared managed range.
+    fn checked_location_range(
+        &self,
+        reference: SharedManagedReference,
+        start: usize,
+        byte_len: usize,
+    ) -> HeapResult<(SharedManagedLocation, usize)> {
         let Some(record) = self.reference(reference) else {
+            return Err(HeapError::InvalidSharedManagedReference { reference });
+        };
+        let Some(location) = record.location() else {
             return Err(HeapError::InvalidSharedManagedReference { reference });
         };
 
         let byte_offset =
             checked_byte_range(reference.slot_offset(), start, byte_len, record.byte_len())?;
 
-        self.write_shared_barrier(reference, byte_offset, byte_len)
+        Ok((location, byte_offset))
     }
 
     /// Return one allocated shared managed entry by reference.
@@ -439,21 +532,35 @@ impl SharedManagedSpace {
     fn allocate_location(
         &mut self,
         byte_len: usize,
-        edge_map: EdgeMap,
+        scan: impl Into<HeapScan>,
         layout_id: Option<LayoutId>,
         bytes: Option<&[u8]>,
+        path: SharedManagedAllocationPath,
     ) -> HeapResult<SharedManagedLocation> {
-        if let Some(slot) = self.allocate_small(byte_len, edge_map.clone(), layout_id, bytes)? {
-            return Ok(SharedManagedLocation::Small(slot));
+        let scan = scan.into();
+        match path {
+            // execute the precomputed small path directly
+            SharedManagedAllocationPath::Small {
+                class_index,
+                size_class,
+                ..
+            } => {
+                let slot = self.allocate_small(class_index, size_class, scan, layout_id, bytes)?;
+
+                Ok(SharedManagedLocation::Small(slot))
+            }
+
+            // execute the precomputed large path directly
+            SharedManagedAllocationPath::Large { .. } => {
+                let pages = match bytes {
+                    Some(bytes) => self.arena.allocate_bytes(bytes)?,
+                    None => self.arena.allocate_zeroed(byte_len)?,
+                };
+                let entry_id = self.store_large_entry(byte_len, pages, scan, layout_id)?;
+
+                Ok(SharedManagedLocation::Large(entry_id))
+            }
         }
-
-        let pages = match bytes {
-            Some(bytes) => self.arena.allocate_bytes(bytes)?,
-            None => self.arena.allocate_zeroed(byte_len)?,
-        };
-        let entry_id = self.store_large_entry(byte_len, pages, edge_map, layout_id)?;
-
-        Ok(SharedManagedLocation::Large(entry_id))
     }
 
     /// Allocate one shared managed reference id from the intrusive free list or the unused tail.
@@ -513,16 +620,7 @@ impl SharedManagedSpace {
 
     /// Return whether one size class still has one live reusable slot.
     fn has_available_small_slot(&self, class_index: usize) -> bool {
-        self.small.available_spans[class_index]
-            .iter()
-            .copied()
-            .any(|span_index| {
-                self.small
-                    .spans
-                    .get(span_index)
-                    .map(|span| span.occupied_count < span.slot_count)
-                    .unwrap_or(false)
-            })
+        !self.small.available_spans[class_index].is_empty()
     }
 
     /// Allocate or reuse one non-full shared managed span for the given size class.
@@ -556,8 +654,7 @@ impl SharedManagedSpace {
             occupied_count: 0,
             next_free_slot: 0,
             occupied: crate::Bitmap::with_capacity(slot_count),
-            edge_maps: vec![EdgeMap::empty(); slot_count].into_boxed_slice(),
-            layout_ids: vec![None; slot_count].into_boxed_slice(),
+            shape_ids: vec![None; slot_count].into_boxed_slice(),
             pages,
         };
         let span_index = self.small.spans.len();
@@ -569,15 +666,13 @@ impl SharedManagedSpace {
     /// Allocate one shared managed small slot from one explicit initialization source.
     fn allocate_small(
         &mut self,
-        byte_len: usize,
-        edge_map: EdgeMap,
+        class_index: usize,
+        size_class: usize,
+        scan: HeapScan,
         layout_id: Option<LayoutId>,
         bytes: Option<&[u8]>,
-    ) -> HeapResult<Option<SpanSlot>> {
-        let Some(class_index) = self.small.size_classes.class_index_for(byte_len) else {
-            return Ok(None);
-        };
-        let size_class = self.small.size_classes.classes[class_index].bytes;
+    ) -> HeapResult<SpanSlot> {
+        let shape_id = self.shape_table.intern(Shape { scan, layout_id })?;
         let span_index = self.allocate_small_span(class_index, size_class)?;
         let Some(span) = self.small.spans.get(span_index) else {
             return Err(HeapError::MissingSpan { span_index });
@@ -605,14 +700,13 @@ impl SharedManagedSpace {
         span.occupied.set(slot_index);
         span.occupied_count += 1;
         span.next_free_slot = find_next_free_slot(&span.occupied, slot_index + 1, span.slot_count);
-        span.set_edge_map(slot_index, edge_map);
-        span.set_layout_id(slot_index, layout_id);
+        span.set_shape_id(slot_index, Some(shape_id));
 
         if span.occupied_count < span.slot_count {
             self.small.available_spans[class_index].push(span_index);
         }
 
-        Ok(Some(slot))
+        Ok(slot)
     }
 
     /// Store one large entry in shared managed large space and return its stable id.
@@ -620,9 +714,10 @@ impl SharedManagedSpace {
         &mut self,
         len: usize,
         pages: PageView,
-        edge_map: EdgeMap,
+        scan: HeapScan,
         layout_id: Option<LayoutId>,
     ) -> HeapResult<SharedLargeEntryId> {
+        let shape_id = self.shape_table.intern(Shape { scan, layout_id })?;
         let (entry_id, reused_entry_id) = if let Some(entry_id) =
             self.large.free_large_entry_ids.pop()
         {
@@ -653,8 +748,7 @@ impl SharedManagedSpace {
             is_live: true,
             len,
             pages,
-            edge_map,
-            layout_id,
+            shape_id,
         };
         let index = SharedLargeEntryId::new(entry_id).index()?;
 
@@ -700,8 +794,7 @@ impl SharedManagedSpace {
             span.occupied.clear(slot_index);
             span.occupied_count -= 1;
             span.next_free_slot = span.next_free_slot.min(slot_index);
-            span.set_edge_map(slot_index, EdgeMap::empty());
-            span.set_layout_id(slot_index, None);
+            span.set_shape_id(slot_index, None);
 
             if span.occupied_count == 0 {
                 span.next_free_slot = 0;
@@ -730,58 +823,18 @@ impl SharedManagedSpace {
         Ok(())
     }
 
-    /// Return the traced edge map for one shared managed location.
-    fn location_edge_map(&self, location: SharedManagedLocation) -> HeapResult<&EdgeMap> {
-        match location {
-            SharedManagedLocation::Small(slot) => {
-                let Some(span) = self.span(slot.span_index()) else {
-                    return Err(HeapError::MissingSpan {
-                        span_index: slot.span_index(),
-                    });
-                };
-                let Some(edge_map) = span.edge_map(slot.slot_index()) else {
-                    return Err(HeapError::MissingSmallSlot {
-                        span_index: slot.span_index(),
-                        slot_index: slot.slot_index(),
-                    });
-                };
+    /// Return the scan metadata for one shared managed location.
+    fn location_scan(&self, location: SharedManagedLocation) -> HeapResult<&HeapScan> {
+        let shape = self.location_shape(location)?;
 
-                Ok(edge_map)
-            }
-            SharedManagedLocation::Large(entry_id) => {
-                let Some(entry) = self.large_entry(entry_id) else {
-                    return Err(HeapError::MissingLargeEntry {
-                        entry_id: entry_id.id(),
-                    });
-                };
-
-                Ok(&entry.edge_map)
-            }
-        }
+        Ok(&shape.scan)
     }
 
     /// Return the storage layout id for one shared managed location.
     fn location_layout_id(&self, location: SharedManagedLocation) -> HeapResult<Option<LayoutId>> {
-        match location {
-            SharedManagedLocation::Small(slot) => {
-                let Some(span) = self.span(slot.span_index()) else {
-                    return Err(HeapError::MissingSpan {
-                        span_index: slot.span_index(),
-                    });
-                };
+        let shape = self.location_shape(location)?;
 
-                Ok(span.layout_id(slot.slot_index()))
-            }
-            SharedManagedLocation::Large(entry_id) => {
-                let Some(entry) = self.large_entry(entry_id) else {
-                    return Err(HeapError::MissingLargeEntry {
-                        entry_id: entry_id.id(),
-                    });
-                };
-
-                Ok(entry.layout_id)
-            }
-        }
+        Ok(shape.layout_id)
     }
 
     /// Set the storage layout id for one shared managed location.
@@ -792,28 +845,104 @@ impl SharedManagedSpace {
     ) -> HeapResult<()> {
         match location {
             SharedManagedLocation::Small(slot) => {
+                let shape_id = self
+                    .span(slot.span_index())
+                    .ok_or(HeapError::MissingSpan {
+                        span_index: slot.span_index(),
+                    })?
+                    .shape_ids
+                    .get(slot.slot_index())
+                    .copied()
+                    .flatten()
+                    .ok_or(HeapError::MissingSmallSlot {
+                        span_index: slot.span_index(),
+                        slot_index: slot.slot_index(),
+                    })?;
+                let shape_id = self.shape_with_layout(shape_id, Some(layout_id))?;
                 let Some(span) = self.span_mut(slot.span_index()) else {
                     return Err(HeapError::MissingSpan {
                         span_index: slot.span_index(),
                     });
                 };
-
-                span.set_layout_id(slot.slot_index(), Some(layout_id));
+                span.set_shape_id(slot.slot_index(), Some(shape_id));
 
                 Ok(())
             }
             SharedManagedLocation::Large(entry_id) => {
+                let shape_id = self
+                    .large_entry(entry_id)
+                    .ok_or(HeapError::MissingLargeEntry {
+                        entry_id: entry_id.id(),
+                    })?
+                    .shape_id;
+                let shape_id = self.shape_with_layout(shape_id, Some(layout_id))?;
                 let Some(entry) = self.large_entry_mut(entry_id) else {
                     return Err(HeapError::MissingLargeEntry {
                         entry_id: entry_id.id(),
                     });
                 };
-
-                entry.layout_id = Some(layout_id);
+                entry.shape_id = shape_id;
 
                 Ok(())
             }
         }
+    }
+
+    /// Return one interned shape with one replacement layout id.
+    fn shape_with_layout(
+        &mut self,
+        shape_id: ShapeId,
+        layout_id: Option<LayoutId>,
+    ) -> HeapResult<ShapeId> {
+        let shape = self
+            .shape_table
+            .shape(shape_id)
+            .cloned()
+            .ok_or(HeapError::InvalidShapeId {
+                index: shape_id.index(),
+            })?;
+
+        self.shape_table.intern(Shape {
+            scan: shape.scan,
+            layout_id,
+        })
+    }
+
+    /// Return the entry shape for one live shared managed location.
+    fn location_shape(&self, location: SharedManagedLocation) -> HeapResult<&Shape> {
+        let shape_id = match location {
+            SharedManagedLocation::Small(slot) => {
+                let Some(span) = self.span(slot.span_index()) else {
+                    return Err(HeapError::MissingSpan {
+                        span_index: slot.span_index(),
+                    });
+                };
+                let Some(shape_id) = span.shape_ids.get(slot.slot_index()).copied().flatten()
+                else {
+                    return Err(HeapError::MissingSmallSlot {
+                        span_index: slot.span_index(),
+                        slot_index: slot.slot_index(),
+                    });
+                };
+
+                shape_id
+            }
+            SharedManagedLocation::Large(entry_id) => {
+                let Some(entry) = self.large_entry(entry_id) else {
+                    return Err(HeapError::MissingLargeEntry {
+                        entry_id: entry_id.id(),
+                    });
+                };
+
+                entry.shape_id
+            }
+        };
+
+        self.shape_table
+            .shape(shape_id)
+            .ok_or(HeapError::InvalidShapeId {
+                index: shape_id.index(),
+            })
     }
 
     /// Return the bytes for one shared managed location as one owned vector.

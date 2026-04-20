@@ -7,13 +7,16 @@ use super::{
 };
 use crate::shared::gc::SharedGcPhase;
 use crate::shared::managed::space::{SharedLargeSpace, SharedSmallSpace};
-use crate::{AllocationTotals, Arena, GcState, HeapResult, PageId};
+use crate::{
+    AllocationUsage, Arena, GcState, HeapResult, MarkSet, PageId, Shape, ShapeId, ShapeTable,
+    SizeClassTable, TraceQueue,
+};
 
 /// One frozen shared managed-space root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SharedManagedSpaceImage {
     /// The configured size-class table.
-    size_classes: crate::SizeClassTable,
+    size_classes: SizeClassTable,
     /// The configured small-space span width.
     small_bytes: usize,
     /// The captured shared managed spans.
@@ -25,6 +28,8 @@ pub struct SharedManagedSpaceImage {
 
     /// Captured shared managed references keyed by reference id minus one.
     references: Box<[SharedManagedReferenceEntry]>,
+    /// The captured shared managed entry shapes.
+    shapes: Box<[Shape]>,
     /// The captured free shared managed reference ids.
     free_reference_ids: Box<[u64]>,
     /// The next shared managed reference id to allocate.
@@ -52,6 +57,7 @@ impl SharedManagedSpaceImage {
         page_bytes: usize,
         entries: Box<[SharedManagedLargeEntryImage]>,
         references: Box<[SharedManagedReferenceEntry]>,
+        shapes: Box<[Shape]>,
         free_reference_ids: Box<[u64]>,
         next_unused_reference_id: u64,
         free_large_entry_ids: Box<[u64]>,
@@ -67,6 +73,7 @@ impl SharedManagedSpaceImage {
             page_bytes,
             entries,
             references,
+            shapes,
             free_reference_ids,
             next_unused_reference_id,
             free_large_entry_ids,
@@ -181,13 +188,14 @@ impl SharedManagedSpace {
             small: self.small.clone(),
             large: self.large.clone(),
             references: self.references.clone(),
+            shape_table: self.shape_table.clone(),
             free_reference_ids: self.free_reference_ids.clone(),
             next_unused_reference_id: self.next_unused_reference_id,
-            totals: self.totals,
+            usage: self.usage,
             gc_state: self.gc_state.clone(),
-            marks: Vec::new(),
-            trace_queue: Vec::new(),
-            trace_buffer: Vec::new(),
+            marks: MarkSet::default(),
+            trace_queue: TraceQueue::default(),
+            edge_buffer: Vec::new(),
             phase: SharedGcPhase::Idle,
             sweep_cursor: 0,
             cycle_freed_allocations: 0,
@@ -236,17 +244,23 @@ impl SharedManagedSpace {
                 spans: image
                     .spans()
                     .iter()
-                    .map(|span| SharedSmallSpan {
-                        size_class: span.size_class,
-                        slot_count: span.slot_count,
-                        occupied_count: span.occupied.count_ones(),
-                        next_free_slot: 0,
-                        occupied: span.occupied.clone(),
-                        edge_maps: span.edge_maps.clone(),
-                        layout_ids: span.layout_ids.clone(),
-                        pages: span.pages,
+                    .map(|span| -> HeapResult<SharedSmallSpan> {
+                        Ok(SharedSmallSpan {
+                            size_class: span.size_class,
+                            slot_count: span.slot_count,
+                            occupied_count: span.occupied.count_ones(),
+                            next_free_slot: 0,
+                            occupied: span.occupied.clone(),
+                            shape_ids: span
+                                .shape_ids
+                                .iter()
+                                .map(|shape_id| shape_id.map(ShapeId::from_raw).transpose())
+                                .collect::<HeapResult<Vec<_>>>()?
+                                .into_boxed_slice(),
+                            pages: span.pages,
+                        })
                     })
-                    .collect(),
+                    .collect::<HeapResult<Vec<_>>>()?,
                 available_spans: vec![Vec::new(); image.size_classes().classes.len()],
             },
             large: SharedLargeSpace {
@@ -254,25 +268,27 @@ impl SharedManagedSpace {
                 entries: image
                     .entries()
                     .iter()
-                    .map(|entry| SharedLargeEntry {
-                        is_live: entry.is_live,
-                        len: entry.len,
-                        pages: entry.pages,
-                        edge_map: entry.edge_map.clone(),
-                        layout_id: entry.layout_id,
+                    .map(|entry| -> HeapResult<SharedLargeEntry> {
+                        Ok(SharedLargeEntry {
+                            is_live: entry.is_live,
+                            len: entry.len,
+                            pages: entry.pages,
+                            shape_id: ShapeId::from_raw(entry.shape_id)?,
+                        })
                     })
-                    .collect(),
+                    .collect::<HeapResult<Vec<_>>>()?,
                 free_large_entry_ids: image.free_large_entry_ids.to_vec(),
                 next_unused_large_entry_id: image.next_unused_large_entry_id(),
             },
             references: image.references.to_vec(),
+            shape_table: ShapeTable::from_shapes(image.shapes.to_vec())?,
             free_reference_ids: image.free_reference_ids.to_vec(),
             next_unused_reference_id: image.next_unused_reference_id(),
-            totals: AllocationTotals::new(image.allocated_count(), image.allocated_bytes()),
+            usage: AllocationUsage::new(image.allocated_count(), image.allocated_bytes()),
             gc_state: image.gc_state().clone(),
-            marks: Vec::new(),
-            trace_queue: Vec::new(),
-            trace_buffer: Vec::new(),
+            marks: MarkSet::default(),
+            trace_queue: TraceQueue::default(),
+            edge_buffer: Vec::new(),
             phase: SharedGcPhase::Idle,
             sweep_cursor: 0,
             cycle_freed_allocations: 0,
@@ -293,8 +309,12 @@ impl SharedManagedSpace {
                     size_class: span.size_class,
                     slot_count: span.slot_count,
                     occupied: span.occupied.clone(),
-                    edge_maps: span.edge_maps.clone(),
-                    layout_ids: span.layout_ids.clone(),
+                    shape_ids: span
+                        .shape_ids
+                        .iter()
+                        .map(|shape_id| shape_id.map(ShapeId::raw))
+                        .collect::<Vec<_>>()
+                        .into_boxed_slice(),
                     pages: span.pages,
                 })
                 .collect::<Vec<_>>()
@@ -307,18 +327,18 @@ impl SharedManagedSpace {
                     is_live: entry.is_live,
                     len: entry.len,
                     pages: entry.pages,
-                    edge_map: entry.edge_map.clone(),
-                    layout_id: entry.layout_id,
+                    shape_id: entry.shape_id.raw(),
                 })
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
             self.references.clone().into_boxed_slice(),
+            self.shape_table.shapes().to_vec().into_boxed_slice(),
             self.free_reference_ids.clone().into_boxed_slice(),
             self.next_unused_reference_id,
             self.large.free_large_entry_ids.clone().into_boxed_slice(),
             self.large.next_unused_large_entry_id,
-            self.totals.allocation_count(),
-            self.totals.allocated_bytes(),
+            self.usage.allocation_count(),
+            self.usage.allocated_bytes(),
             self.gc_state.clone(),
         )
     }

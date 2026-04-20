@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::{LargeEntry, LargeEntryId, RawPointerEntry, SmallSpan};
 use crate::arena::{Arena, PageRunCache, PageView, SizeClassTable};
-use crate::{AllocationTotals, CowTable, HeapError, HeapOptions, RawSpaceUsage};
+use crate::{AllocationUsage, CowTable, HeapError, HeapOptions, HeapResult, RawSpaceUsage};
 
 /// The first non-null raw entry id.
 const FIRST_ALLOCATED_RAW_ID: u64 = 1;
@@ -11,7 +11,7 @@ const FIRST_ALLOCATED_RAW_ID: u64 = 1;
 const FIRST_ALLOCATED_LARGE_ENTRY_ID: u64 = 1;
 
 /// Convert a stable raw pointer id into its packed representation.
-pub(crate) fn checked_pointer_id(pointer_id: u64) -> crate::HeapResult<u32> {
+pub(crate) fn checked_pointer_id(pointer_id: u64) -> HeapResult<u32> {
     if pointer_id == 0 || pointer_id > u32::MAX as u64 {
         return Err(HeapError::InvalidRawPointerId { id: pointer_id });
     }
@@ -68,14 +68,14 @@ pub struct RawSpace {
     /// The next raw entry id to allocate.
     pub(crate) next_unused_pointer_id: u64,
 
-    /// The exact live raw totals.
-    pub(crate) totals: AllocationTotals,
+    /// The exact live raw usage.
+    pub(crate) usage: AllocationUsage,
 }
 
 impl RawSpace {
     /// Create one raw space with the default options.
     pub fn new() -> Result<Self, HeapError> {
-        let options = HeapOptions::default();
+        let options = HeapOptions::local();
         let arena = Arc::new(Arena::try_new(
             options.page_bytes,
             options.arena_segment_bytes,
@@ -109,7 +109,7 @@ impl RawSpace {
             pointers: CowTable::with_chunk_len(options.table_chunk_len)?,
             free_pointer_ids: Vec::new(),
             next_unused_pointer_id: FIRST_ALLOCATED_RAW_ID,
-            totals: AllocationTotals::default(),
+            usage: AllocationUsage::default(),
         })
     }
 
@@ -120,7 +120,7 @@ impl RawSpace {
 
     /// Return the number of live raw entries.
     pub fn allocation_count(&self) -> usize {
-        self.totals.allocation_count()
+        self.usage.allocation_count()
     }
 
     /// Return the exact retained raw bytes.
@@ -140,7 +140,7 @@ impl RawSpace {
     }
 
     /// Return the exact borrowed raw image bytes.
-    pub fn borrowed_bytes(&self) -> crate::HeapResult<u64> {
+    pub fn borrowed_bytes(&self) -> HeapResult<u64> {
         self.arena.borrowed_bytes_for_page_views(
             self.small
                 .spans
@@ -151,10 +151,10 @@ impl RawSpace {
     }
 
     /// Return the exact live usage for this raw space.
-    pub fn usage(&self) -> crate::HeapResult<RawSpaceUsage> {
+    pub fn usage(&self) -> HeapResult<RawSpaceUsage> {
         Ok(RawSpaceUsage {
-            allocation_count: self.totals.allocation_count(),
-            allocated_bytes: self.totals.allocated_bytes(),
+            allocation_count: self.usage.allocation_count(),
+            allocated_bytes: self.usage.allocated_bytes(),
             active_bytes: self.active_bytes(),
             mapped_bytes: self.mapped_bytes(),
             borrowed_bytes: self.borrowed_bytes()?,
@@ -162,31 +162,33 @@ impl RawSpace {
     }
 
     /// Allocate one zeroed page view through the local page-run cache.
-    pub(crate) fn allocate_page_view_zeroed(
-        &mut self,
-        byte_len: usize,
-    ) -> crate::HeapResult<PageView> {
+    pub(crate) fn allocate_page_view_zeroed(&mut self, byte_len: usize) -> HeapResult<PageView> {
         self.page_run_cache.allocate_zeroed(&self.arena, byte_len)
     }
 
     /// Allocate one initialized page view through the local page-run cache.
-    pub(crate) fn allocate_page_view_bytes(&mut self, bytes: &[u8]) -> crate::HeapResult<PageView> {
+    pub(crate) fn allocate_page_view_bytes(&mut self, bytes: &[u8]) -> HeapResult<PageView> {
         self.page_run_cache.allocate_bytes(&self.arena, bytes)
     }
 
     /// Release one page view through the local page-run cache.
-    pub(crate) fn release_page_view(&mut self, page_view: PageView) -> crate::HeapResult<()> {
+    pub(crate) fn release_page_view(&mut self, page_view: PageView) -> HeapResult<()> {
         self.page_run_cache
             .release_page_view(&self.arena, page_view)
     }
 
     /// Flush the local page-run cache back into the arena page-run pool.
-    pub(crate) fn try_flush_page_run_cache(&mut self) -> crate::HeapResult<()> {
-        self.page_run_cache.try_flush(&self.arena)
+    pub(crate) fn flush_page_run_cache(&mut self) {
+        self.page_run_cache.flush(&self.arena);
+    }
+
+    /// Flush transient cache state before one exact branch boundary.
+    pub(crate) fn flush_branch_boundary(&mut self) {
+        self.flush_page_run_cache();
     }
 
     /// Return the dense table index for one raw pointer id.
-    pub(crate) fn pointer_index(pointer_id: u32) -> crate::HeapResult<usize> {
+    pub(crate) fn pointer_index(pointer_id: u32) -> HeapResult<usize> {
         let Some(index) = pointer_id.checked_sub(1) else {
             return Err(HeapError::InvalidRawPointerId {
                 id: pointer_id.into(),
@@ -201,13 +203,13 @@ impl RawSpace {
         &mut self,
         pointer_id: u32,
         record: RawPointerEntry,
-    ) -> crate::HeapResult<()> {
+    ) -> HeapResult<()> {
         self.pointers
             .set_or_push(Self::pointer_index(pointer_id)?, record)
     }
 
     /// Retire one stable raw pointer slot.
-    pub(crate) fn retire_pointer(&mut self, pointer_id: u32) -> crate::HeapResult<()> {
+    pub(crate) fn retire_pointer(&mut self, pointer_id: u32) -> HeapResult<()> {
         self.pointers
             .set(Self::pointer_index(pointer_id)?, RawPointerEntry::vacant())?;
         self.free_pointer_ids.push(pointer_id.into());
@@ -244,6 +246,6 @@ impl RawSpace {
 
 impl Drop for RawSpace {
     fn drop(&mut self) {
-        let _ = self.try_flush_page_run_cache();
+        self.flush_page_run_cache();
     }
 }

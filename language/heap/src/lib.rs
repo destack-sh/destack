@@ -4,13 +4,11 @@ mod local;
 mod shared;
 #[cfg(test)]
 mod tests;
-mod value;
 
 pub use arena::{
-    Arena, ArenaImage, ArenaPage, Bitmap, PageId, PageRun, PageView, SizeClass, SizeClassTable,
-    SmallObjectPolicy, SpanSlot,
+    Arena, ArenaImage, ArenaPage, Bitmap, PageId, PageRun, PageView, SizeClass, SizeClassPolicy,
+    SizeClassTable, SpanSlot,
 };
 pub use core::*;
 pub use local::*;
 pub use shared::*;
-pub use value::*;

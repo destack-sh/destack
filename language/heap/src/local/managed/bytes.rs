@@ -1,7 +1,6 @@
-use super::{EdgeMap, ManagedLocation, ManagedSpace};
+use super::{HeapScan, ManagedLocation, ManagedSpace};
 use crate::arena::PageView;
-use crate::value::ManagedReference;
-use crate::{HeapError, HeapResult, LayoutId};
+use crate::{HeapError, HeapResult, LayoutId, ManagedReference, Shape, ShapeId};
 
 impl ManagedSpace {
     /// Return the projected mapped-byte delta for one managed write.
@@ -11,10 +10,7 @@ impl ManagedSpace {
         start: usize,
         byte_len: usize,
     ) -> HeapResult<i64> {
-        let Some(record) = self.reference(reference) else {
-            return Err(HeapError::InvalidManagedReference { reference });
-        };
-        checked_byte_range(reference.byte_offset(), start, byte_len, record.byte_len())?;
+        self.checked_location_range(reference, start, byte_len)?;
 
         Ok(0)
     }
@@ -26,20 +22,8 @@ impl ManagedSpace {
         start: usize,
         target: &mut [u8],
     ) -> HeapResult<()> {
-        // resolve the live entry and requested slice
-        let Some(record) = self.reference(reference) else {
-            return Err(HeapError::InvalidManagedReference { reference });
-        };
-        let Some(location) = record.location() else {
-            return Err(HeapError::InvalidManagedReference { reference });
-        };
-
-        let byte_offset = checked_byte_range(
-            reference.byte_offset(),
-            start,
-            target.len(),
-            record.byte_len(),
-        )?;
+        let (location, byte_offset) =
+            self.checked_location_range(reference, start, target.len())?;
 
         self.fill_location_bytes(location, byte_offset, target)
     }
@@ -69,58 +53,22 @@ impl ManagedSpace {
 
     /// Return the storage layout id for one live managed location.
     fn location_layout_id(&self, location: ManagedLocation) -> HeapResult<Option<LayoutId>> {
-        // resolve the layout source for this storage partition
-        match location {
-            ManagedLocation::Young(young_id) => {
-                let Some(entry) = self.young_entry(young_id) else {
-                    return Err(HeapError::MissingYoungEntry {
-                        generation: young_id.generation(),
-                        entry_index: young_id.index(),
-                    });
-                };
+        let shape = self.location_shape(location)?;
 
-                Ok(entry.layout_id)
-            }
-            ManagedLocation::Small(slot) => {
-                let Some(span) = self.span(slot.span_index()) else {
-                    return Err(HeapError::MissingSpan {
-                        span_index: slot.span_index(),
-                    });
-                };
-
-                Ok(span.layout_id(slot.slot_index()))
-            }
-            ManagedLocation::Large(entry_id) => {
-                let Some(entry) = self.large_entry(entry_id) else {
-                    return Err(HeapError::MissingLargeEntry {
-                        entry_id: entry_id.id(),
-                    });
-                };
-
-                Ok(entry.layout_id)
-            }
-        }
+        Ok(shape.layout_id)
     }
 
-    /// Return the edge map for one managed reference.
-    pub fn edge_map(&self, reference: ManagedReference) -> HeapResult<&EdgeMap> {
-        // resolve the location-specific trace id first
+    /// Return the scan metadata for one managed reference.
+    pub fn scan(&self, reference: ManagedReference) -> HeapResult<&HeapScan> {
         let Some(record) = self.reference(reference) else {
             return Err(HeapError::InvalidManagedReference { reference });
         };
         let Some(location) = record.location() else {
             return Err(HeapError::InvalidManagedReference { reference });
         };
-        let Some(edge_id) = self.location_edge_id(location) else {
-            return Err(HeapError::InvalidManagedReference { reference });
-        };
+        let shape = self.location_shape(location)?;
 
-        // then resolve the interned map
-        let Some(edge_map) = self.edge_table.edge_map(edge_id) else {
-            return Err(HeapError::InvalidManagedReference { reference });
-        };
-
-        Ok(edge_map)
+        Ok(&shape.scan)
     }
 
     /// Set the storage layout id for one managed reference.
@@ -146,40 +94,133 @@ impl ManagedSpace {
         // update the layout source for this storage partition
         match location {
             ManagedLocation::Young(young_id) => {
+                let shape_id = self
+                    .young_entry(young_id)
+                    .ok_or(HeapError::MissingYoungEntry {
+                        generation: young_id.generation(),
+                        entry_index: young_id.index(),
+                    })?
+                    .shape_id;
+                let shape_id = self.shape_with_layout(shape_id, Some(layout_id))?;
                 let Some(entry) = self.young_entry_mut(young_id) else {
                     return Err(HeapError::MissingYoungEntry {
                         generation: young_id.generation(),
                         entry_index: young_id.index(),
                     });
                 };
-
-                entry.layout_id = Some(layout_id);
+                entry.shape_id = shape_id;
 
                 Ok(())
             }
             ManagedLocation::Small(slot) => {
+                let shape_id = self
+                    .span(slot.span_index())
+                    .ok_or(HeapError::MissingSpan {
+                        span_index: slot.span_index(),
+                    })?
+                    .shape_ids
+                    .get(slot.slot_index())
+                    .copied()
+                    .flatten()
+                    .ok_or(HeapError::MissingSmallSlot {
+                        span_index: slot.span_index(),
+                        slot_index: slot.slot_index(),
+                    })?;
+                let shape_id = self.shape_with_layout(shape_id, Some(layout_id))?;
                 let Some(span) = self.span_mut(slot.span_index()) else {
                     return Err(HeapError::MissingSpan {
                         span_index: slot.span_index(),
                     });
                 };
-
-                span.set_layout_id(slot.slot_index(), Some(layout_id));
+                span.set_shape_id(slot.slot_index(), Some(shape_id));
 
                 Ok(())
             }
             ManagedLocation::Large(entry_id) => {
+                let shape_id = self
+                    .large_entry(entry_id)
+                    .ok_or(HeapError::MissingLargeEntry {
+                        entry_id: entry_id.id(),
+                    })?
+                    .shape_id;
+                let shape_id = self.shape_with_layout(shape_id, Some(layout_id))?;
                 let Some(entry) = self.large_entry_mut(entry_id) else {
                     return Err(HeapError::MissingLargeEntry {
                         entry_id: entry_id.id(),
                     });
                 };
-
-                entry.layout_id = Some(layout_id);
+                entry.shape_id = shape_id;
 
                 Ok(())
             }
         }
+    }
+
+    /// Return one interned shape with one replacement layout id.
+    fn shape_with_layout(
+        &mut self,
+        shape_id: ShapeId,
+        layout_id: Option<LayoutId>,
+    ) -> HeapResult<ShapeId> {
+        let shape = self
+            .shape_table
+            .shape(shape_id)
+            .cloned()
+            .ok_or(HeapError::InvalidShapeId {
+                index: shape_id.index(),
+            })?;
+
+        self.shape_table.intern(Shape {
+            scan: shape.scan,
+            layout_id,
+        })
+    }
+
+    /// Return the entry shape for one live managed location.
+    fn location_shape(&self, location: ManagedLocation) -> HeapResult<&Shape> {
+        let shape_id = match location {
+            ManagedLocation::Young(young_id) => {
+                let Some(entry) = self.young_entry(young_id) else {
+                    return Err(HeapError::MissingYoungEntry {
+                        generation: young_id.generation(),
+                        entry_index: young_id.index(),
+                    });
+                };
+
+                entry.shape_id
+            }
+            ManagedLocation::Small(slot) => {
+                let Some(span) = self.span(slot.span_index()) else {
+                    return Err(HeapError::MissingSpan {
+                        span_index: slot.span_index(),
+                    });
+                };
+                let Some(shape_id) = span.shape_ids.get(slot.slot_index()).copied().flatten()
+                else {
+                    return Err(HeapError::MissingSmallSlot {
+                        span_index: slot.span_index(),
+                        slot_index: slot.slot_index(),
+                    });
+                };
+
+                shape_id
+            }
+            ManagedLocation::Large(entry_id) => {
+                let Some(entry) = self.large_entry(entry_id) else {
+                    return Err(HeapError::MissingLargeEntry {
+                        entry_id: entry_id.id(),
+                    });
+                };
+
+                entry.shape_id
+            }
+        };
+
+        self.shape_table
+            .shape(shape_id)
+            .ok_or(HeapError::InvalidShapeId {
+                index: shape_id.index(),
+            })
     }
 
     /// Return the remaining byte length for one managed reference.
@@ -198,20 +239,7 @@ impl ManagedSpace {
         start: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
-        // validate the write against the live entry bounds
-        let Some(record) = self.reference(reference) else {
-            return Err(HeapError::InvalidManagedReference { reference });
-        };
-        let Some(location) = record.location() else {
-            return Err(HeapError::InvalidManagedReference { reference });
-        };
-
-        let byte_offset = checked_byte_range(
-            reference.byte_offset(),
-            start,
-            bytes.len(),
-            record.byte_len(),
-        )?;
+        let (location, byte_offset) = self.checked_location_range(reference, start, bytes.len())?;
 
         self.write_location_bytes(location, byte_offset, bytes)
     }
@@ -223,18 +251,29 @@ impl ManagedSpace {
         start: usize,
         byte_len: usize,
     ) -> HeapResult<()> {
-        // validate the write against the live entry bounds
+        let (location, byte_offset) = self.checked_location_range(reference, start, byte_len)?;
+
+        self.write_barrier_location(location, byte_offset, byte_len)?;
+        self.write_shared_barrier(reference, location, byte_offset, byte_len)
+    }
+
+    /// Return one checked live location and byte offset for one managed range.
+    fn checked_location_range(
+        &self,
+        reference: ManagedReference,
+        start: usize,
+        byte_len: usize,
+    ) -> HeapResult<(ManagedLocation, usize)> {
         let Some(record) = self.reference(reference) else {
             return Err(HeapError::InvalidManagedReference { reference });
         };
         let Some(location) = record.location() else {
             return Err(HeapError::InvalidManagedReference { reference });
         };
-
         let byte_offset =
             checked_byte_range(reference.byte_offset(), start, byte_len, record.byte_len())?;
 
-        self.write_barrier_location(location, byte_offset, byte_len)
+        Ok((location, byte_offset))
     }
 
     /// Record one managed write barrier for one live managed location.
@@ -257,6 +296,29 @@ impl ManagedSpace {
                 self.mark_large_entry_dirty(entry_id, byte_offset, byte_len)
             }
         }
+    }
+
+    /// Record one local-to-shared write barrier for one live managed location.
+    fn write_shared_barrier(
+        &mut self,
+        reference: ManagedReference,
+        location: ManagedLocation,
+        byte_offset: usize,
+        byte_len: usize,
+    ) -> HeapResult<()> {
+        if !self.is_scanning_shared_roots {
+            return Ok(());
+        }
+
+        let Some(shape_id) = self.location_shape_id(location) else {
+            return Err(HeapError::InvalidManagedReference { reference });
+        };
+
+        if !self.overlaps_shared_roots(shape_id, byte_offset, byte_len)? {
+            return Ok(());
+        }
+
+        self.queue_shared_reference(reference)
     }
 
     /// Overwrite one byte range for one live managed location.
@@ -391,7 +453,7 @@ impl ManagedSpace {
     }
 
     /// Fill one caller-provided buffer from one live managed location.
-    fn fill_location_bytes(
+    pub(crate) fn fill_location_bytes(
         &self,
         location: ManagedLocation,
         byte_offset: usize,
