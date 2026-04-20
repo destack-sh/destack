@@ -1,26 +1,20 @@
 use crate::format::annotation::{
-    format_raw_comment, infix_or_postfix_annotations, prefix_annotations,
-    write_inline_prefix_annotations, write_raw_comment_slice,
+    format_comment, infix_or_postfix_annotations, prefix_annotations, write_comment_slice,
+    write_inline_prefix_annotations,
 };
 use crate::format::chain::{is_chain_root, is_expression_chain, transparent_inner_expression};
-use crate::format::context::ParenthesizedExpressionView;
 use crate::format::declaration::is_poorly_breakable_member_or_call_chain;
-use crate::format::expression::{
-    expression_has_prefix_comment_or_doc_annotation_in_left_spine, is_expression_breakable,
-    write_expression_with_prefix_annotations_after_offset,
-    write_expression_without_prefix_annotations,
-};
+use crate::format::expression::write_expression_without_prefix_annotations;
 use crate::format::operator::{
     AssignmentLikeLayout, assignment_rhs_prefers_break_after_operator,
     expression_has_generic_arguments, write_assignment_like_right,
     write_type_expression_with_inline_prefix_annotations,
 };
-use crate::format::tree::tree_literal_requires_expanded_layout;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Argument, ClassDeclaration, Comment, Declaration, Declarator, DecoratorPosition, Expression,
-    FunctionDeclaration, FunctionKind, IfKind, LocalNodeId, NodeTree, Pattern, PatternField,
-    ScalarLiteral, StructDeclaration, TokenType, TypeExpression,
+    ClassDeclaration, Comment, Declaration, Declarator, DecoratorPosition, Expression,
+    FunctionDeclaration, FunctionKind, LocalNodeId, NodeTree, Pattern, PatternField, ScalarLiteral,
+    StructDeclaration, TokenType, TypeExpression,
 };
 use destack_fir::format::{
     Buffer, FormatNode as FirFormatNode, FormatNodes, FormatResult, Formatter as FirFormatter,
@@ -308,7 +302,7 @@ pub(crate) fn declarator_value_has_assignment_operator_prefix_comment(
         })
 }
 
-/// Return raw comment trivia nodes after the `=` operator for one declarator value.
+/// Return comments after the `=` operator for one declarator value.
 fn declarator_value_assignment_operator_comment_nodes(
     context: &DestackFormatContext<'_>,
     value_id: LocalNodeId<Expression>,
@@ -332,17 +326,13 @@ fn declarator_value_assignment_operator_comment_nodes(
         return Vec::new();
     }
 
-    {
-        let comments = context.comments();
-        comments
-            .comments_in_range(previous_token.span.end, value_token_start)
-            .iter()
-            .copied()
-            .collect()
-    }
+    context
+        .comments()
+        .comments_in_range(previous_token.span.end, value_token_start)
+        .to_vec()
 }
 
-/// Write raw comments between one `=` operator and rhs expression.
+/// Write comments between one `=` operator and rhs expression.
 fn write_assignment_operator_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     value_id: LocalNodeId<Expression>,
@@ -375,9 +365,9 @@ fn write_assignment_operator_comments<'ast>(
         }
     }
 
-    format_raw_comment(f, comment_nodes[0])?;
+    format_comment(f, comment_nodes[0])?;
     if comment_nodes.len() > 1 {
-        write_raw_comment_slice(f, &comment_nodes[1..])?;
+        write_comment_slice(f, &comment_nodes[1..])?;
     }
 
     if let Some(last_comment) = comment_nodes.last().copied() {
@@ -402,17 +392,13 @@ fn write_assignment_operator_comments<'ast>(
     Ok(())
 }
 
-/// Format one declarator rhs while preserving assignment-operator prefix ownership.
+/// Format one declarator rhs while preserving assignment-operator prefix annotations.
 fn format_assignment_value<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     value_id: LocalNodeId<Expression>,
     value_has_assignment_operator_prefix_annotation: bool,
     assignment_operator_comment_nodes: &[Comment],
 ) -> FormatResult<()> {
-    let assignment_operator_comment_end = assignment_operator_comment_nodes
-        .last()
-        .map(|comment| comment.span.end)
-        .unwrap_or_else(|| f.context().span(value_id).start);
     let prefix_annotation_ids: Vec<_> = f
         .context()
         .annotation_ids(value_id)
@@ -429,11 +415,7 @@ fn format_assignment_value<'ast>(
     let mut operation = || {
         if prefix_annotation_ids.is_empty() {
             if !assignment_operator_comment_nodes.is_empty() {
-                return write_expression_with_prefix_annotations_after_offset(
-                    f,
-                    value_id,
-                    assignment_operator_comment_end,
-                );
+                return write_expression_without_prefix_annotations(f, value_id);
             }
 
             write!(f, [value_id])?;
@@ -443,11 +425,7 @@ fn format_assignment_value<'ast>(
         if value_has_assignment_operator_prefix_annotation {
             write_inline_prefix_annotations(f, &prefix_annotation_ids)?;
             write!(f, [space()])?;
-            return write_expression_with_prefix_annotations_after_offset(
-                f,
-                value_id,
-                assignment_operator_comment_end,
-            );
+            return write_expression_without_prefix_annotations(f, value_id);
         }
 
         write!(f, [prefix_annotations(f.context(), value_id)])?;
@@ -469,77 +447,6 @@ fn format_assignment_value<'ast>(
     operation()
 }
 
-/// Decide whether a declarator can drop one parenthesized value wrapper.
-pub(crate) fn declarator_drops_parenthesized_value_wrapper(
-    context: &DestackFormatContext<'_>,
-    parenthesized_id: LocalNodeId<Expression>,
-    inner_expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let normalized_inner_expression_id = transparent_inner_expression(context, inner_expression_id);
-
-    if context.has_annotation(parenthesized_id) {
-        return false;
-    }
-
-    if ParenthesizedExpressionView::from_node(context, parenthesized_id)
-        .is_some_and(ParenthesizedExpressionView::has_leading_inner_newline)
-    {
-        return false;
-    }
-
-    // keep multiline tree and nested ternary wrappers explicit in declarators
-    let drops_tree_wrapper = !context.node_has_newline(inner_expression_id)
-        && !matches!(
-            context.tree.get(inner_expression_id),
-            Expression::TreeExpression { elements: Some(elements), .. }
-                if elements.iter().any(|argument_id| {
-                    let value_id = match context.tree.get(*argument_id) {
-                        Argument::Positional { value, .. }
-                        | Argument::Spread { value, .. }
-                        | Argument::Named { value, .. }
-                        | Argument::Labeled { value, .. } => *value,
-                        Argument::Error => return false,
-                    };
-
-                    let Expression::If {
-                        kind: IfKind::Ternary,
-                        then_expression,
-                        else_expression,
-                        ..
-                    } = context.tree.get(value_id)
-                    else {
-                        return false;
-                    };
-
-                    matches!(context.tree.get(*then_expression), Expression::Parenthesized { .. })
-                        || else_expression.is_some_and(|else_id| {
-                            matches!(context.tree.get(else_id), Expression::Parenthesized { .. })
-                        })
-                })
-        )
-        && matches!(
-            context.tree.get(inner_expression_id),
-            Expression::TreeExpression {
-                arguments,
-                elements,
-                ..
-            } if !tree_literal_requires_expanded_layout(context, arguments, elements)
-        );
-
-    // keep left-spine prefix ownership intact when the declarator already owns the boundary
-    let drops_prefix_wrapper =
-        expression_has_prefix_comment_or_doc_annotation_in_left_spine(context, inner_expression_id);
-    let drops_ternary_wrapper = matches!(
-        context.tree.get(normalized_inner_expression_id),
-        Expression::If {
-            kind: IfKind::Ternary,
-            ..
-        }
-    );
-
-    drops_tree_wrapper || drops_prefix_wrapper || drops_ternary_wrapper
-}
-
 /// Return whether a declaration heritage clause contains generic arguments.
 fn type_expression_has_generic_arguments(
     context: &DestackFormatContext<'_>,
@@ -555,9 +462,6 @@ fn type_expression_has_generic_arguments(
         | TypeExpression::Import {
             generic_arguments, ..
         } => !generic_arguments.is_empty(),
-        TypeExpression::Parenthesized { expression } => {
-            type_expression_has_generic_arguments(context, *expression)
-        }
         _ => false,
     }
 }
@@ -584,6 +488,7 @@ fn declaration_has_generic_heritage(
         }
         Declaration::Class(ClassDeclaration {
             extends_expression,
+            extends_generic_arguments,
             implements_types,
             ..
         }) => {
@@ -591,6 +496,7 @@ fn declaration_has_generic_heritage(
                 .iter()
                 .copied()
                 .any(|expression_id| expression_has_generic_arguments(context, expression_id))
+                || !extends_generic_arguments.is_empty()
                 || implements_types
                     .iter()
                     .copied()
@@ -635,9 +541,6 @@ fn value_has_generic_class_heritage(
         | Expression::Instantiation { left, .. } => {
             value_has_generic_class_heritage(context, *left)
         }
-        Expression::Parenthesized { expression } => {
-            value_has_generic_class_heritage(context, *expression)
-        }
         _ => false,
     }
 }
@@ -656,9 +559,6 @@ fn value_is_class_declaration(
         Expression::Call { left, .. }
         | Expression::New { left, .. }
         | Expression::Instantiation { left, .. } => value_is_class_declaration(context, *left),
-        Expression::Parenthesized { expression } => {
-            value_is_class_declaration(context, *expression)
-        }
         _ => false,
     }
 }
@@ -695,23 +595,12 @@ pub(crate) fn format_declarator<'ast>(
     let value_expr = tree.get(*value_id);
     let value_inner_id = transparent_inner_expression(f.context(), *value_id);
     let value_inner_expr = tree.get(value_inner_id);
-    let value_breakable = is_expression_breakable(tree, value_expr);
-    let value_is_binary = matches!(value_inner_expr, Expression::Binary { .. });
-    let value_is_sequence = matches!(value_inner_expr, Expression::SequenceExpression { .. });
-    let value_is_tree = matches!(value_inner_expr, Expression::TreeExpression { .. });
     let value_is_chain_root = is_chain_root(tree, value_inner_id);
     let value_is_chain = is_expression_chain(tree, value_inner_id) || value_is_chain_root;
     let value_is_call_like = matches!(
         value_inner_expr,
         Expression::Call { .. } | Expression::New { .. } | Expression::Instantiation { .. }
     );
-    let value_is_declaration = matches!(value_inner_expr, Expression::Declaration(_));
-    let value_handles_its_own_breaking = value_is_binary
-        || value_is_sequence
-        || value_is_tree
-        || value_is_chain
-        || value_is_call_like
-        || value_is_declaration;
 
     // source layout
     let value_has_own_line_prefix_annotation =
@@ -734,7 +623,6 @@ pub(crate) fn format_declarator<'ast>(
     } else {
         None
     };
-    let value_has_newline = f.context().has_newline(value_span);
     let pattern_has_newline = f.context().has_newline(pattern_span);
     let pattern_has_default_assignment = pattern_has_default_assignment(tree, *pattern);
     let pattern_has_comments_or_annotations = f.context().has_annotation(*pattern)
@@ -763,7 +651,7 @@ pub(crate) fn format_declarator<'ast>(
     let value_has_generic_class_heritage =
         value_has_generic_class_heritage(f.context(), value_inner_id);
     let value_chain_breaks_after_operator =
-        value_is_chain && is_poorly_breakable_member_or_call_chain(f, value_inner_id);
+        value_is_chain && is_poorly_breakable_member_or_call_chain(f, value_inner_id)?;
     let value_is_lambda_like = declarator_value_is_lambda_like(f.context(), *value_id);
     let value_prefers_break_after_operator =
         assignment_rhs_prefers_break_after_operator(f, *value_id);
@@ -818,21 +706,17 @@ pub(crate) fn format_declarator<'ast>(
         AssignmentLikeLayout::NeverBreakAfterOperator
     }
     // short and stable rhs values stay attached to `=`
-    else if !left_may_break
-        && (is_left_short
-            || value_is_string_literal
-            || value_is_template_expression
-            || value_is_class_declaration)
-    {
-        AssignmentLikeLayout::NeverBreakAfterOperator
-    }
-    // self-breaking rhs values use the fluid assignment-like layout
-    else if value_handles_its_own_breaking || value_breakable || value_has_newline {
-        AssignmentLikeLayout::Fluid
-    }
-    // fall back to the default layout
     else {
-        AssignmentLikeLayout::Fluid
+        let value_is_compact =
+            value_is_string_literal || value_is_template_expression || value_is_class_declaration;
+
+        if !left_may_break && (is_left_short || value_is_compact) {
+            AssignmentLikeLayout::NeverBreakAfterOperator
+        }
+        // fall back to the default layout
+        else {
+            AssignmentLikeLayout::Fluid
+        }
     };
 
     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {

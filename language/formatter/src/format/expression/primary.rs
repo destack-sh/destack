@@ -1,18 +1,19 @@
-use super::object::{format_boundary_comment_array, format_fill_array, format_struct_literal};
-use super::parentheses::format_primary_parenthesized_expression;
-use super::path::{format_path_expression, primary_expression_skips_boundary_annotations};
+use super::object::{format_fill_array, format_outer_comment_array, format_struct_literal};
+use super::path::format_path_expression;
 use super::{
-    array_elements_are_fill_candidates, array_has_only_boundary_comments, is_trivial_argument,
+    array_elements_are_fill_candidates, array_has_only_outer_comments, is_trivial_argument,
     sequence_expression_needs_parens,
 };
 use crate::format::annotation::{
-    block_infix_annotations, infix_or_postfix_annotations,
-    infix_or_postfix_annotations_without_line_suffix_boundary, postfix_annotations,
+    block_infix_annotations, format_dangling_comments, infix_or_postfix_annotations,
+    postfix_annotations,
 };
 use crate::format::chain::transparent_inner_expression;
 use crate::format::collection::literal::{format_scalar_literal, format_template_literal};
 use crate::format::collection::{TrailingSeparator, separated_entries};
-use crate::format::operator::expression_is_type_position;
+use crate::format::operator::{
+    expression_is_type_position, format_generic_argument_list, normalized_postfix_base_expression,
+};
 use crate::format::tree::format_tree_literal_expression;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{Argument, Expression, Keyword, LocalNodeId};
@@ -81,18 +82,6 @@ pub(crate) fn write_primary_expression_trailing_annotations<'ast>(
         return Ok(());
     }
 
-    // boundary path comments are rendered inside the path printer
-    if primary_expression_skips_boundary_annotations(f.context(), expression_id, expression) {
-        write!(
-            f,
-            [infix_or_postfix_annotations_without_line_suffix_boundary(
-                f.context(),
-                expression_id
-            )]
-        )?;
-        return Ok(());
-    }
-
     write!(
         f,
         [infix_or_postfix_annotations(f.context(), expression_id)]
@@ -106,13 +95,31 @@ pub(crate) fn format_primary_array_expression<'ast>(
     elements_ids: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
     if elements_ids.is_empty() {
+        let span = f.context().span(node_id);
+        let has_dangling_comments = {
+            let comments = f.context().comments();
+            !comments.comments_before(span.end).is_empty()
+        };
+
         if f.context().has_infix_annotation(node_id) {
             write!(
                 f,
                 [group(&format_args![
                     token("["),
-                    block_indent(&block_infix_annotations(f.context(), node_id)),
+                    block_indent(&format_with(|f| {
+                        write!(f, [block_infix_annotations(f.context(), node_id)])?;
+                        write!(f, [format_dangling_comments(span)])
+                    })),
                     hard_line_break(),
+                    token("]")
+                ])]
+            )?;
+        } else if has_dangling_comments {
+            write!(
+                f,
+                [group(&format_args![
+                    token("["),
+                    format_dangling_comments(span).with_block_indent(),
                     token("]")
                 ])]
             )?;
@@ -168,7 +175,7 @@ pub(crate) fn format_primary_array_expression<'ast>(
     }
 
     let mut should_expand_for_annotations = false;
-    let mut can_keep_inline_boundary_comment_array = false;
+    let mut can_keep_inline_outer_comment_array = false;
 
     // annotation sensitive expansion checks
     if has_annotations {
@@ -182,9 +189,9 @@ pub(crate) fn format_primary_array_expression<'ast>(
                 .any(|comment| f.context().comment_is_line(comment))
         });
 
-        can_keep_inline_boundary_comment_array = elements_are_inline_in_source
+        can_keep_inline_outer_comment_array = elements_are_inline_in_source
             && array_elements_are_fill_candidates(f.context().tree, elements_ids)
-            && array_has_only_boundary_comments(f.context(), span, elements_ids);
+            && array_has_only_outer_comments(f.context(), span, elements_ids);
         should_expand_for_annotations = has_line_comments || !elements_are_inline_in_source;
     }
 
@@ -195,14 +202,14 @@ pub(crate) fn format_primary_array_expression<'ast>(
     let has_multiline_non_inline_multi_element =
         has_newline_in_source && elements_ids.len() > 1 && !elements_are_inline_in_source;
 
-    let should_expand = (should_expand_for_annotations && !can_keep_inline_boundary_comment_array)
+    let should_expand = (should_expand_for_annotations && !can_keep_inline_outer_comment_array)
         || has_single_non_trivial_multiline_element
         || has_multiline_non_inline_multi_element;
     let should_use_fill_layout =
         !has_annotations && array_elements_are_fill_candidates(tree, elements_ids);
 
-    if can_keep_inline_boundary_comment_array {
-        format_boundary_comment_array(f, elements_ids)?;
+    if can_keep_inline_outer_comment_array {
+        format_outer_comment_array(f, elements_ids)?;
     } else if should_use_fill_layout {
         format_fill_array(f, elements_ids)?;
     } else {
@@ -399,8 +406,16 @@ pub(crate) fn format_primary_expression<'ast>(
         }
 
         // tagged template literal
-        Expression::TaggedTemplateExpression { tag, value } => {
+        Expression::TaggedTemplateExpression {
+            tag,
+            generic_arguments,
+            value,
+        } => {
+            let tag = normalized_postfix_base_expression(f.context(), *tag);
             write!(f, [tag, block_infix_annotations(f.context(), node_id)])?;
+            if !generic_arguments.is_empty() {
+                format_generic_argument_list(f, generic_arguments)?;
+            }
             format_template_literal(value, tree.get_span(node_id), f)?;
         }
 
@@ -466,15 +481,23 @@ pub(crate) fn format_primary_expression<'ast>(
         // tree literal
         Expression::TreeExpression {
             left,
+            generic_arguments,
             arguments,
             elements,
         } => {
-            format_tree_literal_expression(f, node_id, left, arguments, elements)?;
+            format_tree_literal_expression(
+                f,
+                node_id,
+                left,
+                generic_arguments,
+                arguments,
+                elements,
+            )?;
         }
 
-        // parenthesized
+        // grouped expressions are formatter transparent
         Expression::Parenthesized { expression } => {
-            format_primary_parenthesized_expression(f, node_id, *expression)?;
+            write!(f, [*expression])?;
         }
         _ => return Ok(false),
     }

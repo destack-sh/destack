@@ -1,5 +1,5 @@
-use super::control::adjacent_statement_argument_has_leading_comments;
-use crate::format::annotation::{format_trailing_comment_slice, write_raw_leading_comments};
+use super::conditional::ConditionalLayout;
+use crate::format::annotation::{FormatLeadingComments, FormatTrailingComments};
 use crate::format::chain::transparent_inner_expression;
 use crate::format::tree::tree_argument_is_wrapped_in_braces;
 use crate::{DestackFormatContext, DestackFormatter};
@@ -9,8 +9,8 @@ use destack_ast::{
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
-    format_with, group, if_group_breaks, indent, soft_block_indent, soft_line_break_or_space,
-    space, token,
+    align, dedent, format_with, group, if_group_breaks, if_group_fits_on_line, indent,
+    soft_block_indent, soft_line_break_or_space, space, token,
 };
 use destack_fir::{format_args, write};
 
@@ -120,20 +120,20 @@ fn expression_has_line_comment(
         .any(|comment| context.comment_is_line(comment))
 }
 
-/// Return separator-owned comments before one ternary branch.
+/// Return separator comments before one ternary branch.
 fn ternary_separator_comments(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
-) -> Vec<destack_ast::Comment> {
-    context.raw_comments_after_previous_non_trivia_token_for(expression_id)
+) -> Vec<Comment> {
+    context.comments_after_previous_non_trivia_token_for(expression_id)
 }
 
-/// Return comments that stay on the then branch side of the ternary boundary.
-fn ternary_then_boundary_comments(
+/// Return comments that stay on the then branch side of the ternary separator.
+fn ternary_then_separator_comments(
     context: &DestackFormatContext<'_>,
     then_expression: LocalNodeId<Expression>,
     else_expression: LocalNodeId<Expression>,
-) -> Vec<destack_ast::Comment> {
+) -> Vec<Comment> {
     let then_span = context.span(then_expression);
     let separator_start = context
         .previous_non_trivia_token_before_span(context.span(else_expression))
@@ -141,29 +141,31 @@ fn ternary_then_boundary_comments(
             token.span.start
         });
 
-    let mut boundary_comments =
-        context.raw_boundary_comments_in_range(then_span.end, separator_start);
-    boundary_comments.extend(
+    let mut separator_comments = context
+        .comments()
+        .comments_in_range(then_span.end, separator_start)
+        .to_vec();
+    separator_comments.extend(
         ternary_separator_comments(context, else_expression)
             .into_iter()
             .filter(|comment| comment.is_line()),
     );
-    boundary_comments
+    separator_comments
 }
 
-/// Return comments that stay on the else branch side of the ternary boundary.
-fn ternary_else_boundary_comments(
+/// Return comments that stay on the else branch side of the ternary separator.
+fn ternary_else_separator_comments(
     context: &DestackFormatContext<'_>,
     else_expression: LocalNodeId<Expression>,
-) -> Vec<destack_ast::Comment> {
+) -> Vec<Comment> {
     ternary_separator_comments(context, else_expression)
         .into_iter()
         .filter(|comment| comment.is_block())
         .collect()
 }
 
-/// Return whether the boundary between two ternary parts has a line comment.
-fn ternary_boundary_has_line_comment(
+/// Return whether the separator between two ternary parts has a line comment.
+fn ternary_separator_has_line_comment(
     context: &DestackFormatContext<'_>,
     _left_expression: LocalNodeId<Expression>,
     right_expression: LocalNodeId<Expression>,
@@ -186,10 +188,10 @@ fn ternary_chain_has_line_comment(
 
     if expression_has_line_comment(context, condition_expression)
         || expression_has_line_comment(context, then_expression)
-        || ternary_boundary_has_line_comment(context, condition_expression, then_expression)
+        || ternary_separator_has_line_comment(context, condition_expression, then_expression)
         || else_expression.is_some_and(|expression_id| {
             expression_has_line_comment(context, expression_id)
-                || ternary_boundary_has_line_comment(context, then_expression, expression_id)
+                || ternary_separator_has_line_comment(context, then_expression, expression_id)
         })
     {
         return true;
@@ -219,74 +221,97 @@ fn expression_is_in_braced_tree_child_argument(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let mut current_expression_id = expression_id;
-
-    loop {
-        let Some((parent_id, parent_type)) = context.parent(current_expression_id) else {
-            return false;
-        };
-
-        if parent_type == NodeType::Argument {
-            let argument_id = LocalNodeId::<Argument>::new(parent_id);
-            if !tree_argument_is_wrapped_in_braces(context, argument_id) {
-                return false;
-            }
-
-            let Some((argument_parent_id, argument_parent_type)) = context.parent(argument_id)
-            else {
-                return false;
-            };
-            if argument_parent_type != NodeType::Expression {
-                return false;
-            }
-
-            let tree_expression_id = LocalNodeId::<Expression>::new(argument_parent_id);
-            return matches!(
-                context.tree.get(tree_expression_id),
-                Expression::TreeExpression { .. }
-            );
-        }
-
-        if parent_type != NodeType::Expression {
-            return false;
-        }
-
-        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-        let parent_expression = context.tree.get(parent_expression_id);
-        let Expression::Parenthesized { expression } = parent_expression else {
-            return false;
-        };
-        if expression.id != current_expression_id.id {
-            return false;
-        }
-
-        current_expression_id = parent_expression_id;
-    }
-}
-
-/// Return whether one ternary is the alternate branch of a parent ternary.
-fn ternary_is_nested_alternate(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+    let Some((parent_id, parent_type)) = context.parent(expression_id) else {
         return false;
     };
+
+    if parent_type == NodeType::Argument {
+        let argument_id = LocalNodeId::<Argument>::new(parent_id);
+        if !tree_argument_is_wrapped_in_braces(context, argument_id) {
+            return false;
+        }
+
+        let Some((argument_parent_id, argument_parent_type)) = context.parent(argument_id) else {
+            return false;
+        };
+        if argument_parent_type != NodeType::Expression {
+            return false;
+        }
+
+        let tree_expression_id = LocalNodeId::<Expression>::new(argument_parent_id);
+
+        return matches!(
+            context.tree.get(tree_expression_id),
+            Expression::TreeExpression { .. }
+        );
+    }
+
     if parent_type != NodeType::Expression {
         return false;
     }
 
+    false
+}
+
+/// Return the outermost explicit wrapper that still belongs to one ternary.
+fn outermost_parenthesized_ternary_wrapper(
+    context: &DestackFormatContext<'_>,
+    mut node_id: LocalNodeId<Expression>,
+) -> LocalNodeId<Expression> {
+    loop {
+        let Some((parent_id, parent_type)) = context.parent(node_id) else {
+            return node_id;
+        };
+        if parent_type != NodeType::Expression {
+            return node_id;
+        }
+
+        let parent_id = LocalNodeId::<Expression>::new(parent_id);
+        let Expression::Parenthesized { expression } = context.tree.get(parent_id) else {
+            return node_id;
+        };
+        if *expression != node_id {
+            return node_id;
+        }
+
+        node_id = parent_id;
+    }
+}
+
+/// Return the layout position for one ternary expression.
+fn ternary_layout(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> ConditionalLayout {
+    let wrapped_id = outermost_parenthesized_ternary_wrapper(context, node_id);
+    let Some((parent_id, parent_type)) = context.parent(wrapped_id) else {
+        return ConditionalLayout::Root;
+    };
+    if parent_type != NodeType::Expression {
+        return ConditionalLayout::Root;
+    }
+
     let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-    let Expression::If {
-        kind: IfKind::Ternary,
-        else_expression,
-        ..
-    } = context.tree.get(parent_expression_id)
+
+    let Some((condition_id, then_expression_id, else_expression_id)) =
+        ternary_parts(context.tree, parent_expression_id)
     else {
-        return false;
+        return ConditionalLayout::Root;
     };
 
-    else_expression.is_some_and(|else_expression| else_expression.id == node_id.id)
+    if condition_id.id == wrapped_id.id {
+        return ConditionalLayout::NestedTest;
+    }
+
+    if then_expression_id.id == wrapped_id.id {
+        return ConditionalLayout::NestedConsequent;
+    }
+
+    if else_expression_id.is_some_and(|else_expression_id| else_expression_id.id == wrapped_id.id) {
+        return ConditionalLayout::NestedAlternate;
+    }
+
+    ConditionalLayout::Root
 }
 
 /// Return whether one expression is a nullish literal.
@@ -341,16 +366,12 @@ fn format_jsx_chain_branch<'ast>(
 
     let no_wrap = expression_is_nullish_literal(f.context(), branch_expression_id)
         || (is_alternate && expression_is_ternary(f.context(), branch_expression_id))
-        || matches!(
-            f.context().tree.get(expression_id),
-            Expression::Parenthesized { .. }
-        )
         || tree_expression_stays_unwrapped;
 
     // inline branches
     let write_branch_body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         if !leading_comment_nodes.is_empty() {
-            write_raw_leading_comments(f, leading_comment_nodes)?;
+            write!(f, [FormatLeadingComments::Comments(leading_comment_nodes)])?;
         }
 
         write!(f, [expression_id])?;
@@ -358,7 +379,9 @@ fn format_jsx_chain_branch<'ast>(
         if !inner_trailing_comment_nodes.is_empty() {
             write!(
                 f,
-                [format_trailing_comment_slice(inner_trailing_comment_nodes)]
+                [FormatTrailingComments::Comments(
+                    inner_trailing_comment_nodes
+                )]
             )?;
         }
 
@@ -371,7 +394,9 @@ fn format_jsx_chain_branch<'ast>(
         if !outer_trailing_comment_nodes.is_empty() {
             write!(
                 f,
-                [format_trailing_comment_slice(outer_trailing_comment_nodes)]
+                [FormatTrailingComments::Comments(
+                    outer_trailing_comment_nodes
+                )]
             )?;
         }
 
@@ -390,7 +415,9 @@ fn format_jsx_chain_branch<'ast>(
     if !outer_trailing_comment_nodes.is_empty() {
         write!(
             f,
-            [format_trailing_comment_slice(outer_trailing_comment_nodes)]
+            [FormatTrailingComments::Comments(
+                outer_trailing_comment_nodes
+            )]
         )?;
     }
 
@@ -422,38 +449,61 @@ fn write_inline_template_ternary<'ast>(
     Ok(())
 }
 
-/// Return whether one standard ternary should expand.
-fn standard_ternary_should_expand(
+/// Return whether a ternary branch needs inline disambiguating parentheses.
+fn ternary_branch_needs_inline_parentheses(
     context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    condition: LocalNodeId<Expression>,
-    force_expand: bool,
+    expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    force_expand
-        || ternary_chain_has_line_comment(context, node_id)
-        || adjacent_statement_argument_has_leading_comments(context, node_id)
-        || adjacent_statement_argument_has_leading_comments(context, condition)
+    let expression_id = transparent_inner_expression(context, expression_id);
+    matches!(
+        context.tree.get(expression_id),
+        Expression::If {
+            kind: IfKind::Ternary,
+            ..
+        }
+    )
+}
+
+/// Write one ternary test using the current layout.
+fn write_standard_ternary_test<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    layout: ConditionalLayout,
+    condition: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let format_test = format_with(|f: &mut DestackFormatter<'ast, '_>| write!(f, [condition]));
+
+    if layout.is_nested_alternate() {
+        write!(f, [align(2, &format_test)])?;
+    } else {
+        write!(f, [format_test])?;
+    }
+
+    Ok(())
 }
 
 /// Write one standard ternary tail.
 fn write_standard_ternary_tail<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    _layout: ConditionalLayout,
     then_expression: LocalNodeId<Expression>,
     else_expression: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
     let then_leading_comment_nodes = ternary_separator_comments(f.context(), then_expression);
     let then_trailing_comment_nodes = else_expression
         .map(|else_expression| {
-            ternary_then_boundary_comments(f.context(), then_expression, else_expression)
+            ternary_then_separator_comments(f.context(), then_expression, else_expression)
         })
         .unwrap_or_default();
     let else_leading_comment_nodes = else_expression
-        .map(|else_expression| ternary_else_boundary_comments(f.context(), else_expression))
+        .map(|else_expression| ternary_else_separator_comments(f.context(), else_expression))
         .unwrap_or_default();
 
-    let format_then_expression = format_with(|f| {
+    let format_then_expression = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         if !then_leading_comment_nodes.is_empty() {
-            write_raw_leading_comments(f, &then_leading_comment_nodes)?;
+            write!(
+                f,
+                [FormatLeadingComments::Comments(&then_leading_comment_nodes)]
+            )?;
         }
 
         write!(f, [then_expression])?;
@@ -461,17 +511,49 @@ fn write_standard_ternary_tail<'ast>(
         if !then_trailing_comment_nodes.is_empty() {
             write!(
                 f,
-                [format_trailing_comment_slice(&then_trailing_comment_nodes)]
+                [FormatTrailingComments::Comments(
+                    &then_trailing_comment_nodes
+                )]
             )?;
         }
 
         Ok(())
     });
 
-    let format_else_expression = format_with(|f| {
+    let format_then_expression = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let format_then_expression = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            if f.options().indent_style.is_space() {
+                write!(f, [align(2, &format_then_expression)])?;
+            } else {
+                write!(f, [indent(&format_then_expression)])?;
+            }
+
+            Ok(())
+        });
+
+        if ternary_branch_needs_inline_parentheses(f.context(), then_expression) {
+            write!(
+                f,
+                [
+                    if_group_fits_on_line(&token("(")),
+                    format_then_expression,
+                    if_group_fits_on_line(&token(")"))
+                ]
+            )?;
+        } else {
+            write!(f, [format_then_expression])?;
+        }
+
+        Ok(())
+    });
+
+    let format_else_expression = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         if let Some(else_expression) = else_expression {
             if !else_leading_comment_nodes.is_empty() {
-                write_raw_leading_comments(f, &else_leading_comment_nodes)?;
+                write!(
+                    f,
+                    [FormatLeadingComments::Comments(&else_leading_comment_nodes)]
+                )?;
             }
 
             write!(f, [else_expression])?;
@@ -479,9 +561,19 @@ fn write_standard_ternary_tail<'ast>(
         Ok(())
     });
 
+    let format_else_expression = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if f.options().indent_style.is_space() {
+            write!(f, [align(2, &format_else_expression)])?;
+        } else {
+            write!(f, [indent(&format_else_expression)])?;
+        }
+
+        Ok(())
+    });
+
     write!(
         f,
-        [indent(&format_args![
+        [format_args![
             soft_line_break_or_space(),
             token("?"),
             space(),
@@ -490,7 +582,7 @@ fn write_standard_ternary_tail<'ast>(
             token(":"),
             space(),
             format_else_expression
-        ])]
+        ]]
     )?;
 
     Ok(())
@@ -513,27 +605,45 @@ fn format_standard_ternary<'ast>(
         return write_inline_template_ternary(f, condition, then_expression, else_expression);
     }
 
-    let is_nested_alternate = ternary_is_nested_alternate(f.context(), node_id);
-    let should_expand =
-        standard_ternary_should_expand(f.context(), node_id, condition, force_expand);
+    let layout = ternary_layout(f.context(), node_id);
+    let format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write_standard_ternary_test(f, layout, condition)?;
 
-    let format_inner = format_with(|f| {
-        write!(f, [condition])?;
-        write_standard_ternary_tail(f, then_expression, else_expression)?;
+        let format_tail = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            write_standard_ternary_tail(f, layout, then_expression, else_expression)
+        });
+
+        match layout {
+            ConditionalLayout::Root | ConditionalLayout::NestedTest => {
+                write!(f, [indent(&format_tail)])?;
+            }
+            ConditionalLayout::NestedConsequent => {
+                write!(f, [dedent(&indent(&format_tail))])?;
+            }
+            ConditionalLayout::NestedAlternate => {
+                write!(f, [format_tail])?;
+            }
+        }
+
         Ok(())
     });
 
-    write!(
-        f,
-        [format_with(|f| {
-            if is_nested_alternate {
-                write!(f, [format_inner])?;
-            } else {
-                write!(f, [group(&format_inner).should_expand(should_expand)])?;
-            }
-            Ok(())
-        })]
-    )?;
+    let grouped = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if layout.groups_at_root() {
+            let grouped = group(&format_inner).should_expand(force_expand);
+            write!(f, [grouped])?;
+        } else {
+            write!(f, [format_inner])?;
+        }
+
+        Ok(())
+    });
+
+    if layout.is_nested_test() {
+        write!(f, [group(&soft_block_indent(&grouped))])?;
+    } else {
+        write!(f, [grouped])?;
+    }
 
     Ok(())
 }
@@ -563,7 +673,7 @@ fn format_jsx_chain_ternary<'ast>(
         expression_is_in_braced_tree_child_argument(f.context(), node_id);
     let ternary_span = f.context().span(node_id);
 
-    // boundary comments before the alternate belong to the alternate wrapper
+    // separator comments before the alternate belong to the alternate wrapper
     let alternate_leading_comment_nodes = else_expression
         .map(|else_expression| {
             let then_span = f.context().span(then_expression);
@@ -608,26 +718,26 @@ fn format_jsx_chain_ternary<'ast>(
 
                 collected
             };
-            let mut owned_inner_trailing_comment_nodes = Vec::new();
-            let mut owned_outer_trailing_comment_nodes = Vec::new();
+            let mut inner_own_line_trailing_comment_nodes = Vec::new();
+            let mut outer_inline_trailing_comment_nodes = Vec::new();
 
             // own-line trailing comments stay inside the alternate wrapper,
             // while inline trailing comments stay outside it
             for comment in inner_trailing_comment_nodes {
                 if f.context().span_starts_on_own_line(comment.span) {
-                    owned_inner_trailing_comment_nodes.push(comment);
+                    inner_own_line_trailing_comment_nodes.push(comment);
                 }
             }
 
             for comment in outer_trailing_comment_nodes {
                 if !f.context().span_starts_on_own_line(comment.span) {
-                    owned_outer_trailing_comment_nodes.push(comment);
+                    outer_inline_trailing_comment_nodes.push(comment);
                 }
             }
 
             (
-                owned_inner_trailing_comment_nodes,
-                owned_outer_trailing_comment_nodes,
+                inner_own_line_trailing_comment_nodes,
+                outer_inline_trailing_comment_nodes,
             )
         } else {
             (Vec::new(), Vec::new())
@@ -667,7 +777,7 @@ fn format_jsx_chain_ternary<'ast>(
 }
 
 /// Return whether a template interpolation has source line breaks around the ternary body.
-fn template_interpolation_has_boundary_newline(
+fn template_interpolation_has_surrounding_newline(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -692,7 +802,7 @@ pub(crate) fn format_ternary(
         && f.context()
             .expression_is_in_template_literal_interpolation(node_id)
         && !f.context().node_has_newline(node_id)
-        && !template_interpolation_has_boundary_newline(f.context(), node_id);
+        && !template_interpolation_has_surrounding_newline(f.context(), node_id);
 
     if ternary_chain_has_tree_branch(f.context(), node_id) && !keep_inline_template_ternary {
         format_jsx_chain_ternary(f, node_id)?;

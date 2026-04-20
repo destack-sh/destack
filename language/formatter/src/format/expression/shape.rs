@@ -5,6 +5,61 @@ use destack_ast::{
 };
 use destack_source::Span;
 
+/// One expression together with access to its left spine.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct ExpressionLeftSide {
+    /// The current expression on the left spine.
+    expression_id: LocalNodeId<Expression>,
+}
+
+impl ExpressionLeftSide {
+    /// Create one left-side cursor for an expression.
+    #[inline]
+    pub(crate) fn new(expression_id: LocalNodeId<Expression>) -> Self {
+        Self { expression_id }
+    }
+
+    /// Return the current expression.
+    #[inline]
+    pub(crate) fn expression_id(self) -> LocalNodeId<Expression> {
+        self.expression_id
+    }
+
+    /// Return the next expression on the left spine.
+    pub(crate) fn left(self, context: &DestackFormatContext<'_>) -> Option<Self> {
+        let expression_id = match context.tree.get(self.expression_id) {
+            Expression::Parenthesized { expression } => Some(*expression),
+            Expression::SequenceExpression { expressions } => expressions.first().copied(),
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Call { left, .. }
+            | Expression::New { left, .. }
+            | Expression::Instantiation { left, .. }
+            | Expression::Maybe { left, .. }
+            | Expression::Must { left, .. }
+            | Expression::As {
+                expression: left, ..
+            }
+            | Expression::Satisfies {
+                expression: left, ..
+            }
+            | Expression::Binary { left, .. }
+            | Expression::Assign { left, .. } => Some(*left),
+            Expression::Is { value, .. } | Expression::InstanceOf { value, .. } => Some(*value),
+            Expression::TaggedTemplateExpression { tag, .. } => Some(*tag),
+            Expression::If {
+                kind: IfKind::Ternary,
+                condition: IfCondition::Expression { condition },
+                ..
+            } => Some(*condition),
+            _ => None,
+        }?;
+
+        Some(Self::new(expression_id))
+    }
+}
+
 /// Return whether an expression is trivial and inline-safe without annotations.
 pub(crate) fn expression_is_trivial_inline_without_annotations(
     context: &DestackFormatContext<'_>,
@@ -15,71 +70,18 @@ pub(crate) fn expression_is_trivial_inline_without_annotations(
         && is_trivial_expression(context.tree, context.tree.get(expression_id))
 }
 
-/// Return whether annotations are only prefix comment or doc markers for this expression.
-pub(crate) fn expression_has_only_prefix_comment_or_doc_annotations(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let annotation_ids = context.annotation_ids(expression_id);
-    if annotation_ids.is_empty() {
-        return !context
-            .raw_prefix_doc_comments_for(expression_id)
-            .is_empty();
-    }
-
-    false
-}
-
-/// Return whether any expression on the left spine has a prefix comment or doc annotation.
-pub(crate) fn expression_has_prefix_comment_or_doc_annotation_in_left_spine(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let mut current_id = expression_id;
-
-    loop {
-        if expression_has_only_prefix_comment_or_doc_annotations(context, current_id) {
-            return true;
-        }
-
-        let next_id = match context.tree.get(current_id) {
-            Expression::Parenthesized { expression } => Some(*expression),
-            Expression::Call { left, .. }
-            | Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
-            | Expression::Index { left, .. }
-            | Expression::Instantiation { left, .. }
-            | Expression::Maybe { left, .. }
-            | Expression::Must { left, .. }
-            | Expression::Binary { left, .. } => Some(*left),
-            _ => None,
-        };
-
-        let Some(next_id) = next_id else {
-            break;
-        };
-
-        current_id = next_id;
-    }
-
-    false
-}
-
 /// Return whether a type expression prefers inline layout.
 fn is_trivial_type_expression(tree: &NodeTree, expression_id: LocalNodeId<TypeExpression>) -> bool {
-    match tree.get(expression_id) {
-        TypeExpression::Parenthesized { expression } => {
-            is_trivial_type_expression(tree, *expression)
-        }
+    matches!(
+        tree.get(expression_id),
         TypeExpression::ScalarLiteral { .. }
-        | TypeExpression::Literal { .. }
-        | TypeExpression::Intrinsic
-        | TypeExpression::Reference { .. }
-        | TypeExpression::Member { .. }
-        | TypeExpression::Const
-        | TypeExpression::This => true,
-        _ => false,
-    }
+            | TypeExpression::Literal { .. }
+            | TypeExpression::Intrinsic
+            | TypeExpression::Reference { .. }
+            | TypeExpression::Member { .. }
+            | TypeExpression::Const
+            | TypeExpression::This
+    )
 }
 
 /// Return whether an expression prefers inline layout.
@@ -252,8 +254,8 @@ pub(crate) fn array_elements_are_fill_candidates(
         .all(|element_id| array_element_is_fill_candidate(tree, *element_id))
 }
 
-/// Return whether comments in an array appear only at the boundaries.
-pub(crate) fn array_has_only_boundary_comments(
+/// Return whether comments in an array appear only before the first or after the last element.
+pub(crate) fn array_has_only_outer_comments(
     context: &DestackFormatContext<'_>,
     array_span: Span,
     elements: &[LocalNodeId<Argument>],
@@ -306,14 +308,9 @@ fn array_element_is_fill_candidate(tree: &NodeTree, element_id: LocalNodeId<Argu
             ScalarLiteral::Integer(_) | ScalarLiteral::Bigint(_) | ScalarLiteral::Float(_),
         ) => true,
         Expression::Unary { operator, right } => {
-            let mut right_id = *right;
-            while let Expression::Parenthesized { expression } = tree.get(right_id) {
-                right_id = *expression;
-            }
-
             matches!(operator, UnaryOperator::Plus | UnaryOperator::Negate)
                 && matches!(
-                    tree.get(right_id),
+                    tree.get(*right),
                     Expression::ScalarLiteral(
                         ScalarLiteral::Integer(_)
                             | ScalarLiteral::Bigint(_)
@@ -342,59 +339,6 @@ fn expression_has_outer_parentheses_tokens(
         && last_token.token.ty == TokenType::CloseParenthesis
 }
 
-/// Return whether an expression has a prefix documentation annotation.
-fn expression_has_prefix_doc_annotation(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    !context
-        .raw_prefix_doc_comments_for(expression_id)
-        .is_empty()
-}
-
-/// Return whether an expression has a leading prefix comment in its left spine.
-pub(crate) fn expression_has_leading_prefix_comment(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let mut current = expression_id;
-
-    loop {
-        if expression_has_prefix_doc_annotation(context, current) {
-            return true;
-        }
-
-        let next = match context.tree.get(current) {
-            Expression::Parenthesized { expression } => Some(*expression),
-            Expression::Binary { left, .. } => Some(*left),
-            Expression::If {
-                kind: IfKind::Ternary,
-                condition:
-                    IfCondition::Expression {
-                        condition: expression_id,
-                    },
-                ..
-            } => Some(*expression_id),
-            Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
-            | Expression::Call { left, .. }
-            | Expression::Index { left, .. }
-            | Expression::Instantiation { left, .. }
-            | Expression::Maybe { left, .. }
-            | Expression::Must { left, .. } => Some(*left),
-            Expression::TaggedTemplateExpression { tag, .. } => Some(*tag),
-            _ => None,
-        };
-
-        let Some(next) = next else {
-            break;
-        };
-        current = next;
-    }
-
-    false
-}
-
 /// Return whether a sequence expression needs parentheses in its parent context.
 pub(crate) fn sequence_expression_needs_parens(
     context: &DestackFormatContext<'_>,
@@ -412,7 +356,6 @@ pub(crate) fn sequence_expression_needs_parens(
     match context.tree.get(parent_id) {
         Expression::Return { value } => value.is_some_and(|value_id| value_id != node_id),
         Expression::Throw { value } => *value != node_id,
-        Expression::Parenthesized { expression } => *expression != node_id,
         Expression::For {
             initialization,
             increment,

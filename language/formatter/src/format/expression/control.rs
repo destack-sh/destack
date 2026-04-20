@@ -1,19 +1,15 @@
 use super::declarator::format_declarator;
 use super::dispatch::format_expression;
-use super::parentheses::parenthesized_leading_inner_comments;
 use super::{
     format_expanded_ternary_expression, write_expression_without_prefix_annotations,
-    write_expression_without_trailing_annotations,
+    write_expression_without_trailing_comments,
 };
 use crate::format::annotation::{
-    block_infix_annotations, format_raw_comment, format_trailing_comment_slice,
-    infix_or_postfix_annotations, infix_or_postfix_annotations_without_line_suffix_boundary,
-    line_suffix_boundary_annotations, postfix_annotations, prefix_annotations,
-    raw_prefix_comment_nodes, write_annotation_sequence, write_raw_comment_slice,
-    write_raw_leading_comments,
+    FormatLeadingComments, FormatTrailingComments, block_infix_annotations, format_comment,
+    format_leading_comments, infix_or_postfix_annotations, postfix_annotations, prefix_annotations,
+    prefix_comment_nodes, write_annotation_sequence, write_comment_slice,
 };
-use crate::format::chain::expression_trivia_anchor_end;
-use crate::format::context::ParenthesizedExpressionView;
+use crate::format::chain::transparent_inner_expression;
 use crate::format::declaration::sequence::block_statement_sequence;
 use crate::format::declaration::signature::expression_body_requires_head_space;
 use crate::format::declaration::{
@@ -21,13 +17,14 @@ use crate::format::declaration::{
     statement_wrapper_needs_semicolon, write_statement_terminator,
     write_statement_terminator_after_anchor,
 };
+use crate::format::expression::ExpressionLeftSide;
 use crate::format::file::node_has_ignore_directive;
 use crate::format::tree::tree_literal_should_break;
 use crate::{
     DestackFormatContext, DestackFormatter, FormatNode, empty_block_with_infix_annotations,
 };
 use destack_ast::{
-    Asynchrony, Block, BlockFormat, Comment, DecoratorPosition, Expression, ForEachBinding,
+    Asynchrony, Block, BlockFormat, DecoratorPosition, Expression, ForEachBinding,
     ForEachDeclarationKind, ForEachKind, IfCondition, IfKind, Keyword, LetKind, LocalNodeId,
     MatchCase, MatchKind, MatchSelector, Mutability, NodeType, Pattern, TokenType, TypeExpression,
     WhileKind, YieldCardinality,
@@ -46,7 +43,7 @@ fn write_if_or_while_test_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     condition_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    write_expression_without_trailing_annotations(f, condition_id)?;
+    write_expression_without_trailing_comments(f, condition_id)?;
 
     let trailing_comments = {
         let comments = f.context().comments();
@@ -60,7 +57,10 @@ fn write_if_or_while_test_expression<'ast>(
 
     write!(
         f,
-        [space(), format_trailing_comment_slice(&trailing_comments)]
+        [
+            space(),
+            FormatTrailingComments::Comments(&trailing_comments)
+        ]
     )
 }
 
@@ -91,7 +91,7 @@ fn write_comments_for_empty_statement_body<'ast>(
         return Ok(());
     }
 
-    write_raw_comment_slice(f, &comments)
+    write_comment_slice(f, &comments)
 }
 
 /// Format one statement-body expression with statement-separator semantics.
@@ -102,7 +102,7 @@ fn format_statement_body_expression<'ast>(
     format_statement_body_expression_with_semicolon(f, expression_id, true)
 }
 
-/// Format one control-flow body expression with configurable semicolon ownership.
+/// Format one control-flow body expression with configurable semicolon handling.
 fn format_statement_body_expression_with_semicolon<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
@@ -110,16 +110,9 @@ fn format_statement_body_expression_with_semicolon<'ast>(
 ) -> FormatResult<()> {
     let expression = f.context().tree.get(expression_id);
     let is_ignored = node_has_ignore_directive(f.context(), expression_id);
-    let leading_comments = {
-        let comments = f.context().comments();
-        comments
-            .comments_before(f.context().span(expression_id).start)
-            .to_vec()
-    };
+    let expression_span = f.context().span(expression_id);
 
-    if !leading_comments.is_empty() {
-        write_raw_leading_comments(f, &leading_comments)?;
-    }
+    write!(f, [format_leading_comments(expression_span)])?;
 
     write!(f, [prefix_annotations(f.context(), expression_id)])?;
     format_expression(f, expression_id, expression, is_ignored)?;
@@ -150,9 +143,9 @@ fn write_match_case_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     case_id: LocalNodeId<MatchCase>,
 ) -> FormatResult<()> {
-    let leading_comments = raw_prefix_comment_nodes(f.context(), case_id);
+    let leading_comments = prefix_comment_nodes(f.context(), case_id);
     if !leading_comments.is_empty() {
-        write_raw_leading_comments(f, &leading_comments)?;
+        write!(f, [FormatLeadingComments::Comments(&leading_comments)])?;
     }
 
     let prefix_annotation_ids: Vec<_> = f
@@ -429,134 +422,78 @@ fn format_statement_body_expression_after_head<'ast>(
     write!(f, [soft_line_indent_or_space(&body)])
 }
 
-/// Return whether one annotation id forces adjacent argument wrapping.
-fn raw_comment_is_adjacent_leading_comment(
-    ctx: &DestackFormatContext<'_>,
-    comment: Comment,
-) -> bool {
-    if !ctx.comment_is_doc(comment) {
-        return false;
-    }
-
-    let is_multiline_block = ctx.comment_is_doc_block(comment) && ctx.has_newline(comment.span);
-    if is_multiline_block {
-        return true;
-    }
-
-    let Some(next_token) = ctx.next_non_whitespace_token_after_span(comment.span) else {
-        return false;
-    };
-    if comment.span.file != next_token.span.file {
-        return false;
-    }
-
-    !ctx.file
-        .is_same_line(comment.span.end.saturating_sub(1), next_token.span.start)
-}
-
-/// Return the next left-side expression used for adjacent statement comment checks.
-fn next_adjacent_argument_left_side(
+/// Return whether one adjacent argument is nested directly inside `yield`.
+fn adjacent_statement_argument_is_inside_yield(
     ctx: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
-) -> Option<LocalNodeId<Expression>> {
-    match ctx.tree.get(expression_id) {
-        Expression::SequenceExpression { expressions } => expressions.first().copied(),
-        Expression::Member { left, .. }
-        | Expression::PrivateMember { left, .. }
-        | Expression::Index { left, .. }
-        | Expression::Call { left, .. }
-        | Expression::New { left, .. }
-        | Expression::Instantiation { left, .. }
-        | Expression::Maybe { left, .. }
-        | Expression::Must { left, .. }
-        | Expression::As {
-            expression: left, ..
-        }
-        | Expression::Satisfies {
-            expression: left, ..
-        }
-        | Expression::Binary { left, .. }
-        | Expression::Assign { left, .. } => Some(*left),
-        Expression::Is { value, .. } | Expression::InstanceOf { value, .. } => Some(*value),
-        Expression::TaggedTemplateExpression { tag, .. } => Some(*tag),
-        Expression::If {
-            kind: IfKind::Ternary,
-            condition: IfCondition::Expression { condition },
-            ..
-        } => Some(*condition),
-        Expression::Parenthesized { expression } => Some(*expression),
-        _ => None,
-    }
+) -> bool {
+    ctx.parent(expression_id)
+        .is_some_and(|(parent_id, parent_type)| {
+            parent_type == NodeType::Expression
+                && matches!(
+                    ctx.tree.get(LocalNodeId::<Expression>::new(parent_id)),
+                    Expression::Yield { .. }
+                )
+        })
 }
 
-/// Return whether one adjacent statement argument has leading comments that require wrapping.
-pub(crate) fn adjacent_statement_argument_has_leading_comments(
+/// Return whether one member gap has own-line or multiline comments.
+fn adjacent_statement_member_gap_has_comments(
+    ctx: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let (left, property_start) = match ctx.tree.get(expression_id) {
+        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
+            let Some(property_span) = ctx.tree.get_main_span(expression_id) else {
+                return false;
+            };
+
+            (*left, property_span.start)
+        }
+        _ => return false,
+    };
+
+    let left_span = ctx.span(left);
+    if left_span.file != ctx.span(expression_id).file || property_start <= left_span.end {
+        return false;
+    }
+
+    ctx.comments()
+        .comments_in_range(left_span.end, property_start)
+        .iter()
+        .copied()
+        .any(|comment| {
+            (comment.is_block() && ctx.has_newline(comment.span)) || comment.preceded_by_newline()
+        })
+}
+
+/// Return whether one adjacent statement argument has leading comments.
+fn adjacent_statement_argument_has_leading_comments(
     ctx: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Expression>,
 ) -> bool {
-    let argument_parent_is_yield =
-        ctx.parent(argument_id)
-            .is_some_and(|(parent_id, parent_type)| {
-                parent_type == NodeType::Expression
-                    && matches!(
-                        ctx.tree.get(LocalNodeId::<Expression>::new(parent_id)),
-                        Expression::Yield { .. }
-                    )
-            });
+    let is_inside_yield = adjacent_statement_argument_is_inside_yield(ctx, argument_id);
+    let mut left_side = Some(ExpressionLeftSide::new(argument_id));
 
-    let mut current_id = argument_id;
-    loop {
-        let has_adjacent_leading_comment = ctx
-            .raw_prefix_doc_comments_for(current_id)
+    while let Some(current_left_side) = left_side {
+        let expression_id = current_left_side.expression_id();
+        let leading_comments = ctx
+            .comments()
+            .comments_before(ctx.span(expression_id).start);
+        let has_wrapping_leading_comment = leading_comments
             .iter()
             .copied()
-            .any(|comment| raw_comment_is_adjacent_leading_comment(ctx, comment));
-        let has_parenthesized_leading_inner_comments =
-            ParenthesizedExpressionView::from_node(ctx, current_id)
-                .is_some_and(ParenthesizedExpressionView::has_leading_inner_comments);
+            .any(|comment| comment.is_multiline_block() || comment.followed_by_newline());
 
-        let has_member_gap_comment = match ctx.tree.get(current_id) {
-            Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
-                match ctx.tree.get_main_span(current_id) {
-                    Some(property_span) => {
-                        let left_span = ctx.span(*left);
-                        let left_anchor_end = expression_trivia_anchor_end(ctx, *left);
-                        if left_span.file != property_span.file
-                            || property_span.start <= left_anchor_end
-                        {
-                            false
-                        } else {
-                            let gap_span =
-                                Span::new(left_span.file, left_anchor_end, property_span.start);
-                            ctx.has_own_line_or_multiline_comment(gap_span)
-                        }
-                    }
-                    None => false,
-                }
-            }
-            _ => false,
-        };
-
-        if has_adjacent_leading_comment {
-            let should_ignore_for_yield_chain_continuation =
-                argument_parent_is_yield && has_member_gap_comment;
-            if !should_ignore_for_yield_chain_continuation {
-                return true;
-            }
-        }
-
-        if has_parenthesized_leading_inner_comments {
+        if has_wrapping_leading_comment {
             return true;
         }
 
-        if !argument_parent_is_yield && has_member_gap_comment {
+        if !is_inside_yield && adjacent_statement_member_gap_has_comments(ctx, expression_id) {
             return true;
         }
 
-        let Some(next_id) = next_adjacent_argument_left_side(ctx, current_id) else {
-            break;
-        };
-        current_id = next_id;
+        left_side = current_left_side.left(ctx);
     }
 
     false
@@ -579,50 +516,43 @@ fn write_wrapped_adjacent_statement_value<'ast>(
     )
 }
 
-/// Return the first left-spine parenthesized node whose inner comments should hoist outward.
-fn adjacent_statement_comment_hoist_owner(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Expression>,
-) -> Option<LocalNodeId<Expression>> {
-    let mut current_id = argument_id;
-
-    loop {
-        if ParenthesizedExpressionView::from_node(context, current_id)
-            .is_some_and(ParenthesizedExpressionView::has_leading_inner_comments)
-        {
-            return Some(current_id);
+/// Write one wrapped adjacent statement expression, preserving ternary expansion.
+fn write_wrapped_adjacent_statement_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let wrapped_expression_id = adjacent_statement_wrapped_expression(f.context(), expression_id);
+    let wrapped_value = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if matches!(
+            f.context().tree.get(wrapped_expression_id),
+            Expression::If {
+                kind: IfKind::Ternary,
+                ..
+            }
+        ) {
+            return write_expanded_adjacent_statement_value(f, wrapped_expression_id);
         }
 
-        let next_id = next_adjacent_argument_left_side(context, current_id)?;
-        current_id = next_id;
-    }
+        write!(f, [wrapped_expression_id])
+    });
+
+    write_wrapped_adjacent_statement_value(f, &wrapped_value)
 }
 
-/// Write one wrapped adjacent statement value after hoisting inner comments.
-fn write_adjacent_statement_with_hoisted_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    hoisted_comments: &[Comment],
-    content: &impl Format<DestackFormatContext<'ast>>,
-) -> FormatResult<()> {
-    write_wrapped_adjacent_statement_value(
-        f,
-        &format_with(|f| {
-            for comment in hoisted_comments.iter().copied() {
-                format_raw_comment(f, comment)?;
-                write!(f, [hard_line_break()])?;
-            }
+/// Return the expression that should print inside an adjacent wrapper.
+fn adjacent_statement_wrapped_expression(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> LocalNodeId<Expression> {
+    let mut current_id = expression_id;
 
-            let context = f.context().clone();
-            let formatted = destack_fir::format::format(context, format_args![content])?;
-            let document = formatted.into_document();
+    loop {
+        let Expression::Parenthesized { expression } = context.tree.get(current_id) else {
+            return current_id;
+        };
 
-            for node in document.iter().cloned() {
-                f.write_node(node);
-            }
-
-            Ok(())
-        }),
-    )
+        current_id = *expression;
+    }
 }
 
 /// Write one expanded adjacent statement value, preserving ternary expansion.
@@ -654,43 +584,11 @@ fn adjacent_statement_sequence_value(
 ) -> Option<LocalNodeId<Expression>> {
     match context.tree.get(value_check_id) {
         Expression::SequenceExpression { .. } => Some(value_check_id),
-        Expression::Parenthesized { expression }
-            if matches!(
-                context.tree.get(*expression),
-                Expression::SequenceExpression { .. }
-            ) =>
-        {
-            Some(*expression)
-        }
         _ => match context.tree.get(value_id) {
-            Expression::Parenthesized { expression }
-                if matches!(
-                    context.tree.get(*expression),
-                    Expression::SequenceExpression { .. }
-                ) =>
-            {
-                Some(*expression)
-            }
+            Expression::SequenceExpression { .. } => Some(value_id),
             _ => None,
         },
     }
-}
-
-/// Format one parenthesized adjacent argument with hoisted inner comments.
-fn format_parenthesized_adjacent_statement_argument<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    value_id: LocalNodeId<Expression>,
-    parenthesized_inner_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let hoisted_comments = ParenthesizedExpressionView::from_node(f.context(), value_id)
-        .map(ParenthesizedExpressionView::leading_inner_comments)
-        .unwrap_or_else(|| {
-            parenthesized_leading_inner_comments(f.context(), value_id, parenthesized_inner_id)
-        });
-    let wrapped_value =
-        format_with(|f| write_expanded_adjacent_statement_value(f, parenthesized_inner_id));
-
-    write_adjacent_statement_with_hoisted_comments(f, &hoisted_comments, &wrapped_value)
 }
 
 /// Format one sequence adjacent argument with explicit wrapping.
@@ -699,7 +597,7 @@ fn format_sequence_adjacent_statement_argument<'ast>(
     value_id: LocalNodeId<Expression>,
     sequence_value_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let prefix_annotation_owner_id = if f.context().has_prefix_annotation(value_id) {
+    let prefix_annotation_source_id = if f.context().has_prefix_annotation(value_id) {
         Some(value_id)
     } else if f.context().has_prefix_annotation(sequence_value_id) {
         Some(sequence_value_id)
@@ -707,10 +605,10 @@ fn format_sequence_adjacent_statement_argument<'ast>(
         None
     };
     let grouped_sequence = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        if let Some(prefix_annotation_owner_id) = prefix_annotation_owner_id {
+        if let Some(prefix_annotation_source_id) = prefix_annotation_source_id {
             write!(
                 f,
-                [prefix_annotations(f.context(), prefix_annotation_owner_id)]
+                [prefix_annotations(f.context(), prefix_annotation_source_id)]
             )?;
         }
 
@@ -731,77 +629,34 @@ fn format_sequence_adjacent_statement_argument<'ast>(
     )
 }
 
-/// Format one wrapped adjacent statement argument.
-fn format_wrapped_adjacent_statement_argument<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    value_check_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    if let Some(hoist_owner_id) =
-        adjacent_statement_comment_hoist_owner(f.context(), value_check_id)
-    {
-        let Expression::Parenthesized { expression } = f.context().tree.get(hoist_owner_id) else {
-            unreachable!("adjacent statement comment hoist owner must be parenthesized");
-        };
-
-        let hoisted_comments = ParenthesizedExpressionView::from_node(f.context(), hoist_owner_id)
-            .map(ParenthesizedExpressionView::leading_inner_comments)
-            .unwrap_or_else(|| {
-                parenthesized_leading_inner_comments(f.context(), hoist_owner_id, *expression)
-            });
-        let wrapped_value =
-            format_with(|f| write_expanded_adjacent_statement_value(f, value_check_id));
-
-        return write_adjacent_statement_with_hoisted_comments(
-            f,
-            &hoisted_comments,
-            &wrapped_value,
-        );
-    }
-
-    let wrapped_value = format_with(|f| write_expanded_adjacent_statement_value(f, value_check_id));
-    write_wrapped_adjacent_statement_value(f, &wrapped_value)
-}
-
 /// Format one adjacent return, throw, or yield argument.
 pub(crate) fn format_adjacent_statement_argument<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     value_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let value_check_id = f.context().transparent_inner_expression(value_id);
+    let value_check_id = transparent_inner_expression(f.context(), value_id);
     let value_expression = f.context().tree.get(value_check_id);
-    let parenthesized_inner_id = match f.context().tree.get(value_id) {
-        Expression::Parenthesized { expression } => Some(*expression),
-        _ => None,
-    };
     let sequence_value_id =
         adjacent_statement_sequence_value(f.context(), value_id, value_check_id);
-    let value_has_leading_comment =
+    let value_has_leading_comments =
         adjacent_statement_argument_has_leading_comments(f.context(), value_id);
 
-    if let Some(parenthesized_inner_id) = parenthesized_inner_id
-        && value_has_leading_comment
-    {
-        return format_parenthesized_adjacent_statement_argument(
-            f,
-            value_id,
-            parenthesized_inner_id,
-        );
+    if value_has_leading_comments {
+        if let Some(sequence_value_id) = sequence_value_id {
+            return format_sequence_adjacent_statement_argument(f, value_id, sequence_value_id);
+        }
+
+        return write_wrapped_adjacent_statement_expression(f, value_id);
     }
 
-    if let Some(sequence_value_id) = sequence_value_id
-        && value_has_leading_comment
-    {
-        return format_sequence_adjacent_statement_argument(f, value_id, sequence_value_id);
-    }
-
-    let value_is_parenthesized = matches!(value_expression, Expression::Parenthesized { .. });
     let value_is_unwrapped_sequence =
         matches!(value_expression, Expression::SequenceExpression { .. });
-    let should_wrap_value =
-        !value_is_parenthesized && (value_is_unwrapped_sequence || value_has_leading_comment);
+    let should_wrap_value = value_is_unwrapped_sequence;
 
     if should_wrap_value {
-        return format_wrapped_adjacent_statement_argument(f, value_check_id);
+        let wrapped_value =
+            format_with(|f| write_expanded_adjacent_statement_value(f, value_check_id));
+        return write_wrapped_adjacent_statement_value(f, &wrapped_value);
     }
 
     write!(f, [space(), value_id])?;
@@ -826,8 +681,8 @@ fn expression_has_effective_prefix_annotation(
     })
 }
 
-/// Write raw comments between one `then` branch and the following `else`.
-fn write_if_else_boundary_comments<'ast>(
+/// Write comments between one `then` branch and the following `else`.
+fn write_if_else_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     then_expression_id: LocalNodeId<Expression>,
     else_expression_id: LocalNodeId<Expression>,
@@ -864,7 +719,7 @@ fn write_if_else_boundary_comments<'ast>(
 
     for (index, comment) in comment_nodes.iter().copied().enumerate() {
         let comment_span = comment.span;
-        format_raw_comment(f, comment)?;
+        format_comment(f, comment)?;
 
         let is_last = index + 1 == comment_nodes.len();
         if !is_last
@@ -1006,8 +861,8 @@ fn write_if_then_branch<'ast>(
     Ok(())
 }
 
-/// Return whether one `then` and `else` boundary contains raw comments.
-fn if_else_has_boundary_comments(
+/// Return whether comments appear between one `then` branch and `else`.
+fn if_else_has_comments(
     context: &DestackFormatContext<'_>,
     then_expression_id: LocalNodeId<Expression>,
     else_expression_id: LocalNodeId<Expression>,
@@ -1037,8 +892,8 @@ fn write_if_else_separator<'ast>(
 ) -> FormatResult<bool> {
     let else_has_effective_prefix_annotation =
         expression_has_effective_prefix_annotation(f.context(), else_expression_id);
-    let else_has_boundary_comments =
-        if_else_has_boundary_comments(f.context(), then_expression_id, else_expression_id);
+    let else_has_comments =
+        if_else_has_comments(f.context(), then_expression_id, else_expression_id);
 
     if else_has_effective_prefix_annotation || f.context().has_postfix_annotation(if_expression_id)
     {
@@ -1048,7 +903,7 @@ fn write_if_else_separator<'ast>(
     let if_has_postfix_annotation = f.context().has_postfix_annotation(if_expression_id);
     let then_has_postfix_annotation = f.context().has_postfix_annotation(then_expression_id);
     if else_has_effective_prefix_annotation
-        || else_has_boundary_comments
+        || else_has_comments
         || if_has_postfix_annotation
         || then_has_postfix_annotation
         || then_is_empty_statement
@@ -1058,8 +913,8 @@ fn write_if_else_separator<'ast>(
         write!(f, [space()])?;
     }
 
-    if else_has_boundary_comments {
-        write_if_else_boundary_comments(f, then_expression_id, else_expression_id)?;
+    if else_has_comments {
+        write_if_else_comments(f, then_expression_id, else_expression_id)?;
     }
 
     Ok(else_has_effective_prefix_annotation)
@@ -1194,8 +1049,8 @@ pub(crate) fn format_if_else_chain<'ast>(
     Ok(())
 }
 
-/// Return whether a match case has a boundary line comment.
-fn match_case_has_boundary_line_comment(
+/// Return whether a match case has a separator line comment.
+fn match_case_has_separator_line_comment(
     context: &DestackFormatContext<'_>,
     case_id: LocalNodeId<MatchCase>,
 ) -> bool {
@@ -1203,15 +1058,15 @@ fn match_case_has_boundary_line_comment(
         MatchCase::Expression { body, .. } => context.span(*body),
         MatchCase::Block { body, .. } => context.span(*body),
     };
-    let Some(boundary_token) = context.previous_non_trivia_token_before_span(body_span) else {
+    let Some(separator_token) = context.previous_non_trivia_token_before_span(body_span) else {
         return false;
     };
-    if boundary_token.span.end >= body_span.start {
+    if separator_token.span.end >= body_span.start {
         return false;
     }
 
     context
-        .comments_in_range(boundary_token.span.end, body_span.start)
+        .comments_in_range(separator_token.span.end, body_span.start)
         .iter()
         .copied()
         .any(|comment| context.comment_is_line(comment))
@@ -1674,7 +1529,7 @@ pub(crate) fn format_match_case_with_style<'ast>(
     is_switch_style: bool,
 ) -> FormatResult<()> {
     let case = f.context().tree.get(case_id);
-    let has_boundary_line_comment = match_case_has_boundary_line_comment(f.context(), case_id);
+    let has_separator_line_comment = match_case_has_separator_line_comment(f.context(), case_id);
 
     // case prefix
     write_match_case_prefix(f, case_id)?;
@@ -1683,9 +1538,6 @@ pub(crate) fn format_match_case_with_style<'ast>(
     match case {
         MatchCase::Expression { selector, body } => {
             format_selector_with_style(f, selector, is_switch_style)?;
-            if has_boundary_line_comment {
-                write!(f, [line_suffix_boundary_annotations(f.context(), case_id)])?;
-            }
 
             let format_switch_body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
                 format_statement_body_expression(f, *body)
@@ -1696,18 +1548,18 @@ pub(crate) fn format_match_case_with_style<'ast>(
             } else if let Some(explicit_block_expression) =
                 switch_case_expression_body_collapsed_explicit_block_expression(f.context(), *body)
             {
-                if has_boundary_line_comment {
+                if has_separator_line_comment {
                     write!(f, [explicit_block_expression])?;
                 } else {
                     write!(f, [space(), explicit_block_expression])?;
                 }
             } else if switch_case_expression_body_should_break(f, *body) {
-                if has_boundary_line_comment {
+                if has_separator_line_comment {
                     write!(f, [block_indent(&format_switch_body)])?;
                 } else {
                     write!(f, [hard_line_break(), block_indent(&format_switch_body)])?;
                 }
-            } else if has_boundary_line_comment {
+            } else if has_separator_line_comment {
                 write!(f, [format_switch_body])?;
             } else {
                 write!(f, [space(), format_switch_body])?;
@@ -1715,9 +1567,6 @@ pub(crate) fn format_match_case_with_style<'ast>(
         }
         MatchCase::Block { selector, body } => {
             format_selector_with_style(f, selector, is_switch_style)?;
-            if has_boundary_line_comment {
-                write!(f, [line_suffix_boundary_annotations(f.context(), case_id)])?;
-            }
             if !is_switch_style {
                 write!(f, [space(), token("=>"), space(), *body])?;
             } else {
@@ -1729,13 +1578,13 @@ pub(crate) fn format_match_case_with_style<'ast>(
                             *body,
                         )
                     {
-                        if has_boundary_line_comment {
+                        if has_separator_line_comment {
                             write!(f, [explicit_block_expression])?;
                         } else {
                             write!(f, [space(), explicit_block_expression])?;
                         }
                     } else if !block.is_empty() {
-                        if !has_boundary_line_comment {
+                        if !has_separator_line_comment {
                             write!(f, [hard_line_break()])?;
                         }
                         write!(
@@ -1743,7 +1592,7 @@ pub(crate) fn format_match_case_with_style<'ast>(
                             [block_indent(&block_statement_sequence(*body, false, None))]
                         )?;
                     }
-                } else if has_boundary_line_comment {
+                } else if has_separator_line_comment {
                     write!(f, [*body])?;
                 } else {
                     write!(f, [space(), *body])?;
@@ -1753,13 +1602,7 @@ pub(crate) fn format_match_case_with_style<'ast>(
     }
 
     // case postfix
-    write!(
-        f,
-        [infix_or_postfix_annotations_without_line_suffix_boundary(
-            f.context(),
-            case_id
-        )]
-    )?;
+    write!(f, [infix_or_postfix_annotations(f.context(), case_id)])?;
 
     Ok(())
 }

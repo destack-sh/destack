@@ -1,18 +1,19 @@
-use crate::format::annotation::{prefix_annotations, prefix_annotations_after_offset};
+use crate::format::annotation::{format_leading_comments, prefix_annotations};
 use crate::format::expression::{
     format_primary_expression, format_statement_expression,
     write_primary_expression_trailing_annotations, write_statement_expression_trailing_annotations,
 };
-use crate::format::file::{node_has_ignore_directive, write_ignored_node};
+use crate::format::file::write_ignored_node;
 use crate::format::operator::{
     format_operator_expression, write_operator_expression_trailing_annotations,
 };
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{Expression, LocalNodeId};
 use destack_fir::format::{Buffer, FormatError, FormatResult};
+use destack_fir::prelude::token;
 use destack_fir::write;
 
-/// Write one expression after prefix ownership is external.
+/// Write one expression after prefix annotations are handled externally.
 pub(crate) fn write_expression_without_prefix_annotations<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
@@ -93,24 +94,6 @@ pub(crate) fn write_expression_without_prefix_annotations<'ast>(
             write_operator_expression_trailing_annotations(f, expression_id, expression)
         }
     }
-}
-
-/// Write one expression while skipping raw prefix comments before one offset.
-pub(crate) fn write_expression_with_prefix_annotations_after_offset<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    expression_id: LocalNodeId<Expression>,
-    start_offset: u32,
-) -> FormatResult<()> {
-    write!(
-        f,
-        [prefix_annotations_after_offset(
-            f.context(),
-            expression_id,
-            start_offset
-        )]
-    )?;
-
-    write_expression_without_prefix_annotations(f, expression_id)
 }
 
 /// Format an expression without prefix and postfix annotations.
@@ -206,21 +189,48 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
         node_id: LocalNodeId<Expression>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [prefix_annotations(f.context(), node_id)])?;
+        let needs_parentheses = f.context().expression_needs_parentheses_in_parent(node_id);
+        let expression_span = f.context().span(node_id);
+        let has_prefix_annotation = f.context().has_prefix_annotation(node_id);
 
+        // prefix annotations
+        if has_prefix_annotation {
+            write!(f, [prefix_annotations(f.context(), node_id)])?;
+        }
+
+        // positional leading comments
+        write!(f, [format_leading_comments(expression_span)])?;
+
+        // derived parentheses
+        if needs_parentheses {
+            write!(f, [token("(")])?;
+        }
+
+        // body
         write_expression_without_prefix_annotations(f, node_id)?;
+
+        // derived parentheses
+        if needs_parentheses {
+            write!(f, [token(")")])?;
+        }
 
         Ok(())
     }
 }
 
-/// Write one expression body without formatter-owned trailing annotations.
-pub(crate) fn write_expression_without_trailing_annotations<'ast>(
+/// Write one expression without trailing comments.
+pub(crate) fn write_expression_without_trailing_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let is_ignored = node_has_ignore_directive(f.context(), expression_id);
-    let expression = f.context().tree.get(expression_id);
-
-    format_expression(f, expression_id, expression, is_ignored)
+    let expression_end = f.context().span(expression_id).end;
+    let previous_limit = f
+        .context_mut()
+        .comments_mut()
+        .limit_comments_up_to(expression_end);
+    let result = write!(f, [expression_id]);
+    f.context_mut()
+        .comments_mut()
+        .restore_view_limit(previous_limit);
+    result
 }
