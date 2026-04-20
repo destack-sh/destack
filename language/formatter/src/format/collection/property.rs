@@ -1,32 +1,34 @@
 use crate::format::annotation::{
-    block_infix_annotations, decorator_prefix_annotations, format_raw_comment,
-    infix_or_postfix_annotations, line_suffix_boundary_annotations, postfix_annotations,
-    postfix_annotations_without_line_suffix_boundary, prefix_annotations_without_decorators,
+    block_infix_annotations, decorator_prefix_annotations, format_comment,
+    infix_or_postfix_annotations, postfix_annotations, prefix_annotations_without_decorators,
 };
 use crate::format::chain::transparent_inner_expression;
 use crate::format::declaration::is_poorly_breakable_member_or_call_chain;
 use crate::format::declaration::signature::{
     default_generic_parameter_trailing_separator, expression_body_requires_head_space,
-    format_where_clause_with_break, parameter_is_variadic, should_break_function_parameters,
-    signature_return_type_has_line_suffix_boundary_annotation, single_parameter_should_hug,
+    format_where_clause_with_break, parameter_is_variadic, should_hug_function_parameters,
     write_empty_parameter_list_with_interior_comments, write_function_header_prefix,
     write_generic_parameter_list, write_signature_hug_parameter_list,
-    write_signature_parameter_list, write_signature_return_type_with_boundary_comments,
+    write_signature_parameter_list, write_signature_return_type,
 };
 use crate::format::declaration::statement::write_block_body;
 use crate::format::expression::write_expression_without_prefix_annotations;
 use crate::format::file::{node_has_ignore_directive, write_ignored_node};
-use crate::format::operator::write_colon_prefixed_type_annotation_with_trailing_comments;
+use crate::format::operator::{
+    write_colon_prefixed_type_annotation, write_type_annotation_prefix,
+    write_type_expression_with_inline_prefix_annotations,
+};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Ambientness, BinaryOperator, Comment, DecoratorPosition, Expression, FunctionSignature, Key,
-    Keyword, LocalNodeId, Mutability, Name, Node, NodeTree, NodeTreeImpl, NodeType, Property,
-    ScalarLiteral, TypeExpression, Visibility, is_identifier_compat,
+    Ambientness, BinaryOperator, Comment, Expression, FunctionSignature, Key, Keyword, LocalNodeId,
+    Mutability, Name, Node, NodeTree, NodeTreeImpl, NodeType, Property, ScalarLiteral,
+    TypeExpression, Visibility, is_identifier_compat,
 };
 use destack_core::StringId;
 use destack_fir::format::{FormatNodes, FormatResult, Formatter as FirFormatter, VecBuffer, text};
 use destack_fir::prelude::*;
 use destack_fir::write;
+use destack_source::NodeSpanType;
 use destack_workspace::{QuoteProperty, QuoteStyle};
 
 impl<'ast> Format<DestackFormatContext<'ast>> for StringId {
@@ -179,7 +181,12 @@ where
     T: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<T>,
 {
-    write_colon_prefixed_type_annotation_with_trailing_comments(f, node_id, value)
+    if let Some(type_span) = f.context().tree.get_side_span(node_id, NodeSpanType::Type) {
+        write_type_annotation_prefix(f, type_span.start)?;
+        write_type_expression_with_inline_prefix_annotations(f, value)
+    } else {
+        write_colon_prefixed_type_annotation(f, value)
+    }
 }
 
 /// The assignment-like layout used for field initializers.
@@ -206,12 +213,12 @@ fn field_like_layout<'ast>(
     right: LocalNodeId<Expression>,
     is_left_short: bool,
     left_may_break: bool,
-) -> FieldLikeLayout {
+) -> FormatResult<FieldLikeLayout> {
     let right_id = transparent_inner_expression(f.context(), right);
     let right_expression = f.context().tree.get(right_id);
 
     if matches!(right_expression, Expression::SequenceExpression { .. }) {
-        return FieldLikeLayout::BreakAfterOperator;
+        return Ok(FieldLikeLayout::BreakAfterOperator);
     }
 
     if let Expression::Binary {
@@ -226,12 +233,12 @@ fn field_like_layout<'ast>(
         if !is_logical_expression
             || !field_like_can_inline_logical_rhs(f.context().tree.get(*right))
         {
-            return FieldLikeLayout::BreakAfterOperator;
+            return Ok(FieldLikeLayout::BreakAfterOperator);
         }
     }
 
-    if is_poorly_breakable_member_or_call_chain(f, right_id) && !is_left_short {
-        return FieldLikeLayout::BreakAfterOperator;
+    if is_poorly_breakable_member_or_call_chain(f, right_id)? && !is_left_short {
+        return Ok(FieldLikeLayout::BreakAfterOperator);
     }
 
     if !left_may_break
@@ -248,10 +255,10 @@ fn field_like_layout<'ast>(
                 )
         )
     {
-        return FieldLikeLayout::NeverBreakAfterOperator;
+        return Ok(FieldLikeLayout::NeverBreakAfterOperator);
     }
 
-    FieldLikeLayout::Fluid
+    Ok(FieldLikeLayout::Fluid)
 }
 
 /// Write one visibility prefix.
@@ -364,12 +371,12 @@ fn write_optional_suffix<'ast>(
 }
 
 /// Write one definite-assignment suffix.
-fn write_const_asserted_suffix<'ast>(
+fn write_definite_suffix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    is_const_asserted: bool,
+    is_definite: bool,
 ) -> FormatResult<()> {
     // definite assignment
-    if is_const_asserted {
+    if is_definite {
         write!(f, [token("!")])?;
     }
 
@@ -464,7 +471,7 @@ fn format_object_property_value<'ast>(
     let is_left_short = left_nodes
         .single_line_width()
         .is_some_and(|width| width < (u32::from(f.context().options.indent_width) + 3));
-    let layout = field_like_layout(f, value, is_left_short, left_may_break);
+    let layout = field_like_layout(f, value, is_left_short, left_may_break)?;
 
     let left = f.intern_vec(left_nodes);
     let left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
@@ -526,7 +533,7 @@ fn write_field_like_left<'ast, T>(
     mutability: Option<Mutability>,
     is_accessor: bool,
     is_optional: bool,
-    is_const_asserted: bool,
+    is_definite: bool,
     force_quote_keys: bool,
 ) -> FormatResult<()>
 where
@@ -558,7 +565,7 @@ where
 
     // key suffixes
     write_optional_suffix(f, is_optional)?;
-    write_const_asserted_suffix(f, is_const_asserted)?;
+    write_definite_suffix(f, is_definite)?;
 
     // value
     if let Some(value) = value {
@@ -583,7 +590,7 @@ pub(crate) fn format_field_like<'ast, T>(
     mutability: Option<Mutability>,
     is_accessor: bool,
     is_optional: bool,
-    is_const_asserted: bool,
+    is_definite: bool,
     default: Option<LocalNodeId<Expression>>,
     force_quote_keys: bool,
 ) -> FormatResult<()>
@@ -607,7 +614,7 @@ where
             mutability,
             is_accessor,
             is_optional,
-            is_const_asserted,
+            is_definite,
             force_quote_keys,
         )?;
         return Ok(());
@@ -629,7 +636,7 @@ where
         mutability,
         is_accessor,
         is_optional,
-        is_const_asserted,
+        is_definite,
         force_quote_keys,
     )?;
     let left_nodes = buffer.into_vec();
@@ -637,7 +644,7 @@ where
     let is_left_short = left_nodes
         .single_line_width()
         .is_some_and(|width| width < (u32::from(f.context().options.indent_width) + 3));
-    let layout = field_like_layout(f, default, is_left_short, left_may_break);
+    let layout = field_like_layout(f, default, is_left_short, left_may_break)?;
 
     let left = f.intern_vec(left_nodes);
     let left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
@@ -728,7 +735,7 @@ where
         )?;
     }
 
-    // key to parameter boundary
+    // key to parameter separator
     write!(f, [block_infix_annotations(f.context(), node_id)])?;
     write_method_parameters_and_return_type(f, node_id, signature, &parameters)?;
 
@@ -739,7 +746,7 @@ where
 
     // body
     if let Some(body) = body {
-        write_method_signature_boundary_and_body(f, node_id, signature, body)?;
+        write_method_signature_and_body(f, node_id, signature, body)?;
     }
 
     Ok(())
@@ -769,29 +776,19 @@ where
     NodeTree: NodeTreeImpl<N>,
 {
     let format_parameters_and_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        let should_expand_parameters = should_break_function_parameters(f.context(), parameters);
         if parameters.is_empty() {
             write_empty_parameter_list_with_interior_comments(f, node_id)?;
-        } else if parameters.len() == 1
-            && !should_expand_parameters
-            && single_parameter_should_hug(f.context(), parameters[0])
-        {
+        } else if should_hug_function_parameters(f.context(), parameters, false) {
             write_signature_hug_parameter_list(f, parameters)?;
         } else {
             let disallow_trailing_parameter_separator = parameters
                 .last()
                 .is_some_and(|parameter_id| parameter_is_variadic(f.context(), *parameter_id));
-            write_signature_parameter_list(
-                f,
-                parameters,
-                should_expand_parameters,
-                disallow_trailing_parameter_separator,
-            )?;
+            write_signature_parameter_list(f, parameters, disallow_trailing_parameter_separator)?;
         }
 
         if let Some(return_type) = signature.return_type {
-            write!(f, [token(":"), space()])?;
-            write_signature_return_type_with_boundary_comments(f, return_type)?;
+            write_signature_return_type(f, node_id, return_type)?;
         }
 
         Ok(())
@@ -800,10 +797,10 @@ where
     write!(f, [group(&format_parameters_and_return_type)])
 }
 
-/// Write one method body after the signature boundary.
-fn write_method_signature_boundary_and_body<'ast, N>(
+/// Write one method body after the signature.
+fn write_method_signature_and_body<'ast, N>(
     f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<N>,
+    _node_id: LocalNodeId<N>,
     signature: &FunctionSignature,
     body: LocalNodeId<Expression>,
 ) -> FormatResult<()>
@@ -811,60 +808,11 @@ where
     N: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<N>,
 {
-    write!(
-        f,
-        [postfix_annotations_without_line_suffix_boundary(
-            f.context(),
-            node_id
-        )]
-    )?;
-
-    if let Some(return_type) = signature.return_type {
-        write!(
-            f,
-            [postfix_annotations_without_line_suffix_boundary::<
-                TypeExpression,
-            >(f.context(), return_type)]
-        )?;
-    }
-
-    let has_signature_line_boundary_annotation =
-        f.context()
-            .annotation_ids(node_id)
-            .iter()
-            .any(|annotation_id| {
-                matches!(
-                    f.context().annotation(*annotation_id).position,
-                    DecoratorPosition::LinePostfixBoundary
-                )
-            })
-            || signature_return_type_has_line_suffix_boundary_annotation(
-                f.context(),
-                signature.return_type,
-            );
-
-    write!(f, [line_suffix_boundary_annotations(f.context(), node_id)])?;
-
-    if let Some(return_type) = signature.return_type {
-        write!(
-            f,
-            [line_suffix_boundary_annotations::<TypeExpression>(
-                f.context(),
-                return_type
-            )]
-        )?;
-    }
-
-    write_method_body(
-        f,
-        body,
-        has_signature_line_boundary_annotation,
-        signature.return_type,
-    )
+    write_method_body(f, body, false, signature.return_type)
 }
 
-/// Return raw comments between one method signature and its body.
-fn method_body_boundary_comment_nodes<'ast>(
+/// Return comments between one method signature and its body.
+fn method_body_separator_comments<'ast>(
     f: &DestackFormatter<'ast, '_>,
     body_id: LocalNodeId<Expression>,
 ) -> Vec<Comment> {
@@ -879,12 +827,12 @@ fn method_body_boundary_comment_nodes<'ast>(
     {
         let comments = f.context().comments();
         comments
-            .comments_in_range(previous_token.span.end, body_span.start)
+            .comment_tokens_in_range(previous_token.span.end, body_span.start)
             .to_vec()
     }
 }
 
-/// Write one method body after the signature boundary has been resolved.
+/// Write one method body after the signature has been resolved.
 fn write_method_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     body: LocalNodeId<Expression>,
@@ -892,7 +840,7 @@ fn write_method_body<'ast>(
     _return_type: Option<LocalNodeId<TypeExpression>>,
 ) -> FormatResult<()> {
     let is_block_body = matches!(f.context().node::<Expression>(body), Expression::Block(..));
-    let block_boundary_comment_nodes = method_body_boundary_comment_nodes(f, body)
+    let block_separator_comments = method_body_separator_comments(f, body)
         .into_iter()
         .filter(|comment| !is_block_body || !comment.followed_by_newline())
         .collect::<Vec<_>>();
@@ -901,14 +849,14 @@ fn write_method_body<'ast>(
         write!(f, [hard_line_break()])?;
     }
 
-    if !block_boundary_comment_nodes.is_empty() {
+    if !block_separator_comments.is_empty() {
         write!(f, [space()])?;
 
-        for (index, comment) in block_boundary_comment_nodes.iter().copied().enumerate() {
+        for (index, comment) in block_separator_comments.iter().copied().enumerate() {
             let comment_span = comment.span;
-            format_raw_comment(f, comment)?;
+            format_comment(f, comment)?;
 
-            let is_last = index + 1 == block_boundary_comment_nodes.len();
+            let is_last = index + 1 == block_separator_comments.len();
             if !is_last
                 || f.context()
                     .span_has_newline_before_next_non_whitespace_token(comment_span)
@@ -951,7 +899,7 @@ fn write_method_body<'ast>(
     Ok(())
 }
 
-/// Format one node with shared directive handling and trailing annotation ownership.
+/// Format one node with shared directive handling and trailing annotation control.
 pub(crate) fn format_node_with_directive<'ast, T, F>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<T>,

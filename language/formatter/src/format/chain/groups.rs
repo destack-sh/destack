@@ -1,4 +1,3 @@
-use std::cell::Cell;
 use std::collections::VecDeque;
 
 use super::{
@@ -7,15 +6,15 @@ use super::{
     transparent_inner_expression,
 };
 use crate::DestackFormatContext;
-use crate::format::operator::expression_has_generic_arguments;
 use destack_ast::{DecoratorPosition, Expression, PostfixPosition};
 use smallvec::SmallVec;
 
 /// One tail group following the chain head.
+#[derive(Clone)]
 pub(crate) struct TailChainGroup {
     operations: SmallVec<[ChainExpression; 2]>,
-    will_break: Cell<bool>,
-    needs_empty_line: Cell<bool>,
+    will_break: bool,
+    needs_empty_line: bool,
 }
 
 impl TailChainGroup {
@@ -23,8 +22,8 @@ impl TailChainGroup {
     fn new(operation: ChainExpression) -> Self {
         Self {
             operations: SmallVec::from_iter([operation]),
-            will_break: Cell::new(false),
-            needs_empty_line: Cell::new(false),
+            will_break: false,
+            needs_empty_line: false,
         }
     }
 
@@ -54,23 +53,23 @@ impl TailChainGroup {
     }
 
     /// Record whether the group breaks when formatted.
-    pub(crate) fn set_will_break(&self, will_break: bool) {
-        self.will_break.set(will_break);
+    pub(crate) fn set_will_break(&mut self, will_break: bool) {
+        self.will_break = will_break;
     }
 
     /// Return whether the formatted group breaks.
     pub(crate) fn will_break(&self) -> bool {
-        self.will_break.get()
+        self.will_break
     }
 
     /// Record whether an empty line precedes the group.
-    pub(crate) fn set_needs_empty_line(&self, needs_empty_line: bool) {
-        self.needs_empty_line.set(needs_empty_line);
+    pub(crate) fn set_needs_empty_line(&mut self, needs_empty_line: bool) {
+        self.needs_empty_line = needs_empty_line;
     }
 
     /// Return whether an empty line precedes the group.
     pub(crate) fn needs_empty_line(&self) -> bool {
-        self.needs_empty_line.get()
+        self.needs_empty_line
     }
 }
 
@@ -116,6 +115,7 @@ impl TailChainGroupsBuilder {
 }
 
 /// The groups following the chain head.
+#[derive(Clone)]
 pub(crate) struct TailChainGroups {
     groups: VecDeque<TailChainGroup>,
 }
@@ -149,6 +149,16 @@ impl TailChainGroups {
     /// Return an iterator over all tail groups.
     pub(crate) fn iter(&self) -> impl Iterator<Item = &TailChainGroup> {
         self.groups.iter()
+    }
+
+    /// Return one tail group by index.
+    pub(crate) fn get(&self, index: usize) -> Option<&TailChainGroup> {
+        self.groups.get(index)
+    }
+
+    /// Return one mutable tail group by index.
+    pub(crate) fn get_mut(&mut self, index: usize) -> Option<&mut TailChainGroup> {
+        self.groups.get_mut(index)
     }
 
     /// Return whether any group except the last breaks.
@@ -275,7 +285,7 @@ pub(crate) fn build_tail_chain_groups(
     groups_builder.finish()
 }
 
-/// Return whether one chain operation has one source-adjacent trailing raw comment.
+/// Return whether one chain operation has one source-adjacent trailing comment.
 fn chain_operation_has_trailing_comment(
     context: &DestackFormatContext<'_>,
     operation: &ChainExpression,
@@ -293,45 +303,6 @@ fn chain_operation_has_trailing_comment(
                     byte.is_ascii_whitespace()
                 })
         })
-}
-
-/// Return the body-op index where one static-instantiation prefix wrap begins.
-pub(crate) fn chain_instantiation_prefix_wrap_body_ops(
-    context: &DestackFormatContext<'_>,
-    base: &ChainExpressionBase,
-    tail_groups: &TailChainGroups,
-) -> Option<usize> {
-    let head_has_static_instantiation_prefix = match &base.head {
-        ChainExpressionBaseHead::Expression(expression_id) => {
-            expression_has_generic_arguments(context, *expression_id)
-        }
-        ChainExpressionBaseHead::Path {
-            generic_arguments, ..
-        } => !generic_arguments.is_empty(),
-    };
-    let static_instantiation_body_index = base
-        .body
-        .iter()
-        .position(chain_operation_has_static_instantiation_arguments);
-    let prefix_body_ops = if head_has_static_instantiation_prefix {
-        Some(0usize)
-    } else {
-        static_instantiation_body_index.map(|index| index + 1)
-    };
-    if let Some(prefix_body_ops) = prefix_body_ops {
-        let has_member_tail_in_base = base
-            .body
-            .iter()
-            .skip(prefix_body_ops)
-            .any(|operation| matches!(operation, ChainExpression::Member { .. }));
-        let has_member_tail_in_groups = tail_groups
-            .first()
-            .and_then(|group| group.first())
-            .is_some_and(|operation| matches!(operation, ChainExpression::Member { .. }));
-        (has_member_tail_in_base || has_member_tail_in_groups).then_some(prefix_body_ops)
-    } else {
-        None
-    }
 }
 
 /// Return whether one base begins with call-like chaining.
@@ -357,16 +328,11 @@ fn chain_expression_is_call_like_base(
     context: &DestackFormatContext<'_>,
     expression: &Expression,
 ) -> bool {
+    let _ = context;
+
     matches!(
         expression,
         Expression::Call { .. } | Expression::Instantiation { .. }
-    ) || matches!(
-        expression,
-        Expression::Parenthesized { expression }
-            if matches!(
-                context.tree.get(*expression),
-                Expression::Call { .. } | Expression::Instantiation { .. }
-            )
     )
 }
 
@@ -424,19 +390,6 @@ fn chain_operation_is_call_or_attached_tail(operation: &ChainExpression) -> bool
         )
 }
 
-/// Return whether an operation carries static instantiation arguments.
-fn chain_operation_has_static_instantiation_arguments(operation: &ChainExpression) -> bool {
-    match operation {
-        ChainExpression::Instantiation {
-            generic_arguments, ..
-        } => !generic_arguments.is_empty(),
-        ChainExpression::Member {
-            generic_arguments, ..
-        } => !generic_arguments.is_empty(),
-        _ => false,
-    }
-}
-
 /// Return whether an operation has postfix annotations that force a split.
 fn chain_operation_has_trailing_annotations(
     context: &DestackFormatContext<'_>,
@@ -448,9 +401,7 @@ fn chain_operation_has_trailing_annotations(
         .any(|annotation_id| {
             matches!(
                 context.annotation(*annotation_id).position,
-                DecoratorPosition::LinePostfix
-                    | DecoratorPosition::LinePostfixBoundary
-                    | DecoratorPosition::BlockPostfix
+                DecoratorPosition::LinePostfix | DecoratorPosition::BlockPostfix
             )
         })
 }

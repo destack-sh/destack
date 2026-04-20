@@ -140,21 +140,8 @@ fn expression_is_simple(
         }
 
         // member and call like expressions
-        Expression::Member {
-            left,
-            generic_arguments,
-            ..
-        }
-        | Expression::PrivateMember {
-            left,
-            generic_arguments,
-            ..
-        } => {
+        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
             SimpleArgument::from(*left).is_simple_with_depth(context, depth)
-                && generic_arguments
-                    .iter()
-                    .copied()
-                    .all(|argument_id| generic_argument_is_simple(context, argument_id, depth + 1))
         }
         Expression::Index { left, index, .. } => {
             SimpleArgument::from(*left).is_simple_with_depth(context, depth)

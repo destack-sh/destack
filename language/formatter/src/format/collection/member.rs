@@ -303,7 +303,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     is_abstract,
                     is_override,
                     is_static,
-                    is_const_asserted,
+                    is_definite,
                     is_accessor,
                     ..
                 } => {
@@ -323,7 +323,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                         *mutability,
                         *is_accessor,
                         *is_optional,
-                        *is_const_asserted,
+                        *is_definite,
                         *default,
                         force_quote_keys,
                     )?;
