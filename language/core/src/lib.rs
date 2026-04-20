@@ -1,6 +1,7 @@
 mod arena;
 mod capture;
 mod color;
+mod cow;
 mod dumper;
 mod fnv;
 mod humanize;
@@ -10,6 +11,7 @@ mod string;
 pub use arena::*;
 pub use capture::*;
 pub use color::*;
+pub use cow::*;
 pub use dumper::*;
 pub use fnv::*;
 pub use humanize::*;
