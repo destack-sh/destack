@@ -24,6 +24,28 @@ fn test_format_parameter_with_default() {
     );
 }
 
+/// Generic parameter constraints should canonicalize by file type.
+#[test]
+fn test_format_generic_parameter_constraint_canonicalizes_by_file_type() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"type Value<T extends string> = T
+"#,
+        r#"type Value<T: string> = T;
+"#,
+        FileType::Destack,
+        DestackFormatOptions::default(),
+    );
+
+    assert_format_program_roundtrip_with_file_type(
+        r#"type Value<T: string> = T
+"#,
+        r#"type Value<T extends string> = T;
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
 /// Trailing separator line comments in parameter lists should stay idempotent.
 #[test]
 fn test_format_signature_trailing_separator_line_comment_is_idempotent() {
@@ -206,7 +228,7 @@ fn test_format_mapped_type_bracket_spacing() {
     );
 }
 
-/// Parameter type comments should stay on the type side of the boundary.
+/// Parameter type comments should stay on the type side of the separator.
 #[test]
 fn test_format_parameter_name_type_comments() {
     assert_format_program_reference_widths(
@@ -291,9 +313,9 @@ fn test_format_interface_method_parameter_separator_comment() {
     );
 }
 
-/// Signature return boundary comments should stay attached to the return type shell.
+/// Signature return separator comments should stay attached to the return type shell.
 #[test]
-fn test_format_signature_return_boundary_comment() {
+fn test_format_signature_return_separator_comment() {
     assert_format_program_roundtrip_with_file_type(
         r#"interface Worker {
   run(): // return-tail

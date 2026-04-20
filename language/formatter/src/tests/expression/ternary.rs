@@ -1,9 +1,9 @@
 use crate::{DestackFormatOptions, assert_format_program_roundtrip_with_file_type};
 use destack_source::FileType;
 
-/// Ternary branch boundary comments should stay on the consequent line.
+/// Ternary branch separator comments should stay on the consequent line.
 #[test]
-fn test_format_ternary_branch_boundary_comments() {
+fn test_format_ternary_branch_separator_comments() {
     assert_format_program_roundtrip_with_file_type(
         "const value = cond ? left /* left-note */ : right /* right-note */\n",
         "const value = cond\n    ? left /* left-note */\n    : right; /* right-note */\n",
@@ -23,9 +23,9 @@ fn test_format_ternary_alternate_line_comments() {
     );
 }
 
-/// Boundary comments around `new` branches should stay inside the consequent branch.
+/// Separator comments around `new` branches should stay inside the consequent branch.
 #[test]
-fn test_format_ternary_new_branch_boundary_comments() {
+fn test_format_ternary_new_branch_separator_comments() {
     assert_format_program_roundtrip_with_file_type(
         "const value = cond ? new Left() /* left-new */ : new Right()\n",
         "const value = cond\n    ? new Left() /* left-new */\n    : new Right();\n",

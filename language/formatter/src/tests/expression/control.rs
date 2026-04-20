@@ -181,6 +181,12 @@ function *t10() {
         a as any
     )!;
 }
+function *t11() {
+    yield (
+        /* keep */ // comment
+        a as any
+    ) + 1;
+}
 "#,
         FileType::TypeScript,
         &[
@@ -249,6 +255,12 @@ function* t10() {
     (a as any)!
   );
 }
+function* t11() {
+  yield (
+    /* keep */ // comment
+    (a as any) + 1
+  );
+}
 "#,
             ),
             (
@@ -314,6 +326,12 @@ function* t10() {
   yield (
     // comment
     (a as any)!
+  );
+}
+function* t11() {
+  yield (
+    /* keep */ // comment
+    (a as any) + 1
   );
 }
 "#,

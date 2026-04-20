@@ -99,7 +99,7 @@ fn test_format_hook_dependency_array_layout() {
 
 /// Line comments before optional calls stay attached to the full call expression.
 #[test]
-fn test_format_optional_call_boundary_line_comment() {
+fn test_format_optional_call_separator_line_comment() {
     assert_format_program_reference_widths(
         r#"const value = target // opt-call
 ?.()
@@ -172,7 +172,7 @@ fn test_format_empty_call_line_comment_argument() {
 
 /// Comments between the callee and `(` move into the first argument position.
 #[test]
-fn test_format_call_callee_boundary_comment_before_parentheses() {
+fn test_format_call_callee_separator_comment_before_parentheses() {
     assert_format_program_reference_widths(
         r#"const value = run /* callee-note */ (first, second)
 "#,

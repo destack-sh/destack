@@ -84,6 +84,27 @@ fn test_format_constructor_parameter_properties_expand_for_quoted_constructor_na
     );
 }
 
+/// One single constructor parameter property should stay inline.
+#[test]
+fn test_format_single_constructor_parameter_property_stays_inline() {
+    assert_format_program!(
+        r#"
+class C {
+  constructor(private x: number) {}
+}
+"#
+        .trim_start(),
+        r#"
+class C {
+  constructor(private x: number) {}
+}
+"#
+        .trim_start(),
+        FileType::TypeScript,
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
+    );
+}
+
 /// TypeScript object literals should quote all eligible keys in one consistent group.
 #[test]
 fn test_format_object_quote_props_consistent() {

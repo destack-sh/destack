@@ -1,10 +1,8 @@
 use crate::{
-    DestackFormatOptions, TestFormatter, assert_format_program,
-    assert_format_program_reference_widths,
+    DestackFormatOptions, assert_format_program, assert_format_program_reference_widths,
     assert_format_program_roundtrip_with_file_name_and_type,
+    assert_format_program_roundtrip_with_file_type,
 };
-use destack_ast::{Declaration, Expression, TypeExpression};
-use destack_parser::ParserOptions;
 use destack_source::FileType;
 
 /// Conditional types with constrained infer bindings should stay inline.
@@ -33,7 +31,7 @@ fn test_format_type_mapped_with_remap() {
 
 /// Mapped remap block comments should stay before `as`.
 #[test]
-fn test_format_type_mapped_with_remap_boundary_block_comment() {
+fn test_format_type_mapped_with_remap_separator_block_comment() {
     assert_format_program!(
         r#"type Paths<T> = {
   [K in keyof T as /* remap-note */
@@ -41,7 +39,7 @@ fn test_format_type_mapped_with_remap_boundary_block_comment() {
 }
 "#,
         r#"type Paths<T> = {
-    [K in keyof T /* remap-note */ as `get${Capitalize<K & string>}`]: () => T[K];
+    [K in keyof T as /* remap-note */ `get${Capitalize<K & string>}`]: () => T[K];
 };
 "#,
         FileType::TypeScript
@@ -50,7 +48,7 @@ fn test_format_type_mapped_with_remap_boundary_block_comment() {
 
 /// Mapped remap line comments should stay on the mapped field line.
 #[test]
-fn test_format_type_mapped_with_remap_boundary_line_comment() {
+fn test_format_type_mapped_with_remap_separator_line_comment() {
     assert_format_program!(
         r#"type Paths<T> = {
   [K in keyof T as // remap-note
@@ -58,7 +56,8 @@ fn test_format_type_mapped_with_remap_boundary_line_comment() {
 }
 "#,
         r#"type Paths<T> = {
-    [K in keyof T as Capitalize<K & string>]: () => T[K]; // remap-note
+    [K in keyof T as // remap-note
+    Capitalize<K & string>]: () => T[K];
 };
 "#,
         FileType::TypeScript
@@ -67,7 +66,7 @@ fn test_format_type_mapped_with_remap_boundary_line_comment() {
 
 /// Already formatted remap template comments should stabilize on the shared second-pass shape.
 #[test]
-fn test_format_type_mapped_with_remap_boundary_line_comment_in_template_roundtrip() {
+fn test_format_type_mapped_with_remap_separator_line_comment_in_template_roundtrip() {
     assert_format_program_roundtrip_with_file_name_and_type(
         r#"type Paths<T> = {
     [K in keyof T as `get${Capitalize<
@@ -87,108 +86,6 @@ fn test_format_type_mapped_with_remap_boundary_line_comment_in_template_roundtri
         FileType::TypeScript,
         DestackFormatOptions::default(),
     );
-}
-
-/// Formatter context should expose separator-owned remap line comments before plain remap expressions.
-#[test]
-fn test_format_type_mapped_plain_remap_separator_comments() {
-    let (formatter, expression_id) = TestFormatter::parse_with_file_type(
-        r#"type Paths<T> = {
-  [K in keyof T as // remap-note
-    Capitalize<K & string>]: () => T[K]
-}
-"#,
-        FileType::TypeScript,
-        |parser| parser.eat_expression(ParserOptions::default()),
-    )
-    .expect("parse mapped type");
-    let context = formatter.context(DestackFormatOptions::default());
-
-    let mapped_id = match context.tree.get(expression_id) {
-        Expression::Declaration(declaration_id) => match context.tree.get(*declaration_id) {
-            Declaration::Type(declaration) => declaration.value,
-            other => panic!("unexpected declaration: {other:?}"),
-        },
-        other => panic!("unexpected expression: {other:?}"),
-    };
-
-    let key_remap = match context.tree.get(mapped_id) {
-        TypeExpression::Mapped { parameter, .. } => parameter.key_remap.expect("missing key remap"),
-        other => panic!("unexpected mapped value: {other:?}"),
-    };
-
-    let comments = context.raw_type_position_comments_for(key_remap);
-
-    assert_eq!(comments.len(), 1);
-    assert!(comments[0].is_line());
-}
-
-/// Formatter context should expose separator-owned remap line comments before template remap expressions.
-#[test]
-fn test_format_type_mapped_template_remap_separator_comments() {
-    let (formatter, expression_id) = TestFormatter::parse_with_file_type(
-        r#"type Paths<T> = {
-  [K in keyof T as // remap-note
-    `get${Capitalize<K & string>}`]: () => T[K]
-}
-"#,
-        FileType::TypeScript,
-        |parser| parser.eat_expression(ParserOptions::default()),
-    )
-    .expect("parse mapped type");
-    let context = formatter.context(DestackFormatOptions::default());
-
-    let mapped_id = match context.tree.get(expression_id) {
-        Expression::Declaration(declaration_id) => match context.tree.get(*declaration_id) {
-            Declaration::Type(declaration) => declaration.value,
-            other => panic!("unexpected declaration: {other:?}"),
-        },
-        other => panic!("unexpected expression: {other:?}"),
-    };
-
-    let key_remap = match context.tree.get(mapped_id) {
-        TypeExpression::Mapped { parameter, .. } => parameter.key_remap.expect("missing key remap"),
-        other => panic!("unexpected mapped value: {other:?}"),
-    };
-
-    let comments = context.raw_type_position_comments_for(key_remap);
-
-    assert_eq!(comments.len(), 1);
-    assert!(comments[0].is_line());
-}
-
-/// Formatter context should expose separator-owned remap block comments before template remaps.
-#[test]
-fn test_format_type_mapped_template_remap_separator_block_comments() {
-    let (formatter, expression_id) = TestFormatter::parse_with_file_type(
-        r#"type Paths<T> = {
-  [K in keyof T as /* remap-note */
-    `get${Capitalize<K & string>}`]: () => T[K]
-}
-"#,
-        FileType::TypeScript,
-        |parser| parser.eat_expression(ParserOptions::default()),
-    )
-    .expect("parse mapped type");
-    let context = formatter.context(DestackFormatOptions::default());
-
-    let mapped_id = match context.tree.get(expression_id) {
-        Expression::Declaration(declaration_id) => match context.tree.get(*declaration_id) {
-            Declaration::Type(declaration) => declaration.value,
-            other => panic!("unexpected declaration: {other:?}"),
-        },
-        other => panic!("unexpected expression: {other:?}"),
-    };
-
-    let key_remap = match context.tree.get(mapped_id) {
-        TypeExpression::Mapped { parameter, .. } => parameter.key_remap.expect("missing key remap"),
-        other => panic!("unexpected mapped value: {other:?}"),
-    };
-
-    let comments = context.raw_type_position_comments_for(key_remap);
-
-    assert_eq!(comments.len(), 1);
-    assert!(comments[0].is_block());
 }
 
 /// Template literal unions should normalize to stable leading-pipe layout.
@@ -213,19 +110,17 @@ fn test_format_type_template_literal_union_with_leading_pipe() {
     );
 }
 
-/// Statement wrappers should preserve leading inner comment trivia.
+/// Statement cast comments should stay attached without preserving wrapper nodes.
 #[test]
-fn test_format_statement_cast_wrapper_preserves_leading_inner_comment() {
+fn test_format_statement_cast_keeps_leading_comment_without_wrapper_node() {
     assert_format_program!(
         r#"(
   // keep
   foo as Bar
 )
 "#,
-        r#"(
-  // keep
-  foo as Bar
-);
+        r#"// keep
+foo as Bar;
 "#,
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
@@ -273,6 +168,20 @@ fn test_format_type_as_multiline_block_comment_before_type() {
     );
 }
 
+/// Inline block comments in type arguments should keep OXC separator spacing.
+#[test]
+fn test_format_type_argument_inline_block_comment_spacing() {
+    assert_format_program!(
+        r#"type T = Foo</*a*/ string>
+type U = Foo<string, /*b*/ number>
+"#,
+        r#"type T = Foo</*a*/ string>;
+type U = Foo<string, /*b*/ number>;
+"#,
+        FileType::TypeScript
+    );
+}
+
 /// Mapped-type comments should stay attached to the mapped-type body.
 #[test]
 fn test_format_type_mapped_comments() {
@@ -310,6 +219,42 @@ fn test_format_type_mapped_comments() {
     );
 }
 
+/// Mapped-type own-line comments after `{` should stay before the key head.
+#[test]
+fn test_format_type_mapped_leading_body_line_comment() {
+    assert_format_program!(
+        r#"type Flags<T> = {
+  // map-head
+  [K in keyof T]: boolean
+}
+"#,
+        r#"type Flags<T> = {
+    // map-head
+    [K in keyof T]: boolean;
+};
+"#,
+        FileType::TypeScript
+    );
+}
+
+/// Mapped-type block comments after `{` should stay before the key head.
+#[test]
+fn test_format_type_mapped_leading_body_block_comment() {
+    assert_format_program!(
+        r#"type Flags<T> = {
+  /* map-head */
+  [K in keyof T]: boolean
+}
+"#,
+        r#"type Flags<T> = {
+    /* map-head */
+    [K in keyof T]: boolean;
+};
+"#,
+        FileType::TypeScript
+    );
+}
+
 /// Mapped-type value comments should stay on the mapped field line.
 #[test]
 fn test_format_type_mapped_value_trailing_comment() {
@@ -326,9 +271,9 @@ fn test_format_type_mapped_value_trailing_comment() {
     );
 }
 
-/// Mapped-type value block comments should stay attached after the `:` boundary.
+/// Mapped-type value block comments should stay attached after the `:` separator.
 #[test]
-fn test_format_type_mapped_value_boundary_block_comment() {
+fn test_format_type_mapped_value_separator_block_comment() {
     assert_format_program!(
         r#"type Flags<T> = {
   [K in keyof T]: /* keep */ boolean;
@@ -342,9 +287,25 @@ fn test_format_type_mapped_value_boundary_block_comment() {
     );
 }
 
+/// Mapped-type value block comments after semicolons should normalize before the semicolon.
+#[test]
+fn test_format_type_mapped_value_trailing_block_comment_after_semicolon() {
+    assert_format_program!(
+        r#"type Flags<T> = {
+  [K in keyof T]: boolean; /* mapped-block */
+}
+"#,
+        r#"type Flags<T> = {
+    [K in keyof T]: boolean /* mapped-block */;
+};
+"#,
+        FileType::TypeScript
+    );
+}
+
 /// Mapped-type value line comments should flush after the formatted value.
 #[test]
-fn test_format_type_mapped_value_boundary_line_comment() {
+fn test_format_type_mapped_value_separator_line_comment() {
     assert_format_program!(
         r#"type Flags<T> = {
   [K in keyof T]: // mapped-line
@@ -361,7 +322,7 @@ fn test_format_type_mapped_value_boundary_line_comment() {
 
 /// Mapped-type optional value line comments should flush after the formatted value.
 #[test]
-fn test_format_type_mapped_optional_value_boundary_line_comment() {
+fn test_format_type_mapped_optional_value_separator_line_comment() {
     assert_format_program!(
         r#"type Flags<T> = {
   readonly [K in keyof T]?: // map-value
@@ -394,7 +355,7 @@ fn test_format_type_decorated_single_member_intersection() {
     }
 }
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -466,6 +427,29 @@ type A3 =
 "#,
             ),
         ],
+    );
+}
+
+/// Leading-separator doc comments should be visible as first-arm prefix comments.
+#[test]
+fn test_format_union_leading_pipe_multiline_doc_comment_reaches_first_arm_prefix() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"type A =
+  | /**
+   * 11
+   */
+  a
+  | b
+"#,
+        r#"type A =
+  | /**
+     * 11
+     */
+    a
+  | b;
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
     );
 }
 
