@@ -130,9 +130,12 @@ loop {
 
 ### Using
 
-`using` is explicit protocol based resource disposal, mirroring JS/TS semantics.
-Resources are disposed at lexical scope exit in LIFO order, and `await using` calls the async disposer when available.
-`using` is independent from ownership: use `using` for `Disposable` or `AsyncDisposable`, and use `^T` when you need single owner memory lifetime control.
+`using` is explicit scoped cleanup scheduling with TS-shaped surface syntax.
+Resources are cleaned up at lexical scope exit in LIFO order, and `await using` runs async cleanup when required.
+The same cleanup capabilities also power ownership based destruction.
+Affine owned values may therefore be cleaned up earlier, at their last proven use, even without `using`.
+`using` does not replace ownership.
+It chooses one cleanup scope explicitly.
 
 ```ds
 using file = openFile(path);
@@ -191,7 +194,7 @@ struct User {
 function process(@nonempty input: string) { }
 
 // on reference types
-function kernel(data: @addrspace("shared") &Point) { }
+function kernel(data: @space("shared") &Point) { }
 
 // on match arms
 match (result) {
@@ -605,39 +608,91 @@ Extension methods participate in member resolution, too.
 ## Ownership
 
 TypeScript does not encode "ownership" in its type system: all reference types are implicitly GC managed, and all value types are copied by default.
-Destack keeps those defaults for plain `T`, and adds opt in ownership for performance critical paths.
-In practice, this gives you single owner values and explicit borrows without changing normal TS style code.
+This is convenient, but sometimes we want to take direct ownership of memory, whether for better control and performance, or just to express and enforcve invariants in the code.
 
-### Ownership Modifiers
+For compatibility and convenience, Destack keeps plain `T` as the default and adds explicit opt-in ownership syntax.
+Specifically, Destack adopts a mostly Rust/Mojo-inspired ownership model with `^T` as the "owned" signifier and a reified memory "place" (local to a worker, shared across workers, or another address space).
 
-In addition to the default `T`, there are four other ownership options:
+### Ownership Model
+
+The common forms are:
+
+| Surface form | Ownership | Region | Place |
+|---------|-------------|-----|-----|
+| `T` | managed | none | ambient |
+| `shared T` | managed | none | shared |
+| `&T` | borrowed | inferred or explicit | ambient |
+| `&shared T` | borrowed | inferred or explicit | shared |
+| `^T` | owned | none | ambient |
+| `^shared T` | owned | none | shared |
+| `*T` | raw | none | ambient |
+| `*shared T` | raw | none | shared |
+
+`T`, `&T`, and `^T` are place relative by default.
+`shared T` is shorthand for `@space("shared") T`.
+Other spaces use the same `@space(...)` mechanism.
+
+For copyable value types, plain `T` behaves like an ordinary by-value value.
+For reference types, plain `T` means one managed reference in the ambient place.
+- `^T` is affine and transfers ownership on move.
+- `&T` is a borrow of an owned `T`.
+- `*T` is one raw pointer and sits outside borrow .
+
+### Regions
+
+A region is one compiler known symbolic lifetime for one borrow.
+Explicit region spelling is only needed when a signature must relate returned borrows to input borrows.
+
 ```ds
-T            // type default (value or managed reference)
-&readonly T  // shared borrow (read only reference)
-&T           // exclusive borrow (mutable reference)
-^T           // single owner handle (move-only)
-^readonly T  // single owner handle (move-only, readonly)
+&T                 // surface syntax
+Borrowed<T, _>     // normalized form
+
+@lifetime("a") &T
+Borrowed<T, "a">
 ```
 
-Raw pointers are separate from ownership modifiers:
+Declarations that store borrowed fields are implicitly region generic.
+Owned fields make the enclosing type affine.
+Borrowed fields make the enclosing type region generic.
+
+### Type Algebra
+
+Destack normalises ownership and memory forms into a "type-space"-addressable `Form<T, O, S, R>`.
+That means we get to use the full power of TS-level type system on with all axis of ownership, space, and borrowing.
+
+| Surface spelling | Algebraic spelling |
+|---------|-------------|
+| `T` | `Managed<T>` in storage bearing positions |
+| `&T` | `Borrowed<T, _>` |
+| `^T` | `Owned<T>` |
+| `*T` | `Raw<T>` |
+| `shared T` | `Shared<T>` |
+| `@space("shared") T` | `WithSpace<T, "shared">` |
+
+The basic kernel is:
+
 ```ds
-*readonly T  // raw pointer (readonly, unsafe)
-*T           // raw pointer (mutable, unsafe)
+type Form<T, O = "managed", S = "local", R = never> = ...
+
+type BaseOf<T> = ...
+type OwnershipOf<T> = ...
+type SpaceOf<T> = ...
+type RegionOf<T> = ...
+
+type OwnershipOr<T, D> = ...
+type SpaceOr<T, D> = ...
+
+type Managed<T> = ...
+type Borrowed<T, R> = ...
+type Owned<T> = ...
+type Raw<T> = ...
+type Shared<T> = ...
+
+type WithBase<Q, T> = ...
+type WithOwnership<Q, O> = ...
+type WithSpace<Q, S> = ...
+type WithRegion<Q, R> = ...
 ```
-
-For reference types, a plain `T` means a managed object reference by default.
-That managed reference has stable identity, but it is not required to be a permanent native address.
-If code needs a stable physical address, it must use pinned managed storage or raw allocation.
-Pinning is intentionally small:
-it mainly means scoped keepalive plus explicit raw-address exposure for managed storage.
-
-Passing `^T` transfers ownership, that is, the previous binding becomes invalid.
-Owned values are cleaned up at their last proven use, not only at lexical scope end.
-Borrowed references must stay valid for their full lifetime, and strict mode rejects borrows held across suspension points like `await` and `yield`.
-
-Borrow checking is provenance based: every borrow has an origin root, derived borrows preserve that root, and merged borrows may carry multiple possible roots.
-Dropping, freeing, or moving an owner invalidates every borrow rooted in that owner.
-Converting a borrow or owner to a raw pointer is always explicit and may force the compiler to become conservative about provenance and destruction timing.
 
 ## Module Imports
 

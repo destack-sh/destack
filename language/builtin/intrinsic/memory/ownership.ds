@@ -1,0 +1,119 @@
+/// Region marker for borrowed validity.
+export newtype Region = unknown;
+
+/// Space tag kind for qualified storage (e.g., "local", "shared").
+export newtype Space = string;
+
+/// Ownership or access kind for qualified storage.
+export newtype Ownership = "managed" | "owned" | "borrowed" | "raw";
+
+/// Canonical qualified storage form.
+export newtype Form<
+    T,
+    O: Ownership = "managed",
+    S: Space = "local",
+    R = never,
+> = unknown;
+
+/// Managed value of `T` in the ambient space.
+export type Managed<T> = Form<BaseOf<T>, "managed", SpaceOr<T, "local">>;
+
+/// Borrowed value of `T` within region `R`.
+export type Borrowed<T, R: Region> = Form<BaseOf<T>, "borrowed", SpaceOr<T, "local">, R>;
+
+/// Raw value of `T`.
+export type Raw<T> = Form<BaseOf<T>, "raw", SpaceOr<T, "local">>;
+
+/// Owned value of `T`.
+export type Owned<T> = Form<BaseOf<T>, "owned", SpaceOr<T, "local">>;
+
+/// Rebase `T` into the shared space.
+export type Shared<T> = WithSpace<T, "shared">;
+
+/// Extract the unqualified base type of `T`.
+export type BaseOf<T> =
+    T extends Form<infer U, infer O, infer S, infer R> ? U :
+    T;
+
+/// Extract the explicit ownership of `T`.
+export type OwnershipOf<T> =
+    T extends Form<infer U, infer O, infer S, infer R> ? O :
+    never;
+
+/// Extract the explicit space of `T`.
+export type SpaceOf<T> =
+    T extends Form<infer U, infer O, infer S, infer R> ? S :
+    never;
+
+/// Extract the borrow region of `T`.
+export type RegionOf<T> =
+    T extends Form<infer U, infer O, infer S, infer R> ?
+        O extends "borrowed" ? R : never :
+    never;
+
+/// Extract the ownership of `T`, or fall back to `D`.
+export type OwnershipOr<T, D: Ownership> =
+    OwnershipOf<T> extends never ? D :
+    OwnershipOf<T>;
+
+/// Extract the space of `T`, or fall back to `D`.
+export type SpaceOr<T, D: Space> =
+    SpaceOf<T> extends never ? D :
+    SpaceOf<T>;
+
+/// Return whether `T` is managed.
+export type IsManaged<T> =
+    OwnershipOr<T, "managed"> extends "managed" ? true :
+    false;
+
+/// Return whether `T` is owned.
+export type IsOwned<T> =
+    OwnershipOr<T, "managed"> extends "owned" ? true :
+    false;
+
+/// Return whether `T` is borrowed.
+export type IsBorrowed<T> =
+    OwnershipOr<T, "managed"> extends "borrowed" ? true :
+    false;
+
+/// Return whether `T` is raw.
+export type IsRaw<T> =
+    OwnershipOr<T, "managed"> extends "raw" ? true :
+    false;
+
+/// Return whether `T` lives in the shared space.
+export type IsShared<T> =
+    SpaceOr<T, "local"> extends "shared" ? true :
+    false;
+
+/// Reformulate `Q` with base type `T`.
+export type WithBase<Q, T> =
+    Form<T, OwnershipOr<Q, "managed">, SpaceOr<Q, "local">, RegionOf<Q>>;
+
+/// Reformulate `Q` with ownership `O`.
+export type WithOwnership<Q, O: Ownership, R = RegionOf<Q>> =
+    O extends "borrowed" ?
+        Form<BaseOf<Q>, O, SpaceOr<Q, "local">, R> :
+        Form<BaseOf<Q>, O, SpaceOr<Q, "local">>;
+
+/// Reformulate `Q` in space `S`.
+export type WithSpace<Q, S: Space> =
+    Form<BaseOf<Q>, OwnershipOr<Q, "managed">, S, RegionOf<Q>>;
+
+/// Reformulate borrowed `Q` with region `R`.
+export type WithRegion<Q, R: Region> =
+    OwnershipOr<Q, "managed"> extends "borrowed" ?
+        Form<BaseOf<Q>, "borrowed", SpaceOr<Q, "local">, R> :
+        never;
+
+/// Convert `T` to the managed form while preserving place.
+export type AsManaged<T> = Managed<T>;
+
+/// Convert `T` to the owned form while preserving place.
+export type AsOwned<T> = Owned<T>;
+
+/// Convert `T` to the borrowed form within region `R` while preserving place.
+export type AsBorrowed<T, R: Region> = Borrowed<T, R>;
+
+/// Convert `T` to the raw form while preserving place.
+export type AsRaw<T> = Raw<T>;

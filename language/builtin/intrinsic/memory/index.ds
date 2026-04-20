@@ -8,11 +8,12 @@ export {
     type Raw,
     type Owned,
     type Shared,
-    type InSpace,
     type BaseOf,
     type OwnershipOf,
     type SpaceOf,
     type RegionOf,
+    type OwnershipOr,
+    type SpaceOr,
     type IsManaged,
     type IsOwned,
     type IsBorrowed,
@@ -26,7 +27,7 @@ export {
     type AsOwned,
     type AsBorrowed,
     type AsRaw,
-} from "./form.ds";
+} from "./ownership.ds";
 export { type Copy, type Clone, type Send, type Sync } from "./capability.ds";
 export { type Dispose, type AsyncDispose } from "./dispose.ds";
 export { type Bytes, type Buffer } from "./bytes.ds";
