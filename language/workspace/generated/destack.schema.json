@@ -2441,8 +2441,26 @@
           "format": "uint32",
           "minimum": 0
         },
+        "triggerPercent": {
+          "description": "Heap trigger as a percentage of the current goal.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
         "memoryLimitBytes": {
           "description": "Soft memory limit in bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "minimumHeapBytes": {
+          "description": "Minimum live heap floor in bytes.",
           "type": [
             "integer",
             "null"
@@ -2465,8 +2483,26 @@
           "format": "uint32",
           "minimum": 0
         },
+        "triggerPercent": {
+          "description": "Heap trigger as a percentage of the current goal.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
         "memoryLimitBytes": {
           "description": "Soft memory limit in bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "minimumHeapBytes": {
+          "description": "Minimum live heap floor in bytes.",
           "type": [
             "integer",
             "null"

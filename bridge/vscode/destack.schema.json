@@ -198,7 +198,7 @@
         "version": null,
         "name": null,
         "labels": null,
-        "primaryAgent": null,
+        "primaryWorker": null,
         "execution": null,
         "world": null,
         "access": null,
@@ -1178,11 +1178,11 @@
             "type": "string"
           }
         },
-        "primaryAgent": {
-          "description": "Default primary agent identity for policy selection.",
+        "primaryWorker": {
+          "description": "Default primary worker identity for policy selection.",
           "anyOf": [
             {
-              "$ref": "#/$defs/RuntimeAgentOptionsJson"
+              "$ref": "#/$defs/RuntimeWorkerOptionsJson"
             },
             {
               "type": "null"
@@ -1531,19 +1531,19 @@
         }
       }
     },
-    "RuntimeAgentOptionsJson": {
-      "description": "Primary runtime agent options for JSON deserialization.",
+    "RuntimeWorkerOptionsJson": {
+      "description": "Primary runtime worker options for JSON deserialization.",
       "type": "object",
       "properties": {
         "name": {
-          "description": "Primary agent name for policy selection.",
+          "description": "Primary worker name for policy selection.",
           "type": [
             "string",
             "null"
           ]
         },
         "labels": {
-          "description": "Primary agent labels for policy selection.",
+          "description": "Primary worker labels for policy selection.",
           "type": [
             "object",
             "null"
@@ -1798,8 +1798,8 @@
             }
           ]
         },
-        "agent": {
-          "description": "Agent identity selector.",
+        "worker": {
+          "description": "Worker identity selector.",
           "anyOf": [
             {
               "$ref": "#/$defs/RuntimeIdentitySelectorJson"
@@ -1886,7 +1886,7 @@
           "const": "any"
         },
         {
-          "description": "Match bindings that require the agent event-loop context.",
+          "description": "Match bindings that require the worker event-loop context.",
           "type": "string",
           "const": "eventLoop"
         },
@@ -1932,14 +1932,14 @@
       "type": "object",
       "properties": {
         "name": {
-          "description": "Name selector for one runtime or one agent.",
+          "description": "Name selector for one runtime or one worker.",
           "type": [
             "string",
             "null"
           ]
         },
         "labels": {
-          "description": "Label selector for one runtime or one agent.",
+          "description": "Label selector for one runtime or one worker.",
           "anyOf": [
             {
               "$ref": "#/$defs/RuntimeLabelSelectorJson"
@@ -2365,8 +2365,75 @@
       "description": "Runtime heap configuration for JSON deserialization.",
       "type": "object",
       "properties": {
+        "gc": {
+          "description": "Garbage-collection policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HeapGcOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "limit": {
+          "description": "Hard limits.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HeapLimitOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "layout": {
+          "description": "Layout and allocator geometry.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HeapLayoutOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "HeapGcOptionsJson": {
+      "description": "Runtime heap GC configuration for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "local": {
+          "description": "Local-heap collector pacing.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalGcOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "shared": {
+          "description": "Shared-heap collector pacing.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SharedGcOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "LocalGcOptionsJson": {
+      "description": "Runtime local-heap collector pacing for JSON deserialization.",
+      "type": "object",
+      "properties": {
         "growthPercent": {
-          "description": "Growth target percentage.",
+          "description": "Heap growth target percentage.",
           "type": [
             "integer",
             "null"
@@ -2374,8 +2441,17 @@
           "format": "uint32",
           "minimum": 0
         },
-        "softLimitBytes": {
-          "description": "Soft heap limit in bytes.",
+        "triggerPercent": {
+          "description": "Heap trigger as a percentage of the current goal.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "memoryLimitBytes": {
+          "description": "Soft memory limit in bytes.",
           "type": [
             "integer",
             "null"
@@ -2383,8 +2459,41 @@
           "format": "uint64",
           "minimum": 0
         },
-        "initialBytes": {
-          "description": "Initial heap size hint in bytes.",
+        "minimumHeapBytes": {
+          "description": "Minimum live heap floor in bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
+    },
+    "SharedGcOptionsJson": {
+      "description": "Runtime shared-heap collector pacing for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "growthPercent": {
+          "description": "Heap growth target percentage.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "triggerPercent": {
+          "description": "Heap trigger as a percentage of the current goal.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "memoryLimitBytes": {
+          "description": "Soft memory limit in bytes.",
           "type": [
             "integer",
             "null"
@@ -2392,6 +2501,115 @@
           "format": "uint64",
           "minimum": 0
         },
+        "minimumHeapBytes": {
+          "description": "Minimum live heap floor in bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
+    },
+    "HeapLimitOptionsJson": {
+      "description": "Runtime heap hard-limit configuration for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "local": {
+          "description": "Local-heap hard limits.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalHeapLimitOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "shared": {
+          "description": "Shared-heap hard limits.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SharedHeapLimitOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "LocalHeapLimitOptionsJson": {
+      "description": "Runtime local-heap hard limits for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "maxBytes": {
+          "description": "Hard limit for total retained heap bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "managedMaxBytes": {
+          "description": "Hard limit for retained managed heap bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "rawMaxBytes": {
+          "description": "Hard limit for retained raw heap bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
+    },
+    "SharedHeapLimitOptionsJson": {
+      "description": "Runtime shared-heap hard limits for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "maxBytes": {
+          "description": "Hard limit for total retained heap bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "managedMaxBytes": {
+          "description": "Hard limit for retained managed heap bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "rawMaxBytes": {
+          "description": "Hard limit for retained raw heap bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
+    },
+    "HeapLayoutOptionsJson": {
+      "description": "Runtime heap layout configuration for JSON deserialization.",
+      "type": "object",
+      "properties": {
         "sizeClasses": {
           "description": "The configured size-class table for small allocations.",
           "anyOf": [
@@ -2412,8 +2630,8 @@
           "format": "uint",
           "minimum": 0
         },
-        "managedSmallBytes": {
-          "description": "The byte width for managed small-object spans.",
+        "maxManagedYoungAllocationBytes": {
+          "description": "The maximum payload size admitted into managed young space.",
           "type": [
             "integer",
             "null"
@@ -2421,8 +2639,17 @@
           "format": "uint",
           "minimum": 0
         },
-        "rawSmallBytes": {
-          "description": "The byte width for raw small-object spans.",
+        "managedSpanBytes": {
+          "description": "The byte width for managed small-allocation spans.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "rawSpanBytes": {
+          "description": "The byte width for raw small-allocation spans.",
           "type": [
             "integer",
             "null"
@@ -2431,7 +2658,7 @@
           "minimum": 0
         },
         "pageBytes": {
-          "description": "The byte width for local heap pages and page-sized chunks.",
+          "description": "The byte width for heap pages and page-sized chunks.",
           "type": [
             "integer",
             "null"
@@ -2439,40 +2666,31 @@
           "format": "uint",
           "minimum": 0
         },
-        "maxBytes": {
-          "description": "Hard limit for total retained heap bytes.",
+        "segmentBytes": {
+          "description": "The byte width for one physical segment.",
           "type": [
             "integer",
             "null"
           ],
-          "format": "uint64",
+          "format": "uint",
           "minimum": 0
         },
-        "maxManagedBytes": {
-          "description": "Hard limit for retained managed heap bytes.",
+        "cardBytes": {
+          "description": "The byte width for one remembered card.",
           "type": [
             "integer",
             "null"
           ],
-          "format": "uint64",
+          "format": "uint",
           "minimum": 0
         },
-        "maxRawBytes": {
-          "description": "Hard limit for retained raw heap bytes.",
+        "smallAlignmentBytes": {
+          "description": "The required alignment for configured small-allocation classes.",
           "type": [
             "integer",
             "null"
           ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "maxSharedBytes": {
-          "description": "Hard limit for retained shared-memory bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
+          "format": "uint",
           "minimum": 0
         }
       }
