@@ -1,18 +1,15 @@
 use super::attribute::format_tree_attribute_value;
 use super::child::{
-    expression_chain_has_boundary_comment, format_inline_stub_comments,
+    expression_chain_has_separator_comment, format_inline_stub_comments,
     format_multiline_stub_comment_nodes, node_has_line_comment,
     tree_child_should_inline_braced_expression,
 };
 use crate::format::annotation::{infix_or_postfix_annotations, prefix_annotations};
 use crate::format::chain::transparent_inner_expression;
-use crate::format::context::ParenthesizedExpressionView;
-use crate::format::declaration::expression_is_decorated_class_declaration;
 use crate::format::expression::argument_value;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Declaration, Expression, FunctionKind, IfCondition, IfKind, LocalNodeId,
-    ScalarLiteral, TokenType,
+    Argument, Comment, Expression, IfCondition, IfKind, LocalNodeId, ScalarLiteral, TokenType,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
@@ -44,34 +41,6 @@ pub(crate) fn has_multiline_jsx_argument(
     })
 }
 
-/// Decide whether an argument can drop one parenthesized value wrapper.
-pub(crate) fn argument_drops_parenthesized_value_wrapper(
-    context: &DestackFormatContext<'_>,
-    parenthesized_id: LocalNodeId<Expression>,
-    inner_expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let inner_expression = context.tree.get(inner_expression_id);
-    let parenthesized_view = ParenthesizedExpressionView::from_node(context, parenthesized_id);
-
-    let drops_lambda_wrapper = !context.has_annotation(parenthesized_id)
-        && !context.has_annotation(inner_expression_id)
-        && !parenthesized_view.is_some_and(ParenthesizedExpressionView::has_leading_inner_trivia)
-        && matches!(
-            inner_expression,
-            Expression::Declaration(declaration_id)
-                if matches!(
-                    context.tree.get(*declaration_id),
-                    Declaration::Function(function) if function.signature.kind == FunctionKind::Lambda
-                )
-        );
-
-    let drops_decorated_class_wrapper = !context.has_annotation(parenthesized_id)
-        && !parenthesized_view.is_some_and(ParenthesizedExpressionView::has_leading_inner_newline)
-        && expression_is_decorated_class_declaration(context, inner_expression_id);
-
-    drops_lambda_wrapper || drops_decorated_class_wrapper
-}
-
 /// Return whether one tree argument source span is wrapped with `{ ... }`.
 pub(crate) fn tree_argument_is_wrapped_in_braces(
     context: &DestackFormatContext<'_>,
@@ -94,16 +63,26 @@ fn stub_argument_keeps_prefix_annotations_inside_braces(
     argument_id: LocalNodeId<Argument>,
     value_id: LocalNodeId<Expression>,
 ) -> bool {
-    !context.raw_prefix_doc_comments_for(argument_id).is_empty()
-        || !context.raw_prefix_doc_comments_for(value_id).is_empty()
+    context
+        .comments()
+        .comments_before(context.node_token_start(argument_id))
+        .iter()
+        .copied()
+        .any(|comment| context.comment_is_doc(comment))
+        || context
+            .comments()
+            .comments_before(context.node_token_start(value_id))
+            .iter()
+            .copied()
+            .any(|comment| context.comment_is_doc(comment))
 }
 
-/// Return stub comment nodes owned by the value span or argument span.
+/// Return stub comment nodes attached to the value span or argument span.
 fn stub_argument_comment_nodes(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
     value_id: LocalNodeId<Expression>,
-) -> (Vec<destack_ast::Comment>, bool) {
+) -> (Vec<Comment>, bool) {
     let expression_comment_nodes = {
         let comments = context.comments();
         comments
@@ -281,7 +260,7 @@ pub(crate) fn write_tree_expression_argument<'ast>(
                     // keep tree expression containers inline for common expression forms
                     if tree_child_should_inline_braced_expression(f.context(), argument_id) {
                         write!(f, [token("{"), value, token("}")])?;
-                    } else if expression_chain_has_boundary_comment(f.context(), *value)
+                    } else if expression_chain_has_separator_comment(f.context(), *value)
                         || matches!(
                             f.context().tree.get(*value),
                             Expression::If {

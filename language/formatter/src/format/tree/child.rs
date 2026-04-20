@@ -1,12 +1,13 @@
 use super::attribute::argument_transparent_value_id;
-use crate::format::annotation::format_raw_comment;
+use crate::format::annotation::format_comment;
 use crate::format::chain::{
     chain_nodes, has_comment_between_expressions, member_has_intervening_comment,
+    transparent_inner_expression,
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Declaration, Expression, FunctionDeclaration, FunctionKind, IfCondition, IfKind,
-    LocalNodeId, NodeTree, ScalarLiteral, TokenType,
+    Argument, Comment, Declaration, Expression, FunctionDeclaration, FunctionKind, IfCondition,
+    IfKind, LocalNodeId, NodeTree, ScalarLiteral, TokenType,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_source::Span;
@@ -53,7 +54,7 @@ pub(crate) fn tree_expression_contains_callback_break(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let expression_id = context.transparent_inner_expression(expression_id);
+    let expression_id = transparent_inner_expression(context, expression_id);
 
     match context.tree.get(expression_id) {
         Expression::Call {
@@ -77,10 +78,7 @@ pub(crate) fn tree_expression_contains_callback_break(
         | Expression::PrivateMember { left, .. }
         | Expression::Index { left, .. }
         | Expression::Maybe { left, .. }
-        | Expression::Must { left, .. }
-        | Expression::Parenthesized { expression: left } => {
-            tree_expression_contains_callback_break(context, *left)
-        }
+        | Expression::Must { left, .. } => tree_expression_contains_callback_break(context, *left),
         Expression::Declaration(declaration_id) => {
             tree_callback_body_requires_break(context, *declaration_id)
         }
@@ -144,7 +142,7 @@ pub(crate) fn tree_child_should_inline_braced_expression(
         | Expression::Maybe { .. }
         | Expression::Must { .. } => {
             !node_has_line_comment(context, value_id)
-                && !expression_chain_has_boundary_comment(context, value_id)
+                && !expression_chain_has_separator_comment(context, value_id)
         }
         Expression::If {
             kind: IfKind::Ternary,
@@ -153,18 +151,12 @@ pub(crate) fn tree_child_should_inline_braced_expression(
             else_expression,
             ..
         } => {
-            let has_parenthesized_branch = matches!(
-                context.tree.get(*then_expression),
-                Expression::Parenthesized { .. }
-            ) || else_expression.is_some_and(|else_id| {
-                matches!(context.tree.get(else_id), Expression::Parenthesized { .. })
-            });
             let has_branch_prefix_star_comment =
                 expression_chain_has_prefix_star_comment(context, *then_expression)
                     || else_expression.is_some_and(|else_id| {
                         expression_chain_has_prefix_star_comment(context, else_id)
                     });
-            if has_parenthesized_branch && has_branch_prefix_star_comment {
+            if has_branch_prefix_star_comment {
                 return false;
             }
 
@@ -191,8 +183,8 @@ pub(crate) fn tree_child_should_inline_braced_expression(
     }
 }
 
-/// Return whether one expression chain has comments on member or operator boundaries.
-pub(crate) fn expression_chain_has_boundary_comment(
+/// Return whether one expression chain has comments between its formatted hops.
+pub(crate) fn expression_chain_has_separator_comment(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -244,18 +236,7 @@ fn expression_chain_has_prefix_star_comment(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let mut current_expression_id = expression_id;
-    loop {
-        if expression_has_prefix_star_comment(context, current_expression_id) {
-            return true;
-        }
-
-        let Expression::Parenthesized { expression } = context.tree.get(current_expression_id)
-        else {
-            return false;
-        };
-        current_expression_id = *expression;
-    }
+    expression_has_prefix_star_comment(context, expression_id)
 }
 
 /// Check whether a tree child forces the element to break.
@@ -291,19 +272,10 @@ pub(crate) fn tree_child_breaks_element(
                 IfCondition::Let { .. } => true,
             };
 
-            let branch_has_line_comment = node_has_line_comment(context, value_id)
+            node_has_line_comment(context, value_id)
                 || condition_has_line_comment
                 || node_has_line_comment(context, *then_expression)
-                || else_expression.is_some_and(|else_id| node_has_line_comment(context, else_id));
-
-            let branch_has_parenthesized_expression = matches!(
-                context.tree.get(*then_expression),
-                Expression::Parenthesized { .. }
-            ) || else_expression.is_some_and(|else_id| {
-                matches!(context.tree.get(else_id), Expression::Parenthesized { .. })
-            });
-
-            branch_has_line_comment || branch_has_parenthesized_expression
+                || else_expression.is_some_and(|else_id| node_has_line_comment(context, else_id))
         }
         _ => false,
     };
@@ -343,7 +315,7 @@ pub(crate) fn tree_child_breaks_element(
 /// Format one multiline stub comment list.
 pub(crate) fn format_multiline_stub_comment_nodes<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    comment_nodes: &[destack_ast::Comment],
+    comment_nodes: &[Comment],
 ) -> FormatResult<()> {
     use destack_fir::prelude::hard_line_break;
     use destack_fir::write;
@@ -352,7 +324,7 @@ pub(crate) fn format_multiline_stub_comment_nodes<'ast>(
         if index > 0 {
             write!(f, [hard_line_break()])?;
         }
-        format_raw_comment(f, comment)?;
+        format_comment(f, comment)?;
     }
 
     Ok(())
@@ -376,7 +348,7 @@ pub(crate) fn format_inline_stub_comments<'ast>(
             write!(f, [space()])?;
         }
 
-        format_raw_comment(f, comment)?;
+        format_comment(f, comment)?;
     }
 
     Ok(!comment_nodes.is_empty())
