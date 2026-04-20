@@ -516,7 +516,6 @@ impl Dump for ImportAttributeClauseKind {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         let name = match self {
             ImportAttributeClauseKind::With => "With",
-            ImportAttributeClauseKind::Assert => "Assert",
         };
 
         dumper.write_str(name, Some(Color::White));
