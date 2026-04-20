@@ -1,27 +1,21 @@
-use crate::format::annotation::{
-    format_raw_comment, infix_or_postfix_annotations, postfix_annotations,
-};
+use crate::format::annotation::{infix_or_postfix_annotations, postfix_annotations};
 use crate::format::call::{
     call_should_route_to_chain, format_call_expression, format_instantiation_expression,
-    format_new_expression, instantiation_should_route_to_chain,
+    format_new_expression,
 };
-use crate::format::chain::{format_expression_chain, format_maybe_expression};
-use crate::format::expression::{
-    expression_has_leading_prefix_comment, format_index_expression, format_member_expression,
-    write_expression_with_prefix_annotations_after_offset,
+use crate::format::chain::{
+    format_expression_chain, format_maybe_expression, transparent_inner_expression,
 };
+use crate::format::expression::{format_index_expression, format_member_expression};
 use crate::format::operator::assign::format_assign_expression;
 use crate::format::operator::binary::format_binary_expression;
-use crate::format::operator::needs_parens_in_postfix_position;
-use crate::format::operator::types::{format_as_expression, format_satisfies_expression};
+use crate::format::operator::r#type::{format_as_expression, format_satisfies_expression};
+use crate::format::operator::write_postfix_base_expression;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Comment, Expression, LocalNodeId, Mutability, PostfixPosition, UnaryOperator};
+use destack_ast::{Expression, LocalNodeId, Mutability, PostfixPosition, UnaryOperator};
 use destack_fir::format::{Buffer, Format, FormatError, FormatResult};
-use destack_fir::prelude::{
-    empty_line, format_with, hard_line_break, soft_block_indent, space, token,
-};
+use destack_fir::prelude::{format_with, group, soft_block_indent, space, token};
 use destack_fir::write;
-use destack_source::Span;
 
 /// Return whether one operator expression serializes infix annotations as postfix-only annotations.
 pub(crate) fn operator_expression_uses_postfix_only_annotations(
@@ -60,163 +54,42 @@ pub(crate) fn write_operator_expression_trailing_annotations<'ast>(
     )
 }
 
-/// Write grouped prefix-unary operand comments with source-shaped operand spacing.
-fn write_grouped_prefix_unary_operand_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    comments: &[Comment],
-    right_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    if comments.is_empty() {
-        return Ok(());
-    }
-
-    let source = f.context().source_text();
-    let mut previous_comment: Option<Comment> = None;
-
-    for comment in comments.iter().copied() {
-        if let Some(previous_comment) = previous_comment {
-            let lines_before = {
-                let comment_cursor = f.context().comments();
-                source.get_lines_before(comment.span, &comment_cursor)
-            };
-
-            if previous_comment.is_line() {
-                write!(f, [hard_line_break()])?;
-            } else if lines_before == 0 {
-                write!(f, [space()])?;
-            } else if lines_before == 1 {
-                write!(f, [hard_line_break()])?;
-            } else {
-                write!(f, [empty_line()])?;
-            }
-        }
-
-        format_raw_comment(f, comment)?;
-        previous_comment = Some(comment);
-    }
-
-    let last_comment = comments[comments.len() - 1];
-    let right_span = f.context().span(right_id);
-    let gap_span = Span::new(
-        last_comment.span.file,
-        last_comment.span.end,
-        right_span.start,
-    );
-
-    if last_comment.is_line() || f.context().has_newline(gap_span) {
-        if f.context().has_blank_line(gap_span) {
-            write!(f, [empty_line()])?;
-        } else {
-            write!(f, [hard_line_break()])?;
-        }
-    } else {
-        write!(f, [space()])?;
-    }
-
-    Ok(())
-}
 /// Format operator and chain expression variants.
 pub(crate) fn format_operator_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> FormatResult<bool> {
-    let tree = f.context().tree;
-
     match expression {
         // unary
         Expression::Unary { operator, right } => {
             if operator.is_prefix() {
-                let right_needs_await_or_yield_grouping = matches!(
-                    tree.get(*right),
-                    Expression::Await { .. }
-                        | Expression::AwaitMaybe { .. }
-                        | Expression::Yield { .. }
-                );
-                let right_raw_prefix_comments = f.context().raw_prefix_comments_for(*right);
-                let right_has_leading_prefix_comment =
-                    expression_has_leading_prefix_comment(f.context(), *right);
-                let right_has_raw_prefix_comments = !right_raw_prefix_comments.is_empty();
-                let right_has_line_raw_prefix_comments = right_raw_prefix_comments
-                    .iter()
-                    .any(|comment| comment.is_line());
-                let right_is_parenthesized =
-                    matches!(tree.get(*right), Expression::Parenthesized { .. });
-                let right_needs_comment_grouping = !right_is_parenthesized
-                    && (right_has_leading_prefix_comment || right_has_raw_prefix_comments);
-                let right_needs_inline_grouping = right_needs_await_or_yield_grouping;
                 let needs_space = matches!(operator, UnaryOperator::Typeof | UnaryOperator::Void);
-                let format_grouped_right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    if right_has_raw_prefix_comments {
-                        write_grouped_prefix_unary_operand_comments(
-                            f,
-                            &right_raw_prefix_comments,
-                            *right,
-                        )?;
-                        let right_comment_end = right_raw_prefix_comments
-                            .last()
-                            .map_or(f.context().span(*right).start, |comment| comment.span.end);
+                let right_expression_id = transparent_inner_expression(f.context(), *right);
+                let right_span = f.context().span(right_expression_id);
+                let unary_span = f.context().span(node_id);
+                let right_needs_grouping = {
+                    let comments = f.context().comments();
 
-                        return write_expression_with_prefix_annotations_after_offset(
-                            f,
-                            *right,
-                            right_comment_end,
-                        );
-                    }
-
-                    write!(f, [right])
-                });
-                let can_inline_grouped_right =
-                    right_has_raw_prefix_comments && !right_has_line_raw_prefix_comments;
+                    comments.has_comment_before(right_span.start)
+                        || comments.has_comment_in_range(right_span.end, unary_span.end)
+                };
 
                 if needs_space {
-                    if right_needs_comment_grouping {
-                        if can_inline_grouped_right {
-                            write!(
-                                f,
-                                [
-                                    operator,
-                                    space(),
-                                    token("("),
-                                    format_grouped_right,
-                                    token(")")
-                                ]
-                            )?;
-                        } else {
-                            write!(
-                                f,
-                                [
-                                    operator,
-                                    space(),
-                                    token("("),
-                                    soft_block_indent(&format_grouped_right),
-                                    token(")")
-                                ]
-                            )?;
-                        }
-                    } else if right_needs_inline_grouping {
-                        write!(f, [operator, space(), token("("), right, token(")")])?;
-                    } else {
-                        write!(f, [operator, space(), right])?;
-                    }
-                } else if right_needs_comment_grouping {
-                    if can_inline_grouped_right {
-                        write!(f, [operator, token("("), format_grouped_right, token(")")])?;
-                    } else {
-                        write!(
-                            f,
-                            [
-                                operator,
-                                token("("),
-                                soft_block_indent(&format_grouped_right),
-                                token(")")
-                            ]
-                        )?;
-                    }
-                } else if right_needs_inline_grouping {
-                    write!(f, [operator, token("("), right, token(")")])?;
+                    write!(f, [operator, space()])?;
                 } else {
-                    write!(f, [operator, right])?;
+                    write!(f, [operator])?;
+                }
+
+                if right_needs_grouping {
+                    write!(
+                        f,
+                        [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                            write!(f, [token("("), soft_block_indent(right), token(")")])
+                        }))]
+                    )?;
+                } else {
+                    write!(f, [right])?;
                 }
             } else {
                 write!(f, [right, operator])?;
@@ -306,12 +179,8 @@ pub(crate) fn format_operator_expression<'ast>(
         }
 
         // instantiation
-        Expression::Instantiation { left, .. } => {
-            if instantiation_should_route_to_chain(f.context(), node_id, *left) {
-                format_expression_chain(f, node_id)?;
-            } else {
-                format_instantiation_expression(f, node_id)?;
-            }
+        Expression::Instantiation { .. } => {
+            format_instantiation_expression(f, node_id)?;
         }
 
         // new
@@ -427,12 +296,7 @@ fn format_must_expression<'ast>(
     position: PostfixPosition,
     left: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let needs_parentheses = needs_parens_in_postfix_position(f.context().tree, left);
-    if needs_parentheses {
-        write!(f, [token("("), left, token(")")])?;
-    } else {
-        write!(f, [left])?;
-    }
+    write_postfix_base_expression(f, left)?;
     if position == PostfixPosition::Indirect {
         write!(f, [token(".")])?;
     }

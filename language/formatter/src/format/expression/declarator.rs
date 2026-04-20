@@ -7,8 +7,8 @@ use crate::format::declaration::is_poorly_breakable_member_or_call_chain;
 use crate::format::expression::write_expression_without_prefix_annotations;
 use crate::format::operator::{
     AssignmentLikeLayout, assignment_rhs_prefers_break_after_operator,
-    expression_has_generic_arguments, write_assignment_like_right,
-    write_type_expression_with_inline_prefix_annotations,
+    expression_has_generic_arguments, expression_is_commonjs_require_call,
+    write_assignment_like_right, write_type_expression_with_inline_prefix_annotations,
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
@@ -628,11 +628,11 @@ pub(crate) fn format_declarator<'ast>(
     let pattern_has_comments_or_annotations = f.context().has_annotation(*pattern)
         || !f
             .context()
-            .comments_in_range(pattern_span.start, pattern_span.end)
+            .comment_tokens_in_range(pattern_span.start, pattern_span.end)
             .is_empty();
     let value_has_between_comment = between_span.is_some_and(|span| {
         !f.context()
-            .comments_in_range(span.start, span.end)
+            .comment_tokens_in_range(span.start, span.end)
             .is_empty()
     }) && !value_has_assignment_operator_prefix_annotation;
     let value_is_string_literal = matches!(
@@ -690,6 +690,15 @@ pub(crate) fn format_declarator<'ast>(
     // left sides that already break and feed a lambda rhs should stay on the lhs side
     else if (!is_left_short || left_may_break) && value_is_lambda_like {
         AssignmentLikeLayout::BreakLeftHandSide
+    }
+    // compact CommonJS require calls stay attached to `=`
+    else if expression_is_commonjs_require_call(f.context(), *value_id)
+        && !f
+            .context()
+            .comments()
+            .has_leading_own_line_comment(value_span.start)
+    {
+        AssignmentLikeLayout::NeverBreakAfterOperator
     }
     // compact atomic rhs values stay attached to `=`
     else if value_is_template_expression
