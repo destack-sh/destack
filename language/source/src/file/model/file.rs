@@ -281,9 +281,7 @@ impl File {
     /// Uses precomputed offsets for O(1) performance.
     #[inline]
     pub fn get_line_span(&self, line_index: u32) -> Option<Span> {
-        let Some(line_start_offsets) = self.line_start_offsets() else {
-            return None;
-        };
+        let line_start_offsets = self.line_start_offsets()?;
         let line_start = *line_start_offsets.get(line_index as usize)?;
         let line_end = if let Some(&next_start) = line_start_offsets.get(line_index as usize + 1) {
             // subtract 1 to exclude the newline character
@@ -299,9 +297,7 @@ impl File {
     /// Returns (line_index, column_index), both 0-based.
     /// Uses binary search for O(log n) performance.
     pub fn get_position(&self, byte_index: u32) -> Option<(u32, u32)> {
-        let Some(line_start_offsets) = self.line_start_offsets() else {
-            return None;
-        };
+        let line_start_offsets = self.line_start_offsets()?;
         if byte_index > self.len {
             return None;
         };
@@ -351,9 +347,7 @@ impl File {
     /// Returns the byte index, or None if the position is invalid.
     /// Uses precomputed line offsets for O(1) performance.
     pub fn get_byte_position(&self, line_index: u32, column: u32) -> Option<u32> {
-        let Some(line_start_offsets) = self.line_start_offsets() else {
-            return None;
-        };
+        let line_start_offsets = self.line_start_offsets()?;
         let line_start = *line_start_offsets.get(line_index as usize)?;
         let byte_pos = line_start + column;
 
