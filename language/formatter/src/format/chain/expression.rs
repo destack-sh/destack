@@ -2,62 +2,33 @@ use super::groups::{TailChainGroup, chain_operation_has_leading_gap_comment};
 use super::member::{CallChainPosition, build_member_chain_parts, member_has_intervening_comment};
 use super::{
     ChainExpression, ChainExpressionBase, ChainExpressionBaseHead, TailChainGroups,
-    assignment_like_parent, chain_base_trailing_node_id, chain_instantiation_prefix_wrap_body_ops,
-    chain_operation_is_call_like, chain_operation_is_index, chain_operation_node_id,
-    expression_has_ternary_ancestor, expression_trivia_anchor_end, first_tail_group_operation,
-    is_lambda_expression, is_nested_lambda_expression, member_is_private_hash,
-    transparent_inner_expression,
+    assignment_like_parent, chain_operation_is_call_like, chain_operation_is_index,
+    chain_operation_node_id, expression_has_ternary_ancestor, expression_trivia_anchor_end,
+    first_tail_group_operation, is_lambda_expression, is_nested_lambda_expression,
+    member_is_private_hash, transparent_inner_expression,
 };
 use crate::format::annotation::{
-    format_raw_comment, format_trailing_comment_slice, format_trailing_comments,
-    infix_or_postfix_annotations, infix_or_postfix_annotations_without_line_suffix_boundary,
-    line_suffix_boundary_annotations, postfix_annotations, prefix_annotations,
-    write_raw_leading_comments,
+    FormatLeadingComments, FormatTrailingComments, format_trailing_comments,
+    infix_or_postfix_annotations, postfix_annotations, prefix_annotations,
 };
 use crate::format::call::{
     expression_is_long_curried_call, format_call_arguments_in_chain, format_call_expression,
 };
-use crate::format::context::ParenthesizedExpressionView;
+use crate::format::context::DestackFormatterSpeculationExt;
 use crate::format::expression::{
     format_generic_argument_list, format_generic_argument_list_with_relational_spacing,
 };
 use crate::format::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{DecoratorPosition, Expression, LocalNodeId, NodeType, PostfixPosition};
-use destack_fir::format::{
-    BestFittingMode, Buffer, Format, FormatNodes, FormatResult, FormatState, VecBuffer,
+use destack_ast::{
+    Comment, CommentPosition, DecoratorPosition, Expression, LocalNodeId, NodeType, PostfixPosition,
 };
+use destack_fir::format::{BestFittingMode, Buffer, Format, FormatResult};
 use destack_fir::prelude::{
-    empty_line, expand_parent, format_with, group, hard_line_break, indent, space, token,
+    empty_line, expand_parent, format_with, group, hard_line_break, indent, token,
 };
 use destack_fir::{best_fitting, write};
 use destack_source::Span;
-
-/// Return whether an expression appears in call-like argument position.
-pub(crate) fn is_call_like_argument(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some((argument_id, parent_type)) = context.parent(node_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Argument {
-        return false;
-    }
-
-    let Some((expression_id, expression_type)) = context.parent_by_id(argument_id) else {
-        return false;
-    };
-    if expression_type != NodeType::Expression {
-        return false;
-    }
-
-    let expression_id = LocalNodeId::<Expression>::new(expression_id);
-    matches!(
-        context.tree.get(expression_id),
-        Expression::Call { .. } | Expression::New { .. }
-    )
-}
 
 /// Check whether an assignment chain ends in a nested lambda expression.
 pub(crate) fn is_assignment_chain_tail_lambda(
@@ -76,12 +47,12 @@ pub(crate) fn is_assignment_chain_tail_lambda(
     is_nested_lambda_expression(context, right_id)
 }
 
-/// One normalized chain layout owned by the chain formatter.
+/// One normalized chain layout for the chain formatter.
+#[derive(Clone)]
 pub(crate) struct MemberChain {
     chain: Vec<LocalNodeId<Expression>>,
     base: ChainExpressionBase,
     tail_groups: TailChainGroups,
-    instantiation_prefix_wrap_body_ops: Option<usize>,
 }
 
 impl MemberChain {
@@ -92,14 +63,11 @@ impl MemberChain {
     ) -> FormatResult<Self> {
         let (chain, mut base, mut tail_groups) = build_member_chain_parts(context, node_id)?;
         maybe_merge_first_tail_group_with_head(context, node_id, &mut base, &mut tail_groups);
-        let instantiation_prefix_wrap_body_ops =
-            chain_instantiation_prefix_wrap_body_ops(context, &base, &tail_groups);
 
         Ok(Self {
             chain,
             base,
             tail_groups,
-            instantiation_prefix_wrap_body_ops,
         })
     }
 
@@ -111,88 +79,59 @@ impl MemberChain {
         Self::from_expression(context, node_id).map(|chain| chain.tail_groups.len())
     }
 
-    /// Return the deferred boundary owner for the normalized base, if any.
-    fn deferred_base_boundary_owner_node_id(
-        &self,
-        context: &DestackFormatContext<'_>,
-    ) -> Option<LocalNodeId<Expression>> {
-        if self.tail_groups.is_empty() {
-            return None;
-        }
-
-        let base_trailing_node_id = chain_base_trailing_node_id(&self.base);
-        base_trailing_node_id.filter(|node_id| {
-            let mut has_boundary_postfix_annotation = false;
-
-            for annotation_id in context.annotation_ids(*node_id).iter().copied() {
-                let annotation = context.annotation(annotation_id);
-                if annotation.position != DecoratorPosition::LinePostfixBoundary {
-                    continue;
-                }
-
-                has_boundary_postfix_annotation = true;
-                if !context.span_starts_on_own_line(context.annotation_span(annotation_id)) {
-                    return false;
-                }
-            }
-
-            has_boundary_postfix_annotation
-        })
-    }
-
     /// Inspect the formatted base and return whether it breaks.
     fn inspect_head_will_break<'ast>(
         &self,
         f: &mut DestackFormatter<'ast, '_>,
         formatted_root_id: LocalNodeId<Expression>,
-        deferred_base_boundary_owner_node_id: Option<LocalNodeId<Expression>>,
     ) -> FormatResult<bool> {
-        let inspection_context = f.context().fork_for_inspection();
-        let mut inspection_state = FormatState::new(inspection_context);
-        let mut buffer = VecBuffer::new(&mut inspection_state);
-        let mut formatter = DestackFormatter::new(&mut buffer);
-
-        write_chain_base(
-            &mut formatter,
-            formatted_root_id,
-            &self.base,
-            &self.tail_groups,
-            self.instantiation_prefix_wrap_body_ops,
-            deferred_base_boundary_owner_node_id,
-        )?;
-
-        let nodes = buffer.into_vec();
-        Ok(nodes.as_slice().will_break())
+        // speculative formatting
+        let start = f.context().expression_token_start(formatted_root_id);
+        let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            write_chain_base(f, formatted_root_id, &self.base, &self.tail_groups)
+        });
+        f.speculate_will_break_after(start, &content)
     }
 
     /// Inspect every tail group and cache whether it breaks.
     fn inspect_tail_groups<'ast>(
-        &self,
+        &mut self,
         f: &mut DestackFormatter<'ast, '_>,
         formatted_root_id: LocalNodeId<Expression>,
-        deferred_base_boundary_owner_node_id: Option<LocalNodeId<Expression>>,
     ) -> FormatResult<()> {
-        let groups = self.tail_groups.iter().collect::<Vec<_>>();
+        let group_count = self.tail_groups.len();
 
-        for (group_index, group) in groups.iter().enumerate() {
-            let inspection_context = f.context().fork_for_inspection();
-            let mut inspection_state = FormatState::new(inspection_context);
-            let mut buffer = VecBuffer::new(&mut inspection_state);
-            let mut formatter = DestackFormatter::new(&mut buffer);
-            let following_group_first_operation =
-                groups.get(group_index + 1).and_then(|group| group.first());
+        for group_index in 0..group_count {
+            let following_group_first_operation = self
+                .tail_groups
+                .get(group_index + 1)
+                .and_then(|group| group.first())
+                .cloned();
 
-            write_chain_group(
-                &mut formatter,
-                formatted_root_id,
-                group.as_slice(),
-                following_group_first_operation,
-                deferred_base_boundary_owner_node_id,
-                false,
-            )?;
+            let group = self
+                .tail_groups
+                .get_mut(group_index)
+                .expect("tail chain group inspection should have one group");
 
-            let nodes = buffer.into_vec();
-            group.set_will_break(nodes.as_slice().will_break());
+            // speculative formatting
+            let first_operation = group
+                .first()
+                .expect("tail chain group inspection should have one first operation");
+            let start = f
+                .context()
+                .expression_token_start(chain_operation_node_id(first_operation));
+            let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                write_chain_group(
+                    f,
+                    formatted_root_id,
+                    group.as_slice(),
+                    following_group_first_operation.as_ref(),
+                    false,
+                )
+            });
+            let will_break = f.speculate_will_break_after(start, &content)?;
+
+            group.set_will_break(will_break);
             group.set_needs_empty_line(chain_group_needs_empty_line_before(f.context(), group));
         }
 
@@ -331,7 +270,7 @@ fn should_merge_first_tail_group_with_head(
                     Expression::QualifiedReference { path, .. } if path.segments.len() == 1 => {
                         has_computed_property || is_factory_name(context, path.segments[0])
                     }
-                    Expression::This { .. } => true,
+                    Expression::This => true,
                     _ => false,
                 }
             }
@@ -346,7 +285,7 @@ fn should_merge_first_tail_group_with_head(
     }
 }
 
-/// Return whether the first tail group member owns a boundary comment.
+/// Return whether the first tail group member owns a separator comment.
 fn first_group_has_comment(
     context: &DestackFormatContext<'_>,
     first_group: &TailChainGroup,
@@ -436,31 +375,19 @@ fn chain_group_needs_empty_line_before(
 
 impl<'ast> Format<DestackFormatContext<'ast>> for MemberChain {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-        let formatted_root_id = self.chain[self.chain.len() - 1];
-        let deferred_base_boundary_owner_node_id =
-            self.deferred_base_boundary_owner_node_id(f.context());
-        let head_will_break = self.inspect_head_will_break(
-            f,
-            formatted_root_id,
-            deferred_base_boundary_owner_node_id,
-        )?;
-        self.inspect_tail_groups(f, formatted_root_id, deferred_base_boundary_owner_node_id)?;
-        let groups_should_break = self.groups_should_break(f.context(), head_will_break);
+        let mut chain = self.clone();
+        let formatted_root_id = chain.chain[chain.chain.len() - 1];
+        let head_will_break = chain.inspect_head_will_break(f, formatted_root_id)?;
+        chain.inspect_tail_groups(f, formatted_root_id)?;
+        let groups_should_break = chain.groups_should_break(f.context(), head_will_break);
         let has_member_comment = self.has_member_comment(f.context());
-        let has_new_line_or_comment_between = self
+        let has_new_line_or_comment_between = chain
             .tail_groups
             .iter()
             .any(|group| group.needs_empty_line());
 
         let format_one_line_chain = format_with(|f| {
-            write_one_line_chain(
-                f,
-                formatted_root_id,
-                &self.base,
-                &self.tail_groups,
-                self.instantiation_prefix_wrap_body_ops,
-                deferred_base_boundary_owner_node_id,
-            )
+            write_one_line_chain(f, formatted_root_id, &chain.base, &chain.tail_groups)
         });
 
         let format_expanded_chain = format_with(|f| {
@@ -468,16 +395,14 @@ impl<'ast> Format<DestackFormatContext<'ast>> for MemberChain {
                 f,
                 formatted_root_id,
                 groups_should_break,
-                &self.base,
-                &self.tail_groups,
-                self.instantiation_prefix_wrap_body_ops,
-                deferred_base_boundary_owner_node_id,
+                &chain.base,
+                &chain.tail_groups,
             )
         });
 
-        if self.tail_groups.len() <= 1 && !has_member_comment && !has_new_line_or_comment_between {
+        if chain.tail_groups.len() <= 1 && !has_member_comment && !has_new_line_or_comment_between {
             let should_keep_one_line_without_group =
-                leading_call_expression_id(f.context(), &self.base).is_some_and(|expression_id| {
+                leading_call_expression_id(f.context(), &chain.base).is_some_and(|expression_id| {
                     expression_is_long_curried_call(f.context(), expression_id)
                 });
 
@@ -492,7 +417,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for MemberChain {
             return write!(f, [group(&format_expanded_chain).should_expand(true)]);
         }
 
-        if self
+        if chain
             .tail_groups
             .last()
             .is_some_and(|group| group.will_break())
@@ -547,17 +472,8 @@ fn write_one_line_chain<'ast>(
     formatted_root_id: LocalNodeId<Expression>,
     base: &ChainExpressionBase,
     tail_groups: &TailChainGroups,
-    instantiation_prefix_wrap_body_ops: Option<usize>,
-    deferred_base_boundary_owner_node_id: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
-    write_chain_base(
-        f,
-        formatted_root_id,
-        base,
-        tail_groups,
-        instantiation_prefix_wrap_body_ops,
-        deferred_base_boundary_owner_node_id,
-    )?;
+    write_chain_base(f, formatted_root_id, base, tail_groups)?;
 
     let groups = tail_groups.iter().collect::<Vec<_>>();
 
@@ -570,7 +486,6 @@ fn write_one_line_chain<'ast>(
             formatted_root_id,
             group.as_slice(),
             following_group_first_operation,
-            deferred_base_boundary_owner_node_id,
             false,
         )?;
     }
@@ -585,8 +500,6 @@ fn write_expanded_chain<'ast>(
     should_expand_parent: bool,
     base: &ChainExpressionBase,
     tail_groups: &TailChainGroups,
-    instantiation_prefix_wrap_body_ops: Option<usize>,
-    deferred_base_boundary_owner_node_id: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
     // parent expansion
     if should_expand_parent {
@@ -594,14 +507,7 @@ fn write_expanded_chain<'ast>(
     }
 
     // base
-    write_chain_base(
-        f,
-        formatted_root_id,
-        base,
-        tail_groups,
-        instantiation_prefix_wrap_body_ops,
-        deferred_base_boundary_owner_node_id,
-    )?;
+    write_chain_base(f, formatted_root_id, base, tail_groups)?;
 
     // tail groups
     if tail_groups.is_empty() {
@@ -648,15 +554,6 @@ fn write_expanded_chain<'ast>(
                 }
             }
 
-            if group_index == 0
-                && let Some(owner_node_id) = deferred_base_boundary_owner_node_id
-            {
-                write!(
-                    f,
-                    [line_suffix_boundary_annotations(f.context(), owner_node_id)]
-                )?;
-            }
-
             write_chain_group(
                 f,
                 formatted_root_id,
@@ -665,7 +562,6 @@ fn write_expanded_chain<'ast>(
                     .iter()
                     .nth(group_index + 1)
                     .and_then(|group| group.first()),
-                deferred_base_boundary_owner_node_id,
                 should_insert_break,
             )?;
         }
@@ -724,14 +620,34 @@ fn chain_structural_trailing_comments(
     context: &DestackFormatContext<'_>,
     preceding_node_id: LocalNodeId<Expression>,
     next_operation: Option<&ChainExpression>,
-) -> Vec<destack_ast::Comment> {
-    let mut comments = context.raw_comments_in_trailing_for(preceding_node_id);
+) -> Vec<Comment> {
+    let full_span = context.span(preceding_node_id);
+
+    // structural trailing comments
+    let mut comments = context
+        .tree
+        .get_main_span(preceding_node_id)
+        .map(|main_span| {
+            context
+                .comments()
+                .unprinted_comments()
+                .iter()
+                .copied()
+                .filter(|comment| comment.position == CommentPosition::Trailing)
+                .filter(|comment| comment.span.file == full_span.file)
+                .filter(|comment| {
+                    comment.span.start >= main_span.end && comment.span.end <= full_span.end
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
 
     let Some(next_operation) = next_operation else {
         comments.sort_by_key(|comment| (comment.span.start, comment.span.end));
         return comments;
     };
 
+    // separator comments before the next hop
     let next_separator_comments = match next_operation {
         ChainExpression::Member { node_id, .. } | ChainExpression::Index { node_id, .. } => {
             let receiver_id = match context.tree.get(*node_id) {
@@ -739,15 +655,18 @@ fn chain_structural_trailing_comments(
                 _ => return comments,
             };
 
-            context.raw_comments_before_next_non_trivia_token_after_span(context.span(receiver_id))
+            context.comments_before_next_non_trivia_token_after_span(context.span(receiver_id))
         }
         _ => Vec::new(),
     };
+
     comments.extend(
         next_separator_comments
             .into_iter()
             .filter(|comment| !comment.preceded_by_newline()),
     );
+
+    // normalized order
     comments.sort_by_key(|comment| (comment.span.start, comment.span.end));
     comments
 }
@@ -770,7 +689,7 @@ fn write_chain_operation_leading_comments<'ast>(
     };
     let leading_comments = f
         .context()
-        .raw_comments_before_next_non_trivia_token_after_span(f.context().span(receiver_id))
+        .comments_before_next_non_trivia_token_after_span(f.context().span(receiver_id))
         .into_iter()
         .filter(|comment| comment.preceded_by_newline())
         .collect::<Vec<_>>();
@@ -778,7 +697,7 @@ fn write_chain_operation_leading_comments<'ast>(
         return Ok(());
     }
 
-    write_raw_leading_comments(f, &leading_comments)
+    write!(f, [FormatLeadingComments::Comments(&leading_comments)])
 }
 
 /// Write trailing comments between one formatted node and its following operation.
@@ -796,7 +715,7 @@ fn write_chain_trailing_comments<'ast>(
             return Ok(());
         }
 
-        return write!(f, [format_trailing_comment_slice(&structural_comments)]);
+        return write!(f, [FormatTrailingComments::Comments(&structural_comments)]);
     };
 
     if next_operation_owns_callee_gap_comments(Some(next_operation)) {
@@ -806,7 +725,7 @@ fn write_chain_trailing_comments<'ast>(
     let structural_comments =
         chain_structural_trailing_comments(f.context(), preceding_node_id, Some(next_operation));
     if !structural_comments.is_empty() {
-        return write!(f, [format_trailing_comment_slice(&structural_comments)]);
+        return write!(f, [FormatTrailingComments::Comments(&structural_comments)]);
     }
 
     let following_span_start = chain_operation_start(f.context(), next_operation).unwrap_or(0);
@@ -821,62 +740,18 @@ fn write_chain_trailing_comments<'ast>(
     )
 }
 
-/// Write raw comments owned by one parenthesized base before its postfix continuation.
-fn write_parenthesized_base_postfix_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let comment_nodes = ParenthesizedExpressionView::from_node(f.context(), node_id)
-        .map(ParenthesizedExpressionView::postfix_comments)
-        .unwrap_or_default();
-    if comment_nodes.is_empty() {
-        return Ok(());
-    }
-
-    write!(f, [space()])?;
-
-    for (index, comment) in comment_nodes.iter().copied().enumerate() {
-        let comment_span = comment.span;
-        format_raw_comment(f, comment)?;
-
-        if let Some(next_comment) = comment_nodes.get(index + 1).copied() {
-            let gap_has_newline = f.context().has_newline(Span::new(
-                comment_span.file,
-                comment_span.end,
-                next_comment.span.start,
-            ));
-
-            if gap_has_newline {
-                write!(f, [hard_line_break()])?;
-            } else {
-                write!(f, [space()])?;
-            }
-        }
-    }
-
-    Ok(())
-}
-
 /// Format the unwrapped base segment of a chain.
 fn write_chain_base<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     formatted_root_id: LocalNodeId<Expression>,
     base: &ChainExpressionBase,
     tail_groups: &TailChainGroups,
-    instantiation_prefix_wrap_body_ops: Option<usize>,
-    deferred_base_boundary_owner_node_id: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
     let root_is_decorator_expression = f
         .context()
         .parent(formatted_root_id)
         .is_some_and(|(_, parent_type)| matches!(parent_type, NodeType::Decorator));
     let skip_base_head_for_start_call = base_head_is_owned_by_start_call(base);
-    let mut has_open_prefix_wrap = false;
-    let mut has_closed_prefix_wrap = false;
-    if instantiation_prefix_wrap_body_ops.is_some() {
-        write!(f, [token("(")])?;
-        has_open_prefix_wrap = true;
-    }
 
     if !skip_base_head_for_start_call {
         match &base.head {
@@ -902,50 +777,18 @@ fn write_chain_base<'ast>(
                     }
                 }
                 if *emit_postfix_annotations {
-                    let should_defer_boundary_annotations =
-                        deferred_base_boundary_owner_node_id == Some(*node_id);
-                    if should_defer_boundary_annotations {
-                        write!(
-                            f,
-                            [infix_or_postfix_annotations_without_line_suffix_boundary(
-                                f.context(),
-                                *node_id
-                            )]
-                        )?;
-                    } else {
-                        write!(f, [infix_or_postfix_annotations(f.context(), *node_id)])?;
-                    }
+                    write!(f, [infix_or_postfix_annotations(f.context(), *node_id)])?;
                 }
             }
             ChainExpressionBaseHead::Expression(node_id) => {
                 // nested chain nodes can still appear as the base here
                 write_postfix_base_expression(f, *node_id)?;
-                if deferred_base_boundary_owner_node_id == Some(*node_id) {
-                    write!(
-                        f,
-                        [infix_or_postfix_annotations_without_line_suffix_boundary(
-                            f.context(),
-                            *node_id
-                        )]
-                    )?;
-                } else {
-                    write!(f, [infix_or_postfix_annotations(f.context(), *node_id)])?;
-                }
+                write!(f, [infix_or_postfix_annotations(f.context(), *node_id)])?;
 
                 let first_continuation = base
                     .body
                     .first()
                     .or_else(|| first_tail_group_operation(tail_groups));
-                let member_continuation_owns_comments = first_continuation
-                    .is_some_and(|operation| matches!(operation, ChainExpression::Member { .. }));
-
-                if matches!(
-                    f.context().tree.get(*node_id),
-                    Expression::Parenthesized { .. }
-                ) && !member_continuation_owns_comments
-                {
-                    write_parenthesized_base_postfix_comments(f, *node_id)?;
-                }
 
                 write_chain_trailing_comments(
                     f,
@@ -958,31 +801,12 @@ fn write_chain_base<'ast>(
         }
     }
 
-    if instantiation_prefix_wrap_body_ops == Some(0) {
-        write!(f, [token(")")])?;
-        has_closed_prefix_wrap = true;
-    }
-
     for (index, op) in base.body.iter().enumerate() {
         let next_operation = base
             .body
             .get(index + 1)
             .or_else(|| first_tail_group_operation(tail_groups));
-        write_chain_operation(
-            f,
-            formatted_root_id,
-            op,
-            next_operation,
-            deferred_base_boundary_owner_node_id,
-        )?;
-        if !has_closed_prefix_wrap && instantiation_prefix_wrap_body_ops == Some(index + 1) {
-            write!(f, [token(")")])?;
-            has_closed_prefix_wrap = true;
-        }
-    }
-
-    if has_open_prefix_wrap && !has_closed_prefix_wrap {
-        write!(f, [token(")")])?;
+        write_chain_operation(f, formatted_root_id, op, next_operation)?;
     }
 
     Ok(())
@@ -1002,8 +826,8 @@ fn base_head_is_owned_by_start_call(base: &ChainExpressionBase) -> bool {
     )
 }
 
-/// Return prefix/postfix ownership for one chain operation.
-fn chain_operation_annotation_ownership(
+/// Return prefix and postfix emission flags for one chain operation.
+fn chain_operation_annotation_emit_flags(
     context: &DestackFormatContext<'_>,
     formatted_root_id: LocalNodeId<Expression>,
     operation: &ChainExpression,
@@ -1085,8 +909,8 @@ fn write_chain_operation_prefix<'ast>(
     Ok(())
 }
 
-/// Write one absorbed optional-chain boundary before its owning operation.
-fn write_chain_operation_optional_boundary<'ast>(
+/// Write one absorbed optional-chain marker before its owning operation.
+fn write_chain_operation_optional_marker<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     _node_id: LocalNodeId<Expression>,
     optional_position: Option<PostfixPosition>,
@@ -1109,23 +933,13 @@ fn write_chain_operation_postfix<'ast>(
     node_id: LocalNodeId<Expression>,
     emit_postfix_annotations: bool,
     call_or_new_handles_empty_infix: bool,
-    deferred_base_boundary_owner_node_id: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
     if !emit_postfix_annotations {
         return Ok(());
     }
 
-    let should_defer_boundary_annotations = deferred_base_boundary_owner_node_id == Some(node_id);
     if call_or_new_handles_empty_infix {
         write!(f, [postfix_annotations(f.context(), node_id)])?;
-    } else if should_defer_boundary_annotations {
-        write!(
-            f,
-            [infix_or_postfix_annotations_without_line_suffix_boundary(
-                f.context(),
-                node_id
-            )]
-        )?;
     } else {
         write!(f, [infix_or_postfix_annotations(f.context(), node_id)])?;
     }
@@ -1139,10 +953,9 @@ fn write_chain_operation<'ast>(
     formatted_root_id: LocalNodeId<Expression>,
     op: &ChainExpression,
     next_operation: Option<&ChainExpression>,
-    deferred_base_boundary_owner_node_id: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
     let (node_id, emit_prefix_annotations, emit_postfix_annotations) =
-        chain_operation_annotation_ownership(f.context(), formatted_root_id, op);
+        chain_operation_annotation_emit_flags(f.context(), formatted_root_id, op);
     let operation_span = f.context().span(node_id);
     let call_or_new_handles_empty_infix = matches!(
         op,
@@ -1163,7 +976,7 @@ fn write_chain_operation<'ast>(
             generic_arguments,
             ..
         } => {
-            write_chain_operation_optional_boundary(f, *node_id, *optional_position)?;
+            write_chain_operation_optional_marker(f, *node_id, *optional_position)?;
 
             let is_private_hash = member_is_private_hash(f.context(), *node_id);
             write!(f, [token(".")])?;
@@ -1199,7 +1012,7 @@ fn write_chain_operation<'ast>(
             if *call_position == CallChainPosition::Start {
                 format_call_expression(f, *call_node_id)?;
             } else {
-                write_chain_operation_optional_boundary(f, *call_node_id, *optional_position)?;
+                write_chain_operation_optional_marker(f, *call_node_id, *optional_position)?;
                 if *position == PostfixPosition::Indirect {
                     write!(f, [token(".")])?;
                 }
@@ -1216,23 +1029,16 @@ fn write_chain_operation<'ast>(
             index,
             ..
         } => {
-            write_chain_operation_optional_boundary(f, *node_id, *optional_position)?;
+            write_chain_operation_optional_marker(f, *node_id, *optional_position)?;
             if *position == PostfixPosition::Indirect {
                 write!(f, [token(".")])?;
             }
             if let Some(index) = index {
-                let should_parenthesize = if matches!(
-                    f.context().tree.get(*index),
-                    Expression::Parenthesized { .. }
-                ) {
-                    false
-                } else {
-                    let inner_index_id = transparent_inner_expression(f.context(), *index);
-                    matches!(
-                        f.context().tree.get(inner_index_id),
-                        Expression::Assign { .. }
-                    )
-                };
+                let inner_index_id = transparent_inner_expression(f.context(), *index);
+                let should_parenthesize = matches!(
+                    f.context().tree.get(inner_index_id),
+                    Expression::Assign { .. }
+                );
                 if should_parenthesize {
                     write!(f, [token("["), token("("), *index, token(")"), token("]")])?;
                 } else {
@@ -1261,7 +1067,6 @@ fn write_chain_operation<'ast>(
         node_id,
         emit_postfix_annotations,
         call_or_new_handles_empty_infix,
-        deferred_base_boundary_owner_node_id,
     )?;
 
     write_chain_trailing_comments(
@@ -1279,18 +1084,11 @@ fn write_chain_group<'ast>(
     formatted_root_id: LocalNodeId<Expression>,
     ops: &[ChainExpression],
     following_group_first_operation: Option<&ChainExpression>,
-    deferred_base_boundary_owner_node_id: Option<LocalNodeId<Expression>>,
     _skip_first_member_gap_comments: bool,
 ) -> FormatResult<()> {
     for (index, op) in ops.iter().enumerate() {
         let next_operation = ops.get(index + 1).or(following_group_first_operation);
-        write_chain_operation(
-            f,
-            formatted_root_id,
-            op,
-            next_operation,
-            deferred_base_boundary_owner_node_id,
-        )?;
+        write_chain_operation(f, formatted_root_id, op, next_operation)?;
     }
     Ok(())
 }

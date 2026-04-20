@@ -3,7 +3,8 @@ use std::borrow::Cow;
 use destack_fir::format::FormatResult;
 
 use crate::format::annotation::{
-    block_infix_annotations, infix_or_postfix_annotations, prefix_annotations,
+    block_infix_annotations, format_dangling_comments, infix_or_postfix_annotations,
+    prefix_annotations,
 };
 use crate::format::collection::{TrailingSeparator, separated_entries};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
@@ -159,14 +160,33 @@ fn format_empty_pattern_delimiter_with_interior_annotations<'ast>(
     open: &'static str,
     close: &'static str,
 ) -> FormatResult<()> {
+    let span = f.context().span(node_id);
     let mut interior_items = Vec::new();
     for annotation_id in f.context().annotation_ids(node_id).iter().copied() {
         if f.context().annotation(annotation_id).position == DecoratorPosition::BlockInfix {
             interior_items.push(annotation_id);
         }
     }
-    if interior_items.is_empty() {
+
+    let has_dangling_comments = {
+        let comments = f.context().comments();
+        !comments.comments_before(span.end).is_empty()
+    };
+
+    if interior_items.is_empty() && !has_dangling_comments {
         write!(f, [token(open), token(close)])?;
+        return Ok(());
+    }
+
+    if interior_items.is_empty() {
+        write!(
+            f,
+            [group(&format_args![
+                token(open),
+                format_dangling_comments(span).with_block_indent(),
+                token(close)
+            ])]
+        )?;
         return Ok(());
     }
 
@@ -174,7 +194,10 @@ fn format_empty_pattern_delimiter_with_interior_annotations<'ast>(
         f,
         [group(&format_args![
             token(open),
-            soft_block_indent(&block_infix_annotations(f.context(), node_id)),
+            block_indent(&format_with(|f| {
+                write!(f, [block_infix_annotations(f.context(), node_id)])?;
+                write!(f, [format_dangling_comments(span)])
+            })),
             token(close)
         ])]
     )?;
@@ -237,11 +260,11 @@ fn object_pattern_should_break_properties(
 
     fields.iter().copied().any(|field_id| {
         pattern_field_has_nested_object_or_array_like_pattern(context.tree, field_id)
-    }) || object_pattern_has_boundary_comments(context, fields)
+    }) || object_pattern_has_separator_comments(context, fields)
 }
 
-/// Return whether field boundaries own raw comments.
-fn object_pattern_has_boundary_comments(
+/// Return whether field separators have comments.
+fn object_pattern_has_separator_comments(
     context: &DestackFormatContext<'_>,
     fields: &[LocalNodeId<PatternField>],
 ) -> bool {
@@ -255,7 +278,7 @@ fn object_pattern_has_boundary_comments(
 
         !context
             .comments()
-            .comments_in_range(left_span.end, right_span.start)
+            .comment_tokens_in_range(left_span.end, right_span.start)
             .is_empty()
     })
 }

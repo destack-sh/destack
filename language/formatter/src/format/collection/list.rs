@@ -1,4 +1,4 @@
-use crate::format::annotation::write_raw_comment_slice;
+use crate::format::annotation::{FormatTrailingComments, write_comment_slice};
 use std::collections::HashMap;
 
 use destack_fir::format::{FormatResult, GroupId};
@@ -45,14 +45,26 @@ where
             .context()
             .last_non_trivia_token_in_span(element_span)
             .map_or(element_span.end, |token| token.span.end);
-        let next_boundary_start = self
-            .next_element
-            .map(|next_element| {
-                let next_element_span = f.context().span(next_element);
+        let next_element_start = self.next_element.map(|next_element| {
+            let next_element_span = f.context().span(next_element);
 
-                f.context()
-                    .first_non_trivia_token_in_span(next_element_span)
-                    .map_or(next_element_span.start, |token| token.span.start)
+            f.context()
+                .first_non_trivia_token_in_span(next_element_span)
+                .map_or(next_element_span.start, |token| token.span.start)
+        });
+        let source_separator = separator_token_after_element(
+            f.context(),
+            element_span,
+            next_element_start,
+            self.separator,
+        );
+        let next_following_start = next_element_start
+            .or_else(|| {
+                source_separator.and_then(|separator| {
+                    f.context()
+                        .next_non_trivia_token_after_span(separator.span)
+                        .map(|token| token.span.start)
+                })
             })
             .or_else(|| {
                 f.context()
@@ -60,18 +72,12 @@ where
                     .map(|token| token.span.start)
             })
             .unwrap_or(element_span.end);
-        let source_separator = separator_token_after_element(
-            f.context(),
-            element_span,
-            next_boundary_start,
-            self.separator,
-        );
         let following_start =
-            list_element_following_start(f.context(), source_separator, next_boundary_start);
+            list_element_following_start(f.context(), source_separator, next_following_start);
         let gap_comments =
             gap_comments_after_element(f.context(), element_anchor_end, following_start);
-        let element_owned_trailing_comments =
-            element_owned_trailing_comments(f.context(), element_anchor_end, element_span);
+        let element_tail_comments =
+            element_tail_comments(f.context(), element_anchor_end, element_span);
         let (comments_before_separator, comments_after_separator) =
             split_gap_comments_around_separator(&gap_comments, source_separator);
 
@@ -86,12 +92,12 @@ where
             } else {
                 gap_comments.as_slice()
             };
-            let owned_trailing_comment_count =
-                separator_owned_trailing_comment_count(f.context(), trailing_comments);
-            let trailing_comments = &trailing_comments[..owned_trailing_comment_count];
+            let separator_trailing_comment_count =
+                separator_trailing_comment_count(f.context(), trailing_comments);
+            let trailing_comments = &trailing_comments[..separator_trailing_comment_count];
 
             if !leading_comments.is_empty() {
-                write_raw_comment_slice(f, leading_comments)?;
+                write_comment_slice(f, leading_comments)?;
             }
 
             let separator_precedes_trailing_comments = source_separator.is_some()
@@ -100,19 +106,23 @@ where
                     .is_some_and(|comment| comment.is_line());
 
             if separator_precedes_trailing_comments {
-                write_separator_token(
-                    f,
-                    self.separator,
-                    self.is_last,
-                    self.trailing_separator,
-                    self.group_id,
-                )?;
+                if self.is_last && source_separator.is_some() {
+                    write_immediate_trailing_separator(f, self.separator, self.trailing_separator)?;
+                } else {
+                    write_separator_token(
+                        f,
+                        self.separator,
+                        self.is_last,
+                        self.trailing_separator,
+                        self.group_id,
+                    )?;
+                }
 
                 if !trailing_comments.is_empty() {
-                    write_raw_comment_slice(f, trailing_comments)?;
+                    write!(f, [FormatTrailingComments::Comments(trailing_comments)])?;
                 }
             } else {
-                write_raw_comment_slice(f, trailing_comments)?;
+                write_comment_slice(f, trailing_comments)?;
 
                 if self.is_last && source_separator.is_none() {
                     write_immediate_trailing_separator(f, self.separator, self.trailing_separator)?;
@@ -130,8 +140,7 @@ where
             return Ok(());
         }
 
-        if self.is_last && source_separator.is_none() && !element_owned_trailing_comments.is_empty()
-        {
+        if self.is_last && source_separator.is_none() && !element_tail_comments.is_empty() {
             write_immediate_trailing_separator(f, self.separator, self.trailing_separator)?;
         } else {
             write_separator_token(
@@ -147,14 +156,14 @@ where
     }
 }
 
-/// Return the boundary after one list element's separator, when present.
+/// Return the next non-trivia start after one list element's separator, when present.
 fn list_element_following_start(
     context: &DestackFormatContext<'_>,
     source_separator: Option<destack_ast::TokenSpan>,
-    next_boundary_start: u32,
+    next_following_start: u32,
 ) -> u32 {
     let Some(source_separator) = source_separator else {
-        return next_boundary_start;
+        return next_following_start;
     };
 
     context
@@ -190,7 +199,7 @@ fn write_separator_token<'ast>(
     Ok(())
 }
 
-/// Write one trailing separator immediately after owned trailing comments.
+/// Write one trailing separator immediately after same-line trailing comments.
 fn write_immediate_trailing_separator<'ast>(
     f: &mut Formatter<'_, DestackFormatContext<'ast>>,
     separator: &'static str,
@@ -210,7 +219,7 @@ fn write_immediate_trailing_separator<'ast>(
 fn separator_token_after_element(
     context: &DestackFormatContext<'_>,
     element_span: Span,
-    following_start: u32,
+    next_element_start: Option<u32>,
     separator: &str,
 ) -> Option<destack_ast::TokenSpan> {
     let separator_token_type = separator_token_type(separator)?;
@@ -222,12 +231,20 @@ fn separator_token_after_element(
     }
 
     let separator_token = context.next_non_trivia_token_after_span(element_span)?;
-    (separator_token.token.ty == separator_token_type
-        && separator_token.span.end <= following_start)
-        .then_some(separator_token)
+    if separator_token.token.ty != separator_token_type {
+        return None;
+    }
+
+    if let Some(next_element_start) = next_element_start
+        && separator_token.span.end > next_element_start
+    {
+        return None;
+    }
+
+    Some(separator_token)
 }
 
-/// Return raw comments between one element and the next boundary.
+/// Return comments between one element and the next following token start.
 fn gap_comments_after_element(
     context: &DestackFormatContext<'_>,
     gap_start: u32,
@@ -239,12 +256,12 @@ fn gap_comments_after_element(
 
     context
         .comments()
-        .comments_in_range(gap_start, gap_end)
+        .comment_tokens_in_range(gap_start, gap_end)
         .to_vec()
 }
 
-/// Return raw comments structurally owned inside one element tail.
-fn element_owned_trailing_comments(
+/// Return comments that still sit inside one element tail.
+fn element_tail_comments(
     context: &DestackFormatContext<'_>,
     anchor_end: u32,
     element_span: Span,
@@ -255,15 +272,15 @@ fn element_owned_trailing_comments(
 
     context
         .comments()
-        .comments_in_range(anchor_end, element_span.end)
+        .comment_tokens_in_range(anchor_end, element_span.end)
         .to_vec()
 }
 
 /// Split one gap comment slice around one source separator token.
-fn split_gap_comments_around_separator<'a>(
-    comments: &'a [Comment],
+fn split_gap_comments_around_separator(
+    comments: &[Comment],
     separator_token: Option<destack_ast::TokenSpan>,
-) -> (&'a [Comment], &'a [Comment]) {
+) -> (&[Comment], &[Comment]) {
     let Some(separator_token) = separator_token else {
         return (&[][..], comments);
     };
@@ -276,18 +293,14 @@ fn split_gap_comments_around_separator<'a>(
     comments.split_at(split_index)
 }
 
-/// Return the trailing comment count owned by one separator on its current line.
-fn separator_owned_trailing_comment_count(
+/// Return the trailing comment count that stays with one separator line.
+fn separator_trailing_comment_count(
     context: &DestackFormatContext<'_>,
     comments: &[Comment],
 ) -> usize {
     let mut count = 0usize;
 
     for comment in comments.iter().copied() {
-        if count == 0 && context.span_starts_on_own_line(comment.span) {
-            break;
-        }
-
         count += 1;
 
         if comment.is_line()

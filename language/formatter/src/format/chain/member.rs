@@ -1,7 +1,6 @@
 use super::groups::{TailChainGroups, build_tail_chain_groups, chain_head_operation_count};
-use crate::format::expression::should_unwrap_parenthesized_member_object;
 use crate::format::operator::{
-    is_chain_expression, needs_parens_in_postfix_position, write_postfix_base_expression,
+    is_chain_expression, normalized_postfix_base_expression, write_postfix_base_expression,
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
@@ -12,41 +11,6 @@ use destack_core::StringId;
 use destack_fir::format::{Buffer, FormatError, FormatResult};
 use destack_fir::prelude::token;
 use destack_fir::write;
-
-/// Extract a parenthesized base with a direct index chain.
-pub(crate) fn extract_parenthesized_index_chain(
-    tree: &NodeTree,
-    expression_id: LocalNodeId<Expression>,
-) -> Option<(LocalNodeId<Expression>, Vec<LocalNodeId<Expression>>)> {
-    // collect direct index operations from the outside in
-    let mut indices: Vec<LocalNodeId<Expression>> = Vec::new();
-    let mut current = expression_id;
-
-    while let Expression::Index {
-        position: PostfixPosition::Direct,
-        left,
-        index: Some(index),
-    } = tree.get(current)
-    {
-        indices.push(*index);
-        current = *left;
-    }
-
-    if indices.is_empty() {
-        return None;
-    }
-
-    let Expression::Parenthesized { expression } = tree.get(current) else {
-        return None;
-    };
-
-    if needs_parens_in_postfix_position(tree, *expression) {
-        return None;
-    }
-
-    indices.reverse();
-    Some((*expression, indices))
-}
 
 /// Format a maybe expression without considering chaining.
 pub(crate) fn format_maybe_expression<'ast>(
@@ -174,20 +138,6 @@ pub(crate) fn first_tail_group_operation(
     tail_groups.first().and_then(|group| group.first())
 }
 
-/// Return the trailing node of one chain base.
-pub(crate) fn chain_base_trailing_node_id(
-    base: &ChainExpressionBase,
-) -> Option<LocalNodeId<Expression>> {
-    if let Some(last_operation) = base.body.last() {
-        return Some(chain_operation_node_id(last_operation));
-    }
-
-    let ChainExpressionBaseHead::Path { node_id, .. } = base.head else {
-        return None;
-    };
-    Some(node_id)
-}
-
 /// Return the left operand for one chain node.
 pub(crate) fn chain_node_left_id(
     tree: &NodeTree,
@@ -231,15 +181,7 @@ pub(crate) fn chain_base_root_expression_id(
     context: &DestackFormatContext<'_>,
     root_id: LocalNodeId<Expression>,
 ) -> LocalNodeId<Expression> {
-    let Expression::Parenthesized { expression } = context.tree.get(root_id) else {
-        return root_id;
-    };
-
-    if should_unwrap_parenthesized_member_object(context, root_id, *expression) {
-        *expression
-    } else {
-        root_id
-    }
+    normalized_postfix_base_expression(context, root_id)
 }
 
 /// Return whether one expression has a ternary expression ancestor.
@@ -402,7 +344,7 @@ pub(crate) fn has_comment_between_expressions(
     };
 
     !context
-        .comments_in_range(between_span.start, between_span.end)
+        .comment_tokens_in_range(between_span.start, between_span.end)
         .is_empty()
 }
 
@@ -449,7 +391,7 @@ pub(crate) fn expression_trivia_anchor_end(
     let expression = context.tree.get(expression_id);
     let span = context.span(expression_id);
 
-    // member like nodes often include trailing boundary comments in their full spans
+    // member like nodes often include trailing separator comments in their full spans
     // so anchor at the property token to inspect the comment gap before parent operators
     match expression {
         Expression::Member { .. } | Expression::PrivateMember { .. } => context
@@ -464,16 +406,6 @@ pub(crate) fn expression_trivia_anchor_end(
             .tree
             .get_main_span(expression_id)
             .map_or(span.end, |path_span| path_span.end),
-        Expression::Parenthesized { expression } => {
-            let inner_span = context.span(*expression);
-
-            context
-                .next_non_whitespace_token_after_span(inner_span)
-                .filter(|token| {
-                    token.token.ty == TokenType::CloseParenthesis && token.span.file == span.file
-                })
-                .map_or(span.end, |token| token.span.end)
-        }
         _ => span.end,
     }
 }
@@ -548,7 +480,6 @@ pub(crate) fn path_postfix_annotations_emit_on_tail(
         let is_postfix = matches!(
             position,
             DecoratorPosition::LinePostfix
-                | DecoratorPosition::LinePostfixBoundary
                 | DecoratorPosition::BlockInfix
                 | DecoratorPosition::BlockPostfix
         );
@@ -590,12 +521,7 @@ pub(crate) fn chain_expression_from_node(
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<ChainExpression> {
     let chain_expression = match tree.get(expression_id) {
-        Expression::Member {
-            left,
-            name,
-            generic_arguments,
-            ..
-        } => {
+        Expression::Member { left, name, .. } => {
             let Some(name) = *name else {
                 return Err(FormatError::SyntaxError {
                     message: "missing member name in chain expression",
@@ -605,17 +531,12 @@ pub(crate) fn chain_expression_from_node(
                 node_id: expression_id,
                 optional_position: maybe_position_for_left(tree, *left),
                 segment: name,
-                generic_arguments: generic_arguments.clone(),
+                generic_arguments: vec![],
                 emit_prefix_annotations: false,
                 emit_postfix_annotations: true,
             }
         }
-        Expression::PrivateMember {
-            left,
-            name,
-            generic_arguments,
-            ..
-        } => {
+        Expression::PrivateMember { left, name, .. } => {
             let Some(name) = *name else {
                 return Err(FormatError::SyntaxError {
                     message: "missing private member name in chain expression",
@@ -625,7 +546,7 @@ pub(crate) fn chain_expression_from_node(
                 node_id: expression_id,
                 optional_position: maybe_position_for_left(tree, *left),
                 segment: name,
-                generic_arguments: generic_arguments.clone(),
+                generic_arguments: vec![],
                 emit_prefix_annotations: false,
                 emit_postfix_annotations: true,
             }
@@ -678,7 +599,6 @@ pub(crate) fn chain_expression_from_node(
 
     Ok(chain_expression)
 }
-
 /// Annotate every call operation with its position inside the chain.
 fn annotate_call_chain_positions(
     tree: &NodeTree,
@@ -710,7 +630,7 @@ fn annotate_call_chain_positions(
     }
 }
 
-/// Return the optional postfix position owned by one left operand maybe wrapper.
+/// Return the optional postfix position stored on one left operand maybe wrapper.
 fn maybe_position_for_left(
     tree: &NodeTree,
     left_id: LocalNodeId<Expression>,
@@ -770,7 +690,6 @@ pub(crate) fn assignment_like_parent(
                     parent_expr,
                     Expression::Await { expression }
                         | Expression::AwaitMaybe { expression }
-                        | Expression::Parenthesized { expression }
                         if expression.id == current_id
                 );
 
@@ -800,5 +719,25 @@ pub(crate) fn transparent_inner_expression(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> LocalNodeId<Expression> {
-    context.transparent_inner_expression(node_id)
+    let mut current_id = node_id;
+
+    loop {
+        if context.has_annotation(current_id) {
+            return current_id;
+        }
+
+        let next_id = match context.tree.get(current_id) {
+            Expression::Parenthesized { expression } => Some(*expression),
+            Expression::Await { expression } | Expression::AwaitMaybe { expression } => {
+                Some(*expression)
+            }
+            _ => None,
+        };
+
+        let Some(next_id) = next_id else {
+            return current_id;
+        };
+
+        current_id = next_id;
+    }
 }

@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 
-use crate::format::context::DestackFormatterCommentExt;
 use crate::format::tree::is_jsx_whitespace_char;
 use crate::{DestackFormatContext, DestackFormatter};
 
@@ -10,8 +9,7 @@ use destack_ast::{
 };
 use destack_core::StringId;
 use destack_fir::format::{
-    Buffer, Format, FormatNode, FormatResult, LineMode, RemoveSoftLinesBuffer, TextWidth, text,
-    token,
+    Buffer, Format, FormatNodes, FormatResult, RemoveSoftLinesBuffer, text, token,
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
@@ -231,7 +229,7 @@ fn format_interpolated_template_literal<'ast>(
 
     for (argument, segment) in arguments.iter().zip(string_segments) {
         let format_argument = format_with(|f| write!(f, [*argument]));
-        let interned_argument = f.intern_with_comment_snapshot(&format_argument)?;
+        let interned_argument = f.intern(&format_argument)?;
         let layout = template_argument_layout(
             f.context(),
             *argument,
@@ -314,31 +312,12 @@ fn template_argument_layout(
 
     if interned_argument
         .as_ref()
-        .is_some_and(template_argument_format_node_will_break)
+        .is_some_and(FormatNodes::will_break)
     {
         return TemplateElementLayout::Fit;
     }
 
     TemplateElementLayout::SingleLine
-}
-
-/// Return whether one interned template interpolation format node must break.
-fn template_argument_format_node_will_break(node: &FormatNode) -> bool {
-    match node {
-        FormatNode::Line(LineMode::Hard | LineMode::Empty) => true,
-        FormatNode::Token { text } => text.contains('\n'),
-        FormatNode::Text { width, .. } | FormatNode::FileSlice { width, .. } => {
-            matches!(width, TextWidth::Multiline)
-        }
-        FormatNode::Interned(interned) => interned
-            .iter()
-            .any(template_argument_format_node_will_break),
-        FormatNode::BestFitting { variants, .. } => variants
-            .most_flat()
-            .iter()
-            .any(template_argument_format_node_will_break),
-        _ => false,
-    }
 }
 
 /// Return whether one fit-layout interpolation should indent its body.
@@ -386,16 +365,9 @@ fn unwrap_template_expression(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> LocalNodeId<Expression> {
-    let mut current = expression_id;
+    let _ = context;
 
-    loop {
-        match context.tree.get(current) {
-            Expression::Parenthesized { expression } => {
-                current = *expression;
-            }
-            _ => return current,
-        }
-    }
+    expression_id
 }
 
 /// Format a template literal.
