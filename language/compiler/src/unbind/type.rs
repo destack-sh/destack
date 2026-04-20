@@ -108,16 +108,18 @@ impl Compiler {
                     ast_strings,
                     context,
                 );
-                let declared_type = self.unbind_type_expression(
-                    module,
-                    *declared_type,
-                    tree,
-                    symbols,
-                    types,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
+                let declared_type = declared_type.map(|declared_type| {
+                    self.unbind_type_expression(
+                        module,
+                        declared_type,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
 
                 ast::TypeMember::Field {
                     is_optional: *is_optional,

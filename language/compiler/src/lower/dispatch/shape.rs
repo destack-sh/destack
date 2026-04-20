@@ -173,6 +173,11 @@ impl ModuleLowerer<'_> {
                 let field_name = self.interface_field_name(member_id, *key)?;
 
                 // resolve the field type
+                let Some(declared_type) = declared_type else {
+                    return Err(LowerError::MissingType {
+                        node: member_id.into_global_any(self.module_id).into(),
+                    });
+                };
                 let field_type = self.declared_or_inferred_type_id_for_node_or_error(
                     declared_type.into_global_any(self.module_id),
                 )?;

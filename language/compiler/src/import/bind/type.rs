@@ -203,20 +203,22 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                let declared_type = self.bind_type_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
-                    scope,
-                    *declared_type,
-                    Some(member_id.into()),
-                    tree,
-                    symbols,
-                    types,
-                    space_order,
-                );
+                let declared_type = declared_type.map(|declared_type| {
+                    self.bind_type_expression(
+                        module,
+                        ast,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
+                        scope,
+                        declared_type,
+                        Some(member_id.into()),
+                        tree,
+                        symbols,
+                        types,
+                        space_order,
+                    )
+                });
 
                 let member_id = tree.insert(
                     member_id,

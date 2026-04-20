@@ -130,6 +130,12 @@ impl ModuleLowerer<'_> {
                     None,
                 );
                 let key = self.lower_key(*key)?;
+                let Some(declared_type) = declared_type else {
+                    return Err(CodegenJsError::MissingType {
+                        node: member_id.into_global_any(self.module.id),
+                        message: Some("type member field is missing its declared type".to_string()),
+                    });
+                };
                 let ty = self.lower_type_annotation_expression(*declared_type)?;
 
                 js::TypeMember::Field { modifiers, key, ty }

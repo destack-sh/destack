@@ -2515,14 +2515,16 @@ impl Compiler {
                 }
 
                 // resolve and attach the declared type
-                let value_ty_id = self.resolve_declared_type_expression(
-                    &mut ctx.type_context_reborrow(),
-                    *declared_type,
-                    true,
-                    true,
-                )?;
-                if ctx.types.get_value_type_id(member_symbol).is_none() {
-                    ctx.types.set_value_type(member_symbol, value_ty_id);
+                if let Some(declared_type) = declared_type {
+                    let value_ty_id = self.resolve_declared_type_expression(
+                        &mut ctx.type_context_reborrow(),
+                        *declared_type,
+                        true,
+                        true,
+                    )?;
+                    if ctx.types.get_value_type_id(member_symbol).is_none() {
+                        ctx.types.set_value_type(member_symbol, value_ty_id);
+                    }
                 }
 
                 Ok(())
