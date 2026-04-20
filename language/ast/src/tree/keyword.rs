@@ -162,8 +162,6 @@ pub enum Keyword {
     // ------------------------------------------------------------
     // Flow control
     // ------------------------------------------------------------
-    /// Assert expression.
-    Assert,
     /// Break expression.
     Break,
     /// Continue expression.
@@ -210,8 +208,7 @@ impl Keyword {
     pub const fn is_control(&self) -> bool {
         matches!(
             self,
-            Keyword::Assert
-                | Keyword::Break
+            Keyword::Break
                 | Keyword::Continue
                 | Keyword::Return
                 | Keyword::Yield
@@ -315,7 +312,6 @@ impl Keyword {
             Keyword::Loop => "loop",
 
             // flow control
-            Keyword::Assert => "assert",
             Keyword::Break => "break",
             Keyword::Continue => "continue",
             Keyword::Debugger => "debugger",
@@ -423,7 +419,6 @@ impl FromStr for Keyword {
             "loop" => Ok(Keyword::Loop),
 
             // flow control
-            "assert" => Ok(Keyword::Assert),
             "break" => Ok(Keyword::Break),
             "continue" => Ok(Keyword::Continue),
             "debugger" => Ok(Keyword::Debugger),
