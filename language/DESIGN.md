@@ -628,19 +628,19 @@ As with ownership, most of the time, developers don't need to think about placem
 
 ### Relations
 
-The rules for who can point into what mostly follow from the fact that references must always be valid, and shared memory cannot point into local memory.
+The rules for who can point into what mostly follow from the fact that references must always be valid, and shared memory should not point into local memory.
 (And raw pointers are your own dangerous business.)
 
 | From \ To | `T` | `shared T` | `&T` | `&shared T` | `^T` | `^shared T` | `*T` | `*shared T` |
 |-----------|-----|------------|------|-------------|------|-------------|------|-------------|
-| `T` | same | no | yes | no | no | no | explicit unsafe | no |
-| `shared T` | no | same | no | yes | no | no | no | explicit unsafe |
-| `&T` | no | no | same | no | no | no | explicit unsafe | no |
-| `&shared T` | no | no | no | same | no | no | no | explicit unsafe |
-| `^T` | no | no | yes | no | same | no | explicit unsafe | no |
-| `^shared T` | no | no | no | yes | no | same | no | explicit unsafe |
-| `*T` | no | no | unsafe checked reborrow | no | no | no | same | no |
-| `*shared T` | no | no | no | unsafe checked reborrow | no | no | no | same |
+| `T` | - | no | yes | no | no | no | explicit unsafe | no |
+| `shared T` | no | - | no | yes | no | no | no | explicit unsafe |
+| `&T` | no | no | - | no | no | no | explicit unsafe | no |
+| `&shared T` | no | no | no | -- | no | no | no | explicit unsafe |
+| `^T` | no | no | yes | no | - | no | explicit unsafe | no |
+| `^shared T` | no | no | no | yes | no | - | no | explicit unsafe |
+| `*T` | no | no | unsafe checked reborrow | no | no | no | - | no |
+| `*shared T` | no | no | no | unsafe checked reborrow | no | no | no | - |
 
 ### Bindings
 
