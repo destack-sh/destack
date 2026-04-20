@@ -1210,16 +1210,20 @@ pub(crate) fn store_list_keys(
     // collect key descriptors that satisfy the query
     let mut filtered = Vec::new();
     for key_handle in &key_handles {
-        let Some(key_resource) = binding.worker().resources.with_entry(key_handle.0, |entry| {
-            if entry.kind != CRYPTO_KEY_RESOURCE_KIND {
-                return None;
-            }
-            entry
-                .payload
-                .as_ref()
-                .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoKeyResource>>>())
-                .map(Arc::clone)
-        }) else {
+        let Some(key_resource) = binding
+            .worker()
+            .resources
+            .with_entry(key_handle.0, |entry| {
+                if entry.kind != CRYPTO_KEY_RESOURCE_KIND {
+                    return None;
+                }
+                entry
+                    .payload
+                    .as_ref()
+                    .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoKeyResource>>>())
+                    .map(Arc::clone)
+            })
+        else {
             continue;
         };
         let Some(key_resource) = key_resource else {

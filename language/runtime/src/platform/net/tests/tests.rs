@@ -19,7 +19,7 @@ use crate::platform::resource::{ListenerHandle, ResourceKind, SocketHandle};
 use crate::platform::{
     NativeArray, PlatformError, VmArray, VmSlice, VmValueCodec, net as platform_net,
 };
-use crate::runtime::{Worker, BindingCallContext};
+use crate::runtime::{BindingCallContext, Worker};
 #[cfg(windows)]
 pub(crate) use crate::tests::platform::assert_not_supported_result;
 pub(crate) use crate::tests::platform::{

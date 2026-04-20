@@ -226,17 +226,16 @@ pub(crate) unsafe fn destack_device_usb_open(
     let device = resource.device;
     let resource = Arc::new(resource);
 
-    let entry =
-        ResourceEntry::new(ResourceKind::UsbDevice)
-            .with_label(USB_DEVICE_RESOURCE_LABEL)
-            .with_payload(resource.clone())
-            .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
-                UsbDeviceFinalizer {
-                    service: service.state.clone(),
-                    handle,
-                    device,
-                },
-            ));
+    let entry = ResourceEntry::new(ResourceKind::UsbDevice)
+        .with_label(USB_DEVICE_RESOURCE_LABEL)
+        .with_payload(resource.clone())
+        .with_finalizer(binding.worker().platform_state.device.wrap_finalizer(
+            UsbDeviceFinalizer {
+                service: service.state.clone(),
+                handle,
+                device,
+            },
+        ));
     let resource_id =
         binding
             .worker()

@@ -23,7 +23,7 @@ use crate::platform::resource::{ListenerHandle, ResourceKind};
 use crate::platform::{
     NativeArray, PlatformError, VmAggregateCodec, VmArray, VmSlice, fs as platform_fs,
 };
-use crate::runtime::{Worker, BindingCallContext};
+use crate::runtime::{BindingCallContext, Worker};
 pub(crate) use crate::tests::platform::assert_platform_error_codes_with_privileged_policy;
 use crate::tests::runtime::TestRuntime;
 use platform_fs::{Dirent, DirentVm, OsPath, OsPathVm, WatchEvent, WatchEventVm};

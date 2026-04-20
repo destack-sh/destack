@@ -688,55 +688,58 @@ pub(super) fn set_unix_read_mode(
     mode: InputReadMode,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let result = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
-
-        // resolve mutable resolved_binding payload
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-
-        // apply backend-specific mode transitions
-        let update = match resolved_binding.backend {
-            UnixInputBackend::Platform => set_platform_read_mode(mode),
-            UnixInputBackend::UnixTerminal => {
-                let Some(descriptor) = resolved_binding.descriptor else {
-                    return Some(Err(input_not_found(operation, handle)));
-                };
-
-                // capture one baseline terminal mode for later restoration
-                let original_mode = match resolved_binding.terminal_original_mode {
-                    Some(mode) => mode,
-                    None => match read_terminal_mode(descriptor) {
-                        Ok(mode) => {
-                            resolved_binding.terminal_original_mode = Some(mode);
-                            mode
-                        }
-                        Err(error) => return Some(Err(error)),
-                    },
-                };
-
-                // select raw or cooked terminal mode
-                if mode == InputReadMode::Raw {
-                    let raw_mode = raw_terminal_mode(original_mode);
-                    apply_terminal_mode(descriptor, &raw_mode)
-                } else {
-                    apply_terminal_mode(descriptor, &original_mode)
-                }
+    let result = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
             }
-        };
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        if update.is_ok() {
-            resolved_binding.read_mode = mode;
-        }
-        Some(update)
-    });
+            // resolve mutable resolved_binding payload
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+
+            // apply backend-specific mode transitions
+            let update = match resolved_binding.backend {
+                UnixInputBackend::Platform => set_platform_read_mode(mode),
+                UnixInputBackend::UnixTerminal => {
+                    let Some(descriptor) = resolved_binding.descriptor else {
+                        return Some(Err(input_not_found(operation, handle)));
+                    };
+
+                    // capture one baseline terminal mode for later restoration
+                    let original_mode = match resolved_binding.terminal_original_mode {
+                        Some(mode) => mode,
+                        None => match read_terminal_mode(descriptor) {
+                            Ok(mode) => {
+                                resolved_binding.terminal_original_mode = Some(mode);
+                                mode
+                            }
+                            Err(error) => return Some(Err(error)),
+                        },
+                    };
+
+                    // select raw or cooked terminal mode
+                    if mode == InputReadMode::Raw {
+                        let raw_mode = raw_terminal_mode(original_mode);
+                        apply_terminal_mode(descriptor, &raw_mode)
+                    } else {
+                        apply_terminal_mode(descriptor, &original_mode)
+                    }
+                }
+            };
+
+            if update.is_ok() {
+                resolved_binding.read_mode = mode;
+            }
+            Some(update)
+        });
 
     match result.flatten() {
         Some(result) => result,
@@ -759,21 +762,24 @@ pub(super) fn set_gamepad_player_index(
         .boxed());
     }
 
-    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+    let updated = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-        resolved_binding.gamepad_player_index_override = Some(player_index);
-        Some(())
-    });
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+            resolved_binding.gamepad_player_index_override = Some(player_index);
+            Some(())
+        });
 
     match updated.flatten() {
         Some(()) => Ok(()),
@@ -816,21 +822,24 @@ pub(super) fn set_relative_mode_flag(
     enabled: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+    let updated = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-        resolved_binding.relative_mode_enabled = enabled;
-        Some(())
-    });
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+            resolved_binding.relative_mode_enabled = enabled;
+            Some(())
+        });
 
     match updated.flatten() {
         Some(()) => Ok(()),
@@ -847,22 +856,25 @@ pub(super) fn set_pointer_snapshot(
     y: f64,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+    let updated = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-        resolved_binding.last_pointer_x = x;
-        resolved_binding.last_pointer_y = y;
-        Some(())
-    });
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+            resolved_binding.last_pointer_x = x;
+            resolved_binding.last_pointer_y = y;
+            Some(())
+        });
 
     match updated.flatten() {
         Some(()) => Ok(()),
@@ -878,32 +890,35 @@ pub(super) fn set_sensor_stream_config(
     config: InputSensorEffectiveConfig,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+    let updated = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-        if config.enabled {
-            resolved_binding.sensor_enabled_kinds.insert(sensor_kind);
-            resolved_binding
-                .sensor_effective_configs
-                .insert(sensor_kind, config);
-        } else {
-            resolved_binding.sensor_enabled_kinds.remove(&sensor_kind);
-            resolved_binding
-                .sensor_effective_configs
-                .remove(&sensor_kind);
-        }
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+            if config.enabled {
+                resolved_binding.sensor_enabled_kinds.insert(sensor_kind);
+                resolved_binding
+                    .sensor_effective_configs
+                    .insert(sensor_kind, config);
+            } else {
+                resolved_binding.sensor_enabled_kinds.remove(&sensor_kind);
+                resolved_binding
+                    .sensor_effective_configs
+                    .remove(&sensor_kind);
+            }
 
-        Some(())
-    });
+            Some(())
+        });
 
     match updated.flatten() {
         Some(()) => Ok(()),
@@ -947,21 +962,24 @@ pub(super) fn set_linux_active_rumble_effect_id(
     effect_id: Option<i16>,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+    let updated = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-        resolved_binding.linux_active_rumble_effect_id = effect_id;
-        Some(())
-    });
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+            resolved_binding.linux_active_rumble_effect_id = effect_id;
+            Some(())
+        });
 
     match updated.flatten() {
         Some(()) => Ok(()),
@@ -1135,45 +1153,48 @@ fn read_platform_event(
     nonblocking: bool,
     operation: &'static str,
 ) -> RuntimeResult<InputEvent> {
-    let result = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
-
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
-
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-        if resolved_binding.backend != UnixInputBackend::Platform {
-            return None;
-        }
-
-        let Some(descriptor) = resolved_binding.descriptor else {
-            return Some(Err(input_not_found(operation, handle)));
-        };
-
-        let event = input_linux::read_linux_event(
-            binding,
-            descriptor,
-            nonblocking,
-            &resolved_binding.device_id,
-            resolved_binding.device_kind,
-            resolved_binding.linux_modifiers,
-            resolved_binding.linux_pointer_buttons,
-        );
-        match event {
-            Ok((event, modifiers, pointer_buttons)) => {
-                resolved_binding.linux_modifiers = modifiers;
-                resolved_binding.linux_pointer_buttons = pointer_buttons;
-                Some(Ok(event))
+    let result = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
             }
-            Err(error) => Some(Err(error)),
-        }
-    });
+
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
+
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+            if resolved_binding.backend != UnixInputBackend::Platform {
+                return None;
+            }
+
+            let Some(descriptor) = resolved_binding.descriptor else {
+                return Some(Err(input_not_found(operation, handle)));
+            };
+
+            let event = input_linux::read_linux_event(
+                binding,
+                descriptor,
+                nonblocking,
+                &resolved_binding.device_id,
+                resolved_binding.device_kind,
+                resolved_binding.linux_modifiers,
+                resolved_binding.linux_pointer_buttons,
+            );
+            match event {
+                Ok((event, modifiers, pointer_buttons)) => {
+                    resolved_binding.linux_modifiers = modifiers;
+                    resolved_binding.linux_pointer_buttons = pointer_buttons;
+                    Some(Ok(event))
+                }
+                Err(error) => Some(Err(error)),
+            }
+        });
 
     match result {
         Some(Some(Ok(event))) => Ok(event),
@@ -1468,22 +1489,25 @@ pub(super) fn next_unix_event_sequence(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
-    let sequence = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+    let sequence = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-        let next = resolved_binding.next_sequence;
-        resolved_binding.next_sequence = resolved_binding.next_sequence.saturating_add(1);
-        Some(next)
-    });
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+            let next = resolved_binding.next_sequence;
+            resolved_binding.next_sequence = resolved_binding.next_sequence.saturating_add(1);
+            Some(next)
+        });
 
     match sequence.flatten() {
         Some(sequence) => Ok(sequence),

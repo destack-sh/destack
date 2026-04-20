@@ -823,23 +823,26 @@ pub(super) fn next_sequence(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
-    let sequence = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
+    let sequence = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
 
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
-        let next = resolved_binding.next_sequence;
-        resolved_binding.next_sequence = resolved_binding.next_sequence.saturating_add(1);
-        Some(next)
-    });
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
+            let next = resolved_binding.next_sequence;
+            resolved_binding.next_sequence = resolved_binding.next_sequence.saturating_add(1);
+            Some(next)
+        });
 
     match sequence.flatten() {
         Some(sequence) => Ok(sequence),
@@ -916,29 +919,32 @@ pub(super) fn set_xinput_player_index_override(
         .boxed());
     }
 
-    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
+    let updated = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
 
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
-        if resolved_binding.backend != WindowsInputBackend::XInput {
-            return Some(Err(RuntimeError::from(PlatformError::not_supported(
-                operation,
-            ))
-            .boxed()));
-        }
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
+            if resolved_binding.backend != WindowsInputBackend::XInput {
+                return Some(Err(RuntimeError::from(PlatformError::not_supported(
+                    operation,
+                ))
+                .boxed()));
+            }
 
-        resolved_binding.xinput_player_index_override = Some(player_index);
-        Some(Ok(()))
-    });
+            resolved_binding.xinput_player_index_override = Some(player_index);
+            Some(Ok(()))
+        });
 
     match updated.flatten() {
         Some(result) => result,
@@ -1112,23 +1118,26 @@ pub(super) fn set_pointer_snapshot(
     y: f64,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
+    let updated = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
 
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
-        resolved_binding.last_pointer_x = x;
-        resolved_binding.last_pointer_y = y;
-        Some(())
-    });
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
+            resolved_binding.last_pointer_x = x;
+            resolved_binding.last_pointer_y = y;
+            Some(())
+        });
 
     match updated.flatten() {
         Some(()) => Ok(()),
@@ -1143,22 +1152,25 @@ pub(super) fn set_relative_mode_flag(
     enabled: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
+    let updated = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
 
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
-        resolved_binding.relative_mode_enabled = enabled;
-        Some(())
-    });
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
+            resolved_binding.relative_mode_enabled = enabled;
+            Some(())
+        });
 
     match updated.flatten() {
         Some(()) => Ok(()),
@@ -1174,27 +1186,30 @@ pub(super) fn set_sensor_stream_enabled(
     enabled: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
+    let updated = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
 
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
-        if enabled {
-            resolved_binding.sensor_enabled_kinds.insert(sensor_kind);
-        } else {
-            resolved_binding.sensor_enabled_kinds.remove(&sensor_kind);
-        }
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
+            if enabled {
+                resolved_binding.sensor_enabled_kinds.insert(sensor_kind);
+            } else {
+                resolved_binding.sensor_enabled_kinds.remove(&sensor_kind);
+            }
 
-        Some(())
-    });
+            Some(())
+        });
 
     match updated.flatten() {
         Some(()) => Ok(()),
@@ -1213,31 +1228,34 @@ pub(super) fn set_sensor_stream_config(
     // update stream-enabled state before storing effective configuration
     set_sensor_stream_enabled(binding, handle, sensor_kind, config.enabled, operation)?;
 
-    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
+    let updated = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
 
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
-        if config.enabled {
-            resolved_binding
-                .sensor_effective_configs
-                .insert(sensor_kind, config);
-        } else {
-            resolved_binding
-                .sensor_effective_configs
-                .remove(&sensor_kind);
-        }
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
+            if config.enabled {
+                resolved_binding
+                    .sensor_effective_configs
+                    .insert(sensor_kind, config);
+            } else {
+                resolved_binding
+                    .sensor_effective_configs
+                    .remove(&sensor_kind);
+            }
 
-        Some(())
-    });
+            Some(())
+        });
 
     match updated.flatten() {
         Some(()) => Ok(()),

@@ -7,7 +7,7 @@ use crate::platform::audio::{
     AudioEventSubscriptionFlags, AudioEventSubscriptionOptions,
 };
 use crate::platform::resource::ResourceId;
-use crate::runtime::{WorkerId, BindingCallContext, RuntimeEventLog, RuntimeStreamRegistry};
+use crate::runtime::{BindingCallContext, RuntimeEventLog, RuntimeStreamRegistry, WorkerId};
 
 use super::constants::{
     EVENT_SUBSCRIBE_BACKEND, EVENT_SUBSCRIBE_DEFAULT_ROUTE, EVENT_SUBSCRIBE_DEVICE_HOTPLUG,

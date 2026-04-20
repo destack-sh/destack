@@ -2008,11 +2008,11 @@ pub(crate) unsafe fn destack_input_text_open(
     let status = unsafe { host_text_open(host_session_id, request) };
     if let Err(error) = host_status_result(status, "destack.input.text.open", "open") {
         state_store.remove_host_text_session(session_id);
-        let _ =
-            binding
-                .worker()
-                .resources
-                .remove(&binding.world(), resource_id, Some(binding.engine()));
+        let _ = binding.worker().resources.remove(
+            &binding.world(),
+            resource_id,
+            Some(binding.engine()),
+        );
         return Err(error);
     }
 

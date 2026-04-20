@@ -9,7 +9,7 @@ use crate::runtime::process::service::executor::periodic::{
     PeriodicTaskHandle, open_periodic_task,
 };
 use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
-use crate::runtime::{WorkerId, ProcessSubscriberRegistry};
+use crate::runtime::{ProcessSubscriberRegistry, WorkerId};
 
 use super::constants::host_monotonic_nanos;
 use super::event::publish::publish_device_events_from_snapshot;

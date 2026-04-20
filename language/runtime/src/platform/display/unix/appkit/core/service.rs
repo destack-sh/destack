@@ -8,7 +8,7 @@ use objc2_core_graphics::{
 use crate::platform::display::unix::appkit::event as appkit_event;
 use crate::runtime::process::service::executor::host::HostExecutor;
 use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy, Service};
-use crate::runtime::{WorkerId, BindingCallContext, ProcessSubscriberRegistry};
+use crate::runtime::{BindingCallContext, ProcessSubscriberRegistry, WorkerId};
 
 use super::core::warn_callback_error;
 use super::runtime::AppKitRuntimeState;

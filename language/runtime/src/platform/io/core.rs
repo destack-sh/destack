@@ -280,7 +280,12 @@ pub(super) fn poll_close(
 
     // drop stale event token attachments for this poll handle
     {
-        let mut attachments_by_token = binding.worker().platform_state.io.event_attachments().lock();
+        let mut attachments_by_token = binding
+            .worker()
+            .platform_state
+            .io
+            .event_attachments()
+            .lock();
         attachments_by_token.retain(|_, attachments| {
             attachments.remove(&handle.0);
             !attachments.is_empty()
@@ -1200,7 +1205,12 @@ pub(super) fn event_signal(
 
     // prune stale attachments that no longer point to live poll handles
     if !stale_targets.is_empty() {
-        let mut attachments_by_token = binding.worker().platform_state.io.event_attachments().lock();
+        let mut attachments_by_token = binding
+            .worker()
+            .platform_state
+            .io
+            .event_attachments()
+            .lock();
         if let Some(attachments) = attachments_by_token.get_mut(&attachment_key) {
             for target in stale_targets {
                 attachments.remove(&target);
@@ -1246,7 +1256,12 @@ pub(super) fn event_attach(
 
     // store the attachment routing metadata for this token
     let attachment_key = event_attachment_key(binding, token);
-    let mut attachments = binding.worker().platform_state.io.event_attachments().lock();
+    let mut attachments = binding
+        .worker()
+        .platform_state
+        .io
+        .event_attachments()
+        .lock();
     attachments
         .entry(attachment_key)
         .or_default()

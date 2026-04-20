@@ -326,7 +326,11 @@ pub(crate) fn host_monotonic_nanos() -> u64 {
 #[cfg(target_os = "linux")]
 pub(crate) fn resolved_event_monitor_poll_interval_ns(default_ns: u64) -> u64 {
     let configured = with_binding_call_context(|context| {
-        Ok(context.worker().options.audio.event_monitor_poll_interval_ns)
+        Ok(context
+            .worker()
+            .options
+            .audio
+            .event_monitor_poll_interval_ns)
     })
     .ok()
     .flatten();

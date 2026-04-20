@@ -340,22 +340,32 @@ impl RuntimeDescriptorCodec {
                         ))
                         .boxed()
                     })?;
-                let value_stack_depth = u32::try_from(image.interpreter.value_stack.len())
-                    .map_err(|_| {
-                        RuntimeError::from(PlatformError::invalid_argument_value(
-                            "valueStackDepth",
-                            "engine value stack depth exceeds uint32",
-                        ))
-                        .boxed()
-                    })?;
-                let local_stack_depth = u32::try_from(image.interpreter.local_stack.len())
-                    .map_err(|_| {
-                        RuntimeError::from(PlatformError::invalid_argument_value(
-                            "localStackDepth",
-                            "engine local stack depth exceeds uint32",
-                        ))
-                        .boxed()
-                    })?;
+                let value_slots = image
+                    .interpreter
+                    .call_stack
+                    .iter()
+                    .map(|frame| frame.value_count)
+                    .sum::<usize>();
+                let local_slots = image
+                    .interpreter
+                    .call_stack
+                    .iter()
+                    .map(|frame| frame.local_count)
+                    .sum::<usize>();
+                let value_stack_depth = u32::try_from(value_slots).map_err(|_| {
+                    RuntimeError::from(PlatformError::invalid_argument_value(
+                        "valueStackDepth",
+                        "engine value slot depth exceeds uint32",
+                    ))
+                    .boxed()
+                })?;
+                let local_stack_depth = u32::try_from(local_slots).map_err(|_| {
+                    RuntimeError::from(PlatformError::invalid_argument_value(
+                        "localStackDepth",
+                        "engine local slot depth exceeds uint32",
+                    ))
+                    .boxed()
+                })?;
 
                 let image_bytes = u64::try_from(
                     to_allocvec(&**image)

@@ -44,7 +44,13 @@ pub(crate) fn configured_keystore_path(
     kind: CryptoStoreKind,
 ) -> Option<PathBuf> {
     match kind {
-        CryptoStoreKind::User => binding.worker().options.crypto.host_store_paths.user.clone(),
+        CryptoStoreKind::User => binding
+            .worker()
+            .options
+            .crypto
+            .host_store_paths
+            .user
+            .clone(),
         CryptoStoreKind::Machine => binding
             .worker()
             .options
