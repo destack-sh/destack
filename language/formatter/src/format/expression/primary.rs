@@ -11,9 +11,7 @@ use crate::format::annotation::{
 use crate::format::chain::transparent_inner_expression;
 use crate::format::collection::literal::{format_scalar_literal, format_template_literal};
 use crate::format::collection::{TrailingSeparator, separated_entries};
-use crate::format::operator::{
-    expression_is_type_position, format_generic_argument_list, normalized_postfix_base_expression,
-};
+use crate::format::operator::format_generic_argument_list;
 use crate::format::tree::format_tree_literal_expression;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{Argument, Expression, Keyword, LocalNodeId};
@@ -183,7 +181,7 @@ pub(crate) fn format_primary_array_expression<'ast>(
             let element_span = f.context().span(element_id);
 
             f.context()
-                .comments_in_range(element_span.start, element_span.end)
+                .comment_tokens_in_range(element_span.start, element_span.end)
                 .iter()
                 .copied()
                 .any(|comment| f.context().comment_is_line(comment))
@@ -256,16 +254,7 @@ pub(crate) fn format_primary_tuple_expression<'ast>(
         let should_expand =
             has_annotations || (f.context().has_newline(span) && elements_ids.len() > 1);
 
-        let trailing_separator = if expression_is_type_position(f.context(), node_id) {
-            match f.context().options.trailing_comma {
-                destack_workspace::TrailingComma::None => TrailingSeparator::Omit,
-                destack_workspace::TrailingComma::Es5 | destack_workspace::TrailingComma::All => {
-                    TrailingSeparator::Allowed
-                }
-            }
-        } else {
-            TrailingSeparator::Mandatory
-        };
+        let trailing_separator = TrailingSeparator::Mandatory;
 
         // tuple delimiters
         write!(
@@ -411,8 +400,7 @@ pub(crate) fn format_primary_expression<'ast>(
             generic_arguments,
             value,
         } => {
-            let tag = normalized_postfix_base_expression(f.context(), *tag);
-            write!(f, [tag, block_infix_annotations(f.context(), node_id)])?;
+            write!(f, [*tag, block_infix_annotations(f.context(), node_id)])?;
             if !generic_arguments.is_empty() {
                 format_generic_argument_list(f, generic_arguments)?;
             }

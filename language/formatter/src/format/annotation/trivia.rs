@@ -73,14 +73,7 @@ impl<'a> Format<DestackFormatContext<'a>> for FormatLeadingComments<'_> {
                 if comment.is_block() {
                     match source.lines_after(comment.span.end) {
                         0 => {
-                            let should_nestle =
-                                comments.peek().copied().is_some_and(|next_comment| {
-                                    should_nestle_adjacent_doc_comments(comment, next_comment)
-                                });
-
-                            if !should_nestle {
-                                write!(f, [space()])?;
-                            }
+                            write!(f, [space()])?;
                         }
                         1 => {
                             let lines_before = {
@@ -163,17 +156,12 @@ fn write_trailing_comments_with_options<'ast>(
         };
         total_lines_before += lines_before;
 
-        let should_nestle = previous_comment.is_some_and(|previous_comment| {
-            should_nestle_adjacent_doc_comments(previous_comment, comment)
-        });
-
         if total_lines_before > 0 || previous_comment.is_some_and(Comment::is_line) {
             write!(
                 f,
                 [line_suffix(&format_with(
                     move |f: &mut DestackFormatter<'ast, '_>| {
                         match lines_before {
-                            _ if should_nestle => {}
                             0 => {
                                 if previous_comment.is_some_and(Comment::is_line) {
                                     write!(f, [hard_line_break()])?;
@@ -195,9 +183,7 @@ fn write_trailing_comments_with_options<'ast>(
             )?;
         } else {
             let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                if !should_nestle {
-                    write!(f, [space()])?;
-                }
+                write!(f, [space()])?;
 
                 format_comment_source_text(f, comment_source, is_block_comment)
             });
@@ -236,12 +222,8 @@ pub(crate) fn write_comment_slice<'ast>(
             let comment_cursor = f.context().comments();
             source.get_lines_before(comment.span, comment_cursor)
         };
-        let should_nestle = previous_comment.is_some_and(|previous_comment| {
-            should_nestle_adjacent_doc_comments(previous_comment, comment)
-        });
 
         match lines_before {
-            _ if should_nestle => {}
             0 => {
                 if previous_comment.is_some_and(Comment::is_line) {
                     write!(f, [hard_line_break()])?;
@@ -338,11 +320,7 @@ impl<'a> Format<DestackFormatContext<'a>> for FormatDanglingComments<'_> {
                 let mut previous_comment = None;
 
                 for comment in comments.iter().copied() {
-                    let should_nestle = previous_comment.is_some_and(|previous_comment| {
-                        should_nestle_adjacent_doc_comments(previous_comment, comment)
-                    });
-
-                    if previous_comment.is_some() && !should_nestle {
+                    if previous_comment.is_some() {
                         write!(f, [hard_line_break()])?;
                     }
 
@@ -467,15 +445,6 @@ fn format_multiline_comment_source<'ast>(
     }
 
     Ok(())
-}
-
-/// Return whether two adjacent doc comments should stay nestled together.
-fn should_nestle_adjacent_doc_comments(current: Comment, next: Comment) -> bool {
-    current.is_jsdoc()
-        && next.is_jsdoc()
-        && current.is_multiline_block()
-        && next.is_multiline_block()
-        && current.span.end == next.span.start
 }
 
 /// Return the common leading indentation width for multiline comment lines.

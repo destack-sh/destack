@@ -60,16 +60,6 @@ impl ExpressionLeftSide {
     }
 }
 
-/// Return whether an expression is trivial and inline-safe without annotations.
-pub(crate) fn expression_is_trivial_inline_without_annotations(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    !context.has_annotation(expression_id)
-        && !context.node_has_newline(expression_id)
-        && is_trivial_expression(context.tree, context.tree.get(expression_id))
-}
-
 /// Return whether a type expression prefers inline layout.
 fn is_trivial_type_expression(tree: &NodeTree, expression_id: LocalNodeId<TypeExpression>) -> bool {
     matches!(

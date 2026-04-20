@@ -1,3 +1,4 @@
+use crate::format::expression::expression_needs_parentheses_in_parent;
 use crate::{DestackFormatOptions, TestFormatter, assert_format_program_roundtrip_with_file_type};
 use destack_ast::{CommentKind, CommentPosition, Expression};
 use destack_source::FileType;
@@ -194,7 +195,10 @@ fn test_parenthesized_scalar_separator_mixed_comments_attach_as_inner_leading_sl
     assert!(!leading_comments[1].preceded_by_newline());
     assert!(leading_comments[1].followed_by_newline());
 
-    assert!(context.expression_needs_parentheses_in_parent(inner_expression_id));
+    assert!(expression_needs_parentheses_in_parent(
+        &context,
+        inner_expression_id
+    ));
 }
 
 /// The inner assertion should keep mixed leading comments on one line before derived parentheses.

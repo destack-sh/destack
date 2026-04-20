@@ -514,7 +514,7 @@ fn struct_literal_layout(
     let has_comments = properties_ids.iter().any(|property_id| {
         let property_span = f.context().span(*property_id);
         !f.context()
-            .comments_in_range(property_span.start, property_span.end)
+            .comment_tokens_in_range(property_span.start, property_span.end)
             .is_empty()
     });
     let keep_single_inline_comment_object =

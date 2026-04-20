@@ -1,7 +1,7 @@
 use super::format_generic_argument_list;
 use crate::format::annotation::{FormatLeadingComments, FormatTrailingComments};
 use crate::format::chain::{member_property_start, transparent_inner_expression};
-use crate::format::operator::{normalized_postfix_base_expression, write_postfix_base_expression};
+use crate::format::operator::write_postfix_base_expression;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Comment, Expression, GenericArgument, LocalNodeId, NodeType, PostfixPosition, TypeExpression,
@@ -135,14 +135,6 @@ fn postfix_separator_comments(
     context.comments_before_next_non_trivia_token_after_span(context.span(receiver_id))
 }
 
-/// Normalize one member receiver by dropping an allowed parenthesized wrapper.
-fn normalized_member_receiver(
-    context: &DestackFormatContext<'_>,
-    receiver_id: LocalNodeId<Expression>,
-) -> LocalNodeId<Expression> {
-    normalized_postfix_base_expression(context, receiver_id)
-}
-
 /// Return whether one expression is a member-chain style receiver.
 fn expression_is_member_chain_receiver(
     context: &DestackFormatContext<'_>,
@@ -193,7 +185,6 @@ fn static_member_layout(
     node_id: LocalNodeId<Expression>,
     receiver_id: LocalNodeId<Expression>,
 ) -> StaticMemberLayout {
-    let receiver_id = normalized_member_receiver(context, receiver_id);
     if context.comments().has_leading_own_line_comment(
         member_property_start(context, node_id).unwrap_or(context.span(node_id).start),
     ) {
@@ -316,7 +307,6 @@ fn write_static_member_expression<'ast>(
     name: Option<StringId>,
     generic_arguments: &[LocalNodeId<GenericArgument>],
 ) -> FormatResult<()> {
-    let receiver_id = normalized_member_receiver(f.context(), receiver_id);
     let separator_comments = postfix_separator_comments(f.context(), node_id);
     let property_start =
         member_property_start(f.context(), node_id).unwrap_or(f.context().span(node_id).start);
@@ -370,7 +360,6 @@ fn write_private_member_expression<'ast>(
     name: Option<StringId>,
     generic_arguments: &[LocalNodeId<GenericArgument>],
 ) -> FormatResult<()> {
-    let receiver_id = normalized_member_receiver(f.context(), receiver_id);
     let separator_comments = postfix_separator_comments(f.context(), node_id);
 
     format_member_receiver(f, receiver_id)?;

@@ -78,28 +78,19 @@ fn type_needs_postfix_parentheses(
 struct LeadingCommentsInfo {
     has_own_line_comment: bool,
     has_end_of_line_comment: bool,
-    has_trailing_own_line_non_jsdoc_block_comment: bool,
-    has_trailing_own_line_jsdoc_comment: bool,
+    has_trailing_own_line_block_comment: bool,
 }
 
 impl LeadingCommentsInfo {
     /// Build one leading-comment summary from comments.
-    fn from_comment_nodes(context: &DestackFormatContext<'_>, comments: &[Comment]) -> Self {
+    fn from_comment_nodes(comments: &[Comment]) -> Self {
         let mut info = Self::default();
 
         for comment in comments.iter().copied() {
-            let is_doc_comment = context.comment_is_doc(comment);
-
             info.has_own_line_comment |= comment.preceded_by_newline();
             info.has_end_of_line_comment |= comment.followed_by_newline();
-            info.has_trailing_own_line_non_jsdoc_block_comment |= comment.is_block()
-                && comment.is_trailing()
-                && comment.followed_by_newline()
-                && !is_doc_comment;
-            info.has_trailing_own_line_jsdoc_comment |= comment.is_block()
-                && comment.is_trailing()
-                && comment.followed_by_newline()
-                && is_doc_comment;
+            info.has_trailing_own_line_block_comment |=
+                comment.is_block() && comment.is_trailing() && comment.followed_by_newline();
         }
 
         info
@@ -107,11 +98,8 @@ impl LeadingCommentsInfo {
 }
 
 /// Return leading-comment info normalized for one union head.
-fn union_leading_comment_info(
-    context: &DestackFormatContext<'_>,
-    comments: &[Comment],
-) -> LeadingCommentsInfo {
-    LeadingCommentsInfo::from_comment_nodes(context, comments)
+fn union_leading_comment_info(comments: &[Comment]) -> LeadingCommentsInfo {
+    LeadingCommentsInfo::from_comment_nodes(comments)
 }
 
 /// Write positional leading comments that belong directly before one type node.
@@ -717,9 +705,7 @@ fn type_alias_union_should_indent(
     declaration: &destack_ast::TypeDeclaration,
     leading_comment_info: LeadingCommentsInfo,
 ) -> bool {
-    if leading_comment_info.has_trailing_own_line_jsdoc_comment {
-        return false;
-    }
+    let _ = leading_comment_info;
 
     let head_end = type_declaration_head_end(context, declaration_id, declaration);
 
@@ -848,7 +834,7 @@ fn write_union_type<'ast>(
     };
 
     // inline unions
-    let leading_comment_info = union_leading_comment_info(f.context(), &union_leading_comments);
+    let leading_comment_info = union_leading_comment_info(&union_leading_comments);
     let should_hug = union_should_hug(f, node_id, &flattened_elements);
 
     if should_hug {
@@ -964,7 +950,7 @@ fn write_union_type<'ast>(
                             .get(LocalNodeId::<Declaration>::new(parent_id)),
                         Declaration::Type(_)
                     )
-            ) && leading_comment_info.has_trailing_own_line_non_jsdoc_block_comment;
+            ) && leading_comment_info.has_trailing_own_line_block_comment;
 
         if has_own_line_comment && !only_type {
             write!(f, [hard_line_break()])?;

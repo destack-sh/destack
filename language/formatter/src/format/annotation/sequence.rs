@@ -93,9 +93,8 @@ pub(crate) fn write_inline_prefix_annotations<'ast>(
             write!(f, [space()])?;
         }
 
-        f.context()
-            .annotation(annotation_id)
-            .format_node(annotation_id, f)?;
+        let annotation = f.context().annotation(annotation_id).clone();
+        annotation.format_node(annotation_id, f)?;
         wrote_annotation = true;
     }
 
@@ -199,10 +198,6 @@ where
         .iter()
         .copied()
         .any(|annotation_id| {
-            if !matches!(context.annotation(annotation_id), Decorator { .. }) {
-                return false;
-            }
-
             let decorator_span = context.annotation_span(annotation_id);
             comment.span.start >= decorator_span.start && comment.span.end <= decorator_span.end
         })
@@ -217,15 +212,12 @@ where
     T: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<T>,
 {
-    let first_decorator_start =
-        context
-            .annotation_ids(node_id)
-            .iter()
-            .copied()
-            .find_map(|annotation_id| {
-                matches!(context.annotation(annotation_id), Decorator { .. })
-                    .then(|| context.annotation_span(annotation_id).start)
-            });
+    let first_decorator_start = context
+        .annotation_ids(node_id)
+        .iter()
+        .copied()
+        .map(|annotation_id| context.annotation_span(annotation_id).start)
+        .next();
     let comments = prefix_comment_nodes(context, node_id)
         .into_iter()
         .filter(|comment| {
@@ -250,15 +242,12 @@ where
     T: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<T>,
 {
-    let first_decorator_start =
-        context
-            .annotation_ids(node_id)
-            .iter()
-            .copied()
-            .find_map(|annotation_id| {
-                matches!(context.annotation(annotation_id), Decorator { .. })
-                    .then(|| context.annotation_span(annotation_id).start)
-            });
+    let first_decorator_start = context
+        .annotation_ids(node_id)
+        .iter()
+        .copied()
+        .map(|annotation_id| context.annotation_span(annotation_id).start)
+        .next();
     let comments = prefix_comment_nodes(context, node_id)
         .into_iter()
         .filter(|comment| {
@@ -298,19 +287,21 @@ where
     }
 
     for annotation_id in context.annotation_ids(node_id).iter().copied() {
+        let position = context.annotation(annotation_id).position;
+
         if !matches!(
-            context.annotation(annotation_id).position,
+            position,
             DecoratorPosition::BlockPrefix | DecoratorPosition::LinePrefix
         ) {
             continue;
         }
 
-        let is_decorator = matches!(context.annotation(annotation_id), Decorator { .. });
         let should_include = match kind {
             PrefixSequenceKind::All => true,
-            PrefixSequenceKind::WithoutDecorators => !is_decorator,
-            PrefixSequenceKind::DecoratorsOnly => is_decorator,
+            PrefixSequenceKind::WithoutDecorators => false,
+            PrefixSequenceKind::DecoratorsOnly => true,
         };
+
         if should_include {
             items.push(PrefixSequenceItem::Decorator(annotation_id));
         }
@@ -372,10 +363,10 @@ fn write_prefix_sequence_item<'ast>(
 ) -> FormatResult<()> {
     match item {
         PrefixSequenceItem::Comment(comment) => format_comment(f, comment),
-        PrefixSequenceItem::Decorator(annotation_id) => f
-            .context()
-            .annotation(annotation_id)
-            .format_node(annotation_id, f),
+        PrefixSequenceItem::Decorator(annotation_id) => {
+            let annotation = f.context().annotation(annotation_id).clone();
+            annotation.format_node(annotation_id, f)
+        }
     }
 }
 
@@ -493,9 +484,8 @@ fn write_annotation_sequence_with_trailing_break<'ast>(
             write!(f, [hard_line_break()])?;
         }
 
-        f.context()
-            .annotation(annotation_id)
-            .format_node(annotation_id, f)?;
+        let annotation = f.context().annotation(annotation_id).clone();
+        annotation.format_node(annotation_id, f)?;
 
         let should_write_trailing_break = should_write_trailing_break
             || !is_last_annotation

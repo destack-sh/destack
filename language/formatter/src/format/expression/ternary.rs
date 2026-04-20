@@ -1,4 +1,6 @@
 use super::conditional::ConditionalLayout;
+use super::dispatch::write_expression_without_trailing_comments;
+use super::parentheses::expression_is_in_template_literal_interpolation;
 use crate::format::annotation::{FormatLeadingComments, FormatTrailingComments};
 use crate::format::chain::transparent_inner_expression;
 use crate::format::tree::tree_argument_is_wrapped_in_braces;
@@ -114,65 +116,84 @@ fn expression_has_line_comment(
     let expression_span = context.span(expression_id);
 
     context
-        .comments_in_range(expression_span.start, expression_span.end)
+        .comment_tokens_in_range(expression_span.start, expression_span.end)
         .iter()
         .copied()
         .any(|comment| context.comment_is_line(comment))
 }
 
-/// Return separator comments before one ternary branch.
-fn ternary_separator_comments(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> Vec<Comment> {
-    context.comments_after_previous_non_trivia_token_for(expression_id)
+/// Return the separator comments that belong to one ternary branch boundary.
+fn ternary_separator_comments<'a>(
+    context: &'a DestackFormatContext<'a>,
+    mut start: u32,
+    end: u32,
+    operator: u8,
+) -> &'a [Comment] {
+    let comments = context.comments().unprinted_comments();
+    if comments.is_empty() {
+        return &[];
+    }
+
+    let source = context.source_text();
+    let mut index_before_operator = None;
+
+    for (index, comment) in comments.iter().enumerate() {
+        // stop once the next comment belongs to a later range
+        if comment.span.end > end {
+            return &comments[..index_before_operator.unwrap_or(index)];
+        }
+
+        // stop once the separator gap contains a newline
+        if source.contains_newline_between(start, comment.span.start) {
+            return &comments[..index];
+        }
+
+        // keep line comments and end-of-line comments on the left side
+        if comment.is_line() || comment.followed_by_newline() {
+            return &comments[..=index];
+        }
+
+        // remember the last comment that still sits before the separator token
+        if source.bytes_contain(start, comment.span.start, operator) {
+            index_before_operator = Some(index);
+        }
+
+        start = comment.span.end;
+    }
+
+    &comments[..index_before_operator.unwrap_or(comments.len())]
 }
 
-/// Return comments that stay on the then branch side of the ternary separator.
-fn ternary_then_separator_comments(
-    context: &DestackFormatContext<'_>,
-    then_expression: LocalNodeId<Expression>,
-    else_expression: LocalNodeId<Expression>,
-) -> Vec<Comment> {
-    let then_span = context.span(then_expression);
-    let separator_start = context
-        .previous_non_trivia_token_before_span(context.span(else_expression))
-        .map_or(context.span(else_expression).start, |token| {
-            token.span.start
-        });
-
-    let mut separator_comments = context
-        .comments()
-        .comments_in_range(then_span.end, separator_start)
-        .to_vec();
-    separator_comments.extend(
-        ternary_separator_comments(context, else_expression)
-            .into_iter()
-            .filter(|comment| comment.is_line()),
-    );
-    separator_comments
-}
-
-/// Return comments that stay on the else branch side of the ternary separator.
-fn ternary_else_separator_comments(
-    context: &DestackFormatContext<'_>,
-    else_expression: LocalNodeId<Expression>,
-) -> Vec<Comment> {
-    ternary_separator_comments(context, else_expression)
-        .into_iter()
-        .filter(|comment| comment.is_block())
-        .collect()
-}
-
-/// Return whether the separator between two ternary parts has a line comment.
+/// Return whether one ternary separator carries a line comment.
 fn ternary_separator_has_line_comment(
     context: &DestackFormatContext<'_>,
-    _left_expression: LocalNodeId<Expression>,
+    left_expression: LocalNodeId<Expression>,
     right_expression: LocalNodeId<Expression>,
+    operator: u8,
 ) -> bool {
-    ternary_separator_comments(context, right_expression)
+    let left_span = context.span(left_expression);
+    let right_span = context.span(right_expression);
+
+    ternary_separator_comments(context, left_span.end, right_span.start, operator)
         .iter()
         .any(|comment| comment.is_line())
+}
+
+/// Write the separator comments that belong to one ternary branch boundary.
+fn write_ternary_separator_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    start: u32,
+    end: u32,
+    operator: u8,
+) -> FormatResult<()> {
+    let comments = ternary_separator_comments(f.context(), start, end, operator).to_vec();
+    if comments.is_empty() {
+        return Ok(());
+    }
+
+    write!(f, [FormatTrailingComments::Comments(&comments)])?;
+
+    Ok(())
 }
 
 /// Return whether one ternary chain has line slash comments on any condition or branch.
@@ -188,10 +209,10 @@ fn ternary_chain_has_line_comment(
 
     if expression_has_line_comment(context, condition_expression)
         || expression_has_line_comment(context, then_expression)
-        || ternary_separator_has_line_comment(context, condition_expression, then_expression)
+        || ternary_separator_has_line_comment(context, condition_expression, then_expression, b'?')
         || else_expression.is_some_and(|expression_id| {
             expression_has_line_comment(context, expression_id)
-                || ternary_separator_has_line_comment(context, then_expression, expression_id)
+                || ternary_separator_has_line_comment(context, then_expression, expression_id, b':')
         })
     {
         return true;
@@ -469,8 +490,15 @@ fn write_standard_ternary_test<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     layout: ConditionalLayout,
     condition: LocalNodeId<Expression>,
+    then_expression: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let format_test = format_with(|f: &mut DestackFormatter<'ast, '_>| write!(f, [condition]));
+    let format_test = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let condition_span = f.context().span(condition);
+        let then_span = f.context().span(then_expression);
+
+        write_expression_without_trailing_comments(f, condition)?;
+        write_ternary_separator_comments(f, condition_span.end, then_span.start, b'?')
+    });
 
     if layout.is_nested_alternate() {
         write!(f, [align(2, &format_test)])?;
@@ -488,33 +516,14 @@ fn write_standard_ternary_tail<'ast>(
     then_expression: LocalNodeId<Expression>,
     else_expression: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
-    let then_leading_comment_nodes = ternary_separator_comments(f.context(), then_expression);
-    let then_trailing_comment_nodes = else_expression
-        .map(|else_expression| {
-            ternary_then_separator_comments(f.context(), then_expression, else_expression)
-        })
-        .unwrap_or_default();
-    let else_leading_comment_nodes = else_expression
-        .map(|else_expression| ternary_else_separator_comments(f.context(), else_expression))
-        .unwrap_or_default();
-
     let format_then_expression = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        if !then_leading_comment_nodes.is_empty() {
-            write!(
-                f,
-                [FormatLeadingComments::Comments(&then_leading_comment_nodes)]
-            )?;
-        }
+        let then_span = f.context().span(then_expression);
 
-        write!(f, [then_expression])?;
+        write_expression_without_trailing_comments(f, then_expression)?;
 
-        if !then_trailing_comment_nodes.is_empty() {
-            write!(
-                f,
-                [FormatTrailingComments::Comments(
-                    &then_trailing_comment_nodes
-                )]
-            )?;
+        if let Some(else_expression) = else_expression {
+            let else_span = f.context().span(else_expression);
+            write_ternary_separator_comments(f, then_span.end, else_span.start, b':')?;
         }
 
         Ok(())
@@ -549,14 +558,7 @@ fn write_standard_ternary_tail<'ast>(
 
     let format_else_expression = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         if let Some(else_expression) = else_expression {
-            if !else_leading_comment_nodes.is_empty() {
-                write!(
-                    f,
-                    [FormatLeadingComments::Comments(&else_leading_comment_nodes)]
-                )?;
-            }
-
-            write!(f, [else_expression])?;
+            write_expression_without_trailing_comments(f, else_expression)?;
         }
         Ok(())
     });
@@ -607,7 +609,7 @@ fn format_standard_ternary<'ast>(
 
     let layout = ternary_layout(f.context(), node_id);
     let format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        write_standard_ternary_test(f, layout, condition)?;
+        write_standard_ternary_test(f, layout, condition, then_expression)?;
 
         let format_tail = format_with(|f: &mut DestackFormatter<'ast, '_>| {
             write_standard_ternary_tail(f, layout, then_expression, else_expression)
@@ -781,7 +783,7 @@ fn template_interpolation_has_surrounding_newline(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    if !context.expression_is_in_template_literal_interpolation(node_id) {
+    if !expression_is_in_template_literal_interpolation(context, node_id) {
         return false;
     }
 
@@ -799,8 +801,7 @@ pub(crate) fn format_ternary(
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let keep_inline_template_ternary = ternary_parts(f.context().tree, node_id).is_some()
-        && f.context()
-            .expression_is_in_template_literal_interpolation(node_id)
+        && expression_is_in_template_literal_interpolation(f.context(), node_id)
         && !f.context().node_has_newline(node_id)
         && !template_interpolation_has_surrounding_newline(f.context(), node_id);
 
