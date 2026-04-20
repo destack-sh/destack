@@ -119,6 +119,12 @@ impl ParseInfixOperator {
             ParseInfixOperator::Assign(assign_operator) => assign_operator.precedence(),
         }
     }
+
+    /// Return whether one infix continuation operator binds right associatively.
+    #[inline]
+    pub(super) fn is_right_associative(self) -> bool {
+        matches!(self, ParseInfixOperator::Assign(_))
+    }
 }
 
 impl Parser {
