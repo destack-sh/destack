@@ -178,6 +178,17 @@ fn test_parse_generic_lambda_function_value() {
     });
 }
 
+/// Generic parameter constraints should reject `implements`.
+#[test]
+fn test_parse_generic_lambda_function_rejects_implements_constraint() {
+    let mut test = TestParser::new("<T implements Foo>(x: T): T => x");
+    let mut parser = test.prepare();
+    let _ = parser.eat_expression(parser.options);
+
+    assert!(!parser.errors.is_empty(), "expected parse errors");
+    assert_eq!(parser.get_span_str(parser.errors[0].span), "implements");
+}
+
 /// Parse a generic lambda function with a newline after `<`.
 #[test]
 fn test_parse_generic_lambda_function_value_multiline_after_less_than() {
@@ -403,7 +414,7 @@ fn test_parse_arrow_return_type_predicate_with_nested_optional_parameter_functio
                         assert_eq!(properties.len(), 1);
                         assert_node!(parser.tree, properties[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                             assert_string!(parser, *name, "focus");
-                            assert_node!(parser.tree, *declared_type, TypeExpression::Declaration { declaration: function_id } => {
+                            assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Declaration { declaration: function_id } => {
                                 assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                                     assert_eq!(signature.parameters.len(), 1);
                                     assert_node!(parser.tree, signature.parameters[0], Parameter::Named { is_optional, name, declared_type: Some(declared_type), .. } => {
@@ -449,7 +460,7 @@ fn test_parse_generic_parameter_constraint_object_property_named_in() {
                         assert_node!(key, Key::Name(Name::Identifier(name)) => {
                             assert_string!(parser, *name, "in");
                         });
-                        assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value } => {
+                        assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
                             assert_eq!(*value, TypeLiteral::String);
                         });
                     });

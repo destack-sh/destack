@@ -342,14 +342,14 @@ await fetchListResult<{
 
                         assert_node!(parser.tree, properties[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                             assert_string!(parser, *name, "pattern");
-                            assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value } => {
+                            assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
                                 assert_eq!(*value, TypeLiteral::String);
                             });
                         });
 
                         assert_node!(parser.tree, properties[1], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                             assert_string!(parser, *name, "script");
-                            assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value } => {
+                            assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
                                 assert_eq!(*value, TypeLiteral::String);
                             });
                         });
