@@ -1,17 +1,14 @@
 use crate::format::annotation::{
-    block_infix_annotations, format_raw_comment, line_suffix_boundary_annotations,
-    write_raw_comment_slice,
+    block_infix_annotations, format_comment, postfix_annotations, write_comment_slice,
 };
-use crate::format::chain::transparent_inner_expression;
 use crate::format::collection::TrailingSeparator;
-use crate::format::context::DestackFormatterCommentExt;
+use crate::format::declaration::declaration::write_declaration_export_head_comments;
 use crate::format::declaration::signature::{
     default_generic_parameter_trailing_separator, expression_body_requires_head_space,
-    format_where_clause_with_break, parameter_is_variadic, should_break_function_parameters,
-    signature_return_type_has_line_suffix_boundary_annotation, single_parameter_should_hug,
+    format_where_clause_with_break, parameter_is_variadic, should_hug_function_parameters,
     write_empty_parameter_list_with_interior_comments, write_function_header_prefix,
     write_generic_parameter_list, write_signature_hug_parameter_list,
-    write_signature_parameter_list, write_signature_return_type_with_boundary_comments,
+    write_signature_parameter_list, write_signature_return_type,
 };
 use crate::format::declaration::statement::format_block;
 use crate::format::operator::write_type_expression_with_inline_prefix_annotations;
@@ -35,11 +32,11 @@ pub(crate) enum GroupedCallArgumentLayout {
     GroupedLastArgument,
 }
 
-/// The explicit function formatting options.
+/// The explicit lambda formatting options.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub(crate) struct FormatFunctionDeclarationOptions {
+pub(crate) struct FormatLambdaDeclarationOptions {
     /// The grouped call-argument layout, when this lambda is being formatted as one.
-    pub grouped_call_argument_layout: Option<GroupedCallArgumentLayout>,
+    pub call_argument_layout: Option<GroupedCallArgumentLayout>,
 }
 
 /// Return whether one file name uses one module extension.
@@ -50,13 +47,18 @@ fn file_uses_module_only_extension(file_name: &str) -> bool {
 /// Write one declaration export prefix.
 fn write_function_export_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
     export: Option<ExportMode>,
 ) -> FormatResult<()> {
     // export
     match export {
-        Some(ExportMode::Named) => write!(f, [Keyword::Export, space()])?,
+        Some(ExportMode::Named) => {
+            write!(f, [Keyword::Export, space()])?;
+            write_declaration_export_head_comments(f, node_id, ExportMode::Named)?;
+        }
         Some(ExportMode::Default) => {
             write!(f, [Keyword::Export, space(), Keyword::Default, space()])?;
+            write_declaration_export_head_comments(f, node_id, ExportMode::Default)?;
         }
         None => {}
     }
@@ -75,17 +77,6 @@ fn write_function_ambient_prefix<'ast>(
     }
 
     Ok(())
-}
-
-/// Return whether one parameter uses a destructuring pattern.
-fn parameter_is_destructuring_pattern(
-    context: &DestackFormatContext<'_>,
-    parameter_id: LocalNodeId<Parameter>,
-) -> bool {
-    matches!(
-        context.tree.get(parameter_id),
-        Parameter::Pattern { .. } | Parameter::VariadicPattern { .. }
-    )
 }
 
 /// Return whether one lambda declaration appears in statement position.
@@ -121,7 +112,7 @@ fn write_lambda_arrow_with_infix_annotations<'ast>(
 }
 
 /// Return comments between the signature close delimiter and one lambda arrow.
-fn lambda_arrow_boundary_comments(
+fn lambda_arrow_comments(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
     parameters: &[LocalNodeId<Parameter>],
@@ -147,7 +138,7 @@ fn lambda_arrow_boundary_comments(
 }
 
 /// Return comments between a constructor `new` head and the parameter list.
-fn constructor_parameter_head_boundary_comments(
+fn constructor_parameter_head_comments(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
 ) -> Vec<Comment> {
@@ -267,8 +258,6 @@ fn write_function_parameters<'ast>(
     parameters: &[LocalNodeId<Parameter>],
     can_omit_parens: bool,
 ) -> FormatResult<()> {
-    let force_expand_parameters = should_break_function_parameters(f.context(), parameters);
-
     if parameters.is_empty() {
         return write_empty_parameter_list_with_interior_comments(f, node_id);
     }
@@ -277,11 +266,7 @@ fn write_function_parameters<'ast>(
         return write!(f, [&parameters[0]]);
     }
 
-    if parameters.len() == 1
-        && single_parameter_should_hug(f.context(), parameters[0])
-        && (!force_expand_parameters
-            || parameter_is_destructuring_pattern(f.context(), parameters[0]))
-    {
+    if should_hug_function_parameters(f.context(), parameters, can_omit_parens) {
         return write_signature_hug_parameter_list(f, parameters);
     }
 
@@ -290,12 +275,7 @@ fn write_function_parameters<'ast>(
         .is_some_and(|parameter_id| parameter_is_variadic(f.context(), *parameter_id))
         || (signature.kind == FunctionKind::Lambda && parameters.len() == 1);
 
-    write_signature_parameter_list(
-        f,
-        parameters,
-        force_expand_parameters,
-        disallow_trailing_parameter_separator,
-    )
+    write_signature_parameter_list(f, parameters, disallow_trailing_parameter_separator)
 }
 
 /// Write one function return type.
@@ -311,16 +291,37 @@ fn write_function_return_type<'ast>(
     };
 
     if signature.kind == FunctionKind::Lambda && body.is_none() {
-        let arrow_boundary_comments =
-            lambda_arrow_boundary_comments(f.context(), node_id, parameters);
-        write_raw_comment_slice(f, &arrow_boundary_comments)?;
+        let arrow_comments = lambda_arrow_comments(f.context(), node_id, parameters);
+        write_comment_slice(f, &arrow_comments)?;
         write_lambda_arrow_with_infix_annotations(f, node_id)?;
         write!(f, [space()])?;
         return write_type_expression_with_inline_prefix_annotations(f, return_type);
     }
 
-    write!(f, [token(":"), space()])?;
-    write_signature_return_type_with_boundary_comments(f, return_type)
+    write_signature_return_type(f, node_id, return_type)
+}
+
+/// Write one lambda parameter list and return type.
+fn write_lambda_parameters_and_return_type<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+    signature: &FunctionSignature,
+    body: &Option<LocalNodeId<Expression>>,
+    parameters: &[LocalNodeId<Parameter>],
+    can_omit_parens: bool,
+    options: FormatLambdaDeclarationOptions,
+) -> FormatResult<()> {
+    let format_parameters_and_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        // parameters
+        write_function_parameters(f, node_id, signature, parameters, can_omit_parens)?;
+
+        // return type
+        write_function_return_type(f, node_id, signature, body, parameters)
+    });
+
+    let _ = options;
+
+    write!(f, [format_parameters_and_return_type])
 }
 
 /// Write one function parameter list and return type.
@@ -331,7 +332,6 @@ fn write_function_parameters_and_return_type<'ast>(
     body: &Option<LocalNodeId<Expression>>,
     parameters: &[LocalNodeId<Parameter>],
     can_omit_parens: bool,
-    options: FormatFunctionDeclarationOptions,
 ) -> FormatResult<()> {
     let format_parameters_and_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         // parameters
@@ -341,39 +341,16 @@ fn write_function_parameters_and_return_type<'ast>(
         write_function_return_type(f, node_id, signature, body, parameters)
     });
 
-    if signature.kind == FunctionKind::Lambda && options.grouped_call_argument_layout.is_some() {
-        let interned = f.intern_with_comment_snapshot(&format_parameters_and_return_type)?;
-
-        if let Some(interned) = interned {
-            let mut buffer = RemoveSoftLinesBuffer::new(f);
-            buffer.write_node(interned);
-        }
-
-        Ok(())
-    } else if signature.kind == FunctionKind::Lambda {
-        write!(f, [format_parameters_and_return_type])
-    } else {
-        write!(f, [group(&format_parameters_and_return_type)])
-    }
+    write!(f, [group(&format_parameters_and_return_type)])
 }
 
-/// Return whether one function declaration needs a trailing semicolon.
-fn function_declaration_needs_trailing_semicolon(
+/// Return whether one lambda declaration needs a trailing semicolon.
+fn lambda_declaration_needs_trailing_semicolon(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
     export: Option<ExportMode>,
-    signature: &FunctionSignature,
-    body: &Option<LocalNodeId<Expression>>,
 ) -> bool {
-    let is_exported_lambda_declaration = signature.kind == FunctionKind::Lambda && export.is_some();
-    let is_statement_lambda_declaration = signature.kind == FunctionKind::Lambda
-        && lambda_declaration_is_statement_position(context, node_id);
-    let is_bodyless_function_declaration =
-        signature.kind == FunctionKind::Function && body.is_none();
-
-    is_exported_lambda_declaration
-        || is_statement_lambda_declaration
-        || is_bodyless_function_declaration
+    export.is_some() || lambda_declaration_is_statement_position(context, node_id)
 }
 
 /// Write one lambda function body.
@@ -381,18 +358,11 @@ fn write_lambda_function_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     body: LocalNodeId<Expression>,
-    options: FormatFunctionDeclarationOptions,
+    options: FormatLambdaDeclarationOptions,
 ) -> FormatResult<()> {
     let body_expression = f.context().tree.get(body);
-    let body_transparent_expression_id = transparent_inner_expression(f.context(), body);
-    let body_transparent_expression = f.context().tree.get(body_transparent_expression_id);
     let body_is_block = matches!(body_expression, Expression::Block(_));
     let body_is_tree = matches!(body_expression, Expression::TreeExpression { .. });
-    let body_is_parenthesized_tree = matches!(body_expression, Expression::Parenthesized { .. })
-        && matches!(
-            body_transparent_expression,
-            Expression::TreeExpression { .. }
-        );
 
     if body_is_block {
         write_lambda_arrow_with_infix_annotations(f, node_id)?;
@@ -402,7 +372,7 @@ fn write_lambda_function_body<'ast>(
         let Expression::Block(block_id) = body_expression else {
             unreachable!();
         };
-        if options.grouped_call_argument_layout.is_some() {
+        if options.call_argument_layout.is_some() {
             return write!(f, [*block_id]);
         }
 
@@ -436,18 +406,6 @@ fn write_lambda_function_body<'ast>(
         );
     }
 
-    if body_is_parenthesized_tree {
-        return write!(
-            f,
-            [group(&format_args![
-                format_with(|f| write_lambda_arrow_with_infix_annotations(f, node_id)),
-                space(),
-                format_with(|f| write!(f, [body]))
-            ])
-            .should_expand(false)]
-        );
-    }
-
     write!(
         f,
         [group(&format_args![
@@ -462,16 +420,11 @@ fn write_lambda_function_body<'ast>(
 }
 
 /// Write one non-lambda function body.
-fn write_non_lambda_function_body<'ast>(
+fn write_function_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    signature: &FunctionSignature,
+    _signature: &FunctionSignature,
     body: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    if signature_return_type_has_line_suffix_boundary_annotation(f.context(), signature.return_type)
-    {
-        return write!(f, [hard_line_break(), body]);
-    }
-
     if expression_body_requires_head_space(f.context(), body) {
         write!(f, [space()])?;
     }
@@ -483,42 +436,56 @@ fn write_non_lambda_function_body<'ast>(
     write!(f, [body])
 }
 
-/// Write one function body and trailing semicolon.
-fn write_function_body_and_terminator<'ast>(
+/// Write one lambda body and trailing semicolon.
+fn write_lambda_body_and_terminator<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     export: Option<ExportMode>,
-    signature: &FunctionSignature,
     body: &Option<LocalNodeId<Expression>>,
-    options: FormatFunctionDeclarationOptions,
+    options: FormatLambdaDeclarationOptions,
 ) -> FormatResult<()> {
     // body
     if let Some(body) = body {
-        if signature.kind == FunctionKind::Lambda {
-            write_lambda_function_body(f, node_id, *body, options)?;
-        } else {
-            write_non_lambda_function_body(f, signature, *body)?;
-        }
+        write_lambda_function_body(f, node_id, *body, options)?;
     }
 
-    write!(f, [line_suffix_boundary_annotations(f.context(), node_id)])?;
+    write!(f, [postfix_annotations(f.context(), node_id)])?;
 
-    if function_declaration_needs_trailing_semicolon(f.context(), node_id, export, signature, body)
-    {
+    if lambda_declaration_needs_trailing_semicolon(f.context(), node_id, export) {
         write!(f, [token(";")])?;
     }
 
     Ok(())
 }
 
-/// Write the shared function head before the body.
-fn write_function_head<'ast>(
+/// Write one function body and trailing semicolon.
+fn write_function_body_and_terminator<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
-    name: Option<Name>,
     signature: &FunctionSignature,
     body: &Option<LocalNodeId<Expression>>,
-    options: FormatFunctionDeclarationOptions,
+) -> FormatResult<()> {
+    // body
+    if let Some(body) = body {
+        write_function_body(f, signature, *body)?;
+    }
+
+    write!(f, [postfix_annotations(f.context(), node_id)])?;
+
+    if body.is_none() {
+        write!(f, [token(";")])?;
+    }
+
+    Ok(())
+}
+
+/// Write one lambda head before the body.
+fn write_lambda_head<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+    signature: &FunctionSignature,
+    body: &Option<LocalNodeId<Expression>>,
+    options: FormatLambdaDeclarationOptions,
 ) -> FormatResult<()> {
     let parameters = function_parameters(signature);
     let has_generic_parameters = !signature.generic_parameters.is_empty();
@@ -529,85 +496,153 @@ fn write_function_head<'ast>(
         has_generic_parameters,
     );
 
-    // shared function header prefix
-    write_function_header_prefix(f, signature, true, name.is_some())?;
+    let head = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        // shared function header prefix
+        write_function_header_prefix(f, signature, true, false)?;
 
-    // constructor type signatures can own inline comments between `new` and `(`
-    if signature.mode == Some(FunctionMode::New) {
-        let constructor_head_comments =
-            constructor_parameter_head_boundary_comments(f.context(), node_id);
-        if let Some((first_comment, remaining_comments)) = constructor_head_comments.split_first() {
-            format_raw_comment(f, *first_comment)?;
-            write_raw_comment_slice(f, remaining_comments)?;
+        // generic parameters
+        write_function_generic_parameters(f, signature)?;
+
+        // parameters and return type
+        write_lambda_parameters_and_return_type(
+            f,
+            node_id,
+            signature,
+            body,
+            &parameters,
+            can_omit_parens,
+            options,
+        )?;
+
+        // where clause
+        let where_clauses = signature.where_clauses.as_slice();
+        if !where_clauses.is_empty() {
+            format_where_clause_with_break(f, where_clauses)?;
         }
-        write!(f, [block_infix_annotations(f.context(), node_id)])?;
-    }
 
-    // declaration name boundary
-    if signature.kind == FunctionKind::Function && name.is_some() {
-        write!(f, [block_infix_annotations(f.context(), node_id)])?;
-    }
+        Ok(())
+    });
 
-    // name / key
-    if signature.kind == FunctionKind::Function
-        && let Some(name) = name
-    {
-        write!(f, [name])?;
-    }
+    let head = group(&head);
 
-    // generic parameters
-    if signature.kind == FunctionKind::Lambda && options.grouped_call_argument_layout.is_some() {
-        let generic_parameters = format_with(|f| {
-            write_function_generic_parameters(f, signature)?;
-            Ok(())
-        });
-        let interned = f.intern_with_comment_snapshot(&generic_parameters)?;
+    if options.call_argument_layout.is_some() {
+        let interned = f.intern(&head)?;
 
         if let Some(interned) = interned {
             let mut buffer = RemoveSoftLinesBuffer::new(f);
             buffer.write_node(interned);
         }
-    } else {
-        write_function_generic_parameters(f, signature)?;
+
+        return Ok(());
     }
 
-    // declaration parameter head boundary
-    if signature.kind == FunctionKind::Function {
+    write!(f, [head])
+}
+
+/// Write one function head before the body.
+fn write_function_head<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+    name: Option<Name>,
+    signature: &FunctionSignature,
+    body: &Option<LocalNodeId<Expression>>,
+) -> FormatResult<()> {
+    let parameters = function_parameters(signature);
+
+    // shared function header prefix
+    write_function_header_prefix(f, signature, true, name.is_some())?;
+
+    // constructor type signatures can own inline comments between `new` and `(`
+    if signature.mode == Some(FunctionMode::New) {
+        let constructor_head_comments = constructor_parameter_head_comments(f.context(), node_id);
+        if let Some((first_comment, remaining_comments)) = constructor_head_comments.split_first() {
+            format_comment(f, *first_comment)?;
+            write_comment_slice(f, remaining_comments)?;
+        }
         write!(f, [block_infix_annotations(f.context(), node_id)])?;
     }
 
+    // declaration name separator
+    if name.is_some() {
+        write!(f, [block_infix_annotations(f.context(), node_id)])?;
+    }
+
+    // name / key
+    if let Some(name) = name {
+        write!(f, [name])?;
+    }
+
+    // generic parameters
+    write_function_generic_parameters(f, signature)?;
+
+    // declaration parameter head separator
+    write!(f, [block_infix_annotations(f.context(), node_id)])?;
+
     // parameters and return type
-    write_function_parameters_and_return_type(
-        f,
-        node_id,
-        signature,
-        body,
-        &parameters,
-        can_omit_parens,
-        options,
-    )?;
+    write_function_parameters_and_return_type(f, node_id, signature, body, &parameters, false)?;
 
     // where clause
     let where_clauses = signature.where_clauses.as_slice();
     if !where_clauses.is_empty() {
-        if signature.kind == FunctionKind::Lambda && options.grouped_call_argument_layout.is_some()
-        {
-            let where_clause = format_with(|f| format_where_clause_with_break(f, where_clauses));
-            let interned = f.intern_with_comment_snapshot(&where_clause)?;
-
-            if let Some(interned) = interned {
-                let mut buffer = RemoveSoftLinesBuffer::new(f);
-                buffer.write_node(interned);
-            }
-        } else {
-            format_where_clause_with_break(f, where_clauses)?;
-        }
+        format_where_clause_with_break(f, where_clauses)?;
     }
 
     Ok(())
 }
 
-/// Format a function declaration.
+/// Format one lambda declaration.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn format_lambda_declaration_with_options<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+    export: Option<ExportMode>,
+    ambient: Ambientness,
+    name: Option<Name>,
+    signature: &FunctionSignature,
+    body: &Option<LocalNodeId<Expression>>,
+    options: FormatLambdaDeclarationOptions,
+) -> FormatResult<()> {
+    debug_assert_eq!(signature.kind, FunctionKind::Lambda);
+    debug_assert!(name.is_none());
+
+    // export
+    write_function_export_prefix(f, node_id, export)?;
+
+    // ambient
+    write_function_ambient_prefix(f, ambient)?;
+
+    // head
+    write_lambda_head(f, node_id, signature, body, options)?;
+
+    // body and terminator
+    write_lambda_body_and_terminator(f, node_id, export, body, options)
+}
+
+/// Format one lambda declaration.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn format_lambda_declaration<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+    export: Option<ExportMode>,
+    ambient: Ambientness,
+    name: Option<Name>,
+    signature: &FunctionSignature,
+    body: &Option<LocalNodeId<Expression>>,
+) -> FormatResult<()> {
+    format_lambda_declaration_with_options(
+        f,
+        node_id,
+        export,
+        ambient,
+        name,
+        signature,
+        body,
+        FormatLambdaDeclarationOptions::default(),
+    )
+}
+
+/// Format one function declaration.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn format_function_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
@@ -617,39 +652,17 @@ pub(crate) fn format_function_declaration<'ast>(
     signature: &FunctionSignature,
     body: &Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
-    format_function_declaration_with_options(
-        f,
-        node_id,
-        export,
-        ambient,
-        name,
-        signature,
-        body,
-        FormatFunctionDeclarationOptions::default(),
-    )
-}
+    debug_assert_eq!(signature.kind, FunctionKind::Function);
 
-/// Format a function declaration with explicit formatting options.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn format_function_declaration_with_options<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Declaration>,
-    export: Option<ExportMode>,
-    ambient: Ambientness,
-    name: Option<Name>,
-    signature: &FunctionSignature,
-    body: &Option<LocalNodeId<Expression>>,
-    options: FormatFunctionDeclarationOptions,
-) -> FormatResult<()> {
     // export
-    write_function_export_prefix(f, export)?;
+    write_function_export_prefix(f, node_id, export)?;
 
     // ambient
     write_function_ambient_prefix(f, ambient)?;
 
     // head
-    write_function_head(f, node_id, name, signature, body, options)?;
+    write_function_head(f, node_id, name, signature, body)?;
 
     // body and terminator
-    write_function_body_and_terminator(f, node_id, export, signature, body, options)
+    write_function_body_and_terminator(f, node_id, signature, body)
 }

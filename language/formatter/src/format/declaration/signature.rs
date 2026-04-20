@@ -1,17 +1,22 @@
 use crate::format::annotation::{
-    block_infix_annotations, infix_or_postfix_annotations, prefix_annotations,
-    write_raw_leading_comments,
+    FormatLeadingComments, block_infix_annotations, infix_or_postfix_annotations,
+    prefix_annotations,
 };
 use crate::format::collection::{TrailingSeparator, separated_entries};
+use crate::format::operator::{
+    write_colon_prefixed_type_annotation, write_type_annotation_prefix,
+    write_type_expression_with_inline_prefix_annotations,
+};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Asynchrony, DecoratorPosition, Expression, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, GenericParameter, Keyword, LocalNodeId, Node, NodeTree, NodeTreeImpl,
-    Parameter, Pattern, TypeExpression, VarianceModifier, Visibility, WhereClause,
+    Asynchrony, Expression, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
+    GenericParameter, Keyword, LocalNodeId, Node, NodeTree, NodeTreeImpl, Parameter, Pattern,
+    TokenType, TypeExpression, VarianceModifier, Visibility, WhereClause,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
+use destack_source::NodeSpanType;
 use destack_workspace::TrailingComma;
 
 impl<'ast> Format<DestackFormatContext<'ast>> for Visibility {
@@ -83,20 +88,55 @@ fn write_optional_suffix<'ast>(
 }
 
 /// Write one type-parameter-like `extends` and `=` trailer sequence.
+fn write_generic_parameter_constraint_prefix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+) -> FormatResult<()> {
+    if f.context().options.language_type.is_destack() {
+        write!(f, [token(":")])
+    } else {
+        write!(f, [space(), token("extends")])
+    }
+}
+
+/// Write one type-parameter-like constraint and `=` trailer sequence.
 pub(crate) fn write_type_parameter_constraint_and_default<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<GenericParameter>,
     constraint: Option<LocalNodeId<TypeExpression>>,
     default: Option<LocalNodeId<TypeExpression>>,
 ) -> FormatResult<()> {
     // constraint
     if let Some(constraint) = constraint {
+        let type_span = f
+            .context()
+            .tree
+            .get_side_span(node_id, NodeSpanType::Type)
+            .expect("generic parameter constraint should have a type span");
         let group_id = f.group_id("constraint");
+        let separator_start = f
+            .context()
+            .previous_non_trivia_token_before_span(destack_source::Span::new(
+                f.context().file.id,
+                type_span.start,
+                type_span.start,
+            ))
+            .map_or(type_span.start, |token| token.span.end);
+        let leading_comments = f
+            .context()
+            .comments()
+            .comments_in_range(separator_start, type_span.start)
+            .to_vec();
+
+        if !leading_comments.is_empty() {
+            write!(f, [space()])?;
+            write!(f, [FormatLeadingComments::Comments(&leading_comments)])?;
+        }
+
+        write_generic_parameter_constraint_prefix(f)?;
 
         write!(
             f,
             [
-                space(),
-                Keyword::Extends,
                 group(&indent(&format_args![
                     line_suffix_boundary(),
                     soft_line_break_or_space()
@@ -163,13 +203,23 @@ pub(crate) fn default_generic_parameter_trailing_separator(
 }
 
 /// Write one parameter type annotation.
-fn write_parameter_type<'ast>(
+fn write_parameter_type<'ast, T>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<T>,
     declared_type: Option<LocalNodeId<TypeExpression>>,
-) -> FormatResult<()> {
+) -> FormatResult<()>
+where
+    T: Node + Clone + 'ast,
+    NodeTree: NodeTreeImpl<T>,
+{
     // declared type
     if let Some(declared_type) = declared_type {
-        write!(f, [token(":"), space(), declared_type])?;
+        if let Some(type_span) = f.context().tree.get_side_span(node_id, NodeSpanType::Type) {
+            write_type_annotation_prefix(f, type_span.start)?;
+            write_type_expression_with_inline_prefix_annotations(f, declared_type)?;
+        } else {
+            write_colon_prefixed_type_annotation(f, declared_type)?;
+        }
     }
 
     Ok(())
@@ -188,21 +238,22 @@ fn write_parameter_default<'ast>(
     Ok(())
 }
 
-/// Write one return type annotation after boundary comments.
-pub(crate) fn write_signature_return_type_with_boundary_comments<'ast>(
+/// Write one signature return type annotation.
+pub(crate) fn write_signature_return_type<'ast, T>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<T>,
     return_type: LocalNodeId<TypeExpression>,
-) -> FormatResult<()> {
-    let trailing_comments = f.context().raw_comments_in_trailing_for(return_type);
-
-    // boundary comments
-    if !trailing_comments.is_empty() {
-        write!(f, [space()])?;
-        write_raw_leading_comments(f, &trailing_comments)?;
-        write!(f, [space()])?;
+) -> FormatResult<()>
+where
+    T: Node + Clone + 'ast,
+    NodeTree: NodeTreeImpl<T>,
+{
+    if let Some(type_span) = f.context().tree.get_side_span(node_id, NodeSpanType::Type) {
+        write_type_annotation_prefix(f, type_span.start)?;
+        write_type_expression_with_inline_prefix_annotations(f, return_type)
+    } else {
+        write_colon_prefixed_type_annotation(f, return_type)
     }
-
-    write!(f, [return_type])
 }
 
 /// Return whether one pattern parameter is destructuring.
@@ -243,19 +294,122 @@ fn parameter_default_is_huggable(
         return true;
     };
 
-    matches!(
-        context.tree.get(default),
+    match context.tree.get(default) {
         Expression::Identifier { .. }
-            | Expression::QualifiedReference { .. }
-            | Expression::ScalarLiteral(_)
-            | Expression::This
-            | Expression::Super
+        | Expression::QualifiedReference { .. }
+        | Expression::ScalarLiteral(_)
+        | Expression::This
+        | Expression::Super => true,
+
+        Expression::ObjectExpression { properties, .. } => properties.is_empty(),
+        Expression::ArrayExpression { elements } => elements.is_empty(),
+
+        _ => false,
+    }
+}
+
+/// Return whether one parameter uses any modifiers.
+fn parameter_has_modifier(
+    context: &DestackFormatContext<'_>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> bool {
+    match context.tree.get(parameter_id) {
+        Parameter::Named {
+            visibility,
+            is_readonly,
+            ..
+        }
+        | Parameter::VariadicNamed {
+            visibility,
+            is_readonly,
+            ..
+        } => visibility.is_some() || *is_readonly,
+        Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } | Parameter::Error => false,
+    }
+}
+
+/// Return whether one parameter is a plain binding identifier.
+fn parameter_is_binding_identifier(
+    context: &DestackFormatContext<'_>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> bool {
+    matches!(
+        context.tree.get(parameter_id),
+        Parameter::Named { .. } | Parameter::VariadicNamed { .. }
     )
+}
+
+/// Return the declared type annotation for one parameter.
+fn parameter_declared_type(
+    context: &DestackFormatContext<'_>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> Option<LocalNodeId<TypeExpression>> {
+    match context.tree.get(parameter_id) {
+        Parameter::Named { declared_type, .. }
+        | Parameter::Pattern { declared_type, .. }
+        | Parameter::VariadicNamed { declared_type, .. }
+        | Parameter::VariadicPattern { declared_type, .. } => *declared_type,
+        Parameter::Error => None,
+    }
+}
+
+/// Return whether one parameter has a default value.
+fn parameter_has_default(
+    context: &DestackFormatContext<'_>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> bool {
+    match context.tree.get(parameter_id) {
+        Parameter::Named { default, .. } | Parameter::Pattern { default, .. } => default.is_some(),
+        Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } | Parameter::Error => {
+            false
+        }
+    }
+}
+
+/// Return whether one type annotation is object-like for parameter hugging.
+fn type_expression_is_object_like(
+    context: &DestackFormatContext<'_>,
+    type_id: LocalNodeId<TypeExpression>,
+) -> bool {
+    matches!(
+        context.tree.get(type_id),
+        TypeExpression::Object { .. } | TypeExpression::Mapped { .. }
+    )
+}
+
+/// Return whether comments surround the only parameter inside its parentheses.
+fn single_parameter_has_paren_comments(
+    context: &DestackFormatContext<'_>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> bool {
+    let parameter_span = context.span(parameter_id);
+
+    let has_open_paren_comments = context
+        .previous_non_trivia_token_before_span(parameter_span)
+        .filter(|token| token.token.ty == TokenType::OpenParenthesis)
+        .is_some_and(|token| {
+            context
+                .comments()
+                .has_comment_in_range(token.span.end, parameter_span.start)
+        });
+    if has_open_paren_comments {
+        return true;
+    }
+
+    context
+        .next_non_trivia_token_after_span(parameter_span)
+        .filter(|token| token.token.ty == TokenType::CloseParenthesis)
+        .is_some_and(|token| {
+            context
+                .comments()
+                .has_comment_in_range(parameter_span.end, token.span.start)
+        })
 }
 
 /// Format one named parameter.
 fn write_named_parameter<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    parameter_id: LocalNodeId<Parameter>,
     name: destack_core::StringId,
     visibility: Option<Visibility>,
     is_readonly: bool,
@@ -263,39 +417,75 @@ fn write_named_parameter<'ast>(
     declared_type: Option<LocalNodeId<TypeExpression>>,
     default: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
-    // prefixes
-    write_visibility_prefix(f, visibility)?;
-    write_readonly_prefix(f, is_readonly)?;
+    let left = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        // prefixes
+        write_visibility_prefix(f, visibility)?;
+        write_readonly_prefix(f, is_readonly)?;
 
-    // name
-    write!(f, [name])?;
-    write_optional_suffix(f, is_optional)?;
+        // name
+        write!(f, [name])?;
+        write_optional_suffix(f, is_optional)?;
 
-    // trailers
-    write_parameter_type(f, declared_type)?;
-    write_parameter_default(f, default)
+        // trailers
+        write_parameter_type(f, parameter_id, declared_type)
+    });
+
+    if let Some(default) = default {
+        let leading_comments = f
+            .context()
+            .comments()
+            .own_line_comments_before(f.context().span(default).start)
+            .to_vec();
+
+        if !leading_comments.is_empty() {
+            write!(f, [FormatLeadingComments::Comments(&leading_comments)])?;
+        }
+
+        write!(f, [group(&left), space(), token("="), space(), default])
+    } else {
+        write!(f, [left])
+    }
 }
 
 /// Format one pattern parameter.
 fn write_pattern_parameter<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    parameter_id: LocalNodeId<Parameter>,
     pattern: LocalNodeId<Pattern>,
     is_optional: bool,
     declared_type: Option<LocalNodeId<TypeExpression>>,
     default: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
-    // pattern
-    write!(f, [pattern])?;
-    write_optional_suffix(f, is_optional)?;
+    let left = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        // pattern
+        write!(f, [pattern])?;
+        write_optional_suffix(f, is_optional)?;
 
-    // trailers
-    write_parameter_type(f, declared_type)?;
-    write_parameter_default(f, default)
+        // trailers
+        write_parameter_type(f, parameter_id, declared_type)
+    });
+
+    if let Some(default) = default {
+        let leading_comments = f
+            .context()
+            .comments()
+            .own_line_comments_before(f.context().span(default).start)
+            .to_vec();
+
+        if !leading_comments.is_empty() {
+            write!(f, [FormatLeadingComments::Comments(&leading_comments)])?;
+        }
+
+        write!(f, [group(&left), space(), token("="), space(), default])
+    } else {
+        write!(f, [left])
+    }
 }
 
 /// Format one variadic named parameter.
 fn write_variadic_named_parameter<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    parameter_id: LocalNodeId<Parameter>,
     name: destack_core::StringId,
     visibility: Option<Visibility>,
     is_readonly: bool,
@@ -309,12 +499,13 @@ fn write_variadic_named_parameter<'ast>(
     write!(f, [token("..."), name])?;
 
     // type
-    write_parameter_type(f, declared_type)
+    write_parameter_type(f, parameter_id, declared_type)
 }
 
 /// Format one variadic pattern parameter.
 fn write_variadic_pattern_parameter<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    parameter_id: LocalNodeId<Parameter>,
     pattern: LocalNodeId<Pattern>,
     declared_type: Option<LocalNodeId<TypeExpression>>,
 ) -> FormatResult<()> {
@@ -322,12 +513,13 @@ fn write_variadic_pattern_parameter<'ast>(
     write!(f, [token("..."), pattern])?;
 
     // type
-    write_parameter_type(f, declared_type)
+    write_parameter_type(f, parameter_id, declared_type)
 }
 
 /// Format one parameter body.
 fn format_parameter_node<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Parameter>,
     parameter: &Parameter,
 ) -> FormatResult<()> {
     match parameter {
@@ -340,6 +532,7 @@ fn format_parameter_node<'ast>(
             default,
         } => write_named_parameter(
             f,
+            node_id,
             *name,
             *visibility,
             *is_readonly,
@@ -352,17 +545,24 @@ fn format_parameter_node<'ast>(
             is_optional,
             declared_type,
             default,
-        } => write_pattern_parameter(f, *pattern, *is_optional, *declared_type, *default),
+        } => write_pattern_parameter(f, node_id, *pattern, *is_optional, *declared_type, *default),
         Parameter::VariadicNamed {
             name,
             visibility,
             is_readonly,
             declared_type,
-        } => write_variadic_named_parameter(f, *name, *visibility, *is_readonly, *declared_type),
+        } => write_variadic_named_parameter(
+            f,
+            node_id,
+            *name,
+            *visibility,
+            *is_readonly,
+            *declared_type,
+        ),
         Parameter::VariadicPattern {
             pattern,
             declared_type,
-        } => write_variadic_pattern_parameter(f, *pattern, *declared_type),
+        } => write_variadic_pattern_parameter(f, node_id, *pattern, *declared_type),
         Parameter::Error => write!(f, [token("/* ERROR */")]),
     }
 }
@@ -374,8 +574,13 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [prefix_annotations(f.context(), node_id)])?;
-        format_parameter_node(f, self)?;
-        write!(f, [infix_or_postfix_annotations(f.context(), node_id)])
+
+        let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            format_parameter_node(f, node_id, self)?;
+            write!(f, [infix_or_postfix_annotations(f.context(), node_id)])
+        });
+
+        write!(f, [group(&content)])
     }
 }
 
@@ -390,29 +595,55 @@ pub(crate) fn parameter_is_variadic(
     )
 }
 
-/// Return whether one parameter list should break.
+/// Return whether one parameter list should prefer a multi-line layout.
 pub(crate) fn should_break_function_parameters(
     context: &DestackFormatContext<'_>,
     parameters: &[LocalNodeId<Parameter>],
 ) -> bool {
-    parameters.iter().copied().any(|parameter_id| {
-        context.node_has_newline(parameter_id)
-            || context.has_annotation(parameter_id)
-            || parameter_pattern_is_destructuring(context, parameter_id)
-    })
+    parameters.len() > 1
+        && parameters
+            .iter()
+            .copied()
+            .any(|parameter_id| parameter_has_modifier(context, parameter_id))
 }
 
-/// Return whether one single parameter should hug.
-pub(crate) fn single_parameter_should_hug(
+/// Return whether one single-parameter list should hug.
+pub(crate) fn should_hug_function_parameters(
     context: &DestackFormatContext<'_>,
-    parameter_id: LocalNodeId<Parameter>,
+    parameters: &[LocalNodeId<Parameter>],
+    can_omit_parentheses: bool,
 ) -> bool {
+    if parameters.len() != 1 {
+        return false;
+    }
+
+    let parameter_id = parameters[0];
+
     if parameter_is_variadic(context, parameter_id) {
         return false;
     }
 
-    parameter_pattern_is_destructuring(context, parameter_id)
-        && parameter_default_is_huggable(context, parameter_id)
+    if parameter_has_modifier(context, parameter_id) {
+        return false;
+    }
+
+    if single_parameter_has_paren_comments(context, parameter_id) {
+        return false;
+    }
+
+    if parameter_pattern_is_destructuring(context, parameter_id) {
+        return parameter_default_is_huggable(context, parameter_id);
+    }
+
+    if !parameter_is_binding_identifier(context, parameter_id)
+        || parameter_has_default(context, parameter_id)
+    {
+        return false;
+    }
+
+    can_omit_parentheses
+        || parameter_declared_type(context, parameter_id)
+            .is_some_and(|type_id| type_expression_is_object_like(context, type_id))
 }
 
 /// Write one function abstraction prefix.
@@ -495,25 +726,6 @@ pub(crate) fn write_function_header_prefix(
     Ok(())
 }
 
-/// Return whether a signature return type carries a boundary line annotation.
-pub(crate) fn signature_return_type_has_line_suffix_boundary_annotation(
-    context: &DestackFormatContext<'_>,
-    return_type: Option<LocalNodeId<TypeExpression>>,
-) -> bool {
-    return_type.is_some_and(|return_type| {
-        context
-            .annotation_ids(return_type)
-            .iter()
-            .copied()
-            .any(|annotation_id| {
-                matches!(
-                    context.annotation(annotation_id).position,
-                    DecoratorPosition::LinePostfixBoundary
-                )
-            })
-    })
-}
-
 /// Return whether one following expression should receive one separating space.
 pub(crate) fn expression_body_requires_head_space(
     _context: &DestackFormatContext<'_>,
@@ -526,7 +738,6 @@ pub(crate) fn expression_body_requires_head_space(
 pub(crate) fn write_signature_parameter_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     parameters: &[LocalNodeId<Parameter>],
-    should_expand: bool,
     disallow_trailing_parameter_separator: bool,
 ) -> FormatResult<()> {
     let trailing_separator = if disallow_trailing_parameter_separator {
@@ -535,16 +746,34 @@ pub(crate) fn write_signature_parameter_list<'ast>(
         default_generic_parameter_trailing_separator(f)
     };
 
+    if should_break_function_parameters(f.context(), parameters) {
+        let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            for (index, parameter_id) in parameters.iter().copied().enumerate() {
+                let is_last = index + 1 == parameters.len();
+
+                write!(f, [parameter_id])?;
+
+                if !is_last {
+                    write!(f, [token(","), hard_line_break()])?;
+                    continue;
+                }
+
+                match trailing_separator {
+                    TrailingSeparator::Allowed | TrailingSeparator::Mandatory => {
+                        write!(f, [token(",")])?;
+                    }
+                    TrailingSeparator::Omit => {}
+                }
+            }
+
+            Ok(())
+        });
+
+        return write!(f, [token("("), block_indent(&body), token(")")]);
+    }
+
     let body = separated_entries(",", parameters, trailing_separator, None);
-    write!(
-        f,
-        [group(&format_args![
-            token("("),
-            soft_block_indent(&body),
-            token(")")
-        ])
-        .should_expand(should_expand)]
-    )
+    write!(f, [token("("), soft_block_indent(&body), token(")")])
 }
 
 /// Write one hugged parameter list.
@@ -631,7 +860,7 @@ impl<'ast> FormatNode<'ast, GenericParameter> for GenericParameter {
 
                 // name and trailers
                 write!(f, [*name])?;
-                write_type_parameter_constraint_and_default(f, *constraint, *default)?;
+                write_type_parameter_constraint_and_default(f, node_id, *constraint, *default)?;
             }
             GenericParameter::Value {
                 name,
@@ -646,7 +875,7 @@ impl<'ast> FormatNode<'ast, GenericParameter> for GenericParameter {
 
                 // name and trailers
                 write!(f, [*name])?;
-                write_parameter_type(f, *declared_type)?;
+                write_parameter_type(f, node_id, *declared_type)?;
                 write_parameter_default(f, *default)?;
             }
             GenericParameter::Error => {

@@ -1,14 +1,12 @@
 use destack_ast::{
-    Declaration, DependencyItem, DependencyMode, Expression, FunctionKind, IfKind, LocalNodeId,
-    WhileKind,
+    Comment, Declaration, DependencyItem, DependencyMode, Expression, FunctionKind, IfKind,
+    LocalNodeId, WhileKind,
 };
 use destack_fir::format::{Buffer, FormatResult, hard_line_break};
-use destack_fir::prelude::{block_indent, format_with, token};
+use destack_fir::prelude::{block_indent, empty_line, format_with, line_suffix, space, token};
 use destack_fir::write;
 
-use crate::format::annotation::{
-    format_raw_comment, write_raw_trailing_comments_without_parent_expansion,
-};
+use crate::format::annotation::format_comment;
 use crate::format::chain::expression_trivia_anchor_end;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_source::Span;
@@ -17,7 +15,7 @@ use destack_source::Span;
 fn statement_terminator_comments_after(
     context: &DestackFormatContext<'_>,
     mut anchor_end: u32,
-) -> Vec<destack_ast::Comment> {
+) -> Vec<Comment> {
     let comments = context.comments().comments_after(anchor_end);
 
     for (index, comment) in comments.iter().copied().enumerate() {
@@ -50,18 +48,18 @@ pub(crate) fn statement_has_inline_terminator_comments(
     !statement_terminator_comments_after(context, anchor_end).is_empty()
 }
 
-/// Return trailing statement comments with one explicit following sibling boundary.
+/// Return trailing statement comments with one explicit following sibling start.
 fn statement_terminator_comments_between(
     context: &DestackFormatContext<'_>,
     anchor_end: u32,
     following_span_start: u32,
-) -> Vec<destack_ast::Comment> {
+) -> Vec<Comment> {
     let comments = context.comments();
-    let comments_before_boundary = comments.comments_before(following_span_start);
+    let comments_before_following = comments.comments_before(following_span_start);
     let mut cursor = anchor_end;
     let mut collected = Vec::new();
 
-    for comment in comments_before_boundary.iter().copied() {
+    for comment in comments_before_following.iter().copied() {
         if comment.span.start < anchor_end {
             continue;
         }
@@ -112,7 +110,7 @@ pub(crate) fn write_statement_terminator_after_anchor<'ast>(
     write_statement_terminator_comments(f, anchor_end, &comments)
 }
 
-/// Write one statement terminator with one explicit following sibling boundary.
+/// Write one statement terminator with one explicit following sibling start.
 pub(crate) fn write_statement_terminator_with_following_start<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     _expression_id: LocalNodeId<Expression>,
@@ -130,11 +128,11 @@ pub(crate) fn write_statement_terminator_with_following_start<'ast>(
     write_statement_terminator_comments(f, anchor_end, &comments)
 }
 
-/// Write statement-boundary comments after one formatter-owned terminator.
+/// Write statement separator comments after one statement terminator.
 fn write_statement_terminator_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     anchor_end: u32,
-    comments: &[destack_ast::Comment],
+    comments: &[Comment],
 ) -> FormatResult<()> {
     if comments.is_empty() {
         return Ok(());
@@ -148,7 +146,7 @@ fn write_statement_terminator_comments<'ast>(
             first_comment_span.start,
         ));
 
-    // statement-boundary own-line comments should stay in the statement flow,
+    // statement-separator own-line comments should stay in the statement flow,
     // not in the generic trailing line-suffix path
     if comment_is_on_own_line {
         return write!(
@@ -156,7 +154,7 @@ fn write_statement_terminator_comments<'ast>(
             [block_indent(&format_with(
                 |f: &mut DestackFormatter<'ast, '_>| {
                     for (index, comment) in comments.iter().copied().enumerate() {
-                        format_raw_comment(f, comment)?;
+                        format_comment(f, comment)?;
 
                         if index + 1 < comments.len() {
                             write!(f, [hard_line_break()])?;
@@ -169,7 +167,70 @@ fn write_statement_terminator_comments<'ast>(
         );
     }
 
-    write_raw_trailing_comments_without_parent_expansion(f, comments)
+    write_inline_statement_terminator_comments(f, comments)
+}
+
+/// Write same-line statement terminator comments without expanding the parent group.
+fn write_inline_statement_terminator_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    comments: &[Comment],
+) -> FormatResult<()> {
+    let source = f.context().source_text();
+    let mut total_lines_before = 0usize;
+    let mut previous_comment = None;
+
+    for comment in comments.iter().copied() {
+        let lines_before = {
+            let comment_cursor = f.context().comments();
+            source.get_lines_before(comment.span, comment_cursor)
+        };
+        total_lines_before += lines_before;
+
+        let should_nestle = previous_comment.is_some_and(|previous_comment: Comment| {
+            previous_comment.is_jsdoc()
+                && comment.is_jsdoc()
+                && previous_comment.is_multiline_block()
+                && comment.is_multiline_block()
+                && previous_comment.span.end == comment.span.start
+        });
+
+        if total_lines_before > 0 || previous_comment.is_some_and(Comment::is_line) {
+            write!(
+                f,
+                [line_suffix(&format_with(
+                    move |f: &mut DestackFormatter<'ast, '_>| {
+                        match lines_before {
+                            _ if should_nestle => {}
+                            0 => {
+                                if previous_comment.is_some_and(Comment::is_line) {
+                                    write!(f, [hard_line_break()])?;
+                                } else {
+                                    write!(f, [space()])?;
+                                }
+                            }
+                            1 => {
+                                write!(f, [hard_line_break()])?;
+                            }
+                            _ => {
+                                write!(f, [empty_line()])?;
+                            }
+                        }
+
+                        format_comment(f, comment)
+                    }
+                ))]
+            )?;
+        } else if should_nestle {
+            format_comment(f, comment)?;
+        } else {
+            write!(f, [space()])?;
+            format_comment(f, comment)?;
+        }
+
+        previous_comment = Some(comment);
+    }
+
+    Ok(())
 }
 
 /// Return whether one export expression still needs the outer statement terminator.

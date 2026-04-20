@@ -24,7 +24,6 @@ pub fn statement_list<'ast>(
             && statement_list_is_file_root(f.context(), expressions)
             && has_file_ignore_directive(f.context())
         {
-            f.context().mark_file_ignore_applied();
             let full_file_span = Span::new(f.context().file.id, 0, f.context().file.len);
             write_ignored_span(f, full_file_span)?;
             return Ok(());
@@ -49,7 +48,7 @@ fn statement_list_is_file_root(
         .is_some_and(|expression_id| context.parent(*expression_id).is_none())
 }
 
-/// Return raw own-line comments immediately before one block head.
+/// Return own-line comments immediately before one block head.
 pub(crate) fn block_leading_line_comment_nodes(
     context: &DestackFormatContext<'_>,
     block_id: LocalNodeId<Block>,
@@ -78,7 +77,7 @@ pub(crate) fn block_leading_line_comment_nodes(
     .collect()
 }
 
-/// Return raw comments immediately before one block close brace.
+/// Return comments immediately before one block close brace.
 pub(crate) fn block_trailing_comment_nodes(
     context: &DestackFormatContext<'_>,
     block_id: LocalNodeId<Block>,
@@ -109,8 +108,8 @@ pub(crate) fn block_trailing_comment_nodes(
     }
 }
 
-/// Return whether one block carries raw comments that force expanded layout.
-pub(crate) fn block_has_raw_internal_comments(
+/// Return whether one block carries internal comments that force expanded layout.
+pub(crate) fn block_has_internal_comments(
     context: &DestackFormatContext<'_>,
     block_id: LocalNodeId<Block>,
 ) -> bool {
@@ -165,7 +164,7 @@ pub(crate) fn should_inline_block<'ast>(
     // can only inline if there is at most one expression
     if block.len() > 1
         || f.context().has_infix_annotation(block_id)
-        || block_has_raw_internal_comments(f.context(), block_id)
+        || block_has_internal_comments(f.context(), block_id)
     {
         return false;
     } else if block.is_empty() {

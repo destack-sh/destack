@@ -1,10 +1,13 @@
 use crate::format::chain::{MemberChain, transparent_inner_expression};
+use crate::format::context::DestackFormatterSpeculationExt;
 use crate::format::operator::format_generic_argument_list;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Argument, BinaryOperator, Expression, GenericArgument, LocalNodeId, ScalarLiteral,
+    TypeExpression,
 };
-use destack_fir::format::{Buffer, FormatNodes, Formatter as FirFormatter, VecBuffer};
+use destack_fir::format::FormatResult;
+use destack_fir::prelude::format_with;
 
 /// Return whether one argument expression is short enough to keep a call attached.
 fn is_short_argument(
@@ -67,45 +70,77 @@ fn is_short_expression(
 fn is_complex_generic_arguments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     generic_arguments: &[LocalNodeId<GenericArgument>],
-) -> bool {
+) -> FormatResult<bool> {
     if generic_arguments.len() > 1 {
-        return true;
+        return Ok(true);
     }
 
     let Some(argument_id) = generic_arguments.first().copied() else {
-        return false;
+        return Ok(false);
     };
-    let argument_expression_id = match f.context().tree.get(argument_id) {
-        GenericArgument::Type { .. } => return true,
-        GenericArgument::Value { value } => *value,
-        GenericArgument::Error => return false,
-    };
-    let argument_expression_id = transparent_inner_expression(f.context(), argument_expression_id);
+    match f.context().tree.get(argument_id) {
+        GenericArgument::Type { value } => {
+            if type_argument_is_complex(f.context(), *value) {
+                return Ok(true);
+            }
+        }
+        GenericArgument::Value { value } => {
+            let value = transparent_inner_expression(f.context(), *value);
 
-    if matches!(
-        f.context().tree.get(argument_expression_id),
-        Expression::Binary {
-            operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
-            ..
-        } | Expression::Type { .. }
-    ) {
-        return true;
+            if matches!(
+                f.context().tree.get(value),
+                Expression::Binary {
+                    operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
+                    ..
+                }
+            ) {
+                return Ok(true);
+            }
+
+            if let Expression::Type { value } = f.context().tree.get(value)
+                && type_argument_is_complex(f.context(), *value)
+            {
+                return Ok(true);
+            }
+        }
+        GenericArgument::Error => return Ok(false),
     }
 
-    let mut buffer = VecBuffer::new(f.state_mut());
-    let formatter = &mut FirFormatter::new(&mut buffer);
-    if format_generic_argument_list(formatter, generic_arguments).is_err() {
-        return true;
-    }
+    // speculative formatting
+    let start = generic_arguments
+        .first()
+        .map(|argument_id| f.context().span(*argument_id))
+        .and_then(|argument_span| {
+            f.context()
+                .previous_non_trivia_token_before_span(argument_span)
+                .map(|token| token.span.start)
+                .or(Some(argument_span.start))
+        })
+        .unwrap_or(0);
+    let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        format_generic_argument_list(f, generic_arguments)
+    });
+    f.speculate_will_break_after(start, &content)
+}
 
-    buffer.into_vec().as_slice().will_break()
+/// Return whether one single type argument is complex in the upstream sense.
+fn type_argument_is_complex(
+    context: &DestackFormatContext<'_>,
+    type_id: LocalNodeId<TypeExpression>,
+) -> bool {
+    matches!(
+        context.tree.get(type_id),
+        TypeExpression::Union { .. }
+            | TypeExpression::Intersection { .. }
+            | TypeExpression::Object { .. }
+    )
 }
 
 /// Return whether one call or member chain is awkward to break inside an assignment shell.
 pub(crate) fn is_poorly_breakable_member_or_call_chain<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
-) -> bool {
+) -> FormatResult<bool> {
     let threshold = u32::from(f.context().options.line_width) / 4;
     let root_expression_id = transparent_inner_expression(f.context(), expression_id);
     let mut current_expression_id = root_expression_id;
@@ -134,8 +169,8 @@ pub(crate) fn is_poorly_breakable_member_or_call_chain<'ast>(
                 generic_arguments,
             } => {
                 is_chain = true;
-                if is_complex_generic_arguments(f, generic_arguments) {
-                    return false;
+                if is_complex_generic_arguments(f, generic_arguments)? {
+                    return Ok(false);
                 }
 
                 transparent_inner_expression(f.context(), *left)
@@ -164,7 +199,7 @@ pub(crate) fn is_poorly_breakable_member_or_call_chain<'ast>(
 
     // non-simple chain heads do not use this shell shortcut
     if !is_chain || !has_simple_head {
-        return false;
+        return Ok(false);
     }
 
     // any comments inside the root chain already force the safer layout
@@ -172,12 +207,12 @@ pub(crate) fn is_poorly_breakable_member_or_call_chain<'ast>(
         .comments()
         .has_comment_in_span(f.context().span(root_expression_id))
     {
-        return false;
+        return Ok(false);
     }
 
     // pure member chains are cheap to keep attached
     if call_expression_ids.is_empty() {
-        return true;
+        return Ok(true);
     }
 
     // comments on the outer call break the shortcut
@@ -185,7 +220,7 @@ pub(crate) fn is_poorly_breakable_member_or_call_chain<'ast>(
         .comments()
         .has_comment_in_span(f.context().span(call_expression_ids[0]))
     {
-        return false;
+        return Ok(false);
     }
 
     // breakable calls defeat the shortcut
@@ -203,18 +238,16 @@ pub(crate) fn is_poorly_breakable_member_or_call_chain<'ast>(
             _ => true,
         };
         if is_breakable_call {
-            return false;
+            return Ok(false);
         }
 
         if let Some(generic_arguments) = call_generic_argument_groups.get(index)
-            && is_complex_generic_arguments(f, generic_arguments)
+            && is_complex_generic_arguments(f, generic_arguments)?
         {
-            return false;
+            return Ok(false);
         }
     }
 
     // multi-group chains already have enough internal structure
-    MemberChain::tail_group_count(f.context(), root_expression_id)
-        .map(|count| count <= 1)
-        .unwrap_or(true)
+    MemberChain::tail_group_count(f.context(), root_expression_id).map(|count| count <= 1)
 }
