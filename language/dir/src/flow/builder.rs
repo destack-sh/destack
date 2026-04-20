@@ -2297,7 +2297,12 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 key, declared_type, ..
             } => {
                 let key_block_id = self.build_key(key, current_block_id)?;
-                self.build_type_expression(*declared_type, key_block_id)
+
+                if let Some(declared_type) = declared_type {
+                    self.build_type_expression(*declared_type, key_block_id)
+                } else {
+                    Some(key_block_id)
+                }
             }
             TypeMember::Method { key, body, .. } => {
                 let key_block_id = self.build_optional_key(key.as_ref(), current_block_id)?;
