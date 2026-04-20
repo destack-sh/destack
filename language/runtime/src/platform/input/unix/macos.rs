@@ -915,36 +915,39 @@ fn resolve_subscription_id(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
-    let subscription = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
-
-        if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
-            return None;
-        }
-
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<input_core::UnixInputBinding>())?;
-        if resolved_binding.backend != input_core::UnixInputBackend::Platform {
-            return None;
-        }
-
-        let state = resolved_binding.macos_state.as_mut()?;
-        if let Some(subscription_id) = state.subscription_id() {
-            return Some(Ok(subscription_id));
-        }
-
-        match register_subscription(operation) {
-            Ok(subscription_id) => {
-                state.set_subscription_id(subscription_id);
-                Some(Ok(subscription_id))
+    let subscription = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
             }
-            Err(error) => Some(Err(error)),
-        }
-    });
+
+            if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
+                return None;
+            }
+
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<input_core::UnixInputBinding>())?;
+            if resolved_binding.backend != input_core::UnixInputBackend::Platform {
+                return None;
+            }
+
+            let state = resolved_binding.macos_state.as_mut()?;
+            if let Some(subscription_id) = state.subscription_id() {
+                return Some(Ok(subscription_id));
+            }
+
+            match register_subscription(operation) {
+                Ok(subscription_id) => {
+                    state.set_subscription_id(subscription_id);
+                    Some(Ok(subscription_id))
+                }
+                Err(error) => Some(Err(error)),
+            }
+        });
 
     match subscription {
         Some(Some(Ok(subscription_id))) => Ok(subscription_id),
@@ -991,26 +994,29 @@ pub(super) fn release_macos_session_subscription(
     binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
 ) {
-    let subscription = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
+    let subscription = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
 
-        if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+            if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<input_core::UnixInputBinding>())?;
-        if resolved_binding.backend != input_core::UnixInputBackend::Platform {
-            return None;
-        }
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<input_core::UnixInputBinding>())?;
+            if resolved_binding.backend != input_core::UnixInputBackend::Platform {
+                return None;
+            }
 
-        let state = resolved_binding.macos_state.as_mut()?;
-        Some(state.take_subscription_id())
-    });
+            let state = resolved_binding.macos_state.as_mut()?;
+            Some(state.take_subscription_id())
+        });
 
     if let Some(subscription_id) = subscription.flatten().flatten() {
         unregister_subscription(subscription_id);

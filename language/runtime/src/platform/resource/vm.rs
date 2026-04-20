@@ -50,11 +50,11 @@ pub(crate) fn destack_resource_close(
     ensure_resource_affinity(binding, id, "destack.resource.id.close")?;
 
     // remove the entry and run finalization
-    let removed =
-        binding
-            .worker()
-            .resources
-            .remove_and_finalize(&binding.world(), id, Some(binding.engine()));
+    let removed = binding.worker().resources.remove_and_finalize(
+        &binding.world(),
+        id,
+        Some(binding.engine()),
+    );
     if !removed {
         return Err(resource_not_found("destack.resource.id.close", id));
     }
@@ -127,11 +127,11 @@ pub(crate) fn destack_resource_remove(
     ensure_resource_affinity(binding, id, "destack.resource.id.remove")?;
 
     // remove the entry and run finalization
-    let removed =
-        binding
-            .worker()
-            .resources
-            .remove_and_finalize(&binding.world(), id, Some(binding.engine()));
+    let removed = binding.worker().resources.remove_and_finalize(
+        &binding.world(),
+        id,
+        Some(binding.engine()),
+    );
     if !removed {
         return Err(resource_not_found("destack.resource.id.remove", id));
     }

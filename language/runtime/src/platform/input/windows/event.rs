@@ -126,23 +126,26 @@ fn next_monitor_sequence(
     handle: resource::InputMonitorHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
-    let sequence = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputMonitor {
-            return None;
-        }
+    let sequence = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputMonitor {
+                return None;
+            }
 
-        if entry.label.as_deref() != Some(INPUT_MONITOR_RESOURCE_LABEL) {
-            return None;
-        }
+            if entry.label.as_deref() != Some(INPUT_MONITOR_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<WindowsInputMonitorBinding>())?;
-        let next = resolved_binding.next_sequence;
-        resolved_binding.next_sequence = resolved_binding.next_sequence.saturating_add(1);
-        Some(next)
-    });
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<WindowsInputMonitorBinding>())?;
+            let next = resolved_binding.next_sequence;
+            resolved_binding.next_sequence = resolved_binding.next_sequence.saturating_add(1);
+            Some(next)
+        });
 
     match sequence.flatten() {
         Some(sequence) => Ok(sequence),
@@ -530,29 +533,32 @@ fn pop_pending_console_button_transition(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Option<input_core::PendingConsoleButtonTransition>> {
-    let transition = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
+    let transition = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
 
-        if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+            if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
-        if resolved_binding.backend != input_core::WindowsInputBackend::Console {
-            return Some(None);
-        }
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
+            if resolved_binding.backend != input_core::WindowsInputBackend::Console {
+                return Some(None);
+            }
 
-        Some(
-            resolved_binding
-                .pending_console_button_transitions
-                .pop_front(),
-        )
-    });
+            Some(
+                resolved_binding
+                    .pending_console_button_transitions
+                    .pop_front(),
+            )
+        });
 
     match transition {
         Some(Some(Some(transition))) => Ok(Some(transition)),
@@ -572,28 +578,31 @@ fn push_pending_console_button_transitions(
         return Ok(());
     }
 
-    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
+    let updated = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
 
-        if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+            if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
-        if resolved_binding.backend != input_core::WindowsInputBackend::Console {
-            return Some(());
-        }
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
+            if resolved_binding.backend != input_core::WindowsInputBackend::Console {
+                return Some(());
+            }
 
-        resolved_binding
-            .pending_console_button_transitions
-            .extend(transitions.iter().copied());
-        Some(())
-    });
+            resolved_binding
+                .pending_console_button_transitions
+                .extend(transitions.iter().copied());
+            Some(())
+        });
 
     match updated.flatten() {
         Some(()) => Ok(()),
@@ -608,26 +617,29 @@ fn set_console_button_state(
     state: u32,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
+    let updated = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
 
-        if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+            if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
-        if resolved_binding.backend != input_core::WindowsInputBackend::Console {
-            return Some(());
-        }
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
+            if resolved_binding.backend != input_core::WindowsInputBackend::Console {
+                return Some(());
+            }
 
-        resolved_binding.console_button_state = state;
-        Some(())
-    });
+            resolved_binding.console_button_state = state;
+            Some(())
+        });
 
     match updated.flatten() {
         Some(()) => Ok(()),
@@ -642,26 +654,29 @@ fn set_xinput_packet_number(
     packet_number: u32,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
+    let updated = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
 
-        if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+            if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
-        if resolved_binding.backend != input_core::WindowsInputBackend::XInput {
-            return Some(());
-        }
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
+            if resolved_binding.backend != input_core::WindowsInputBackend::XInput {
+                return Some(());
+            }
 
-        resolved_binding.xinput_packet_number = packet_number;
-        Some(())
-    });
+            resolved_binding.xinput_packet_number = packet_number;
+            Some(())
+        });
 
     match updated.flatten() {
         Some(()) => Ok(()),
@@ -738,30 +753,33 @@ pub(super) fn queue_console_record_for_demux(
     pending_record: input_core::PendingConsoleRecord,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
+    let updated = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
 
-        if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+            if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
-        if resolved_binding.backend != input_core::WindowsInputBackend::Console {
-            return Some(());
-        }
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
+            if resolved_binding.backend != input_core::WindowsInputBackend::Console {
+                return Some(());
+            }
 
-        push_bounded_console_record(
-            &mut resolved_binding.pending_console_records,
-            pending_record,
-        );
+            push_bounded_console_record(
+                &mut resolved_binding.pending_console_records,
+                pending_record,
+            );
 
-        Some(())
-    });
+            Some(())
+        });
 
     match updated.flatten() {
         Some(()) => Ok(()),
@@ -775,25 +793,28 @@ fn pop_pending_console_record(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Option<input_core::PendingConsoleRecord>> {
-    let record = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
+    let record = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
+            }
 
-        if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
-            return None;
-        }
+            if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
-        if resolved_binding.backend != input_core::WindowsInputBackend::Console {
-            return Some(None);
-        }
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
+            if resolved_binding.backend != input_core::WindowsInputBackend::Console {
+                return Some(None);
+            }
 
-        Some(resolved_binding.pending_console_records.pop_front())
-    });
+            Some(resolved_binding.pending_console_records.pop_front())
+        });
 
     match record {
         Some(Some(Some(record))) => Ok(Some(record)),
@@ -1087,99 +1108,102 @@ pub(super) fn set_read_mode(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // mutate resolved_binding state and host mode in one resource-table transaction
-    let result = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
-
-        if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
-            return None;
-        }
-
-        let host_handle = entry.handle().map(|handle| handle as HANDLE);
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
-
-        let update = match resolved_binding.backend {
-            input_core::WindowsInputBackend::Console => {
-                // update console cooked or raw processing flags
-                let Some(host_handle) = host_handle else {
-                    return Some(Err(input_core::input_not_found(operation, handle)));
-                };
-
-                let mut current_mode = 0u32;
-                let status = unsafe { GetConsoleMode(host_handle, &mut current_mode) };
-                if status == 0 {
-                    let code = core_platform::last_error_code() as u32;
-                    return Some(Err(input_core::io_error_with_code(
-                        operation,
-                        "GetConsoleMode",
-                        code,
-                        "failed to read console input mode",
-                    )));
-                }
-
-                let mut next_mode = current_mode;
-                if mode == InputReadMode::Cooked {
-                    next_mode |= ENABLE_PROCESSED_INPUT;
-                    next_mode |= ENABLE_LINE_INPUT;
-                    next_mode |= ENABLE_ECHO_INPUT;
-                } else {
-                    next_mode &= !ENABLE_PROCESSED_INPUT;
-                    next_mode &= !ENABLE_LINE_INPUT;
-                    next_mode &= !ENABLE_ECHO_INPUT;
-                }
-
-                let status = unsafe { SetConsoleMode(host_handle, next_mode) };
-                if status == 0 {
-                    let code = core_platform::last_error_code() as u32;
-                    return Some(Err(input_core::io_error_with_code(
-                        operation,
-                        "SetConsoleMode",
-                        code,
-                        "failed to update console input mode",
-                    )));
-                }
-
-                Ok(())
+    let result = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputDevice {
+                return None;
             }
-            input_core::WindowsInputBackend::Window => Err(RuntimeError::from(
-                PlatformError::not_supported("destack.input.event.setReadMode"),
-            )
-            .boxed()),
-            input_core::WindowsInputBackend::RawDevice => {
-                // raw-input devices only support raw mode
-                if mode == InputReadMode::Cooked {
-                    Err(RuntimeError::from(PlatformError::not_supported(
-                        "destack.input.event.setReadMode",
-                    ))
-                    .boxed())
-                } else {
+
+            if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
+                return None;
+            }
+
+            let host_handle = entry.handle().map(|handle| handle as HANDLE);
+            let resolved_binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
+
+            let update = match resolved_binding.backend {
+                input_core::WindowsInputBackend::Console => {
+                    // update console cooked or raw processing flags
+                    let Some(host_handle) = host_handle else {
+                        return Some(Err(input_core::input_not_found(operation, handle)));
+                    };
+
+                    let mut current_mode = 0u32;
+                    let status = unsafe { GetConsoleMode(host_handle, &mut current_mode) };
+                    if status == 0 {
+                        let code = core_platform::last_error_code() as u32;
+                        return Some(Err(input_core::io_error_with_code(
+                            operation,
+                            "GetConsoleMode",
+                            code,
+                            "failed to read console input mode",
+                        )));
+                    }
+
+                    let mut next_mode = current_mode;
+                    if mode == InputReadMode::Cooked {
+                        next_mode |= ENABLE_PROCESSED_INPUT;
+                        next_mode |= ENABLE_LINE_INPUT;
+                        next_mode |= ENABLE_ECHO_INPUT;
+                    } else {
+                        next_mode &= !ENABLE_PROCESSED_INPUT;
+                        next_mode &= !ENABLE_LINE_INPUT;
+                        next_mode &= !ENABLE_ECHO_INPUT;
+                    }
+
+                    let status = unsafe { SetConsoleMode(host_handle, next_mode) };
+                    if status == 0 {
+                        let code = core_platform::last_error_code() as u32;
+                        return Some(Err(input_core::io_error_with_code(
+                            operation,
+                            "SetConsoleMode",
+                            code,
+                            "failed to update console input mode",
+                        )));
+                    }
+
                     Ok(())
                 }
-            }
-            input_core::WindowsInputBackend::XInput => {
-                // xinput gamepads expose one raw polling stream only
-                if mode == InputReadMode::Cooked {
-                    Err(RuntimeError::from(PlatformError::not_supported(
-                        "destack.input.event.setReadMode",
-                    ))
-                    .boxed())
-                } else {
-                    Ok(())
+                input_core::WindowsInputBackend::Window => Err(RuntimeError::from(
+                    PlatformError::not_supported("destack.input.event.setReadMode"),
+                )
+                .boxed()),
+                input_core::WindowsInputBackend::RawDevice => {
+                    // raw-input devices only support raw mode
+                    if mode == InputReadMode::Cooked {
+                        Err(RuntimeError::from(PlatformError::not_supported(
+                            "destack.input.event.setReadMode",
+                        ))
+                        .boxed())
+                    } else {
+                        Ok(())
+                    }
                 }
+                input_core::WindowsInputBackend::XInput => {
+                    // xinput gamepads expose one raw polling stream only
+                    if mode == InputReadMode::Cooked {
+                        Err(RuntimeError::from(PlatformError::not_supported(
+                            "destack.input.event.setReadMode",
+                        ))
+                        .boxed())
+                    } else {
+                        Ok(())
+                    }
+                }
+            };
+
+            // persist read mode only after host updates succeed
+            if update.is_ok() {
+                resolved_binding.read_mode = mode;
             }
-        };
 
-        // persist read mode only after host updates succeed
-        if update.is_ok() {
-            resolved_binding.read_mode = mode;
-        }
-
-        Some(update)
-    });
+            Some(update)
+        });
 
     // map missing entries to io-not-found
     match result.flatten() {

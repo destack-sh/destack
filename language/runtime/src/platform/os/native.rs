@@ -63,15 +63,18 @@ fn take_document_pick_result(
     handle: resource::DocumentPickHandle,
     operation: &'static str,
 ) -> RuntimeResult<Vec<DocumentDescriptor>> {
-    let result = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != resource::ResourceKind::DocumentPick {
-            return None;
-        }
+    let result = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != resource::ResourceKind::DocumentPick {
+                return None;
+            }
 
-        let request = entry.payload_mut::<DocumentPickRequestResource>()?;
+            let request = entry.payload_mut::<DocumentPickRequestResource>()?;
 
-        Some(request.result.take())
-    });
+            Some(request.result.take())
+        });
 
     // validate the handle kind and payload first
     let Some(result) = result.flatten() else {
@@ -95,15 +98,18 @@ fn take_notification_permission_result(
     handle: resource::NotificationPermissionRequestHandle,
     operation: &'static str,
 ) -> RuntimeResult<NotificationPermissionState> {
-    let result = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != resource::ResourceKind::NotificationPermissionRequest {
-            return None;
-        }
+    let result = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != resource::ResourceKind::NotificationPermissionRequest {
+                return None;
+            }
 
-        let request = entry.payload_mut::<NotificationPermissionRequestResource>()?;
+            let request = entry.payload_mut::<NotificationPermissionRequestResource>()?;
 
-        Some(request.result.take())
-    });
+            Some(request.result.take())
+        });
 
     // validate the handle kind and payload first
     let Some(result) = result.flatten() else {
@@ -130,15 +136,18 @@ fn take_permission_request_result(
     handle: resource::PermissionRequestHandle,
     operation: &'static str,
 ) -> RuntimeResult<Vec<PermissionEntry>> {
-    let result = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != resource::ResourceKind::PermissionRequest {
-            return None;
-        }
+    let result = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != resource::ResourceKind::PermissionRequest {
+                return None;
+            }
 
-        let request = entry.payload_mut::<PermissionRequestResource>()?;
+            let request = entry.payload_mut::<PermissionRequestResource>()?;
 
-        Some(request.result.take())
-    });
+            Some(request.result.take())
+        });
 
     // validate the handle kind and payload first
     let Some(result) = result.flatten() else {

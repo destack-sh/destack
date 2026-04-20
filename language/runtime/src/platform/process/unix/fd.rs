@@ -311,15 +311,18 @@ fn update_signal_fd(
     handle: resource::SignalFdHandle,
     signals: Vec<Signal>,
 ) -> RuntimeResult<()> {
-    let updated = binding.worker().resources.with_entry_mut(handle.0, |entry| {
-        entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<core_process::SignalFdBinding>())
-            .map(|binding| {
-                binding.signals = signals;
-            })
-    });
+    let updated = binding
+        .worker()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<core_process::SignalFdBinding>())
+                .map(|binding| {
+                    binding.signals = signals;
+                })
+        });
 
     if updated.flatten().is_none() {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
