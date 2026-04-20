@@ -94,8 +94,8 @@ impl DestackFormatOptions {
         self
     }
 
-    /// Convert to print options (clamps line_width to u8 max).
-    pub fn as_print_options(&self) -> PrintOptions {
+    /// Convert to print options.
+    pub fn print_options(&self) -> PrintOptions {
         PrintOptions {
             line_ending: self.line_ending,
             line_width: self.line_width.min(255) as u8,
@@ -151,6 +151,6 @@ impl FormatOptions for DestackFormatOptions {
 
     #[inline]
     fn as_print_options(&self) -> PrintOptions {
-        self.as_print_options()
+        self.print_options()
     }
 }

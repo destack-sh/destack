@@ -1,18 +1,12 @@
 use super::source::SourceText;
+use crate::format::file::comment_text_has_suppression_directive;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::Comment;
-use destack_fir::format::{Format, FormatNode, FormatResult};
-use destack_source::{FileId, Span};
+use destack_fir::format::{Format, FormatNodes, FormatResult};
+use destack_source::Span;
 
-const IGNORE_SUPPRESSION_MARKER: &str = "oxfmt-ignore";
-
-/// Return whether one raw comment payload carries the formatter suppression marker.
-fn is_ignore_suppression_comment(text: &str) -> bool {
-    text.contains(IGNORE_SUPPRESSION_MARKER)
-}
-
-/// One saved raw comment cursor state.
-#[derive(Debug, Copy, Clone)]
+/// One saved comment cursor state for speculative formatting.
+#[derive(Debug, Clone, Copy)]
 pub struct CommentSnapshot {
     /// The number of comments already printed.
     printed_count: usize,
@@ -20,12 +14,12 @@ pub struct CommentSnapshot {
     view_limit: Option<usize>,
 }
 
-/// Cursor-based access to raw comments during formatting.
+/// Cursor-based access to comments during formatting.
 #[derive(Debug, Clone)]
 pub struct Comments<'a> {
-    /// The raw comments in source order.
-    inner: &'a [Comment],
-    /// The source text used for comment ownership queries.
+    /// The comments in source order.
+    comments: &'a [Comment],
+    /// The source text used for positional comment queries.
     source_text: SourceText<'a>,
     /// The number of comments already printed.
     printed_count: usize,
@@ -34,31 +28,14 @@ pub struct Comments<'a> {
 }
 
 impl<'a> Comments<'a> {
-    /// Create one comment cursor over raw comments.
-    pub fn new(file_id: FileId, source_text: SourceText<'a>, comments: &'a [Comment]) -> Self {
-        let _ = file_id;
+    /// Create one comment cursor over comments.
+    pub fn new(source_text: SourceText<'a>, comments: &'a [Comment]) -> Self {
         Self {
-            inner: comments,
+            comments,
             source_text,
             printed_count: 0,
             view_limit: None,
         }
-    }
-
-    /// Return one saved raw comment cursor state.
-    #[inline]
-    pub fn snapshot(&self) -> CommentSnapshot {
-        CommentSnapshot {
-            printed_count: self.printed_count,
-            view_limit: self.view_limit,
-        }
-    }
-
-    /// Restore one saved raw comment cursor state.
-    #[inline]
-    pub fn restore(&mut self, snapshot: CommentSnapshot) {
-        self.printed_count = snapshot.printed_count;
-        self.view_limit = snapshot.view_limit;
     }
 
     /// Advance the printed cursor past comments ending before one position.
@@ -71,17 +48,14 @@ impl<'a> Comments<'a> {
     /// Return the unprinted comments.
     #[inline]
     pub fn unprinted_comments(&self) -> &'a [Comment] {
-        let end = self.view_limit.unwrap_or(self.inner.len());
-        let start = self.printed_count.min(end);
-        &self.inner[start..end]
+        let end = self.view_limit.unwrap_or(self.comments.len());
+        &self.comments[self.printed_count..end]
     }
 
     /// Return the printed comments.
     #[inline]
     pub fn printed_comments(&self) -> &'a [Comment] {
-        let end = self.view_limit.unwrap_or(self.inner.len());
-        let printed_end = self.printed_count.min(end);
-        &self.inner[..printed_end]
+        &self.comments[..self.printed_count]
     }
 
     /// Return an iterator over comments that end before or at one position.
@@ -228,26 +202,29 @@ impl<'a> Comments<'a> {
 
     /// Return whether one comment is a suppression comment.
     pub fn is_suppression_comment(&self, comment: &Comment) -> bool {
-        is_ignore_suppression_comment(self.span_text(comment.content_span()))
+        comment_text_has_suppression_directive(self.span_text(comment.content_span()))
     }
 
-    /// Return trailing comments owned by one preceding span inside one enclosing span.
+    /// Return trailing comments after one preceding span inside one enclosing span.
     pub fn get_trailing_comments(
         &self,
         enclosing_span: Span,
         preceding_span: Span,
-        boundary_start: u32,
         following_span_start: u32,
     ) -> &'a [Comment] {
-        let comments = self.comments_after(preceding_span.start);
+        let comments = self.unprinted_comments();
         if comments.is_empty() {
             return &[];
         }
 
+        debug_assert!(
+            comments
+                .first()
+                .is_none_or(|comment| comment.span.end > preceding_span.start)
+        );
+
         if following_span_start == 0 {
-            let end_index =
-                comments.partition_point(|comment| comment.span.end <= enclosing_span.end);
-            let comments = &comments[..end_index];
+            let comments = self.comments_before(enclosing_span.end);
             let mut start = preceding_span.end;
 
             for (index, comment) in comments.iter().enumerate() {
@@ -270,12 +247,10 @@ impl<'a> Comments<'a> {
             return comments;
         }
 
-        let trailing_boundary_start = boundary_start.min(following_span_start);
-
         let mut comment_index = 0usize;
 
         while let Some(comment) = comments.get(comment_index) {
-            if comment.span.end > trailing_boundary_start || comment.span.end > enclosing_span.end {
+            if comment.span.end > following_span_start || comment.span.end > enclosing_span.end {
                 break;
             }
 
@@ -290,7 +265,7 @@ impl<'a> Comments<'a> {
             comment_index += 1;
         }
 
-        let mut gap_end = trailing_boundary_start;
+        let mut gap_end = following_span_start;
 
         for (index, comment) in comments[..comment_index].iter().enumerate().rev() {
             if self
@@ -314,28 +289,31 @@ impl<'a> Comments<'a> {
         self.printed_count += 1;
     }
 
-    /// Advance the printed cursor by several comments.
+    /// Save the current comment cursor state.
     #[inline]
-    pub fn increase_printed_count_by(&mut self, count: usize) {
-        self.printed_count += count;
+    pub fn snapshot(&self) -> CommentSnapshot {
+        CommentSnapshot {
+            printed_count: self.printed_count,
+            view_limit: self.view_limit,
+        }
     }
 
-    /// Advance the printed cursor by one expected comment.
+    /// Restore one saved comment cursor state.
     #[inline]
-    pub fn consume(&mut self, comment: Comment) {
-        let _ = comment;
-        self.increment_printed_count();
+    pub fn restore(&mut self, snapshot: CommentSnapshot) {
+        self.printed_count = snapshot.printed_count;
+        self.view_limit = snapshot.view_limit;
     }
 
     /// Limit the visible unprinted comment slice to one end position.
     pub fn limit_comments_up_to(&mut self, end_pos: u32) -> Option<usize> {
         let original_limit = self.view_limit;
-        let limit_index = self.inner[self.printed_count..]
+        let limit_index = self.comments[self.printed_count..]
             .iter()
             .position(|comment| comment.span.start >= end_pos)
-            .map_or(self.inner.len(), |index| self.printed_count + index);
+            .map_or(self.comments.len(), |index| self.printed_count + index);
 
-        if limit_index < self.inner.len() {
+        if limit_index < self.comments.len() {
             self.view_limit = Some(limit_index);
         }
 
@@ -348,56 +326,42 @@ impl<'a> Comments<'a> {
         self.view_limit = limit;
     }
 
-    /// Return the raw source text for one span.
+    /// Return the source text for one span.
     fn span_text(&self, span: Span) -> &'a str {
         self.source_text.text_for(&span)
     }
 }
 
-/// Comment-safe speculative formatting helpers for the local formatter type.
-pub(crate) trait DestackFormatterCommentExt<'ast> {
-    /// Intern one formatting fragment without mutating the live raw comment cursor.
-    fn intern_with_comment_snapshot(
+/// Speculative formatting helpers for one Destack formatter.
+pub(crate) trait DestackFormatterSpeculationExt<'ast> {
+    /// Return whether formatting `content` after `start` would break.
+    fn speculate_will_break_after(
         &mut self,
+        start: u32,
         content: &dyn Format<DestackFormatContext<'ast>>,
-    ) -> FormatResult<Option<FormatNode>>;
-
-    /// Intern one formatting fragment after skipping comments before one offset.
-    fn intern_with_comment_snapshot_after(
-        &mut self,
-        start_offset: Option<u32>,
-        content: &dyn Format<DestackFormatContext<'ast>>,
-    ) -> FormatResult<Option<FormatNode>>;
+    ) -> FormatResult<bool>;
 }
 
-impl<'ast> DestackFormatterCommentExt<'ast> for DestackFormatter<'ast, '_> {
-    /// Intern one formatting fragment without mutating the live raw comment cursor.
-    fn intern_with_comment_snapshot(
+impl<'ast> DestackFormatterSpeculationExt<'ast> for DestackFormatter<'ast, '_> {
+    fn speculate_will_break_after(
         &mut self,
+        start: u32,
         content: &dyn Format<DestackFormatContext<'ast>>,
-    ) -> FormatResult<Option<FormatNode>> {
-        self.intern_with_comment_snapshot_after(None, content)
-    }
-
-    /// Intern one formatting fragment after skipping comments before one offset.
-    fn intern_with_comment_snapshot_after(
-        &mut self,
-        start_offset: Option<u32>,
-        content: &dyn Format<DestackFormatContext<'ast>>,
-    ) -> FormatResult<Option<FormatNode>> {
+    ) -> FormatResult<bool> {
         let snapshot = {
             let comments = self.context().comments();
             comments.snapshot()
         };
 
-        if let Some(start_offset) = start_offset {
-            self.context()
-                .comments_mut()
-                .skip_comments_before(start_offset);
-        }
+        self.context_mut()
+            .comments_mut()
+            .skip_comments_before(start);
 
-        let result = self.intern(content);
-        self.context().comments_mut().restore(snapshot);
+        let result = self
+            .intern(content)
+            .map(|content| content.is_some_and(|content| content.will_break()));
+
+        self.context_mut().comments_mut().restore(snapshot);
         result
     }
 }

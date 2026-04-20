@@ -186,21 +186,12 @@ fn write_inline_statement_terminator_comments<'ast>(
         };
         total_lines_before += lines_before;
 
-        let should_nestle = previous_comment.is_some_and(|previous_comment: Comment| {
-            previous_comment.is_jsdoc()
-                && comment.is_jsdoc()
-                && previous_comment.is_multiline_block()
-                && comment.is_multiline_block()
-                && previous_comment.span.end == comment.span.start
-        });
-
         if total_lines_before > 0 || previous_comment.is_some_and(Comment::is_line) {
             write!(
                 f,
                 [line_suffix(&format_with(
                     move |f: &mut DestackFormatter<'ast, '_>| {
                         match lines_before {
-                            _ if should_nestle => {}
                             0 => {
                                 if previous_comment.is_some_and(Comment::is_line) {
                                     write!(f, [hard_line_break()])?;
@@ -220,8 +211,6 @@ fn write_inline_statement_terminator_comments<'ast>(
                     }
                 ))]
             )?;
-        } else if should_nestle {
-            format_comment(f, comment)?;
         } else {
             write!(f, [space()])?;
             format_comment(f, comment)?;
