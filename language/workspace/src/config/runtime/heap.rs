@@ -1,22 +1,28 @@
 use serde::{Deserialize, Serialize};
 
-/// The default heap growth target after one cycle.
+/// The default proportional heap growth target after one cycle.
 const DEFAULT_HEAP_GROWTH_PERCENT: u32 = 100;
-/// The default built-in managed young-space width.
+/// The default heap trigger as a percentage of the current goal.
+const DEFAULT_HEAP_TRIGGER_PERCENT: u32 = 75;
+/// The default local-heap pacing floor for small worker heaps.
+const DEFAULT_LOCAL_MINIMUM_HEAP_BYTES: u64 = 128 * 1024;
+/// The default shared-heap pacing floor for heavier shared state.
+const DEFAULT_SHARED_MINIMUM_HEAP_BYTES: u64 = 4 * 1024 * 1024;
+/// The default small young-space width for worker-local heaps.
 const DEFAULT_MANAGED_YOUNG_BYTES: usize = 64 * 1024;
-/// The default maximum payload size admitted into managed young space.
+/// The default nursery bypass threshold for larger payloads.
 const DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES: usize = 4 * 1024;
-/// The default managed small-allocation span width.
+/// The default managed small-span width for size-classed allocation.
 const DEFAULT_MANAGED_SPAN_BYTES: usize = 16 * 1024;
-/// The default raw small-allocation span width.
+/// The default raw small-span width for size-classed allocation.
 const DEFAULT_RAW_SPAN_BYTES: usize = 16 * 1024;
-/// The default heap page width.
+/// The default heap page width aligned to common OS pages.
 const DEFAULT_PAGE_BYTES: usize = 4 * 1024;
-/// The default heap segment width.
+/// The default arena segment width that amortizes mapping and metadata work.
 const DEFAULT_SEGMENT_BYTES: usize = 1024 * 1024;
-/// The default remembered-card width.
+/// The default remembered-card width for local write tracking.
 const DEFAULT_CARD_BYTES: usize = 256;
-/// The default small-allocation alignment.
+/// The default alignment for small size classes.
 const DEFAULT_SMALL_ALIGNMENT_BYTES: usize = 8;
 
 /// Runtime heap size-class configuration.
@@ -52,17 +58,23 @@ impl Default for HeapGcOptions {
 /// Runtime local-heap collector pacing.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct LocalGcOptions {
-    /// Go-style heap growth target percentage.
+    /// The proportional heap growth target percentage.
     pub growth_percent: u32,
-    /// Go-style soft memory limit in bytes.
+    /// Heap trigger as a percentage of the current goal.
+    pub trigger_percent: u32,
+    /// Optional soft memory limit in bytes.
     pub memory_limit_bytes: Option<u64>,
+    /// Minimum heap floor in bytes.
+    pub minimum_heap_bytes: Option<u64>,
 }
 
 impl Default for LocalGcOptions {
     fn default() -> Self {
         Self {
             growth_percent: DEFAULT_HEAP_GROWTH_PERCENT,
+            trigger_percent: DEFAULT_HEAP_TRIGGER_PERCENT,
             memory_limit_bytes: None,
+            minimum_heap_bytes: Some(DEFAULT_LOCAL_MINIMUM_HEAP_BYTES),
         }
     }
 }
@@ -70,17 +82,23 @@ impl Default for LocalGcOptions {
 /// Runtime shared-heap collector pacing.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SharedGcOptions {
-    /// Go-style heap growth target percentage.
+    /// The proportional heap growth target percentage.
     pub growth_percent: u32,
-    /// Go-style soft memory limit in bytes.
+    /// Heap trigger as a percentage of the current goal.
+    pub trigger_percent: u32,
+    /// Optional soft memory limit in bytes.
     pub memory_limit_bytes: Option<u64>,
+    /// Minimum heap floor in bytes.
+    pub minimum_heap_bytes: Option<u64>,
 }
 
 impl Default for SharedGcOptions {
     fn default() -> Self {
         Self {
             growth_percent: DEFAULT_HEAP_GROWTH_PERCENT,
+            trigger_percent: DEFAULT_HEAP_TRIGGER_PERCENT,
             memory_limit_bytes: None,
+            minimum_heap_bytes: Some(DEFAULT_SHARED_MINIMUM_HEAP_BYTES),
         }
     }
 }
@@ -204,8 +222,12 @@ impl HeapSizeClassesJson {
 pub struct LocalGcOptionsJson {
     /// Heap growth target percentage.
     pub growth_percent: Option<u32>,
+    /// Heap trigger as a percentage of the current goal.
+    pub trigger_percent: Option<u32>,
     /// Soft memory limit in bytes.
     pub memory_limit_bytes: Option<u64>,
+    /// Minimum live heap floor in bytes.
+    pub minimum_heap_bytes: Option<u64>,
 }
 
 impl LocalGcOptionsJson {
@@ -215,8 +237,16 @@ impl LocalGcOptionsJson {
             self.growth_percent = parent.growth_percent;
         }
 
+        if self.trigger_percent.is_none() {
+            self.trigger_percent = parent.trigger_percent;
+        }
+
         if self.memory_limit_bytes.is_none() {
             self.memory_limit_bytes = parent.memory_limit_bytes;
+        }
+
+        if self.minimum_heap_bytes.is_none() {
+            self.minimum_heap_bytes = parent.minimum_heap_bytes;
         }
     }
 
@@ -226,8 +256,16 @@ impl LocalGcOptionsJson {
             options.growth_percent = growth_percent;
         }
 
+        if let Some(trigger_percent) = self.trigger_percent {
+            options.trigger_percent = trigger_percent;
+        }
+
         if let Some(memory_limit_bytes) = self.memory_limit_bytes {
             options.memory_limit_bytes = Some(memory_limit_bytes);
+        }
+
+        if let Some(minimum_heap_bytes) = self.minimum_heap_bytes {
+            options.minimum_heap_bytes = Some(minimum_heap_bytes);
         }
     }
 }
@@ -239,8 +277,12 @@ impl LocalGcOptionsJson {
 pub struct SharedGcOptionsJson {
     /// Heap growth target percentage.
     pub growth_percent: Option<u32>,
+    /// Heap trigger as a percentage of the current goal.
+    pub trigger_percent: Option<u32>,
     /// Soft memory limit in bytes.
     pub memory_limit_bytes: Option<u64>,
+    /// Minimum live heap floor in bytes.
+    pub minimum_heap_bytes: Option<u64>,
 }
 
 impl SharedGcOptionsJson {
@@ -250,8 +292,16 @@ impl SharedGcOptionsJson {
             self.growth_percent = parent.growth_percent;
         }
 
+        if self.trigger_percent.is_none() {
+            self.trigger_percent = parent.trigger_percent;
+        }
+
         if self.memory_limit_bytes.is_none() {
             self.memory_limit_bytes = parent.memory_limit_bytes;
+        }
+
+        if self.minimum_heap_bytes.is_none() {
+            self.minimum_heap_bytes = parent.minimum_heap_bytes;
         }
     }
 
@@ -261,8 +311,16 @@ impl SharedGcOptionsJson {
             options.growth_percent = growth_percent;
         }
 
+        if let Some(trigger_percent) = self.trigger_percent {
+            options.trigger_percent = trigger_percent;
+        }
+
         if let Some(memory_limit_bytes) = self.memory_limit_bytes {
             options.memory_limit_bytes = Some(memory_limit_bytes);
+        }
+
+        if let Some(minimum_heap_bytes) = self.minimum_heap_bytes {
+            options.minimum_heap_bytes = Some(minimum_heap_bytes);
         }
     }
 }
