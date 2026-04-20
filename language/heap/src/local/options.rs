@@ -1,32 +1,34 @@
 use serde::{Deserialize, Serialize};
 
-use crate::HeapError;
-use crate::arena::{Arena, SizeClassTable, SmallObjectPolicy};
+use crate::arena::{Arena, SizeClassPolicy, SizeClassTable};
+use crate::{GcPacing, HeapError};
 
-/// The standard local heap page width.
+/// The standard heap page width aligned to common OS pages.
 const DEFAULT_PAGE_BYTES: usize = 4 * 1024;
-/// The standard contiguous arena segment width.
+/// The standard arena segment width that amortizes mapping and metadata work.
 const DEFAULT_ARENA_SEGMENT_BYTES: usize = 1024 * 1024;
-/// The standard span width for local small-allocation spaces.
+/// The standard small-span width for size-classed allocation.
 const DEFAULT_SMALL_BYTES: usize = 16 * 1024;
-/// The standard remembered-card width.
+/// The standard remembered-card width for local write tracking.
 const DEFAULT_CARD_BYTES: usize = 256;
-/// The standard byte width for managed young space.
+/// The standard small young-space width for worker-local heaps.
 const DEFAULT_YOUNG_BYTES: usize = 64 * 1024;
-/// The standard maximum payload size admitted into managed young space.
+/// The standard nursery bypass threshold for larger payloads.
 const DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES: usize = 4 * 1024;
 /// The standard byte width for managed references inside traced payloads.
 const DEFAULT_MANAGED_REFERENCE_BYTES: u8 = 8;
-/// The standard byte alignment for configured small-allocation classes.
+/// The standard alignment for configured small-allocation classes.
 const DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES: usize = 8;
 /// The standard entry count per copy on write metadata table chunk.
 const DEFAULT_TABLE_CHUNK_LEN: usize = 256;
 
-/// Constructor policy for resolving heap options.
+/// Constructor policy for resolving local heap options.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct HeapPolicy {
+pub struct LocalHeapPolicy {
+    /// The collector pacing policy.
+    pub gc: GcPacing,
     /// The small-object allocation policy.
-    pub small: SmallObjectPolicy,
+    pub small: SizeClassPolicy,
     /// The encoded byte width for managed references inside traced payloads.
     pub managed_reference_bytes: u8,
     /// The byte width for managed young space.
@@ -47,10 +49,11 @@ pub struct HeapPolicy {
     pub table_chunk_len: usize,
 }
 
-impl Default for HeapPolicy {
+impl Default for LocalHeapPolicy {
     fn default() -> Self {
         Self {
-            small: SmallObjectPolicy::default(),
+            gc: GcPacing::local(),
+            small: SizeClassPolicy::default(),
             managed_reference_bytes: DEFAULT_MANAGED_REFERENCE_BYTES,
             managed_young_bytes: DEFAULT_YOUNG_BYTES,
             max_managed_young_allocation_bytes: DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES,
@@ -64,10 +67,11 @@ impl Default for HeapPolicy {
     }
 }
 
-impl HeapPolicy {
-    /// Resolve this constructor policy into serializable heap options.
+impl LocalHeapPolicy {
+    /// Resolve this constructor policy into heap options.
     pub fn resolve(&self) -> Result<HeapOptions, HeapError> {
         let options = HeapOptions {
+            gc: self.gc,
             size_classes: self.small.size_classes()?,
             managed_reference_bytes: self.managed_reference_bytes,
             managed_young_bytes: self.managed_young_bytes,
@@ -81,7 +85,61 @@ impl HeapPolicy {
             table_chunk_len: self.table_chunk_len,
         };
 
-        options.validate()?;
+        options.validate_local()?;
+
+        Ok(options)
+    }
+}
+
+/// Constructor policy for resolving shared heap options.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SharedHeapPolicy {
+    /// The collector pacing policy.
+    pub gc: GcPacing,
+    /// The small-object allocation policy.
+    pub small: SizeClassPolicy,
+    /// The byte width for managed small-allocation spans.
+    pub managed_small_bytes: usize,
+    /// The byte width for local heap pages.
+    pub page_bytes: usize,
+    /// The byte width for one physical arena segment.
+    pub arena_segment_bytes: usize,
+    /// The entry count per copy on write metadata table chunk.
+    pub table_chunk_len: usize,
+}
+
+impl Default for SharedHeapPolicy {
+    fn default() -> Self {
+        Self {
+            gc: GcPacing::shared(),
+            small: SizeClassPolicy::default(),
+            managed_small_bytes: DEFAULT_SMALL_BYTES,
+            page_bytes: DEFAULT_PAGE_BYTES,
+            arena_segment_bytes: DEFAULT_ARENA_SEGMENT_BYTES,
+            table_chunk_len: DEFAULT_TABLE_CHUNK_LEN,
+        }
+    }
+}
+
+impl SharedHeapPolicy {
+    /// Resolve this constructor policy into heap options.
+    pub fn resolve(&self) -> Result<HeapOptions, HeapError> {
+        let options = HeapOptions {
+            gc: self.gc,
+            size_classes: self.small.size_classes()?,
+            managed_reference_bytes: DEFAULT_MANAGED_REFERENCE_BYTES,
+            managed_young_bytes: 0,
+            max_managed_young_allocation_bytes: 0,
+            managed_small_bytes: self.managed_small_bytes,
+            raw_small_bytes: DEFAULT_SMALL_BYTES,
+            page_bytes: self.page_bytes,
+            arena_segment_bytes: self.arena_segment_bytes,
+            card_bytes: DEFAULT_CARD_BYTES,
+            small_allocation_alignment_bytes: self.small.alignment_bytes,
+            table_chunk_len: self.table_chunk_len,
+        };
+
+        options.validate_shared()?;
 
         Ok(options)
     }
@@ -90,6 +148,8 @@ impl HeapPolicy {
 /// The configuration for one heap instance.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HeapOptions {
+    /// The collector pacing policy.
+    pub gc: GcPacing,
     /// The configured small-allocation class table.
     pub size_classes: SizeClassTable,
     /// The encoded byte width for managed references inside traced payloads.
@@ -114,9 +174,11 @@ pub struct HeapOptions {
     pub table_chunk_len: usize,
 }
 
-impl Default for HeapOptions {
-    fn default() -> Self {
+impl HeapOptions {
+    /// Build the default option set for one local heap.
+    pub fn local() -> Self {
         Self {
+            gc: GcPacing::local(),
             size_classes: SizeClassTable::default(),
             managed_reference_bytes: DEFAULT_MANAGED_REFERENCE_BYTES,
             managed_young_bytes: DEFAULT_YOUNG_BYTES,
@@ -130,9 +192,30 @@ impl Default for HeapOptions {
             table_chunk_len: DEFAULT_TABLE_CHUNK_LEN,
         }
     }
-}
 
-impl HeapOptions {
+    /// Build the default option set for one shared heap.
+    pub fn shared() -> Self {
+        Self {
+            gc: GcPacing::shared(),
+            size_classes: SizeClassTable::default(),
+            managed_reference_bytes: DEFAULT_MANAGED_REFERENCE_BYTES,
+            managed_young_bytes: 0,
+            max_managed_young_allocation_bytes: 0,
+            managed_small_bytes: DEFAULT_SMALL_BYTES,
+            raw_small_bytes: DEFAULT_SMALL_BYTES,
+            page_bytes: DEFAULT_PAGE_BYTES,
+            arena_segment_bytes: DEFAULT_ARENA_SEGMENT_BYTES,
+            card_bytes: DEFAULT_CARD_BYTES,
+            small_allocation_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
+            table_chunk_len: DEFAULT_TABLE_CHUNK_LEN,
+        }
+    }
+
+    /// Return the default table chunk length.
+    pub const fn default_table_chunk_len() -> usize {
+        DEFAULT_TABLE_CHUNK_LEN
+    }
+
     /// Validate one configured heap page width.
     pub(crate) fn validate_page_bytes(page_bytes: usize) -> Result<usize, HeapError> {
         if page_bytes == 0 || !page_bytes.is_power_of_two() {
@@ -145,9 +228,9 @@ impl HeapOptions {
     /// Validate one encoded managed-reference byte width.
     pub(crate) fn validate_managed_reference_bytes(
         managed_reference_bytes: u8,
-    ) -> Result<u8, HeapError> {
+    ) -> Result<usize, HeapError> {
         match managed_reference_bytes {
-            4 | 8 => Ok(managed_reference_bytes),
+            4 | 8 => Ok(managed_reference_bytes as usize),
             _ => Err(HeapError::UnsupportedManagedReferenceWidth {
                 bytes: managed_reference_bytes,
             }),
@@ -208,14 +291,32 @@ impl HeapOptions {
         }
     }
 
-    /// Validate these heap options.
-    pub fn validate(&self) -> Result<(), HeapError> {
-        Self::validate_managed_reference_bytes(self.managed_reference_bytes)?;
+    /// Validate the common heap geometry shared by local and shared heaps.
+    fn validate_common(&self) -> Result<(), HeapError> {
+        self.gc.validate()?;
         Self::validate_page_bytes(self.page_bytes)?;
         Self::validate_arena_segment_bytes(self.page_bytes, self.arena_segment_bytes)?;
-        Self::validate_card_bytes(self.card_bytes)?;
-        Self::validate_small_allocation_alignment_bytes(self.small_allocation_alignment_bytes)?;
         Self::validate_table_chunk_len(self.table_chunk_len)?;
+        Self::validate_small_allocation_alignment_bytes(self.small_allocation_alignment_bytes)?;
+
+        // keep all size classes aligned to the configured small-slot boundary
+        for class in &self.size_classes.classes {
+            if class.bytes % self.small_allocation_alignment_bytes != 0 {
+                return Err(HeapError::MisalignedSizeClass {
+                    alignment_bytes: self.small_allocation_alignment_bytes,
+                    class_bytes: class.bytes,
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate these options for one local heap.
+    pub fn validate_local(&self) -> Result<(), HeapError> {
+        self.validate_common()?;
+        Self::validate_managed_reference_bytes(self.managed_reference_bytes)?;
+        Self::validate_card_bytes(self.card_bytes)?;
 
         // reject contradictory young-space policy
         if self.managed_young_bytes != 0
@@ -227,15 +328,12 @@ impl HeapOptions {
             });
         }
 
-        // keep all size classes aligned to the configured small-slot boundary
-        for class in &self.size_classes.classes {
-            if class.bytes % self.small_allocation_alignment_bytes != 0 {
-                return Err(HeapError::MisalignedSizeClass {
-                    alignment_bytes: self.small_allocation_alignment_bytes,
-                    class_bytes: class.bytes,
-                });
-            }
-        }
+        Ok(())
+    }
+
+    /// Validate these options for one shared heap.
+    pub fn validate_shared(&self) -> Result<(), HeapError> {
+        self.validate_common()?;
 
         Ok(())
     }

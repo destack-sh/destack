@@ -74,7 +74,13 @@ impl SharedHeap {
 
     /// Create a new empty shared heap over one shared arena.
     pub fn with_arena(arena: Arc<Arena>) -> Self {
-        Self::with_arena_and_options(arena, HeapOptions::shared())
+        let options = HeapOptions {
+            page_bytes: arena.page_bytes(),
+            arena_segment_bytes: arena.segment_bytes(),
+            ..HeapOptions::shared()
+        };
+
+        Self::with_arena_and_options(arena, options)
     }
 
     /// Create a new empty shared heap with explicit limits and options.
@@ -84,7 +90,13 @@ impl SharedHeap {
 
     /// Create a new empty shared heap over one shared arena and limit set.
     pub fn with_arena_and_limits(arena: Arc<Arena>, limits: SharedHeapLimits) -> Self {
-        Self::with_arena_limits_and_options(arena, limits, HeapOptions::shared())
+        let options = HeapOptions {
+            page_bytes: arena.page_bytes(),
+            arena_segment_bytes: arena.segment_bytes(),
+            ..HeapOptions::shared()
+        };
+
+        Self::with_arena_limits_and_options(arena, limits, options)
     }
 
     /// Create a new empty shared heap over one shared arena and explicit options.
@@ -98,6 +110,13 @@ impl SharedHeap {
         limits: SharedHeapLimits,
         options: HeapOptions,
     ) -> Self {
+        options
+            .validate_shared()
+            .expect("shared heap options should validate");
+        options
+            .validate_arena(&arena)
+            .expect("shared heap arena should match options");
+
         let mut shared = Self {
             managed: SharedManagedSpace::with_options(arena.clone(), &options),
             raw: SharedRawSpace::with_arena(arena.clone()),
@@ -421,6 +440,9 @@ impl SharedHeap {
         limits: SharedHeapLimits,
         options: HeapOptions,
     ) -> HeapResult<Self> {
+        options.validate_shared()?;
+        options.validate_arena(&arena)?;
+
         let mut shared = Self {
             managed: SharedManagedSpace::from_image_with_arena(arena.clone(), &image.managed)?,
             raw: SharedRawSpace::from_image_with_arena(arena.clone(), &image.raw)?,

@@ -2,9 +2,37 @@ use serde::{Deserialize, Serialize};
 
 use crate::HeapError;
 
-/// One policy for generating small allocation size classes.
+/// One span-backed allocation path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SpanAllocationPath {
+    /// One small-space allocation.
+    Small {
+        /// The resolved size-class index.
+        class_index: usize,
+        /// The resolved slot width.
+        size_class: usize,
+        /// The mapped-byte delta for this path.
+        mapped_delta: i64,
+    },
+    /// One large-space allocation.
+    Large {
+        /// The mapped-byte delta for this path.
+        mapped_delta: i64,
+    },
+}
+
+impl SpanAllocationPath {
+    /// Return the mapped-byte delta for this allocation path.
+    pub(crate) fn mapped_delta(self) -> i64 {
+        match self {
+            Self::Small { mapped_delta, .. } | Self::Large { mapped_delta } => mapped_delta,
+        }
+    }
+}
+
+/// One policy for generating size classes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct SmallObjectPolicy {
+pub struct SizeClassPolicy {
     /// The smallest generated size class in bytes.
     pub min_bytes: usize,
     /// The largest generated size class in bytes.
@@ -17,7 +45,7 @@ pub struct SmallObjectPolicy {
     pub max_waste_denominator: usize,
 }
 
-impl Default for SmallObjectPolicy {
+impl Default for SizeClassPolicy {
     fn default() -> Self {
         Self {
             min_bytes: 16,
@@ -29,7 +57,7 @@ impl Default for SmallObjectPolicy {
     }
 }
 
-impl SmallObjectPolicy {
+impl SizeClassPolicy {
     /// Generate the size-class table described by this policy.
     pub fn size_classes(self) -> Result<SizeClassTable, HeapError> {
         self.validate()?;
@@ -125,7 +153,7 @@ impl SizeClassTable {
 
     /// Return the default policy-generated size-class table.
     pub fn default_table() -> Self {
-        let policy = SmallObjectPolicy::default();
+        let policy = SizeClassPolicy::default();
         debug_assert!(policy.size_classes().is_ok());
 
         Self {
@@ -139,20 +167,62 @@ impl SizeClassTable {
 
     /// Return the largest span-allocated payload size in bytes.
     pub fn max_small_allocation_bytes(&self) -> usize {
-        self.classes
-            .last()
-            .map(|class| class.bytes)
-            .unwrap_or_default()
+        let Some(class) = self.classes.last() else {
+            panic!("size class table should not be empty");
+        };
+
+        class.bytes
     }
 
     /// Return the smallest span-allocated payload size in bytes.
     pub fn min_small_allocation_bytes(&self) -> usize {
-        self.classes.first().map(|class| class.bytes).unwrap_or(1)
+        let Some(class) = self.classes.first() else {
+            panic!("size class table should not be empty");
+        };
+
+        class.bytes
     }
 
     /// Return one best-fit size class index for the given payload size.
     pub fn class_index_for(&self, bytes: usize) -> Option<usize> {
-        self.classes.iter().position(|class| class.bytes >= bytes)
+        // find the first class that can hold the requested payload
+        let class_index = self.classes.partition_point(|class| class.bytes < bytes);
+
+        if class_index == self.classes.len() {
+            return None;
+        }
+
+        Some(class_index)
+    }
+
+    /// Return one span-backed allocation path for the requested payload size.
+    pub(crate) fn span_allocation_path(
+        &self,
+        byte_len: usize,
+        span_bytes: usize,
+        has_available_span: impl FnOnce(usize) -> bool,
+        large_bytes: impl FnOnce(usize) -> u64,
+    ) -> SpanAllocationPath {
+        // use one size-classed span when the payload still fits
+        if let Some(class_index) = self.class_index_for(byte_len) {
+            let size_class = self.classes[class_index].bytes;
+            let mapped_delta = if has_available_span(class_index) {
+                0
+            } else {
+                span_bytes as i64
+            };
+
+            return SpanAllocationPath::Small {
+                class_index,
+                size_class,
+                mapped_delta,
+            };
+        }
+
+        // otherwise fall back to the dedicated large-entry path
+        SpanAllocationPath::Large {
+            mapped_delta: large_bytes(byte_len) as i64,
+        }
     }
 
     /// Validate one raw size-class list.
