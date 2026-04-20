@@ -1,10 +1,13 @@
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use clap::{Args, ValueEnum};
 use destack_workspace::{
-    ExecutionModeJson, HeapOptionsJson, RandomModeJson, RandomOptionsJson, ReplayOptionsJson,
-    RuntimeAccessJson, RuntimeOptionsJson, RuntimeWorldJson, SchedulerOptionsJson,
-    SchedulerPolicyJson, TimeModeJson, TimeOptionsJson,
+    ExecutionModeJson, HeapGcOptionsJson, HeapLayoutOptionsJson, HeapLimitOptionsJson,
+    HeapOptionsJson, HeapSizeClassesJson, LocalGcOptionsJson, LocalHeapLimitOptionsJson,
+    RandomModeJson, RandomOptionsJson, ReplayOptionsJson, RuntimeAccessJson, RuntimeOptionsJson,
+    RuntimeWorldJson, SchedulerOptionsJson, SchedulerPolicyJson, SharedGcOptionsJson,
+    SharedHeapLimitOptionsJson, TimeModeJson, TimeOptionsJson,
 };
 
 /// Runtime configuration arguments for run-like commands.
@@ -106,49 +109,81 @@ pub struct RuntimeArgs {
     #[arg(long = "runtime-scheduler-max-tasks")]
     pub scheduler_max_tasks: Option<u64>,
 
-    /// Runtime heap growth target percentage.
-    #[arg(long = "runtime-heap-growth-percent")]
-    pub heap_growth_percent: Option<u32>,
+    /// Runtime local-heap growth target percentage.
+    #[arg(long = "runtime-heap-local-growth-percent")]
+    pub heap_local_growth_percent: Option<u32>,
 
-    /// Runtime heap soft limit in bytes.
-    #[arg(long = "runtime-heap-soft-limit-bytes")]
-    pub heap_soft_limit_bytes: Option<u64>,
+    /// Runtime local-heap soft memory limit in bytes.
+    #[arg(long = "runtime-heap-local-memory-limit-bytes")]
+    pub heap_local_memory_limit_bytes: Option<u64>,
 
-    /// Runtime heap initial size hint in bytes.
-    #[arg(long = "runtime-heap-initial-bytes")]
-    pub heap_initial_bytes: Option<u64>,
+    /// Runtime shared-heap growth target percentage.
+    #[arg(long = "runtime-heap-shared-growth-percent")]
+    pub heap_shared_growth_percent: Option<u32>,
 
-    /// Managed young heap size in bytes.
-    #[arg(long = "runtime-heap-managed-young-bytes")]
-    pub managed_young_bytes: Option<usize>,
+    /// Runtime shared-heap soft memory limit in bytes.
+    #[arg(long = "runtime-heap-shared-memory-limit-bytes")]
+    pub heap_shared_memory_limit_bytes: Option<u64>,
 
-    /// Managed small heap size in bytes.
-    #[arg(long = "runtime-heap-managed-small-bytes")]
-    pub managed_small_bytes: Option<usize>,
+    /// Runtime heap size-class table preset or comma-separated byte list.
+    #[arg(long = "runtime-heap-layout-size-classes")]
+    pub heap_layout_size_classes: Option<HeapSizeClassesArg>,
 
-    /// Raw small heap size in bytes.
-    #[arg(long = "runtime-heap-raw-small-bytes")]
-    pub raw_small_bytes: Option<usize>,
+    /// Managed young-space size in bytes.
+    #[arg(long = "runtime-heap-layout-managed-young-bytes")]
+    pub heap_layout_managed_young_bytes: Option<usize>,
+
+    /// Maximum payload size admitted into managed young space.
+    #[arg(long = "runtime-heap-layout-max-managed-young-allocation-bytes")]
+    pub heap_layout_max_managed_young_allocation_bytes: Option<usize>,
+
+    /// Managed small-allocation span size in bytes.
+    #[arg(long = "runtime-heap-layout-managed-span-bytes")]
+    pub heap_layout_managed_span_bytes: Option<usize>,
+
+    /// Raw small-allocation span size in bytes.
+    #[arg(long = "runtime-heap-layout-raw-span-bytes")]
+    pub heap_layout_raw_span_bytes: Option<usize>,
 
     /// Heap page size in bytes.
-    #[arg(long = "runtime-heap-page-bytes")]
-    pub page_bytes: Option<usize>,
+    #[arg(long = "runtime-heap-layout-page-bytes")]
+    pub heap_layout_page_bytes: Option<usize>,
 
-    /// Hard total retained heap byte limit.
-    #[arg(long = "runtime-heap-max-bytes")]
-    pub heap_max_bytes: Option<u64>,
+    /// Heap segment size in bytes.
+    #[arg(long = "runtime-heap-layout-segment-bytes")]
+    pub heap_layout_segment_bytes: Option<usize>,
 
-    /// Hard retained managed heap byte limit.
-    #[arg(long = "runtime-heap-max-managed-bytes")]
-    pub heap_max_managed_bytes: Option<u64>,
+    /// Remembered-card width in bytes.
+    #[arg(long = "runtime-heap-layout-card-bytes")]
+    pub heap_layout_card_bytes: Option<usize>,
 
-    /// Hard retained raw heap byte limit.
-    #[arg(long = "runtime-heap-max-raw-bytes")]
-    pub heap_max_raw_bytes: Option<u64>,
+    /// Small-allocation alignment in bytes.
+    #[arg(long = "runtime-heap-layout-small-alignment-bytes")]
+    pub heap_layout_small_alignment_bytes: Option<usize>,
 
-    /// Hard retained shared heap byte limit.
-    #[arg(long = "runtime-heap-max-shared-bytes")]
-    pub heap_max_shared_bytes: Option<u64>,
+    /// Hard local-heap total retained-byte limit.
+    #[arg(long = "runtime-heap-limit-local-max-bytes")]
+    pub heap_limit_local_max_bytes: Option<u64>,
+
+    /// Hard local managed-space retained-byte limit.
+    #[arg(long = "runtime-heap-limit-local-managed-max-bytes")]
+    pub heap_limit_local_managed_max_bytes: Option<u64>,
+
+    /// Hard local raw-space retained-byte limit.
+    #[arg(long = "runtime-heap-limit-local-raw-max-bytes")]
+    pub heap_limit_local_raw_max_bytes: Option<u64>,
+
+    /// Hard shared-heap total retained-byte limit.
+    #[arg(long = "runtime-heap-limit-shared-max-bytes")]
+    pub heap_limit_shared_max_bytes: Option<u64>,
+
+    /// Hard shared managed-space retained-byte limit.
+    #[arg(long = "runtime-heap-limit-shared-managed-max-bytes")]
+    pub heap_limit_shared_managed_max_bytes: Option<u64>,
+
+    /// Hard shared raw-space retained-byte limit.
+    #[arg(long = "runtime-heap-limit-shared-raw-max-bytes")]
+    pub heap_limit_shared_raw_max_bytes: Option<u64>,
 }
 
 impl RuntimeArgs {
@@ -178,17 +213,27 @@ impl RuntimeArgs {
             && self.scheduler_io_threads.is_none()
             && self.scheduler_blocking_threads.is_none()
             && self.scheduler_max_tasks.is_none()
-            && self.heap_growth_percent.is_none()
-            && self.heap_soft_limit_bytes.is_none()
-            && self.heap_initial_bytes.is_none()
-            && self.managed_young_bytes.is_none()
-            && self.managed_small_bytes.is_none()
-            && self.raw_small_bytes.is_none()
-            && self.page_bytes.is_none()
-            && self.heap_max_bytes.is_none()
-            && self.heap_max_managed_bytes.is_none()
-            && self.heap_max_raw_bytes.is_none()
-            && self.heap_max_shared_bytes.is_none()
+            && self.heap_local_growth_percent.is_none()
+            && self.heap_local_memory_limit_bytes.is_none()
+            && self.heap_shared_growth_percent.is_none()
+            && self.heap_shared_memory_limit_bytes.is_none()
+            && self.heap_layout_size_classes.is_none()
+            && self.heap_layout_managed_young_bytes.is_none()
+            && self
+                .heap_layout_max_managed_young_allocation_bytes
+                .is_none()
+            && self.heap_layout_managed_span_bytes.is_none()
+            && self.heap_layout_raw_span_bytes.is_none()
+            && self.heap_layout_page_bytes.is_none()
+            && self.heap_layout_segment_bytes.is_none()
+            && self.heap_layout_card_bytes.is_none()
+            && self.heap_layout_small_alignment_bytes.is_none()
+            && self.heap_limit_local_max_bytes.is_none()
+            && self.heap_limit_local_managed_max_bytes.is_none()
+            && self.heap_limit_local_raw_max_bytes.is_none()
+            && self.heap_limit_shared_max_bytes.is_none()
+            && self.heap_limit_shared_managed_max_bytes.is_none()
+            && self.heap_limit_shared_raw_max_bytes.is_none()
     }
 
     /// Convert runtime arguments into runtime option overrides.
@@ -274,30 +319,66 @@ impl RuntimeArgs {
             None
         };
 
-        let heap = if self.heap_growth_percent.is_some()
-            || self.heap_soft_limit_bytes.is_some()
-            || self.heap_initial_bytes.is_some()
-            || self.managed_young_bytes.is_some()
-            || self.managed_small_bytes.is_some()
-            || self.raw_small_bytes.is_some()
-            || self.heap_max_bytes.is_some()
-            || self.heap_max_managed_bytes.is_some()
-            || self.heap_max_raw_bytes.is_some()
-            || self.heap_max_shared_bytes.is_some()
+        let heap = if self.heap_local_growth_percent.is_some()
+            || self.heap_local_memory_limit_bytes.is_some()
+            || self.heap_shared_growth_percent.is_some()
+            || self.heap_shared_memory_limit_bytes.is_some()
+            || self.heap_layout_size_classes.is_some()
+            || self.heap_layout_managed_young_bytes.is_some()
+            || self
+                .heap_layout_max_managed_young_allocation_bytes
+                .is_some()
+            || self.heap_layout_managed_span_bytes.is_some()
+            || self.heap_layout_raw_span_bytes.is_some()
+            || self.heap_layout_page_bytes.is_some()
+            || self.heap_layout_segment_bytes.is_some()
+            || self.heap_layout_card_bytes.is_some()
+            || self.heap_layout_small_alignment_bytes.is_some()
+            || self.heap_limit_local_max_bytes.is_some()
+            || self.heap_limit_local_managed_max_bytes.is_some()
+            || self.heap_limit_local_raw_max_bytes.is_some()
+            || self.heap_limit_shared_max_bytes.is_some()
+            || self.heap_limit_shared_managed_max_bytes.is_some()
+            || self.heap_limit_shared_raw_max_bytes.is_some()
         {
             Some(HeapOptionsJson {
-                growth_percent: self.heap_growth_percent,
-                soft_limit_bytes: self.heap_soft_limit_bytes,
-                initial_bytes: self.heap_initial_bytes,
-                managed_young_bytes: self.managed_young_bytes,
-                managed_small_bytes: self.managed_small_bytes,
-                raw_small_bytes: self.raw_small_bytes,
-                page_bytes: self.page_bytes,
-                max_bytes: self.heap_max_bytes,
-                max_managed_bytes: self.heap_max_managed_bytes,
-                max_raw_bytes: self.heap_max_raw_bytes,
-                max_shared_bytes: self.heap_max_shared_bytes,
-                size_classes: None,
+                gc: Some(HeapGcOptionsJson {
+                    local: Some(LocalGcOptionsJson {
+                        growth_percent: self.heap_local_growth_percent,
+                        memory_limit_bytes: self.heap_local_memory_limit_bytes,
+                    }),
+                    shared: Some(SharedGcOptionsJson {
+                        growth_percent: self.heap_shared_growth_percent,
+                        memory_limit_bytes: self.heap_shared_memory_limit_bytes,
+                    }),
+                }),
+                limit: Some(HeapLimitOptionsJson {
+                    local: Some(LocalHeapLimitOptionsJson {
+                        max_bytes: self.heap_limit_local_max_bytes,
+                        managed_max_bytes: self.heap_limit_local_managed_max_bytes,
+                        raw_max_bytes: self.heap_limit_local_raw_max_bytes,
+                    }),
+                    shared: Some(SharedHeapLimitOptionsJson {
+                        max_bytes: self.heap_limit_shared_max_bytes,
+                        managed_max_bytes: self.heap_limit_shared_managed_max_bytes,
+                        raw_max_bytes: self.heap_limit_shared_raw_max_bytes,
+                    }),
+                }),
+                layout: Some(HeapLayoutOptionsJson {
+                    size_classes: self
+                        .heap_layout_size_classes
+                        .as_ref()
+                        .map(HeapSizeClassesArg::to_json),
+                    managed_young_bytes: self.heap_layout_managed_young_bytes,
+                    max_managed_young_allocation_bytes: self
+                        .heap_layout_max_managed_young_allocation_bytes,
+                    managed_span_bytes: self.heap_layout_managed_span_bytes,
+                    raw_span_bytes: self.heap_layout_raw_span_bytes,
+                    page_bytes: self.heap_layout_page_bytes,
+                    segment_bytes: self.heap_layout_segment_bytes,
+                    card_bytes: self.heap_layout_card_bytes,
+                    small_alignment_bytes: self.heap_layout_small_alignment_bytes,
+                }),
             })
         } else {
             None
@@ -315,6 +396,57 @@ impl RuntimeArgs {
             platform: None,
             ..Default::default()
         })
+    }
+}
+
+/// Heap size-class argument for CLI flags.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HeapSizeClassesArg {
+    /// One named built-in size-class table.
+    Named(String),
+    /// One explicit size-class table in bytes.
+    Explicit(Vec<usize>),
+}
+
+impl HeapSizeClassesArg {
+    /// Convert this CLI argument into workspace JSON.
+    pub fn to_json(&self) -> HeapSizeClassesJson {
+        match self {
+            Self::Named(name) => HeapSizeClassesJson::Named(name.clone()),
+            Self::Explicit(classes) => HeapSizeClassesJson::Explicit(classes.clone()),
+        }
+    }
+}
+
+impl FromStr for HeapSizeClassesArg {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let value = value.trim();
+        if value.is_empty() {
+            return Err("heap size classes must not be empty".into());
+        }
+
+        // named preset
+        if !value.contains(',') {
+            return Ok(Self::Named(value.to_string()));
+        }
+
+        // explicit table
+        let mut classes = Vec::new();
+        for part in value.split(',') {
+            let part = part.trim();
+            if part.is_empty() {
+                return Err("heap size-class lists must not contain empty entries".into());
+            }
+
+            let bytes = part
+                .parse::<usize>()
+                .map_err(|_| format!("invalid heap size-class byte width: {part}"))?;
+            classes.push(bytes);
+        }
+
+        Ok(Self::Explicit(classes))
     }
 }
 
