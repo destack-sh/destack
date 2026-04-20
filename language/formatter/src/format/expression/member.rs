@@ -1,30 +1,108 @@
 use super::format_generic_argument_list;
-use crate::format::annotation::{
-    format_trailing_comment_slice, write_raw_leading_comments,
-    write_raw_trailing_comments_without_parent_expansion,
-};
+use crate::format::annotation::{FormatLeadingComments, FormatTrailingComments};
 use crate::format::chain::{member_property_start, transparent_inner_expression};
-use crate::format::context::{DestackFormatterCommentExt, ParenthesizedExpressionView};
-use crate::format::operator::{needs_parens_in_postfix_position, write_postfix_base_expression};
+use crate::format::operator::{normalized_postfix_base_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Comment, Expression, GenericArgument, LocalNodeId, NodeTree, NodeType, PostfixPosition,
-    TypeExpression,
+    Comment, Expression, GenericArgument, LocalNodeId, NodeType, PostfixPosition, TypeExpression,
 };
 use destack_core::StringId;
 use destack_fir::format::{
-    Buffer, FormatError, FormatNode, FormatResult, LineMode, RemoveSoftLinesBuffer, TextWidth,
+    Buffer, FormatError, FormatNode, FormatNodes, FormatResult, FormatTag, RemoveSoftLinesBuffer,
 };
 use destack_fir::prelude::{
-    format_with, group, indent, line_suffix_boundary, soft_block_indent, soft_line_break, token,
+    align, dedent_to_root, format_with, group, indent, line_suffix_boundary, soft_block_indent,
+    soft_line_break, token,
 };
 use destack_fir::{format_args, write};
 use destack_source::Span;
 
 #[derive(Clone, Copy)]
-enum TypeTemplateSpanLayout {
+enum TemplateInterpolationLayout {
     SingleLine,
     Fit,
+}
+
+/// Return whether one type-template interpolation spans any surrounding newline trivia.
+fn type_template_interpolation_has_newline_in_range(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<TypeExpression>,
+) -> bool {
+    let span = context.span(expression_id);
+    let source = context.source_text();
+
+    source.has_newline_before(span.start)
+        || source.has_newline_after(span.end)
+        || source.contains_newline(span)
+}
+
+/// Format one type-template interpolation body with separator comments.
+fn format_type_template_interpolation_body<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<TypeExpression>,
+) -> FormatResult<()> {
+    let expression_span = f.context().span(expression_id);
+
+    let leading_comments = {
+        let comments = f.context().comments();
+        comments.comments_before(expression_span.start).to_vec()
+    };
+    if !leading_comments.is_empty() {
+        write!(f, [FormatLeadingComments::Comments(&leading_comments)])?;
+    }
+
+    write!(f, [expression_id])?;
+
+    let trailing_comments = {
+        let comments = f.context().comments();
+        comments
+            .comments_before_character(expression_span.start, b'}')
+            .to_vec()
+    };
+    if !trailing_comments.is_empty() {
+        write!(f, [FormatTrailingComments::Comments(&trailing_comments)])?;
+    }
+
+    Ok(())
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct TemplateInterpolationIndentation(u32);
+
+impl TemplateInterpolationIndentation {
+    /// Return the indent level part of one template interpolation indentation.
+    fn level(self, indent_width: u8) -> u32 {
+        self.0 / u32::from(indent_width)
+    }
+
+    /// Return the aligned-space remainder of one template interpolation indentation.
+    fn align(self, indent_width: u8) -> u8 {
+        let remainder = self.0 % u32::from(indent_width);
+        remainder.try_into().unwrap_or(u8::MAX)
+    }
+
+    /// Compute the indentation after the last newline in one string segment.
+    fn after_last_newline(text: &str, indent_width: u8, previous_indentation: Self) -> Self {
+        let Some((_, after_newline)) = text.rsplit_once('\n') else {
+            return previous_indentation;
+        };
+
+        let mut size = 0_u32;
+        for byte in after_newline.bytes() {
+            match byte {
+                b'\t' => {
+                    let indent_width = u32::from(indent_width);
+                    size = size + indent_width - (size % indent_width);
+                }
+                b' ' => {
+                    size += 1;
+                }
+                _ => break,
+            }
+        }
+
+        Self(size)
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -33,200 +111,15 @@ enum StaticMemberLayout {
     BreakAfterObject,
 }
 
-/// Return whether one member receiver ends with static instantiation arguments.
-fn expression_has_trailing_static_instantiation(
-    tree: &NodeTree,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    match tree.get(expression_id) {
-        Expression::Instantiation {
-            generic_arguments, ..
-        } => !generic_arguments.is_empty(),
-        Expression::QualifiedReference {
-            generic_arguments, ..
-        }
-        | Expression::Member {
-            generic_arguments, ..
-        }
-        | Expression::PrivateMember {
-            generic_arguments, ..
-        } => !generic_arguments.is_empty(),
-        Expression::Parenthesized { expression } => {
-            expression_has_trailing_static_instantiation(tree, *expression)
-        }
-        _ => false,
-    }
-}
-
-/// Return whether one member chain contains any optional chaining segment.
-pub(crate) fn member_expression_has_optional_chain(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let mut current_id = expression_id;
-
-    loop {
-        match context.tree.get(current_id) {
-            Expression::Maybe { .. } => return true,
-            Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
-            | Expression::Index { left, .. }
-            | Expression::Call { left, .. }
-            | Expression::Must { left, .. }
-            | Expression::Instantiation { left, .. } => current_id = *left,
-            Expression::Parenthesized { expression } => {
-                current_id = *expression;
-            }
-            _ => return false,
-        }
-    }
-}
-
-/// Return whether one expression is a function or class declaration expression.
-fn expression_is_function_or_class_declaration(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
-        return false;
-    };
-
-    matches!(
-        context.tree.get(*declaration_id),
-        destack_ast::Declaration::Function(_) | destack_ast::Declaration::Class(_)
-    )
-}
-
-/// Return whether one parent expression uses a parenthesized object directly as its postfix base.
-fn parent_expression_uses_parenthesized_object_directly(
-    parenthesized_id: LocalNodeId<Expression>,
-    parent_expression: &Expression,
-) -> bool {
-    match parent_expression {
-        Expression::Member { left, .. }
-        | Expression::PrivateMember { left, .. }
-        | Expression::Instantiation { left, .. }
-        | Expression::Must { left, .. }
-        | Expression::New { left, .. } => *left == parenthesized_id,
-        Expression::Call { left, position, .. } | Expression::Index { left, position, .. } => {
-            *left == parenthesized_id && *position == PostfixPosition::Direct
-        }
-        _ => false,
-    }
-}
-
-/// Return whether a postfix continuation requires one explicit parenthesized object wrapper.
-pub(crate) fn postfix_continuation_requires_parenthesized_object_wrapper(
-    context: &DestackFormatContext<'_>,
-    parenthesized_id: LocalNodeId<Expression>,
-    parent_expression: &Expression,
-    inner_expression_id: LocalNodeId<Expression>,
-) -> bool {
-    if !parent_expression_uses_parenthesized_object_directly(parenthesized_id, parent_expression) {
-        return false;
-    }
-
-    member_expression_has_optional_chain(context, inner_expression_id)
-        || expression_is_function_or_class_declaration(context, inner_expression_id)
-}
-
-/// Decide whether a parenthesized expression can be unwrapped in member object position.
-pub(crate) fn should_unwrap_parenthesized_member_object(
-    context: &DestackFormatContext<'_>,
-    parenthesized_id: LocalNodeId<Expression>,
-    inner_expression_id: LocalNodeId<Expression>,
-) -> bool {
-    // prefix comments and docs on the wrapper itself carry grouping ownership semantics
-    if super::expression_has_only_prefix_comment_or_doc_annotations(context, parenthesized_id) {
-        return false;
-    }
-
-    // object members require explicit grouping: `({}).x`
-    if matches!(
-        context.tree.get(inner_expression_id),
-        Expression::ObjectExpression { .. }
-    ) {
-        return false;
-    }
-
-    // keep nested type slot grouping stable across repeated formatting
-    if context.is_in_type_expression_root(parenthesized_id) {
-        return false;
-    }
-
-    // function and class declarations require grouping before postfix continuations
-    if expression_is_function_or_class_declaration(context, inner_expression_id) {
-        return false;
-    }
-
-    if context.has_annotation(parenthesized_id) || context.has_annotation(inner_expression_id) {
-        // allow unwrapping only when inner annotations are prefix comments or docs
-        if !super::expression_has_only_prefix_comment_or_doc_annotations(
-            context,
-            inner_expression_id,
-        ) {
-            return false;
-        }
-    }
-
-    // preserve wrappers with leading line comments on the wrapped object
-    let Some(parenthesized_view) =
-        ParenthesizedExpressionView::from_node(context, parenthesized_id)
-    else {
-        return false;
-    };
-
-    if parenthesized_view.has_leading_inner_line_comment() {
-        return false;
-    }
-
-    if parenthesized_view.has_leading_inner_comments()
-        && !super::expression_has_only_prefix_comment_or_doc_annotations(
-            context,
-            inner_expression_id,
-        )
-    {
-        return false;
-    }
-
-    // block comments before `)` belong to the original wrapper
-    if !parenthesized_view
-        .trailing_inner_block_comments()
-        .is_empty()
-    {
-        return false;
-    }
-
-    // comments between `)` and the postfix continuation belong to the wrapper
-    if !parenthesized_view.postfix_comments().is_empty() {
-        return false;
-    }
-
-    // optional chains require explicit grouping in non optional member continuations
-    if member_expression_has_optional_chain(context, inner_expression_id) {
-        return false;
-    }
-
-    !needs_parens_in_postfix_position(context.tree, inner_expression_id)
-}
-
-/// Format one member receiver, adding wrapper parentheses when static instantiation tails need grouping.
+/// Format one member receiver.
 fn format_member_receiver<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     receiver_id: LocalNodeId<Expression>,
-    should_wrap_for_static_instantiation: bool,
 ) -> FormatResult<()> {
-    if should_wrap_for_static_instantiation {
-        write!(f, [token("(")])?;
-        write_postfix_base_expression(f, receiver_id)?;
-        write!(f, [token(")")])?;
-        return Ok(());
-    }
-
     write_postfix_base_expression(f, receiver_id)
 }
 
-/// Return separator-owned comments between one postfix receiver and its continuation.
+/// Return separator comments between one postfix receiver and its continuation.
 fn postfix_separator_comments(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
@@ -239,7 +132,7 @@ fn postfix_separator_comments(
         _ => return Vec::new(),
     };
 
-    context.raw_comments_before_next_non_trivia_token_after_span(context.span(receiver_id))
+    context.comments_before_next_non_trivia_token_after_span(context.span(receiver_id))
 }
 
 /// Normalize one member receiver by dropping an allowed parenthesized wrapper.
@@ -247,13 +140,7 @@ fn normalized_member_receiver(
     context: &DestackFormatContext<'_>,
     receiver_id: LocalNodeId<Expression>,
 ) -> LocalNodeId<Expression> {
-    if let Expression::Parenthesized { expression } = context.tree.get(receiver_id)
-        && should_unwrap_parenthesized_member_object(context, receiver_id, *expression)
-    {
-        return *expression;
-    }
-
-    receiver_id
+    normalized_postfix_base_expression(context, receiver_id)
 }
 
 /// Return whether one expression is a member-chain style receiver.
@@ -430,25 +317,23 @@ fn write_static_member_expression<'ast>(
     generic_arguments: &[LocalNodeId<GenericArgument>],
 ) -> FormatResult<()> {
     let receiver_id = normalized_member_receiver(f.context(), receiver_id);
-    let wraps_static_instantiation =
-        expression_has_trailing_static_instantiation(f.context().tree, receiver_id);
-    let boundary_comments = postfix_separator_comments(f.context(), node_id);
+    let separator_comments = postfix_separator_comments(f.context(), node_id);
     let property_start =
         member_property_start(f.context(), node_id).unwrap_or(f.context().span(node_id).start);
 
     match static_member_layout(f.context(), node_id, receiver_id) {
         StaticMemberLayout::NoBreak => {
-            format_member_receiver(f, receiver_id, wraps_static_instantiation)?;
-            if !boundary_comments.is_empty() {
-                write!(f, [format_trailing_comment_slice(&boundary_comments)])?;
+            format_member_receiver(f, receiver_id)?;
+            if !separator_comments.is_empty() {
+                write!(f, [FormatTrailingComments::Comments(&separator_comments)])?;
             }
 
             write_static_member_continuation(f, name, generic_arguments)
         }
         StaticMemberLayout::BreakAfterObject => {
-            format_member_receiver(f, receiver_id, wraps_static_instantiation)?;
-            if !boundary_comments.is_empty() {
-                write!(f, [format_trailing_comment_slice(&boundary_comments)])?;
+            format_member_receiver(f, receiver_id)?;
+            if !separator_comments.is_empty() {
+                write!(f, [FormatTrailingComments::Comments(&separator_comments)])?;
             }
 
             write!(
@@ -464,7 +349,7 @@ fn write_static_member_expression<'ast>(
                                 let comments = f.context().comments();
                                 comments.comments_before(property_start).to_vec()
                             };
-                            write_raw_leading_comments(f, &leading_comments)?;
+                            write!(f, [FormatLeadingComments::Comments(&leading_comments)])?;
                             write!(f, [soft_line_break()])?;
                         }
 
@@ -486,13 +371,11 @@ fn write_private_member_expression<'ast>(
     generic_arguments: &[LocalNodeId<GenericArgument>],
 ) -> FormatResult<()> {
     let receiver_id = normalized_member_receiver(f.context(), receiver_id);
-    let wraps_static_instantiation =
-        expression_has_trailing_static_instantiation(f.context().tree, receiver_id);
-    let boundary_comments = postfix_separator_comments(f.context(), node_id);
+    let separator_comments = postfix_separator_comments(f.context(), node_id);
 
-    format_member_receiver(f, receiver_id, wraps_static_instantiation)?;
-    if !boundary_comments.is_empty() {
-        write!(f, [format_trailing_comment_slice(&boundary_comments)])?;
+    format_member_receiver(f, receiver_id)?;
+    if !separator_comments.is_empty() {
+        write!(f, [FormatTrailingComments::Comments(&separator_comments)])?;
     }
 
     write_private_member_continuation(f, name, generic_arguments)
@@ -504,16 +387,12 @@ pub(crate) fn format_member_expression<'ast>(
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     match f.context().tree.get(node_id) {
-        Expression::Member {
-            left,
-            name,
-            generic_arguments,
-        } => write_static_member_expression(f, node_id, *left, *name, generic_arguments)?,
-        Expression::PrivateMember {
-            left,
-            name,
-            generic_arguments,
-        } => write_private_member_expression(f, node_id, *left, *name, generic_arguments)?,
+        Expression::Member { left, name } => {
+            write_static_member_expression(f, node_id, *left, *name, &[])?
+        }
+        Expression::PrivateMember { left, name } => {
+            write_private_member_expression(f, node_id, *left, *name, &[])?
+        }
         _ => {
             return Err(FormatError::SyntaxError {
                 message: "unexpected expression kind for member formatter",
@@ -532,182 +411,116 @@ pub(crate) fn format_type_template_literal<'ast>(
 ) -> FormatResult<()> {
     debug_assert_eq!(strings.len(), spans.len().saturating_add(1));
 
-    let root_boundary_line_comments = spans
-        .first()
-        .copied()
-        .map(|first_span_type_id| {
-            f.context()
-                .raw_type_position_comments_for(first_span_type_id)
-                .into_iter()
-                .filter(|comment| comment.is_line())
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
-
     write!(f, [token("`")])?;
 
     let mut string_segments = strings.iter();
+    let mut indentation = TemplateInterpolationIndentation::default();
+
     if let Some(first_segment) = string_segments.next() {
         write!(f, [*first_segment])?;
     }
 
-    for (span_index, (span_expression_id, segment)) in spans.iter().zip(string_segments).enumerate()
-    {
-        let span = f.context().span(*span_expression_id);
-        let boundary_line_comments: &[Comment] = if span_index == 0 {
-            &root_boundary_line_comments
-        } else {
-            &[]
-        };
-        let trailing_boundary_comments = {
-            let comments = f.context().comments();
-            comments.comments_before_character(span.end, b'}').to_vec()
-        };
-        let span_has_internal_comments = !f
-            .context()
-            .comments_in_range(span.start, span.end)
-            .is_empty()
-            || !f
-                .context()
-                .raw_prefix_comments_for(*span_expression_id)
-                .is_empty();
-        let span_has_trailing_boundary_comments = !trailing_boundary_comments.is_empty();
-        let span_has_source_newline =
-            type_template_span_has_new_line_in_range(f, *span_expression_id);
-        let format_span = format_with(|f| write!(f, [*span_expression_id]));
-        let interned_span = if span_has_internal_comments {
-            None
-        } else {
-            f.intern_with_comment_snapshot(&format_span)?
-        };
-        let span_will_break = interned_span
-            .as_ref()
-            .is_some_and(type_template_span_format_node_will_break);
-        let span_layout = if !span_has_internal_comments
-            && !span_has_trailing_boundary_comments
-            && !span_has_source_newline
-            && !span_will_break
-        {
-            TypeTemplateSpanLayout::SingleLine
-        } else {
-            TypeTemplateSpanLayout::Fit
-        };
+    for (span_expression_id, segment) in spans.iter().zip(string_segments) {
+        let segment_text = f.context().strings.get(*segment);
+        indentation = TemplateInterpolationIndentation::after_last_newline(
+            segment_text,
+            f.options().indent_width,
+            indentation,
+        );
+        let after_newline = segment_text.ends_with('\n');
+
+        let format_span =
+            format_with(|f| format_type_template_interpolation_body(f, *span_expression_id));
+        let interned_span = f.intern(&format_span)?;
+        let span_layout =
+            if type_template_interpolation_has_newline_in_range(f.context(), *span_expression_id)
+                || interned_span.as_ref().is_some_and(FormatNodes::will_break)
+            {
+                TemplateInterpolationLayout::Fit
+            } else {
+                TemplateInterpolationLayout::SingleLine
+            };
+
         let format_inner = format_with(move |f| {
             match span_layout {
-                TypeTemplateSpanLayout::SingleLine => {
+                TemplateInterpolationLayout::SingleLine => {
                     if let Some(interned_span) = &interned_span {
                         let mut buffer = RemoveSoftLinesBuffer::new(f);
                         buffer.write_node(interned_span.clone());
                     }
                 }
-                TypeTemplateSpanLayout::Fit => {
+                TemplateInterpolationLayout::Fit => {
                     if let Some(interned_span) = &interned_span {
                         f.write_node(interned_span.clone());
-                    } else {
-                        write!(f, [*span_expression_id])?;
                     }
                 }
             }
 
-            if !boundary_line_comments.is_empty() {
-                write_raw_trailing_comments_without_parent_expansion(f, boundary_line_comments)?;
-            }
+            Ok(())
+        });
 
-            if !trailing_boundary_comments.is_empty() {
-                write_raw_trailing_comments_without_parent_expansion(
-                    f,
-                    &trailing_boundary_comments,
-                )?;
+        let format_indented = format_with(move |f| {
+            if after_newline {
+                write!(f, [dedent_to_root(&format_inner)])?;
+            } else {
+                write_template_interpolation_with_indentation(&format_inner, indentation, f)?;
             }
 
             Ok(())
         });
+
         write!(
             f,
-            [group(&format_args![
-                token("${"),
-                format_inner,
-                line_suffix_boundary(),
-                token("}"),
-                *segment,
-            ])]
+            [
+                group(&format_args![
+                    token("${"),
+                    format_indented,
+                    line_suffix_boundary(),
+                    token("}")
+                ]),
+                *segment
+            ]
         )?;
     }
 
     write!(f, [token("`")])
 }
 
-/// Return whether one type-template interpolation format node must break.
-fn type_template_span_format_node_will_break(node: &FormatNode) -> bool {
-    match node {
-        FormatNode::Line(LineMode::Hard | LineMode::Empty) => true,
-        FormatNode::Token { text } => text.contains('\n'),
-        FormatNode::Text { width, .. } | FormatNode::FileSlice { width, .. } => {
-            matches!(width, TextWidth::Multiline)
-        }
-        FormatNode::Interned(interned) => interned
-            .iter()
-            .any(type_template_span_format_node_will_break),
-        FormatNode::BestFitting { variants, .. } => variants
-            .most_flat()
-            .iter()
-            .any(type_template_span_format_node_will_break),
-        _ => false,
-    }
-}
+/// Write one template interpolation with source-derived indentation.
+fn write_template_interpolation_with_indentation<'ast>(
+    content: &impl destack_fir::format::Format<DestackFormatContext<'ast>>,
+    indentation: TemplateInterpolationIndentation,
+    f: &mut DestackFormatter<'ast, '_>,
+) -> FormatResult<()> {
+    let level = indentation.level(f.options().indent_width);
+    let spaces = indentation.align(f.options().indent_width);
 
-/// Return whether one type-template interpolation has source newlines around or inside it.
-fn type_template_span_has_new_line_in_range(
-    f: &DestackFormatter<'_, '_>,
-    span_expression_id: LocalNodeId<TypeExpression>,
-) -> bool {
-    let span = f.context().span(span_expression_id);
-
-    if source_has_new_line_before(f.context().file.text(), span.start as usize) {
-        return true;
+    if level == 0 && spaces == 0 {
+        write!(f, [content])?;
+        return Ok(());
     }
 
-    if source_has_new_line_after(f.context().file.text(), span.end as usize) {
-        return true;
-    }
-
-    f.context().node_has_newline(span_expression_id)
-}
-
-/// Return whether raw source has a newline immediately before one position.
-fn source_has_new_line_before(source: &str, position: usize) -> bool {
-    let bytes = source.as_bytes();
-    let mut current_index = position.min(bytes.len());
-
-    while current_index > 0 {
-        current_index -= 1;
-
-        match bytes[current_index] {
-            b'\n' | b'\r' => return true,
-            b' ' | b'\t' => {}
-            _ => return false,
-        }
-    }
-
-    false
-}
-
-/// Return whether raw source has a newline immediately after one position.
-fn source_has_new_line_after(source: &str, position: usize) -> bool {
-    let bytes = source.as_bytes();
-    let mut current_index = position.min(bytes.len());
-
-    while let Some(byte) = bytes.get(current_index).copied() {
-        match byte {
-            b'\n' | b'\r' => return true,
-            b' ' | b'\t' => {}
-            _ => return false,
+    let format_indented = format_with(|f| {
+        for _ in 0..level {
+            f.write_node(FormatNode::Tag(FormatTag::StartIndent));
         }
 
-        current_index += 1;
+        write!(f, [content])?;
+
+        for _ in 0..level {
+            f.write_node(FormatNode::Tag(FormatTag::EndIndent));
+        }
+
+        Ok(())
+    });
+
+    if spaces == 0 {
+        write!(f, [dedent_to_root(&format_indented)])?;
+    } else {
+        write!(f, [dedent_to_root(&align(spaces, &format_indented))])?;
     }
 
-    false
+    Ok(())
 }
 
 /// Format an index expression without considering chaining.
@@ -753,29 +566,22 @@ pub(crate) fn format_index_expression<'ast>(
         index,
     } = f.context().tree.get(node_id)
     {
-        let boundary_comments = postfix_separator_comments(f.context(), node_id);
+        let separator_comments = postfix_separator_comments(f.context(), node_id);
 
         write_postfix_base_expression(f, *left)?;
-        if !boundary_comments.is_empty() {
-            write!(f, [format_trailing_comment_slice(&boundary_comments)])?;
+        if !separator_comments.is_empty() {
+            write!(f, [FormatTrailingComments::Comments(&separator_comments)])?;
         }
 
         if *position == PostfixPosition::Indirect {
             write!(f, [token(".")])?;
         }
         if let Some(index) = index {
-            let should_parenthesize = if matches!(
-                f.context().tree.get(*index),
-                Expression::Parenthesized { .. }
-            ) {
-                false
-            } else {
-                let inner_index_id = transparent_inner_expression(f.context(), *index);
-                matches!(
-                    f.context().tree.get(inner_index_id),
-                    Expression::Assign { .. }
-                )
-            };
+            let inner_index_id = transparent_inner_expression(f.context(), *index);
+            let should_parenthesize = matches!(
+                f.context().tree.get(inner_index_id),
+                Expression::Assign { .. }
+            );
             let left_span = f.context().span(*left);
             let index_span = f.context().span(*index);
             let has_break_after_open = left_span.file == index_span.file

@@ -1,13 +1,11 @@
-use crate::format::annotation::{block_infix_annotations, format_raw_comment};
-use crate::format::collection::{
-    TrailingSeparator, format_block_nodes_with_ignore_ranges, separated_entries,
-};
+use crate::format::annotation::{block_infix_annotations, format_dangling_comments};
+use crate::format::collection::{TrailingSeparator, separated_entries};
 use crate::format::file::any_ignore_range_for_nodes;
 use crate::format::operator::expression_generic_arguments;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Expression, GenericArgument, LocalNodeId, NodeType, Pattern, PatternField, Property,
-    TypeExpression,
+    Argument, Expression, GenericArgument, Key, LocalNodeId, Name, NodeType, Pattern, PatternField,
+    Property, TypeExpression,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
@@ -38,97 +36,6 @@ enum StructLiteralLayout {
         trailing_separator: TrailingSeparator,
         should_expand: bool,
     },
-}
-
-/// Format a block of properties with empty-annotation and ignore-range handling.
-fn format_block_of_properties<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    properties: &[LocalNodeId<Property>],
-    separator: &'static str,
-) -> FormatResult<()> {
-    format_block_nodes_with_ignore_ranges(f, properties, |f, property_id| {
-        let property = f.context().tree.get(property_id);
-
-        write!(f, [property_id])?;
-
-        if matches!(
-            property,
-            Property::Field { .. } | Property::Method { .. } | Property::Spread { .. }
-        ) {
-            write!(f, [token(separator)])?;
-        }
-
-        Ok(())
-    })
-}
-
-/// Write raw comments between the last object property and `}`.
-fn write_object_trailing_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    expression_id: LocalNodeId<Expression>,
-    properties: &[LocalNodeId<Property>],
-) -> FormatResult<()> {
-    let Some(last_property_id) = properties.last().copied() else {
-        return Ok(());
-    };
-
-    let node_span = f.context().span(expression_id);
-    let Some(close_brace_token) = f.context().last_non_trivia_token_in_span(node_span) else {
-        return Ok(());
-    };
-
-    let property_span = f.context().span(last_property_id);
-    if property_span.file != close_brace_token.span.file
-        || property_span.start >= close_brace_token.span.start
-    {
-        return Ok(());
-    }
-
-    let comment_start = f
-        .context()
-        .previous_non_trivia_token_before_span(close_brace_token.span)
-        .filter(|token| token.span.file == close_brace_token.span.file)
-        .map_or(property_span.end, |token| token.span.end);
-    if comment_start >= close_brace_token.span.start {
-        return Ok(());
-    }
-
-    let comment_nodes = {
-        let comments = f.context().comments();
-        comments
-            .comments_in_range(comment_start, close_brace_token.span.start)
-            .to_vec()
-    };
-    if comment_nodes.is_empty() {
-        return Ok(());
-    }
-
-    let first_comment_span = comment_nodes[0].span;
-    let leading_gap = Span::new(node_span.file, comment_start, first_comment_span.start);
-    if f.context().has_newline(leading_gap)
-        || f.context().span_starts_on_own_line(first_comment_span)
-    {
-        write!(f, [hard_line_break()])?;
-    } else {
-        write!(f, [space()])?;
-    }
-
-    for (index, comment_id) in comment_nodes.iter().copied().enumerate() {
-        let comment_span = comment_id.span;
-        format_raw_comment(f, comment_id)?;
-
-        let is_last = index + 1 == comment_nodes.len();
-        if !is_last
-            || f.context()
-                .span_has_newline_before_next_non_whitespace_token(comment_span)
-        {
-            write!(f, [hard_line_break()])?;
-        } else {
-            write!(f, [space()])?;
-        }
-    }
-
-    Ok(())
 }
 
 /// Return whether any property in one collection has annotations.
@@ -187,8 +94,8 @@ pub(crate) fn is_parameter_type_annotation(
     false
 }
 
-/// Format boundary comments for array-like structures.
-pub(crate) fn format_boundary_comment_array<'ast>(
+/// Format arrays whose comments stay outside the element run.
+pub(crate) fn format_outer_comment_array<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     elements: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
@@ -278,9 +185,7 @@ pub(crate) fn is_assignment_left_target(
         let ancestor_expression_id = LocalNodeId::<Expression>::new(ancestor_id);
         match context.tree.get(ancestor_expression_id) {
             Expression::Assign { left, .. } => return left.id == current_expression_id.id,
-            Expression::Await { expression }
-            | Expression::AwaitMaybe { expression }
-            | Expression::Parenthesized { expression }
+            Expression::Await { expression } | Expression::AwaitMaybe { expression }
                 if expression.id == current_expression_id.id =>
             {
                 current_expression_id = ancestor_expression_id;
@@ -303,7 +208,13 @@ fn object_assignment_target_has_complex_destructuring(
                 && properties.len() > COMPLEX_DESTRUCTURING_MAX_SIMPLE_PROPERTIES
                 && properties.iter().copied().any(|property_id| {
                     match context.tree.get(property_id) {
-                        Property::Field { .. } => false,
+                        Property::Field { key, value } => !matches!(
+                            (*key, context.tree.get(*value)),
+                            (
+                                Key::Name(Name::Identifier(key_name)),
+                                Expression::Identifier { name: value_name },
+                            ) if key_name == *value_name
+                        ),
                         Property::Method { .. } | Property::Error => true,
                         Property::Spread { .. } => false,
                     }
@@ -385,6 +296,7 @@ fn type_member_separator(
 /// Write one expanded object or struct literal body.
 fn write_expanded_struct_literal<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
     properties_ids: &[LocalNodeId<Property>],
     separator: &'static str,
 ) -> FormatResult<()> {
@@ -394,7 +306,20 @@ fn write_expanded_struct_literal<'ast>(
             token("{"),
             hard_line_break(),
             block_indent(&format_with(|f| {
-                format_block_of_properties(f, properties_ids, separator)
+                write!(
+                    f,
+                    [separated_entries(
+                        separator,
+                        properties_ids,
+                        TrailingSeparator::Omit,
+                        None,
+                    )]
+                )?;
+
+                write!(
+                    f,
+                    [format_dangling_comments(f.context().span(expression_id))]
+                )
             })),
             hard_line_break(),
             token("}")
@@ -407,12 +332,33 @@ fn write_empty_struct_literal<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    if f.context().has_infix_annotation(expression_id) {
+    let expression_span = f.context().span(expression_id);
+    let has_dangling_comments = {
+        let comments = f.context().comments();
+        !comments.comments_before(expression_span.end).is_empty()
+    };
+
+    if !f.context().has_infix_annotation(expression_id) && has_dangling_comments {
         write!(
             f,
             [group(&format_args![
                 token("{"),
-                block_indent(&block_infix_annotations(f.context(), expression_id)),
+                format_dangling_comments(expression_span).with_block_indent(),
+                token("}")
+            ])]
+        )?;
+    } else if f.context().has_infix_annotation(expression_id) || has_dangling_comments {
+        write!(
+            f,
+            [group(&format_args![
+                token("{"),
+                block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    if f.context().has_infix_annotation(expression_id) {
+                        write!(f, [block_infix_annotations(f.context(), expression_id)])?;
+                    }
+
+                    write!(f, [format_dangling_comments(expression_span)])
+                })),
                 hard_line_break(),
                 token("}")
             ])]
@@ -465,7 +411,11 @@ fn write_grouped_struct_literal<'ast>(
                         Some(group_id),
                     )]
                 )?;
-                write_object_trailing_comments(f, expression_id, properties_ids)?;
+
+                write!(
+                    f,
+                    [format_dangling_comments(f.context().span(expression_id))]
+                )?;
 
                 if f.context().options.bracket_spacing {
                     write!(f, [if_group_fits_on_line(&space())])?;
@@ -549,8 +499,7 @@ fn struct_literal_layout(
                 expression_generic_arguments(f.context().tree.get(parent_expression_id))
                     .is_some_and(|arguments| arguments.contains(&generic_argument_id))
             });
-    let in_type_context =
-        f.context().is_in_type_expression_root(expression_id) || is_static_type_argument;
+    let in_type_context = is_static_type_argument;
     let has_leading_newline_before_first_property =
         object_has_leading_newline_before_first_property(
             f.context(),
@@ -643,7 +592,7 @@ pub(crate) fn format_struct_literal<'ast>(
     match struct_literal_layout(f, expression_id, properties_ids) {
         StructLiteralLayout::Empty => write_empty_struct_literal(f, expression_id),
         StructLiteralLayout::Expanded { separator } => {
-            write_expanded_struct_literal(f, properties_ids, separator)
+            write_expanded_struct_literal(f, expression_id, properties_ids, separator)
         }
         StructLiteralLayout::InlineParameterTypeLiteral { property_id } => {
             write_inline_parameter_type_literal(f, property_id)

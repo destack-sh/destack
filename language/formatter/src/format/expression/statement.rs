@@ -8,7 +8,7 @@ use super::control::{
 use super::ternary::format_ternary;
 use crate::DestackFormatter;
 use crate::format::annotation::{
-    format_trailing_comment_slice, infix_or_postfix_annotations, write_raw_leading_comments,
+    FormatLeadingComments, FormatTrailingComments, infix_or_postfix_annotations,
 };
 use crate::format::declaration::dependency::format_dependency_statement_expression;
 use crate::format::declaration::{
@@ -36,7 +36,7 @@ pub(crate) fn write_statement_expression_trailing_annotations<'ast>(
     expression_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> FormatResult<()> {
-    // statement-owned trailers stay inside the statement formatter
+    // statement trailing annotations stay inside the statement formatter
     if statement_expression_owns_trailing_annotations(expression) {
         return Ok(());
     }
@@ -63,13 +63,13 @@ pub(crate) fn format_statement_expression<'ast>(
         // labelled statement
         Expression::Labelled { label, body } => {
             let body_span = f.context().span(*body);
-            let boundary_comments = if let Some(boundary_token) =
+            let separator_comments = if let Some(separator_token) =
                 f.context().previous_non_trivia_token_before_span(body_span)
             {
-                if boundary_token.token.ty == TokenType::Colon {
+                if separator_token.token.ty == TokenType::Colon {
                     let comments = f.context().comments();
                     comments
-                        .comments_in_range(boundary_token.span.end, body_span.start)
+                        .comments_in_range(separator_token.span.end, body_span.start)
                         .to_vec()
                 } else {
                     Vec::<Comment>::new()
@@ -77,16 +77,15 @@ pub(crate) fn format_statement_expression<'ast>(
             } else {
                 Vec::<Comment>::new()
             };
-            let has_line_boundary_comment =
-                boundary_comments.iter().any(|comment| comment.is_line());
+            let has_line_comment = separator_comments.iter().any(|comment| comment.is_line());
 
-            if has_line_boundary_comment {
-                write_raw_leading_comments(f, &boundary_comments)?;
+            if has_line_comment {
+                write!(f, [FormatLeadingComments::Comments(&separator_comments)])?;
             }
 
             write!(f, [label, token(":")])?;
-            if !has_line_boundary_comment && !boundary_comments.is_empty() {
-                write!(f, [format_trailing_comment_slice(&boundary_comments)])?;
+            if !has_line_comment && !separator_comments.is_empty() {
+                write!(f, [FormatTrailingComments::Comments(&separator_comments)])?;
             }
 
             let body_expression = f.context().tree.get(*body);
