@@ -10,6 +10,7 @@ use destack_parser::Parser;
 use destack_source::{DiagnosticSeverity, File, FileType, LanguageType};
 use destack_workspace::FormatterOptions;
 
+use crate::format::file::normalize::normalize_formatter_tree;
 use crate::{DestackFormatContext, DestackFormatOptions, statement_list};
 
 /// One formatter failure over one whole source file.
@@ -36,7 +37,7 @@ pub fn format_file_source(
     match file.ty {
         FileType::Css => format_css_file_source(file, source, options),
         FileType::Html => format_html_file_source(file, source, options),
-        _ => format_parser_file_source(file, options),
+        _ => format_parser_file_source(file, source, options),
     }
 }
 
@@ -89,11 +90,21 @@ fn format_html_file_source(
 /// Format one parser-driven source file.
 fn format_parser_file_source(
     file: &File,
+    source: &str,
     options: FormatterOptions,
 ) -> Result<String, FormatFileError> {
     // parse the source file
     let language_type = LanguageType::from(file.ty);
-    let mut parser = Parser::lex_file(Arc::new(file.clone()), language_type);
+    let parser_file = File::from_text(
+        file.id,
+        file.name.clone(),
+        file.uri.clone(),
+        file.path.clone(),
+        file.ty,
+        source.to_owned(),
+    );
+    let parser_file = Arc::new(parser_file);
+    let mut parser = Parser::lex_file(parser_file.clone(), language_type);
     let expressions = parser.parse();
 
     // fail loudly on parse errors
@@ -116,12 +127,14 @@ fn format_parser_file_source(
     let (tokens, side_tokens) = parser.take_tokens();
     let side_span = parser.compute_side_span();
     let strings = parser.strings.into_immutable();
-    let parents = NodeParentIndex::from_tree(&parser.tree);
+    let mut tree = parser.tree.clone();
+    normalize_formatter_tree(&mut tree, &expressions);
+    let parents = NodeParentIndex::from_expression_roots(&tree, &expressions);
     let options = DestackFormatOptions::from_formatter_options(options, language_type);
     let context = DestackFormatContext::new(
         options,
-        file,
-        &parser.tree,
+        parser_file.as_ref(),
+        &tree,
         &tokens,
         &side_tokens,
         &side_span,
@@ -226,5 +239,23 @@ mod tests {
             formatted,
             "<div>\n    <span>hello</span>\n    <p>world</p>\n</div>\n"
         );
+    }
+
+    /// Parser-backed formatting should use the provided source text.
+    #[test]
+    fn test_format_parser_file_source_uses_provided_source() {
+        let file = File::from_text(
+            FileId::new(1),
+            "main.ts".to_string(),
+            Uri::from_string("test:///main.ts"),
+            None,
+            FileType::TypeScript,
+            "const stale=1".to_string(),
+        );
+
+        let formatted =
+            format_file_source(&file, "const fresh=2", FormatterOptions::default()).unwrap();
+
+        assert_eq!(formatted, "const fresh = 2;\n");
     }
 }
