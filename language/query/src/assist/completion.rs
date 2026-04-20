@@ -1810,7 +1810,6 @@ fn keyword_completions() -> Vec<Completion> {
         Keyword::While,
         Keyword::For,
         Keyword::Loop,
-        Keyword::Assert,
         Keyword::Break,
         Keyword::Continue,
         Keyword::Debugger,
