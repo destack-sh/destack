@@ -10,6 +10,9 @@ use destack_ast::{
 };
 use destack_source::Span;
 
+/// The maximum callee depth that test-pattern detection inspects.
+const MAX_CALLEE_NAMES: usize = 5;
+
 /// Return one argument's transparent expression value, if present.
 pub(crate) fn argument_expression_id(
     context: &DestackFormatContext<'_>,
@@ -137,21 +140,6 @@ pub(crate) fn call_should_route_to_chain(
     expression_is_member_chain_callee(context, left)
 }
 
-/// Return whether one instantiation expression should use member-chain formatting.
-pub(crate) fn instantiation_should_route_to_chain(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    left: LocalNodeId<Expression>,
-) -> bool {
-    if !is_expression_chain(context.tree, node_id)
-        || !chain_has_call_like_expression(context.tree, node_id)
-    {
-        return false;
-    }
-
-    expression_is_member_chain_callee(context, left)
-}
-
 /// Return whether one call callee is a member-chain root.
 fn expression_is_member_chain_callee(
     context: &DestackFormatContext<'_>,
@@ -194,17 +182,22 @@ fn is_simple_module_import_call(
     left: LocalNodeId<Expression>,
     arguments: &[LocalNodeId<Argument>],
 ) -> bool {
+    // basic shape
     if arguments.len() != 1
         || !argument_is_string_literal(context, arguments[0])
-        || has_comment_in_span(context, context.span(call_node_id))
+        || context
+            .comments()
+            .has_comment_in_span(context.span(call_node_id))
     {
         return false;
     }
 
+    // require.resolve
     if is_require_resolve_call(context, left) {
         return true;
     }
 
+    // import.meta.resolve
     is_require_resolve_paths_call(context, left) || is_import_meta_resolve_call(context, left)
 }
 
@@ -215,16 +208,19 @@ fn is_commonjs_or_amd_call(
     left: LocalNodeId<Expression>,
     arguments: &[LocalNodeId<Argument>],
 ) -> bool {
+    // require(...)
     if name_is_identifier(context, left, "require") {
         let Some(first_argument_id) = arguments.first().copied() else {
             return false;
         };
 
-        if has_comment_in_range(
-            context,
-            context.span(call_node_id).start,
-            context.span(first_argument_id).start,
-        ) {
+        let leading_comment_range_start = context.span(call_node_id).start;
+        let leading_comment_range_end = context.span(first_argument_id).start;
+
+        if context
+            .comments()
+            .has_comment_in_range(leading_comment_range_start, leading_comment_range_end)
+        {
             return false;
         }
 
@@ -234,6 +230,7 @@ fn is_commonjs_or_amd_call(
         };
     }
 
+    // define(...)
     if !name_is_identifier(context, left, "define")
         || !expression_is_in_statement_position(context, call_node_id)
     {
@@ -262,66 +259,117 @@ fn is_test_call_expression(
     left: LocalNodeId<Expression>,
     arguments: &[LocalNodeId<Argument>],
 ) -> bool {
-    match arguments {
-        [argument_id] => {
-            if is_angular_test_wrapper_call(context, left)
-                && context
-                    .parent(call_node_id)
-                    .is_some_and(|(parent_id, parent_type)| {
-                        if parent_type != NodeType::Expression {
-                            return false;
-                        }
-
-                        let parent_call_id = LocalNodeId::<Expression>::new(parent_id);
-                        let Expression::Call {
-                            left, arguments, ..
-                        } = context.tree.get(parent_call_id)
-                        else {
-                            return false;
-                        };
-
-                        *left == call_node_id
-                            && is_test_call_expression(context, parent_call_id, *left, arguments)
-                    })
-            {
-                return argument_expression_id(context, *argument_id).is_some_and(
-                    |expression_id| expression_is_function_callback(context, expression_id),
-                );
-            }
-
-            if is_unit_test_setup_callee(context, left) {
-                return argument_expression_id(context, *argument_id).is_some_and(
-                    |expression_id| is_angular_test_wrapper_expression(context, expression_id),
-                );
-            }
-
-            false
-        }
-        [first_argument_id, second_argument_id] | [first_argument_id, second_argument_id, _]
-            if arguments.len() <= 3
-                && argument_is_string_or_template_literal(context, *first_argument_id)
-                && contains_test_pattern(context, left) =>
-        {
-            let allow_any_callback_shape = arguments.len() == 2;
-            let third_argument = arguments.get(2).copied();
-            if third_argument
-                .is_some_and(|argument_id| !argument_is_numeric_literal(context, argument_id))
-            {
-                return false;
-            }
-
-            let Some(second_expression_id) = argument_expression_id(context, *second_argument_id)
-            else {
-                return false;
-            };
-            if is_angular_test_wrapper_expression(context, second_expression_id) {
-                return true;
-            }
-
-            expression_is_test_callback(context, second_expression_id, allow_any_callback_shape)
-        }
-        _ => false,
+    // wrapper calls
+    if let [argument_id] = arguments {
+        return is_single_argument_test_call_expression(context, call_node_id, left, *argument_id);
     }
+
+    // regular test calls
+    if let [first_argument_id, second_argument_id] | [first_argument_id, second_argument_id, _] =
+        arguments
+    {
+        return is_multi_argument_test_call_expression(
+            context,
+            left,
+            arguments,
+            *first_argument_id,
+            *second_argument_id,
+        );
+    }
+
+    false
+}
+
+/// Return whether one wrapper-style test call should use simple layout.
+fn is_single_argument_test_call_expression(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+    left: LocalNodeId<Expression>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    // async(() => {}) inside it(...)
+    if is_angular_test_wrapper_call(context, left)
+        && call_is_nested_test_call_expression(context, call_node_id)
+    {
+        return argument_expression_id(context, argument_id)
+            .is_some_and(|expression_id| expression_is_function_callback(context, expression_id));
+    }
+
+    // beforeEach(async(() => {}))
+    if is_unit_test_setup_callee(context, left) {
+        return argument_expression_id(context, argument_id).is_some_and(|expression_id| {
+            is_angular_test_wrapper_expression(context, expression_id)
+        });
+    }
+
+    false
+}
+
+/// Return whether one multi-argument test call should use simple layout.
+fn is_multi_argument_test_call_expression(
+    context: &DestackFormatContext<'_>,
+    left: LocalNodeId<Expression>,
+    arguments: &[LocalNodeId<Argument>],
+    first_argument_id: LocalNodeId<Argument>,
+    second_argument_id: LocalNodeId<Argument>,
+) -> bool {
+    // supported arity
+    if arguments.len() > 3 {
+        return false;
+    }
+
+    // test name
+    if !argument_is_string_or_template_literal(context, first_argument_id)
+        || !contains_a_test_pattern(context, left)
+    {
+        return false;
+    }
+
+    // optional timeout
+    let third_argument_id = arguments.get(2).copied();
+
+    if third_argument_id
+        .is_some_and(|argument_id| !argument_is_numeric_literal(context, argument_id))
+    {
+        return false;
+    }
+
+    // callback
+    let Some(second_expression_id) = argument_expression_id(context, second_argument_id) else {
+        return false;
+    };
+
+    if is_angular_test_wrapper_expression(context, second_expression_id) {
+        return true;
+    }
+
+    let allow_any_callback_shape = arguments.len() == 2;
+
+    expression_is_test_callback(context, second_expression_id, allow_any_callback_shape)
+}
+
+/// Return whether one wrapper call is nested under a test call.
+fn call_is_nested_test_call_expression(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(call_node_id) else {
+        return false;
+    };
+
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_call_id = LocalNodeId::<Expression>::new(parent_id);
+    let Expression::Call {
+        left, arguments, ..
+    } = context.tree.get(parent_call_id)
+    else {
+        return false;
+    };
+
+    *left == call_node_id && is_test_call_expression(context, parent_call_id, *left, arguments)
 }
 
 /// Return whether one call uses the callback and dependency-array hook layout.
@@ -334,6 +382,7 @@ fn is_react_hook_with_deps_array(
         return false;
     }
 
+    // callback position
     let callback_index = if arguments.len() == 3 {
         if !argument_is_identifier(context, arguments[0]) {
             return false;
@@ -344,6 +393,7 @@ fn is_react_hook_with_deps_array(
         0
     };
 
+    // callback and dependency array
     let Some(callback_id) = argument_expression_id(context, arguments[callback_index]) else {
         return false;
     };
@@ -359,17 +409,21 @@ fn is_react_hook_with_deps_array(
         return false;
     }
 
+    // spanning comments
     let callback_span = context.span(callback_id);
     let deps_span = context.span(deps_id);
     let call_span = context.span(call_node_id);
-    let comments = context.comments();
-    !comments
+
+    !context
+        .comments()
         .comments_in_range(call_span.start, call_span.end)
         .iter()
-        .any(|comment| {
-            !span_contains_span(callback_span, comment.span)
-                && !span_contains_span(deps_span, comment.span)
-        })
+        .any(|comment| is_comment_outside_hook_parts(comment.span, callback_span, deps_span))
+}
+
+/// Return whether one hook comment falls outside the callback or deps array.
+fn is_comment_outside_hook_parts(comment_span: Span, callback_span: Span, deps_span: Span) -> bool {
+    !span_contains_span(callback_span, comment_span) && !span_contains_span(deps_span, comment_span)
 }
 
 /// Return whether one expression is an Angular-style test wrapper call.
@@ -606,30 +660,33 @@ fn is_import_meta_resolve_call(
     matches!(context.tree.get(*left), Expression::ImportMeta)
 }
 
-/// Return the static callee names for one identifier or member chain.
-fn callee_names(
-    context: &DestackFormatContext<'_>,
+/// Return callee names in top-down order.
+fn callee_name_iterator<'a>(
+    context: &'a DestackFormatContext<'a>,
     expression_id: LocalNodeId<Expression>,
-) -> Option<Vec<destack_core::StringId>> {
-    let mut names = Vec::with_capacity(5);
-    let mut current_id = expression_id;
+) -> Option<impl Iterator<Item = &'a str>> {
+    let mut names = [None; MAX_CALLEE_NAMES];
+    let mut current_id = Some(expression_id);
 
-    for _ in 0..5 {
-        match context.tree.get(current_id) {
+    for index in 0..MAX_CALLEE_NAMES {
+        let Some(current_expression_id) = current_id else {
+            break;
+        };
+
+        match context.tree.get(current_expression_id) {
             Expression::Identifier { name } => {
-                names.push(*name);
-                names.reverse();
-                return Some(names);
+                names[index] = Some(context.strings.get(*name));
+                return Some(names.into_iter().rev().flatten());
             }
             Expression::Member {
                 left,
                 name: Some(name),
                 ..
             } => {
-                names.push(*name);
-                current_id = *left;
+                names[index] = Some(context.strings.get(*name));
+                current_id = Some(*left);
             }
-            _ => return None,
+            _ => break,
         }
     }
 
@@ -637,64 +694,58 @@ fn callee_names(
 }
 
 /// Return whether one callee name chain matches a known test pattern.
-fn contains_test_pattern(
+fn contains_a_test_pattern(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(name_ids) = callee_names(context, expression_id) else {
+    let Some(mut names) = callee_name_iterator(context, expression_id) else {
         return false;
     };
-    let names = name_ids
-        .iter()
-        .map(|name| context.strings.get(*name))
-        .collect::<Vec<_>>();
-    let names = names.as_slice();
 
-    match names {
-        ["it"]
-        | ["skip"]
-        | ["xit"]
-        | ["xdescribe"]
-        | ["xtest"]
-        | ["fit"]
-        | ["fdescribe"]
-        | ["ftest"] => true,
-        [
-            "it",
-            "only" | "skip" | "skipIf" | "runIf" | "concurrent" | "sequential" | "todo" | "fails",
-        ] => true,
-        ["describe"] => true,
-        [
-            "describe",
-            "only" | "skip" | "skipIf" | "runIf" | "concurrent" | "sequential" | "shuffle" | "todo",
-        ] => true,
-        ["Deno", "test"] => true,
-        ["test"] => true,
-        [
-            "test",
-            "only" | "skip" | "skipIf" | "runIf" | "concurrent" | "sequential" | "todo" | "fails"
-            | "extend" | "step" | "fixme",
-        ] => true,
-        ["test", "describe"] => true,
-        ["test", "describe", "only" | "skip" | "fixme"] => true,
-        ["test", "describe", "parallel" | "serial"] => true,
-        ["test", "describe", "parallel" | "serial", "only"] => true,
-        ["bench"] => true,
-        ["bench", "only" | "skip" | "todo"] => true,
+    match names.next() {
+        Some("it") => match names.next() {
+            None => true,
+            Some(
+                "only" | "skip" | "skipIf" | "runIf" | "concurrent" | "sequential" | "todo"
+                | "fails",
+            ) => names.next().is_none(),
+            _ => false,
+        },
+        Some("describe") => match names.next() {
+            None => true,
+            Some(
+                "only" | "skip" | "skipIf" | "runIf" | "concurrent" | "sequential" | "shuffle"
+                | "todo",
+            ) => names.next().is_none(),
+            _ => false,
+        },
+        Some("Deno") => matches!(names.next(), Some("test")) && names.next().is_none(),
+        Some("test") => match names.next() {
+            None => true,
+            Some(
+                "only" | "skip" | "skipIf" | "runIf" | "concurrent" | "sequential" | "todo"
+                | "fails" | "extend" | "step" | "fixme",
+            ) => names.next().is_none(),
+            Some("describe") => match names.next() {
+                None => true,
+                Some("only" | "skip" | "fixme") => names.next().is_none(),
+                Some("parallel" | "serial") => match names.next() {
+                    None => true,
+                    Some("only") => names.next().is_none(),
+                    _ => false,
+                },
+                _ => false,
+            },
+            _ => false,
+        },
+        Some("bench") => match names.next() {
+            None => true,
+            Some("only" | "skip" | "todo") => names.next().is_none(),
+            _ => false,
+        },
+        Some("skip" | "xit" | "xdescribe" | "xtest" | "fit" | "fdescribe" | "ftest") => true,
         _ => false,
     }
-}
-
-/// Return whether one source range contains comments.
-fn has_comment_in_range(context: &DestackFormatContext<'_>, start: u32, end: u32) -> bool {
-    let comments = context.comments();
-    comments.has_comment_in_range(start, end)
-}
-
-/// Return whether one span contains comments.
-fn has_comment_in_span(context: &DestackFormatContext<'_>, span: Span) -> bool {
-    let comments = context.comments();
-    comments.has_comment_in_span(span)
 }
 
 /// Return whether one span fully contains another.

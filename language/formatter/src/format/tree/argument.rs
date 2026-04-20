@@ -63,18 +63,9 @@ fn stub_argument_keeps_prefix_annotations_inside_braces(
     argument_id: LocalNodeId<Argument>,
     value_id: LocalNodeId<Expression>,
 ) -> bool {
-    context
-        .comments()
-        .comments_before(context.node_token_start(argument_id))
-        .iter()
-        .copied()
-        .any(|comment| context.comment_is_doc(comment))
-        || context
-            .comments()
-            .comments_before(context.node_token_start(value_id))
-            .iter()
-            .copied()
-            .any(|comment| context.comment_is_doc(comment))
+    let _ = (context, argument_id, value_id);
+
+    false
 }
 
 /// Return stub comment nodes attached to the value span or argument span.
@@ -314,11 +305,11 @@ pub(crate) fn write_tree_expression_argument<'ast>(
             let value_span = f.context().span(*value);
             let has_spread_comment = !f
                 .context()
-                .comments_in_range(argument_span.start, argument_span.end)
+                .comment_tokens_in_range(argument_span.start, argument_span.end)
                 .is_empty()
                 || !f
                     .context()
-                    .comments_in_range(value_span.start, value_span.end)
+                    .comment_tokens_in_range(value_span.start, value_span.end)
                     .is_empty();
             let spread_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
                 write!(f, [prefix_annotations(f.context(), argument_id)])?;

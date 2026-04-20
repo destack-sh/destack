@@ -24,7 +24,7 @@ where
     let span = context.span(node_id);
 
     context
-        .comments_in_range(span.start, span.end)
+        .comment_tokens_in_range(span.start, span.end)
         .iter()
         .copied()
         .any(|comment| context.comment_is_line(comment))
@@ -106,7 +106,7 @@ pub(crate) fn tree_child_should_inline_braced_expression(
     if argument_span.file == value_span.file {
         if argument_span.start < value_span.start
             && !context
-                .comments_in_range(argument_span.start, value_span.start)
+                .comment_tokens_in_range(argument_span.start, value_span.start)
                 .is_empty()
         {
             return false;
@@ -114,7 +114,7 @@ pub(crate) fn tree_child_should_inline_braced_expression(
 
         if value_span.end < argument_span.end
             && !context
-                .comments_in_range(value_span.end, argument_span.end)
+                .comment_tokens_in_range(value_span.end, argument_span.end)
                 .is_empty()
         {
             return false;

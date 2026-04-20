@@ -1,7 +1,5 @@
 use super::groups::{TailChainGroups, build_tail_chain_groups, chain_head_operation_count};
-use crate::format::operator::{
-    is_chain_expression, normalized_postfix_base_expression, write_postfix_base_expression,
-};
+use crate::format::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Argument, Declarator, DecoratorPosition, Expression, GenericArgument, LocalNodeId, NodeTree,
@@ -176,14 +174,6 @@ pub(crate) fn chain_nodes(
     chain
 }
 
-/// Return the root expression id that should back one normalized chain base.
-pub(crate) fn chain_base_root_expression_id(
-    context: &DestackFormatContext<'_>,
-    root_id: LocalNodeId<Expression>,
-) -> LocalNodeId<Expression> {
-    normalized_postfix_base_expression(context, root_id)
-}
-
 /// Return whether one expression has a ternary expression ancestor.
 pub(crate) fn expression_has_ternary_ancestor(
     context: &DestackFormatContext<'_>,
@@ -225,7 +215,7 @@ pub(super) fn build_member_chain_parts(
     let tree = context.tree;
     let chain = chain_nodes(tree, node_id);
     let root_id = chain[0];
-    let base_root_id = chain_base_root_expression_id(context, root_id);
+    let base_root_id = root_id;
 
     let mut base_head = ChainExpressionBaseHead::Expression(base_root_id);
     let mut operations = Vec::new();
@@ -690,6 +680,7 @@ pub(crate) fn assignment_like_parent(
                     parent_expr,
                     Expression::Await { expression }
                         | Expression::AwaitMaybe { expression }
+                        | Expression::Parenthesized { expression }
                         if expression.id == current_id
                 );
 

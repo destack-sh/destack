@@ -827,7 +827,7 @@ fn method_body_separator_comments<'ast>(
     {
         let comments = f.context().comments();
         comments
-            .comment_tokens_in_range(previous_token.span.end, body_span.start)
+            .comments_in_range(previous_token.span.end, body_span.start)
             .to_vec()
     }
 }

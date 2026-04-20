@@ -1,6 +1,18 @@
+use super::grouped::{
+    arguments_grouped_layout, is_function_composition_args, write_grouped_arguments,
+};
+use super::list::{
+    arguments_have_empty_line, call_arguments_have_ignored_ranges, format_all_args_broken_out,
+    format_default_call_argument_list, format_long_curried_call_arguments,
+    write_empty_call_arguments, write_ignored_call_arguments, write_simple_call_argument_list,
+};
+use super::pattern::{
+    argument_is_interpolated_template_literal, argument_is_template_literal,
+    call_uses_simple_list_layout, expression_is_long_curried_call,
+};
 use crate::format::annotation::{infix_or_postfix_annotations, prefix_annotations};
-use crate::format::declaration::GroupedCallArgumentLayout;
-use crate::{Decorator, DestackFormatContext, DestackFormatter, FormatNode};
+use crate::format::tree::has_multiline_jsx_argument;
+use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{Argument, DecoratorPosition, Expression, LocalNodeId};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{space, token};
@@ -61,21 +73,22 @@ pub(crate) fn write_plain_call_argument<'ast>(
 }
 
 /// Return whether an argument has a prefix annotation.
-fn argument_has_prefix_annotation(
+pub(crate) fn argument_has_prefix_annotation(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    !context.raw_prefix_doc_comments_for(argument_id).is_empty()
-        || context
-            .annotation_ids(argument_id)
-            .iter()
-            .copied()
-            .any(|annotation_id| match context.annotation(annotation_id) {
-                Decorator { position, .. } => matches!(
-                    position,
-                    DecoratorPosition::LinePrefix | DecoratorPosition::BlockPrefix
-                ),
-            })
+    context
+        .annotation_ids(argument_id)
+        .iter()
+        .copied()
+        .any(|annotation_id| {
+            let position = context.annotation(annotation_id).position;
+
+            matches!(
+                position,
+                DecoratorPosition::LinePrefix | DecoratorPosition::BlockPrefix
+            )
+        })
 }
 
 impl<'ast> FormatNode<'ast, Argument> for Argument {
@@ -88,7 +101,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
     }
 }
 
-/// Write one argument node without list-level trailing comment ownership.
+/// Write one argument node without list-level trailing comment handling.
 pub(crate) fn write_call_argument_node_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Argument>,
@@ -104,64 +117,31 @@ pub(crate) fn write_call_argument_node_body<'ast>(
         write!(f, [prefix_annotations(f.context(), node_id)])?;
     }
 
-    write_argument_with_value(argument, None, f)?;
+    write_argument_with_value(argument, f)?;
 
     write!(f, [infix_or_postfix_annotations(f.context(), node_id)])?;
 
     Ok(())
 }
 
-/// Write one grouped call argument.
-pub(crate) fn write_grouped_call_argument<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    argument_id: LocalNodeId<Argument>,
-    grouped_call_argument_layout: GroupedCallArgumentLayout,
-) -> FormatResult<()> {
-    let argument = f.context().tree.get(argument_id);
-
-    if argument_is_plain_call_argument(f.context(), argument_id) {
-        return write_plain_call_argument(f, argument_id);
-    }
-
-    if argument_has_prefix_annotation(f.context(), argument_id) {
-        write!(f, [prefix_annotations(f.context(), argument_id)])?;
-    }
-
-    write_argument_with_value(argument, Some(grouped_call_argument_layout), f)?;
-
-    write!(f, [infix_or_postfix_annotations(f.context(), argument_id)])?;
-
-    Ok(())
-}
-
-/// Write one argument expression value.
-fn write_argument_value<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    value_id: LocalNodeId<Expression>,
-    _grouped_call_argument_layout: Option<GroupedCallArgumentLayout>,
-) -> FormatResult<()> {
-    write!(f, [value_id])
-}
-
 /// Write one argument with its value payload.
 fn write_argument_with_value<'ast>(
     argument: &Argument,
-    grouped_call_argument_layout: Option<GroupedCallArgumentLayout>,
     f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     match argument {
         Argument::Named { name, value } => {
             write!(f, [name])?;
             write!(f, [token(":"), space()])?;
-            write_argument_value(f, *value, grouped_call_argument_layout)?;
+            write!(f, [*value])?;
         }
         Argument::Labeled { label, value } => {
             write!(f, [label])?;
             write!(f, [token(":"), space()])?;
-            write_argument_value(f, *value, grouped_call_argument_layout)?;
+            write!(f, [*value])?;
         }
         Argument::Positional { value } => {
-            write_argument_value(f, *value, grouped_call_argument_layout)?;
+            write!(f, [*value])?;
         }
         Argument::Spread { label, value } => {
             write!(f, [token("...")])?;
@@ -169,9 +149,9 @@ fn write_argument_with_value<'ast>(
             if let Some(label) = label {
                 write!(f, [label])?;
                 write!(f, [token(":"), space()])?;
-                write_argument_value(f, *value, grouped_call_argument_layout)?;
+                write!(f, [*value])?;
             } else {
-                write_argument_value(f, *value, grouped_call_argument_layout)?;
+                write!(f, [*value])?;
             }
         }
         Argument::Error => {
@@ -180,4 +160,106 @@ fn write_argument_with_value<'ast>(
     }
 
     Ok(())
+}
+
+/// Format call arguments with list-group awareness.
+pub(crate) fn format_call_arguments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    call_node_id: LocalNodeId<Expression>,
+    arguments: &[LocalNodeId<Argument>],
+) -> FormatResult<()> {
+    format_call_arguments_impl(f, call_node_id, arguments, true)
+}
+
+/// Format call arguments when the surrounding context selects the layout policy.
+pub(crate) fn format_call_arguments_in_chain<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    call_node_id: LocalNodeId<Expression>,
+    arguments: &[LocalNodeId<Argument>],
+) -> FormatResult<()> {
+    format_call_arguments_impl(f, call_node_id, arguments, false)
+}
+
+/// Format call arguments with explicit long-curried-call handling control.
+fn format_call_arguments_impl<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    call_node_id: LocalNodeId<Expression>,
+    arguments: &[LocalNodeId<Argument>],
+    allow_long_curried_layout: bool,
+) -> FormatResult<()> {
+    let group_id = f.group_id("call_args");
+    let call_span = f.context().span(call_node_id);
+    let left = match f.context().tree.get(call_node_id) {
+        Expression::Call { left, .. } => *left,
+        _ => call_node_id,
+    };
+    let disallow_trailing_separator = arguments.first().copied().is_some_and(|argument_id| {
+        argument_is_template_literal(f.context(), argument_id)
+            && !argument_is_interpolated_template_literal(f.context(), argument_id)
+    });
+
+    // empty list
+    if arguments.is_empty() {
+        return write_empty_call_arguments(f, call_node_id);
+    }
+
+    // ignored ranges
+    if call_arguments_have_ignored_ranges(f.context(), arguments) {
+        return write_ignored_call_arguments(f, arguments, group_id);
+    }
+
+    // direct-list special cases
+    if call_uses_simple_list_layout(f.context(), call_node_id, left, arguments) {
+        return write_simple_call_argument_list(f, call_span, arguments);
+    }
+
+    // preserve intentional empty lines between arguments
+    if arguments_have_empty_line(f.context(), arguments) {
+        return format_all_args_broken_out(
+            f,
+            call_span,
+            arguments,
+            group_id,
+            disallow_trailing_separator,
+        );
+    }
+
+    // function composition
+    if is_function_composition_args(f.context(), arguments) {
+        return format_all_args_broken_out(
+            f,
+            call_span,
+            arguments,
+            group_id,
+            disallow_trailing_separator,
+        );
+    }
+
+    // grouped standard layouts
+    if let Some(layout) = arguments_grouped_layout(f.context(), call_node_id, arguments) {
+        return write_grouped_arguments(
+            f,
+            call_span,
+            arguments,
+            layout,
+            group_id,
+            disallow_trailing_separator,
+        );
+    }
+
+    // long curried calls
+    if allow_long_curried_layout && expression_is_long_curried_call(f.context(), call_node_id) {
+        return format_long_curried_call_arguments(f, call_span, arguments);
+    }
+
+    // default layout
+    let force_expand = has_multiline_jsx_argument(f.context(), arguments);
+    format_default_call_argument_list(
+        f,
+        call_span,
+        group_id,
+        arguments,
+        force_expand,
+        disallow_trailing_separator,
+    )
 }
