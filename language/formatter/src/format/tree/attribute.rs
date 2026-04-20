@@ -60,17 +60,13 @@ pub(crate) fn should_force_break_tree_attributes(
             return true;
         }
 
-        match tree.get(value_id) {
-            // nested trees with children force a break
-            Expression::TreeExpression { elements, .. } => {
-                if elements
-                    .as_ref()
-                    .is_some_and(|elements| !elements.is_empty())
-                {
-                    return true;
-                }
-            }
-            _ => {}
+        // nested trees with children force a break
+        if let Expression::TreeExpression { elements, .. } = tree.get(value_id)
+            && elements
+                .as_ref()
+                .is_some_and(|elements| !elements.is_empty())
+        {
+            return true;
         }
     }
 

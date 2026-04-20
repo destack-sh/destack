@@ -1,11 +1,6 @@
-use crate::format::annotation::{
-    block_infix_annotations, line_suffix_boundary_annotations, write_raw_comment_slice,
-};
-use crate::format::chain::{is_call_like_argument, transparent_inner_expression};
-use crate::format::context::ParenthesizedExpressionView;
-use crate::format::expression::{
-    expression_has_generic_arguments, write_expression_with_prefix_annotations_after_offset,
-};
+use crate::format::annotation::block_infix_annotations;
+use crate::format::chain::transparent_inner_expression;
+use crate::format::expression::format_generic_argument_list;
 use crate::format::tree::{
     is_jsx_whitespace_char, should_force_break_tree_attributes, tree_argument_is_wrapped_in_braces,
     tree_child_breaks_element, tree_children_have_blank_line_between, tree_text_is_whitespace_only,
@@ -13,8 +8,8 @@ use crate::format::tree::{
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Comment, Declaration, Expression, FunctionKind, IfKind, LocalNodeId, NodeTree,
-    NodeType, ScalarLiteral,
+    Argument, Declaration, Expression, FunctionKind, GenericArgument, IfKind, LocalNodeId,
+    NodeTree, NodeType, ScalarLiteral,
 };
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{
@@ -142,14 +137,10 @@ fn tree_children_layout(
 /// Write one tree closing tag.
 fn write_tree_closing_tag<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    expression_id: LocalNodeId<Expression>,
+    _expression_id: LocalNodeId<Expression>,
     left: &Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
     write!(f, [token("</")])?;
-    write!(
-        f,
-        [line_suffix_boundary_annotations(f.context(), expression_id)]
-    )?;
     if let Some(left) = left {
         let left_expression = f.context().tree.get(*left);
         if let Expression::QualifiedReference { path, .. } = left_expression {
@@ -313,9 +304,9 @@ fn tree_fill_separators(
         }
 
         let previous_spacing_flags =
-            tree_text_boundary_spacing_flags(context, inline_elements[index - 1]);
+            tree_text_adjacent_spacing_flags(context, inline_elements[index - 1]);
         let current_spacing_flags =
-            tree_text_boundary_spacing_flags(context, inline_elements[index]);
+            tree_text_adjacent_spacing_flags(context, inline_elements[index]);
         let previous_trailing_has_newline = previous_spacing_flags
             .is_some_and(|(_, trailing_has_newline, _, _)| trailing_has_newline);
         let current_leading_has_newline =
@@ -340,8 +331,8 @@ fn tree_fill_separators(
     separators
 }
 
-/// Return one tree-text boundary spacing state.
-fn tree_text_boundary_spacing_flags(
+/// Return one tree-text adjacent spacing state.
+fn tree_text_adjacent_spacing_flags(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<(bool, bool, bool, bool)> {
@@ -413,8 +404,8 @@ fn tree_whitespace_run_spacing(
     (false, false)
 }
 
-/// Return one raw JSX space token that matches the configured quote style.
-fn tree_raw_jsx_space_token(context: &DestackFormatContext<'_>) -> &'static str {
+/// Return one JSX space token that matches the configured quote style.
+fn tree_jsx_space_token(context: &DestackFormatContext<'_>) -> &'static str {
     match context.options.quote_style {
         QuoteStyle::Single => "{' '}",
         QuoteStyle::Double | QuoteStyle::Semantic => "{\" \"}",
@@ -425,19 +416,19 @@ fn tree_raw_jsx_space_token(context: &DestackFormatContext<'_>) -> &'static str 
 fn write_tree_jsx_whitespace_separator<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {
-    let raw_space = token(tree_raw_jsx_space_token(f.context()));
+    let jsx_space = token(tree_jsx_space_token(f.context()));
     write!(
         f,
         [
-            if_group_breaks(&format_args![raw_space, soft_line_break()]),
+            if_group_breaks(&format_args![jsx_space, soft_line_break()]),
             if_group_fits_on_line(&space())
         ]
     )
 }
 
-/// Emit one raw JSX whitespace token (`{" "}` or `{' '}`) unconditionally.
-fn write_tree_raw_jsx_whitespace<'ast>(f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-    write!(f, [token(tree_raw_jsx_space_token(f.context()))])
+/// Emit one JSX whitespace token (`{" "}` or `{' '}`) unconditionally.
+fn write_tree_jsx_whitespace_token<'ast>(f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+    write!(f, [token(tree_jsx_space_token(f.context()))])
 }
 
 /// Return whether one tree child is a multiline tree expression in source.
@@ -455,8 +446,8 @@ fn tree_child_is_multiline_tree_expression(
     ) && context.node_has_newline(value_id)
 }
 
-/// Return whether one tree literal has braced-whitespace boundaries around multiline tree children.
-fn tree_literal_has_multiline_whitespace_boundary(
+/// Return whether one tree literal has braced-whitespace separators around multiline tree children.
+fn tree_literal_has_multiline_whitespace_separator(
     context: &DestackFormatContext<'_>,
     elements: &[LocalNodeId<Argument>],
 ) -> bool {
@@ -498,7 +489,7 @@ fn format_tree_children_fill<'ast>(
         if has_newline_spacing {
             write!(f, [hard_line_break()])?;
         } else if has_inline_spacing {
-            write_tree_raw_jsx_whitespace(f)?;
+            write_tree_jsx_whitespace_token(f)?;
         }
 
         return Ok(());
@@ -525,16 +516,16 @@ fn format_tree_children_fill<'ast>(
     let suffix_spacing =
         tree_whitespace_run_spacing(f.context(), &elements[last_inline_index + 1..]);
     let prefix_spacing_flags = first_inline_element_id
-        .and_then(|element_id| tree_text_boundary_spacing_flags(f.context(), element_id));
+        .and_then(|element_id| tree_text_adjacent_spacing_flags(f.context(), element_id));
     let suffix_spacing_flags = last_inline_element_id
-        .and_then(|element_id| tree_text_boundary_spacing_flags(f.context(), element_id));
-    let prefix_has_boundary_newline =
+        .and_then(|element_id| tree_text_adjacent_spacing_flags(f.context(), element_id));
+    let prefix_has_adjacent_newline =
         prefix_spacing_flags.is_some_and(|(leading_has_newline, _, _, _)| leading_has_newline);
-    let suffix_has_boundary_newline =
+    let suffix_has_adjacent_newline =
         suffix_spacing_flags.is_some_and(|(_, trailing_has_newline, _, _)| trailing_has_newline);
-    let prefix_has_boundary_inline_whitespace = prefix_spacing_flags
+    let prefix_has_adjacent_inline_whitespace = prefix_spacing_flags
         .is_some_and(|(_, _, leading_has_inline_whitespace, _)| leading_has_inline_whitespace);
-    let suffix_has_boundary_inline_whitespace = suffix_spacing_flags
+    let suffix_has_adjacent_inline_whitespace = suffix_spacing_flags
         .is_some_and(|(_, _, _, trailing_has_inline_whitespace)| trailing_has_inline_whitespace);
 
     let separators = tree_fill_separators(f.context(), elements, &inline_elements);
@@ -543,9 +534,9 @@ fn format_tree_children_fill<'ast>(
         write!(f, [hard_line_break()])?;
     } else if prefix_spacing.1 {
         write_tree_jsx_whitespace_separator(f)?;
-    } else if prefix_has_boundary_newline {
+    } else if prefix_has_adjacent_newline {
         write!(f, [hard_line_break()])?;
-    } else if prefix_has_boundary_inline_whitespace {
+    } else if prefix_has_adjacent_inline_whitespace {
         write_tree_jsx_whitespace_separator(f)?;
     }
 
@@ -580,9 +571,9 @@ fn format_tree_children_fill<'ast>(
         write!(f, [hard_line_break()])?;
     } else if suffix_spacing.1 {
         write_tree_jsx_whitespace_separator(f)?;
-    } else if suffix_has_boundary_newline {
+    } else if suffix_has_adjacent_newline {
         write!(f, [hard_line_break()])?;
-    } else if suffix_has_boundary_inline_whitespace {
+    } else if suffix_has_adjacent_inline_whitespace {
         write_tree_jsx_whitespace_separator(f)?;
     }
 
@@ -612,12 +603,11 @@ fn format_tree_children<'ast>(
 /// Return opening-tag layout booleans for one tree literal.
 fn tree_opening_tag_layout(
     context: &DestackFormatContext<'_>,
-    left: &Option<LocalNodeId<Expression>>,
+    generic_arguments: &[LocalNodeId<GenericArgument>],
     arguments: &Option<Vec<LocalNodeId<Argument>>>,
     elements: &Option<Vec<LocalNodeId<Argument>>>,
 ) -> (bool, bool) {
-    let tag_has_static_type_arguments =
-        left.is_some_and(|left_id| expression_has_generic_arguments(context, left_id));
+    let tag_has_static_type_arguments = !generic_arguments.is_empty();
     let single_attribute_per_line = context.options.single_attribute_per_line;
     let prefer_same_line_self_closing = !context.options.language_type.is_destack()
         && elements.is_none()
@@ -651,13 +641,13 @@ fn tree_literal_layout(
             ))
         }
     });
-    let has_multiline_whitespace_boundary = elements
+    let has_multiline_whitespace_separator = elements
         .as_ref()
-        .is_some_and(|elements| tree_literal_has_multiline_whitespace_boundary(context, elements));
+        .is_some_and(|elements| tree_literal_has_multiline_whitespace_separator(context, elements));
     let should_break = children
         .map(|(_, _, force_break, _)| force_break)
         .unwrap_or(force_break_attributes);
-    let requires_expanded_layout = should_break || has_multiline_whitespace_boundary;
+    let requires_expanded_layout = should_break || has_multiline_whitespace_separator;
 
     (
         force_break_attributes,
@@ -676,15 +666,6 @@ pub(crate) fn tree_literal_should_break(
     tree_literal_layout(context, arguments, elements).2
 }
 
-/// Decide whether a tree literal requires expanded rendered output.
-pub(crate) fn tree_literal_requires_expanded_layout(
-    context: &DestackFormatContext<'_>,
-    arguments: &Option<Vec<LocalNodeId<Argument>>>,
-    elements: &Option<Vec<LocalNodeId<Argument>>>,
-) -> bool {
-    tree_literal_layout(context, arguments, elements).3
-}
-
 /// Return whether a tree literal should be wrapped in parentheses when it breaks.
 pub(crate) fn tree_literal_wraps_on_break(
     context: &DestackFormatContext<'_>,
@@ -698,8 +679,6 @@ pub(crate) fn tree_literal_wraps_on_break(
         NodeType::Expression => {
             let parent_id = LocalNodeId::<Expression>::new(parent_id);
             match context.tree.get(parent_id) {
-                // explicit parentheses already control wrapping
-                Expression::Parenthesized { .. } => false,
                 // jsx-like containers and conditional branches keep children unwrapped
                 Expression::ArrayExpression { .. }
                 | Expression::TupleExpression { .. }
@@ -757,11 +736,12 @@ pub(crate) fn format_tree_literal_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     left: &Option<LocalNodeId<Expression>>,
+    generic_arguments: &[LocalNodeId<GenericArgument>],
     arguments: &Option<Vec<LocalNodeId<Argument>>>,
     elements: &Option<Vec<LocalNodeId<Argument>>>,
 ) -> FormatResult<()> {
     if !tree_literal_wraps_on_break(f.context(), node_id) {
-        return format_tree_literal(f, node_id, left, arguments, elements);
+        return format_tree_literal(f, node_id, left, generic_arguments, arguments, elements);
     }
 
     let layout = tree_literal_layout(f.context(), arguments, elements);
@@ -773,7 +753,15 @@ pub(crate) fn format_tree_literal_expression<'ast>(
             write!(f, [if_group_breaks(&token("("))])?;
 
             let formatted_tree = format_with(|f| {
-                format_tree_literal_with_layout(f, node_id, left, arguments, elements, layout)
+                format_tree_literal_with_layout(
+                    f,
+                    node_id,
+                    left,
+                    generic_arguments,
+                    arguments,
+                    elements,
+                    layout,
+                )
             });
             if should_expand {
                 write!(f, [block_indent(&formatted_tree)])?;
@@ -786,86 +774,6 @@ pub(crate) fn format_tree_literal_expression<'ast>(
         }))
         .should_expand(should_expand)]
     )
-}
-
-/// Format one preserved parenthesized tree expression wrapper.
-pub(crate) fn format_parenthesized_tree_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    parenthesized_id: LocalNodeId<Expression>,
-    expression_id: LocalNodeId<Expression>,
-    arguments: &Option<Vec<LocalNodeId<Argument>>>,
-    elements: &Option<Vec<LocalNodeId<Argument>>>,
-    has_leading_inner_trivia: bool,
-    trailing_inner_comment_nodes: &[Comment],
-) -> FormatResult<()> {
-    let tree_should_break = tree_literal_should_break(f.context(), arguments, elements)
-        || f.context().node_has_newline(expression_id);
-    let leading_inner_end = ParenthesizedExpressionView::from_node(f.context(), parenthesized_id)
-        .and_then(ParenthesizedExpressionView::leading_inner_span)
-        .map_or(f.context().span(expression_id).start, |span| span.end);
-
-    if is_call_like_argument(f.context(), parenthesized_id) {
-        write!(f, [expression_id])?;
-    } else if has_leading_inner_trivia || tree_should_break {
-        write!(
-            f,
-            [
-                token("("),
-                block_indent(&format_with(|f| {
-                    write!(
-                        f,
-                        [group(&format_with(|f| {
-                            write_expression_with_prefix_annotations_after_offset(
-                                f,
-                                expression_id,
-                                leading_inner_end,
-                            )
-                        }))
-                        .should_expand(true)]
-                    )?;
-
-                    if !trailing_inner_comment_nodes.is_empty() {
-                        write!(
-                            f,
-                            [format_with(|f| write_raw_comment_slice(
-                                f,
-                                trailing_inner_comment_nodes,
-                            ))]
-                        )?;
-                    }
-
-                    Ok(())
-                })),
-                hard_line_break(),
-                token(")")
-            ]
-        )?;
-    } else {
-        write!(
-            f,
-            [
-                token("("),
-                soft_block_indent(&format_with(|f| {
-                    write!(f, [expression_id])?;
-
-                    if !trailing_inner_comment_nodes.is_empty() {
-                        write!(
-                            f,
-                            [format_with(|f| write_raw_comment_slice(
-                                f,
-                                trailing_inner_comment_nodes,
-                            ))]
-                        )?;
-                    }
-
-                    Ok(())
-                })),
-                token(")")
-            ]
-        )?;
-    }
-
-    Ok(())
 }
 
 /// Format tree attributes in one opening tag.
@@ -961,17 +869,21 @@ fn write_tree_self_closing_marker<'ast>(
 fn format_tree_opening_tag<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     left: &Option<LocalNodeId<Expression>>,
+    generic_arguments: &[LocalNodeId<GenericArgument>],
     arguments: &Option<Vec<LocalNodeId<Argument>>>,
     elements: &Option<Vec<LocalNodeId<Argument>>>,
     layout: (bool, Option<(bool, bool, bool, bool)>, bool, bool),
 ) -> FormatResult<()> {
     let (single_attribute_per_line, bracket_same_line) =
-        tree_opening_tag_layout(f.context(), left, arguments, elements);
+        tree_opening_tag_layout(f.context(), generic_arguments, arguments, elements);
     let force_break_attributes = layout.0;
 
     write!(f, [token("<")])?;
     if let Some(left) = left {
         write!(f, [left])?;
+    }
+    if !generic_arguments.is_empty() {
+        format_generic_argument_list(f, generic_arguments)?;
     }
 
     if let Some(arguments) = arguments {
@@ -1028,6 +940,7 @@ fn format_tree_literal_with_layout<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     _expression_id: LocalNodeId<Expression>,
     left: &Option<LocalNodeId<Expression>>,
+    generic_arguments: &[LocalNodeId<GenericArgument>],
     arguments: &Option<Vec<LocalNodeId<Argument>>>,
     elements: &Option<Vec<LocalNodeId<Argument>>>,
     layout: (bool, Option<(bool, bool, bool, bool)>, bool, bool),
@@ -1037,8 +950,9 @@ fn format_tree_literal_with_layout<'ast>(
     write!(
         f,
         [group(&format_with(|f| {
-            let opening_tag =
-                format_with(|f| format_tree_opening_tag(f, left, arguments, elements, layout));
+            let opening_tag = format_with(|f| {
+                format_tree_opening_tag(f, left, generic_arguments, arguments, elements, layout)
+            });
             write!(f, [group(&opening_tag)])?;
             format_tree_body(f, _expression_id, left, elements, layout)
         }))
@@ -1052,9 +966,18 @@ pub(crate) fn format_tree_literal<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     left: &Option<LocalNodeId<Expression>>,
+    generic_arguments: &[LocalNodeId<GenericArgument>],
     arguments: &Option<Vec<LocalNodeId<Argument>>>,
     elements: &Option<Vec<LocalNodeId<Argument>>>,
 ) -> FormatResult<()> {
     let layout = tree_literal_layout(f.context(), arguments, elements);
-    format_tree_literal_with_layout(f, expression_id, left, arguments, elements, layout)
+    format_tree_literal_with_layout(
+        f,
+        expression_id,
+        left,
+        generic_arguments,
+        arguments,
+        elements,
+        layout,
+    )
 }
