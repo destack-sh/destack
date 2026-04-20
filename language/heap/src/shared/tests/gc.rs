@@ -1,21 +1,37 @@
 use crate::{
-    EdgeMap, GcCycle, GcKind, HeapError, LayoutId, SharedGcPhase, SharedHeap,
-    SharedManagedReference, Value,
+    GcCycle, GcKind, GcPacing, HeapError, HeapOptions, LayoutId, SharedGcPhase, SharedHeap,
+    SharedManagedReference,
 };
+use destack_mir::LayoutTrace;
+
+/// Build one shared heap whose pacer starts immediately in step-driven tests.
+fn pacing_shared_heap() -> SharedHeap {
+    let options = HeapOptions {
+        gc: GcPacing {
+            growth_percent: 0,
+            trigger_percent: 75,
+            soft_limit_bytes: None,
+            minimum_heap_bytes: Some(0),
+        },
+        ..HeapOptions::shared()
+    };
+
+    SharedHeap::with_options(options)
+}
 
 /// Free unreachable shared managed entries and record the completed shared GC cycle.
 #[test]
 fn test_collect_shared_frees_unreachable_entries() {
     let mut shared = SharedHeap::new();
     let reachable = shared
-        .allocate_managed_bytes(&[1, 2, 3], EdgeMap::empty(), None)
+        .allocate_managed_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
         .expect("shared managed allocation should succeed");
     let unreachable = shared
-        .allocate_managed_bytes(&[4, 5, 6], EdgeMap::empty(), None)
+        .allocate_managed_bytes(&[4, 5, 6], LayoutTrace::empty(), None)
         .expect("shared managed allocation should succeed");
 
     let stats = shared
-        .collect([reachable])
+        .collect_full([reachable])
         .expect("shared collection should succeed");
 
     assert_eq!(stats.freed_allocations, 1);
@@ -36,20 +52,21 @@ fn test_collect_shared_frees_unreachable_entries() {
 fn test_collect_shared_keeps_reachable_children() {
     let mut shared = SharedHeap::new();
     let child = shared
-        .allocate_managed_bytes(&[0xC1, 0x1D], EdgeMap::empty(), None)
+        .allocate_managed_bytes(&[0xC1, 0x1D], LayoutTrace::empty(), None)
         .expect("shared managed allocation should succeed");
     let parent = shared
         .allocate_managed_bytes(
             &child.bits().to_le_bytes(),
-            EdgeMap::ReferenceOffsets {
-                offsets: vec![0].into_boxed_slice(),
+            LayoutTrace::Reference {
+                local_offsets: Vec::new().into_boxed_slice(),
+                shared_offsets: vec![0].into_boxed_slice(),
             },
             None,
         )
         .expect("shared managed allocation should succeed");
 
     let stats = shared
-        .collect([parent])
+        .collect_full([parent])
         .expect("shared collection should succeed");
 
     assert_eq!(stats.freed_allocations, 0);
@@ -63,7 +80,7 @@ fn test_collect_shared_rejects_invalid_root() {
     let invalid = SharedManagedReference::new(7);
 
     let error = shared
-        .collect([invalid])
+        .collect_full([invalid])
         .expect_err("invalid shared roots should fail collection");
 
     assert_eq!(
@@ -76,15 +93,18 @@ fn test_collect_shared_rejects_invalid_root() {
 #[test]
 fn test_shared_managed_gc_state_roundtrips_through_image() {
     let mut shared = SharedHeap::new();
-    let value = Value::shared_managed_reference(SharedManagedReference::NULL);
     let reference = shared
-        .allocate_managed_bytes(&value.to_byte_array(), EdgeMap::empty(), None)
+        .allocate_managed_bytes(
+            &SharedManagedReference::NULL.bits().to_le_bytes(),
+            LayoutTrace::empty(),
+            None,
+        )
         .expect("shared managed allocation should succeed");
     shared
         .set_managed_layout_id(reference, LayoutId::new(41))
         .expect("shared managed storage layout id should update");
     let stats = shared
-        .collect([reference])
+        .collect_full([reference])
         .expect("shared collection should succeed");
     let arena = shared.arena.clone();
     let image = shared.image();
@@ -107,24 +127,25 @@ fn test_shared_managed_gc_state_roundtrips_through_image() {
 /// Keep a child written during mark through the shared write barrier.
 #[test]
 fn test_collect_shared_barrier_keeps_written_child() {
-    let mut shared = SharedHeap::new();
+    let mut shared = pacing_shared_heap();
     let child = shared
-        .allocate_managed_bytes(&[0xC1, 0x1D], EdgeMap::empty(), None)
+        .allocate_managed_bytes(&[0xC1, 0x1D], LayoutTrace::empty(), None)
         .expect("shared managed allocation should succeed");
     let parent = shared
         .allocate_managed_zeroed(
             SharedManagedReference::BYTE_LEN,
-            EdgeMap::ReferenceOffsets {
-                offsets: vec![0].into_boxed_slice(),
+            LayoutTrace::Reference {
+                local_offsets: Vec::new().into_boxed_slice(),
+                shared_offsets: vec![0].into_boxed_slice(),
             },
             None,
         )
         .expect("shared managed allocation should succeed");
 
     shared
-        .start_collection([parent])
-        .expect("shared collection should start");
-    assert_eq!(shared.phase(), SharedGcPhase::Mark);
+        .gc_step(&[parent], false, 1)
+        .expect("shared collection step should succeed");
+    assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
 
     shared
         .write_managed_bytes(parent, 0, &child.bits().to_le_bytes())
@@ -133,16 +154,8 @@ fn test_collect_shared_barrier_keeps_written_child() {
         .write_barrier(parent, 0, SharedManagedReference::BYTE_LEN)
         .expect("shared barrier should succeed");
 
-    while !shared.is_mark_idle() {
-        shared
-            .collect_step(1)
-            .expect("shared collection step should succeed");
-    }
-
-    shared.finish_mark([]).expect("shared mark should finish");
-
     while shared
-        .collect_step(1)
+        .gc_step(&[parent], true, 1)
         .expect("shared collection step should succeed")
         .is_none()
     {}
@@ -153,35 +166,57 @@ fn test_collect_shared_barrier_keeps_written_child() {
 /// Require explicit mark termination before shared sweep begins.
 #[test]
 fn test_collect_shared_requires_explicit_mark_finish() {
-    let mut shared = SharedHeap::new();
+    let mut shared = pacing_shared_heap();
     let reachable = shared
-        .allocate_managed_bytes(&[1, 2, 3], EdgeMap::empty(), None)
+        .allocate_managed_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
         .expect("shared managed allocation should succeed");
     let unreachable = shared
-        .allocate_managed_bytes(&[4, 5, 6], EdgeMap::empty(), None)
+        .allocate_managed_bytes(&[4, 5, 6], LayoutTrace::empty(), None)
         .expect("shared managed allocation should succeed");
 
     shared
-        .start_collection([reachable])
-        .expect("shared collection should start");
+        .gc_step(&[reachable], false, 1)
+        .expect("shared collection step should succeed");
 
-    while !shared.is_mark_idle() {
-        shared
-            .collect_step(1)
-            .expect("shared collection step should succeed");
-    }
-
-    assert_eq!(shared.phase(), SharedGcPhase::Mark);
+    assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
     assert!(shared.is_managed_live(unreachable));
 
-    shared.finish_mark([]).expect("shared mark should finish");
-
     while shared
-        .collect_step(1)
+        .gc_step(&[reachable], true, 1)
         .expect("shared collection step should succeed")
         .is_none()
     {}
 
-    assert_eq!(shared.phase(), SharedGcPhase::Idle);
+    assert_eq!(shared.gc_phase(), SharedGcPhase::Idle);
     assert!(!shared.is_managed_live(unreachable));
+}
+
+/// Stay idle when no shared pressure or explicit request exists.
+#[test]
+fn test_shared_gc_step_stays_idle_without_request() {
+    let mut shared = SharedHeap::new();
+
+    let stats = shared
+        .gc_step(&[], true, 1)
+        .expect("shared gc step should succeed");
+
+    assert_eq!(stats, None);
+    assert_eq!(shared.gc_phase(), SharedGcPhase::Idle);
+}
+
+/// Honor one explicit shared collection request below the pacing trigger.
+#[test]
+fn test_shared_gc_step_honors_manual_request() {
+    let mut shared = SharedHeap::new();
+    let reachable = shared
+        .allocate_managed_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
+        .expect("shared managed allocation should succeed");
+
+    shared.request_gc();
+
+    shared
+        .gc_step(&[reachable], false, 1)
+        .expect("shared gc step should succeed");
+
+    assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
 }

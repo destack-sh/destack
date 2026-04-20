@@ -11,8 +11,8 @@ pub use budget::{SharedHeapLimits, SharedManagedLimits, SharedRawBudget, SharedR
 pub use gc::SharedGcPhase;
 pub use heap::{SharedHeap, SharedHeapImage};
 pub use managed::{
-    SharedManagedLargeEntryImage, SharedManagedSmallSpanImage, SharedManagedSpace,
-    SharedManagedSpaceImage,
+    SharedManagedLargeEntryImage, SharedManagedReference, SharedManagedSmallSpanImage,
+    SharedManagedSpace, SharedManagedSpaceImage,
 };
-pub use raw::{SharedRawEntryImage, SharedRawSpace, SharedRawSpaceImage};
+pub use raw::{SharedRawEntryImage, SharedRawPointer, SharedRawSpace, SharedRawSpaceImage};
 pub use usage::{SharedHeapUsage, SharedManagedSpaceUsage, SharedRawSpaceUsage};
