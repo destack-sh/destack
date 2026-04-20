@@ -1003,7 +1003,7 @@ struct PrinterState<'a> {
     // Reused queue to measure if a group fits. Optimisation to avoid re-allocating a new
     // vec every time a group gets measured
     fits_stack: Vec<StackFrame>,
-    fits_queue: Vec<std::slice::Iter<'a, FormatNode>>,
+    fits_queue: Vec<&'a [FormatNode]>,
 }
 
 impl PrinterState<'_> {
