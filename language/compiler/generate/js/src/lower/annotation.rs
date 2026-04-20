@@ -13,9 +13,9 @@ impl ModuleLowerer<'_> {
                 js::AnnotationPosition::Prefix
             }
             dir::DecoratorPosition::BlockInfix => js::AnnotationPosition::Infix,
-            dir::DecoratorPosition::BlockPostfix
-            | dir::DecoratorPosition::LinePostfix
-            | dir::DecoratorPosition::LinePostfixBoundary => js::AnnotationPosition::Postfix,
+            dir::DecoratorPosition::BlockPostfix | dir::DecoratorPosition::LinePostfix => {
+                js::AnnotationPosition::Postfix
+            }
         }
     }
 
