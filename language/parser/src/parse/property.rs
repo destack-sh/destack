@@ -1183,12 +1183,18 @@ impl Parser {
         }
 
         let type_start = self.mark_span();
-        self.eat_token(TokenType::Colon)?;
-        self.eat_newlines_maybe()?;
-        let declared_type = if self.peek_is(TokenType::CloseBrace) || self.is_any_stop() {
-            self.recover_missing_type_expression_here(NodeType::TypeMember)
+        let declared_type = if self.eat_token_maybe(TokenType::Colon)? {
+            self.eat_newlines_maybe()?;
+
+            Some(
+                if self.peek_is(TokenType::CloseBrace) || self.is_any_stop() {
+                    self.recover_missing_type_expression_here(NodeType::TypeMember)
+                } else {
+                    self.eat_method_return_type(NodeType::TypeMember)?
+                },
+            )
         } else {
-            self.eat_method_return_type(NodeType::TypeMember)?
+            None
         };
         let member = TypeMember::Field {
             is_optional,
@@ -1202,11 +1208,13 @@ impl Parser {
             self.tree.set_main_span(member_id, span);
         }
 
-        self.tree.set_side_span(
-            member_id,
-            NodeSpanType::Type,
-            self.get_span_from(&type_start),
-        );
+        if declared_type.is_some() {
+            self.tree.set_side_span(
+                member_id,
+                NodeSpanType::Type,
+                self.get_span_from(&type_start),
+            );
+        }
 
         Ok(member_id)
     }

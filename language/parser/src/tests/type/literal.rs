@@ -602,7 +602,7 @@ fn test_parse_type_literal_readonly_property_name() {
                         }
                         _ => panic!("expected Key::Name, got {key:?}"),
                     }
-                    assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
                         assert_eq!(*value, TypeLiteral::Boolean);
                     });
                 });
@@ -629,7 +629,7 @@ fn test_parse_type_literal_computed_key() {
                         }
                         _ => panic!("expected Key::Expression, got {key:?}"),
                     }
-                    assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value } => {
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
                         assert_eq!(*value, TypeLiteral::String);
                     });
                 });
@@ -760,7 +760,7 @@ fn test_parse_type_member_generic_arrow_complex_constraint() {
             assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
                 assert_node!(parser.tree, properties[0], TypeMember::Field { declared_type, .. } => {
-                    assert_node!(parser.tree, *declared_type, TypeExpression::Declaration { declaration: fn_id } => {
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Declaration { declaration: fn_id } => {
                         assert_node!(parser.tree, *fn_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                             assert!(!signature.generic_parameters.is_empty());
                         });
@@ -791,7 +791,7 @@ fn test_parse_type_literal_where_field_after_function_type() {
                 // setSelectedFields: (fields: FieldOption[]) => void
                 assert_node!(parser.tree, properties[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                     assert_string!(parser, *name, "setSelectedFields");
-                    assert_node!(parser.tree, *declared_type, TypeExpression::Declaration { declaration: declaration_id } => {
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Declaration { declaration: declaration_id } => {
                         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                             assert_eq!(signature.kind, FunctionKind::Lambda);
                         });
@@ -802,7 +802,7 @@ fn test_parse_type_literal_where_field_after_function_type() {
                 assert_node!(parser.tree, properties[1], TypeMember::Field { is_optional, key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                     assert!(*is_optional);
                     assert_string!(parser, *name, "where");
-                    assert_expression_path!(parser, parser.tree.get(*declared_type), "Where");
+                    assert_expression_path!(parser, parser.tree.get(declared_type.expect("expected declared type")), "Where");
                 });
             });
         });

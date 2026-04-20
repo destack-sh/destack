@@ -660,7 +660,7 @@ for (const { item } of await fetchList<{ item: string }>(values)) {}
                                 assert_eq!(properties.len(), 1);
                                 assert_node!(parser.tree, properties[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: value, .. } => {
                                     assert_string!(parser, *name, "item");
-                                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                                    assert_node!(parser.tree, value.expect("expected declared type"), TypeExpression::Literal { value } => {
                                         assert_eq!(*value, TypeLiteral::String);
                                     });
                                 });

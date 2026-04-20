@@ -1093,17 +1093,14 @@ impl Parser {
             None
         };
         let has_colon_annotation = annotation_token_type == TokenType::Colon;
-        let has_type_constraint = matches!(
-            annotation_keyword,
-            Some(Keyword::Extends | Keyword::Implements)
-        );
+        let has_type_constraint = matches!(annotation_keyword, Some(Keyword::Extends));
         let has_annotation = has_colon_annotation || has_type_constraint;
         let is_value_parameter = is_comptime;
 
         let (declared_type, declared_type_span) = if has_annotation {
             let type_start = self.mark_span();
             self.eat_newlines_maybe()?;
-            self.bump(); // eat colon or relation keyword
+            self.bump(); // eat colon or extends
             self.eat_newlines_maybe()?;
             let declared_type = if self.peek_is(TokenType::Assign)
                 || self.peek_is(TokenType::Comma)

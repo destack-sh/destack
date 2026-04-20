@@ -374,7 +374,7 @@ interface Foo extends Baz {
             assert_node!(parser.tree, members[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: ty, is_readonly, .. } => {
                 assert!(*is_readonly);
                 assert_string!(parser, *name, "value");
-                assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, ty.expect("expected declared type"), TypeExpression::Literal { value } => {
                     assert_eq!(*value, TypeLiteral::Int(IntType::Arbitrary {
                         width: Some(32),
                         is_signed: true,
@@ -385,7 +385,7 @@ interface Foo extends Baz {
             // count: int32
             assert_node!(parser.tree, members[1], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: ty, .. } => {
                 assert_string!(parser, *name, "count");
-                assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
+                assert_node!(parser.tree, ty.expect("expected declared type"), TypeExpression::Literal { value } => {
                     assert_eq!(*value, TypeLiteral::Int(IntType::Arbitrary {
                         width: Some(32),
                         is_signed: true,
@@ -797,7 +797,7 @@ interface Add<T, R = Self> {
             // is: WebidlIs
             assert_node!(parser.tree, members[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                 assert_string!(parser, *name, "is");
-                assert_expression_path!(parser, parser.tree.get(*declared_type), "WebidlIs");
+                assert_expression_path!(parser, parser.tree.get(declared_type.expect("expected declared type")), "WebidlIs");
             });
         });
     }
@@ -827,31 +827,31 @@ interface Add<T, R = Self> {
                 // errors: WebidlErrors
                 assert_node!(parser.tree, members[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                     assert_string!(parser, *name, "errors");
-                    assert_expression_path!(parser, parser.tree.get(*declared_type), "WebidlErrors");
+                    assert_expression_path!(parser, parser.tree.get(declared_type.expect("expected declared type")), "WebidlErrors");
                 });
 
                 // util: WebidlUtil
                 assert_node!(parser.tree, members[1], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                     assert_string!(parser, *name, "util");
-                    assert_expression_path!(parser, parser.tree.get(*declared_type), "WebidlUtil");
+                    assert_expression_path!(parser, parser.tree.get(declared_type.expect("expected declared type")), "WebidlUtil");
                 });
 
                 // converters: WebidlConverters
                 assert_node!(parser.tree, members[2], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                     assert_string!(parser, *name, "converters");
-                    assert_expression_path!(parser, parser.tree.get(*declared_type), "WebidlConverters");
+                    assert_expression_path!(parser, parser.tree.get(declared_type.expect("expected declared type")), "WebidlConverters");
                 });
 
                 // is: WebidlIs
                 assert_node!(parser.tree, members[3], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                     assert_string!(parser, *name, "is");
-                    assert_expression_path!(parser, parser.tree.get(*declared_type), "WebidlIs");
+                    assert_expression_path!(parser, parser.tree.get(declared_type.expect("expected declared type")), "WebidlIs");
                 });
 
                 // attributes: WebIDLExtendedAttributes
                 assert_node!(parser.tree, members[4], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                     assert_string!(parser, *name, "attributes");
-                    assert_expression_path!(parser, parser.tree.get(*declared_type), "WebIDLExtendedAttributes");
+                    assert_expression_path!(parser, parser.tree.get(declared_type.expect("expected declared type")), "WebIDLExtendedAttributes");
                 });
             });
         });
