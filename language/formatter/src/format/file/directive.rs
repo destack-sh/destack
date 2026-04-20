@@ -46,7 +46,7 @@ const IGNORE_END_DIRECTIVES: &[&str] = &[
 /// Prefix ignore directive markers supported by formatter behavior.
 const IGNORE_PREFIX_DIRECTIVES: &[&str] = &["biome-ignore format"];
 
-/// Formatter-owned suppression directives parsed from raw comment text.
+/// Formatter suppression directives parsed from comment text.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum IgnoreDirective {
     /// Ignore the next node.
@@ -82,7 +82,7 @@ fn directive_token_for_comment_token(
     ctx: &DestackFormatContext<'_>,
     token: TokenSpan,
 ) -> Option<IgnoreDirective> {
-    parse_directive_token_from_raw(ctx.token_str(token))
+    parse_directive_token_from_comment_text(ctx.token_str(token))
 }
 
 /// Return the last comment token that starts before or at one node offset.
@@ -237,11 +237,6 @@ fn comment_token_is_line_leading(ctx: &DestackFormatContext<'_>, token: TokenSpa
     ctx.line_prefix_is_whitespace(token.span.start)
 }
 
-/// Collect comment tokens sorted by source position.
-pub fn comment_tokens(ctx: &DestackFormatContext<'_>) -> Vec<TokenSpan> {
-    ctx.comment_tokens().to_vec()
-}
-
 /// Return whether this file has a formatter ignore-file directive comment.
 pub fn has_file_ignore_directive(ctx: &DestackFormatContext<'_>) -> bool {
     if !ctx.has_ignore_directive_markers() {
@@ -282,60 +277,64 @@ pub fn has_file_ignore_directive(ctx: &DestackFormatContext<'_>) -> bool {
 
 /// Extract the source for an ignored span.
 pub fn ignored_span_source(ctx: &DestackFormatContext<'_>, span: Span) -> String {
-    let raw = ctx.span_str(span);
+    let source = ctx.span_str(span);
     if ctx.source_position(span.start).is_none() {
-        return raw.to_owned();
+        return source.to_owned();
     }
     let Some(prefix) = ctx.line_prefix_text(span.start) else {
-        return raw.to_owned();
+        return source.to_owned();
     };
     if prefix.is_empty() || !prefix.trim().is_empty() {
-        return raw.to_owned();
+        return source.to_owned();
     }
 
-    raw.split('\n')
+    source
+        .split('\n')
         .map(|line| line.strip_prefix(prefix).unwrap_or(line).to_owned())
         .collect::<Vec<_>>()
         .join("\n")
 }
 
-/// Write a raw ignored span with formatter-managed indentation.
+/// Write one ignored span with formatter-managed indentation.
 pub fn write_ignored_span<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     span: Span,
 ) -> FormatResult<()> {
-    // raw ignored spans already contain their own comments
-    f.context().comments_mut().skip_comments_before(span.end);
+    // ignored spans already contain their own comments
+    f.context_mut()
+        .comments_mut()
+        .skip_comments_before(span.end);
 
-    let raw = ignored_span_source(f.context(), span);
-    let raw = if !f.context().span_starts_on_own_line(span) {
-        dedent_common_leading_whitespace_after_first_line(raw.as_str())
+    let source = ignored_span_source(f.context(), span);
+    let source = if !f.context().span_starts_on_own_line(span) {
+        dedent_common_leading_whitespace_after_first_line(source.as_str())
     } else {
-        dedent_common_leading_whitespace(raw.as_str())
+        dedent_common_leading_whitespace(source.as_str())
     };
-    let raw = if raw.trim().is_empty() {
-        raw.chars()
+    let source = if source.trim().is_empty() {
+        source
+            .chars()
             .filter(|character| *character == '\n')
             .collect::<String>()
     } else {
-        raw
+        source
     };
 
     let mut segment_start = 0usize;
-    while segment_start < raw.len() {
-        let Some(relative_newline_index) = raw[segment_start..].find('\n') else {
-            write!(f, [text(&raw[segment_start..])])?;
+    while segment_start < source.len() {
+        let Some(relative_newline_index) = source[segment_start..].find('\n') else {
+            write!(f, [text(&source[segment_start..])])?;
             break;
         };
 
         let newline_index = segment_start + relative_newline_index;
         if segment_start < newline_index {
-            write!(f, [text(&raw[segment_start..newline_index])])?;
+            write!(f, [text(&source[segment_start..newline_index])])?;
         }
 
         let mut newline_run_end = newline_index;
-        let raw_bytes = raw.as_bytes();
-        while newline_run_end < raw_bytes.len() && raw_bytes[newline_run_end] == b'\n' {
+        let bytes = source.as_bytes();
+        while newline_run_end < bytes.len() && bytes[newline_run_end] == b'\n' {
             newline_run_end += 1;
         }
 
@@ -497,27 +496,50 @@ fn find_ignore_range_end(
     comment_tokens: &[TokenSpan],
     start_offset: u32,
 ) -> Option<TokenSpan> {
-    comment_tokens
-        .iter()
-        .filter(|token| token.span.start >= start_offset)
-        .find_map(|token| {
-            if directive_token_for_comment_token(ctx, *token) == Some(IgnoreDirective::IgnoreEnd) {
-                Some(*token)
-            } else {
-                None
+    let mut nested_range_depth = 0usize;
+
+    for token in comment_tokens.iter().copied() {
+        if token.span.start < start_offset {
+            continue;
+        }
+
+        match directive_token_for_comment_token(ctx, token) {
+            Some(IgnoreDirective::IgnoreStart) => {
+                nested_range_depth += 1;
             }
-        })
+            Some(IgnoreDirective::IgnoreEnd) => {
+                if nested_range_depth == 0 {
+                    return Some(token);
+                }
+
+                nested_range_depth -= 1;
+            }
+            Some(IgnoreDirective::Ignore | IgnoreDirective::IgnoreFile) | None => {}
+        }
+    }
+
+    None
 }
 
-/// Parse a directive token from a raw comment string (including markers).
-fn parse_directive_token_from_raw(raw: &str) -> Option<IgnoreDirective> {
-    let content = strip_comment_markers(raw);
+/// Parse a directive token from comment text, including markers.
+fn parse_directive_token_from_comment_text(comment_text: &str) -> Option<IgnoreDirective> {
+    let content = strip_comment_markers(comment_text);
     parse_directive_token(content.as_ref())
 }
 
-/// Strip comment markers from a raw comment string.
-fn strip_comment_markers(raw: &str) -> Cow<'_, str> {
-    let trimmed = raw.trim();
+/// Return whether one comment text contains any recognized ignore directive.
+pub(crate) fn comment_text_has_ignore_directive_marker(comment_text: &str) -> bool {
+    parse_directive_token_from_comment_text(comment_text).is_some()
+}
+
+/// Return whether one comment text contains a single-node suppression directive.
+pub(crate) fn comment_text_has_suppression_directive(comment_text: &str) -> bool {
+    parse_directive_token_from_comment_text(comment_text) == Some(IgnoreDirective::Ignore)
+}
+
+/// Strip comment markers from comment text.
+fn strip_comment_markers(comment_text: &str) -> Cow<'_, str> {
+    let trimmed = comment_text.trim();
     if let Some(rest) = trimmed.strip_prefix("//") {
         return Cow::Owned(rest.trim_start_matches('/').trim().to_owned());
     }
@@ -577,4 +599,58 @@ fn parse_directive_token(comment: &str) -> Option<IgnoreDirective> {
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{comment_text_has_ignore_directive_marker, comment_text_has_suppression_directive};
+
+    #[test]
+    /// Suppression aliases should map to single-node ignore directives.
+    fn test_comment_text_has_suppression_directive_aliases() {
+        // accepted aliases
+        assert!(comment_text_has_suppression_directive("// fmt-ignore"));
+        assert!(comment_text_has_suppression_directive("// format-ignore"));
+        assert!(comment_text_has_suppression_directive("// prettier-ignore"));
+        assert!(comment_text_has_suppression_directive("// deno-fmt-ignore"));
+        assert!(comment_text_has_suppression_directive(
+            "/* biome-ignore format: keep raw */"
+        ));
+
+        // reject non suppression directives
+        assert!(!comment_text_has_suppression_directive(
+            "// fmt-ignore-start"
+        ));
+        assert!(!comment_text_has_suppression_directive("// fmt-ignore-end"));
+        assert!(!comment_text_has_suppression_directive(
+            "// fmt-ignore-file"
+        ));
+    }
+
+    #[test]
+    /// Directive markers should include single-node, range, and file aliases.
+    fn test_comment_text_has_ignore_directive_marker_aliases() {
+        // accepted directives
+        assert!(comment_text_has_ignore_directive_marker("// fmt-ignore"));
+        assert!(comment_text_has_ignore_directive_marker("// format-ignore"));
+        assert!(comment_text_has_ignore_directive_marker(
+            "// fmt-ignore-start"
+        ));
+        assert!(comment_text_has_ignore_directive_marker(
+            "// fmt-ignore-end"
+        ));
+        assert!(comment_text_has_ignore_directive_marker(
+            "// fmt-ignore-file"
+        ));
+        assert!(comment_text_has_ignore_directive_marker(
+            "/* biome-ignore format: keep raw */"
+        ));
+
+        // reject unrelated comments
+        assert!(!comment_text_has_ignore_directive_marker("// fmt: ignore"));
+        assert!(!comment_text_has_ignore_directive_marker("// format"));
+        assert!(!comment_text_has_ignore_directive_marker(
+            "// no formatter directive"
+        ));
+    }
 }
