@@ -47,6 +47,27 @@ impl NodeParentIndex {
         }
     }
 
+    /// Create a new NodeParentIndex from reachable expression roots.
+    pub fn from_expression_roots(tree: &NodeTree, roots: &[LocalNodeId<Expression>]) -> Self {
+        let node_count = tree.node_index_by_node_id.len();
+        let mut reachable = ReachableNodeVisitor::new(node_count);
+
+        for root_id in roots {
+            walk_any(&mut reachable, tree, NodeType::Expression, root_id.id);
+        }
+
+        let mut visitor = ParentIndexBuilderVisitor::new(node_count);
+        for parent_id in reachable.take_node_ids() {
+            let node_type = tree.get_node_type(parent_id);
+            visitor.set_current_parent(parent_id);
+            walk_any(&mut visitor, tree, node_type, parent_id);
+        }
+
+        Self {
+            parent_id_by_node_id: visitor.take_parent_ids(),
+        }
+    }
+
     /// Get the parent for a node.
     #[inline]
     pub fn get<T>(&self, node_id: LocalNodeId<T>) -> Option<u32>
@@ -97,6 +118,47 @@ struct ParentIndexBuilderVisitor {
     current_parent: u32,
     parent_id_by_node_id: Vec<u32>,
     options: NodeVisitorOptions,
+}
+
+/// Internal visitor that collects reachable node ids from one root set.
+#[derive(Debug, Clone)]
+struct ReachableNodeVisitor {
+    seen: Vec<bool>,
+    node_ids: Vec<u32>,
+    options: NodeVisitorOptions,
+}
+
+impl ReachableNodeVisitor {
+    /// Create one reachable-node collector with fixed node capacity.
+    fn new(node_count: usize) -> Self {
+        Self {
+            seen: vec![false; node_count],
+            node_ids: Vec::with_capacity(node_count),
+            options: NodeVisitorOptions::default(),
+        }
+    }
+
+    /// Consume the visitor and return the reachable node ids.
+    fn take_node_ids(self) -> Vec<u32> {
+        self.node_ids
+    }
+}
+
+impl NodeVisitor for ReachableNodeVisitor {
+    #[inline]
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    #[inline]
+    fn visit_any(&mut self, _tree: &NodeTree, _ty: NodeType, id: u32) {
+        if self.seen[id as usize] {
+            return;
+        }
+
+        self.seen[id as usize] = true;
+        self.node_ids.push(id);
+    }
 }
 
 impl ParentIndexBuilderVisitor {
