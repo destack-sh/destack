@@ -27,7 +27,9 @@ impl AddressSpaceMask {
 
     /// Check whether two address space sets intersect.
     pub fn intersects(&self, other: &Self) -> bool {
-        self.spaces.iter().any(|space| other.contains(*space))
+        self.spaces
+            .iter()
+            .any(|space| other.contains(space.clone()))
     }
 
     /// Check whether two address space sets are disjoint.

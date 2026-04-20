@@ -92,7 +92,6 @@ impl Parser {
                     | "dispose"
                     | "dispose.async"
                     | "drop"
-                    | "drop.async"
                     | "atomic.store"
                     | "atomic.fence"
                     | "barrier"
@@ -134,13 +133,17 @@ impl Parser {
                 let value = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::AsyncDispose { value }
             }
+            "pin" => {
+                let value = self.parse_value_segment(&mut segment_spans)?;
+                Instruction::Pin { value }
+            }
+            "unpin" => {
+                let value = self.parse_value_segment(&mut segment_spans)?;
+                Instruction::Unpin { value }
+            }
             "drop" => {
                 let value = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::Drop { value }
-            }
-            "drop.async" => {
-                let value = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::AsyncDrop { value }
             }
             "atomic.store" => {
                 let pointer = self.parse_value_segment(&mut segment_spans)?;

@@ -3,8 +3,8 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::build::Variable;
 use crate::{
-    AllocationMode, AllocationSize, Block, CallBehavior, ExecutionModel, ExecutionStage, Function,
-    Instruction, Lifetime, Linkage, LocalNodeId, MemoryEffect, NodeTree, Parameter,
+    AllocationMode, AllocationSize, Block, BorrowRegion, CallBehavior, ExecutionModel,
+    ExecutionStage, Function, Instruction, Linkage, LocalNodeId, MemoryEffect, NodeTree, Parameter,
     PointerAttribute, Type, TypeReference, Value, ValueReference, finalize_function_names,
 };
 
@@ -102,7 +102,7 @@ impl<'a> FunctionBuilder<'a> {
             value_names: vec![None; next_value_id as usize],
             value_types,
             return_type: TypeReference::Type(return_type),
-            return_lifetime: Lifetime::Inferred,
+            return_region: BorrowRegion::Inferred,
             memory_effect: MemoryEffect::unknown(),
             call_behavior: CallBehavior::unknown(),
             allocation_size: None,
@@ -273,10 +273,10 @@ impl<'a> FunctionBuilder<'a> {
         self.function_id
     }
 
-    /// Set the return lifetime for this function.
-    pub fn set_return_lifetime(&mut self, lifetime: Lifetime) {
+    /// Set the return borrow region for this function.
+    pub fn set_return_region(&mut self, region: BorrowRegion) {
         let function = self.tree.get_mut(self.function_id);
-        function.return_lifetime = lifetime;
+        function.return_region = region;
     }
 
     /// Get a reference to the underlying node tree.

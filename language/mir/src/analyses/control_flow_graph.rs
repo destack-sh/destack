@@ -78,7 +78,7 @@ impl ControlFlowGraph {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::test_support::parse_test_function;
+    use crate::analyses::tests::parse_test_function;
 
     #[test]
     fn test_build_predecessors_for_linear_flow() {

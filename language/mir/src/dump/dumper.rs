@@ -1,10 +1,9 @@
 use crate::{
-    AddressSpace, BinaryOperator, Block, BlockReference, BlockTarget, CastOperator,
-    CheckConstraint, Constant, Function, FunctionReference, Global, GlobalInitializer,
-    GlobalReference, Instruction, Local, LocalNodeId, LocalReference, MemoryRegionSet,
-    MemorySemantics, Mutability, NodeTree, NodeVisitor, NodeVisitorOptions, Ownership,
-    ReferenceKind, SwitchCase, Terminator, TrapKind, Type, TypeReference, UnaryOperator,
-    ValueReference,
+    BinaryOperator, Block, BlockReference, BlockTarget, CastOperator, CheckConstraint, Constant,
+    Function, FunctionReference, Global, GlobalInitializer, GlobalReference, Instruction, Local,
+    LocalNodeId, LocalReference, MemoryRegionSet, MemorySemantics, Mutability, NodeTree,
+    NodeVisitor, NodeVisitorOptions, Ownership, ReferenceKind, SwitchCase, Terminator, TrapKind,
+    Type, TypeReference, UnaryOperator, ValueReference,
 };
 use destack_core::{Color, StringPool};
 
@@ -240,10 +239,10 @@ impl<'a> Dumper<'a> {
                 };
 
                 // address space label
-                let address_space_label = match address_space {
-                    AddressSpace::Generic => None,
-                    AddressSpace::Target(id) => Some(id.to_string()),
-                    _ => address_space.keyword().map(|name| name.to_string()),
+                let address_space_label = if address_space.is_local() {
+                    None
+                } else {
+                    Some(address_space.label().to_string())
                 };
                 let address_space_label = address_space_label
                     .map(|label| format!(", space({label})"))
@@ -598,13 +597,18 @@ impl<'a> Dumper<'a> {
                 self.write(&self.format_value(*value));
             }
 
-            Instruction::Drop { value } => {
-                self.write("drop ");
+            Instruction::Pin { value } => {
+                self.write("pin ");
                 self.write(&self.format_value(*value));
             }
 
-            Instruction::AsyncDrop { value } => {
-                self.write("drop.async ");
+            Instruction::Unpin { value } => {
+                self.write("unpin ");
+                self.write(&self.format_value(*value));
+            }
+
+            Instruction::Drop { value } => {
+                self.write("drop ");
                 self.write(&self.format_value(*value));
             }
 

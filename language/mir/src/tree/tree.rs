@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
-use std::mem::size_of;
 
 use destack_core::Arena;
 use destack_source::{FileId, NodeSourceMap, NodeSpanType, Span};
@@ -10,14 +9,11 @@ use crate::parse::Token;
 use crate::{
     AddressSpace, ArgumentSlice, Attribute, Block, CommentSpan, Field, FieldSpan, Function,
     FunctionHeaderSpans, Global, Instruction, InterfaceDispatchShape, Itab, ItabId, Layout,
-    LayoutId, LayoutMetadata, Local, LocalNodeId, ManagedReferenceRepresentation, Metadata,
-    Mutability, Node, NodeType, ProvenanceId, ProvenanceReason, ReferenceKind, Terminator, Type,
-    TypeAlias, TypeDeclarationSpans, TypeLineage, TypeReference, TypedValueSpan, ValueReference,
-    Vtable, VtableId,
+    LayoutId, LayoutMetadata, Local, LocalNodeId, Metadata, Mutability, Node, NodeType,
+    ProvenanceId, ProvenanceReason, ReferenceKind, Terminator, Type, TypeAlias,
+    TypeDeclarationSpans, TypeLineage, TypeReference, TypedValueSpan, ValueReference, Vtable,
+    VtableId,
 };
-
-/// Approximate per-entry overhead for one hash-map entry.
-const HASH_MAP_ENTRY_OVERHEAD_BYTES: usize = size_of::<usize>() * 3;
 
 #[inline]
 fn empty_source_span() -> Span {
@@ -152,45 +148,6 @@ impl NodeTree {
         tree
     }
 
-    /// Return the owned bytes for this MIR node tree.
-    pub fn owned_bytes(&self) -> usize {
-        let mut owned_bytes = size_of::<Self>();
-        owned_bytes += self.local_id_by_node_id.capacity() * size_of::<u32>();
-        owned_bytes += self.node_type_by_node_id.capacity() * size_of::<NodeType>();
-        owned_bytes += hash_map_bytes(&self.attributes_by_node_id);
-        owned_bytes += size_of::<NodeSourceMap>();
-        owned_bytes += self.source_text.capacity();
-        owned_bytes += self.tokens.capacity() * size_of::<Token>();
-        owned_bytes += self.leading_comment_spans_by_node_id.capacity() * size_of::<Option<Span>>();
-        owned_bytes += hash_map_bytes(&self.attribute_spans_by_node_id);
-        owned_bytes += hash_map_bytes(&self.keyword_spans_by_node_id);
-        owned_bytes += hash_map_bytes(&self.function_parameter_spans_by_node_id);
-        owned_bytes += hash_map_bytes(&self.function_header_spans_by_node_id);
-        owned_bytes += hash_map_bytes(&self.type_field_spans_by_node_id);
-        owned_bytes += hash_map_bytes(&self.type_declaration_spans_by_node_id);
-        owned_bytes += self.functions.retained_bytes();
-        owned_bytes += self.blocks.retained_bytes();
-        owned_bytes += self.instructions.retained_bytes();
-        owned_bytes += self.terminators.retained_bytes();
-        owned_bytes += self.locals.retained_bytes();
-        owned_bytes += self.types.retained_bytes();
-        owned_bytes += self.type_aliases.retained_bytes();
-        owned_bytes += self.fields.retained_bytes();
-        owned_bytes += self.globals.retained_bytes();
-        owned_bytes += self.instruction_arguments.capacity() * size_of::<ValueReference>();
-        owned_bytes += self.metadata.layout.owned_bytes();
-        owned_bytes += self.metadata.dispatch.owned_bytes();
-        owned_bytes += self.metadata.debug.owned_bytes();
-        owned_bytes += self.metadata.memory.owned_bytes();
-        owned_bytes += self.metadata.provenance.owned_bytes();
-
-        for attributes in self.attributes_by_node_id.values() {
-            owned_bytes += attributes.capacity() * size_of::<Attribute>();
-        }
-
-        owned_bytes
-    }
-
     /// Insert a node into the tree and return its id.
     /// The node will have no source DIR node associated (synthesized).
     pub fn insert<T>(&mut self, node: T) -> LocalNodeId<T>
@@ -233,29 +190,33 @@ impl NodeTree {
         LocalNodeId::new(global_id)
     }
 
-    /// Insert a type node into the tree and update the type cache.
+    /// Insert a type node into the tree and update the primitive type index.
     pub fn insert_type(&mut self, ty: Type) -> LocalNodeId<Type> {
-        // determine the cache entry before moving the type
-        let cache_entry = LayoutMetadata::cache_entry_for_type(&ty);
+        // determine the primitive type key before moving the type
+        let type_key = LayoutMetadata::primitive_type_key(&ty);
         let type_id = self.insert(ty);
 
-        // register the type in the cache
-        if let Some(entry) = cache_entry {
-            self.metadata.layout.register_type_entry(type_id, entry);
+        // record the type in the primitive type index
+        if let Some(type_key) = type_key {
+            self.metadata
+                .layout
+                .record_primitive_type(type_id, type_key);
         }
 
         type_id
     }
 
-    /// Insert a type node into the tree with a source DIR id and update the type cache.
+    /// Insert a type node into the tree with a source DIR id and update the primitive type index.
     pub fn insert_type_from(&mut self, ty: Type, source_dir_id: u32) -> LocalNodeId<Type> {
-        // determine the cache entry before moving the type
-        let cache_entry = LayoutMetadata::cache_entry_for_type(&ty);
+        // determine the primitive type key before moving the type
+        let type_key = LayoutMetadata::primitive_type_key(&ty);
         let type_id = self.insert_from(ty, source_dir_id);
 
-        // register the type in the cache
-        if let Some(entry) = cache_entry {
-            self.metadata.layout.register_type_entry(type_id, entry);
+        // record the type in the primitive type index
+        if let Some(type_key) = type_key {
+            self.metadata
+                .layout
+                .record_primitive_type(type_id, type_key);
         }
 
         type_id
@@ -263,7 +224,7 @@ impl NodeTree {
 
     /// Return the boolean type id.
     pub fn boolean_type(&self) -> LocalNodeId<Type> {
-        // use the cache when available
+        // use the primitive type index when available
         if let Some(type_id) = self.metadata.layout.boolean_type() {
             return type_id;
         }
@@ -273,12 +234,12 @@ impl NodeTree {
             return type_id;
         }
 
-        panic!("missing boolean type id in MIR type cache");
+        panic!("missing boolean type id in MIR primitive type index");
     }
 
     /// Return the void type id.
     pub fn void_type(&self) -> LocalNodeId<Type> {
-        // use the cache when available
+        // use the primitive type index when available
         if let Some(type_id) = self.metadata.layout.void_type() {
             return type_id;
         }
@@ -288,12 +249,12 @@ impl NodeTree {
             return type_id;
         }
 
-        panic!("missing void type id in MIR type cache");
+        panic!("missing void type id in MIR primitive type index");
     }
 
     /// Return the type descriptor type id.
     pub fn type_descriptor_type(&self) -> LocalNodeId<Type> {
-        // use the cache when available
+        // use the primitive type index when available
         if let Some(type_id) = self.metadata.layout.type_descriptor_type() {
             return type_id;
         }
@@ -304,12 +265,12 @@ impl NodeTree {
             return type_id;
         }
 
-        panic!("missing type descriptor type id in MIR type cache");
+        panic!("missing type descriptor type id in MIR primitive type index");
     }
 
     /// Return the type id type id.
     pub fn type_id_type(&self) -> LocalNodeId<Type> {
-        // use the cache when available
+        // use the primitive type index when available
         if let Some(type_id) = self.metadata.layout.type_id_type() {
             return type_id;
         }
@@ -319,12 +280,12 @@ impl NodeTree {
             return type_id;
         }
 
-        panic!("missing type id type in MIR type cache");
+        panic!("missing type id type in MIR primitive type index");
     }
 
     /// Return the isize type id.
     pub fn isize_type(&self) -> LocalNodeId<Type> {
-        // use the cache when available
+        // use the primitive type index when available
         if let Some(type_id) = self.metadata.layout.isize_type() {
             return type_id;
         }
@@ -334,7 +295,7 @@ impl NodeTree {
             return type_id;
         }
 
-        panic!("missing isize type id in MIR type cache");
+        panic!("missing isize type id in MIR primitive type index");
     }
 
     /// Return lineage metadata for a type when present.
@@ -407,7 +368,7 @@ impl NodeTree {
 
     /// Return the usize type id.
     pub fn usize_type(&self) -> LocalNodeId<Type> {
-        // use the cache when available
+        // use the primitive type index when available
         if let Some(type_id) = self.metadata.layout.usize_type() {
             return type_id;
         }
@@ -417,12 +378,12 @@ impl NodeTree {
             return type_id;
         }
 
-        panic!("missing usize type id in MIR type cache");
+        panic!("missing usize type id in MIR primitive type index");
     }
 
     /// Return an integer type id for width and signedness.
     pub fn int_type(&self, width: u16, signed: bool) -> LocalNodeId<Type> {
-        // use the cache when available
+        // use the primitive type index when available
         if let Some(type_id) = self.metadata.layout.int_type(width, signed) {
             return type_id;
         }
@@ -445,7 +406,7 @@ impl NodeTree {
 
     /// Return a float type id for width.
     pub fn float_type(&self, width: u16) -> LocalNodeId<Type> {
-        // use the cache when available
+        // use the primitive type index when available
         if let Some(type_id) = self.metadata.layout.float_type(width) {
             return type_id;
         }
@@ -475,7 +436,7 @@ impl NodeTree {
                 ty,
                 Type::Reference {
                     kind: ReferenceKind::Managed,
-                    address_space: AddressSpace::Generic,
+                    address_space: AddressSpace::Local,
                     mutability: Mutability::Mutable,
                     pointee,
                     is_nullable: true,
@@ -505,7 +466,7 @@ impl NodeTree {
                 ty,
                 Type::Reference {
                     kind: ReferenceKind::Managed,
-                    address_space: AddressSpace::Generic,
+                    address_space: AddressSpace::Local,
                     mutability: Mutability::Mutable,
                     pointee,
                     is_nullable: true,
@@ -518,7 +479,7 @@ impl NodeTree {
         // otherwise create the canonical erased environment reference
         self.insert_type(Type::Reference {
             kind: ReferenceKind::Managed,
-            address_space: AddressSpace::Generic,
+            address_space: AddressSpace::Local,
             mutability: Mutability::Mutable,
             pointee: TypeReference::Type(void_type),
             is_nullable: true,
@@ -539,23 +500,14 @@ impl NodeTree {
     pub fn set_pointer_bytes(&mut self, pointer_bytes: u8) {
         match pointer_bytes {
             4 | 8 => {
-                self.metadata.layout.storage.native_pointer_bytes = pointer_bytes;
+                let storage = &mut self.metadata.layout.storage;
+                let previous_pointer_bytes = storage.native_pointer_bytes;
 
-                // keep native-pointer managed references in lockstep
-                if self
-                    .metadata
-                    .layout
-                    .storage
-                    .managed_reference_layout
-                    .representation
-                    == ManagedReferenceRepresentation::NativePointer
-                {
-                    self.metadata.layout.storage.managed_reference_layout.bytes = pointer_bytes;
-                    self.metadata
-                        .layout
-                        .storage
-                        .managed_reference_layout
-                        .alignment = pointer_bytes;
+                storage.native_pointer_bytes = pointer_bytes;
+
+                // keep the default managed-reference width in lockstep until explicitly overridden
+                if storage.managed_reference_bytes == previous_pointer_bytes {
+                    storage.managed_reference_bytes = pointer_bytes;
                 }
             }
             _ => {
@@ -564,25 +516,25 @@ impl NodeTree {
         }
     }
 
-    /// Rebuild the primitive type cache from canonical type nodes.
-    pub fn rebuild_type_cache(&mut self) {
-        // reset the cache state
-        self.metadata.layout.clear_type_cache();
+    /// Rebuild the primitive type index from canonical type nodes.
+    pub fn rebuild_primitive_type_index(&mut self) {
+        // reset the index state
+        self.metadata.layout.primitive_type_index = Default::default();
 
         // collect primitive entries before mutating the table
-        let mut cache_entries = Vec::new();
+        let mut type_entries = Vec::new();
         for (type_id, ty) in self.iter_nodes::<Type>() {
-            let Some(cache_entry) = LayoutMetadata::cache_entry_for_type(ty) else {
+            let Some(type_key) = LayoutMetadata::primitive_type_key(ty) else {
                 continue;
             };
-            cache_entries.push((type_id, cache_entry));
+            type_entries.push((type_id, type_key));
         }
 
-        // repopulate the cache in node order
-        for (type_id, cache_entry) in cache_entries {
+        // repopulate the primitive type index in node order
+        for (type_id, type_key) in type_entries {
             self.metadata
                 .layout
-                .register_type_entry(type_id, cache_entry);
+                .record_primitive_type(type_id, type_key);
         }
     }
 
@@ -1135,12 +1087,6 @@ impl NodeTree {
 
         preserved_id
     }
-}
-
-/// Return the approximate owned bytes for one hash map table.
-fn hash_map_bytes<K, V>(map: &HashMap<K, V>) -> usize {
-    size_of::<HashMap<K, V>>()
-        + map.capacity() * (size_of::<K>() + size_of::<V>() + HASH_MAP_ENTRY_OVERHEAD_BYTES)
 }
 
 /// Trait for mapping node types to arenas.

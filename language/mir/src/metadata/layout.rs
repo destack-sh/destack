@@ -1,89 +1,115 @@
 use std::collections::HashMap;
-use std::mem::size_of;
 use std::num::NonZeroU32;
 
 use serde::{Deserialize, Serialize};
 
 use destack_core::StringId;
 
-use crate::{Field, Global, LocalNodeId, Type};
+use crate::tree::compute_type_layout;
+use crate::{
+    AddressSpace, Global, LocalNodeId, NodeTree, PrimitiveTypeIndex, ReferenceKind, Type,
+    TypeLineage, TypeReference, UnionLayout, WellKnownTypes,
+};
 
-/// Approximate per-entry overhead for one hash-map entry.
-const HASH_MAP_ENTRY_OVERHEAD_BYTES: usize = size_of::<usize>() * 3;
-
-/// Table of canonical well known MIR types.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct WellKnownTypes {
-    /// Canonical well known string reference type.
-    pub string: Option<LocalNodeId<Type>>,
+/// Managed-reference trace metadata for one runtime payload.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum LayoutTrace {
+    /// Payload contains no managed references.
+    None,
+    /// Payload stores direct managed-reference words at fixed byte offsets.
+    Reference {
+        /// Byte offsets of encoded local managed references.
+        local_offsets: Box<[u32]>,
+        /// Byte offsets of encoded shared managed references.
+        shared_offsets: Box<[u32]>,
+    },
+    /// Payload stores repeated elements with managed-reference words at fixed element offsets.
+    RepeatedReference {
+        /// The number of elements in the payload.
+        count: u32,
+        /// The element byte stride.
+        stride: u32,
+        /// Local managed-reference byte offsets within each element.
+        local_offsets: Box<[u32]>,
+        /// Shared managed-reference byte offsets within each element.
+        shared_offsets: Box<[u32]>,
+    },
 }
 
-impl WellKnownTypes {
-    /// Copy one canonical identity when the type id is remapped.
-    pub fn remap_type(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
-        if self.string == Some(from) {
-            self.string = Some(to);
+impl LayoutTrace {
+    /// Return the empty trace.
+    pub const fn empty() -> Self {
+        Self::None
+    }
+
+    /// Report whether this trace can reach managed references.
+    pub fn has_reference(&self) -> bool {
+        self.has_local_reference() || self.has_shared_reference()
+    }
+
+    /// Report whether this trace can reach local managed references.
+    pub fn has_local_reference(&self) -> bool {
+        match self {
+            Self::None => false,
+            Self::Reference { local_offsets, .. } => !local_offsets.is_empty(),
+            Self::RepeatedReference {
+                count,
+                local_offsets,
+                ..
+            } => *count > 0 && !local_offsets.is_empty(),
+        }
+    }
+
+    /// Report whether this trace can reach shared managed references.
+    pub fn has_shared_reference(&self) -> bool {
+        match self {
+            Self::None => false,
+            Self::Reference { shared_offsets, .. } => !shared_offsets.is_empty(),
+            Self::RepeatedReference {
+                count,
+                shared_offsets,
+                ..
+            } => *count > 0 && !shared_offsets.is_empty(),
         }
     }
 }
 
-/// Lineage metadata for nominal types.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TypeLineage {
-    /// Optional parent type for class inheritance.
-    pub parent: Option<LocalNodeId<Type>>,
-    /// Interfaces implemented by this type.
-    pub interfaces: Vec<LocalNodeId<Type>>,
-    /// True when the type is sealed to external extension.
-    pub is_sealed: bool,
-    /// True when the type is final and cannot be subclassed.
-    pub is_final: bool,
-    /// True when the type is abstract and cannot be instantiated.
-    pub is_abstract: bool,
-    /// True when the type represents an interface.
-    pub is_interface: bool,
+/// Canonical module storage metadata.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Storage {
+    /// Native pointer size in bytes for this module.
+    pub native_pointer_bytes: u8,
+    /// Managed reference size in bytes.
+    pub managed_reference_bytes: u8,
 }
 
-/// Primitive type cache for fast lookups.
-#[derive(Clone, Debug, Default)]
-pub(crate) struct PrimitiveTypeCache {
-    /// Cached void type id.
-    pub void: Option<LocalNodeId<Type>>,
-    /// Cached boolean type id.
-    pub boolean: Option<LocalNodeId<Type>>,
-    /// Cached type descriptor type id.
-    pub type_descriptor: Option<LocalNodeId<Type>>,
-    /// Cached type id type id.
-    pub type_id: Option<LocalNodeId<Type>>,
-    /// Cached isize type id.
-    pub isize: Option<LocalNodeId<Type>>,
-    /// Cached usize type id.
-    pub usize: Option<LocalNodeId<Type>>,
-    /// Cached integer type ids keyed by width and signedness.
-    pub ints: HashMap<(u16, bool), LocalNodeId<Type>>,
-    /// Cached float type ids keyed by width.
-    pub floats: HashMap<u16, LocalNodeId<Type>>,
+impl Default for Storage {
+    fn default() -> Self {
+        Self {
+            native_pointer_bytes: 8,
+            managed_reference_bytes: 8,
+        }
+    }
 }
 
-/// Cache entry describing a primitive type.
-#[derive(Clone, Debug)]
-pub(crate) enum PrimitiveTypeCacheEntry {
-    /// Void primitive type.
-    Void,
-    /// Boolean primitive type.
-    Boolean,
-    /// Runtime type descriptor type.
-    TypeDescriptor,
-    /// Runtime type id type.
-    TypeId,
-    /// Pointer sized signed integer type.
-    Isize,
-    /// Pointer sized unsigned integer type.
-    Usize,
-    /// Integer type with width and signedness.
-    Int { width: u16, signed: bool },
-    /// Float type with width.
-    Float { width: u16 },
+impl Storage {
+    /// Create storage metadata with a specific pointer size.
+    pub fn with_pointer_bytes(pointer_bytes: u8) -> Self {
+        Self {
+            native_pointer_bytes: pointer_bytes,
+            managed_reference_bytes: pointer_bytes,
+        }
+    }
+
+    /// Return pointer width in bits.
+    pub fn pointer_bits(self) -> u16 {
+        u16::from(self.native_pointer_bytes) * 8
+    }
+
+    /// Return managed reference width in bits.
+    pub fn managed_reference_bits(self) -> u16 {
+        u16::from(self.managed_reference_bytes) * 8
+    }
 }
 
 /// Canonical layout facts for one MIR module.
@@ -93,7 +119,7 @@ pub struct LayoutMetadata {
     pub storage: Storage,
     /// Cached primitive type ids.
     #[serde(skip, default)]
-    pub(crate) primitive_type_cache: PrimitiveTypeCache,
+    pub(crate) primitive_type_index: PrimitiveTypeIndex,
     /// Layout metadata table for aggregate types.
     pub layout_table: LayoutTable,
     /// Concrete layout ids keyed by type id.
@@ -114,7 +140,7 @@ impl Default for LayoutMetadata {
     fn default() -> Self {
         Self {
             storage: Storage::default(),
-            primitive_type_cache: PrimitiveTypeCache::default(),
+            primitive_type_index: PrimitiveTypeIndex::default(),
             layout_table: LayoutTable::default(),
             layout_by_type: HashMap::default(),
             lineage_by_type: HashMap::default(),
@@ -130,117 +156,6 @@ impl LayoutMetadata {
     /// Create a new empty layout table.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Return the cache entry for a MIR type when applicable.
-    pub(crate) fn cache_entry_for_type(ty: &Type) -> Option<PrimitiveTypeCacheEntry> {
-        match ty {
-            Type::Void => Some(PrimitiveTypeCacheEntry::Void),
-            Type::Boolean => Some(PrimitiveTypeCacheEntry::Boolean),
-            Type::TypeDescriptor => Some(PrimitiveTypeCacheEntry::TypeDescriptor),
-            Type::TypeId => Some(PrimitiveTypeCacheEntry::TypeId),
-            Type::Isize => Some(PrimitiveTypeCacheEntry::Isize),
-            Type::Usize => Some(PrimitiveTypeCacheEntry::Usize),
-            Type::Int {
-                width,
-                is_signed: signed,
-            } => Some(PrimitiveTypeCacheEntry::Int {
-                width: *width,
-                signed: *signed,
-            }),
-            Type::Float { width } => Some(PrimitiveTypeCacheEntry::Float { width: *width }),
-            _ => None,
-        }
-    }
-
-    /// Register a type id in the primitive cache.
-    pub(crate) fn register_type_entry(
-        &mut self,
-        type_id: LocalNodeId<Type>,
-        entry: PrimitiveTypeCacheEntry,
-    ) {
-        match entry {
-            PrimitiveTypeCacheEntry::Void => {
-                self.primitive_type_cache.void.get_or_insert(type_id);
-            }
-            PrimitiveTypeCacheEntry::Boolean => {
-                self.primitive_type_cache.boolean.get_or_insert(type_id);
-            }
-            PrimitiveTypeCacheEntry::TypeDescriptor => {
-                self.primitive_type_cache
-                    .type_descriptor
-                    .get_or_insert(type_id);
-            }
-            PrimitiveTypeCacheEntry::TypeId => {
-                self.primitive_type_cache.type_id.get_or_insert(type_id);
-            }
-            PrimitiveTypeCacheEntry::Isize => {
-                self.primitive_type_cache.isize.get_or_insert(type_id);
-            }
-            PrimitiveTypeCacheEntry::Usize => {
-                self.primitive_type_cache.usize.get_or_insert(type_id);
-            }
-            PrimitiveTypeCacheEntry::Int { width, signed } => {
-                self.primitive_type_cache
-                    .ints
-                    .entry((width, signed))
-                    .or_insert(type_id);
-            }
-            PrimitiveTypeCacheEntry::Float { width } => {
-                self.primitive_type_cache
-                    .floats
-                    .entry(width)
-                    .or_insert(type_id);
-            }
-        }
-    }
-
-    /// Return the cached boolean type id.
-    pub fn boolean_type(&self) -> Option<LocalNodeId<Type>> {
-        self.primitive_type_cache.boolean
-    }
-
-    /// Return the cached void type id.
-    pub fn void_type(&self) -> Option<LocalNodeId<Type>> {
-        self.primitive_type_cache.void
-    }
-
-    /// Return the cached type descriptor type id.
-    pub fn type_descriptor_type(&self) -> Option<LocalNodeId<Type>> {
-        self.primitive_type_cache.type_descriptor
-    }
-
-    /// Return the cached type id type id.
-    pub fn type_id_type(&self) -> Option<LocalNodeId<Type>> {
-        self.primitive_type_cache.type_id
-    }
-
-    /// Return the cached isize type id.
-    pub fn isize_type(&self) -> Option<LocalNodeId<Type>> {
-        self.primitive_type_cache.isize
-    }
-
-    /// Return the cached usize type id.
-    pub fn usize_type(&self) -> Option<LocalNodeId<Type>> {
-        self.primitive_type_cache.usize
-    }
-
-    /// Return the cached integer type id for a width and signedness.
-    pub fn int_type(&self, width: u16, signed: bool) -> Option<LocalNodeId<Type>> {
-        self.primitive_type_cache
-            .ints
-            .get(&(width, signed))
-            .copied()
-    }
-
-    /// Return the cached float type id for a width.
-    pub fn float_type(&self, width: u16) -> Option<LocalNodeId<Type>> {
-        self.primitive_type_cache.floats.get(&width).copied()
-    }
-
-    /// Clear the primitive type cache.
-    pub fn clear_type_cache(&mut self) {
-        self.primitive_type_cache = PrimitiveTypeCache::default();
     }
 
     /// Return the layout entry for a type id when available.
@@ -261,20 +176,6 @@ impl LayoutMetadata {
         layout_id: LayoutId,
     ) -> Option<LayoutId> {
         self.layout_by_type.insert(ty, layout_id)
-    }
-
-    /// Return lineage metadata for a type when present.
-    pub fn lineage(&self, ty: LocalNodeId<Type>) -> Option<&TypeLineage> {
-        self.lineage_by_type.get(&ty)
-    }
-
-    /// Record lineage metadata for a type.
-    pub fn set_lineage(
-        &mut self,
-        ty: LocalNodeId<Type>,
-        lineage: TypeLineage,
-    ) -> Option<TypeLineage> {
-        self.lineage_by_type.insert(ty, lineage)
     }
 
     /// Return union layout metadata for a type when present.
@@ -305,31 +206,6 @@ impl LayoutMetadata {
         self.descriptor_by_type.insert(ty, descriptor)
     }
 
-    /// Return the display name for a type when present.
-    pub fn display_name(&self, ty: LocalNodeId<Type>) -> Option<StringId> {
-        self.display_name_by_type.get(&ty).copied()
-    }
-
-    /// Record the display name for a type.
-    pub fn set_display_name(&mut self, ty: LocalNodeId<Type>, name: StringId) -> Option<StringId> {
-        self.display_name_by_type.insert(ty, name)
-    }
-
-    /// Return the existing display name for a type or insert the provided one.
-    pub fn ensure_display_name(&mut self, ty: LocalNodeId<Type>, name: StringId) -> StringId {
-        *self.display_name_by_type.entry(ty).or_insert(name)
-    }
-
-    /// Return the canonical well known string type.
-    pub fn string_type(&self) -> Option<LocalNodeId<Type>> {
-        self.well_known_types.string
-    }
-
-    /// Record the canonical well known string type.
-    pub fn set_string_type(&mut self, type_id: LocalNodeId<Type>) -> Option<LocalNodeId<Type>> {
-        self.well_known_types.string.replace(type_id)
-    }
-
     /// Copy structural layout metadata from one type id to another.
     pub fn copy_type_metadata(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
         if let Some(layout_id) = self.layout_id(from) {
@@ -354,104 +230,494 @@ impl LayoutMetadata {
 
         self.well_known_types.remap_type(from, to);
     }
-
-    /// Return the owned bytes for this layout metadata.
-    pub fn owned_bytes(&self) -> usize {
-        let mut owned_bytes = size_of::<Self>();
-        owned_bytes += self.layout_table.owned_bytes();
-        owned_bytes += hash_map_bytes(&self.layout_by_type);
-        owned_bytes += hash_map_bytes(&self.lineage_by_type);
-        owned_bytes += hash_map_bytes(&self.union_layout_by_type);
-        owned_bytes += hash_map_bytes(&self.descriptor_by_type);
-        owned_bytes += hash_map_bytes(&self.display_name_by_type);
-
-        for lineage in self.lineage_by_type.values() {
-            owned_bytes += lineage.interfaces.capacity() * size_of::<LocalNodeId<Type>>();
-        }
-
-        owned_bytes
-    }
 }
 
-/// Return the approximate owned bytes for one hash map table.
-fn hash_map_bytes<K, V>(map: &HashMap<K, V>) -> usize {
-    size_of::<HashMap<K, V>>()
-        + map.capacity() * (size_of::<K>() + size_of::<V>() + HASH_MAP_ENTRY_OVERHEAD_BYTES)
+/// One layout metadata completion result.
+pub(crate) type LayoutMetadataResult<T> = Result<T, LayoutMetadataError>;
+
+/// One layout metadata completion failure.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum LayoutMetadataError {
+    /// One array length did not fit in the metadata representation.
+    ArrayLengthOverflow,
+    /// One aggregate layout id was missing unexpectedly.
+    MissingLayoutId { type_id: LocalNodeId<Type> },
+    /// One layout entry was missing unexpectedly.
+    MissingLayoutEntry { index: usize },
+    /// One layout computation overflowed.
+    Overflow { context: &'static str },
 }
 
-/// Canonical module storage metadata.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Storage {
-    /// Native pointer size in bytes for this module.
-    pub native_pointer_bytes: u8,
-    /// Managed reference representation for this module.
-    pub managed_reference_layout: ManagedReferenceLayout,
-}
-
-/// Managed reference representation metadata.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ManagedReferenceLayout {
-    /// Managed reference size in bytes.
-    pub bytes: u8,
-    /// Managed reference alignment in bytes.
-    pub alignment: u8,
-    /// Managed reference encoding.
-    pub representation: ManagedReferenceRepresentation,
-}
-
-/// Managed reference encoding strategy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ManagedReferenceRepresentation {
-    /// Native machine pointer.
-    NativePointer,
-    /// Offset from a managed heap base.
-    CompressedOffset32,
-    /// Indirect 32 bit handle.
-    Handle32,
-    /// Indirect 64 bit handle.
-    Handle64,
-}
-
-impl Default for Storage {
-    fn default() -> Self {
-        Self {
-            native_pointer_bytes: 8,
-            managed_reference_layout: ManagedReferenceLayout::default(),
+impl std::fmt::Display for LayoutMetadataError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ArrayLengthOverflow => {
+                write!(formatter, "array length exceeds layout metadata")
+            }
+            Self::MissingLayoutId { type_id } => {
+                write!(
+                    formatter,
+                    "missing layout id during layout metadata completion: {type_id:?}"
+                )
+            }
+            Self::MissingLayoutEntry { index } => {
+                write!(
+                    formatter,
+                    "missing layout entry during layout metadata completion: index={index}"
+                )
+            }
+            Self::Overflow { context } => {
+                write!(formatter, "layout metadata completion overflow: {context}")
+            }
         }
     }
 }
 
-impl Default for ManagedReferenceLayout {
-    fn default() -> Self {
-        Self {
-            bytes: 8,
-            alignment: 8,
-            representation: ManagedReferenceRepresentation::NativePointer,
-        }
+impl std::error::Error for LayoutMetadataError {}
+
+/// Complete canonical layout metadata for every concrete MIR aggregate type.
+pub(crate) fn complete_layout_metadata(tree: &mut NodeTree) -> LayoutMetadataResult<()> {
+    let type_ids: Vec<_> = tree
+        .iter_nodes::<Type>()
+        .map(|(type_id, _)| type_id)
+        .collect();
+    let mut complete = LayoutMetadataCompletion { tree };
+
+    for type_id in type_ids {
+        complete.record_layout_for_type(type_id)?;
     }
+
+    Ok(())
 }
 
-impl Storage {
-    /// Create storage metadata with a specific pointer size.
-    pub fn with_pointer_bytes(pointer_bytes: u8) -> Self {
-        Self {
-            native_pointer_bytes: pointer_bytes,
-            managed_reference_layout: ManagedReferenceLayout {
-                bytes: pointer_bytes,
-                alignment: pointer_bytes,
-                representation: ManagedReferenceRepresentation::NativePointer,
+/// One in-place layout metadata completion pass.
+struct LayoutMetadataCompletion<'a> {
+    /// The MIR tree being completed.
+    tree: &'a mut NodeTree,
+}
+
+impl LayoutMetadataCompletion<'_> {
+    /// Record layout metadata for one concrete aggregate type.
+    fn record_layout_for_type(&mut self, type_id: LocalNodeId<Type>) -> LayoutMetadataResult<()> {
+        if self.tree.metadata.layout.layout_id(type_id).is_some() {
+            return Ok(());
+        }
+
+        match self.tree.get(type_id) {
+            Type::Struct { fields, .. } => {
+                let fields = fields.clone();
+                self.record_struct_layout(type_id, &fields)
+            }
+            Type::Tuple { elements, .. } => {
+                let elements = elements.clone();
+                self.record_tuple_layout(type_id, &elements)
+            }
+            Type::Array {
+                element, length, ..
+            } => self.record_array_layout(type_id, *element, *length),
+            Type::Closure { signature } => self.record_closure_layout(type_id, *signature),
+            _ => Ok(()),
+        }
+    }
+
+    /// Record layout metadata for one struct type.
+    fn record_struct_layout(
+        &mut self,
+        type_id: LocalNodeId<Type>,
+        fields: &[LocalNodeId<crate::Field>],
+    ) -> LayoutMetadataResult<()> {
+        let mut layout_fields = Vec::with_capacity(fields.len());
+        let mut offset = 0u32;
+
+        // field layouts
+        for (index, field_id) in fields.iter().enumerate() {
+            let (field_name, field_type) = {
+                let field = self.tree.get(*field_id);
+                (field.name, field.ty)
+            };
+            let Some(field_type) = concrete_type(field_type) else {
+                return Ok(());
+            };
+            let field_layout =
+                compute_type_layout(self.tree, field_type, self.tree.pointer_bytes());
+            offset = field_layout.align_offset(offset);
+
+            layout_fields.push(LayoutField {
+                name: field_name,
+                ty: field_type,
+                offset,
+                size: field_layout.size,
+                alignment: field_layout.alignment,
+                source_index: Some(index as u32),
+            });
+            offset += field_layout.size;
+        }
+
+        let layout = compute_type_layout(self.tree, type_id, self.tree.pointer_bytes());
+        let layout_entry = Layout {
+            kind: LayoutKind::Struct,
+            size: layout.size,
+            alignment: layout.alignment,
+            trace: LayoutTrace::empty(),
+            fields: layout_fields,
+        };
+
+        self.insert_layout_entry(type_id, layout_entry);
+        self.record_layout_trace(type_id)?;
+
+        Ok(())
+    }
+
+    /// Record layout metadata for one tuple type.
+    fn record_tuple_layout(
+        &mut self,
+        type_id: LocalNodeId<Type>,
+        elements: &[TypeReference],
+    ) -> LayoutMetadataResult<()> {
+        let mut layout_fields = Vec::with_capacity(elements.len());
+        let mut offset = 0u32;
+        let mut alignment = 1u32;
+
+        // element layouts
+        for (index, element_id) in elements.iter().copied().enumerate() {
+            let Some(element_id) = concrete_type(element_id) else {
+                return Ok(());
+            };
+
+            let element_layout =
+                compute_type_layout(self.tree, element_id, self.tree.pointer_bytes());
+            offset = element_layout.align_offset(offset);
+
+            layout_fields.push(LayoutField {
+                name: None,
+                ty: element_id,
+                offset,
+                size: element_layout.size,
+                alignment: element_layout.alignment,
+                source_index: Some(index as u32),
+            });
+
+            offset += element_layout.size;
+            alignment = alignment.max(element_layout.alignment);
+        }
+
+        let size = compute_type_layout(self.tree, type_id, self.tree.pointer_bytes()).size;
+        let layout_entry = Layout {
+            kind: LayoutKind::Tuple,
+            size,
+            alignment,
+            trace: LayoutTrace::empty(),
+            fields: layout_fields,
+        };
+
+        self.insert_layout_entry(type_id, layout_entry);
+        self.record_layout_trace(type_id)?;
+
+        Ok(())
+    }
+
+    /// Record layout metadata for one array type.
+    fn record_array_layout(
+        &mut self,
+        type_id: LocalNodeId<Type>,
+        element: TypeReference,
+        length: u64,
+    ) -> LayoutMetadataResult<()> {
+        let Some(element) = concrete_type(element) else {
+            return Ok(());
+        };
+
+        let element_layout = compute_type_layout(self.tree, element, self.tree.pointer_bytes());
+        let stride = align_up(element_layout.size, element_layout.alignment);
+        let count = u32::try_from(length).map_err(|_| LayoutMetadataError::ArrayLengthOverflow)?;
+        let size = stride
+            .checked_mul(count)
+            .ok_or(LayoutMetadataError::Overflow {
+                context: "array layout size",
+            })?;
+
+        let layout_entry = Layout {
+            kind: LayoutKind::Array {
+                element_type: element,
+                element_stride: stride,
+                element_count: Some(count),
             },
+            size,
+            alignment: element_layout.alignment,
+            trace: LayoutTrace::empty(),
+            fields: Vec::new(),
+        };
+
+        self.insert_layout_entry(type_id, layout_entry);
+        self.record_layout_trace(type_id)?;
+
+        Ok(())
+    }
+
+    /// Record layout metadata for one closure type.
+    fn record_closure_layout(
+        &mut self,
+        type_id: LocalNodeId<Type>,
+        signature: TypeReference,
+    ) -> LayoutMetadataResult<()> {
+        let Some(signature) = concrete_type(signature) else {
+            return Ok(());
+        };
+
+        let environment = self.tree.ensure_function_value_environment_type();
+        let components = [signature, environment];
+        let mut layout_fields = Vec::with_capacity(components.len());
+        let mut offset = 0u32;
+        let mut alignment = 1u32;
+
+        // component layouts
+        for (index, component_type) in components.into_iter().enumerate() {
+            let component_layout =
+                compute_type_layout(self.tree, component_type, self.tree.pointer_bytes());
+            offset = component_layout.align_offset(offset);
+
+            layout_fields.push(LayoutField {
+                name: None,
+                ty: component_type,
+                offset,
+                size: component_layout.size,
+                alignment: component_layout.alignment,
+                source_index: Some(index as u32),
+            });
+
+            offset += component_layout.size;
+            alignment = alignment.max(component_layout.alignment);
+        }
+
+        let layout = compute_type_layout(self.tree, type_id, self.tree.pointer_bytes());
+        let layout_entry = Layout {
+            kind: LayoutKind::Closure,
+            size: layout.size,
+            alignment,
+            trace: LayoutTrace::empty(),
+            fields: layout_fields,
+        };
+
+        self.insert_layout_entry(type_id, layout_entry);
+        self.record_layout_trace(type_id)?;
+
+        Ok(())
+    }
+
+    /// Insert one layout entry and attach it to the type table.
+    fn insert_layout_entry(&mut self, type_id: LocalNodeId<Type>, layout: Layout) {
+        let layout_id = self.tree.metadata.layout.layout_table.insert(layout);
+        self.tree.metadata.layout.set_layout_id(type_id, layout_id);
+    }
+
+    /// Compute and record the trace metadata for one aggregate layout.
+    fn record_layout_trace(&mut self, type_id: LocalNodeId<Type>) -> LayoutMetadataResult<()> {
+        let trace = self.build_layout_trace(type_id)?;
+        let layout_id = self
+            .tree
+            .metadata
+            .layout
+            .layout_id(type_id)
+            .ok_or(LayoutMetadataError::MissingLayoutId { type_id })?;
+        let Some(layout) = self
+            .tree
+            .metadata
+            .layout
+            .layout_table
+            .layouts
+            .get_mut(layout_id.index())
+        else {
+            return Err(LayoutMetadataError::MissingLayoutEntry {
+                index: layout_id.index(),
+            });
+        };
+
+        layout.trace = trace;
+
+        Ok(())
+    }
+
+    /// Build the trace metadata for one concrete type.
+    fn build_layout_trace(
+        &mut self,
+        type_id: LocalNodeId<Type>,
+    ) -> LayoutMetadataResult<LayoutTrace> {
+        if let Type::Array {
+            element, length, ..
+        } = self.tree.get(type_id)
+        {
+            let Some(element) = concrete_type(*element) else {
+                return Ok(LayoutTrace::empty());
+            };
+
+            let element_layout = compute_type_layout(self.tree, element, self.tree.pointer_bytes());
+            let stride = align_up(element_layout.size, element_layout.alignment);
+            let count =
+                u32::try_from(*length).map_err(|_| LayoutMetadataError::ArrayLengthOverflow)?;
+            let mut local_offsets = Vec::new();
+            let mut shared_offsets = Vec::new();
+            self.append_layout_trace_offsets(element, 0, &mut local_offsets, &mut shared_offsets)?;
+
+            if local_offsets.is_empty() && shared_offsets.is_empty() {
+                return Ok(LayoutTrace::empty());
+            }
+
+            return Ok(LayoutTrace::RepeatedReference {
+                count,
+                stride,
+                local_offsets: local_offsets.into_boxed_slice(),
+                shared_offsets: shared_offsets.into_boxed_slice(),
+            });
+        }
+
+        let mut local_offsets = Vec::new();
+        let mut shared_offsets = Vec::new();
+        self.append_layout_trace_offsets(type_id, 0, &mut local_offsets, &mut shared_offsets)?;
+
+        if local_offsets.is_empty() && shared_offsets.is_empty() {
+            Ok(LayoutTrace::empty())
+        } else {
+            Ok(LayoutTrace::Reference {
+                local_offsets: local_offsets.into_boxed_slice(),
+                shared_offsets: shared_offsets.into_boxed_slice(),
+            })
         }
     }
 
-    /// Return pointer width in bits.
-    pub fn pointer_bits(self) -> u16 {
-        u16::from(self.native_pointer_bytes) * 8
+    /// Append managed-reference offsets for one concrete type.
+    fn append_layout_trace_offsets(
+        &mut self,
+        type_id: LocalNodeId<Type>,
+        base_offset: u32,
+        local_offsets: &mut Vec<u32>,
+        shared_offsets: &mut Vec<u32>,
+    ) -> LayoutMetadataResult<()> {
+        match self.tree.get(type_id) {
+            Type::Reference {
+                kind: ReferenceKind::Managed,
+                address_space,
+                ..
+            } => {
+                match address_space {
+                    AddressSpace::Local => local_offsets.push(base_offset),
+                    AddressSpace::Shared => shared_offsets.push(base_offset),
+                    _ => {}
+                }
+
+                Ok(())
+            }
+            Type::Struct { .. } | Type::Tuple { .. } | Type::Closure { .. } => {
+                self.record_layout_for_type(type_id)?;
+                let layout_id = self
+                    .tree
+                    .metadata
+                    .layout
+                    .layout_id(type_id)
+                    .ok_or(LayoutMetadataError::MissingLayoutId { type_id })?;
+                let layout = self
+                    .tree
+                    .metadata
+                    .layout
+                    .layout_table
+                    .layout(layout_id)
+                    .clone();
+
+                for field in layout.fields {
+                    let field_offset = base_offset.checked_add(field.offset).ok_or(
+                        LayoutMetadataError::Overflow {
+                            context: "layout trace field offset",
+                        },
+                    )?;
+
+                    self.append_layout_trace_offsets(
+                        field.ty,
+                        field_offset,
+                        local_offsets,
+                        shared_offsets,
+                    )?;
+                }
+
+                Ok(())
+            }
+            Type::Array {
+                element, length, ..
+            } => {
+                let Some(element) = concrete_type(*element) else {
+                    return Ok(());
+                };
+                let element_layout =
+                    compute_type_layout(self.tree, element, self.tree.pointer_bytes());
+                let stride = align_up(element_layout.size, element_layout.alignment);
+                let count =
+                    u32::try_from(*length).map_err(|_| LayoutMetadataError::ArrayLengthOverflow)?;
+
+                let mut element_local_offsets = Vec::new();
+                let mut element_shared_offsets = Vec::new();
+                self.append_layout_trace_offsets(
+                    element,
+                    0,
+                    &mut element_local_offsets,
+                    &mut element_shared_offsets,
+                )?;
+
+                if element_local_offsets.is_empty() && element_shared_offsets.is_empty() {
+                    return Ok(());
+                }
+
+                for index in 0..count {
+                    let delta = stride
+                        .checked_mul(index)
+                        .ok_or(LayoutMetadataError::Overflow {
+                            context: "layout trace array stride",
+                        })?;
+
+                    for element_offset in &element_local_offsets {
+                        let offset = base_offset
+                            .checked_add(delta)
+                            .and_then(|value| value.checked_add(*element_offset))
+                            .ok_or(LayoutMetadataError::Overflow {
+                                context: "layout trace array offset",
+                            })?;
+                        local_offsets.push(offset);
+                    }
+
+                    for element_offset in &element_shared_offsets {
+                        let offset = base_offset
+                            .checked_add(delta)
+                            .and_then(|value| value.checked_add(*element_offset))
+                            .ok_or(LayoutMetadataError::Overflow {
+                                context: "layout trace array offset",
+                            })?;
+                        shared_offsets.push(offset);
+                    }
+                }
+
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+}
+
+/// Return one concrete type when present.
+fn concrete_type(reference: TypeReference) -> Option<LocalNodeId<Type>> {
+    match reference {
+        TypeReference::Type(ty) => Some(ty),
+        TypeReference::Missing | TypeReference::Error => None,
+    }
+}
+
+/// Align one size up to the requested alignment.
+fn align_up(value: u32, alignment: u32) -> u32 {
+    if alignment == 0 {
+        return value;
     }
 
-    /// Return managed reference width in bits.
-    pub fn managed_reference_bits(self) -> u16 {
-        u16::from(self.managed_reference_layout.bytes) * 8
+    let misalignment = value % alignment;
+    if misalignment == 0 {
+        value
+    } else {
+        value + (alignment - misalignment)
     }
 }
 
@@ -510,18 +776,6 @@ impl LayoutTable {
             .get(index)
             .unwrap_or_else(|| panic!("missing layout entry {index}"))
     }
-
-    /// Return the owned bytes for this layout table.
-    pub fn owned_bytes(&self) -> usize {
-        let mut owned_bytes = size_of::<Self>();
-        owned_bytes += self.layouts.capacity() * size_of::<crate::Layout>();
-
-        for layout in &self.layouts {
-            owned_bytes += layout.fields.capacity() * size_of::<crate::LayoutField>();
-        }
-
-        owned_bytes
-    }
 }
 
 /// Concrete memory layout for an aggregate type.
@@ -533,6 +787,8 @@ pub struct Layout {
     pub size: u32,
     /// Alignment requirement in bytes.
     pub alignment: u32,
+    /// Managed-reference trace metadata for this layout.
+    pub trace: LayoutTrace,
     /// Field layouts in concrete memory order.
     pub fields: Vec<LayoutField>,
 }
@@ -541,7 +797,7 @@ pub struct Layout {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LayoutField {
     /// Field name for lookup and debugging.
-    pub name: StringId,
+    pub name: Option<StringId>,
     /// MIR type of the field.
     pub ty: LocalNodeId<Type>,
     /// Byte offset from the start of the aggregate.
@@ -592,69 +848,99 @@ pub enum LayoutKind {
     Closure,
 }
 
-/// Payload storage strategy for a union layout.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum UnionPayloadKind {
-    /// Store the payload inline inside the union struct.
-    Inline,
-    /// Store the payload as a managed box.
-    Boxed,
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parse::{ParseOptions, Parser};
+    use crate::{Storage, TypeAlias};
+    use destack_core::ImmutableStringPool;
+    use destack_source::FileId;
 
-/// Canonical discriminant values for tagged unions.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum UnionDiscriminantValue {
-    /// Null literal value.
-    Null,
-    /// Undefined literal value.
-    Undefined,
-    /// Boolean literal value.
-    Boolean(bool),
-    /// Number literal value stored as f64 bits.
-    Number { bits: u64 },
-    /// Bigint literal value.
-    Bigint(i64),
-    /// String literal value.
-    String(StringId),
-    /// Unique symbol literal value.
-    UniqueSymbol,
-}
+    /// Parse one MIR module and complete its layout metadata.
+    fn parse_tree_with_layout(mir_text: &str, storage: Storage) -> (NodeTree, ImmutableStringPool) {
+        let (mut tree, strings) = Parser::parse(
+            FileId::new(0),
+            mir_text,
+            ParseOptions {
+                pointer_bytes: storage.native_pointer_bytes,
+            },
+        )
+        .validate()
+        .expect("failed to parse MIR");
+        tree.metadata.layout.storage = storage;
+        complete_layout_metadata(&mut tree).expect("failed to complete layout metadata");
 
-/// Discriminant values for a field in tag order.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct UnionDiscriminantField {
-    /// The discriminant field for each union element in tag order.
-    pub field_by_element: Vec<LocalNodeId<Field>>,
-    /// The field name shared by all union variants.
-    pub field_name: StringId,
-    /// Literal values ordered by tag value.
-    pub values: Vec<UnionDiscriminantValue>,
-}
+        (tree, strings)
+    }
 
-/// Discriminant metadata for a tagged union.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct UnionDiscriminant {
-    /// The primary discriminant field index in `fields`.
-    pub primary_field_index: u32,
-    /// Discriminant fields indexed by field name.
-    pub fields: Vec<UnionDiscriminantField>,
-}
+    /// Look up one aliased type by name.
+    fn lookup_type_alias(
+        tree: &NodeTree,
+        strings: &ImmutableStringPool,
+        name: &str,
+    ) -> LocalNodeId<Type> {
+        for (_, type_alias) in tree.iter_nodes::<TypeAlias>() {
+            if strings.get(type_alias.name) == name {
+                return type_alias
+                    .ty
+                    .ty()
+                    .expect("type alias should be concrete after validation");
+            }
+        }
 
-/// Layout metadata for a lowered union type.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct UnionLayout {
-    /// The tag field type.
-    pub tag_type: LocalNodeId<Type>,
-    /// The payload field type.
-    pub payload_type: LocalNodeId<Type>,
-    /// The payload storage strategy.
-    pub payload_kind: UnionPayloadKind,
-    /// The union element type ids in tag order.
-    pub element_types: Vec<LocalNodeId<Type>>,
-    /// The tag field name in the lowered layout.
-    pub tag_field_name: StringId,
-    /// The payload field name in the lowered layout.
-    pub payload_field_name: StringId,
-    /// Discriminant field metadata when present.
-    pub discriminant: Option<UnionDiscriminant>,
+        panic!("missing type alias {name}");
+    }
+
+    /// Canonical layout metadata should match one parsed struct layout.
+    #[test]
+    fn test_complete_layout_metadata_imports_struct_layout() {
+        let mir_text = r#"
+type Mixed {
+    first: uint8;
+    second: int64;
+    third: uint8;
+}"#;
+        let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
+        let ty = lookup_type_alias(&tree, &strings, "Mixed");
+        let raw_layout = tree.type_layout(ty).expect("missing MIR raw layout");
+
+        // top-level facts
+        assert_eq!(raw_layout.size, 24);
+        assert_eq!(raw_layout.alignment, 8);
+
+        // field facts
+        assert_eq!(raw_layout.fields.len(), 3);
+        assert_eq!(raw_layout.fields[0].offset, 0);
+        assert_eq!(raw_layout.fields[1].offset, 8);
+        assert_eq!(raw_layout.fields[2].offset, 16);
+    }
+
+    /// Canonical layout metadata should record one managed-reference trace.
+    #[test]
+    fn test_complete_layout_metadata_records_struct_trace() {
+        let mir_text = r#"
+type Packed {
+    first: uint8;
+    inner: ref<int32, managed, readonly>;
+    third: uint8;
+}"#;
+        let (tree, strings) = parse_tree_with_layout(mir_text, Storage::default());
+        let ty = lookup_type_alias(&tree, &strings, "Packed");
+        let layout = tree.type_layout(ty).expect("missing MIR raw layout");
+
+        // field layout
+        assert_eq!(layout.fields.len(), 3);
+        assert_eq!(layout.fields[0].offset, 0);
+        assert_eq!(layout.fields[1].offset, 8);
+        assert_eq!(layout.fields[2].offset, 16);
+
+        // managed-reference trace
+        assert_eq!(
+            layout.trace,
+            LayoutTrace::Reference {
+                local_offsets: vec![8].into_boxed_slice(),
+                shared_offsets: Vec::new().into_boxed_slice(),
+            }
+        );
+    }
 }

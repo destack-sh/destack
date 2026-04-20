@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use crate::{
     AddressSpace, AstNodeKey, DirNodeKey, Instruction, InterfaceDispatchEntry, ItabEntry,
-    LayoutKind, ManagedReferenceRepresentation, Mutability, NodeType, ProvenanceAnchor,
-    ProvenanceId, ProvenanceKey, ProvenanceRecord, ReferenceKind, Type, TypeReference,
+    LayoutKind, NodeType, ProvenanceAnchor, ProvenanceId, ProvenanceKey, ProvenanceRecord,
+    ReferenceKind, Type, TypeReference,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
@@ -34,14 +34,7 @@ impl<'a> Validator<'a> {
         }
 
         // managed reference storage
-        match self
-            .tree
-            .metadata
-            .layout
-            .storage
-            .managed_reference_layout
-            .bytes
-        {
+        match self.tree.metadata.layout.storage.managed_reference_bytes {
             4 | 8 => {}
             managed_reference_bytes => {
                 return Err(ValidateError::MetadataInvariantViolation {
@@ -51,67 +44,6 @@ impl<'a> Validator<'a> {
                     anchor,
                 });
             }
-        }
-
-        // managed reference alignment
-        if self
-            .tree
-            .metadata
-            .layout
-            .storage
-            .managed_reference_layout
-            .alignment
-            == 0
-        {
-            return Err(ValidateError::MetadataInvariantViolation {
-                message: "managed reference alignment must be non zero".to_string(),
-                anchor,
-            });
-        }
-
-        if !self
-            .tree
-            .metadata
-            .layout
-            .storage
-            .managed_reference_layout
-            .alignment
-            .is_power_of_two()
-        {
-            return Err(ValidateError::MetadataInvariantViolation {
-                message: "managed reference alignment must be a power of two".to_string(),
-                anchor,
-            });
-        }
-
-        // representation contract
-        let managed_layout = self.tree.metadata.layout.storage.managed_reference_layout;
-        match managed_layout.representation {
-            ManagedReferenceRepresentation::NativePointer => {
-                if managed_layout.bytes != self.tree.metadata.layout.storage.native_pointer_bytes {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "native-pointer managed references must match native pointer size"
-                            .to_string(),
-                        anchor,
-                    });
-                }
-            }
-            ManagedReferenceRepresentation::CompressedOffset32
-            | ManagedReferenceRepresentation::Handle32
-            | ManagedReferenceRepresentation::Handle64 => {
-                return Err(ValidateError::MetadataInvariantViolation {
-                    message: "managed references must use the native pointer representation"
-                        .to_string(),
-                    anchor,
-                });
-            }
-        }
-
-        if managed_layout.alignment != self.tree.metadata.layout.storage.native_pointer_bytes {
-            return Err(ValidateError::MetadataInvariantViolation {
-                message: "managed reference alignment must match native pointer size".to_string(),
-                anchor,
-            });
         }
 
         // per-instruction memory metadata
@@ -148,42 +80,27 @@ impl<'a> Validator<'a> {
 
         // reference types
         for (type_id, ty) in self.tree.iter_nodes::<Type>() {
-            let (kind, address_space, mutability) = match ty {
+            let (kind, address_space) = match ty {
                 Type::Reference {
                     kind,
                     address_space,
-                    mutability,
                     ..
                 }
                 | Type::TensorReference {
                     kind,
                     address_space,
-                    mutability,
                     ..
-                } => (*kind, *address_space, *mutability),
+                } => (*kind, address_space.clone()),
                 _ => continue,
             };
 
             // managed references
-            if kind == ReferenceKind::Managed && !address_space.is_generic() {
+            if kind == ReferenceKind::Managed
+                && !matches!(address_space, AddressSpace::Local | AddressSpace::Shared)
+            {
                 return Err(ValidateError::MetadataInvariantViolation {
-                    message: "managed references must use space(generic)".to_string(),
-                    anchor: ValidateAnchor::node(type_id),
-                });
-            }
-
-            // constant address space
-            if address_space == AddressSpace::Constant && mutability != Mutability::Immutable {
-                return Err(ValidateError::MetadataInvariantViolation {
-                    message: "space(constant) references must be readonly".to_string(),
-                    anchor: ValidateAnchor::node(type_id),
-                });
-            }
-
-            // owned references
-            if kind == ReferenceKind::Owned && address_space == AddressSpace::Constant {
-                return Err(ValidateError::MetadataInvariantViolation {
-                    message: "owned references cannot use space(constant)".to_string(),
+                    message: "managed references must use space(local) or space(shared)"
+                        .to_string(),
                     anchor: ValidateAnchor::node(type_id),
                 });
             }

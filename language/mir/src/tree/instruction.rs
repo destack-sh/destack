@@ -744,15 +744,22 @@ pub enum Instruction {
         /// The value to dispose asynchronously.
         value: ValueReference,
     },
+    /// Stabilize one local managed value against movement (`pin`).
+    ///
+    /// While pinned, derived borrowed addresses remain valid across safepoints.
+    Pin {
+        /// The managed value to pin.
+        value: ValueReference,
+    },
+    /// Release one local managed pin (`unpin`).
+    Unpin {
+        /// The managed value to unpin.
+        value: ValueReference,
+    },
     /// End ownership here (`drop`).
     /// Compiler-inserted at ownership end to run drop glue and storage-specific cleanup.
     Drop {
         /// The value to drop.
-        value: ValueReference,
-    },
-    /// End ownership asynchronously (`drop.async`).
-    AsyncDrop {
-        /// The value to drop asynchronously.
         value: ValueReference,
     },
 
@@ -945,8 +952,9 @@ impl Instruction {
             Instruction::RawFree { .. } => None,
             Instruction::Dispose { .. } => None,
             Instruction::AsyncDispose { .. } => None,
+            Instruction::Pin { .. } => None,
+            Instruction::Unpin { .. } => None,
             Instruction::Drop { .. } => None,
-            Instruction::AsyncDrop { .. } => None,
             Instruction::StackAlloc { destination, .. } => Some(*destination),
             Instruction::AtomicLoad { destination, .. } => Some(*destination),
             Instruction::AtomicStore { .. } => None,
@@ -1069,8 +1077,9 @@ impl Instruction {
             Instruction::RawFree { pointer } => smallvec![*pointer],
             Instruction::Dispose { value } => smallvec![*value],
             Instruction::AsyncDispose { value } => smallvec![*value],
+            Instruction::Pin { value } => smallvec![*value],
+            Instruction::Unpin { value } => smallvec![*value],
             Instruction::Drop { value } => smallvec![*value],
-            Instruction::AsyncDrop { value } => smallvec![*value],
             Instruction::StackAlloc { .. } => smallvec![],
             Instruction::AtomicLoad { pointer, .. } => smallvec![*pointer],
             Instruction::AtomicStore { pointer, value, .. } => smallvec![*pointer, *value],

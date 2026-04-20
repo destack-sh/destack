@@ -6,6 +6,7 @@ use destack_source::{
     NodeSpanType, Span,
 };
 
+use crate::metadata::complete_layout_metadata;
 use crate::validate::Validator;
 use crate::{
     Block, Field, Function, Global, LocalNodeId, Node, NodeTree, Type, Value,
@@ -37,7 +38,7 @@ impl ParsedMir {
     /// Return the parsed MIR when no parse errors were emitted.
     pub fn validate(self) -> ParseResult<(NodeTree, ImmutableStringPool)> {
         let Self {
-            tree,
+            mut tree,
             strings,
             diagnostics,
         } = self;
@@ -61,6 +62,10 @@ impl ParsedMir {
                 .unwrap_or(0);
             ParseError::new(error.to_string(), position)
         })?;
+
+        // complete canonical aggregate layout metadata
+        complete_layout_metadata(&mut tree)
+            .map_err(|error| ParseError::new(error.to_string(), 0))?;
 
         Ok((tree, strings))
     }

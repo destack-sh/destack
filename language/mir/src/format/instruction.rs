@@ -325,11 +325,11 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 write!(f, [token("dispose.async"), space(), value])
             }
 
-            Instruction::Drop { value } => write!(f, [token("drop"), space(), value]),
+            Instruction::Pin { value } => write!(f, [token("pin"), space(), value]),
 
-            Instruction::AsyncDrop { value } => {
-                write!(f, [token("drop.async"), space(), value])
-            }
+            Instruction::Unpin { value } => write!(f, [token("unpin"), space(), value]),
+
+            Instruction::Drop { value } => write!(f, [token("drop"), space(), value]),
 
             Instruction::Assume { condition } => {
                 write!(f, [token("assume"), space(), condition])

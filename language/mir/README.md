@@ -91,7 +91,7 @@ Instructions perform "operations" and may produce SSA `Value`s.
 | Local variables | `local.get`, `local.set`, `local.address` |
 | Globals | `global.address`, `global.const` |
 | Functions | `function.address`, `function.bind`, `function.environment` |
-| Memory | `load`, `store`, `raw.free`, `dispose`, `dispose.async`, `drop`, `drop.async` |
+| Memory | `load`, `store`, `raw.free`, `dispose`, `dispose.async`, `pin`, `unpin`, `drop` |
 | Aggregates | `struct`, `tuple`, `array`, `field.get`, `field.set`, `field.address`, `element.get`, `element.set`, `element.address` |
 | Vector | `vector.*` (splat, extract, insert, shuffle, select, reduce, compare, convert) |
 | Tensor | `tensor.*` (load, store, fill, copy, reshape, broadcast, transpose, cast, view, slice, pad, concat, compare, select, reduce, dot, convolution, gather, scatter, convert) |
@@ -124,13 +124,14 @@ Canonical MIR spells checks guard-first: `check int.add.overflow.s left, right -
 
 ### Pointers and References
 
-References are just pointers, of course, and pointer sized integer types are modeled explicitly.
+References are MIR carriers with explicit ownership and place qualifiers.
+Pointer-sized integer types are modeled explicitly.
 ```mir
 ref<int32, raw, space(shared)>
-ref<int32, raw, readonly, space(7)>
+ref<int32, raw, readonly, space(gpu)>
 ```
 
-In general, we use `ref` to model references with additional side metadata:
+In general, MIR uses `ref` to model one base type plus ownership, mutability, and place:
 - `managed` for runtime managed object references
 - `owned` for explicit ownership (`^T`)
 - `borrowed` for `&T` and `&readonly T`
@@ -150,14 +151,26 @@ Reference syntax is payload-first and spells out qualifiers after the payload ty
 ### Borrow Regions and Cleanup
 
 Borrow regions are not spelled on every MIR reference type.
-Instead, function boundaries preserve the relevant relations through `BorrowRegion` metadata on borrowed returns and borrowed aggregates.
-Conceptually, that metadata is a region set saying which parameters one returned borrow may depend on.
+Function boundaries preserve the relevant borrow relations through `BorrowRegion` metadata on borrowed returns and borrowed aggregates.
+That metadata says which input regions one returned borrow may depend on.
 Most internal regions are inferred and erased before codegen.
 
-Cleanup placement is a MIR responsibility.
-Ownership end, `using`, `await using`, and last use analysis must lower to explicit cleanup edges in MIR rather than being rediscovered later by the VM or native backend.
-MIR therefore separates explicit cleanup hooks (`dispose`, `dispose.async`) from ownership end (`drop`, `drop.async`) and from raw storage release (`raw.free`).
-Drop glue can call dispose hooks and then perform storage specific release when needed.
+Plain managed `T` is the independently live carrier.
+Borrowed `&T` is a dependent address into some other carrier.
+Borrowed values therefore require region proof.
+They do not keep the referent alive on their own.
+
+Pinning is a MIR responsibility for local moving managed storage.
+`pin` stabilizes one local managed value against movement.
+`unpin` releases that stability.
+The compiler inserts `pin` and `unpin` when a borrowed address into local managed storage must survive a safepoint or suspension.
+Shared managed, raw, stack, frame, and global storage need no such stabilization.
+
+Cleanup placement is also a MIR responsibility.
+`dispose` and `dispose.async` are explicit deterministic cleanup hooks.
+`drop` ends ownership and runs drop glue.
+`raw.free` releases raw storage directly.
+GC never calls `dispose`.
 
 Field names are optional in MIR types and are only for readability:
 

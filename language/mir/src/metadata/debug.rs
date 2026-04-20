@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::mem::size_of;
 
 use serde::{Deserialize, Serialize};
 
@@ -449,29 +448,5 @@ impl Debug {
     /// Return the coroutine state for an id.
     pub fn coroutine_state(&self, id: DebugCoroutineStateId) -> &DebugCoroutineState {
         &self.coroutine_states[id.index()]
-    }
-
-    /// Return the owned bytes for this debug table.
-    pub fn owned_bytes(&self) -> usize {
-        let mut owned_bytes = size_of::<Self>();
-        owned_bytes += self.scopes.capacity() * size_of::<DebugScope>();
-        owned_bytes += self.bindings.capacity() * size_of::<DebugBinding>();
-        owned_bytes += self.types.capacity() * size_of::<DebugType>();
-        owned_bytes += self.inline_sites.capacity() * size_of::<DebugInlineSite>();
-        owned_bytes += self.coroutine_states.capacity() * size_of::<DebugCoroutineState>();
-        owned_bytes +=
-            self.function_scopes.capacity() * size_of::<(LocalNodeId<Function>, DebugScopeId)>();
-        owned_bytes +=
-            self.block_scopes.capacity() * size_of::<(LocalNodeId<Block>, DebugScopeId)>();
-        owned_bytes += self.instruction_locations.capacity()
-            * size_of::<(LocalNodeId<Instruction>, DebugLocation)>();
-        owned_bytes += self.binding_location_ranges.capacity()
-            * size_of::<(DebugBindingId, Vec<DebugBindingLocationRange>)>();
-
-        for ranges in self.binding_location_ranges.values() {
-            owned_bytes += ranges.capacity() * size_of::<DebugBindingLocationRange>();
-        }
-
-        owned_bytes
     }
 }

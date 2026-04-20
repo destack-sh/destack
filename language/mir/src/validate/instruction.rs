@@ -350,7 +350,14 @@ impl<'a> Validator<'a> {
                     });
                 };
 
-                Ok((*kind, *address_space, *mutability, element, shape, layout))
+                Ok((
+                    *kind,
+                    address_space.clone(),
+                    *mutability,
+                    element,
+                    shape,
+                    layout,
+                ))
             }
             other => Err(ValidateError::MetadataInvariantViolation {
                 message: format!("{message}, found {}", self.type_kind(other)),
@@ -1435,6 +1442,17 @@ impl<'a> Validator<'a> {
                     Some(ReferenceKind::Raw),
                     None,
                     anchor,
+                )?;
+            }
+            Instruction::Pin { value } => {
+                self.validate_local_managed_reference_value(function, *value, anchor, "pin value")?;
+            }
+            Instruction::Unpin { value } => {
+                self.validate_local_managed_reference_value(
+                    function,
+                    *value,
+                    anchor,
+                    "unpin value",
                 )?;
             }
             Instruction::AtomicLoad {
@@ -2592,6 +2610,35 @@ impl<'a> Validator<'a> {
 
         Ok(())
     }
+
+    /// Validate one local managed reference value.
+    fn validate_local_managed_reference_value(
+        &self,
+        function: &Function,
+        value: ValueReference,
+        anchor: ValidateAnchor,
+        context: &'static str,
+    ) -> ValidateResult<()> {
+        let value_type = self.value_type_or_error(function, value, anchor, context)?;
+        let (kind, _mutability, _pointee, _is_nullable) =
+            self.reference_type(value_type, anchor, "expected a reference type")?;
+        let Type::Reference { address_space, .. } = self.tree.get(value_type) else {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "expected a reference type".to_string(),
+                anchor,
+            });
+        };
+
+        if kind != ReferenceKind::Managed || !matches!(address_space, AddressSpace::Local) {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: format!("{context} must be one local managed reference"),
+                anchor,
+            });
+        }
+
+        Ok(())
+    }
+
     /// Validate cast operator legality for canonical storage representations.
     fn validate_cast_legality(
         &self,

@@ -1,7 +1,7 @@
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
-    AllocationMode, Attribute, CallBehavior, Function, Global, GlobalInitializer, Lifetime,
+    AllocationMode, Attribute, BorrowRegion, CallBehavior, Function, Global, GlobalInitializer,
     Linkage, LocalNodeId, MemoryEffect, Mutability, PointerAttribute, Type, TypeAlias,
     TypeDeclarationSpans, TypeReference, Value, ValueReference,
 };
@@ -117,7 +117,7 @@ impl Parser {
                         value_names: Vec::new(),
                         value_types: Vec::new(),
                         return_type: TypeReference::Type(void_type),
-                        return_lifetime: Lifetime::Inferred,
+                        return_region: BorrowRegion::Inferred,
                         memory_effect: MemoryEffect::unknown(),
                         call_behavior: CallBehavior::unknown(),
                         allocation_size: None,

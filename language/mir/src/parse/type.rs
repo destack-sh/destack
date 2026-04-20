@@ -94,7 +94,6 @@ impl Parser {
                             length,
                             copyability: Copyability::default(),
                         });
-                        self.record_layout_for_type(type_id)?;
                     }
 
                     return Ok(type_id);
@@ -194,8 +193,6 @@ impl Parser {
 
         // intern the base type first so postfix array syntax can wrap it
         let mut type_id = self.intern_type(ty);
-        self.record_layout_for_type(type_id)?;
-
         // parse postfix array suffixes like `int32[4]`
         while self.eat_token_maybe(TokenType::OpenBracket) {
             let length = self.parse_int_literal()?;
@@ -208,7 +205,6 @@ impl Parser {
                 length,
                 copyability: Copyability::default(),
             });
-            self.record_layout_for_type(type_id)?;
         }
 
         Ok(type_id)
@@ -314,7 +310,6 @@ impl Parser {
             copyability: Copyability::default(),
         };
         let type_id = self.intern_type(struct_type);
-        self.record_layout_for_type(type_id)?;
 
         Ok((
             type_id,
@@ -412,7 +407,7 @@ impl Parser {
         };
         self.bump();
 
-        let mut address_space = AddressSpace::Generic;
+        let mut address_space = AddressSpace::Local;
         let mut mutability = Mutability::Mutable;
 
         while self.peek_token(TokenType::Comma) {
@@ -436,30 +431,10 @@ impl Parser {
                 let token = self
                     .peek()
                     .ok_or_else(|| ParseError::unexpected_end("address space", self.pos()))?;
-                let token_start = token.start;
                 let text = self.tree.source_text(token.span).to_string();
                 address_space = match token.ty {
                     TokenType::Identifier | TokenType::Global | TokenType::Local => {
-                        match text.as_str() {
-                            "generic" => AddressSpace::Generic,
-                            "stack" => AddressSpace::Stack,
-                            "shared" => AddressSpace::Shared,
-                            "local" => AddressSpace::Local,
-                            "global" => AddressSpace::Global,
-                            "constant" => AddressSpace::Constant,
-                            _ => {
-                                return Err(ParseError::invalid(
-                                    &format!("address space '{text}'"),
-                                    token_start,
-                                ));
-                            }
-                        }
-                    }
-                    TokenType::IntLiteral => {
-                        let id: u32 = text
-                            .parse()
-                            .map_err(|_| ParseError::invalid("address space", token_start))?;
-                        AddressSpace::Target(id)
+                        AddressSpace::from_name(&text)
                     }
                     _ => {
                         return Err(ParseError::unexpected(
