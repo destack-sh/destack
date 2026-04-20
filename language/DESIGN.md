@@ -609,38 +609,54 @@ Extension methods participate in member resolution, too.
 
 TypeScript does not encode "ownership" in its type system: all reference types are implicitly GC managed, and all value types are copied by default.
 This is convenient, but sometimes we want to take direct ownership of memory, whether for better control and performance, or just to express and enforcve invariants in the code.
+Destack adds explicit, optional modifiers for controlling memory ownership and placement inspired by Rust and Mojo's ownership models with `^T` as the "owned" signifier.
 
-For compatibility and convenience, Destack keeps plain `T` as the default and adds explicit opt-in ownership syntax.
-Specifically, Destack adopts a mostly Rust/Mojo-inspired ownership model with `^T` as the "owned" signifier and a reified memory "place" (local to a worker, shared across workers, or another address space).
+Further, as TS already has a strong notion of local memory as the implicit memory model, we also support explicit shared memory model as part of a generalised, explicit notion of "place" local to a worker, shared across workers, or another address space.
+On the shared heap side, this is basically a generalisation around `SharedArrayBuffer`-like semantics.
+As with ownership, most of the time, developers don't need to think about placement, but it is very useful in certain situations.
 
-### Ownership Model
+| Form | Ownership | Region | Place | Liveness | MIR shape | Value |
+|------|-----------|--------|-------|---------------|-----------|-------|
+| `T` | managed | none | ambient | keeps the referent alive | `ref<T, managed, space(local)>` | `ManagedReference` |
+| `shared T` | managed | none | shared | keeps the referent alive | `ref<T, managed, space(shared)>` | `SharedManagedReference` |
+| `&T` | borrowed | inferred or explicit | ambient | requires liveness | `ref<T, borrowed, space(X)>` | address-like borrow |
+| `&shared T` | borrowed | inferred or explicit | shared | requires liveness | `ref<T, borrowed, space(shared)>` | address-like borrow |
+| `^T` | owned | none | ambient | owns the referent | `ref<T, owned, space(X)>` | owner handle or owner pointer |
+| `^shared T` | owned | none | shared | owns the referent | `ref<T, owned, space(shared)>` | owner handle or owner pointer |
+| `*T` | raw | none | ambient | opaque | `ref<T, raw, space(X)>` | raw address |
+| `*shared T` | raw | none | shared | opaque | `ref<T, raw, space(shared)>` | raw address |
 
-The common forms are:
+### Relations
 
-| Surface form | Ownership | Region | Place |
-|---------|-------------|-----|-----|
-| `T` | managed | none | ambient |
-| `shared T` | managed | none | shared |
-| `&T` | borrowed | inferred or explicit | ambient |
-| `&shared T` | borrowed | inferred or explicit | shared |
-| `^T` | owned | none | ambient |
-| `^shared T` | owned | none | shared |
-| `*T` | raw | none | ambient |
-| `*shared T` | raw | none | shared |
+The rules for who can point into what mostly follow from the fact that references must always be valid, and shared memory cannot point into local memory.
+(And raw pointers are your own dangerous business.)
 
-`T`, `&T`, and `^T` are place relative by default.
-`shared T` is shorthand for `@space("shared") T`.
-Other spaces use the same `@space(...)` mechanism.
+| From \ To | `T` | `shared T` | `&T` | `&shared T` | `^T` | `^shared T` | `*T` | `*shared T` |
+|-----------|-----|------------|------|-------------|------|-------------|------|-------------|
+| `T` | same | no | yes | no | no | no | explicit unsafe | no |
+| `shared T` | no | same | no | yes | no | no | no | explicit unsafe |
+| `&T` | no | no | same | no | no | no | explicit unsafe | no |
+| `&shared T` | no | no | no | same | no | no | no | explicit unsafe |
+| `^T` | no | no | yes | no | same | no | explicit unsafe | no |
+| `^shared T` | no | no | no | yes | no | same | no | explicit unsafe |
+| `*T` | no | no | unsafe checked reborrow | no | no | no | same | no |
+| `*shared T` | no | no | no | unsafe checked reborrow | no | no | no | same |
 
-For copyable value types, plain `T` behaves like an ordinary by-value value.
-For reference types, plain `T` means one managed reference in the ambient place.
-- `^T` is affine and transfers ownership on move.
-- `&T` is a borrow of an owned `T`.
-- `*T` is one raw pointer and sits outside borrow .
+### Bindings
+
+Because Destack inherits the JS/TS "Worker" model for isolation and memory ownership, module-scoped constants are owned by each _Worker_ and not actually process-global as they would be in many other languages.
+For actually shared process-global globals, the binding itself can be declared as `shared`.
+
+| Form | Binding cell | Value place | Meaning |
+|----------|--------------|-------------|---------|
+| `const world = new World()` | local | local | one local module binding and one local value |
+| `const world: shared World = new World()` | local | shared | one local binding cell holding one shared handle |
+| `shared const world: World = new World()` | shared | shared | one shared binding cell initialized in shared space |
+| `shared const world: shared World = new World()` | shared | shared | same runtime meaning, explicit on both axes |
 
 ### Regions
 
-A region is one compiler known symbolic lifetime for one borrow.
+A region is one compiler-known lifetime relation for one borrow.
 Explicit region spelling is only needed when a signature must relate returned borrows to input borrows.
 
 ```ds
@@ -655,13 +671,13 @@ Declarations that store borrowed fields are implicitly region generic.
 Owned fields make the enclosing type affine.
 Borrowed fields make the enclosing type region generic.
 
-### Type Algebra
+### Typing
 
-Destack normalises ownership and memory forms into a "type-space"-addressable `Form<T, O, S, R>`.
-That means we get to use the full power of TS-level type system on with all axis of ownership, space, and borrowing.
+Internally, Destack normalizes ownership and place into one type-addressable `Form<T, O, S, R>`.
+That lets ordinary TS-style type algebra talk about base type, ownership, place, and borrow region directly, which makes for some very convenient conditional and mapped type algebra.
 
 | Surface spelling | Algebraic spelling |
-|---------|-------------|
+|------------------|--------------------|
 | `T` | `Managed<T>` in storage bearing positions |
 | `&T` | `Borrowed<T, _>` |
 | `^T` | `Owned<T>` |
@@ -669,7 +685,7 @@ That means we get to use the full power of TS-level type system on with all axis
 | `shared T` | `Shared<T>` |
 | `@space("shared") T` | `WithSpace<T, "shared">` |
 
-The basic kernel is:
+The core kernel is:
 
 ```ds
 type Form<T, O = "managed", S = "local", R = never> = ...
