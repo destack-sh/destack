@@ -1903,16 +1903,26 @@ impl Compiler {
                 );
 
                 // resolve the field type
-                let declared_type_id = *declared_type;
-                let declared_ty_id = self.collect_or_defer_type_expression(
-                    &mut ctx.reborrow(),
-                    declared_type_id,
-                    defer_type_evaluation,
-                )?;
-                ctx.types.set_declared_type(
-                    declared_type_id.into_global_any(ctx.module.id),
-                    declared_ty_id,
-                );
+                let declared_ty_id = if let Some(declared_type_id) = declared_type {
+                    let declared_ty_id = self.collect_or_defer_type_expression(
+                        &mut ctx.reborrow(),
+                        *declared_type_id,
+                        defer_type_evaluation,
+                    )?;
+                    ctx.types.set_declared_type(
+                        declared_type_id.into_global_any(ctx.module.id),
+                        declared_ty_id,
+                    );
+                    declared_ty_id
+                } else {
+                    self.error(AnalyzeError::MissingType {
+                        node: member_id
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
+                    ctx.types
+                        .insert_type_from_any(Type::Error, member_id.into_any())
+                };
 
                 // publish the declared member symbol type
                 let member_symbol = symbol.into_global(ctx.module.id);

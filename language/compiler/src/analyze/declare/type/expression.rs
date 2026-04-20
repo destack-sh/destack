@@ -1810,6 +1810,16 @@ impl Compiler {
                                 );
                             };
 
+                            let Some(declared_type) = declared_type else {
+                                return self.report_declared_type_error(
+                                    AnalyzeError::MissingType {
+                                        node: member_id
+                                            .into_global_any(ctx.module.id)
+                                            .into_anchored(Some(ctx.profile)),
+                                    },
+                                );
+                            };
+
                             let ty = self.resolve_declared_type_expression(
                                 &mut ctx.reborrow(),
                                 declared_type,
