@@ -1,14 +1,15 @@
 use std::sync::Arc;
 
 use crate::tests::test_arena;
-use crate::{EdgeMap, HeapOptions, LayoutId, SharedManagedSpace, SharedRawSpace};
+use crate::{HeapOptions, HeapScan, LayoutId, SharedManagedSpace, SharedRawSpace};
+use destack_mir::LayoutTrace;
 
 /// Share unchanged shared allocations across image and fork boundaries.
 #[test]
 fn test_roundtrip_shared_memory_image_and_fork() {
     let layout = HeapOptions {
         page_bytes: 4,
-        ..HeapOptions::default()
+        ..HeapOptions::shared()
     };
     let arena = test_arena(&layout);
     let mut shared = SharedRawSpace::with_arena(arena);
@@ -68,7 +69,7 @@ fn test_roundtrip_shared_memory_image_and_fork() {
 fn test_roundtrip_shared_managed_space_image() {
     let layout = HeapOptions {
         page_bytes: 4,
-        ..HeapOptions::default()
+        ..HeapOptions::shared()
     };
     let arena = test_arena(&layout);
     let mut managed = SharedManagedSpace::with_arena(arena.clone());
@@ -77,10 +78,10 @@ fn test_roundtrip_shared_managed_space_image() {
     let first_bytes = vec![1; 6];
     let second_bytes = vec![2; 6];
     let first = managed
-        .allocate_bytes(&first_bytes, EdgeMap::empty(), None)
+        .allocate_bytes(&first_bytes, LayoutTrace::empty(), None)
         .expect("shared managed allocation should succeed");
     let _second = managed
-        .allocate_bytes(&second_bytes, EdgeMap::empty(), None)
+        .allocate_bytes(&second_bytes, LayoutTrace::empty(), None)
         .expect("shared managed allocation should succeed");
     managed
         .set_layout_id(first, LayoutId::new(41))
@@ -92,7 +93,7 @@ fn test_roundtrip_shared_managed_space_image() {
 
     // restored metadata should match and untouched pages should still share
     assert_eq!(restored.layout_id(first), Ok(Some(LayoutId::new(41))));
-    assert_eq!(restored.edge_map(first), Ok(&EdgeMap::empty()));
+    assert_eq!(restored.scan(first), Ok(&HeapScan::empty()));
     assert!(Arc::ptr_eq(&restored.arena, &arena));
     assert_eq!(image.spans()[0].pages, restored_image.spans()[0].pages);
 

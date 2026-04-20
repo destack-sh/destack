@@ -1,7 +1,9 @@
-use std::sync::Arc;
+use destack_core::CowBuffer;
 
 use super::{HeapError, HeapResult};
-use crate::HeapOptions;
+
+/// The standard entry count per copy on write metadata chunk.
+const DEFAULT_COW_TABLE_CHUNK_LEN: usize = 256;
 
 /// One dense copy on write table for stable heap metadata ids.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -11,7 +13,7 @@ pub(crate) struct CowTable<T> {
     /// The entry count per shared metadata chunk.
     chunk_len: usize,
     /// The shared metadata chunks in stable order.
-    chunks: Vec<Arc<Vec<T>>>,
+    chunks: Vec<CowBuffer<T>>,
 }
 
 impl<T> Default for CowTable<T> {
@@ -25,7 +27,7 @@ impl<T> CowTable<T> {
     pub(crate) fn new() -> Self {
         Self {
             len: 0,
-            chunk_len: HeapOptions::default().table_chunk_len,
+            chunk_len: DEFAULT_COW_TABLE_CHUNK_LEN,
             chunks: Vec::new(),
         }
     }
@@ -60,7 +62,7 @@ impl<T> CowTable<T> {
         let len = values.len();
         let chunks = values
             .chunks(chunk_len)
-            .map(|chunk| Arc::new(chunk.to_vec()))
+            .map(|chunk| CowBuffer::from_vec(chunk.to_vec()))
             .collect();
 
         Ok(Self {
@@ -85,7 +87,7 @@ impl<T> CowTable<T> {
         let chunk_index = index / self.chunk_len;
         let entry_index = index % self.chunk_len;
 
-        self.chunks.get(chunk_index)?.get(entry_index)
+        self.chunks.get(chunk_index)?.as_slice().get(entry_index)
     }
 
     /// Return one mutable entry by dense index.
@@ -100,10 +102,10 @@ impl<T> CowTable<T> {
 
         let chunk_index = index / self.chunk_len;
         let entry_index = index % self.chunk_len;
-        let chunk = self.chunks.get_mut(chunk_index)?;
-        let chunk = Arc::make_mut(chunk);
-
-        chunk.get_mut(entry_index)
+        self.chunks
+            .get_mut(chunk_index)?
+            .make_mut()
+            .get_mut(entry_index)
     }
 
     /// Append one new entry at the dense tail.
@@ -114,7 +116,7 @@ impl<T> CowTable<T> {
         // allocate one fresh chunk when the tail is full
         if self.len.is_multiple_of(self.chunk_len) || self.chunks.is_empty() {
             self.chunks
-                .push(Arc::new(Vec::with_capacity(self.chunk_len)));
+                .push(CowBuffer::from_vec(Vec::with_capacity(self.chunk_len)));
         }
 
         // append into the current tail chunk
@@ -124,9 +126,7 @@ impl<T> CowTable<T> {
             .checked_sub(1)
             .ok_or(HeapError::MissingTableEntry { index: self.len })?;
         let last_chunk = &mut self.chunks[last_chunk_index];
-        let last_chunk = Arc::make_mut(last_chunk);
-
-        last_chunk.push(value);
+        last_chunk.make_mut().push(value);
         self.len = self
             .len
             .checked_add(1)
@@ -167,7 +167,7 @@ impl<T> CowTable<T> {
 
     /// Return one iterator over every stored entry.
     pub(crate) fn iter(&self) -> impl Iterator<Item = &T> {
-        self.chunks.iter().flat_map(|chunk| chunk.iter())
+        self.chunks.iter().flat_map(CowBuffer::as_slice)
     }
 
     /// Return one boxed slice copy of every stored entry.

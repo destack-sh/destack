@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use super::{LargeEntry, LargeEntryImage, RawPointerEntry, RawSpace, SmallSpan, SmallSpanImage};
 use crate::arena::{Arena, PageRunCache, PageView, SizeClassTable};
-use crate::{AllocationTotals, CowTable, HeapError, HeapOptions};
+use crate::{AllocationUsage, CowTable, HeapError, HeapOptions};
 
 /// One frozen raw-space root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -134,7 +134,8 @@ impl RawSpaceImage {
 
 impl RawSpace {
     /// Fork one raw space over the same shared arena.
-    pub(crate) fn fork(&self) -> Result<Self, HeapError> {
+    pub(crate) fn fork(&mut self) -> Result<Self, HeapError> {
+        self.flush_branch_boundary();
         let page_views = live_page_views(self);
         let mut retained = Vec::new();
 
@@ -161,7 +162,7 @@ impl RawSpace {
                 pointers: self.pointers.clone(),
                 free_pointer_ids: self.free_pointer_ids.clone(),
                 next_unused_pointer_id: self.next_unused_pointer_id,
-                totals: self.totals,
+                usage: self.usage,
             })
         })();
 
@@ -214,7 +215,7 @@ impl RawSpace {
                 pointers,
                 free_pointer_ids,
                 next_unused_pointer_id: image.next_unused_pointer_id(),
-                totals: AllocationTotals::new(image.allocated_count(), image.allocated_bytes()),
+                usage: AllocationUsage::new(image.allocated_count(), image.allocated_bytes()),
             })
         })();
 
@@ -230,7 +231,9 @@ impl RawSpace {
     }
 
     /// Return one frozen raw-space root.
-    pub(crate) fn image(&self) -> RawSpaceImage {
+    pub(crate) fn image(&mut self) -> RawSpaceImage {
+        self.flush_branch_boundary();
+
         // capture the live raw storage directly
         let spans = self.capture_span_images();
         let entries = self.capture_large_entry_images();
@@ -247,8 +250,8 @@ impl RawSpace {
             pointers,
             self.next_unused_pointer_id,
             self.large.next_unused_large_entry_id,
-            self.totals.allocation_count(),
-            self.totals.allocated_bytes(),
+            self.usage.allocation_count(),
+            self.usage.allocated_bytes(),
         )
     }
 

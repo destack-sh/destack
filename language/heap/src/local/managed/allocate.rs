@@ -1,56 +1,47 @@
 use super::{
-    CardSet, EdgeId, EdgeMap, LargeEntry, LargeEntryId, ManagedLocation, ManagedReferenceEntry,
+    CardSet, HeapScan, LargeEntry, LargeEntryId, ManagedLocation, ManagedReferenceEntry,
     ManagedSpace, ManagedYoungId, SmallSpan, YoungEntry, checked_reference_id,
 };
 use crate::arena::{Arena, PageView, SpanSlot};
-use crate::value::ManagedReference;
-use crate::{Bitmap, HeapDomain, HeapError, HeapResult, LayoutId};
+use crate::{Bitmap, HeapError, HeapResult, HeapSpace, LayoutId, ManagedReference, Shape, ShapeId};
 
-/// One managed payload source for entry initialization.
-enum ManagedAllocationSource<'a> {
-    /// One caller-provided byte payload.
-    Bytes(&'a [u8]),
-    /// One zeroed payload of the given byte length.
-    Zeroed(usize),
+/// One exact managed allocation path.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum ManagedAllocationPath {
+    /// One young-space allocation.
+    Young,
+    /// One small-space allocation.
+    Small {
+        /// The resolved size-class index.
+        class_index: usize,
+        /// The resolved slot width.
+        size_class: usize,
+        /// The mapped-byte delta for this path.
+        mapped_delta: i64,
+    },
+    /// One large-space allocation.
+    Large {
+        /// The mapped-byte delta for this path.
+        mapped_delta: i64,
+    },
 }
 
-impl ManagedAllocationSource<'_> {
-    /// Return the logical byte length for this payload source.
-    fn byte_len(&self) -> usize {
+impl ManagedAllocationPath {
+    /// Return the mapped-byte delta for this allocation path.
+    pub(crate) fn mapped_delta(self) -> i64 {
         match self {
-            Self::Bytes(bytes) => bytes.len(),
-            Self::Zeroed(byte_len) => *byte_len,
-        }
-    }
-
-    /// Return one small-slot source for this payload.
-    fn as_small_source(&self) -> ManagedSmallSource<'_> {
-        match self {
-            Self::Bytes(bytes) => ManagedSmallSource::Bytes(bytes),
-            Self::Zeroed(byte_len) => ManagedSmallSource::Zeroed(*byte_len),
-        }
-    }
-
-    /// Write this payload into one young-space byte range.
-    fn write_young(
-        &self,
-        arena: &Arena,
-        pages: &mut PageView,
-        write_offset: usize,
-    ) -> HeapResult<()> {
-        match self {
-            Self::Bytes(bytes) => arena.set_bytes(pages, write_offset, bytes),
-            Self::Zeroed(_) => Ok(()),
+            Self::Young => 0,
+            Self::Small { mapped_delta, .. } | Self::Large { mapped_delta } => mapped_delta,
         }
     }
 }
 
-/// One managed small-slot initialization source.
-enum ManagedSmallSource<'a> {
+/// One managed slot initialization mode.
+enum SlotWrite<'a> {
     /// One caller-provided byte payload.
     Bytes(&'a [u8]),
-    /// One zeroed payload of the given byte length.
-    Zeroed(usize),
+    /// One zeroed payload.
+    Zeroed,
     /// One logical byte range copied from one page view.
     PageView {
         /// The source logical page view.
@@ -62,16 +53,7 @@ enum ManagedSmallSource<'a> {
     },
 }
 
-impl ManagedSmallSource<'_> {
-    /// Return the logical byte length for this slot source.
-    fn byte_len(&self) -> usize {
-        match self {
-            Self::Bytes(bytes) => bytes.len(),
-            Self::Zeroed(byte_len) => *byte_len,
-            Self::PageView { byte_len, .. } => *byte_len,
-        }
-    }
-
+impl SlotWrite<'_> {
     /// Initialize one managed small-slot payload.
     fn initialize_slot(
         &self,
@@ -81,7 +63,7 @@ impl ManagedSmallSource<'_> {
     ) -> HeapResult<()> {
         match self {
             Self::Bytes(bytes) => arena.set_bytes(pages, slot_offset, bytes),
-            Self::Zeroed(_) => Ok(()),
+            Self::Zeroed => Ok(()),
             Self::PageView {
                 page_view,
                 start,
@@ -98,57 +80,193 @@ impl ManagedSmallSource<'_> {
 }
 
 impl ManagedSpace {
-    /// Return the projected mapped-byte delta for one managed entry.
-    pub fn alloc_mapped_delta(
-        &self,
-        byte_len: usize,
-        _reference_map: &EdgeMap,
-        _layout_id: Option<LayoutId>,
-    ) -> i64 {
-        self.project_allocate_mapped_delta(byte_len)
+    /// Return one exact managed allocation path for the requested byte length.
+    pub(crate) fn allocation_path(&self, byte_len: usize) -> ManagedAllocationPath {
+        // keep young allocations on the nursery tail when they still fit
+        if byte_len <= self.max_young_allocation_bytes
+            && self
+                .young
+                .next_offset
+                .checked_add(byte_len)
+                .is_some_and(|next_offset| next_offset <= self.young.capacity_bytes)
+        {
+            return ManagedAllocationPath::Young;
+        }
+
+        // otherwise resolve the mature small class exactly once
+        if let Some(class_index) = self.small.size_classes.class_index_for(byte_len) {
+            let size_class = self.small.size_classes.classes[class_index].bytes;
+            let mapped_delta = if self.has_available_small_slot(class_index) {
+                0
+            } else {
+                self.small.span_bytes as i64
+            };
+
+            return ManagedAllocationPath::Small {
+                class_index,
+                size_class,
+                mapped_delta,
+            };
+        }
+
+        ManagedAllocationPath::Large {
+            mapped_delta: self.round_up_large_entry_bytes(byte_len) as i64,
+        }
     }
 
     /// Allocate one managed byte entry.
     pub fn allocate_bytes(
         &mut self,
         bytes: &[u8],
-        edge_map: EdgeMap,
+        scan: impl Into<HeapScan>,
         layout_id: Option<LayoutId>,
     ) -> HeapResult<ManagedReference> {
-        self.allocate_with_source(ManagedAllocationSource::Bytes(bytes), edge_map, layout_id)
+        let path = self.allocation_path(bytes.len());
+
+        self.allocate_with_bytes(bytes.len(), Some(bytes), scan, layout_id, path)
     }
 
     /// Allocate one zeroed managed byte entry.
     pub fn allocate_zeroed(
         &mut self,
         byte_len: usize,
-        edge_map: EdgeMap,
+        scan: impl Into<HeapScan>,
         layout_id: Option<LayoutId>,
     ) -> HeapResult<ManagedReference> {
-        self.allocate_with_source(
-            ManagedAllocationSource::Zeroed(byte_len),
-            edge_map,
-            layout_id,
-        )
+        let path = self.allocation_path(byte_len);
+
+        self.allocate_with_bytes(byte_len, None, scan, layout_id, path)
     }
 
-    /// Allocate one managed payload from one explicit payload source.
-    fn allocate_with_source(
+    /// Allocate one managed byte entry through one precomputed allocation path.
+    pub(crate) fn place_bytes(
         &mut self,
-        source: ManagedAllocationSource<'_>,
-        edge_map: EdgeMap,
+        bytes: &[u8],
+        scan: impl Into<HeapScan>,
         layout_id: Option<LayoutId>,
+        path: ManagedAllocationPath,
+    ) -> HeapResult<ManagedReference> {
+        self.allocate_with_bytes(bytes.len(), Some(bytes), scan, layout_id, path)
+    }
+
+    /// Allocate one zeroed managed byte entry through one precomputed allocation path.
+    pub(crate) fn place_zeroed(
+        &mut self,
+        byte_len: usize,
+        scan: impl Into<HeapScan>,
+        layout_id: Option<LayoutId>,
+        path: ManagedAllocationPath,
+    ) -> HeapResult<ManagedReference> {
+        self.allocate_with_bytes(byte_len, None, scan, layout_id, path)
+    }
+
+    /// Free one managed entry.
+    pub fn free(&mut self, reference: ManagedReference) -> HeapResult<bool> {
+        // resolve the live entry first
+        let reference_id = reference.id();
+        let Some(record) = self.reference(reference).copied() else {
+            return Err(HeapError::InvalidManagedReference { reference });
+        };
+        let Some(location) = record.location() else {
+            return Err(HeapError::InvalidManagedReference { reference });
+        };
+        let freed_bytes = record.byte_len() as u64;
+        self.usage.check_free(freed_bytes, HeapSpace::Managed)?;
+
+        match location {
+            // release one young entry in place
+            ManagedLocation::Young(young_id) => {
+                let Some(entry) = self.young_entry_mut(young_id) else {
+                    return Err(HeapError::MissingYoungEntry {
+                        generation: young_id.generation(),
+                        entry_index: young_id.index(),
+                    });
+                };
+
+                entry.is_live = false;
+
+                // update heap usage
+                self.usage.free(freed_bytes, HeapSpace::Managed)?;
+
+                // clear the stable reference slot
+                self.retire_reference(reference_id)?;
+
+                Ok(true)
+            }
+
+            // release one small-span slot
+            ManagedLocation::Small(slot) => {
+                self.release_small_slot(slot)?;
+
+                // update heap usage
+                self.usage.free(freed_bytes, HeapSpace::Managed)?;
+
+                // clear the stable reference slot
+                self.retire_reference(reference_id)?;
+
+                Ok(true)
+            }
+
+            // release one entry in large space and its arena pages
+            ManagedLocation::Large(entry_id) => {
+                let Some(entry) = self.large_entry(entry_id) else {
+                    return Err(HeapError::MissingLargeEntry {
+                        entry_id: entry_id.id(),
+                    });
+                };
+
+                let pages = entry.pages;
+
+                let Some(entry) = self.large_entry_mut(entry_id) else {
+                    return Err(HeapError::MissingLargeEntry {
+                        entry_id: entry_id.id(),
+                    });
+                };
+
+                // retire the live large-entry slot before releasing its pages
+                entry.retire();
+                self.large.free_large_entry_ids.push(entry_id.id());
+
+                // update heap usage
+                self.usage.free(freed_bytes, HeapSpace::Managed)?;
+
+                // clear the stable reference slot
+                self.retire_reference(reference_id)?;
+
+                // release the old physical pages after the live slot is gone
+                self.release_page_view(pages)?;
+
+                Ok(true)
+            }
+        }
+    }
+
+    /// Allocate one managed payload from explicit bytes or one zeroed length.
+    fn allocate_with_bytes(
+        &mut self,
+        byte_len: usize,
+        bytes: Option<&[u8]>,
+        scan: impl Into<HeapScan>,
+        layout_id: Option<LayoutId>,
+        path: ManagedAllocationPath,
     ) -> HeapResult<ManagedReference> {
         // resolve reference metadata and allocate one stable reference id
-        let (edge_id, _) = self.edge_table.intern(edge_map)?;
+        let shape_id = self.shape_table.intern(Shape {
+            scan: scan.into(),
+            layout_id,
+        })?;
         let reference_id = self.allocate_reference_id()?;
         let reference = ManagedReference::new(reference_id);
-        let byte_len = source.byte_len();
-        let location = self.allocate_location(source, edge_id, layout_id)?;
+        let location = self.allocate_location(byte_len, bytes, shape_id, path)?;
 
         // install the live reference record and counters
         self.set_reference_entry(reference_id, ManagedReferenceEntry::new(location, byte_len))?;
-        self.totals.allocate(byte_len, HeapDomain::Managed)?;
+        self.usage.allocate(byte_len, HeapSpace::Managed)?;
+
+        // queue newly published shared edges during an active shared cycle
+        if bytes.is_some() {
+            self.queue_shared_reference(reference)?;
+        }
 
         Ok(reference)
     }
@@ -156,31 +274,60 @@ impl ManagedSpace {
     /// Allocate one managed storage location for the given payload.
     fn allocate_location(
         &mut self,
-        source: ManagedAllocationSource<'_>,
-        edge_id: EdgeId,
-        layout_id: Option<LayoutId>,
+        byte_len: usize,
+        bytes: Option<&[u8]>,
+        shape_id: ShapeId,
+        path: ManagedAllocationPath,
     ) -> HeapResult<ManagedLocation> {
-        let byte_len = source.byte_len();
+        match path {
+            // execute the precomputed young path directly
+            ManagedAllocationPath::Young => {
+                let Some(young_id) = self.allocate_young(byte_len, bytes, shape_id)? else {
+                    return Err(HeapError::MissingYoungEntry {
+                        generation: self.young.generation,
+                        entry_index: self.young.entries.len() as u32,
+                    });
+                };
 
-        // prefer young space first
-        if byte_len <= self.max_young_allocation_bytes
-            && let Some(young_id) = self.allocate_young(&source, edge_id, layout_id)?
-        {
-            return Ok(ManagedLocation::Young(young_id));
+                Ok(ManagedLocation::Young(young_id))
+            }
+
+            // execute the precomputed small path directly
+            ManagedAllocationPath::Small {
+                class_index,
+                size_class,
+                ..
+            } => {
+                let init = match bytes {
+                    Some(bytes) => SlotWrite::Bytes(bytes),
+                    None => SlotWrite::Zeroed,
+                };
+                let span_index = self.allocate_small_span(class_index, size_class)?;
+                let Some(span) = self.small.spans.get(span_index) else {
+                    return Err(HeapError::MissingSpan { span_index });
+                };
+                let slot_index = span.next_free_slot;
+                let slot = self.initialize_small_slot(
+                    class_index,
+                    span_index,
+                    slot_index,
+                    init,
+                    byte_len,
+                    shape_id,
+                    true,
+                )?;
+
+                Ok(ManagedLocation::Small(slot))
+            }
+
+            // execute the precomputed large path directly
+            ManagedAllocationPath::Large { .. } => {
+                let pages = self.allocate_large_pages(byte_len, bytes)?;
+                let entry_id = self.store_large_entry(byte_len, pages, shape_id, true)?;
+
+                Ok(ManagedLocation::Large(entry_id))
+            }
         }
-
-        // otherwise try one mature small slot
-        if let Some(slot) =
-            self.allocate_small(source.as_small_source(), edge_id, layout_id, true)?
-        {
-            return Ok(ManagedLocation::Small(slot));
-        }
-
-        // otherwise fall back to one dedicated large entry
-        let pages = self.allocate_large_pages(source)?;
-        let entry_id = self.store_large_entry(byte_len, pages, edge_id, layout_id, true)?;
-
-        Ok(ManagedLocation::Large(entry_id))
     }
 
     /// Allocate one reference id from the intrusive free list or the unused tail.
@@ -202,43 +349,72 @@ impl ManagedSpace {
             Ok(reference_id)
         }
     }
-    /// Return the projected mapped-byte delta for one managed entry.
-    fn project_allocate_mapped_delta(&self, byte_len: usize) -> i64 {
-        // young entries only grow mapped usage when they spill past the tail
-        if byte_len <= self.max_young_allocation_bytes
-            && self
-                .young
-                .next_offset
-                .checked_add(byte_len)
-                .is_some_and(|next_offset| next_offset <= self.young.capacity_bytes)
-        {
-            return 0;
-        }
 
-        // small entries only grow mapped usage when they need a fresh span
-        if let Some(class_index) = self.small.size_classes.class_index_for(byte_len) {
-            if self.has_available_small_slot(class_index) {
-                return 0;
+    /// Release one managed small slot without retiring its stable reference id.
+    pub(crate) fn release_small_slot(&mut self, slot: SpanSlot) -> HeapResult<()> {
+        let pages = {
+            let Some(span) = self.span_mut(slot.span_index()) else {
+                return Err(HeapError::MissingSpan {
+                    span_index: slot.span_index(),
+                });
+            };
+
+            let slot_index = slot.slot_index();
+            let was_full = span.occupied_count == span.slot_count;
+            let size_class = span.size_class;
+
+            if !span.occupied.contains(slot_index) {
+                return Err(HeapError::MissingSmallSlot {
+                    span_index: slot.span_index(),
+                    slot_index,
+                });
+            }
+            if span.occupied_count == 0 {
+                return Err(HeapError::MissingSmallSlot {
+                    span_index: slot.span_index(),
+                    slot_index,
+                });
             }
 
-            return self.small.span_bytes as i64;
+            span.occupied.clear(slot_index);
+            span.occupied_count -= 1;
+            span.next_free_slot = span.next_free_slot.min(slot_index);
+            span.set_shape_id(slot_index, None);
+
+            // release fully empty span pages back into the local cache
+            if span.occupied_count == 0 {
+                span.next_free_slot = 0;
+                span.dirty_cards.clear();
+                span.is_dirty_queued = false;
+
+                let pages = span.pages;
+                span.pages = PageView::empty();
+
+                Some(pages)
+            }
+            // otherwise requeue the span if it was full before the free
+            else {
+                let should_requeue = was_full && span.occupied_count < span.slot_count;
+                if should_requeue
+                    && let Some(class_index) = self.small.size_classes.class_index_for(size_class)
+                {
+                    self.small.available_spans[class_index].push(slot.span_index());
+                }
+
+                None
+            }
+        };
+
+        if let Some(pages) = pages {
+            self.release_page_view(pages)?;
         }
 
-        self.round_up_large_entry_bytes(byte_len) as i64
+        Ok(())
     }
 
     /// Return whether one size class still has one live reusable slot.
     fn has_available_small_slot(&self, class_index: usize) -> bool {
-        self.small.available_spans[class_index]
-            .iter()
-            .copied()
-            .any(|span_index| {
-                self.small
-                    .spans
-                    .get(span_index)
-                    .map(|span| span.occupied_count < span.slot_count)
-                    .unwrap_or(false)
-            })
+        !self.small.available_spans[class_index].is_empty()
     }
 
     /// Return the page-rounded mapped bytes for one managed large entry.
@@ -254,8 +430,7 @@ impl ManagedSpace {
         &mut self,
         len: usize,
         pages: PageView,
-        edge_id: EdgeId,
-        layout_id: Option<LayoutId>,
+        shape_id: ShapeId,
         remember: bool,
     ) -> HeapResult<LargeEntryId> {
         // reuse one freed large entry id when possible
@@ -292,8 +467,7 @@ impl ManagedSpace {
             is_live: true,
             len,
             pages,
-            edge_id,
-            layout_id,
+            shape_id,
             dirty_cards: CardSet::with_len(len, self.card_bytes),
             is_dirty_queued: false,
         };
@@ -322,18 +496,19 @@ impl ManagedSpace {
     /// Allocate one young entry if the young space has room.
     fn allocate_young(
         &mut self,
-        source: &ManagedAllocationSource<'_>,
-        edge_id: EdgeId,
-        layout_id: Option<LayoutId>,
+        byte_len: usize,
+        bytes: Option<&[u8]>,
+        shape_id: ShapeId,
     ) -> HeapResult<Option<ManagedYoungId>> {
-        let Some((young_id, write_offset)) =
-            self.reserve_young_entry(source.byte_len(), edge_id, layout_id)
-        else {
+        let Some((young_id, write_offset)) = self.reserve_young_entry(byte_len, shape_id) else {
             return Ok(None);
         };
 
         // initialize the reserved young-space range
-        source.write_young(&self.arena, &mut self.young.pages, write_offset)?;
+        if let Some(bytes) = bytes {
+            self.arena
+                .set_bytes(&mut self.young.pages, write_offset, bytes)?;
+        }
 
         Ok(Some(young_id))
     }
@@ -342,8 +517,7 @@ impl ManagedSpace {
     fn reserve_young_entry(
         &mut self,
         byte_len: usize,
-        edge_id: EdgeId,
-        layout_id: Option<LayoutId>,
+        shape_id: ShapeId,
     ) -> Option<(ManagedYoungId, usize)> {
         // reject entries that do not fit the young-space tail
         let write_offset = self.young.next_offset;
@@ -360,8 +534,7 @@ impl ManagedSpace {
             first_page: (write_offset / self.young.page_bytes) as u32,
             first_offset: (write_offset % self.young.page_bytes) as u32,
             byte_len,
-            edge_id,
-            layout_id,
+            shape_id,
             is_live: true,
         };
 
@@ -377,17 +550,16 @@ impl ManagedSpace {
         ))
     }
 
-    /// Allocate one small managed slot from one explicit initialization source.
-    fn allocate_small(
+    /// Allocate one copied small slot from one source page view.
+    pub(crate) fn allocate_small_from_page_view(
         &mut self,
-        source: ManagedSmallSource<'_>,
-        edge_id: EdgeId,
-        layout_id: Option<LayoutId>,
+        source_page_view: &PageView,
+        source_start: usize,
+        byte_len: usize,
+        shape_id: ShapeId,
         remember: bool,
     ) -> HeapResult<Option<SpanSlot>> {
-        let Some((class_index, span_index, slot_index)) =
-            self.reserve_small_slot(source.byte_len())?
-        else {
+        let Some((class_index, span_index, slot_index)) = self.reserve_small_slot(byte_len)? else {
             return Ok(None);
         };
 
@@ -395,34 +567,44 @@ impl ManagedSpace {
             class_index,
             span_index,
             slot_index,
-            source,
-            edge_id,
-            layout_id,
+            SlotWrite::PageView {
+                page_view: source_page_view,
+                start: source_start,
+                byte_len,
+            },
+            byte_len,
+            shape_id,
             remember,
         )
         .map(Some)
     }
 
-    /// Allocate one copied small slot from one source page view.
-    pub(crate) fn allocate_small_from_page_view(
+    /// Allocate one dedicated large-entry page view for the given payload source.
+    fn allocate_large_pages(
         &mut self,
-        source_page_view: &PageView,
-        source_start: usize,
         byte_len: usize,
-        edge_id: EdgeId,
-        layout_id: Option<LayoutId>,
-        remember: bool,
-    ) -> HeapResult<Option<SpanSlot>> {
-        self.allocate_small(
-            ManagedSmallSource::PageView {
-                page_view: source_page_view,
-                start: source_start,
-                byte_len,
-            },
-            edge_id,
-            layout_id,
-            remember,
-        )
+        bytes: Option<&[u8]>,
+    ) -> HeapResult<PageView> {
+        match bytes {
+            Some(bytes) => self.allocate_page_view_bytes(bytes),
+            None => self.allocate_page_view_zeroed(byte_len),
+        }
+    }
+
+    /// Reserve one managed small-slot location for the given byte length.
+    fn reserve_small_slot(&mut self, byte_len: usize) -> HeapResult<Option<(usize, usize, usize)>> {
+        // resolve the matching size class first
+        let Some(class_index) = self.small.size_classes.class_index_for(byte_len) else {
+            return Ok(None);
+        };
+        let size_class = self.small.size_classes.classes[class_index].bytes;
+        let span_index = self.allocate_small_span(class_index, size_class)?;
+        let Some(span) = self.small.spans.get(span_index) else {
+            return Err(HeapError::MissingSpan { span_index });
+        };
+        let slot_index = span.next_free_slot;
+
+        Ok(Some((class_index, span_index, slot_index)))
     }
 
     /// Allocate or reuse one non-full managed span for the given size class.
@@ -464,8 +646,7 @@ impl ManagedSpace {
             occupied_count: 0,
             next_free_slot: 0,
             occupied: Bitmap::with_capacity(slot_count),
-            edge_ids: vec![EdgeId::empty(); slot_count].into_boxed_slice(),
-            layout_ids: vec![None; slot_count].into_boxed_slice(),
+            shape_ids: vec![None; slot_count].into_boxed_slice(),
             pages,
             dirty_cards: CardSet::with_len(dirty_card_bytes, self.card_bytes),
             is_dirty_queued: false,
@@ -480,45 +661,17 @@ impl ManagedSpace {
         Ok(span_index)
     }
 
-    /// Allocate one dedicated large-entry page view for the given payload source.
-    fn allocate_large_pages(
-        &mut self,
-        source: ManagedAllocationSource<'_>,
-    ) -> HeapResult<PageView> {
-        match source {
-            ManagedAllocationSource::Bytes(bytes) => self.allocate_page_view_bytes(bytes),
-            ManagedAllocationSource::Zeroed(byte_len) => self.allocate_page_view_zeroed(byte_len),
-        }
-    }
-
-    /// Reserve one managed small-slot location for the given byte length.
-    fn reserve_small_slot(&mut self, byte_len: usize) -> HeapResult<Option<(usize, usize, usize)>> {
-        // resolve the matching size class first
-        let Some(class_index) = self.small.size_classes.class_index_for(byte_len) else {
-            return Ok(None);
-        };
-        let size_class = self.small.size_classes.classes[class_index].bytes;
-        let span_index = self.allocate_small_span(class_index, size_class)?;
-        let Some(span) = self.small.spans.get(span_index) else {
-            return Err(HeapError::MissingSpan { span_index });
-        };
-        let slot_index = span.next_free_slot;
-
-        Ok(Some((class_index, span_index, slot_index)))
-    }
-
     /// Initialize one reserved managed small-slot location.
     fn initialize_small_slot(
         &mut self,
         class_index: usize,
         span_index: usize,
         slot_index: usize,
-        source: ManagedSmallSource<'_>,
-        edge_id: EdgeId,
-        layout_id: Option<LayoutId>,
+        init: SlotWrite<'_>,
+        byte_len: usize,
+        shape_id: ShapeId,
         remember: bool,
     ) -> HeapResult<SpanSlot> {
-        let source_byte_len = source.byte_len();
         let should_requeue;
         let init_error;
 
@@ -532,7 +685,7 @@ impl ManagedSpace {
                         slot_index,
                     })?;
 
-            if let Err(error) = source.initialize_slot(&self.arena, &mut span.pages, slot_offset) {
+            if let Err(error) = init.initialize_slot(&self.arena, &mut span.pages, slot_offset) {
                 should_requeue = span.occupied_count < span.slot_count;
                 init_error = Some(error);
             } else {
@@ -547,8 +700,7 @@ impl ManagedSpace {
                     .occupied
                     .first_clear_from(slot_index)
                     .unwrap_or(span.slot_count);
-                span.set_edge_id(slot_index, edge_id);
-                span.set_layout_id(slot_index, layout_id);
+                span.set_shape_id(slot_index, Some(shape_id));
                 should_requeue = span.occupied_count < span.slot_count;
                 init_error = None;
             }
@@ -569,7 +721,7 @@ impl ManagedSpace {
 
         // remember new mature entries conservatively
         if remember {
-            self.mark_span_slot_dirty(span_index, slot_index, 0, source_byte_len)?;
+            self.mark_span_slot_dirty(span_index, slot_index, 0, byte_len)?;
         }
 
         Ok(slot)

@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use super::EdgeId;
 use crate::arena::{Arena, PageRunCache, PageView};
-use crate::{HeapError, HeapResult, LayoutId};
+use crate::{HeapError, HeapResult, ShapeId};
 
 /// One stable managed young-entry identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -39,10 +38,8 @@ pub(crate) struct YoungEntry {
     pub(crate) first_offset: u32,
     /// The logical byte length for this entry.
     pub(crate) byte_len: usize,
-    /// The interned edge map for this entry.
-    pub(crate) edge_id: EdgeId,
-    /// The durable layout id for this entry, if any.
-    pub(crate) layout_id: Option<LayoutId>,
+    /// The interned entry shape for this entry.
+    pub(crate) shape_id: ShapeId,
     /// Whether this young entry is still live.
     pub(crate) is_live: bool,
 }

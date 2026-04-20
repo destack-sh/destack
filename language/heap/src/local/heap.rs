@@ -3,8 +3,19 @@ use std::sync::Arc;
 use crate::arena::Arena;
 use crate::local::managed::ManagedSpace;
 use crate::local::raw::RawSpace;
-use crate::value::{ManagedReference, RawPointer, Value};
-use crate::{EdgeMap, GcState, GcStats, HeapError, HeapLimits, HeapOptions, HeapResult, LayoutId};
+use crate::{
+    GcPacer, GcState, GcStats, HeapLimits, HeapOptions, HeapResult, HeapScan, LayoutId,
+    ManagedReference, RawPointer, SharedManagedReference,
+};
+
+/// One pending local GC request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum GcRequest {
+    /// Run one minor cycle.
+    Minor,
+    /// Run one full cycle.
+    Full,
+}
 
 /// One live local heap rooted in one shared arena.
 #[derive(Debug)]
@@ -13,6 +24,10 @@ pub struct Heap {
     pub(super) arena: Arc<Arena>,
     /// The configured heap options.
     pub(super) options: HeapOptions,
+    /// The derived collector pacing targets.
+    pub(super) gc_pacer: GcPacer,
+    /// The pending pacing or explicit collection request.
+    pub(super) gc_request: Option<GcRequest>,
     /// The managed local allocation space.
     pub(super) managed: ManagedSpace,
     /// The raw local allocation space.
@@ -24,7 +39,7 @@ pub struct Heap {
 impl Heap {
     /// Create one heap with the default limits and options.
     pub fn new() -> HeapResult<Self> {
-        Self::with_limits_and_options(HeapLimits::default(), HeapOptions::default())
+        Self::with_limits_and_options(HeapLimits::default(), HeapOptions::local())
     }
 
     /// Create one heap with explicit limits and options.
@@ -46,13 +61,19 @@ impl Heap {
         limits: HeapLimits,
         options: HeapOptions,
     ) -> HeapResult<Self> {
-        Ok(Self {
+        let mut heap = Self {
             managed: ManagedSpace::build_with_options(arena.clone(), &options)?,
             raw: RawSpace::with_options(arena.clone(), &options)?,
             arena,
             options,
+            gc_pacer: GcPacer::default(),
+            gc_request: None,
             limits,
-        })
+        };
+
+        heap.refresh_gc_request();
+
+        Ok(heap)
     }
 
     /// Return the shared page arena.
@@ -96,57 +117,153 @@ impl Heap {
         self.managed.gc_state()
     }
 
-    /// Perform one young managed collection over explicit roots.
-    pub fn collect_young(
+    /// Start one incremental local-to-shared root scan.
+    pub fn start_shared_root_scan(&mut self) {
+        self.managed.start_shared_root_scan();
+    }
+
+    /// Return whether the current local-to-shared root scan is drained.
+    pub fn shared_root_scan_idle(&self) -> bool {
+        self.managed.shared_root_scan_idle()
+    }
+
+    /// Finish the current local-to-shared root scan.
+    pub fn finish_shared_root_scan(&mut self) {
+        self.managed.finish_shared_root_scan();
+    }
+
+    /// Scan bounded local-to-shared root work into the provided root buffer.
+    pub fn scan_shared_root_step(
+        &mut self,
+        roots: &mut Vec<SharedManagedReference>,
+        work_items: usize,
+    ) -> HeapResult<usize> {
+        self.managed.scan_shared_root_step(roots, work_items)
+    }
+
+    /// Pin one local managed reference against movement.
+    pub fn pin_managed(&mut self, reference: ManagedReference) -> HeapResult<()> {
+        self.managed.pin(reference)
+    }
+
+    /// Release one local managed pin.
+    pub fn unpin_managed(&mut self, reference: ManagedReference) -> HeapResult<()> {
+        self.managed.unpin(reference)
+    }
+
+    /// Return the current derived collector pacing targets.
+    pub fn gc_pacer(&self) -> GcPacer {
+        let mut gc_pacer = self.gc_pacer;
+        gc_pacer.update(self.options.gc, self.managed_allocated_bytes());
+
+        gc_pacer
+    }
+
+    /// Perform one minor managed collection over explicit roots.
+    pub fn collect_minor(
         &mut self,
         roots: impl IntoIterator<Item = ManagedReference>,
     ) -> HeapResult<GcStats> {
-        self.managed.collect_young(roots)
+        let stats = self.managed.collect_minor(roots)?;
+        self.note_gc_cycle(stats);
+
+        Ok(stats)
     }
 
     /// Perform one full managed collection over explicit roots.
-    pub fn collect(
+    pub fn collect_full(
         &mut self,
         roots: impl IntoIterator<Item = ManagedReference>,
     ) -> HeapResult<GcStats> {
-        self.managed.collect(roots)
+        let stats = self.managed.collect_full(roots)?;
+        self.note_gc_cycle(stats);
+
+        Ok(stats)
+    }
+
+    /// Request one minor collection at the next safepoint.
+    pub fn request_minor_gc(&mut self) {
+        self.request_gc(GcRequest::Minor);
+    }
+
+    /// Request one full collection at the next safepoint.
+    pub fn request_full_gc(&mut self) {
+        self.request_gc(GcRequest::Full);
+    }
+
+    /// Run one pacing-driven local collection step at one safepoint.
+    pub fn gc_step(
+        &mut self,
+        roots: impl IntoIterator<Item = ManagedReference>,
+    ) -> HeapResult<Option<GcStats>> {
+        let Some(gc_request) = self.gc_request.take() else {
+            return Ok(None);
+        };
+
+        let roots = roots.into_iter().collect::<Vec<_>>();
+
+        // full cycles compact mature space and clear all young debt
+        if gc_request == GcRequest::Full {
+            let stats = self.collect_full(roots.iter().copied())?;
+
+            return Ok(Some(stats));
+        }
+
+        // minor cycles keep the steady-state path short
+        let stats = self.collect_minor(roots.iter().copied())?;
+
+        Ok(Some(stats))
     }
 
     /// Allocate one managed byte allocation.
     pub fn allocate_managed_bytes(
         &mut self,
         bytes: &[u8],
-        edge_map: EdgeMap,
+        scan: impl Into<HeapScan>,
         layout_id: Option<LayoutId>,
     ) -> HeapResult<ManagedReference> {
+        let scan = scan.into();
+        let path = self.managed.allocation_path(bytes.len());
+
         // check the projected managed mapped-byte delta first
-        self.check_managed_allocation_mapped_delta(bytes.len(), &edge_map, layout_id)?;
+        self.check_mapped_delta(path.mapped_delta(), 0)?;
 
         // then allocate through managed space
-        self.managed.allocate_bytes(bytes, edge_map, layout_id)
+        let reference = self.managed.place_bytes(bytes, scan, layout_id, path)?;
+        self.refresh_gc_request();
+
+        Ok(reference)
     }
 
     /// Allocate one raw byte allocation.
     pub fn allocate_raw_bytes(&mut self, bytes: &[u8]) -> HeapResult<RawPointer> {
+        let path = self.raw.allocation_path(bytes.len());
+
         // check the projected raw mapped-byte delta first
-        self.check_raw_allocation_mapped_delta(bytes.len())?;
+        self.check_mapped_delta(0, path.mapped_delta())?;
 
         // then allocate through raw space
-        self.raw.allocate_bytes(bytes)
+        self.raw.place_bytes(bytes, path)
     }
 
     /// Allocate one zeroed managed byte allocation.
     pub fn allocate_managed_zeroed(
         &mut self,
         byte_len: usize,
-        edge_map: EdgeMap,
+        scan: impl Into<HeapScan>,
         layout_id: Option<LayoutId>,
     ) -> HeapResult<ManagedReference> {
+        let scan = scan.into();
+        let path = self.managed.allocation_path(byte_len);
+
         // check the projected managed mapped-byte delta first
-        self.check_managed_allocation_mapped_delta(byte_len, &edge_map, layout_id)?;
+        self.check_mapped_delta(path.mapped_delta(), 0)?;
 
         // then allocate through managed space
-        self.managed.allocate_zeroed(byte_len, edge_map, layout_id)
+        let reference = self.managed.place_zeroed(byte_len, scan, layout_id, path)?;
+        self.refresh_gc_request();
+
+        Ok(reference)
     }
 
     /// Return whether one managed reference currently refers to one live allocation.
@@ -179,9 +296,9 @@ impl Heap {
         self.managed.layout_id(reference)
     }
 
-    /// Return the managed edge map for one managed allocation.
-    pub fn edge_map(&self, reference: ManagedReference) -> HeapResult<&EdgeMap> {
-        self.managed.edge_map(reference)
+    /// Return the managed scan metadata for one managed allocation.
+    pub fn scan(&self, reference: ManagedReference) -> HeapResult<&HeapScan> {
+        self.managed.scan(reference)
     }
 
     /// Overwrite one managed byte range.
@@ -212,31 +329,13 @@ impl Heap {
 
     /// Allocate one zeroed raw byte allocation.
     pub fn allocate_raw_zeroed(&mut self, byte_len: usize) -> HeapResult<RawPointer> {
+        let path = self.raw.allocation_path(byte_len);
+
         // check the projected raw mapped-byte delta first
-        self.check_raw_allocation_mapped_delta(byte_len)?;
+        self.check_mapped_delta(0, path.mapped_delta())?;
 
         // then allocate through raw space
-        self.raw.allocate_zeroed(byte_len)
-    }
-
-    /// Allocate one raw value buffer.
-    pub fn allocate_raw_values(&mut self, values: Vec<Value>) -> HeapResult<RawPointer> {
-        // flatten the values into one raw byte buffer first
-        let bytes = Self::raw_value_bytes(values);
-
-        self.allocate_raw_bytes(&bytes)
-    }
-
-    /// Allocate one zeroed raw value buffer with one explicit slot count.
-    pub fn allocate_raw_slots(&mut self, slot_count: usize) -> HeapResult<RawPointer> {
-        let byte_len =
-            slot_count
-                .checked_mul(Value::BYTE_LEN)
-                .ok_or(HeapError::InvariantOverflow {
-                    context: "raw value buffer byte length",
-                })?;
-
-        self.allocate_raw_zeroed(byte_len)
+        self.raw.place_zeroed(byte_len, path)
     }
 
     /// Return the bytes for one raw allocation as one owned vector.
@@ -259,11 +358,6 @@ impl Heap {
         self.raw.read_bytes_into(pointer, start, target)
     }
 
-    /// Return the values for one raw allocation.
-    pub fn raw_values(&self, pointer: RawPointer) -> HeapResult<Vec<Value>> {
-        self.raw.values(pointer)
-    }
-
     /// Return one raw byte by offset.
     pub fn raw_byte_at(&self, pointer: RawPointer, index: usize) -> Option<u8> {
         self.raw.byte_at(pointer, index)
@@ -278,14 +372,6 @@ impl Heap {
         self.raw.replace_bytes(pointer, bytes)
     }
 
-    /// Replace the values for one raw allocation.
-    pub fn replace_raw_values(&mut self, pointer: RawPointer, values: &[Value]) -> HeapResult<()> {
-        // flatten the values into one raw byte buffer first
-        let bytes = Self::raw_value_bytes(values.iter().copied());
-
-        self.replace_raw_bytes(pointer, &bytes)
-    }
-
     /// Overwrite one raw byte range.
     pub fn set_raw_bytes(
         &mut self,
@@ -298,22 +384,6 @@ impl Heap {
         self.raw.set_bytes(pointer, start, bytes)
     }
 
-    /// Overwrite one raw value slot.
-    pub fn set_raw_value(
-        &mut self,
-        pointer: RawPointer,
-        index: usize,
-        value: Value,
-    ) -> HeapResult<()> {
-        let start = index
-            .checked_mul(Value::BYTE_LEN)
-            .ok_or(HeapError::InvariantOverflow {
-                context: "raw value byte offset",
-            })?;
-
-        self.set_raw_bytes(pointer, start, &value.to_byte_array())
-    }
-
     /// Overwrite one raw byte.
     pub fn set_raw_byte(&mut self, pointer: RawPointer, index: usize, byte: u8) -> HeapResult<()> {
         self.set_raw_bytes(pointer, index, &[byte])
@@ -322,27 +392,6 @@ impl Heap {
     /// Free one raw allocation.
     pub fn free_raw(&mut self, pointer: RawPointer) -> HeapResult<bool> {
         self.raw.free(pointer)
-    }
-
-    /// Check the projected mapped-byte delta for one managed allocation.
-    fn check_managed_allocation_mapped_delta(
-        &self,
-        byte_len: usize,
-        edge_map: &EdgeMap,
-        layout_id: Option<LayoutId>,
-    ) -> HeapResult<()> {
-        let managed_mapped_delta = self
-            .managed
-            .alloc_mapped_delta(byte_len, edge_map, layout_id);
-
-        self.check_mapped_delta(managed_mapped_delta, 0)
-    }
-
-    /// Check the projected mapped-byte delta for one raw allocation.
-    fn check_raw_allocation_mapped_delta(&self, byte_len: usize) -> HeapResult<()> {
-        let raw_mapped_delta = self.raw.alloc_mapped_delta(byte_len);
-
-        self.check_mapped_delta(0, raw_mapped_delta)
     }
 
     /// Check the projected mapped-byte delta for one raw replacement.
@@ -370,8 +419,45 @@ impl Heap {
         )
     }
 
-    /// Flatten one iterator of values into one raw byte buffer.
-    fn raw_value_bytes(values: impl IntoIterator<Item = Value>) -> Vec<u8> {
-        values.into_iter().flat_map(Value::to_byte_array).collect()
+    /// Refresh the collector pacing targets from current heap state.
+    fn refresh_gc_pacer(&mut self) {
+        self.gc_pacer
+            .update(self.options.gc, self.managed_allocated_bytes());
+    }
+
+    /// Refresh the pending collection request from current managed pressure.
+    pub(crate) fn refresh_gc_request(&mut self) {
+        self.refresh_gc_pacer();
+        let heap_bytes = self.managed_allocated_bytes();
+
+        // goal crossings force one full cycle
+        if self.gc_pacer.should_collect_full(heap_bytes) {
+            self.request_gc(GcRequest::Full);
+
+            return;
+        }
+
+        // trigger crossings request one young cycle
+        if self.gc_pacer.should_start(heap_bytes) {
+            self.request_gc(GcRequest::Minor);
+        }
+    }
+
+    /// Merge one pending request into the current request state.
+    fn request_gc(&mut self, request: GcRequest) {
+        if self.gc_request == Some(GcRequest::Full) || request == GcRequest::Full {
+            self.gc_request = Some(GcRequest::Full);
+
+            return;
+        }
+
+        self.gc_request = Some(GcRequest::Minor);
+    }
+
+    /// Record one completed local collection cycle in the pacer.
+    fn note_gc_cycle(&mut self, stats: GcStats) {
+        self.gc_pacer.update(self.options.gc, stats.allocated_bytes);
+        self.gc_request = None;
+        self.refresh_gc_request();
     }
 }

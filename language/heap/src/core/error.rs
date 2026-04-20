@@ -2,52 +2,14 @@ use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
 use crate::arena::PageId;
-use crate::value::{ManagedReference, RawPointer, SharedManagedReference, SharedRawPointer};
+use crate::{HeapSpace, ManagedReference, RawPointer, SharedManagedReference, SharedRawPointer};
 
 /// One heap result.
 pub type HeapResult<T> = Result<T, HeapError>;
 
-/// One heap domain.
+/// One managed scan source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HeapDomain {
-    /// Managed heap memory.
-    Managed,
-    /// Raw heap memory.
-    Raw,
-    /// Shared heap memory.
-    Shared,
-    /// Combined heap memory.
-    Total,
-}
-
-impl HeapDomain {
-    /// Return the heap usage subject for this domain.
-    fn usage_subject(self) -> &'static str {
-        match self {
-            Self::Managed => "managed heap",
-            Self::Raw => "raw heap",
-            Self::Shared => "shared heap",
-            Self::Total => "total heap",
-        }
-    }
-}
-
-impl Display for HeapDomain {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        let label = match self {
-            Self::Managed => "managed",
-            Self::Raw => "raw",
-            Self::Shared => "shared",
-            Self::Total => "total",
-        };
-
-        write!(formatter, "{label}")
-    }
-}
-
-/// One managed trace source.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ManagedTraceSource {
+pub enum ScanSource {
     /// One managed reference payload.
     Reference(ManagedReference),
     /// One mature span.
@@ -59,6 +21,8 @@ pub enum ManagedTraceSource {
 /// Heap configuration failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HeapError {
+    /// The configured GC trigger percentage is unsupported.
+    InvalidGcTriggerPercent { percent: u32 },
     /// The configured managed-reference width is unsupported.
     UnsupportedManagedReferenceWidth { bytes: u8 },
     /// The configured heap page width is unsupported.
@@ -157,10 +121,10 @@ pub enum HeapError {
         /// The requested page alignment in bytes.
         page_bytes: usize,
     },
-    /// One heap-domain hard limit was exceeded.
+    /// One heap-space hard limit was exceeded.
     LimitExceeded {
-        /// The heap domain that exceeded its limit.
-        domain: HeapDomain,
+        /// The heap space that exceeded its limit.
+        space: HeapSpace,
         /// The exact bytes in use.
         used_bytes: u64,
         /// The configured limit.
@@ -216,10 +180,10 @@ pub enum HeapError {
         /// The invalid managed reference.
         reference: ManagedReference,
     },
-    /// One managed collection trace failed.
-    ManagedTraceFailed {
-        /// The managed trace source.
-        source: ManagedTraceSource,
+    /// One managed collection scan failed.
+    ManagedScanFailed {
+        /// The managed scan source.
+        source: ScanSource,
         /// The underlying heap failure.
         error: Box<HeapError>,
     },
@@ -254,10 +218,10 @@ pub enum HeapError {
         /// The invalid managed reference id.
         id: u64,
     },
-    /// The heap-domain usage counters cannot service one release.
+    /// The heap-space usage counters cannot service one release.
     InvalidUsage {
-        /// The heap domain whose counters were invalid.
-        domain: HeapDomain,
+        /// The heap space whose counters were invalid.
+        space: HeapSpace,
         /// The live entry count before the release.
         allocated_count: usize,
         /// The live byte count before the release.
@@ -403,14 +367,9 @@ pub enum HeapError {
         /// The missing dense entry index.
         index: usize,
     },
-    /// One edge-map id cannot be represented by the table.
-    InvalidEdgeId {
-        /// The invalid edge-map index.
-        index: usize,
-    },
-    /// One edge-map table does not reserve id 0 for the empty map.
-    InvalidEdgeSentinel {
-        /// The invalid sentinel index.
+    /// One shape id cannot be represented by the table.
+    InvalidShapeId {
+        /// The invalid shape index.
         index: usize,
     },
     /// One decoded managed-reference window has an unsupported width.
@@ -418,15 +377,15 @@ pub enum HeapError {
         /// The invalid byte width.
         bytes: usize,
     },
-    /// One traced edge-map field width overflowed its byte offset.
-    EdgeMapOffsetOverflow {
+    /// One traced field width overflowed its byte offset.
+    TraceOffsetOverflow {
         /// The traced field byte offset.
         start: usize,
         /// The traced field byte width.
         width: usize,
     },
-    /// One traced edge-map field extended past the provided payload bytes.
-    TruncatedEdgeMapPayload {
+    /// One traced field extended past the provided payload bytes.
+    TruncatedTracePayload {
         /// The traced field byte offset.
         start: usize,
         /// The traced field byte width.
@@ -434,7 +393,7 @@ pub enum HeapError {
         /// The available payload length.
         len: usize,
     },
-    /// One traced edge-map field could not be read from one random-access reader.
+    /// One traced field could not be read from one random-access reader.
     TruncatedReferenceReaderWindow {
         /// The traced field byte offset.
         start: usize,
@@ -446,14 +405,14 @@ pub enum HeapError {
         /// The traced value byte offset.
         start: usize,
     },
-    /// One edge-map table had duplicate maps where stable ids must be unique.
-    DuplicateEdgeMap {
-        /// The duplicate edge-map index.
+    /// One shape table had duplicate entries where stable ids must be unique.
+    DuplicateShape {
+        /// The duplicate shape index.
         index: usize,
     },
-    /// One edge-map table cannot be addressed by its reverse lookup.
-    InvalidEdgeTableLen {
-        /// The invalid map count.
+    /// One shape table cannot be addressed by its reverse lookup.
+    InvalidShapeTableLen {
+        /// The invalid shape count.
         len: usize,
     },
 }
@@ -461,6 +420,9 @@ pub enum HeapError {
 impl Display for HeapError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidGcTriggerPercent { percent } => {
+                write!(formatter, "invalid GC trigger percent: {percent}")
+            }
             Self::UnsupportedManagedReferenceWidth { bytes } => {
                 write!(formatter, "unsupported managed reference width: {bytes}")
             }
@@ -612,11 +574,11 @@ impl Display for HeapError {
                 )
             }
             Self::LimitExceeded {
-                domain,
+                space,
                 used_bytes,
                 max_bytes,
             } => {
-                let subject = domain.usage_subject();
+                let subject = space.usage_subject();
 
                 write!(
                     formatter,
@@ -690,24 +652,24 @@ impl Display for HeapError {
             Self::InvalidManagedReference { reference } => {
                 write!(formatter, "invalid managed reference: {reference:?}")
             }
-            Self::ManagedTraceFailed { source, error } => match source {
-                ManagedTraceSource::Reference(reference) => {
+            Self::ManagedScanFailed { source, error } => match source {
+                ScanSource::Reference(reference) => {
                     write!(
                         formatter,
-                        "managed heap tracing failed for reference {}: {error}",
+                        "managed heap scan failed for reference {}: {error}",
                         reference.id()
                     )
                 }
-                ManagedTraceSource::Span(span_index) => {
+                ScanSource::Span(span_index) => {
                     write!(
                         formatter,
-                        "managed heap tracing failed for dirty span {span_index}: {error}"
+                        "managed heap scan failed for dirty span {span_index}: {error}"
                     )
                 }
-                ManagedTraceSource::LargeEntry(entry_id) => {
+                ScanSource::LargeEntry(entry_id) => {
                     write!(
                         formatter,
-                        "managed heap tracing failed for dirty large entry {entry_id}: {error}"
+                        "managed heap scan failed for dirty large entry {entry_id}: {error}"
                     )
                 }
             },
@@ -743,12 +705,12 @@ impl Display for HeapError {
                 write!(formatter, "invalid managed reference id: {id}")
             }
             Self::InvalidUsage {
-                domain,
+                space,
                 allocated_count,
                 allocated_bytes,
                 freed_bytes,
             } => {
-                let subject = domain.usage_subject();
+                let subject = space.usage_subject();
 
                 write!(
                     formatter,
@@ -887,14 +849,8 @@ impl Display for HeapError {
             Self::MissingTableEntry { index } => {
                 write!(formatter, "heap lost dense table entry at index {index}")
             }
-            Self::InvalidEdgeId { index } => {
-                write!(formatter, "invalid edge-map id: {index}")
-            }
-            Self::InvalidEdgeSentinel { index } => {
-                write!(
-                    formatter,
-                    "edge-map table must reserve index {index} for the empty map"
-                )
+            Self::InvalidShapeId { index } => {
+                write!(formatter, "invalid shape id: {index}")
             }
             Self::InvalidReferenceWindowWidth { bytes } => {
                 write!(
@@ -902,13 +858,13 @@ impl Display for HeapError {
                     "unsupported managed reference width for tracing window: {bytes}"
                 )
             }
-            Self::EdgeMapOffsetOverflow { start, width } => {
+            Self::TraceOffsetOverflow { start, width } => {
                 write!(
                     formatter,
                     "managed reference offset overflow while tracing: start={start}, width={width}"
                 )
             }
-            Self::TruncatedEdgeMapPayload { start, width, len } => {
+            Self::TruncatedTracePayload { start, width, len } => {
                 write!(
                     formatter,
                     "truncated managed reference payload while tracing: start={start}, width={width}, len={len}"
@@ -926,11 +882,11 @@ impl Display for HeapError {
                     "invalid value payload while tracing managed references: start={start}"
                 )
             }
-            Self::DuplicateEdgeMap { index } => {
-                write!(formatter, "duplicate edge map at index {index}")
+            Self::DuplicateShape { index } => {
+                write!(formatter, "duplicate shape at index {index}")
             }
-            Self::InvalidEdgeTableLen { len } => {
-                write!(formatter, "invalid edge-map table length: {len}")
+            Self::InvalidShapeTableLen { len } => {
+                write!(formatter, "invalid shape table length: {len}")
             }
         }
     }

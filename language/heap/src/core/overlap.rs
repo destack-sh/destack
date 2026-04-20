@@ -1,13 +1,12 @@
-use destack_mir::EdgeMap;
-
-use crate::{HeapError, HeapResult, Value};
+use super::{HeapScan, PACKED_VALUE_BYTES};
+use crate::HeapResult;
 
 /// Return whether one write range may overlap any managed-edge bytes.
-pub(crate) fn touches_managed_range(
-    map: &EdgeMap,
+pub(crate) fn overlaps_managed_range(
+    map: &HeapScan,
     start: usize,
     len: usize,
-    managed_reference_bytes: u8,
+    managed_reference_bytes: usize,
 ) -> HeapResult<bool> {
     if len == 0 {
         return Ok(false);
@@ -17,23 +16,23 @@ pub(crate) fn touches_managed_range(
         return Ok(true);
     };
 
-    let managed_reference_bytes = managed_reference_width(managed_reference_bytes)?;
     let is_overlapping = match map {
-        EdgeMap::None => false,
-        EdgeMap::ReferenceOffsets { offsets } => {
-            touches_reference_offsets(offsets, start, end, managed_reference_bytes)
+        HeapScan::None => false,
+        HeapScan::Reference { local_offsets, .. } => {
+            overlaps_reference_offsets(local_offsets, start, end, managed_reference_bytes)
         }
-        EdgeMap::ValueOffsets { offsets } => {
-            touches_value_offsets(offsets, start, end, Value::BYTE_LEN)
+        HeapScan::PackedValue { offsets } => {
+            overlaps_value_offsets(offsets, start, end, PACKED_VALUE_BYTES)
         }
-        EdgeMap::RepeatedReferenceOffsets {
+        HeapScan::RepeatedReference {
             count,
-            element_size,
-            offsets,
-        } => touches_repeated_reference_offsets(
+            stride,
+            local_offsets,
+            ..
+        } => overlaps_repeated_reference_offsets(
             *count,
-            *element_size,
-            offsets,
+            *stride,
+            local_offsets,
             start,
             end,
             managed_reference_bytes,
@@ -43,18 +42,49 @@ pub(crate) fn touches_managed_range(
     Ok(is_overlapping)
 }
 
-/// Return the validated byte width for one traced managed reference.
-pub(crate) fn managed_reference_width(managed_reference_bytes: u8) -> HeapResult<usize> {
-    match managed_reference_bytes {
-        4 | 8 => Ok(managed_reference_bytes as usize),
-        _ => Err(HeapError::UnsupportedManagedReferenceWidth {
-            bytes: managed_reference_bytes,
-        }),
+/// Return whether one write range may overlap any shared managed-edge bytes.
+pub(crate) fn overlaps_shared_range(
+    map: &HeapScan,
+    start: usize,
+    len: usize,
+    shared_reference_bytes: usize,
+) -> HeapResult<bool> {
+    if len == 0 {
+        return Ok(false);
     }
+
+    let Some(end) = start.checked_add(len) else {
+        return Ok(true);
+    };
+
+    let is_overlapping = match map {
+        HeapScan::None => false,
+        HeapScan::Reference { shared_offsets, .. } => {
+            overlaps_reference_offsets(shared_offsets, start, end, shared_reference_bytes)
+        }
+        HeapScan::PackedValue { offsets } => {
+            overlaps_value_offsets(offsets, start, end, PACKED_VALUE_BYTES)
+        }
+        HeapScan::RepeatedReference {
+            count,
+            stride,
+            shared_offsets,
+            ..
+        } => overlaps_repeated_reference_offsets(
+            *count,
+            *stride,
+            shared_offsets,
+            start,
+            end,
+            shared_reference_bytes,
+        ),
+    };
+
+    Ok(is_overlapping)
 }
 
 /// Report whether one direct managed-reference table overlaps the given byte range.
-fn touches_reference_offsets(
+fn overlaps_reference_offsets(
     offsets: &[u32],
     start: usize,
     end: usize,
@@ -67,7 +97,7 @@ fn touches_reference_offsets(
 }
 
 /// Report whether one value table overlaps the given byte range.
-fn touches_value_offsets(offsets: &[u32], start: usize, end: usize, value_bytes: usize) -> bool {
+fn overlaps_value_offsets(offsets: &[u32], start: usize, end: usize, value_bytes: usize) -> bool {
     offsets
         .iter()
         .copied()
@@ -75,9 +105,9 @@ fn touches_value_offsets(offsets: &[u32], start: usize, end: usize, value_bytes:
 }
 
 /// Report whether one repeated managed-reference table overlaps the given byte range.
-fn touches_repeated_reference_offsets(
+fn overlaps_repeated_reference_offsets(
     count: u32,
-    element_size: u32,
+    stride: u32,
     offsets: &[u32],
     start: usize,
     end: usize,
@@ -88,7 +118,7 @@ fn touches_repeated_reference_offsets(
             start,
             end,
             count as usize,
-            element_size as usize,
+            stride as usize,
             offset as usize,
             managed_reference_bytes,
         )
@@ -115,7 +145,7 @@ pub(crate) fn overlapping_repeated_index_range(
     start: usize,
     end: usize,
     count: usize,
-    element_size: usize,
+    stride: usize,
     offset: usize,
     width: usize,
 ) -> Option<(usize, usize)> {
@@ -123,20 +153,20 @@ pub(crate) fn overlapping_repeated_index_range(
         return None;
     }
 
-    if element_size == 0 {
+    if stride == 0 {
         return ranges_overlap(start, end, offset, width).then_some((0, count - 1));
     }
 
     let start = start as i128;
     let end = end as i128;
     let count = count as i128;
-    let element_size = element_size as i128;
+    let stride = stride as i128;
     let offset = offset as i128;
     let width = width as i128;
     let low_numerator = start - offset - width + 1;
     let high_numerator = end - offset - 1;
-    let low = div_ceil_i128(low_numerator, element_size).max(0);
-    let high = div_floor_i128(high_numerator, element_size).min(count - 1);
+    let low = div_ceil_i128(low_numerator, stride).max(0);
+    let high = div_floor_i128(high_numerator, stride).min(count - 1);
 
     (low <= high).then_some((low as usize, high as usize))
 }
