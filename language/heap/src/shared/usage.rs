@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::HeapResult;
-use crate::core::sum_bytes;
+use crate::{HeapResult, sum_bytes};
 
 /// Exact shared managed-space usage for one live shared managed space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]

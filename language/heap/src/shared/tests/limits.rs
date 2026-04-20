@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use crate::{
-    Arena, EdgeMap, HeapDomain, SharedHeap, SharedHeapLimits, SharedManagedLimits, SharedRawLimits,
+    Arena, HeapError, HeapSpace, SharedHeap, SharedHeapLimits, SharedManagedLimits, SharedRawLimits,
 };
+use destack_mir::LayoutTrace;
 
 /// Reject one shared managed allocation when the shared managed limit would be exceeded.
 #[test]
@@ -10,19 +11,20 @@ fn test_reject_shared_managed_allocation_when_limit_exceeded() {
     let mut shared = SharedHeap::with_arena_and_limits(
         Arc::new(Arena::new()),
         SharedHeapLimits {
+            max_bytes: None,
             managed: SharedManagedLimits { max_bytes: Some(0) },
             raw: SharedRawLimits { max_bytes: None },
         },
     );
 
     let error = shared
-        .allocate_managed_bytes(&[1], EdgeMap::empty(), None)
+        .allocate_managed_bytes(&[1], LayoutTrace::empty(), None)
         .expect_err("shared managed allocation should be rejected");
 
     assert!(matches!(
         error,
-        crate::HeapError::LimitExceeded {
-            domain: HeapDomain::Shared,
+        HeapError::LimitExceeded {
+            space: HeapSpace::SharedManaged,
             ..
         }
     ));
@@ -54,6 +56,7 @@ fn test_reject_shared_raw_replace_when_limit_exceeded() {
         arena,
         &image,
         SharedHeapLimits {
+            max_bytes: None,
             managed: SharedManagedLimits { max_bytes: None },
             raw: SharedRawLimits {
                 max_bytes: Some(baseline),
@@ -68,8 +71,8 @@ fn test_reject_shared_raw_replace_when_limit_exceeded() {
 
     assert!(matches!(
         error,
-        crate::HeapError::LimitExceeded {
-            domain: HeapDomain::Shared,
+        HeapError::LimitExceeded {
+            space: HeapSpace::SharedRaw,
             ..
         }
     ));
@@ -82,7 +85,7 @@ fn test_reject_shared_heap_image_when_limits_start_over_budget() {
     let arena = Arc::new(Arena::new());
     let mut shared = SharedHeap::with_arena(arena.clone());
     shared
-        .allocate_managed_bytes(&[1], EdgeMap::empty(), None)
+        .allocate_managed_bytes(&[1], LayoutTrace::empty(), None)
         .expect("shared managed allocation should succeed");
     let image = shared.image();
 
@@ -90,6 +93,7 @@ fn test_reject_shared_heap_image_when_limits_start_over_budget() {
         arena,
         &image,
         SharedHeapLimits {
+            max_bytes: None,
             managed: SharedManagedLimits { max_bytes: Some(0) },
             raw: SharedRawLimits { max_bytes: None },
         },
@@ -98,8 +102,8 @@ fn test_reject_shared_heap_image_when_limits_start_over_budget() {
 
     assert!(matches!(
         error,
-        crate::HeapError::LimitExceeded {
-            domain: HeapDomain::Shared,
+        HeapError::LimitExceeded {
+            space: HeapSpace::SharedManaged,
             ..
         }
     ));

@@ -2,8 +2,7 @@ use std::sync::Arc;
 
 use super::SharedRawEntry;
 use crate::{
-    AllocationTotals, Arena, HeapDomain, HeapError, HeapResult, SharedRawPointer,
-    SharedRawSpaceUsage,
+    AllocationUsage, Arena, HeapError, HeapResult, HeapSpace, SharedRawPointer, SharedRawSpaceUsage,
 };
 
 /// The first allocated shared raw-space entry id.
@@ -31,8 +30,8 @@ pub struct SharedRawSpace {
     /// The next shared raw-space entry id to allocate.
     pub(crate) next_unused_id: u64,
 
-    /// The exact live shared raw-space totals.
-    pub(crate) totals: AllocationTotals,
+    /// The exact live shared raw-space usage.
+    pub(crate) usage: AllocationUsage,
 }
 
 impl Default for SharedRawSpace {
@@ -54,7 +53,7 @@ impl SharedRawSpace {
             entries: Vec::new(),
             free_ids: Vec::new(),
             next_unused_id: FIRST_SHARED_ENTRY_ID,
-            totals: AllocationTotals::default(),
+            usage: AllocationUsage::default(),
         }
     }
 
@@ -83,8 +82,8 @@ impl SharedRawSpace {
     /// Return the exact usage for this live shared raw-space store.
     pub fn usage(&self) -> HeapResult<SharedRawSpaceUsage> {
         Ok(SharedRawSpaceUsage {
-            allocation_count: self.totals.allocation_count(),
-            allocated_bytes: self.totals.allocated_bytes(),
+            allocation_count: self.usage.allocation_count(),
+            allocated_bytes: self.usage.allocated_bytes(),
             active_bytes: self.active_bytes(),
             mapped_bytes: self.mapped_bytes(),
             borrowed_bytes: self.borrowed_bytes()?,
@@ -104,7 +103,7 @@ impl SharedRawSpace {
 
         // install the live entry slot and usage
         self.set_entry(entry_id, entry)?;
-        self.totals.allocate(bytes.len(), HeapDomain::Shared)?;
+        self.usage.allocate(bytes.len(), HeapSpace::SharedRaw)?;
 
         Ok(SharedRawPointer::new(entry_id))
     }
@@ -157,8 +156,8 @@ impl SharedRawSpace {
 
         // update the live byte count
         entry.len = bytes.len();
-        self.totals
-            .resize(previous_len, bytes.len(), HeapDomain::Shared)?;
+        self.usage
+            .resize(previous_len, bytes.len(), HeapSpace::SharedRaw)?;
 
         // release the previous page view after commit
         arena.release_page_view(&previous_pages)?;
@@ -176,13 +175,13 @@ impl SharedRawSpace {
         let pages = entry.pages;
         let previous_len = entry.len as u64;
 
-        self.totals.check_free(previous_len, HeapDomain::Shared)?;
+        self.usage.check_free(previous_len, HeapSpace::SharedRaw)?;
 
         // retire the live entry slot before releasing its pages
         self.retire_entry(entry_id)?;
 
         // update shared usage before releasing the old pages
-        self.totals.free(previous_len, HeapDomain::Shared)?;
+        self.usage.free(previous_len, HeapSpace::SharedRaw)?;
 
         // release the old physical pages after the live slot is gone
         self.arena.release_page_view(&pages)?;

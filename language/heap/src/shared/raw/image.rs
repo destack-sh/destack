@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use super::{SharedRawEntry, SharedRawSpace};
-use crate::{AllocationTotals, Arena, HeapResult, PageId, PageView};
+use crate::{AllocationUsage, Arena, HeapResult, PageId, PageView};
 
 /// One frozen shared raw-space entry root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -115,7 +115,7 @@ impl SharedRawSpace {
             entries: self.entries.clone(),
             free_ids: self.free_ids.clone(),
             next_unused_id: self.next_unused_id,
-            totals: self.totals,
+            usage: self.usage,
         })
     }
 
@@ -154,7 +154,7 @@ impl SharedRawSpace {
             .collect();
         shared.next_unused_id = image.next_unused_id();
         shared.free_ids = image.free_ids().to_vec();
-        shared.totals = AllocationTotals::new(image.allocated_count(), image.allocated_bytes());
+        shared.usage = AllocationUsage::new(image.allocated_count(), image.allocated_bytes());
 
         Ok(shared)
     }
@@ -173,8 +173,8 @@ impl SharedRawSpace {
                 .into_boxed_slice(),
             self.free_ids.clone().into_boxed_slice(),
             self.next_unused_id,
-            self.totals.allocation_count(),
-            self.totals.allocated_bytes(),
+            self.usage.allocation_count(),
+            self.usage.allocated_bytes(),
         )
     }
 

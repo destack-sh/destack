@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::core::apply_byte_delta;
-use crate::{HeapDomain, HeapError, HeapResult};
+use crate::{HeapError, HeapResult, HeapSpace, apply_byte_delta};
 
 /// One live admission budget for world-shared raw space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,7 +41,7 @@ impl SharedRawLimits {
             && active_bytes > max_bytes
         {
             return Err(HeapError::LimitExceeded {
-                domain: HeapDomain::Shared,
+                space: HeapSpace::SharedRaw,
                 used_bytes: active_bytes,
                 max_bytes,
             });
@@ -71,7 +70,7 @@ impl SharedManagedLimits {
             && active_bytes > max_bytes
         {
             return Err(HeapError::LimitExceeded {
-                domain: HeapDomain::Shared,
+                space: HeapSpace::SharedManaged,
                 used_bytes: active_bytes,
                 max_bytes,
             });
@@ -89,6 +88,8 @@ impl SharedManagedLimits {
 /// Hard limits for one live shared heap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SharedHeapLimits {
+    /// Optional hard limit for total retained shared-heap bytes.
+    pub max_bytes: Option<u64>,
     /// The managed-space limits.
     pub managed: SharedManagedLimits,
     /// The raw-space limits.
