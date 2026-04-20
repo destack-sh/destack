@@ -110,6 +110,23 @@ class A {
     );
 }
 
+/// CommonJS require initializers should keep the call attached to `=`.
+#[test]
+fn test_format_assignment_require_initializer_stays_attached() {
+    assert_format_program_reference_widths(
+        r#"const veryLongPackageBindingName = require(jestPath)
+"#,
+        FileType::TypeScript,
+        &[(
+            30,
+            r#"const veryLongPackageBindingName = require(
+  jestPath,
+);
+"#,
+        )],
+    );
+}
+
 /// Call-expression type arguments should preserve leading comments.
 #[test]
 fn test_format_assignment_call_with_type_args_comments() {
@@ -212,6 +229,44 @@ const onPanning: ComponenASDtProps<typeof TransformWrapper>["onPanning"] = () =>
 "#,
             ),
         ],
+    );
+}
+
+/// Formats chained assignment initializers with the stepped shell.
+#[test]
+fn test_format_assignment_chain_layout() {
+    assert_format_program_reference_widths(
+        r#"const longVariableName = alpha = beta = computeValue()
+"#,
+        FileType::TypeScript,
+        &[(
+            30,
+            r#"const longVariableName =
+  (alpha =
+  beta =
+    computeValue());
+"#,
+        )],
+    );
+}
+
+/// Formats nested assignment initializers with explicit parentheses.
+#[test]
+fn test_format_assignment_chain_lambda_tail_layout() {
+    assert_format_program_reference_widths(
+        r#"const longVariableName = alpha = beta = () => {}
+const short = a = b
+"#,
+        FileType::TypeScript,
+        &[(
+            30,
+            r#"const longVariableName =
+  (alpha =
+  beta =
+    () => {});
+const short = (a = b);
+"#,
+        )],
     );
 }
 

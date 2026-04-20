@@ -84,42 +84,7 @@ fn postfix_parent_expression_id(
         }
     }
 
-    let (parent_id, parent_type) = context.parent(expression_id)?;
-    if parent_type != NodeType::Expression {
-        return None;
-    }
-
-    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-    let Expression::Parenthesized { expression } = context.tree.get(parent_expression_id) else {
-        return None;
-    };
-    if *expression != expression_id {
-        return None;
-    }
-
-    let (grandparent_id, grandparent_type) = context.parent(parent_expression_id)?;
-    if grandparent_type != NodeType::Expression {
-        return None;
-    }
-
-    let grandparent_expression_id = LocalNodeId::<Expression>::new(grandparent_id);
-    let grandparent_expression = context.tree.get(grandparent_expression_id);
-    let uses_parenthesized_as_left = matches!(
-        grandparent_expression,
-        Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
-            | Expression::Call { left, .. }
-            | Expression::Index { left, .. }
-            | Expression::Instantiation { left, .. }
-            | Expression::Maybe { left, .. }
-            | Expression::Must { left, .. }
-            if *left == parent_expression_id
-    );
-    if !uses_parenthesized_as_left {
-        return None;
-    }
-
-    Some(grandparent_expression_id)
+    None
 }
 
 /// Return whether one expression is a postfix chain expression.
