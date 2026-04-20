@@ -1,20 +1,19 @@
-use super::argument::{write_call_argument_node_body, write_grouped_call_argument};
+use super::argument::write_call_argument_node_body;
 use crate::format::annotation::{
-    block_infix_annotations, format_raw_comment, format_trailing_comments,
-    write_raw_leading_comments,
+    block_infix_annotations, format_trailing_comments, DanglingIndentMode, FormatDanglingComments,
+    FormatLeadingComments,
 };
-use crate::format::collection::{TrailingSeparator, separated_entries};
-use crate::format::context::DestackFormatterCommentExt;
-use crate::format::declaration::GroupedCallArgumentLayout;
+use crate::format::collection::{separated_entries, TrailingSeparator};
 use crate::format::file::any_ignore_range_for_nodes;
-use crate::{Decorator, DestackFormatContext, DestackFormatter};
-use destack_ast::{Argument, DecoratorPosition, Expression, LocalNodeId, TokenType};
+use crate::{DestackFormatContext, DestackFormatter};
+use destack_ast::{Argument, Comment, DecoratorPosition, Expression, LocalNodeId, TokenType};
 use destack_fir::format::{Buffer, FormatNodes, FormatResult, GroupId};
 use destack_fir::prelude::{
-    block_indent, empty_line, format_with, group, hard_line_break, if_group_breaks,
-    soft_block_indent, soft_line_break_or_space, space, token,
+    block_indent, empty_line, format_with, group, if_group_breaks, soft_block_indent,
+    soft_line_break_or_space, space, token,
 };
 use destack_fir::{format_args, write};
+use destack_workspace::TrailingComma;
 
 /// Return whether source text contains an empty line between adjacent arguments.
 pub(crate) fn arguments_have_empty_line(
@@ -35,7 +34,7 @@ pub(crate) fn arguments_have_empty_line(
     })
 }
 
-/// Return the number of source lines before one call argument, including owned comments.
+/// Return the number of source lines before one call argument, including preceding comments.
 pub(crate) fn call_argument_lines_before(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
@@ -45,7 +44,7 @@ pub(crate) fn call_argument_lines_before(
 
     context
         .source_text()
-        .get_lines_before(argument_span, &comments)
+        .get_lines_before(argument_span, comments)
 }
 
 /// Format all call arguments in explicit broken-out layout.
@@ -57,10 +56,7 @@ pub(crate) fn format_all_args_broken_out<'ast>(
     disallow_trailing_separator: bool,
 ) -> FormatResult<()> {
     let write_trailing_separator = !disallow_trailing_separator
-        && matches!(
-            f.context().options.trailing_comma,
-            destack_workspace::TrailingComma::All
-        );
+        && matches!(f.context().options.trailing_comma, TrailingComma::All);
 
     write!(
         f,
@@ -88,7 +84,6 @@ pub(crate) fn format_all_args_broken_out<'ast>(
                         call_span,
                         argument_id,
                         following_span_start,
-                        None,
                         index == 0,
                     )?;
 
@@ -116,10 +111,7 @@ pub(crate) fn format_long_curried_call_arguments<'ast>(
     call_span: destack_source::Span,
     arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
-    let write_trailing_separator = matches!(
-        f.context().options.trailing_comma,
-        destack_workspace::TrailingComma::All
-    );
+    let write_trailing_separator = matches!(f.context().options.trailing_comma, TrailingComma::All);
 
     write!(
         f,
@@ -140,7 +132,6 @@ pub(crate) fn format_long_curried_call_arguments<'ast>(
                         call_span,
                         argument_id,
                         following_span_start,
-                        None,
                         index == 0,
                     )?;
                 }
@@ -156,33 +147,25 @@ pub(crate) fn format_long_curried_call_arguments<'ast>(
     )
 }
 
-/// Write one call argument entry with list-level trailing comment ownership.
+/// Write one call argument entry with list-level trailing comment handling.
 pub(crate) fn write_call_argument_in_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     call_span: destack_source::Span,
     argument_id: LocalNodeId<Argument>,
     following_span_start: u32,
-    grouped_call_argument_layout: Option<GroupedCallArgumentLayout>,
     emit_leading_comments: bool,
 ) -> FormatResult<()> {
     if emit_leading_comments {
         write_first_call_argument_leading_comments(f, call_span, argument_id)?;
     }
 
-    match grouped_call_argument_layout {
-        Some(grouped_call_argument_layout) => {
-            write_grouped_call_argument(f, argument_id, grouped_call_argument_layout)?;
-        }
-        None => {
-            write_call_argument_node_body(f, argument_id)?;
-        }
-    }
+    write_call_argument_node_body(f, argument_id)?;
 
     write_call_argument_trailing_comments(f, call_span, argument_id, following_span_start)
 }
 
-/// Write raw comments that belong before the first call argument.
-fn write_first_call_argument_leading_comments<'ast>(
+/// Write comments that belong before the first call argument.
+pub(crate) fn write_first_call_argument_leading_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     call_span: destack_source::Span,
     argument_id: LocalNodeId<Argument>,
@@ -215,11 +198,11 @@ fn write_first_call_argument_leading_comments<'ast>(
         return Ok(());
     }
 
-    write_raw_leading_comments(f, &leading_comments)
+    write!(f, [FormatLeadingComments::Comments(&leading_comments)])
 }
 
-/// Write trailing raw comments owned by one call argument.
-fn write_call_argument_trailing_comments<'ast>(
+/// Write trailing comments for one call argument.
+pub(crate) fn write_call_argument_trailing_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     call_span: destack_source::Span,
     argument_id: LocalNodeId<Argument>,
@@ -244,33 +227,14 @@ pub(crate) fn write_empty_call_arguments<'ast>(
     let empty_argument_comments = empty_call_argument_comments(f.context(), call_node_id);
 
     if !empty_argument_comments.is_empty() {
-        let should_expand_multiline = empty_argument_comments.iter().any(|comment| {
-            comment.is_line() || comment.preceded_by_newline() || comment.followed_by_newline()
-        });
-
-        if should_expand_multiline {
-            write!(
-                f,
-                [
-                    token("("),
-                    block_indent(&format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                        write_empty_call_argument_comments(f, &empty_argument_comments)
-                    })),
-                    token(")")
-                ]
-            )?;
-        } else {
-            write!(
-                f,
-                [
-                    token("("),
-                    format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                        write_empty_call_argument_comments(f, &empty_argument_comments)
-                    }),
-                    token(")")
-                ]
-            )?;
+        let comments = empty_argument_comments.as_slice();
+        let dangling_comments = FormatDanglingComments::Comments {
+            comments,
+            indent: DanglingIndentMode::None,
         }
+        .with_soft_block_indent();
+
+        write!(f, [token("("), dangling_comments, token(")")])?;
     } else if f.context().has_infix_annotation(call_node_id) {
         let should_expand_multiline =
             empty_call_infix_requires_multiline(f.context(), call_node_id);
@@ -300,11 +264,11 @@ pub(crate) fn write_empty_call_arguments<'ast>(
     Ok(())
 }
 
-/// Return raw comments that belong inside one empty call argument list.
+/// Return comments that belong inside one empty call argument list.
 fn empty_call_argument_comments(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
-) -> Vec<destack_ast::Comment> {
+) -> Vec<Comment> {
     let call_span = context.span(call_node_id);
     let Some(open_parenthesis_start) =
         context.nth_token_type_start_in_span(call_span, TokenType::OpenParenthesis, 1)
@@ -316,46 +280,6 @@ fn empty_call_argument_comments(
         .comments()
         .comments_in_range(open_parenthesis_start, call_span.end)
         .to_vec()
-}
-
-/// Write raw comments that belong inside one empty call argument list.
-fn write_empty_call_argument_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    comments: &[destack_ast::Comment],
-) -> FormatResult<()> {
-    if comments.is_empty() {
-        return Ok(());
-    }
-
-    let source = f.context().source_text();
-
-    for (index, comment) in comments.iter().copied().enumerate() {
-        format_raw_comment(f, comment)?;
-
-        let Some(next_comment) = comments.get(index + 1).copied() else {
-            continue;
-        };
-
-        let lines_after = source.lines_after(comment.span.end);
-        let lines_before = {
-            let comment_cursor = f.context().comments();
-            source.get_lines_before(next_comment.span, &comment_cursor)
-        };
-
-        if lines_before > 1 || lines_after > 1 {
-            write!(f, [empty_line()])?;
-        } else if comment.is_line()
-            || next_comment.preceded_by_newline()
-            || comment.followed_by_newline()
-            || lines_after == 1
-        {
-            write!(f, [hard_line_break()])?;
-        } else {
-            write!(f, [space()])?;
-        }
-    }
-
-    Ok(())
 }
 
 /// Write call arguments with the direct flat list layout.
@@ -375,14 +299,7 @@ pub(crate) fn write_simple_call_argument_list<'ast>(
             .get(index + 1)
             .map(|argument_id| f.context().span(*argument_id).start)
             .unwrap_or(0);
-        write_call_argument_in_list(
-            f,
-            call_span,
-            argument_id,
-            following_span_start,
-            None,
-            index == 0,
-        )?;
+        write_call_argument_in_list(f, call_span, argument_id, following_span_start, index == 0)?;
     }
 
     write!(f, [token(")")])
@@ -429,30 +346,17 @@ fn empty_call_infix_requires_multiline(
     ctx: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let has_raw_comment_in_call = {
-        let call_span = ctx.span(call_node_id);
-        let comments = ctx.comments();
-        comments.has_comment_in_span(call_span)
-    };
-
-    has_raw_comment_in_call
+    ctx.comments().has_comment_in_span(ctx.span(call_node_id))
         || ctx
             .annotation_ids(call_node_id)
             .iter()
             .any(|annotation_id| {
-                let annotation = ctx.annotation(*annotation_id);
-                if annotation.position != DecoratorPosition::BlockInfix {
+                if ctx.annotation(*annotation_id).position != DecoratorPosition::BlockInfix {
                     return false;
                 }
 
                 let annotation_span = ctx.annotation_span(*annotation_id);
-                if ctx.has_newline(annotation_span) {
-                    return true;
-                }
-
-                match annotation {
-                    Decorator { .. } => false,
-                }
+                ctx.has_newline(annotation_span)
             })
 }
 
@@ -469,10 +373,8 @@ pub(crate) fn format_default_call_argument_list<'ast>(
         TrailingSeparator::Omit
     } else {
         match f.context().options.trailing_comma {
-            destack_workspace::TrailingComma::All => TrailingSeparator::Allowed,
-            destack_workspace::TrailingComma::Es5 | destack_workspace::TrailingComma::None => {
-                TrailingSeparator::Omit
-            }
+            TrailingComma::All => TrailingSeparator::Allowed,
+            TrailingComma::Es5 | TrailingComma::None => TrailingSeparator::Omit,
         }
     };
 
@@ -496,7 +398,6 @@ pub(crate) fn format_default_call_argument_list<'ast>(
                             call_span,
                             argument_id,
                             following_span_start,
-                            None,
                             index == 0,
                         )?;
                     }
@@ -520,7 +421,7 @@ pub(crate) fn format_default_call_argument_list<'ast>(
             ]
         )
     });
-    let interned = f.intern_with_comment_snapshot_after(Some(call_span.start), &content)?;
+    let interned = f.intern(&content)?;
 
     if let Some(element) = interned {
         let should_expand = force_expand || element.will_break();

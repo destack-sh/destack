@@ -256,7 +256,7 @@ fn gap_comments_after_element(
 
     context
         .comments()
-        .comment_tokens_in_range(gap_start, gap_end)
+        .comments_in_range(gap_start, gap_end)
         .to_vec()
 }
 
@@ -272,7 +272,7 @@ fn element_tail_comments(
 
     context
         .comments()
-        .comment_tokens_in_range(anchor_end, element_span.end)
+        .comments_in_range(anchor_end, element_span.end)
         .to_vec()
 }
 

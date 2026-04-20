@@ -278,7 +278,7 @@ fn object_pattern_has_separator_comments(
 
         !context
             .comments()
-            .comment_tokens_in_range(left_span.end, right_span.start)
+            .comments_in_range(left_span.end, right_span.start)
             .is_empty()
     })
 }
