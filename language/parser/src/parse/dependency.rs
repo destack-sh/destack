@@ -822,36 +822,35 @@ impl Parser {
         Ok(ImportAttribute { key: name, value })
     }
 
-    /// Eat dependency arguments for import/export assertions or attributes.
+    /// Eat dependency arguments for import/export attributes.
     fn eat_dependency_arguments_maybe(&mut self) -> ParseResult<Option<ImportAttributeClause>> {
-        if self.is_keyword(Keyword::With) || self.is_keyword(Keyword::Assert) {
-            let clause_kind = if self.is_keyword(Keyword::With) {
-                ImportAttributeClauseKind::With
-            } else {
-                ImportAttributeClauseKind::Assert
-            };
-
-            self.bump(); // eat with or assert
-            self.eat_newlines_maybe()?;
-            self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
-            let argument_options = self.options.nested();
-            let arguments = self.with_options(argument_options, |parser| {
-                parser.eat_arguments_body(TokenType::CloseBrace)
-            })?;
-            self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Expression)?;
-            let mut attributes = Vec::with_capacity(arguments.len());
-
-            for argument_id in arguments {
-                attributes.push(self.decode_import_attribute(argument_id)?);
-            }
-
-            Ok(Some(ImportAttributeClause {
-                kind: clause_kind,
-                attributes,
-            }))
-        } else {
-            Ok(None)
+        // attribute clause head
+        if !self.is_keyword(Keyword::With) {
+            return Ok(None);
         }
+
+        self.bump(); // eat with
+
+        // attribute clause body
+        self.eat_newlines_maybe()?;
+        self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
+        let argument_options = self.options.nested();
+        let arguments = self.with_options(argument_options, |parser| {
+            parser.eat_arguments_body(TokenType::CloseBrace)
+        })?;
+        self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Expression)?;
+
+        // decoded attributes
+        let mut attributes = Vec::with_capacity(arguments.len());
+
+        for argument_id in arguments {
+            attributes.push(self.decode_import_attribute(argument_id)?);
+        }
+
+        Ok(Some(ImportAttributeClause {
+            kind: ImportAttributeClauseKind::With,
+            attributes,
+        }))
     }
 
     /// Peek a dependency binding.
