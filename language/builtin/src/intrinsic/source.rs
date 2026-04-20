@@ -63,7 +63,7 @@ builtin_source!(MEMORY_INDEX, "memory", "index.ds");
 builtin_source!(MEMORY_BYTES, "memory", "bytes.ds");
 builtin_source!(MEMORY_CAPABILITY, "memory", "capability.ds");
 builtin_source!(MEMORY_DISPOSE, "memory", "dispose.ds");
-builtin_source!(MEMORY_FORM, "memory", "form.ds");
+builtin_source!(MEMORY_OWNERSHIP, "memory", "ownership.ds");
 
 // operator
 builtin_source!(OPERATOR_ARITHMETIC, "operator", "arithmetic.ds");
@@ -104,7 +104,7 @@ builtin_source!(PRIMITIVE_VECTOR, "primitive", "vector.ds");
 /// Dependencies should be loaded before dependents.
 pub const INTRINSIC_SOURCES: &[BuiltinSource] = &[
     // memory
-    MEMORY_FORM,
+    MEMORY_OWNERSHIP,
     MEMORY_CAPABILITY,
     MEMORY_DISPOSE,
     MEMORY_BYTES,
