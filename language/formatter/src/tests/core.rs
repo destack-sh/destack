@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{DestackFormatContext, DestackFormatOptions, statement_list};
+use crate::{DestackFormatContext, DestackFormatOptions, format_file_source};
 use destack_ast::{NodeParentIndex, NodeTree, TokenSpan};
 use destack_core::ImmutableStringPool;
 use destack_fir::format;
@@ -9,6 +9,7 @@ use destack_parser::{ParseResult, Parser};
 use destack_source::{
     DiffOptions, File, FileId, FileType, LanguageType, MultiSpan, Uri, print_diff,
 };
+use destack_workspace::FormatterOptions;
 
 /// Parse and format one source string for tests.
 #[derive(Debug)]
@@ -70,10 +71,8 @@ impl TestFormatter {
             let mut parser = Parser::lex_file(file.clone(), language);
             let n = parse_fn(&mut parser)?;
 
-            // attach comments for non-parse entrypoints
-            if !parser.is_finished() {
-                parser.attach_comments();
-            }
+            // finalize retained comments for every entrypoint
+            parser.attach_comments();
 
             let (tokens, side_tokens) = parser.take_tokens();
             (
@@ -132,6 +131,50 @@ fn normalize_test_options_for_file_type(
     options
 }
 
+/// Convert formatter test options into workspace formatter options.
+fn workspace_test_options(options: DestackFormatOptions) -> FormatterOptions {
+    FormatterOptions {
+        line_ending: options.line_ending,
+        indent_style: options.indent_style,
+        indent_width: options.indent_width,
+        line_width: options.line_width,
+        quote_style: options.quote_style,
+        trailing_comma: options.trailing_comma,
+        bracket_spacing: options.bracket_spacing,
+        arrow_parentheses: options.arrow_parentheses,
+        quote_property: options.quote_props,
+        bracket_same_line: options.bracket_same_line,
+        single_attribute_per_line: options.single_attribute_per_line,
+        organize_imports: options.organize_imports,
+        import_sort_order: options.import_sort_order,
+    }
+}
+
+/// Build one test file for whole-program formatter assertions.
+fn test_file(input: &str, file_name: &str, file_type: FileType) -> File {
+    File::from_text(
+        FileId::new(0),
+        file_name.to_string(),
+        Uri::from_string(file_name),
+        None,
+        file_type,
+        input.to_string(),
+    )
+}
+
+/// Format one whole source file through the public formatter entrypoint.
+fn format_program_source(
+    input: &str,
+    file_name: &str,
+    file_type: FileType,
+    options: DestackFormatOptions,
+) -> String {
+    let file = test_file(input, file_name, file_type);
+    let options = workspace_test_options(options);
+
+    format_file_source(&file, input, options).expect("format whole-program source")
+}
+
 /// Assert formatter output and print a diff on mismatch.
 #[track_caller]
 pub(crate) fn assert_format_output_eq(expected: impl AsRef<str>, actual: impl AsRef<str>) {
@@ -177,18 +220,13 @@ pub(crate) fn assert_format_program_roundtrip_with_file_type(
     file_type: FileType,
     options: DestackFormatOptions,
 ) {
+    let file_name = "<string>";
     let options = normalize_test_options_for_file_type(options, file_type);
 
-    let (first_formatter, first_roots) =
-        TestFormatter::parse_with_file_type(input, file_type, |p| Ok(p.parse()))
-            .expect("parse first-pass source");
-    let first_output = first_formatter.format(&statement_list(&first_roots), options.clone());
+    let first_output = format_program_source(input, file_name, file_type, options.clone());
     assert_format_output_eq(expected, &first_output);
 
-    let (second_formatter, second_roots) =
-        TestFormatter::parse_with_file_type(&first_output, file_type, |p| Ok(p.parse()))
-            .expect("parse second-pass source");
-    let second_output = second_formatter.format(&statement_list(&second_roots), options);
+    let second_output = format_program_source(&first_output, file_name, file_type, options);
     assert_format_output_eq(&first_output, &second_output);
 }
 
@@ -202,22 +240,10 @@ pub(crate) fn assert_format_program_roundtrip_with_file_name_and_type(
 ) {
     let options = normalize_test_options_for_file_type(options, file_type);
 
-    let (first_formatter, first_roots) = TestFormatter::parse_with_file_name_and_type(
-        input,
-        file_name,
-        file_type,
-        |p| Ok(p.parse()),
-    )
-    .expect("parse first-pass source");
-    let first_output = first_formatter.format(&statement_list(&first_roots), options.clone());
+    let first_output = format_program_source(input, file_name, file_type, options.clone());
     assert_format_output_eq(expected, &first_output);
 
-    let (second_formatter, second_roots) =
-        TestFormatter::parse_with_file_name_and_type(&first_output, file_name, file_type, |p| {
-            Ok(p.parse())
-        })
-        .expect("parse second-pass source");
-    let second_output = second_formatter.format(&statement_list(&second_roots), options);
+    let second_output = format_program_source(&first_output, file_name, file_type, options);
     assert_format_output_eq(&first_output, &second_output);
 }
 
@@ -240,17 +266,12 @@ pub(crate) fn assert_format_program_idempotent_with_file_type(
     file_type: FileType,
     options: DestackFormatOptions,
 ) {
+    let file_name = "<string>";
     let options = normalize_test_options_for_file_type(options, file_type);
 
-    let (first_formatter, first_roots) =
-        TestFormatter::parse_with_file_type(input, file_type, |p| Ok(p.parse()))
-            .expect("parse first-pass source");
-    let first_output = first_formatter.format(&statement_list(&first_roots), options.clone());
+    let first_output = format_program_source(input, file_name, file_type, options.clone());
 
-    let (second_formatter, second_roots) =
-        TestFormatter::parse_with_file_type(&first_output, file_type, |p| Ok(p.parse()))
-            .expect("parse second-pass source");
-    let second_output = second_formatter.format(&statement_list(&second_roots), options);
+    let second_output = format_program_source(&first_output, file_name, file_type, options);
     assert_format_output_eq(&first_output, &second_output);
 }
 

@@ -31,3 +31,16 @@ fn test_format_multiline_jsx_argument_forces_expanded_call_layout() {
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }
+
+/// Generic tree tags should keep their type arguments in the opening tag.
+#[test]
+fn test_format_tree_argument_preserves_generic_tag_arguments() {
+    assert_format_program!(
+        r#"const view = fn(<Foo<Bar> />)
+"#,
+        r#"const view = fn(<Foo<Bar> />);
+"#,
+        FileType::TypeScriptXml,
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
+    );
+}
