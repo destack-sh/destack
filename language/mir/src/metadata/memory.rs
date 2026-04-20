@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::mem::size_of;
 
 use serde::{Deserialize, Serialize};
 
@@ -28,16 +27,16 @@ pub enum CaptureKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AllocationSize {
     /// The parameter index containing the element size in bytes.
-    pub element_size_index: u32,
+    pub stride_index: u32,
     /// The parameter index containing the element count, if any.
     pub element_count_index: Option<u32>,
 }
 
 impl AllocationSize {
     /// Create an alloc size description from parameter indices.
-    pub fn new(element_size_index: u32, element_count_index: Option<u32>) -> Self {
+    pub fn new(stride_index: u32, element_count_index: Option<u32>) -> Self {
         Self {
-            element_size_index,
+            stride_index,
             element_count_index,
         }
     }
@@ -149,26 +148,6 @@ impl Memory {
         instruction: LocalNodeId<Instruction>,
     ) -> Option<Vec<MemoryAccessMetadata>> {
         self.memory_accesses_by_instruction_id.remove(&instruction)
-    }
-
-    /// Return the owned bytes for this memory metadata table.
-    pub fn owned_bytes(&self) -> usize {
-        let mut owned_bytes = size_of::<Self>();
-        owned_bytes += self.memory_accesses_by_instruction_id.capacity()
-            * size_of::<(LocalNodeId<Instruction>, Vec<MemoryAccessMetadata>)>();
-        owned_bytes += self.alias_scopes.owned_bytes();
-        owned_bytes += self.type_alias.owned_bytes();
-
-        for accesses in self.memory_accesses_by_instruction_id.values() {
-            owned_bytes += accesses.capacity() * size_of::<MemoryAccessMetadata>();
-
-            for access in accesses {
-                owned_bytes += access.alias_scopes.capacity() * size_of::<MemoryAliasScopeId>();
-                owned_bytes += access.noalias_scopes.capacity() * size_of::<MemoryAliasScopeId>();
-            }
-        }
-
-        owned_bytes
     }
 }
 
@@ -327,13 +306,6 @@ impl MemoryAliasTable {
     pub fn scope(&self, id: MemoryAliasScopeId) -> &MemoryAliasScope {
         &self.scopes[id.index()]
     }
-
-    /// Return the owned bytes for this alias-scope table.
-    pub fn owned_bytes(&self) -> usize {
-        size_of::<Self>()
-            + self.domains.capacity() * size_of::<MemoryAliasDomain>()
-            + self.scopes.capacity() * size_of::<MemoryAliasScope>()
-    }
 }
 
 /// Identifier for a type-alias node.
@@ -453,12 +425,5 @@ impl TypeAliasTable {
     /// Return the type-alias tag for an id.
     pub fn tag(&self, id: TypeAliasTagId) -> &TypeAliasTag {
         &self.tags[id.index()]
-    }
-
-    /// Return the owned bytes for this type-alias table.
-    pub fn owned_bytes(&self) -> usize {
-        size_of::<Self>()
-            + self.nodes.capacity() * size_of::<TypeAliasNode>()
-            + self.tags.capacity() * size_of::<TypeAliasTag>()
     }
 }

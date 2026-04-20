@@ -30,7 +30,7 @@ function memory(value0: ref<int32, raw>): int32 {
 
 entry0(value0: ref<int32, raw>):
     value1: ref<int32, raw, space(global)> = global.address counter
-    value2: ref<int32, borrowed, space(stack)> = local.address local0
+    value2: ref<int32, borrowed, space(frame)> = local.address local0
     value3: int32 = load value0
     store value0, value3
     local.set local0, value3
@@ -72,6 +72,24 @@ entry0(value0: ref<uint32, raw>):
     value3: (uint32, boolean) = atomic.cas value0, value1, value2, relaxed, device, device, any
     value4: uint32 = atomic.rmw.umin value0, value2, relaxed, device, device, any
     return value4
+}
+"#,
+    );
+}
+
+/// Formats cleanup and pinning operations canonically.
+#[test]
+fn test_format_cleanup_and_pin_family() {
+    assert_format(
+        r#"
+function cleanup(value0: ref<int32, managed>): void {
+entry0(value0: ref<int32, managed>):
+    dispose value0
+    dispose.async value0
+    pin value0
+    unpin value0
+    drop value0
+    return
 }
 "#,
     );

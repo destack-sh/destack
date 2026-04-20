@@ -9,9 +9,9 @@ use destack_source::{File, FileType, IndentStyle, LineEnding};
 
 use crate::parse::TokenType;
 use crate::{
-    AddressSpace, Block, Function, Global, Instruction, Local, LocalNodeId, Mutability, Node,
-    NodeTree, NodeTreeImpl, NodeType, ReferenceKind, TensorDimension, TensorLayout, Terminator,
-    Type, TypeAlias, TypeReference, Value,
+    Block, Function, Global, Instruction, Local, LocalNodeId, Mutability, Node, NodeTree,
+    NodeTreeImpl, NodeType, ReferenceKind, TensorDimension, TensorLayout, Terminator, Type,
+    TypeAlias, TypeReference, Value,
 };
 
 use super::r#type::format_type_declaration;
@@ -655,14 +655,8 @@ fn type_key_for_alias_inner(
             }
 
             // append address space when explicit
-            if !address_space.is_generic() {
-                let addrspace = match address_space.keyword() {
-                    Some(name) => format!("space({name})"),
-                    None => match address_space {
-                        AddressSpace::Target(id) => format!("space({id})"),
-                        _ => "space(unknown)".to_string(),
-                    },
-                };
+            if !address_space.is_local() {
+                let addrspace = format!("space({})", address_space.label());
                 result.push_str(", ");
                 result.push_str(&addrspace);
             }
@@ -750,14 +744,8 @@ fn type_key_for_alias_inner(
             if *mutability == Mutability::Immutable {
                 result.push_str(", readonly");
             }
-            if !address_space.is_generic() {
-                let addrspace = match address_space.keyword() {
-                    Some(name) => format!("space({name})"),
-                    None => match address_space {
-                        AddressSpace::Target(id) => format!("space({id})"),
-                        _ => "space(unknown)".to_string(),
-                    },
-                };
+            if !address_space.is_local() {
+                let addrspace = format!("space({})", address_space.label());
                 result.push_str(", ");
                 result.push_str(&addrspace);
             }
@@ -1008,8 +996,9 @@ fn collect_type_uses(tree: &NodeTree) -> HashMap<LocalNodeId<Type>, u32> {
             | Instruction::RawFree { .. }
             | Instruction::Dispose { .. }
             | Instruction::AsyncDispose { .. }
+            | Instruction::Pin { .. }
+            | Instruction::Unpin { .. }
             | Instruction::Drop { .. }
-            | Instruction::AsyncDrop { .. }
             | Instruction::Assume { .. }
             | Instruction::Intrinsic { .. } => {}
             _ => {}

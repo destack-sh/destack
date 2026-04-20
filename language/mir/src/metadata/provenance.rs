@@ -1,11 +1,7 @@
 use std::collections::{HashMap, HashSet};
-use std::mem::size_of;
 
 use destack_source::{FileId, ModuleId, ProfileId, Span};
 use serde::{Deserialize, Serialize};
-
-/// Approximate per-entry overhead for one hash-map entry.
-const HASH_MAP_ENTRY_OVERHEAD_BYTES: usize = size_of::<usize>() * 3;
 
 /// One typed provenance record identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -145,25 +141,6 @@ impl Provenance {
     /// Create a new empty provenance table.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Return the owned bytes for this provenance table.
-    pub fn owned_bytes(&self) -> usize {
-        let mut owned_bytes = size_of::<Self>();
-        owned_bytes += self.provenance_by_node_id.capacity() * size_of::<Option<ProvenanceId>>();
-        owned_bytes += self.record_by_id.capacity() * size_of::<ProvenanceRecord>();
-        owned_bytes += hash_map_bytes(&self.record_by_ast);
-        owned_bytes += hash_map_bytes(&self.record_by_dir);
-
-        for records in self.record_by_ast.values() {
-            owned_bytes += records.capacity() * size_of::<ProvenanceId>();
-        }
-
-        for records in self.record_by_dir.values() {
-            owned_bytes += records.capacity() * size_of::<ProvenanceId>();
-        }
-
-        owned_bytes
     }
 
     /// Create one typed provenance record.
@@ -328,12 +305,6 @@ impl Provenance {
             }
         }
     }
-}
-
-/// Return the approximate owned bytes for one hash map table.
-fn hash_map_bytes<K, V>(map: &HashMap<K, V>) -> usize {
-    size_of::<HashMap<K, V>>()
-        + map.capacity() * (size_of::<K>() + size_of::<V>() + HASH_MAP_ENTRY_OVERHEAD_BYTES)
 }
 
 /// Choose one primary anchor from one contributor list when possible.

@@ -109,7 +109,7 @@ impl ModuleBuilder {
             ReferenceKind::Borrowed,
             pointee,
             mutability,
-            AddressSpace::Generic,
+            AddressSpace::Local,
             false,
         )
     }
@@ -124,7 +124,7 @@ impl ModuleBuilder {
             ReferenceKind::Owned,
             pointee,
             mutability,
-            AddressSpace::Generic,
+            AddressSpace::Local,
             false,
         )
     }
@@ -160,7 +160,7 @@ impl ModuleBuilder {
             ReferenceKind::Raw,
             pointee,
             mutability,
-            AddressSpace::Generic,
+            AddressSpace::Local,
             false,
         )
     }
@@ -185,7 +185,7 @@ impl ModuleBuilder {
             ReferenceKind::Managed,
             pointee,
             mutability,
-            AddressSpace::Generic,
+            AddressSpace::Local,
             false,
         )
     }
@@ -216,7 +216,7 @@ impl ModuleBuilder {
             ReferenceKind::Managed,
             pointee,
             mutability,
-            AddressSpace::Generic,
+            AddressSpace::Local,
             true,
         )
     }

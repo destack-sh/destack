@@ -228,10 +228,10 @@ fn format_type_inner<'a>(
             };
 
             // address space clause
-            let address_space_token = match address_space {
-                AddressSpace::Generic => None,
-                AddressSpace::Target(id) => Some(format!("space({id})")),
-                _ => address_space.keyword().map(|name| format!("space({name})")),
+            let address_space_token = if address_space.is_local() {
+                None
+            } else {
+                Some(format!("space({})", address_space.label()))
             };
 
             // render reference syntax
@@ -357,7 +357,7 @@ fn format_type_inner<'a>(
                 "tensorRef<"
             };
             write!(f, [token(view_token)])?;
-            format_view_header(*kind, *address_space, *mutability, *element, f)?;
+            format_view_header(*kind, address_space.clone(), *mutability, *element, f)?;
             write!(f, [token(","), space()])?;
             format_shape(shape, f)?;
             if *layout != TensorLayout::RowMajor {
@@ -461,10 +461,10 @@ fn format_view_header<'a>(
         ReferenceKind::Raw => "raw",
     };
 
-    let address_space_token = match address_space {
-        AddressSpace::Generic => None,
-        AddressSpace::Target(id) => Some(format!("space({id})")),
-        _ => address_space.keyword().map(|name| format!("space({name})")),
+    let address_space_token = if address_space.is_local() {
+        None
+    } else {
+        Some(format!("space({})", address_space.label()))
     };
 
     format_type_reference(element, f)?;

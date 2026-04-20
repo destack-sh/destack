@@ -133,7 +133,7 @@ impl TypeKey {
                 is_nullable,
             } => TypeKey::Reference {
                 kind: *kind,
-                address_space: *address_space,
+                address_space: address_space.clone(),
                 mutability: *mutability,
                 pointee: *pointee,
                 is_nullable: *is_nullable,
@@ -198,7 +198,7 @@ impl TypeKey {
                 is_nullable,
             } => TypeKey::TensorReference {
                 kind: *kind,
-                address_space: *address_space,
+                address_space: address_space.clone(),
                 mutability: *mutability,
                 element: *element,
                 shape: shape.clone(),

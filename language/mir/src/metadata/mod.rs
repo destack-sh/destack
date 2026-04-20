@@ -3,12 +3,17 @@ mod dispatch;
 mod layout;
 mod memory;
 mod provenance;
+mod r#type;
+mod union;
 
 pub use debug::*;
 pub use dispatch::*;
+pub(crate) use layout::complete_layout_metadata;
 pub use layout::*;
 pub use memory::*;
 pub use provenance::*;
+pub use r#type::*;
+pub use union::*;
 
 use serde::{Deserialize, Serialize};
 

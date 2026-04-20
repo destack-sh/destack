@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::mem::size_of;
 
 use serde::{Deserialize, Serialize};
 
@@ -38,39 +37,6 @@ impl DispatchMetadata {
             self.itab_id_by_type.insert(to, itabs);
         }
     }
-
-    /// Return the owned bytes for this dispatch metadata.
-    pub fn owned_bytes(&self) -> usize {
-        let mut owned_bytes = size_of::<Self>();
-        owned_bytes += self.vtables.capacity() * size_of::<Vtable>();
-        owned_bytes +=
-            self.vtable_id_by_type.capacity() * size_of::<(LocalNodeId<Type>, VtableId)>();
-        owned_bytes += self.itabs.capacity() * size_of::<Itab>();
-        owned_bytes += self.itab_id_by_type.capacity()
-            * size_of::<(LocalNodeId<Type>, HashMap<LocalNodeId<Type>, ItabId>)>();
-        owned_bytes += self.interface_dispatch_shapes.capacity()
-            * size_of::<(LocalNodeId<Type>, InterfaceDispatchShape)>();
-
-        for vtable in &self.vtables {
-            owned_bytes += vtable.entries.capacity() * size_of::<VtableEntry>();
-        }
-
-        for itab in &self.itabs {
-            owned_bytes += itab.entries.capacity() * size_of::<ItabEntry>();
-        }
-
-        for itabs in self.itab_id_by_type.values() {
-            owned_bytes += size_of::<HashMap<LocalNodeId<Type>, ItabId>>()
-                + itabs.capacity() * size_of::<(LocalNodeId<Type>, ItabId)>();
-        }
-
-        for shape in self.interface_dispatch_shapes.values() {
-            owned_bytes += shape.entries.capacity() * size_of::<InterfaceDispatchEntry>();
-        }
-
-        owned_bytes
-    }
-
     /// Insert a vtable and return its id.
     pub fn insert_vtable(&mut self, table: Vtable) -> VtableId {
         let id = VtableId::new(self.vtables.len() as u32);
@@ -209,7 +175,7 @@ impl DispatchMetadata {
     }
 
     /// Rebuild dispatch lookup indexes from canonical tables.
-    pub fn rebuild_lookup_cache(&mut self) {
+    pub fn rebuild_lookup_index(&mut self) {
         self.vtable_id_by_type.clear();
         self.itab_id_by_type.clear();
 

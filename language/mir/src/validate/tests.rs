@@ -6,8 +6,8 @@ use crate::{
     AddressSpace, AllocationMode, ArgumentAttribute, ArgumentSlice, Attribute, AttributeArgs,
     AttributeIdentifier, AttributeValue, Block, Call, CallBehavior, Constant, Copyability,
     DebugBindingKind, DebugRangeStart, DebugScopeKind, DebugValueLocation, EffectClass, Field,
-    Function, FunctionReference, Instruction, Layout, LayoutField, LayoutKind, Local, LocalNodeId,
-    LocalReference, Mutability, NodeTree, Ownership, ProvenanceAnchor, ProvenanceKey,
+    Function, FunctionReference, Instruction, Layout, LayoutField, LayoutKind, LayoutTrace, Local,
+    LocalNodeId, LocalReference, Mutability, NodeTree, Ownership, ProvenanceAnchor, ProvenanceKey,
     ReferenceKind, SuspendBehavior, Terminator, Type, TypeReference, UnwindBehavior, Value,
     ValueReference, VtableSlotId,
 };
@@ -1107,8 +1107,9 @@ fn test_reject_struct_layout_field_type_mismatch() {
         kind: LayoutKind::Struct,
         size: 4,
         alignment: 4,
+        trace: LayoutTrace::empty(),
         fields: vec![LayoutField {
-            name: field_name,
+            name: Some(field_name),
             ty: float32,
             offset: 0,
             size: 4,
@@ -1163,7 +1164,7 @@ fn test_reject_managed_alloc_with_no_managed_mode() {
     });
     let result_ty = tree.insert_type(Type::Reference {
         kind: ReferenceKind::Managed,
-        address_space: AddressSpace::Generic,
+        address_space: AddressSpace::Local,
         mutability: Mutability::Mutable,
         pointee: type_reference(layout_ty),
         is_nullable: false,
@@ -1213,7 +1214,7 @@ fn test_reject_raw_alloc_with_stack_only_mode() {
     });
     let result_ty = tree.insert_type(Type::Reference {
         kind: ReferenceKind::Raw,
-        address_space: AddressSpace::Generic,
+        address_space: AddressSpace::Local,
         mutability: Mutability::Mutable,
         pointee: type_reference(layout_ty),
         is_nullable: false,
@@ -1246,5 +1247,21 @@ fn test_reject_raw_alloc_with_stack_only_mode() {
     assert_eq!(
         error.to_string(),
         "metadata invariant violation: allocation mode violation: 'raw.alloc' is invalid because stackOnly forbids non-stack allocations"
+    );
+}
+
+/// Reject pinning non-local or non-managed references.
+#[test]
+fn test_reject_pin_for_raw_reference() {
+    let source = r#"function bad(value0: ref<int32, raw>): void {
+entry0(value0: ref<int32, raw>):
+    pin value0
+    return
+}"#;
+
+    let error = parse_error(source);
+    assert_eq!(
+        error.message,
+        "metadata invariant violation: pin value must be one local managed reference"
     );
 }

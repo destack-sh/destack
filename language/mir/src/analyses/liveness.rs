@@ -498,7 +498,7 @@ fn concrete_local(local: LocalReference) -> Option<LocalNodeId<Local>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::test_support::parse_test_function;
+    use crate::analyses::tests::parse_test_function;
 
     #[test]
     fn test_build_liveness_for_simple_block() {

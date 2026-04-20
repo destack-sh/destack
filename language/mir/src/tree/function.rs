@@ -2,8 +2,9 @@ use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AllocationSize, Block, CallBehavior, Lifetime, Linkage, Local, LocalNodeId, MemoryEffect, Node,
-    NodeTree, NodeType, Parameter, PointerAttribute, Type, TypeReference, Value, ValueReference,
+    AllocationSize, Block, BorrowRegion, CallBehavior, Linkage, Local, LocalNodeId, MemoryEffect,
+    Node, NodeTree, NodeType, Parameter, PointerAttribute, Type, TypeReference, Value,
+    ValueReference,
 };
 
 /// Memory allocation restrictions for a function.
@@ -217,8 +218,8 @@ pub struct Function {
 
     /// The return type.
     pub return_type: TypeReference,
-    /// Lifetime bounds for the return value.
-    pub return_lifetime: Lifetime,
+    /// Borrow-region bounds for the return value.
+    pub return_region: BorrowRegion,
     /// Pointer attribute for the return value.
     pub return_attribute: PointerAttribute,
 
@@ -316,7 +317,7 @@ impl Function {
             value_names: vec![None; next_value_id as usize],
             value_types,
             return_type,
-            return_lifetime: Lifetime::Inferred,
+            return_region: BorrowRegion::Inferred,
             memory_effect: MemoryEffect::unknown(),
             call_behavior: CallBehavior::unknown(),
             allocation_size: None,
@@ -399,9 +400,9 @@ impl Function {
         self.value_types[index] = Some(ty);
     }
 
-    /// Set the return lifetime and return self (builder pattern).
-    pub fn with_return_lifetime(mut self, lifetime: Lifetime) -> Self {
-        self.return_lifetime = lifetime;
+    /// Set the return borrow region and return self.
+    pub fn with_return_region(mut self, region: BorrowRegion) -> Self {
+        self.return_region = region;
         self
     }
 

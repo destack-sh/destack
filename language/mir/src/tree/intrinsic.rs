@@ -118,8 +118,8 @@ pub enum Intrinsic {
 
     // managed heap
     /// Managed write barrier.
-    /// Called around one managed reference store so the active heap policy can track it.
-    /// `(ptr, val) -> ()`
+    /// Called around one managed storage write so the active heap policy can track it.
+    /// `(target, start, len) -> ()`
     WriteBarrier,
 
     // float math
@@ -561,7 +561,7 @@ impl Intrinsic {
             Intrinsic::RawEq => IntrinsicSignature::Comparison,
 
             // managed heap
-            Intrinsic::WriteBarrier => IntrinsicSignature::WriteBarrier { args: 2 },
+            Intrinsic::WriteBarrier => IntrinsicSignature::WriteBarrier { args: 3 },
 
             // float math (unary)
             Intrinsic::Sqrt
