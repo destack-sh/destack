@@ -16,8 +16,6 @@ pub enum DecoratorPosition {
     LinePrefix,
     /// Decorator after the node on the same line.
     LinePostfix,
-    /// Decorators after the node on the same line with nothing after them.
-    LinePostfixBoundary,
 }
 
 /// A decorator attached to a DIR node.
