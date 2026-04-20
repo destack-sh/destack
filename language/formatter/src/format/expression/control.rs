@@ -1066,7 +1066,7 @@ fn match_case_has_separator_line_comment(
     }
 
     context
-        .comments_in_range(separator_token.span.end, body_span.start)
+        .comment_tokens_in_range(separator_token.span.end, body_span.start)
         .iter()
         .copied()
         .any(|comment| context.comment_is_line(comment))

@@ -4,6 +4,7 @@ mod declarator;
 mod dispatch;
 mod member;
 mod object;
+mod parentheses;
 mod path;
 mod primary;
 mod shape;
@@ -19,12 +20,13 @@ pub(crate) use self::dispatch::{
 pub(crate) use self::member::{
     format_index_expression, format_member_expression, format_type_template_literal,
 };
+pub(crate) use self::parentheses::expression_needs_parentheses_in_parent;
 pub(crate) use self::primary::{
     format_primary_expression, write_primary_expression_trailing_annotations,
 };
 pub(crate) use self::shape::{
     ExpressionLeftSide, array_elements_are_fill_candidates, array_has_only_outer_comments,
-    expression_is_trivial_inline_without_annotations, sequence_expression_needs_parens,
+    sequence_expression_needs_parens,
 };
 pub use self::shape::{
     is_expression_breakable, is_pattern_breakable, is_trivial_argument, is_trivial_expression,

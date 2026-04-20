@@ -1,6 +1,6 @@
 use crate::format::annotation::{format_leading_comments, prefix_annotations};
 use crate::format::expression::{
-    format_primary_expression, format_statement_expression,
+    expression_needs_parentheses_in_parent, format_primary_expression, format_statement_expression,
     write_primary_expression_trailing_annotations, write_statement_expression_trailing_annotations,
 };
 use crate::format::file::write_ignored_node;
@@ -9,12 +9,12 @@ use crate::format::operator::{
 };
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{Expression, LocalNodeId};
-use destack_fir::format::{Buffer, FormatError, FormatResult};
-use destack_fir::prelude::token;
+use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::prelude::{format_with, token};
 use destack_fir::write;
 
 /// Write one expression after prefix annotations are handled externally.
-pub(crate) fn write_expression_without_prefix_annotations<'ast>(
+fn write_expression_without_prefix_annotations_inner<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
@@ -96,19 +96,21 @@ pub(crate) fn write_expression_without_prefix_annotations<'ast>(
     }
 }
 
-/// Format an expression without prefix and postfix annotations.
-pub(crate) fn format_expression<'ast>(
+/// Write one expression after prefix annotations are handled externally.
+pub(crate) fn write_expression_without_prefix_annotations<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    write_expression_without_prefix_annotations_inner(f, expression_id)
+}
+
+/// Format one expression body without leading comments, prefix annotations, or trailing annotations.
+fn format_expression_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     expression: &Expression,
-    is_ignored: bool,
 ) -> FormatResult<()> {
-    if is_ignored {
-        write_ignored_node(f, node_id)?;
-        return Ok(());
-    }
-
-    let formatted = match expression {
+    match expression {
         Expression::Declaration(_)
         | Expression::Block(_)
         | Expression::Labelled { .. }
@@ -128,7 +130,10 @@ pub(crate) fn format_expression<'ast>(
         | Expression::Continue { .. }
         | Expression::Yield { .. }
         | Expression::Throw { .. }
-        | Expression::Return { .. } => format_statement_expression(f, node_id, expression)?,
+        | Expression::Return { .. } => {
+            let is_formatted = format_statement_expression(f, node_id, expression)?;
+            debug_assert!(is_formatted);
+        }
         Expression::Identifier { .. }
         | Expression::QualifiedReference { .. }
         | Expression::PrivateIdentifier { .. }
@@ -145,7 +150,10 @@ pub(crate) fn format_expression<'ast>(
         | Expression::SequenceExpression { .. }
         | Expression::ObjectExpression { .. }
         | Expression::TreeExpression { .. }
-        | Expression::Parenthesized { .. } => format_primary_expression(f, node_id, expression)?,
+        | Expression::Parenthesized { .. } => {
+            let is_formatted = format_primary_expression(f, node_id, expression)?;
+            debug_assert!(is_formatted);
+        }
         Expression::Unary { .. }
         | Expression::As { .. }
         | Expression::Satisfies { .. }
@@ -171,16 +179,28 @@ pub(crate) fn format_expression<'ast>(
         | Expression::Debugger
         | Expression::Missing
         | Expression::Stub
-        | Expression::Error => format_operator_expression(f, node_id, expression)?,
-    };
+        | Expression::Error => {
+            let is_formatted = format_operator_expression(f, node_id, expression)?;
+            debug_assert!(is_formatted);
+        }
+    }
 
-    if formatted {
+    Ok(())
+}
+
+/// Format an expression without prefix and postfix annotations.
+pub(crate) fn format_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    expression: &Expression,
+    is_ignored: bool,
+) -> FormatResult<()> {
+    if is_ignored {
+        write_ignored_node(f, node_id)?;
         return Ok(());
     }
 
-    Err(FormatError::SyntaxError {
-        message: "unsupported expression kind for expression formatter",
-    })
+    format_expression_body(f, node_id, expression)
 }
 
 impl<'ast> FormatNode<'ast, Expression> for Expression {
@@ -189,7 +209,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
         node_id: LocalNodeId<Expression>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        let needs_parentheses = f.context().expression_needs_parentheses_in_parent(node_id);
+        let needs_parentheses = expression_needs_parentheses_in_parent(f.context(), node_id);
         let expression_span = f.context().span(node_id);
         let has_prefix_annotation = f.context().has_prefix_annotation(node_id);
 
@@ -201,18 +221,19 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
         // positional leading comments
         write!(f, [format_leading_comments(expression_span)])?;
 
-        // derived parentheses
         if needs_parentheses {
-            write!(f, [token("(")])?;
+            let parenthesized_body = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+                write!(f, [token("(")])?;
+                write_expression_without_prefix_annotations_inner(f, node_id)?;
+                write!(f, [token(")")])
+            });
+
+            write!(f, [parenthesized_body])?;
+            return Ok(());
         }
 
         // body
-        write_expression_without_prefix_annotations(f, node_id)?;
-
-        // derived parentheses
-        if needs_parentheses {
-            write!(f, [token(")")])?;
-        }
+        write_expression_without_prefix_annotations_inner(f, node_id)?;
 
         Ok(())
     }
