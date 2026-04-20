@@ -51,9 +51,9 @@ Software "engineering" bears little resemblence to real engineering:
 we routinely fail to build trivial software correctly, and even when it works, it is incredibly inefficient, and even when it is, it is not well integrated with other software.
 The inscrutability, inefficiency, and instability of software spans the entire lifecycle, and it must be solved by reimagining software production end-to-end across _all_ incidentally disparate sub-processes.
 
-At a deeper level, Destack is not really a "stack" at all, it is a system for understanding systems.
-We believe that the processes and scaffolding to build and maintain the system are inextricably linked to the system itself.
-Further, the "scaffolding" is really just a different way of discovering, specifying and evolving the shape of the problem the system is trying to solve.
+The processes and scaffolding to build and maintain the system are inextricably linked to the system itself.
+Therefore, Destack is not really a "stack" at all, it is a system for understanding systems, a "meta stack".
+Really, the "scaffolding" _is_ how we discover, specify and evolve the shape of the problem that the system is designed to solve.
 And thus we cannot program at a higher level without precise specification across _all_ levels.
 
 Software is very useful, we have a lot of it, and there is about to be much, much more, with exciting new possibilities to integrate probabilistic into symbolic computation.
