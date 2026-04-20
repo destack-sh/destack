@@ -1,6 +1,6 @@
 use crate::format::annotation::{
-    block_infix_annotations, format_raw_comment, infix_or_postfix_annotations, prefix_annotations,
-    raw_prefix_comment_nodes,
+    block_infix_annotations, format_comment, infix_or_postfix_annotations, prefix_annotations,
+    prefix_comment_nodes,
 };
 use crate::format::collection::TrailingSeparator;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
@@ -316,7 +316,7 @@ fn dependency_item_prefix_start(
 ) -> u32 {
     let mut start = context.span(item_id).start;
 
-    for comment in raw_prefix_comment_nodes(context, item_id) {
+    for comment in prefix_comment_nodes(context, item_id) {
         start = start.min(comment.span.start);
     }
 
@@ -373,7 +373,7 @@ fn write_dependency_gap_spacing<'ast>(
     }
 }
 
-/// Write raw comments in one dependency gap and return the last emitted end position.
+/// Write comments in one dependency gap and return the last emitted end position.
 fn write_dependency_gap_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     start: u32,
@@ -390,7 +390,7 @@ fn write_dependency_gap_comments<'ast>(
         let comment_span = comment_id.span;
 
         write_dependency_gap_spacing(f, previous_end, comment_span.start, false)?;
-        format_raw_comment(f, comment_id)?;
+        format_comment(f, comment_id)?;
 
         previous_end = comment_span.end;
     }
@@ -867,7 +867,7 @@ fn write_dependency_item_collection<'ast>(
             write!(f, [token("{")])?;
 
             let format_interior = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                if items.first().is_some() {
+                if !items.is_empty() {
                     write_dependency_item_entries(f, items, trailing_separator)?;
 
                     if let Some(close_brace) = close_brace {

@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use crate::format::annotation::{
-    block_infix_annotations, format_raw_comment, infix_or_postfix_annotations, prefix_annotations,
-    prefix_annotations_after_offset, raw_prefix_comment_nodes, write_annotation_sequence,
+    block_infix_annotations, format_comment, infix_or_postfix_annotations, prefix_annotations,
+    prefix_annotations_after_offset, prefix_comment_nodes, write_annotation_sequence,
 };
 use crate::format::declaration::statement::{
     block_leading_line_comment_nodes, block_trailing_comment_nodes,
@@ -16,8 +16,9 @@ use crate::format::file::{
     ignore_range_for_node, ignore_ranges_for_nodes, node_has_ignore_directive, write_ignored_span,
 };
 use destack_ast::{
-    Block, BlockContext, Declaration, DecoratorPosition, Expression, FunctionKind, FunctionMode,
-    IfCondition, IfKind, LocalNodeId, Member, NodeType, Property, TokenSpan, TypeExpression,
+    Block, BlockContext, Comment, Declaration, DecoratorPosition, Expression, FunctionKind,
+    FunctionMode, IfCondition, IfKind, LocalNodeId, Member, NodeType, Property, TokenSpan,
+    TypeExpression,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::{format_with, *};
@@ -81,7 +82,7 @@ fn has_blank_line_between_offsets(
     context.has_blank_line(between_span)
 }
 
-/// Return the earliest start offset for leading raw comments on an expression.
+/// Return the earliest start offset for leading comments on an expression.
 fn expression_prefix_start(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
@@ -89,14 +90,14 @@ fn expression_prefix_start(
 ) -> u32 {
     let mut start = default_start;
 
-    for comment in raw_prefix_comment_nodes(context, expression_id) {
+    for comment in prefix_comment_nodes(context, expression_id) {
         start = start.min(comment.span.start);
     }
 
     // declaration expressions semantically start at their prefix annotations,
     // even though the expression span begins at the declaration head
     if let Expression::Declaration(declaration_id) = context.tree.get(expression_id) {
-        for comment in raw_prefix_comment_nodes(context, *declaration_id) {
+        for comment in prefix_comment_nodes(context, *declaration_id) {
             start = start.min(comment.span.start);
         }
 
@@ -120,10 +121,6 @@ fn expression_prefix_start(
     }
 
     let semantic_head_start = match context.tree.get(expression_id) {
-        Expression::Parenthesized { expression } => {
-            let inner_expression_span = context.span(*expression);
-            expression_prefix_start(context, *expression, inner_expression_span.start)
-        }
         Expression::Member { left, .. }
         | Expression::PrivateMember { left, .. }
         | Expression::Index { left, .. }
@@ -140,7 +137,7 @@ fn expression_prefix_start(
     start.min(semantic_head_start)
 }
 
-/// Return the latest end offset for trailing raw comments on an expression.
+/// Return the latest end offset for trailing comments on an expression.
 pub(crate) fn expression_postfix_end(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
@@ -155,12 +152,12 @@ pub(crate) fn expression_postfix_end(
         .fold(default_end, |end, comment| end.max(comment.span.end))
 }
 
-/// Return raw comments between one previous statement boundary and the next expression head.
+/// Return comments between one previous statement end and the next expression head.
 fn expression_gap_comment_nodes(
     context: &DestackFormatContext<'_>,
     start: u32,
     expression_id: LocalNodeId<Expression>,
-) -> Vec<destack_ast::Comment> {
+) -> Vec<Comment> {
     let expression_span = context.span(expression_id);
     let expression_start = expression_prefix_start(context, expression_id, expression_span.start);
     if expression_start <= start {
@@ -173,7 +170,7 @@ fn expression_gap_comment_nodes(
     }
 }
 
-/// Write raw statement-gap comments before one expression head.
+/// Write statement-gap comments before one expression head.
 fn write_expression_gap_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     start: u32,
@@ -189,17 +186,17 @@ fn write_expression_gap_comments<'ast>(
     write!(f, [hard_line_break()])
 }
 
-/// Write one raw comment node sequence separated by hard line breaks.
+/// Write one comment node sequence separated by hard line breaks.
 fn write_comment_node_lines<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    comment_nodes: &[destack_ast::Comment],
+    comment_nodes: &[Comment],
 ) -> FormatResult<()> {
     for (index, comment) in comment_nodes.iter().copied().enumerate() {
         if index > 0 {
             write!(f, [hard_line_break()])?;
         }
 
-        format_raw_comment(f, comment)?;
+        format_comment(f, comment)?;
     }
 
     Ok(())
@@ -250,6 +247,10 @@ fn write_statement_sequence_expression_prefix<'ast>(
     expression: &Expression,
     start_offset: Option<u32>,
 ) -> FormatResult<()> {
+    if matches!(expression, Expression::Declaration(_)) {
+        return Ok(());
+    }
+
     if expression_is_lambda_declaration(f.context().tree, expression) {
         let mut prefix_items = Vec::new();
 
@@ -412,13 +413,16 @@ pub(crate) fn format_block_body_wide<'ast>(
         }
     }
 
-    write!(
-        f,
-        [block_indent(&block_infix_annotations(
-            f.context(),
-            block_id
-        ))]
-    )?;
+    // infix annotations
+    if has_infix_annotation {
+        write!(
+            f,
+            [block_indent(&block_infix_annotations(
+                f.context(),
+                block_id
+            ))]
+        )?;
+    }
 
     write!(f, [hard_line_break(), token("}")])
 }
@@ -517,11 +521,7 @@ pub(crate) fn format_block_statement_sequence<'ast>(
                 }
 
                 // determine if we need an extra blank line
-                let needs_blank = if source_has_blank_line_between {
-                    true
-                } else {
-                    false
-                };
+                let needs_blank = source_has_blank_line_between;
 
                 if needs_blank {
                     write!(f, [empty_line()])?;
@@ -558,7 +558,7 @@ pub(crate) fn format_block_statement_sequence<'ast>(
             continue;
         }
 
-        // raw boundary comments
+        // separator comments
         if i > 0 {
             let gap_start = previous_output_end
                 .filter(|(file, _)| *file == expression_span.file)
@@ -669,11 +669,7 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
                 }
 
                 // determine if we need an extra blank line
-                let needs_blank = if source_has_blank_line_between {
-                    true
-                } else {
-                    false
-                };
+                let needs_blank = source_has_blank_line_between;
 
                 if needs_blank {
                     write!(f, [empty_line()])?;
@@ -709,7 +705,7 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
             continue;
         }
 
-        // raw boundary comments
+        // separator comments
         if let Some(previous_expression_id) = previous_expression_id {
             let gap_start = previous_output_end
                 .filter(|(file, _)| *file == expression_span.file)
@@ -868,12 +864,8 @@ fn format_program_statement_sequence<'ast>(
                             f.context().strings,
                         )
                     })
-                } else if prev_was_import && !is_import_expr {
-                    true
-                } else if source_has_blank_line_between {
-                    true
                 } else {
-                    false
+                    (prev_was_import && !is_import_expr) || source_has_blank_line_between
                 };
 
                 if needs_blank {
@@ -917,7 +909,7 @@ fn format_program_statement_sequence<'ast>(
         if i == 0 && previous_output_end.is_none() {
             write_expression_gap_comments(f, 0, expression_id)?;
         } else if i > 0 {
-            // raw boundary comments
+            // separator comments
             let gap_start = previous_output_end
                 .filter(|(file, _)| *file == expression_span.file)
                 .map_or_else(
@@ -998,6 +990,7 @@ pub(crate) fn expression_is_in_statement_position(
             }
 
             let should_inherit_parent_position = match parent_expression {
+                Expression::Parenthesized { expression } => expression.id == expression_id.id,
                 Expression::If {
                     condition,
                     then_expression,
@@ -1188,9 +1181,6 @@ fn type_expression_is_self_type_path(
     match context.tree.get(expression_id) {
         TypeExpression::Reference { path, .. } => {
             path.segments.len() == 1 && context.strings.get(path.segments[0]) == "Self"
-        }
-        TypeExpression::Parenthesized { expression } => {
-            type_expression_is_self_type_path(context, *expression)
         }
         _ => false,
     }
