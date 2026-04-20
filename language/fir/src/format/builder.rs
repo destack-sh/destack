@@ -1269,6 +1269,46 @@ mod tests {
         );
     }
 
+    /// Soft line break or space should break inside one parent group's expanded indent shell
+    #[test]
+    fn test_soft_line_break_or_space_breaks_inside_expanded_parent_group() {
+        let context = SimpleFormatContext::new(
+            SimpleFormatOptions {
+                line_width: 30,
+                ..SimpleFormatOptions::default()
+            },
+            File::empty_text(FileType::Destack),
+        );
+
+        let nodes = format!(
+            context,
+            [group(&format_args![
+                token("const longVariableName"),
+                token(" ="),
+                group(&indent(&format_args![
+                    soft_line_break_or_space(),
+                    token("("),
+                    group(&token("alpha")),
+                    token(" ="),
+                    soft_line_break_or_space(),
+                    group(&token("beta")),
+                    token(" ="),
+                    indent(&format_args![
+                        soft_line_break_or_space(),
+                        token("computeValue()")
+                    ]),
+                    token(")"),
+                ])),
+            ])]
+        )
+        .unwrap();
+
+        assert_eq!(
+            "const longVariableName =\n  (alpha =\n  beta =\n    computeValue())",
+            nodes.print().unwrap().as_str()
+        );
+    }
+
     /// Token writes content as-is to output
     #[test]
     fn test_token_writes_content() {
