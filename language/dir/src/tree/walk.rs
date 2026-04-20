@@ -425,8 +425,10 @@ pub fn walk_type_member<V: NodeVisitor + ?Sized>(
         } => {
             walk_key(visitor, tree, key);
 
-            let declared_type_node = tree.get(*declared_type);
-            visitor.visit_type_expression(tree, *declared_type, declared_type_node);
+            if let Some(declared_type) = declared_type {
+                let declared_type_node = tree.get(*declared_type);
+                visitor.visit_type_expression(tree, *declared_type, declared_type_node);
+            }
         }
         TypeMember::Method {
             is_optional: _,
