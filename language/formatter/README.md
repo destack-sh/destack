@@ -5,6 +5,7 @@ The correctness target for the shared JS and TS surface is `oxc_formatter`.
 
 Unsupported legacy or non-strict syntax belongs in conformance status files instead of formatter heuristics.
 Destack-only syntax should fit into the same structural model rather than inventing separate policy when an OXC-shaped analogue exists.
+JSDoc semantics, legacy TypeScript angle-bracket assertions like `<T>expr`, and legacy import-attribute `assert` syntax are out of scope for this formatter.
 
 ## Goals
 

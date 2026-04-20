@@ -578,7 +578,6 @@ fn format_dependency_with_arguments<'ast>(
 
     let clause_keyword = match clause_kind {
         ImportAttributeClauseKind::With => Keyword::With,
-        ImportAttributeClauseKind::Assert => Keyword::Assert,
     };
 
     if has_attribute_head_annotation {

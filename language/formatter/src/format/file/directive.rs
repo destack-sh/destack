@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 use destack_ast::{LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan, TokenType};
-use destack_fir::format::{FormatResult, text};
+use destack_fir::format::{text, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_source::Span;
@@ -186,11 +186,12 @@ where
             let mut end_span = ctx.extend_span_with_trailing_line_tokens(end_token.span);
 
             // line end markers should preserve their trailing newline
-            if ctx.comment_is_line(end_token)
-                && let Some((line_index, _)) = ctx.source_position(end_token.span.start)
-                && let Some(next_line_span) = ctx.source_line_span(line_index + 1)
-            {
-                end_span = Span::new(end_span.file, end_span.start, next_line_span.start);
+            if ctx.comment_is_line(end_token) {
+                if let Some((line_index, _)) = ctx.source_position(end_token.span.start) {
+                    if let Some(next_line_span) = ctx.source_line_span(line_index + 1) {
+                        end_span = Span::new(end_span.file, end_span.start, next_line_span.start);
+                    }
+                }
             }
 
             Some(Span::new(token.span.file, token.span.start, end_span.end))
@@ -243,15 +244,7 @@ pub fn has_file_ignore_directive(ctx: &DestackFormatContext<'_>) -> bool {
         return false;
     }
 
-    let mut tokens: Vec<TokenSpan> = ctx
-        .tokens
-        .iter()
-        .copied()
-        .chain(ctx.side_tokens.iter().copied())
-        .collect();
-    tokens.sort_by_key(|token| token.span.start);
-
-    for token in tokens {
+    for token in ctx.all_tokens().iter().copied() {
         match token.token.ty {
             TokenType::Whitespace | TokenType::Newline => {
                 continue;

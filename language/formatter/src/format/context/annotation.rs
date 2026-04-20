@@ -1,13 +1,14 @@
 use super::context::DestackFormatContext;
-use destack_ast as ast;
-use destack_ast::{Decorator, DecoratorPosition, LocalNodeId, Node, NodeTree, NodeTreeImpl};
+use destack_ast::{
+    Decorator, DecoratorPosition, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenType,
+};
 use destack_source::Span;
 
 impl<'a> DestackFormatContext<'a> {
     /// Get one annotation by id.
     #[inline]
-    pub fn annotation(&self, annotation_id: LocalNodeId<Decorator>) -> Decorator {
-        self.tree.get(annotation_id).clone()
+    pub fn annotation(&self, annotation_id: LocalNodeId<Decorator>) -> &Decorator {
+        self.tree.get(annotation_id)
     }
 
     /// Get one annotation span by id.
@@ -22,33 +23,13 @@ impl<'a> DestackFormatContext<'a> {
         self.span_starts_on_own_line(self.annotation_span(annotation_id))
     }
 
-    /// Return the nearest non-whitespace token before one annotation span.
-    #[inline]
-    pub fn annotation_previous_non_whitespace_token(
-        &self,
-        annotation_id: LocalNodeId<Decorator>,
-    ) -> Option<ast::TokenSpan> {
-        let annotation_span = self.annotation_span(annotation_id);
-        self.previous_non_whitespace_token_before_span(annotation_span)
-    }
-
-    /// Return the nearest non-whitespace token after one annotation span.
-    #[inline]
-    pub fn annotation_next_non_whitespace_token(
-        &self,
-        annotation_id: LocalNodeId<Decorator>,
-    ) -> Option<ast::TokenSpan> {
-        let annotation_span = self.annotation_span(annotation_id);
-        self.next_non_whitespace_token_after_span(annotation_span)
-    }
-
     /// Return whether the next non-whitespace token after one annotation starts on the same line.
     pub fn annotation_next_token_is_on_same_line(
         &self,
         annotation_id: LocalNodeId<Decorator>,
     ) -> bool {
         let annotation_span = self.annotation_span(annotation_id);
-        let Some(next_token) = self.annotation_next_non_whitespace_token(annotation_id) else {
+        let Some(next_token) = self.next_non_whitespace_token_after_span(annotation_span) else {
             return false;
         };
         if annotation_span.file != next_token.span.file {
@@ -64,8 +45,8 @@ impl<'a> DestackFormatContext<'a> {
     pub fn annotation_next_non_whitespace_token_type(
         &self,
         annotation_id: LocalNodeId<Decorator>,
-    ) -> Option<ast::TokenType> {
-        self.annotation_next_non_whitespace_token(annotation_id)
+    ) -> Option<TokenType> {
+        self.next_non_whitespace_token_after_span(self.annotation_span(annotation_id))
             .map(|token| token.token.ty)
     }
 
@@ -96,16 +77,14 @@ impl<'a> DestackFormatContext<'a> {
         T: Node + Clone,
         NodeTree: NodeTreeImpl<T>,
     {
-        if !self.raw_prefix_comments_for(node_id).is_empty() {
-            return true;
-        }
-
         self.annotation_ids(node_id)
             .iter()
             .copied()
             .any(|annotation_id| {
+                let position = self.annotation(annotation_id).position;
+
                 matches!(
-                    self.annotation(annotation_id).position,
+                    position,
                     DecoratorPosition::BlockPrefix | DecoratorPosition::LinePrefix
                 )
             })
@@ -126,21 +105,6 @@ impl<'a> DestackFormatContext<'a> {
             })
     }
 
-    /// Check if a node has a semantic annotation other than one boundary postfix comment.
-    #[inline]
-    pub fn has_non_boundary_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
-    where
-        T: Node,
-        NodeTree: NodeTreeImpl<T>,
-    {
-        self.annotation_ids(node_id)
-            .iter()
-            .copied()
-            .any(|annotation_id| {
-                self.annotation(annotation_id).position != DecoratorPosition::LinePostfixBoundary
-            })
-    }
-
     /// Check if a node has a postfix annotation.
     #[inline]
     pub fn has_postfix_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
@@ -152,11 +116,11 @@ impl<'a> DestackFormatContext<'a> {
             .iter()
             .copied()
             .any(|annotation_id| {
+                let position = self.annotation(annotation_id).position;
+
                 matches!(
-                    self.annotation(annotation_id).position,
-                    DecoratorPosition::BlockPostfix
-                        | DecoratorPosition::LinePostfix
-                        | DecoratorPosition::LinePostfixBoundary
+                    position,
+                    DecoratorPosition::BlockPostfix | DecoratorPosition::LinePostfix
                 )
             })
     }
