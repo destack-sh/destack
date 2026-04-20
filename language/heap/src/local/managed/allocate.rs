@@ -2,7 +2,7 @@ use super::{
     CardSet, HeapScan, LargeEntry, LargeEntryId, ManagedLocation, ManagedReferenceEntry,
     ManagedSpace, ManagedYoungId, SmallSpan, YoungEntry, checked_reference_id,
 };
-use crate::arena::{Arena, PageView, SpanSlot};
+use crate::arena::{Arena, PageView, SpanAllocationPath, SpanSlot};
 use crate::{Bitmap, HeapError, HeapResult, HeapSpace, LayoutId, ManagedReference, Shape, ShapeId};
 
 /// One exact managed allocation path.
@@ -32,6 +32,24 @@ impl ManagedAllocationPath {
         match self {
             Self::Young => 0,
             Self::Small { mapped_delta, .. } | Self::Large { mapped_delta } => mapped_delta,
+        }
+    }
+}
+
+impl ManagedAllocationPath {
+    /// Build one mature managed allocation path from one shared span path.
+    fn mature(path: SpanAllocationPath) -> Self {
+        match path {
+            SpanAllocationPath::Small {
+                class_index,
+                size_class,
+                mapped_delta,
+            } => Self::Small {
+                class_index,
+                size_class,
+                mapped_delta,
+            },
+            SpanAllocationPath::Large { mapped_delta } => Self::Large { mapped_delta },
         }
     }
 }
@@ -93,25 +111,15 @@ impl ManagedSpace {
             return ManagedAllocationPath::Young;
         }
 
-        // otherwise resolve the mature small class exactly once
-        if let Some(class_index) = self.small.size_classes.class_index_for(byte_len) {
-            let size_class = self.small.size_classes.classes[class_index].bytes;
-            let mapped_delta = if self.has_available_small_slot(class_index) {
-                0
-            } else {
-                self.small.span_bytes as i64
-            };
+        // otherwise resolve one mature span path
+        let path = self.small.size_classes.span_allocation_path(
+            byte_len,
+            self.small.span_bytes,
+            |class_index| self.has_available_small_slot(class_index),
+            |large_bytes| self.round_up_large_entry_bytes(large_bytes),
+        );
 
-            return ManagedAllocationPath::Small {
-                class_index,
-                size_class,
-                mapped_delta,
-            };
-        }
-
-        ManagedAllocationPath::Large {
-            mapped_delta: self.round_up_large_entry_bytes(byte_len) as i64,
-        }
+        ManagedAllocationPath::mature(path)
     }
 
     /// Allocate one managed byte entry.

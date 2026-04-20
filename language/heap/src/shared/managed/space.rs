@@ -4,7 +4,7 @@ use super::{
     SharedLargeEntry, SharedLargeEntryId, SharedManagedLocation, SharedManagedReferenceEntry,
     SharedSmallSpan,
 };
-use crate::arena::{Arena, PageView, SizeClassTable, SpanSlot};
+use crate::arena::{Arena, PageView, SizeClassTable, SpanAllocationPath, SpanSlot};
 use crate::shared::gc::SharedGcPhase;
 use crate::{
     AllocationUsage, GcState, HeapError, HeapOptions, HeapResult, HeapScan, HeapSpace, LayoutId,
@@ -23,34 +23,6 @@ const FIRST_SHARED_MANAGED_REFERENCE_ID: u64 = 1;
 
 /// The first allocated shared managed large-entry id.
 const FIRST_SHARED_MANAGED_LARGE_ENTRY_ID: u64 = 1;
-
-/// One exact shared managed allocation path.
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum SharedManagedAllocationPath {
-    /// One small-space allocation.
-    Small {
-        /// The resolved size-class index.
-        class_index: usize,
-        /// The resolved slot width.
-        size_class: usize,
-        /// The mapped-byte delta for this path.
-        mapped_delta: i64,
-    },
-    /// One large-space allocation.
-    Large {
-        /// The mapped-byte delta for this path.
-        mapped_delta: i64,
-    },
-}
-
-impl SharedManagedAllocationPath {
-    /// Return the mapped-byte delta for this allocation path.
-    pub(crate) fn mapped_delta(self) -> i64 {
-        match self {
-            Self::Small { mapped_delta, .. } | Self::Large { mapped_delta } => mapped_delta,
-        }
-    }
-}
 
 /// One shared managed small space.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -141,11 +113,24 @@ impl SharedManagedSpace {
 
     /// Create a new empty shared managed-space store over one shared arena.
     pub fn with_arena(arena: Arc<Arena>) -> Self {
-        Self::with_options(arena, &HeapOptions::shared())
+        let options = HeapOptions {
+            page_bytes: arena.page_bytes(),
+            arena_segment_bytes: arena.segment_bytes(),
+            ..HeapOptions::shared()
+        };
+
+        Self::with_options(arena, &options)
     }
 
     /// Create a new empty shared managed-space store over one shared arena and options.
     pub fn with_options(arena: Arc<Arena>, options: &HeapOptions) -> Self {
+        options
+            .validate_shared()
+            .expect("shared managed options should validate");
+        options
+            .validate_arena(&arena)
+            .expect("shared managed arena should match options");
+
         Self {
             arena: arena.clone(),
             small: SharedSmallSpace {
@@ -297,7 +282,7 @@ impl SharedManagedSpace {
         bytes: &[u8],
         scan: impl Into<HeapScan>,
         layout_id: Option<LayoutId>,
-        path: SharedManagedAllocationPath,
+        path: SpanAllocationPath,
     ) -> HeapResult<SharedManagedReference> {
         let byte_len = bytes.len();
         let reference_id = self.allocate_reference_id()?;
@@ -321,7 +306,7 @@ impl SharedManagedSpace {
         byte_len: usize,
         scan: impl Into<HeapScan>,
         layout_id: Option<LayoutId>,
-        path: SharedManagedAllocationPath,
+        path: SpanAllocationPath,
     ) -> HeapResult<SharedManagedReference> {
         let reference_id = self.allocate_reference_id()?;
         let reference = SharedManagedReference::new(reference_id);
@@ -339,25 +324,13 @@ impl SharedManagedSpace {
     }
 
     /// Return one exact shared managed allocation path for the requested byte length.
-    pub(crate) fn allocation_path(&self, byte_len: usize) -> SharedManagedAllocationPath {
-        if let Some(class_index) = self.small.size_classes.class_index_for(byte_len) {
-            let size_class = self.small.size_classes.classes[class_index].bytes;
-            let mapped_delta = if self.has_available_small_slot(class_index) {
-                0
-            } else {
-                self.small.span_bytes as i64
-            };
-
-            return SharedManagedAllocationPath::Small {
-                class_index,
-                size_class,
-                mapped_delta,
-            };
-        }
-
-        SharedManagedAllocationPath::Large {
-            mapped_delta: self.round_up_allocation_bytes(byte_len) as i64,
-        }
+    pub(crate) fn allocation_path(&self, byte_len: usize) -> SpanAllocationPath {
+        self.small.size_classes.span_allocation_path(
+            byte_len,
+            self.small.span_bytes,
+            |class_index| self.has_available_small_slot(class_index),
+            |large_bytes| self.round_up_allocation_bytes(large_bytes),
+        )
     }
 
     /// Return the projected mapped-byte delta for one shared managed write.
@@ -390,7 +363,7 @@ impl SharedManagedSpace {
             return Err(HeapError::InvalidSharedManagedReference { reference });
         };
 
-        let byte_offset = reference.slot_offset();
+        let byte_offset = reference.byte_offset();
         let byte_len = checked_remaining_byte_len(reference, record.byte_len())?;
 
         self.location_bytes(location, byte_offset, byte_len)
@@ -483,7 +456,7 @@ impl SharedManagedSpace {
         };
 
         let byte_offset =
-            checked_byte_range(reference.slot_offset(), start, byte_len, record.byte_len())?;
+            checked_byte_range(reference.byte_offset(), start, byte_len, record.byte_len())?;
 
         Ok((location, byte_offset))
     }
@@ -535,12 +508,12 @@ impl SharedManagedSpace {
         scan: impl Into<HeapScan>,
         layout_id: Option<LayoutId>,
         bytes: Option<&[u8]>,
-        path: SharedManagedAllocationPath,
+        path: SpanAllocationPath,
     ) -> HeapResult<SharedManagedLocation> {
         let scan = scan.into();
         match path {
             // execute the precomputed small path directly
-            SharedManagedAllocationPath::Small {
+            SpanAllocationPath::Small {
                 class_index,
                 size_class,
                 ..
@@ -551,7 +524,7 @@ impl SharedManagedSpace {
             }
 
             // execute the precomputed large path directly
-            SharedManagedAllocationPath::Large { .. } => {
+            SpanAllocationPath::Large { .. } => {
                 let pages = match bytes {
                     Some(bytes) => self.arena.allocate_bytes(bytes)?,
                     None => self.arena.allocate_zeroed(byte_len)?,
@@ -1074,7 +1047,7 @@ fn checked_remaining_byte_len(
     reference: SharedManagedReference,
     byte_len: usize,
 ) -> HeapResult<usize> {
-    let byte_offset = reference.slot_offset();
+    let byte_offset = reference.byte_offset();
 
     if byte_offset > byte_len {
         return Err(HeapError::InvalidSharedManagedReference { reference });
