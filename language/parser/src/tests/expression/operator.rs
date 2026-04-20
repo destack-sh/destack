@@ -431,6 +431,36 @@ fn test_parse_assign_operator_span() {
     assert_eq!(parser.get_span_str(main_span), "+=");
 }
 
+/// Assignment chains bind right associatively.
+#[test]
+fn test_parse_precedence_assignment_right_associative() {
+    let mut test = TestParser::new("alpha = beta = computeValue()");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(
+        parser.tree,
+        expr_id,
+        Expression::Assign { operator, left, right } => {
+            assert_eq!(*operator, AssignOperator::Assign);
+            assert_expression_path!(parser, parser.tree.get(*left), "alpha");
+
+            assert_node!(
+                parser.tree,
+                *right,
+                Expression::Assign { operator, left, right } => {
+                    assert_eq!(*operator, AssignOperator::Assign);
+                    assert_expression_path!(parser, parser.tree.get(*left), "beta");
+                    assert_node!(parser.tree, *right, Expression::Call { left, arguments, .. } => {
+                        assert!(arguments.is_empty());
+                        assert_expression_path!(parser, parser.tree.get(*left), "computeValue");
+                    });
+                }
+            );
+        }
+    );
+}
+
 /// Postfix call has higher precedence than addition.
 #[test]
 fn test_parse_precedence_postfix_call_before_add() {

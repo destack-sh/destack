@@ -1552,7 +1552,8 @@ impl Parser {
                 break;
             }
 
-            if has_line_break_before
+            // multiline type layout
+            let breaks_multiline_type_layout = has_line_break_before
                 && newline_count > 1
                 && left_is_type_expression
                 && !matches!(
@@ -1560,15 +1561,23 @@ impl Parser {
                     ParseInfixOperator::Binary(
                         BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
                     )
-                )
-            {
+                );
+
+            if breaks_multiline_type_layout {
                 break;
             }
 
-            if let Some(left_precedence) = left_precedence
-                && left_precedence >= right_operator.precedence()
-            {
-                break;
+            // precedence boundary
+            if let Some(left_precedence) = left_precedence {
+                let should_break = if right_operator.is_right_associative() {
+                    left_precedence > right_operator.precedence()
+                } else {
+                    left_precedence >= right_operator.precedence()
+                };
+
+                if should_break {
+                    break;
+                }
             }
 
             // reject assignment targets that are invalid in ts/js grammar
