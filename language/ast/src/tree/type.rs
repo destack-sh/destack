@@ -14,7 +14,7 @@ pub enum TypeMember {
         is_optional: bool,
         is_readonly: bool,
         key: Key,
-        declared_type: LocalNodeId<TypeExpression>,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
     },
     /// Named method.
     Method {
