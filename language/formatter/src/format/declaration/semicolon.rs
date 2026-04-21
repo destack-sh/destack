@@ -250,7 +250,10 @@ pub(crate) fn expression_needs_statement_terminator(
 ) -> bool {
     let always_needs_statement_terminator = matches!(
         expression,
-        Expression::Import { .. } | Expression::Let { .. } | Expression::Using { .. }
+        Expression::Import { .. }
+            | Expression::Let { .. }
+            | Expression::LetElse { .. }
+            | Expression::Using { .. }
     ) || matches!(
         expression,
         Expression::While {

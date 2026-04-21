@@ -771,7 +771,7 @@ fn write_if_clause<'ast>(
 
                 Ok(())
             });
-            let body = format_with(|f| write_if_then_branch(f, then_expression_id));
+            let body = format_with(|f| write_control_branch_after_head(f, then_expression_id));
 
             write!(
                 f,
@@ -790,7 +790,7 @@ fn write_if_clause<'ast>(
             mutability: _,
             declarator,
         } => {
-            let body = format_with(|f| write_if_then_branch(f, then_expression_id));
+            let body = format_with(|f| write_control_branch_after_head(f, then_expression_id));
 
             write!(
                 f,
@@ -820,41 +820,42 @@ fn write_if_clause<'ast>(
     }
 }
 
-/// Write one `then` branch after its condition head.
-fn write_if_then_branch<'ast>(
+/// Write one control branch after its head.
+pub(crate) fn write_control_branch_after_head<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    then_expression_id: LocalNodeId<Expression>,
+    branch_expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     // transparent statement wrappers
-    if let Some(empty_block_id) = transparent_empty_control_body(f.context(), then_expression_id) {
+    if let Some(empty_block_id) = transparent_empty_control_body(f.context(), branch_expression_id)
+    {
         format_empty_statement_body_after_head(f, empty_block_id)?;
         return Ok(());
     }
 
     // transparent statement wrappers
     if let Some(inner_expression_id) =
-        transparent_control_body_expression(f.context(), then_expression_id)
+        transparent_control_body_expression(f.context(), branch_expression_id)
     {
         format_statement_body_expression_after_head(f, inner_expression_id)?;
         return Ok(());
     }
 
-    let then_expression = f.context().tree.get(then_expression_id);
-    match then_expression {
+    let branch_expression = f.context().tree.get(branch_expression_id);
+    match branch_expression {
         Expression::Block(block_id) => {
-            write!(f, [prefix_annotations(f.context(), then_expression_id)])?;
+            write!(f, [prefix_annotations(f.context(), branch_expression_id)])?;
             format_statement_body_block_after_head(f, *block_id)?;
             write!(
                 f,
                 [infix_or_postfix_annotations(
                     f.context(),
-                    then_expression_id
+                    branch_expression_id
                 )]
             )?;
         }
         _ => {
-            format_statement_body_expression_after_head(f, then_expression_id)?;
-            write!(f, [postfix_annotations(f.context(), then_expression_id)])?;
+            format_statement_body_expression_after_head(f, branch_expression_id)?;
+            write!(f, [postfix_annotations(f.context(), branch_expression_id)])?;
         }
     }
 
