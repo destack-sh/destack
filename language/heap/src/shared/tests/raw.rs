@@ -3,7 +3,7 @@ use crate::{HeapError, SharedRawPointer, SharedRawSpace};
 /// Shared-memory free reports invalid pointers loudly.
 #[test]
 fn test_free_shared_rejects_invalid_pointer() {
-    let mut shared = SharedRawSpace::new();
+    let shared = SharedRawSpace::new();
 
     // reject an unknown stable id
     let pointer = SharedRawPointer::new(7);
@@ -15,7 +15,7 @@ fn test_free_shared_rejects_invalid_pointer() {
 /// Preserve stable shared ids across allocation growth and id reuse.
 #[test]
 fn test_allocate_shared_ids_reuse_after_free() {
-    let mut shared = SharedRawSpace::new();
+    let shared = SharedRawSpace::new();
     let mut last = SharedRawPointer::NULL;
 
     // grow the shared entry table beyond one short run
@@ -41,7 +41,7 @@ fn test_allocate_shared_ids_reuse_after_free() {
 /// Shared-memory reads reject out-of-bounds pointer offsets loudly.
 #[test]
 fn test_shared_reads_reject_invalid_pointer_offset() {
-    let mut shared = SharedRawSpace::new();
+    let shared = SharedRawSpace::new();
     let pointer = shared
         .allocate_bytes(&[0xAA, 0xBB, 0xCC])
         .expect("shared allocation should succeed");

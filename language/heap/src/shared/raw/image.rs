@@ -1,7 +1,10 @@
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
+
 use super::{SharedRawEntry, SharedRawSpace};
+use crate::arena::PageRunCache;
 use crate::{AllocationUsage, Arena, HeapResult, PageId, PageView};
 
 /// One frozen shared raw-space entry root.
@@ -95,10 +98,13 @@ impl SharedRawSpaceImage {
 impl SharedRawSpace {
     /// Fork one shared raw-space root over the same shared arena.
     pub fn fork(&self) -> HeapResult<Self> {
+        let entries = self.entries.read();
         let mut retained = Vec::new();
 
         // retain the shared backing before cloning metadata
-        for entry in &self.entries {
+        for entry in &*entries {
+            let entry = entry.read();
+
             if let Err(error) = self.arena.retain_page_view(&entry.pages) {
                 for page_view in retained.into_iter().rev() {
                     self.arena.release_page_view(&page_view)?;
@@ -110,12 +116,21 @@ impl SharedRawSpace {
             retained.push(entry.pages);
         }
 
+        let allocator = self.allocator.lock();
+        let entries = entries
+            .iter()
+            .map(|entry: &Arc<RwLock<SharedRawEntry>>| Arc::new(RwLock::new(entry.read().clone())))
+            .collect();
+
         Ok(Self {
             arena: self.arena.clone(),
-            entries: self.entries.clone(),
-            free_ids: self.free_ids.clone(),
-            next_unused_id: self.next_unused_id,
-            usage: self.usage,
+            allocator: parking_lot::Mutex::new(super::space::SharedRawAllocator {
+                page_run_cache: PageRunCache::new(self.arena.pages_per_segment()),
+                free_ids: allocator.free_ids.clone(),
+                next_unused_id: allocator.next_unused_id,
+                usage: allocator.usage,
+            }),
+            entries: parking_lot::RwLock::new(entries),
         })
     }
 
@@ -140,50 +155,67 @@ impl SharedRawSpace {
         }
 
         // rebuild the live root over the retained pages
-        let mut shared = Self::with_arena(arena);
-        shared.entries = image
+        let entries = image
             .entries()
             .iter()
             .map(|entry| {
                 if entry.is_live {
-                    SharedRawEntry::new(entry.len, entry.pages)
+                    Arc::new(parking_lot::RwLock::new(SharedRawEntry::new(
+                        entry.len,
+                        entry.pages,
+                    )))
                 } else {
-                    SharedRawEntry::vacant()
+                    Arc::new(RwLock::new(SharedRawEntry::vacant()))
                 }
             })
             .collect();
-        shared.next_unused_id = image.next_unused_id();
-        shared.free_ids = image.free_ids().to_vec();
-        shared.usage = AllocationUsage::new(image.allocated_count(), image.allocated_bytes());
 
-        Ok(shared)
+        Ok(Self {
+            arena: arena.clone(),
+            allocator: parking_lot::Mutex::new(super::space::SharedRawAllocator {
+                page_run_cache: PageRunCache::new(arena.pages_per_segment()),
+                free_ids: image.free_ids().to_vec(),
+                next_unused_id: image.next_unused_id(),
+                usage: AllocationUsage::new(image.allocated_count(), image.allocated_bytes()),
+            }),
+            entries: parking_lot::RwLock::new(entries),
+        })
     }
 
     /// Return one frozen shared raw-space root.
     pub fn image(&self) -> SharedRawSpaceImage {
+        let entries = self.entries.read();
+        let allocator = self.allocator.lock();
+
         SharedRawSpaceImage::new(
-            self.entries
+            entries
                 .iter()
-                .map(|entry| SharedRawEntryImage {
-                    is_live: !entry.is_vacant(),
-                    len: entry.len,
-                    pages: entry.pages,
+                .map(|entry: &Arc<RwLock<SharedRawEntry>>| {
+                    let entry = entry.read();
+
+                    SharedRawEntryImage {
+                        is_live: !entry.is_vacant(),
+                        len: entry.len,
+                        pages: entry.pages,
+                    }
                 })
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
-            self.free_ids.clone().into_boxed_slice(),
-            self.next_unused_id,
-            self.usage.allocation_count(),
-            self.usage.allocated_bytes(),
+            allocator.free_ids.clone().into_boxed_slice(),
+            allocator.next_unused_id,
+            allocator.usage.allocation_count(),
+            allocator.usage.allocated_bytes(),
         )
     }
 
     /// Return every arena page reachable from this live shared raw space.
     pub fn page_ids(&self) -> Vec<PageId> {
+        let entries = self.entries.read();
         let mut pages = Vec::new();
 
         // collect every live entry page
-        for entry in &self.entries {
+        for entry in &*entries {
+            let entry = entry.read();
             pages.extend(entry.pages.page_ids());
         }
 

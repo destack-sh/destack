@@ -8,7 +8,7 @@ use destack_mir::LayoutTrace;
 /// Reject one shared managed allocation when the shared managed limit would be exceeded.
 #[test]
 fn test_reject_shared_managed_allocation_when_limit_exceeded() {
-    let mut shared = SharedHeap::with_arena_and_limits(
+    let shared = SharedHeap::with_arena_and_limits(
         Arc::new(Arena::new()),
         SharedHeapLimits {
             max_bytes: None,
@@ -42,7 +42,7 @@ fn test_reject_shared_managed_allocation_when_limit_exceeded() {
 #[test]
 fn test_reject_shared_raw_replace_when_limit_exceeded() {
     let arena = Arc::new(Arena::new());
-    let mut shared = SharedHeap::with_arena(arena.clone());
+    let shared = SharedHeap::with_arena(arena.clone());
     let pointer = shared
         .allocate_raw_bytes(&vec![0xAA; 4097])
         .expect("shared raw allocation should succeed");
@@ -52,7 +52,7 @@ fn test_reject_shared_raw_replace_when_limit_exceeded() {
         .raw
         .active_bytes;
     let image = shared.image();
-    let mut shared = SharedHeap::from_image_with_arena_and_limits(
+    let shared = SharedHeap::from_image_with_arena_and_limits(
         arena,
         &image,
         SharedHeapLimits {
@@ -83,7 +83,7 @@ fn test_reject_shared_raw_replace_when_limit_exceeded() {
 #[test]
 fn test_reject_shared_heap_image_when_limits_start_over_budget() {
     let arena = Arc::new(Arena::new());
-    let mut shared = SharedHeap::with_arena(arena.clone());
+    let shared = SharedHeap::with_arena(arena.clone());
     shared
         .allocate_managed_bytes(&[1], LayoutTrace::empty(), None)
         .expect("shared managed allocation should succeed");
