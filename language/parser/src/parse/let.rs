@@ -1,5 +1,5 @@
-use crate::parse::timing::tags;
 use crate::parse::NonNewlineTokenCursor;
+use crate::parse::timing::tags;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
@@ -112,6 +112,10 @@ impl Parser {
             self.eat_newlines_maybe()?;
 
             // else { ... }
+            if !self.peek_is(TokenType::OpenBrace) {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
+
             let else_branch = {
                 let branch_start = self.mark_span();
                 let else_block = self.eat_block(BlockContext::Statement)?;
@@ -544,7 +548,7 @@ mod tests {
 
     use crate::parse::expression::common::DeclarationHeader;
     use crate::{
-        assert_expression_path, assert_name, assert_node, assert_path, assert_string, TestParser,
+        TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
     };
 
     #[test]
