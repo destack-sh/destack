@@ -536,6 +536,9 @@ fn collect_pattern_binding_names(
     let pattern = ast_tree.get(pattern_id);
 
     match pattern {
+        ast::Pattern::Assign { pattern, .. } => {
+            collect_pattern_binding_names(ast_tree, *pattern, names);
+        }
         ast::Pattern::Binding {
             name,
             pattern: nested,
@@ -570,14 +573,7 @@ fn collect_pattern_binding_names(
                         names.push(name.string());
                     }
                     ast::PatternField::Computed { pattern, .. } => {
-                        let Some(pattern) = pattern else {
-                            continue;
-                        };
-
                         collect_pattern_binding_names(ast_tree, *pattern, names);
-                    }
-                    ast::PatternField::Alias { alias, .. } => {
-                        names.push(*alias);
                     }
                     ast::PatternField::Positional { pattern, .. } => {
                         collect_pattern_binding_names(ast_tree, *pattern, names);

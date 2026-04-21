@@ -292,13 +292,6 @@ pub fn semantic_tokens(
                 }
                 (SemanticTokenType::Variable, mods)
             }
-            dir::PatternField::Alias { mutability, .. } => {
-                let mut mods = SemanticTokenModifiers::DECLARATION;
-                if *mutability == Some(dir::Mutability::Immutable) {
-                    mods = mods.union(SemanticTokenModifiers::READONLY);
-                }
-                (SemanticTokenType::Variable, mods)
-            }
             dir::PatternField::Spread { mutability, .. } => {
                 let mut mods = SemanticTokenModifiers::DECLARATION;
                 if *mutability == Some(dir::Mutability::Immutable) {

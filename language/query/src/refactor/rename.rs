@@ -433,13 +433,68 @@ fn resolve_name_from_primary_declaration(
             let field_id = declaration.local_id.try_into().ok()?;
             let field = dir_tree.get::<dir::PatternField>(field_id);
             match field {
-                dir::PatternField::Alias { alias, .. } => {
-                    Some(repository.strings.get(*alias).to_string())
+                dir::PatternField::Named {
+                    name,
+                    symbol,
+                    pattern,
+                    ..
+                } => {
+                    let Some(symbol) = symbol else {
+                        return None;
+                    };
+
+                    if let Some(pattern) = pattern {
+                        return rename_pattern_binding_name(
+                            repository,
+                            dir_tree,
+                            *pattern,
+                            *symbol,
+                        );
+                    }
+
+                    Some(repository.strings.get(*name).to_string())
                 }
                 _ => None,
             }
         }
         _ => None,
+    }
+}
+
+/// Return the binding name for one pattern subtree.
+fn rename_pattern_binding_name(
+    repository: &Repository,
+    dir_tree: &dir::NodeTree,
+    pattern_id: dir::LocalNodeId<dir::Pattern>,
+    target_symbol: dir::LocalSymbolId,
+) -> Option<String> {
+    match dir_tree.get::<dir::Pattern>(pattern_id) {
+        dir::Pattern::Binding {
+            symbol, name, pattern, ..
+        } => {
+            if *symbol == target_symbol {
+                return Some(repository.strings.get(*name).to_string());
+            }
+
+            pattern.and_then(|pattern| {
+                rename_pattern_binding_name(repository, dir_tree, pattern, target_symbol)
+            })
+        }
+        dir::Pattern::Assign { pattern, .. }
+        | dir::Pattern::Must(pattern)
+        | dir::Pattern::ReferenceOf { right: pattern, .. }
+        | dir::Pattern::ValueOf { right: pattern, .. } => {
+            rename_pattern_binding_name(repository, dir_tree, *pattern, target_symbol)
+        }
+        dir::Pattern::Tuple { .. }
+        | dir::Pattern::TaggedTuple { .. }
+        | dir::Pattern::Array { .. }
+        | dir::Pattern::Object { .. }
+        | dir::Pattern::TaggedObject { .. }
+        | dir::Pattern::Union { .. }
+        | dir::Pattern::Wildcard
+        | dir::Pattern::Expression { .. }
+        | dir::Pattern::TypeExpression { .. } => None,
     }
 }
 

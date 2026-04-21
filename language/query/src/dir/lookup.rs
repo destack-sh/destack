@@ -859,27 +859,35 @@ fn pattern_field_symbol_at_offset(
     let field = dir_tree.get::<PatternField>(field_id);
 
     match field {
-        PatternField::Named { pattern, .. }
-        | PatternField::Computed { pattern, .. }
-        | PatternField::Spread { pattern, .. } => {
+        PatternField::Named {
+            symbol,
+            pattern,
+            ..
+        } => {
+            if let Some(symbol) = symbol {
+                let node_id = field_id.into();
+                let span = get_node_tree_main_span(ast, dir.tree(), node_id);
+                if offset_matches_symbol_span(offset, span) {
+                    return Some(SymbolAtOffset {
+                        symbol_id: global_symbol(dir.module_id(), *symbol),
+                        node_id,
+                        span,
+                    });
+                }
+            }
+
+            let pattern = *pattern.as_ref()?;
+            pattern_symbol_at_offset(repository, ast, dir, dir_tree, pattern, offset)
+        }
+        PatternField::Computed { pattern, .. } => {
+            pattern_symbol_at_offset(repository, ast, dir, dir_tree, *pattern, offset)
+        }
+        PatternField::Spread { pattern, .. } => {
             let pattern = *pattern.as_ref()?;
             pattern_symbol_at_offset(repository, ast, dir, dir_tree, pattern, offset)
         }
         PatternField::Positional { pattern, .. } => {
             pattern_symbol_at_offset(repository, ast, dir, dir_tree, *pattern, offset)
-        }
-        PatternField::Alias { symbol, .. } => {
-            let node_id = field_id.into();
-            let span = get_node_tree_main_span(ast, dir.tree(), node_id);
-            if !offset_matches_symbol_span(offset, span) {
-                return None;
-            }
-
-            Some(SymbolAtOffset {
-                symbol_id: global_symbol(dir.module_id(), *symbol),
-                node_id,
-                span,
-            })
         }
         PatternField::Elision => None,
     }
@@ -897,6 +905,9 @@ fn pattern_symbol_at_offset(
     let pattern = dir_tree.get::<Pattern>(pattern_id);
 
     match pattern {
+        Pattern::Assign { pattern, .. } => {
+            pattern_symbol_at_offset(repository, ast, dir, dir_tree, *pattern, offset)
+        }
         Pattern::Binding {
             symbol, pattern, ..
         } => {

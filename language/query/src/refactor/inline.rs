@@ -390,6 +390,9 @@ fn collect_pattern_bindings(
     // walk patterns and collect binding symbols
     let pattern = dir_tree.get::<dir::Pattern>(pattern_id);
     match pattern {
+        dir::Pattern::Assign { pattern, .. } => {
+            collect_pattern_bindings(dir_tree, *pattern, bindings);
+        }
         dir::Pattern::Binding {
             symbol, pattern, ..
         } => {
@@ -432,18 +435,25 @@ fn collect_pattern_bindings_field(
     // walk pattern fields and collect binding symbols
     let field = dir_tree.get::<dir::PatternField>(field_id);
     match field {
-        dir::PatternField::Named { pattern, .. } => {
+        dir::PatternField::Named {
+            symbol,
+            pattern,
+            ..
+        } => {
+            if let Some(symbol) = symbol {
+                bindings.insert(*symbol);
+            }
             if let Some(pattern) = pattern {
                 collect_pattern_bindings(dir_tree, *pattern, bindings);
             }
         }
-        dir::PatternField::Alias { symbol, .. } => {
-            bindings.insert(*symbol);
-        }
         dir::PatternField::Positional { pattern, .. } => {
             collect_pattern_bindings(dir_tree, *pattern, bindings);
         }
-        dir::PatternField::Computed { pattern, .. } | dir::PatternField::Spread { pattern, .. } => {
+        dir::PatternField::Computed { pattern, .. } => {
+            collect_pattern_bindings(dir_tree, *pattern, bindings);
+        }
+        dir::PatternField::Spread { pattern, .. } => {
             if let Some(pattern) = pattern {
                 collect_pattern_bindings(dir_tree, *pattern, bindings);
             }
@@ -461,6 +471,9 @@ fn pattern_access_path(
 ) -> Option<Vec<AccessSegment>> {
     let pattern = dir_tree.get::<dir::Pattern>(pattern_id);
     match pattern {
+        dir::Pattern::Assign { pattern, .. } => {
+            pattern_access_path(repository, dir_tree, *pattern, target_symbol)
+        }
         dir::Pattern::Binding {
             symbol, pattern, ..
         } => {
@@ -516,7 +529,17 @@ fn pattern_access_path_object_fields(
     for field_id in fields {
         let field = dir_tree.get::<dir::PatternField>(*field_id);
         match field {
-            dir::PatternField::Named { name, pattern, .. } => {
+            dir::PatternField::Named {
+                name,
+                symbol,
+                pattern,
+                ..
+            } => {
+                if symbol.is_some_and(|symbol| symbol == target_symbol) {
+                    let name = repository.strings.get(*name).to_string();
+                    return Some(vec![AccessSegment::Property(name)]);
+                }
+
                 let name = repository.strings.get(*name).to_string();
                 if let Some(pattern) = pattern
                     && let Some(path) =
@@ -525,12 +548,6 @@ fn pattern_access_path_object_fields(
                     let mut path = path;
                     path.insert(0, AccessSegment::Property(name));
                     return Some(path);
-                }
-            }
-            dir::PatternField::Alias { name, symbol, .. } => {
-                if *symbol == target_symbol {
-                    let name = repository.strings.get(*name).to_string();
-                    return Some(vec![AccessSegment::Property(name)]);
                 }
             }
             dir::PatternField::Positional { pattern, .. } => {
@@ -577,7 +594,14 @@ fn pattern_access_path_indexed(
                 }
                 index += 1;
             }
-            dir::PatternField::Named { pattern, .. } => {
+            dir::PatternField::Named {
+                symbol,
+                pattern,
+                ..
+            } => {
+                if symbol.is_some_and(|symbol| symbol == target_symbol) {
+                    return Some(vec![AccessSegment::Index(index)]);
+                }
                 if let Some(pattern) = pattern
                     && let Some(path) =
                         pattern_access_path(repository, dir_tree, *pattern, target_symbol)
@@ -588,16 +612,9 @@ fn pattern_access_path_indexed(
                 }
                 index += 1;
             }
-            dir::PatternField::Alias { symbol, .. } => {
-                if *symbol == target_symbol {
-                    return Some(vec![AccessSegment::Index(index)]);
-                }
-                index += 1;
-            }
             dir::PatternField::Computed { pattern, .. } => {
-                if let Some(pattern) = pattern
-                    && let Some(path) =
-                        pattern_access_path(repository, dir_tree, *pattern, target_symbol)
+                if let Some(path) =
+                    pattern_access_path(repository, dir_tree, *pattern, target_symbol)
                 {
                     let mut path = path;
                     path.insert(0, AccessSegment::Index(index));
