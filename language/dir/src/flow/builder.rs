@@ -3,12 +3,12 @@ use indexmap::IndexMap;
 use destack_source::ModuleId;
 
 use crate::{
-    Argument, BinaryOperator, Block, Declaration, Declarator, Expression, FlowBlock, FlowBlockId,
-    FlowEdge, FlowEdgeKind, FlowGraph, FlowGuard, ForEachBinding, GenericArgument,
-    GenericParameter, GlobalSymbolId, IfCondition, ImportTarget, Key, LocalNodeId, LocalNodeIdAny,
-    LocalSymbolId, LoopKind, MatchCase, MatchKind, MatchSelector, MatchSource, NodeTree, Pattern,
-    PatternField, Property, TemplateLiteral, TupleElement, TypeExpression, TypeMember,
-    UnaryOperator,
+    Argument, AssignPattern, AssignPatternField, BinaryOperator, Block, Declaration, Declarator,
+    Expression, FlowBlock, FlowBlockId, FlowEdge, FlowEdgeKind, FlowGraph, FlowGuard,
+    ForEachBinding, GenericArgument, GenericParameter, GlobalSymbolId, IfCondition, ImportTarget,
+    Key, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LoopKind, MatchCase, MatchKind, MatchSelector,
+    MatchSource, NodeTree, Pattern, PatternField, Property, TemplateLiteral, TupleElement,
+    TypeExpression, TypeMember, UnaryOperator,
 };
 
 /// Describe what kind of control target we are tracking.
@@ -1671,10 +1671,14 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 self.build_expression(*target, value_block_id)
             }
             Expression::Binary { left, right, .. }
-            | Expression::Assign { left, right }
             | Expression::AssignBinary { left, right, .. } => {
                 let left_block_id = self.build_expression(*left, current_block_id)?;
                 self.build_expression(*right, left_block_id)
+            }
+            Expression::Assign { left, right } => {
+                // evaluate the rhs before any destructuring targets or defaults
+                let right_block_id = self.build_expression(*right, current_block_id)?;
+                self.build_assign_pattern(*left, right_block_id)
             }
             Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
                 self.build_expression(*left, current_block_id)
@@ -2206,6 +2210,79 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 }
             }
             PatternField::Elision => Some(current_block_id),
+        }
+    }
+
+    /// Build an assign pattern and return the exit block when it exists.
+    fn build_assign_pattern(
+        &mut self,
+        assign_pattern_id: LocalNodeId<AssignPattern>,
+        current_block_id: FlowBlockId,
+    ) -> Option<FlowBlockId> {
+        self.record_node(current_block_id, assign_pattern_id.into_any());
+        let assign_pattern = self.tree.get(assign_pattern_id);
+
+        // walk the assign pattern structure
+        match assign_pattern {
+            AssignPattern::Expression { value } => self.build_expression(*value, current_block_id),
+            AssignPattern::Assign { pattern, value } => {
+                let pattern_block_id = self.build_assign_pattern(*pattern, current_block_id)?;
+                self.build_expression(*value, pattern_block_id)
+            }
+            AssignPattern::Array { fields } | AssignPattern::Object { fields } => {
+                self.build_assign_pattern_fields(fields, current_block_id)
+            }
+        }
+    }
+
+    /// Build a list of assign pattern fields.
+    fn build_assign_pattern_fields(
+        &mut self,
+        fields: &[LocalNodeId<AssignPatternField>],
+        current_block_id: FlowBlockId,
+    ) -> Option<FlowBlockId> {
+        let mut field_block_id = current_block_id;
+
+        for field_id in fields {
+            field_block_id = self.build_assign_pattern_field(*field_id, field_block_id)?;
+        }
+
+        Some(field_block_id)
+    }
+
+    /// Build an assign pattern field.
+    fn build_assign_pattern_field(
+        &mut self,
+        field_id: LocalNodeId<AssignPatternField>,
+        current_block_id: FlowBlockId,
+    ) -> Option<FlowBlockId> {
+        self.record_node(current_block_id, field_id.into_any());
+        let field = self.tree.get(field_id);
+
+        // walk the assign pattern field shape
+        match field {
+            AssignPatternField::Named { pattern, .. } => {
+                if let Some(pattern_id) = pattern {
+                    self.build_assign_pattern(*pattern_id, current_block_id)
+                } else {
+                    Some(current_block_id)
+                }
+            }
+            AssignPatternField::Computed { key, pattern } => {
+                let key_block_id = self.build_expression(*key, current_block_id)?;
+                self.build_assign_pattern(*pattern, key_block_id)
+            }
+            AssignPatternField::Positional { pattern } => {
+                self.build_assign_pattern(*pattern, current_block_id)
+            }
+            AssignPatternField::Spread { pattern } => {
+                if let Some(pattern_id) = pattern {
+                    self.build_assign_pattern(*pattern_id, current_block_id)
+                } else {
+                    Some(current_block_id)
+                }
+            }
+            AssignPatternField::Elision => Some(current_block_id),
         }
     }
 

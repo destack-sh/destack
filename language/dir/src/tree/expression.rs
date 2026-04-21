@@ -3,8 +3,8 @@ use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Ambientness, Argument, AssignOperator, Asynchrony, BinaryOperator, Block, CastOperator,
-    CastSource, Declaration, Declarator, DependencyItem, DependencyKind, ExportMode,
+    Ambientness, Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block,
+    CastOperator, CastSource, Declaration, Declarator, DependencyItem, DependencyKind, ExportMode,
     GenericArgument, GlobalSymbolId, ImportAttributeClause, ImportSource, ImportTarget,
     LocalNodeId, LocalScopeId, LocalSymbolId, LocalTypeId, MatchCase, MatchKind, MatchSource,
     ModuleTarget, Mutability, Node, NodeTree, NodeType, Path, Pattern, Property, ScalarLiteral,
@@ -149,7 +149,7 @@ pub enum Expression {
     },
     /// Assignment (e.g., `x = y`).
     Assign {
-        left: LocalNodeId<Expression>,
+        left: LocalNodeId<AssignPattern>,
         right: LocalNodeId<Expression>,
     },
     /// Assignment with operator (except direct assignment, e.g., `x += y`).

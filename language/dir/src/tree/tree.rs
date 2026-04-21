@@ -7,11 +7,12 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField,
-    Expression, FunctionMode, GenericArgument, GenericParameter, IfCondition, LocalNodeId,
-    LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, Member, Node, NodeType, NodeVisitor,
-    NodeVisitorOptions, Parameter, Pattern, PatternField, Property, Provenance, ProvenanceId,
-    ProvenanceReason, TupleElement, TypeExpression, TypeMember, WhereClause,
+    Arena, Argument, AssignPattern, AssignPatternField, Block, Declaration, Declarator, Decorator,
+    DependencyItem, EnumField, Expression, FunctionMode, GenericArgument, GenericParameter,
+    IfCondition, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, Member,
+    Node, NodeType, NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField, Property,
+    Provenance, ProvenanceId, ProvenanceReason, TupleElement, TypeExpression, TypeMember,
+    WhereClause,
 };
 
 /// Normalized semantic documentation attached to one DIR node.
@@ -55,6 +56,8 @@ pub struct NodeTree {
     pub(crate) match_cases: Arena<MatchCase>,
     pub(crate) patterns: Arena<Pattern>,
     pub(crate) pattern_fields: Arena<PatternField>,
+    pub(crate) assign_patterns: Arena<AssignPattern>,
+    pub(crate) assign_pattern_fields: Arena<AssignPatternField>,
     pub(crate) decorators: Arena<Decorator>,
 
     // node side data
@@ -120,6 +123,8 @@ impl NodeTree {
             match_cases: Arena::new(),
             patterns: Arena::new(),
             pattern_fields: Arena::new(),
+            assign_patterns: Arena::new(),
+            assign_pattern_fields: Arena::new(),
             decorators: Arena::new(),
 
             parent_id_by_node_id: Vec::with_capacity(capacity),
@@ -483,6 +488,14 @@ impl NodeTree {
             NodeType::PatternField => {
                 let typed_id = LocalNodeId::<PatternField>::new(node_id.id);
                 visitor.visit_pattern_field(self, typed_id, self.get(typed_id));
+            }
+            NodeType::AssignPattern => {
+                let typed_id = LocalNodeId::<AssignPattern>::new(node_id.id);
+                visitor.visit_assign_pattern(self, typed_id, self.get(typed_id));
+            }
+            NodeType::AssignPatternField => {
+                let typed_id = LocalNodeId::<AssignPatternField>::new(node_id.id);
+                visitor.visit_assign_pattern_field(self, typed_id, self.get(typed_id));
             }
             NodeType::Decorator => {
                 let typed_id = LocalNodeId::<Decorator>::new(node_id.id);
@@ -1275,5 +1288,7 @@ impl_node_tree_stores! {
     MatchCase => match_cases,
     Pattern => patterns,
     PatternField => pattern_fields,
+    AssignPattern => assign_patterns,
+    AssignPatternField => assign_pattern_fields,
     Decorator => decorators,
 }
