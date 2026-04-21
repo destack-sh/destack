@@ -153,13 +153,20 @@ fn type_expression_complexity_inner(
             for member_id in members {
                 let member = tree.get(*member_id);
                 match member {
-                    ast::TypeMember::Field { declared_type, .. } => {
+                    ast::TypeMember::Field {
+                        declared_type: Some(declared_type),
+                        ..
+                    } => {
                         max_depth = max_depth.max(type_expression_complexity_inner(
                             tree,
                             *declared_type,
                             current_depth,
                         ));
                     }
+                    ast::TypeMember::Field {
+                        declared_type: None,
+                        ..
+                    } => {}
                     ast::TypeMember::Method { signature, .. } => {
                         if let Some(return_type) = signature.return_type {
                             max_depth = max_depth.max(type_expression_complexity_inner(

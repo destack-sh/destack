@@ -220,15 +220,11 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         let dir::Expression::Member {
             left: regex_expression_id,
             name,
-            generic_arguments,
         } = member_expression
         else {
             return;
         };
         if *name != Some(self.test_name) {
-            return;
-        }
-        if !generic_arguments.is_empty() {
             return;
         }
 
@@ -304,15 +300,11 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         let dir::Expression::Member {
             left: receiver_id,
             name,
-            generic_arguments,
         } = member_expression
         else {
             return None;
         };
         if *name != Some(self.index_of_name) {
-            return None;
-        }
-        if !generic_arguments.is_empty() {
             return None;
         }
 

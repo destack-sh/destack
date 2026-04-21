@@ -334,7 +334,11 @@ impl<'a> TaintAnalysis<'a> {
                     self.template_literal_taint_labels(value, expression_stack, symbol_stack);
                 labels.merge(&template_labels);
             }
-            dir::Expression::TaggedTemplateExpression { tag, value } => {
+            dir::Expression::TaggedTemplateExpression {
+                tag,
+                value,
+                generic_arguments: _,
+            } => {
                 // tagged templates taint from tag and interpolation values
                 let tag_labels =
                     self.expression_taint_labels_inner(*tag, expression_stack, symbol_stack);
@@ -394,7 +398,8 @@ impl<'a> TaintAnalysis<'a> {
             dir::Expression::TreeExpression {
                 arguments,
                 elements,
-                ..
+                generic_arguments: _,
+                left: _,
             } => {
                 // tree expressions taint from arguments and children
                 if let Some(arguments) = arguments {

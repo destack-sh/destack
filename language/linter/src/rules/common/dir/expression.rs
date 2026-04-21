@@ -943,15 +943,13 @@ pub fn expression_is_potentially_tainted(
             path: _,
             target_symbol: _,
             generic_arguments: _,
-        } | dir::Expression::Member {
-            left: _,
-            name: _,
-            generic_arguments: _,
-        } | dir::Expression::Call {
-            left: _,
-            generic_arguments: _,
-            arguments: _,
-        } | dir::Expression::Index { left: _, right: _ }
+        } | dir::Expression::Member { left: _, name: _ }
+            | dir::Expression::Call {
+                left: _,
+                generic_arguments: _,
+                arguments: _,
+            }
+            | dir::Expression::Index { left: _, right: _ }
             | dir::Expression::Binary {
                 left: _,
                 operator: _,
@@ -1020,22 +1018,9 @@ fn expression_contains_reference_segment(
             target_segment,
         ),
 
-        dir::Expression::Member {
-            left,
-            name: _,
-            generic_arguments,
-        }
-        | dir::Expression::PrivateMember {
-            left,
-            name: _,
-            generic_arguments,
-        } => {
+        dir::Expression::Member { left, name: _ }
+        | dir::Expression::PrivateMember { left, name: _ } => {
             expression_contains_reference_segment(tree, *left, target_segment)
-                || generic_arguments_contain_reference_segment(
-                    tree,
-                    generic_arguments,
-                    target_segment,
-                )
         }
 
         dir::Expression::As { expression, .. }

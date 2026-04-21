@@ -371,17 +371,9 @@ fn bind_call_shape(
     let call_left = ctx.tree.get(call_left_id);
 
     // require one plain member access named `bind`
-    let dir::Expression::Member {
-        left,
-        name,
-        generic_arguments,
-    } = call_left
-    else {
+    let dir::Expression::Member { left, name } = call_left else {
         return None;
     };
-    if !generic_arguments.is_empty() {
-        return None;
-    }
     if *name != Some(bind_name) {
         return None;
     }

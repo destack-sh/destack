@@ -1003,12 +1003,7 @@ fn collect_expression_path_segments(
         ast::Expression::Member {
             left,
             name: Some(name),
-            generic_arguments,
         } => {
-            if !generic_arguments.is_empty() {
-                return None;
-            }
-
             collect_expression_path_segments(tree, *left, segments)?;
             segments.push(*name);
             Some(())

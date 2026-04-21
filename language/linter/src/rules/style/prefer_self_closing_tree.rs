@@ -48,6 +48,7 @@ impl LintRule for PreferSelfClosingTree {
                 left,
                 arguments: _,
                 elements,
+                generic_arguments: _,
             } = expression
             else {
                 continue;

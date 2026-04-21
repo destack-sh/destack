@@ -224,16 +224,12 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
         let dir::Expression::Member {
             left: receiver_expression_id,
             name,
-            generic_arguments,
             ..
         } = member_expression
         else {
             return None;
         };
         if *name != Some(self.filter_name) {
-            return None;
-        }
-        if !generic_arguments.is_empty() {
             return None;
         }
 

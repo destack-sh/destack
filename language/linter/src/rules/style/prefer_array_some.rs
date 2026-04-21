@@ -292,7 +292,6 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         let dir::Expression::Member {
             left: receiver_expression_id,
             name,
-            generic_arguments,
             ..
         } = member_expression
         else {
@@ -310,9 +309,6 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
                 }
             }
             ArraySomeKind::FilterLength => return None,
-        }
-        if !generic_arguments.is_empty() {
-            return None;
         }
 
         // derive receiver text from member expression text

@@ -57,17 +57,9 @@ pub fn expression_is_new_target(
     }
 
     // then match split member forms like `new.target.extra`
-    let dir::Expression::Member {
-        left,
-        name,
-        generic_arguments,
-    } = expression
-    else {
+    let dir::Expression::Member { left, name } = expression else {
         return false;
     };
-    if !generic_arguments.is_empty() {
-        return false;
-    }
     if *name != Some(target_name) {
         return false;
     }
@@ -280,12 +272,7 @@ pub fn expression_static_property_access(
     let expression = tree.get(expression_id);
 
     // match dot member access
-    if let dir::Expression::Member {
-        left,
-        name,
-        generic_arguments: _,
-    } = expression
-    {
+    if let dir::Expression::Member { left, name } = expression {
         let name = (*name)?;
 
         return Some((*left, name));
@@ -437,12 +424,10 @@ pub fn parent_is_receiver_helper(
         dir::Expression::Member {
             left,
             name,
-            generic_arguments: _,
         }
             | dir::Expression::PrivateMember {
                 left,
                 name,
-                generic_arguments: _,
             }
             if *left == expression_id
                 && (*name == Some(bind_name)
@@ -477,12 +462,10 @@ pub fn call_like_invocation_is_receiver_bound(
         dir::Expression::Member {
             left: _,
             name,
-            generic_arguments: _,
         }
             | dir::Expression::PrivateMember {
                 left: _,
                 name,
-                generic_arguments: _,
             }
             if *name == Some(bind_name)
                 || *name == Some(call_name)
@@ -510,11 +493,7 @@ fn expression_reference_path_base(
         dir::Expression::Parenthesized { expression } => {
             expression_reference_path_base(tree, *expression, members)
         }
-        dir::Expression::Member {
-            left,
-            name,
-            generic_arguments: _,
-        } => {
+        dir::Expression::Member { left, name } => {
             let name = (*name)?;
 
             members.push(name);
@@ -602,12 +581,7 @@ pub fn expression_method_call(
     // match member access for the callee
     let callee_id = *left;
     let callee = tree.get(callee_id);
-    let dir::Expression::Member {
-        left,
-        name,
-        generic_arguments: _,
-    } = callee
-    else {
+    let dir::Expression::Member { left, name } = callee else {
         return None;
     };
     let name = (*name)?;

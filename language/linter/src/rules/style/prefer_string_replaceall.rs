@@ -122,7 +122,6 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         let dir::Expression::Member {
             left: receiver_id,
             name,
-            generic_arguments,
         } = member_expression
         else {
             return;
@@ -130,9 +129,6 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         let is_replace = *name == Some(self.replace_name);
         let is_replace_all = *name == Some(self.replace_all_name);
         if !is_replace && !is_replace_all {
-            return;
-        }
-        if !generic_arguments.is_empty() {
             return;
         }
 
