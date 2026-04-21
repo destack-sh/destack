@@ -5,10 +5,11 @@ use std::convert::Infallible;
 
 use crate::tree::Precedence;
 use crate::{
-    Annotation, Argument, ArrayElement, Block, CatchClause, Declaration, Declarator,
-    DependencyItem, EnumField, Expression, GenericParameter, JsSourceMap, LocalNodeId,
-    LocalNodeIdAny, Member, NOOP_JS_SOURCE_MAP, NodeTree, NodeType, Parameter, Pattern,
-    PatternField, Property, Statement, SwitchCase, TupleElement, TypeExpression, TypeMember,
+    Annotation, Argument, ArrayElement, AssignPattern, AssignPatternField, Block, CatchClause,
+    Declaration, Declarator, DependencyItem, EnumField, Expression, GenericParameter, JsSourceMap,
+    LocalNodeId, LocalNodeIdAny, Member, NOOP_JS_SOURCE_MAP, NodeTree, NodeType, Parameter,
+    Pattern, PatternField, Property, Statement, SwitchCase, TupleElement, TypeExpression,
+    TypeMember,
 };
 
 /// The result type for direct JS printing.
@@ -203,6 +204,10 @@ impl<'a> Printer<'a> {
             NodeType::SwitchCase => self.print_switch_case_id(LocalNodeId::new(root_id.id)),
             NodeType::Pattern => self.print_pattern_id(LocalNodeId::new(root_id.id)),
             NodeType::PatternField => self.print_pattern_field_id(LocalNodeId::new(root_id.id)),
+            NodeType::AssignPattern => self.print_assign_pattern_id(LocalNodeId::new(root_id.id)),
+            NodeType::AssignPatternField => {
+                self.print_assign_pattern_field_id(LocalNodeId::new(root_id.id))
+            }
             NodeType::GenericParameter => {
                 self.print_generic_parameter_id(LocalNodeId::new(root_id.id))
             }
@@ -473,6 +478,22 @@ impl<'a> Printer<'a> {
         Ok(())
     }
 
+    /// Print one comma separated assign pattern field list.
+    pub(crate) fn print_assign_pattern_field_list(
+        &mut self,
+        fields: &[LocalNodeId<AssignPatternField>],
+    ) -> JsPrintResult<()> {
+        for (index, field_id) in fields.iter().enumerate() {
+            if index > 0 {
+                self.write_punct(",");
+            }
+
+            self.print_assign_pattern_field_id(*field_id)?;
+        }
+
+        Ok(())
+    }
+
     /// Print one node with source markers.
     pub(crate) fn print_with_node_markers(
         &mut self,
@@ -688,6 +709,30 @@ impl<'a> Printer<'a> {
             let tree = this.tree;
             let pattern_field = tree.get(pattern_field_id);
             this.print_pattern_field(pattern_field)
+        })
+    }
+
+    /// Print one assign pattern id.
+    pub(crate) fn print_assign_pattern_id(
+        &mut self,
+        assign_pattern_id: LocalNodeId<AssignPattern>,
+    ) -> JsPrintResult<()> {
+        self.print_with_node_markers(assign_pattern_id.id, |this| {
+            let tree = this.tree;
+            let assign_pattern = tree.get(assign_pattern_id);
+            this.print_assign_pattern(assign_pattern)
+        })
+    }
+
+    /// Print one assign pattern field id.
+    pub(crate) fn print_assign_pattern_field_id(
+        &mut self,
+        assign_pattern_field_id: LocalNodeId<AssignPatternField>,
+    ) -> JsPrintResult<()> {
+        self.print_with_node_markers(assign_pattern_field_id.id, |this| {
+            let tree = this.tree;
+            let assign_pattern_field = tree.get(assign_pattern_field_id);
+            this.print_assign_pattern_field(assign_pattern_field)
         })
     }
 

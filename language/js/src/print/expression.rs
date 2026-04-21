@@ -219,7 +219,7 @@ impl<'a> Printer<'a> {
                 }
             }
             Expression::Assign { left, right } => {
-                self.print_expression_id_with_precedence(*left, Precedence::Postfix)?;
+                self.print_assign_pattern_id(*left)?;
                 self.write_punct("=");
                 self.print_expression_id_with_precedence(*right, Precedence::Assignment)?;
             }

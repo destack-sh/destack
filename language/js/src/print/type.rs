@@ -1,8 +1,8 @@
 use super::printer::Printer;
 use crate::{
-    Argument, EnumField, FunctionMode, GenericParameter, JsPrintResult, Keyword, LocalNodeId,
-    Mutability, Parameter, Pattern, PatternField, TupleElement, TypeExpression, TypeMember,
-    TypeModifier, TypePredicateSubject,
+    Argument, AssignPattern, AssignPatternField, EnumField, FunctionMode, GenericParameter,
+    JsPrintResult, Keyword, LocalNodeId, Mutability, Parameter, Pattern, PatternField,
+    TupleElement, TypeExpression, TypeMember, TypeModifier, TypePredicateSubject,
 };
 
 impl<'a> Printer<'a> {
@@ -467,6 +467,83 @@ impl<'a> Printer<'a> {
                 }
             }
             PatternField::Elision => {}
+        }
+
+        Ok(())
+    }
+
+    /// Print one assign pattern.
+    pub(crate) fn print_assign_pattern(
+        &mut self,
+        assign_pattern: &AssignPattern,
+    ) -> JsPrintResult<()> {
+        match assign_pattern {
+            AssignPattern::Expression { value } => {
+                self.print_expression_id(*value)?;
+            }
+            AssignPattern::Assign { pattern, value } => {
+                self.print_assign_pattern_id(*pattern)?;
+                self.write_punct("=");
+                self.print_expression_id(*value)?;
+            }
+            AssignPattern::Array { fields } => {
+                self.write_punct("[");
+                self.print_assign_pattern_field_list(fields)?;
+                self.write_punct("]");
+            }
+            AssignPattern::Object { fields } => {
+                self.write_punct("{");
+                self.print_assign_pattern_field_list(fields)?;
+                self.write_punct("}");
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Print one assign pattern field.
+    pub(crate) fn print_assign_pattern_field(
+        &mut self,
+        field: &AssignPatternField,
+    ) -> JsPrintResult<()> {
+        match field {
+            AssignPatternField::Named {
+                name,
+                is_shorthand,
+                pattern,
+            } => {
+                self.write_name(*name);
+
+                if !is_shorthand {
+                    let pattern = pattern.expect("expanded named js assign pattern field");
+                    self.write_punct(":");
+                    self.print_assign_pattern_id(pattern)?;
+                } else if let Some(pattern) = pattern {
+                    let AssignPattern::Assign { value, .. } = self.tree.get(*pattern) else {
+                        unreachable!("expected shorthand assignment target");
+                    };
+                    self.write_punct("=");
+                    self.print_expression_id(*value)?;
+                }
+            }
+            AssignPatternField::Computed { key, pattern } => {
+                self.write_punct("[");
+                self.print_expression_id(*key)?;
+                self.write_punct("]");
+                self.write_punct(":");
+                self.print_assign_pattern_id(*pattern)?;
+            }
+            AssignPatternField::Positional { pattern } => {
+                self.print_assign_pattern_id(*pattern)?;
+            }
+            AssignPatternField::Spread { pattern } => {
+                self.write_punct("...");
+
+                if let Some(pattern) = pattern {
+                    self.print_assign_pattern_id(*pattern)?;
+                }
+            }
+            AssignPatternField::Elision => {}
         }
 
         Ok(())

@@ -7,10 +7,10 @@ use destack_dir::GlobalSymbolId;
 use destack_source::ModuleId;
 
 use crate::{
-    Annotation, Argument, ArrayElement, Block, CatchClause, Declaration, Declarator,
-    DependencyItem, EnumField, Expression, GenericParameter, LocalNodeId, Member, Node, NodeType,
-    Parameter, Pattern, PatternField, Property, Statement, SwitchCase, TupleElement,
-    TypeExpression, TypeMember,
+    Annotation, Argument, ArrayElement, AssignPattern, AssignPatternField, Block, CatchClause,
+    Declaration, Declarator, DependencyItem, EnumField, Expression, GenericParameter, LocalNodeId,
+    Member, Node, NodeType, Parameter, Pattern, PatternField, Property, Statement, SwitchCase,
+    TupleElement, TypeExpression, TypeMember,
 };
 
 /// The local binding base name for one synthetic non-code module default.
@@ -69,6 +69,8 @@ pub struct NodeTree {
     pub(crate) arguments: Arena<Argument>,
     pub(crate) patterns: Arena<Pattern>,
     pub(crate) pattern_fields: Arena<PatternField>,
+    pub(crate) assign_patterns: Arena<AssignPattern>,
+    pub(crate) assign_pattern_fields: Arena<AssignPatternField>,
     pub(crate) annotations: Arena<Annotation>,
 }
 
@@ -126,6 +128,8 @@ impl NodeTree {
             arguments: Arena::new(),
             patterns: Arena::new(),
             pattern_fields: Arena::new(),
+            assign_patterns: Arena::new(),
+            assign_pattern_fields: Arena::new(),
             annotations: Arena::new(),
         }
     }
@@ -366,5 +370,7 @@ impl_node_tree_stores! {
     Argument => arguments,
     Pattern => patterns,
     PatternField => pattern_fields,
+    AssignPattern => assign_patterns,
+    AssignPatternField => assign_pattern_fields,
     Annotation => annotations,
 }
