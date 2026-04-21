@@ -1,4 +1,5 @@
-use crate::{EdgeMap, HeapDomain, HeapLimits, HeapOptions};
+use crate::{Heap, HeapError, HeapLimits, HeapOptions, HeapSpace, ManagedLimits, RawLimits};
+use destack_mir::LayoutTrace;
 
 use super::TestHeap;
 
@@ -8,7 +9,7 @@ fn test_reject_managed_allocation_when_limit_exceeded() {
     let mut test_heap = TestHeap::with_options(HeapOptions {
         managed_young_bytes: 0,
         max_managed_young_allocation_bytes: 0,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     });
     let heap = &mut test_heap.heap;
     let baseline = heap
@@ -18,21 +19,21 @@ fn test_reject_managed_allocation_when_limit_exceeded() {
         .active_bytes;
     heap.set_limits(HeapLimits {
         max_bytes: None,
-        managed: crate::ManagedLimits {
+        managed: ManagedLimits {
             max_bytes: Some(baseline),
         },
-        raw: crate::RawLimits { max_bytes: None },
+        raw: RawLimits { max_bytes: None },
     })
     .expect("baseline managed heap should fit its current active-byte limit");
 
     let error = heap
-        .allocate_managed_bytes(&[1], EdgeMap::empty(), None)
+        .allocate_managed_bytes(&[1], LayoutTrace::empty(), None)
         .expect_err("managed allocation should be rejected");
 
     assert!(matches!(
         error,
-        crate::HeapError::LimitExceeded {
-            domain: HeapDomain::Managed,
+        HeapError::LimitExceeded {
+            space: HeapSpace::Managed,
             ..
         }
     ));
@@ -58,8 +59,8 @@ fn test_reject_raw_allocation_when_limit_exceeded() {
         .active_bytes;
     heap.set_limits(HeapLimits {
         max_bytes: None,
-        managed: crate::ManagedLimits { max_bytes: None },
-        raw: crate::RawLimits {
+        managed: ManagedLimits { max_bytes: None },
+        raw: RawLimits {
             max_bytes: Some(baseline),
         },
     })
@@ -71,8 +72,8 @@ fn test_reject_raw_allocation_when_limit_exceeded() {
 
     assert!(matches!(
         error,
-        crate::HeapError::LimitExceeded {
-            domain: HeapDomain::Raw,
+        HeapError::LimitExceeded {
+            space: HeapSpace::Raw,
             ..
         }
     ));
@@ -96,10 +97,10 @@ fn test_restore_heap_image_preserves_limits() {
             heap.usage()
                 .expect("heap usage should resolve")
                 .active_bytes()
-                .expect("heap usage totals should stay exact")
+                .expect("heap usage should stay exact")
                 + 4096,
         ),
-        managed: crate::ManagedLimits {
+        managed: ManagedLimits {
             max_bytes: Some(
                 heap.usage()
                     .expect("heap usage should resolve")
@@ -108,7 +109,7 @@ fn test_restore_heap_image_preserves_limits() {
                     + 2048,
             ),
         },
-        raw: crate::RawLimits {
+        raw: RawLimits {
             max_bytes: Some(
                 heap.usage()
                     .expect("heap usage should resolve")
@@ -138,7 +139,7 @@ fn test_reject_raw_replace_when_limit_exceeded() {
         .allocate_raw_bytes(&vec![0xAA; 4097])
         .expect("raw allocation should succeed");
     let image = heap.image().expect("heap image should capture");
-    let mut heap = crate::Heap::from_image(&image).expect("heap image layout should restore");
+    let mut heap = Heap::from_image(&image).expect("heap image layout should restore");
     let baseline = heap
         .usage()
         .expect("heap usage should resolve")
@@ -146,8 +147,8 @@ fn test_reject_raw_replace_when_limit_exceeded() {
         .active_bytes;
     heap.set_limits(HeapLimits {
         max_bytes: None,
-        managed: crate::ManagedLimits { max_bytes: None },
-        raw: crate::RawLimits {
+        managed: ManagedLimits { max_bytes: None },
+        raw: RawLimits {
             max_bytes: Some(baseline),
         },
     })
@@ -159,8 +160,8 @@ fn test_reject_raw_replace_when_limit_exceeded() {
 
     assert!(matches!(
         error,
-        crate::HeapError::LimitExceeded {
-            domain: HeapDomain::Raw,
+        HeapError::LimitExceeded {
+            space: HeapSpace::Raw,
             ..
         }
     ));

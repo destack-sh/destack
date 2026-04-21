@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{HeapDomain, HeapError, HeapResult, apply_byte_delta, sum_bytes};
+use crate::{HeapError, HeapResult, HeapSpace, apply_byte_delta, sum_bytes};
 
 /// Hard limits for one live heap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -35,7 +35,7 @@ impl HeapLimits {
             && managed_bytes > max_bytes
         {
             return Err(HeapError::LimitExceeded {
-                domain: HeapDomain::Managed,
+                space: HeapSpace::Managed,
                 used_bytes: managed_bytes,
                 max_bytes,
             });
@@ -46,7 +46,7 @@ impl HeapLimits {
             && raw_bytes > max_bytes
         {
             return Err(HeapError::LimitExceeded {
-                domain: HeapDomain::Raw,
+                space: HeapSpace::Raw,
                 used_bytes: raw_bytes,
                 max_bytes,
             });
@@ -58,7 +58,7 @@ impl HeapLimits {
             && total_bytes > max_bytes
         {
             return Err(HeapError::LimitExceeded {
-                domain: HeapDomain::Total,
+                space: HeapSpace::Total,
                 used_bytes: total_bytes,
                 max_bytes,
             });

@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use crate::tests::test_arena;
-use crate::{EdgeMap, HeapError, HeapImage, HeapOptions, ManagedSpace, RawSpace, Value};
+use crate::{HeapError, HeapImage, HeapOptions, ManagedSpace, RawSpace, SizeClassTable};
+use destack_mir::LayoutTrace;
 
 use super::TestHeap;
 
@@ -12,7 +13,7 @@ fn test_roundtrip_managed_space_image() {
         managed_young_bytes: 0,
         managed_small_bytes: 32,
         page_bytes: 4,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     };
     let arena = test_arena(&layout);
     let mut managed = ManagedSpace::with_options(arena.clone(), &layout)
@@ -22,10 +23,10 @@ fn test_roundtrip_managed_space_image() {
     let first_bytes = vec![1; 5000];
     let second_bytes = vec![2; 5000];
     let first = managed
-        .allocate_bytes(&first_bytes, EdgeMap::empty(), None)
+        .allocate_bytes(&first_bytes, LayoutTrace::empty(), None)
         .expect("managed allocation should succeed");
     let _second = managed
-        .allocate_bytes(&second_bytes, EdgeMap::empty(), None)
+        .allocate_bytes(&second_bytes, LayoutTrace::empty(), None)
         .expect("managed allocation should succeed");
     managed
         .set_layout_id(first, crate::LayoutId::new(41))
@@ -59,7 +60,7 @@ fn test_roundtrip_managed_space_image() {
 fn test_roundtrip_raw_space_image() {
     let layout = HeapOptions {
         page_bytes: 4,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     };
     let arena = test_arena(&layout);
     let mut raw =
@@ -105,9 +106,9 @@ fn test_roundtrip_raw_space_image() {
 fn test_roundtrip_heap_image_and_fork() {
     let mut test_heap = TestHeap::new();
     let heap = &mut test_heap.heap;
-    let managed_bytes = Value::int64(7).to_byte_array();
+    let managed_bytes = 7i64.to_le_bytes();
     let managed = heap
-        .allocate_managed_bytes(&managed_bytes, EdgeMap::empty(), None)
+        .allocate_managed_bytes(&managed_bytes, LayoutTrace::empty(), None)
         .expect("managed allocation should succeed");
     let raw = heap
         .allocate_raw_bytes(&[0xCA, 0xFE, 0xBA, 0xBE])
@@ -115,7 +116,7 @@ fn test_roundtrip_heap_image_and_fork() {
 
     // capture both the frozen root and the live fork
     let image = heap.image().expect("heap image should capture");
-    let forked = heap.fork().expect("heap fork should retain live pages");
+    let mut forked = heap.fork().expect("heap fork should retain live pages");
     let restored = crate::Heap::from_image(&image).expect("heap image layout should restore");
 
     assert_eq!(
@@ -151,16 +152,16 @@ fn test_heap_managed_write_detaches_only_touched_allocation() {
     let mut test_heap = TestHeap::with_options(HeapOptions {
         managed_young_bytes: 0,
         managed_small_bytes: 32,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     });
     let heap = &mut test_heap.heap;
     let first_bytes = vec![0xAA; 5000];
     let second_bytes = vec![0xBB; 5000];
     let first = heap
-        .allocate_managed_bytes(&first_bytes, EdgeMap::empty(), None)
+        .allocate_managed_bytes(&first_bytes, LayoutTrace::empty(), None)
         .expect("managed allocation should succeed");
     let second = heap
-        .allocate_managed_bytes(&second_bytes, EdgeMap::empty(), None)
+        .allocate_managed_bytes(&second_bytes, LayoutTrace::empty(), None)
         .expect("managed allocation should succeed");
     let image = heap.image().expect("heap image should capture");
     let mut restored = crate::Heap::from_image(&image).expect("heap image layout should restore");
@@ -192,12 +193,12 @@ fn test_heap_managed_write_detaches_only_touched_page() {
     let mut test_heap = TestHeap::with_options(HeapOptions {
         managed_young_bytes: 0,
         managed_small_bytes: 32,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     });
     let heap = &mut test_heap.heap;
     let bytes = vec![0xAA; 9000];
     let reference = heap
-        .allocate_managed_bytes(&bytes, EdgeMap::empty(), None)
+        .allocate_managed_bytes(&bytes, LayoutTrace::empty(), None)
         .expect("managed allocation should succeed");
     let image = heap.image().expect("heap image should capture");
     let mut restored = crate::Heap::from_image(&image).expect("heap image layout should restore");
@@ -222,12 +223,12 @@ fn test_heap_managed_write_keeps_sharing_within_patch_room() {
         managed_young_bytes: 0,
         managed_small_bytes: 32,
         page_bytes: 4096,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     });
     let heap = &mut test_heap.heap;
     let bytes = vec![0xAA; 5 * 4096];
     let reference = heap
-        .allocate_managed_bytes(&bytes, EdgeMap::empty(), None)
+        .allocate_managed_bytes(&bytes, LayoutTrace::empty(), None)
         .expect("managed allocation should succeed");
     let image = heap.image().expect("heap image should capture");
     let mut restored = crate::Heap::from_image(&image).expect("heap image layout should restore");
@@ -254,12 +255,12 @@ fn test_heap_managed_write_rebases_when_patch_room_overflows() {
         managed_young_bytes: 0,
         managed_small_bytes: 32,
         page_bytes: 4096,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     });
     let heap = &mut test_heap.heap;
     let bytes = vec![0xAA; 5 * 4096];
     let reference = heap
-        .allocate_managed_bytes(&bytes, EdgeMap::empty(), None)
+        .allocate_managed_bytes(&bytes, LayoutTrace::empty(), None)
         .expect("managed allocation should succeed");
     let image = heap.image().expect("heap image should capture");
     let mut restored = crate::Heap::from_image(&image).expect("heap image layout should restore");
@@ -285,7 +286,7 @@ fn test_roundtrip_managed_small_space_image() {
     let layout = HeapOptions {
         managed_young_bytes: 0,
         page_bytes: 4,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     };
     let arena = test_arena(&layout);
     let mut managed = ManagedSpace::with_options(arena.clone(), &layout)
@@ -293,10 +294,10 @@ fn test_roundtrip_managed_small_space_image() {
 
     // small entries should stay in spans and share those span pages after restore
     let first = managed
-        .allocate_bytes(&[1, 2, 3], EdgeMap::empty(), None)
+        .allocate_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
         .expect("managed allocation should succeed");
     let _second = managed
-        .allocate_bytes(&[4, 5, 6], EdgeMap::empty(), None)
+        .allocate_bytes(&[4, 5, 6], LayoutTrace::empty(), None)
         .expect("managed allocation should succeed");
     let image = managed.image().expect("managed image should capture");
     let mut restored = ManagedSpace::from_image(arena.clone(), &image)
@@ -320,7 +321,7 @@ fn test_roundtrip_managed_small_space_image() {
 fn test_roundtrip_managed_young_space_image() {
     let layout = HeapOptions {
         page_bytes: 4,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     };
     let arena = test_arena(&layout);
     let mut managed = ManagedSpace::with_options(arena.clone(), &layout)
@@ -328,10 +329,10 @@ fn test_roundtrip_managed_young_space_image() {
 
     // young entries should share young-space pages after restore
     let first = managed
-        .allocate_bytes(&[1, 2, 3], EdgeMap::empty(), None)
+        .allocate_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
         .expect("managed allocation should succeed");
     let _second = managed
-        .allocate_bytes(&[4, 5, 6], EdgeMap::empty(), None)
+        .allocate_bytes(&[4, 5, 6], LayoutTrace::empty(), None)
         .expect("managed allocation should succeed");
     let image = managed.image().expect("managed image should capture");
     let mut restored = ManagedSpace::from_image(arena.clone(), &image)
@@ -355,7 +356,7 @@ fn test_roundtrip_managed_young_space_image() {
 fn test_roundtrip_raw_small_space_image() {
     let layout = HeapOptions {
         page_bytes: 4,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     };
     let arena = test_arena(&layout);
     let mut raw =
@@ -389,12 +390,12 @@ fn test_roundtrip_raw_small_space_image() {
 #[test]
 fn test_roundtrip_raw_small_space_image_with_large_size_class() {
     let layout = HeapOptions {
-        size_classes: crate::SizeClassTable::new([70_000]).expect("size classes should validate"),
+        size_classes: SizeClassTable::new([70_000]).expect("size classes should validate"),
         raw_small_bytes: 70_000,
         managed_small_bytes: 70_000,
         managed_young_bytes: 0,
         max_managed_young_allocation_bytes: 0,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     };
     let arena = test_arena(&layout);
     let mut raw =
@@ -417,18 +418,18 @@ fn test_roundtrip_raw_small_space_image_with_large_size_class() {
 fn test_restore_managed_image_releases_retained_pages_on_failure() {
     let layout = HeapOptions {
         managed_young_bytes: 0,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     };
     let arena = test_arena(&layout);
     let mut managed = ManagedSpace::with_options(arena.clone(), &layout)
         .expect("explicit managed layout should build");
     managed
-        .allocate_bytes(&[1, 2, 3], EdgeMap::empty(), None)
+        .allocate_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
         .expect("managed allocation should succeed");
 
     let image = managed.image().expect("managed image should capture");
-    let image = image
-        .with_size_classes(crate::SizeClassTable::new([8]).expect("size classes should validate"));
+    let image =
+        image.with_size_classes(SizeClassTable::new([8]).expect("size classes should validate"));
 
     // failed restore should not leave shared retains behind
     assert_eq!(managed.borrowed_bytes(), Ok(0));
@@ -445,16 +446,15 @@ fn test_restore_managed_image_releases_retained_pages_on_failure() {
 fn test_fork_managed_space_releases_retained_pages_on_failure() {
     let layout = HeapOptions {
         managed_young_bytes: 0,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     };
     let arena = test_arena(&layout);
     let mut managed = ManagedSpace::with_options(arena.clone(), &layout)
         .expect("explicit managed layout should build");
     managed
-        .allocate_bytes(&[1, 2, 3], EdgeMap::empty(), None)
+        .allocate_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
         .expect("managed allocation should succeed");
-    managed.small.size_classes =
-        crate::SizeClassTable::new([8]).expect("size classes should validate");
+    managed.small.size_classes = SizeClassTable::new([8]).expect("size classes should validate");
 
     // failed fork should not leave shared retains behind
     assert_eq!(managed.borrowed_bytes(), Ok(0));
@@ -468,7 +468,7 @@ fn test_fork_managed_space_releases_retained_pages_on_failure() {
 /// Release retained raw pages when image restore fails after retention.
 #[test]
 fn test_restore_raw_image_releases_retained_pages_on_failure() {
-    let layout = HeapOptions::default();
+    let layout = HeapOptions::local();
     let arena = test_arena(&layout);
     let mut raw =
         RawSpace::with_options(arena.clone(), &layout).expect("explicit raw layout should build");
@@ -476,8 +476,8 @@ fn test_restore_raw_image_releases_retained_pages_on_failure() {
         .expect("raw allocation should succeed");
 
     let image = raw.image();
-    let image = image
-        .with_size_classes(crate::SizeClassTable::new([8]).expect("size classes should validate"));
+    let image =
+        image.with_size_classes(SizeClassTable::new([8]).expect("size classes should validate"));
 
     // failed restore should not leave shared retains behind
     assert_eq!(raw.borrowed_bytes(), Ok(0));
@@ -491,7 +491,7 @@ fn test_restore_raw_image_releases_retained_pages_on_failure() {
 /// Release retained raw pages when fork fails after retention.
 #[test]
 fn test_fork_raw_space_releases_retained_pages_on_failure() {
-    let layout = HeapOptions::default();
+    let layout = HeapOptions::local();
     let arena = test_arena(&layout);
     let mut raw =
         RawSpace::with_options(arena.clone(), &layout).expect("explicit raw layout should build");
@@ -513,10 +513,10 @@ fn test_fork_raw_space_releases_retained_pages_on_failure() {
 fn test_restore_heap_image_releases_retained_pages_on_failure() {
     let mut test_heap = TestHeap::with_options(HeapOptions {
         managed_young_bytes: 0,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     });
     let heap = &mut test_heap.heap;
-    heap.allocate_managed_bytes(&[1, 2, 3], EdgeMap::empty(), None)
+    heap.allocate_managed_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
         .expect("managed allocation should succeed");
     heap.allocate_raw_bytes(&[4, 5, 6])
         .expect("raw allocation should succeed");
@@ -526,9 +526,10 @@ fn test_restore_heap_image_releases_retained_pages_on_failure() {
         image.arena().clone(),
         image.options().clone(),
         image.managed().clone(),
-        image.raw().clone().with_size_classes(
-            crate::SizeClassTable::new([8]).expect("size classes should validate"),
-        ),
+        image
+            .raw()
+            .clone()
+            .with_size_classes(SizeClassTable::new([8]).expect("size classes should validate")),
     );
 
     // failed restore should not leave shared retains behind
@@ -555,15 +556,14 @@ fn test_restore_heap_image_releases_retained_pages_on_failure() {
 fn test_fork_heap_releases_retained_pages_on_failure() {
     let mut test_heap = TestHeap::with_options(HeapOptions {
         managed_young_bytes: 0,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     });
     let heap = &mut test_heap.heap;
-    heap.allocate_managed_bytes(&[1, 2, 3], EdgeMap::empty(), None)
+    heap.allocate_managed_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
         .expect("managed allocation should succeed");
     heap.allocate_raw_bytes(&[4, 5, 6])
         .expect("raw allocation should succeed");
-    heap.raw.small.size_classes =
-        crate::SizeClassTable::new([8]).expect("size classes should validate");
+    heap.raw.small.size_classes = SizeClassTable::new([8]).expect("size classes should validate");
 
     // failed fork should not leave shared retains behind
     assert_eq!(

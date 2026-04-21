@@ -4,7 +4,7 @@ use crate::arena::Arena;
 use crate::local::managed::ManagedSpace;
 use crate::local::raw::RawSpace;
 use crate::{
-    GcPacer, GcState, GcStats, HeapLimits, HeapOptions, HeapResult, HeapScan, LayoutId,
+    GcPacer, GcStats, GcSummary, HeapLimits, HeapOptions, HeapResult, HeapScan, LayoutId,
     ManagedReference, RawPointer, SharedManagedReference,
 };
 
@@ -49,7 +49,7 @@ impl Heap {
             options.arena_segment_bytes,
         )?);
 
-        options.validate()?;
+        options.validate_local()?;
         options.validate_arena(&arena)?;
 
         Self::build_with_options(arena, limits, options)
@@ -113,32 +113,32 @@ impl Heap {
     }
 
     /// Return the current collector state.
-    pub fn gc_state(&self) -> &GcState {
+    pub fn gc_state(&self) -> &GcSummary {
         self.managed.gc_state()
     }
 
-    /// Start one incremental local-to-shared root scan.
-    pub fn start_shared_root_scan(&mut self) {
-        self.managed.start_shared_root_scan();
+    /// Start one incremental local-to-shared edge scan.
+    pub fn start_shared_edge_scan(&mut self) {
+        self.managed.start_shared_edge_scan();
     }
 
-    /// Return whether the current local-to-shared root scan is drained.
-    pub fn shared_root_scan_idle(&self) -> bool {
-        self.managed.shared_root_scan_idle()
+    /// Return whether the current local-to-shared edge scan is drained.
+    pub fn shared_edge_scan_idle(&self) -> bool {
+        self.managed.shared_edge_scan_idle()
     }
 
-    /// Finish the current local-to-shared root scan.
-    pub fn finish_shared_root_scan(&mut self) {
-        self.managed.finish_shared_root_scan();
+    /// Finish the current local-to-shared edge scan.
+    pub fn finish_shared_edge_scan(&mut self) {
+        self.managed.finish_shared_edge_scan();
     }
 
-    /// Scan bounded local-to-shared root work into the provided root buffer.
-    pub fn scan_shared_root_step(
+    /// Scan bounded local-to-shared edge work into the provided root buffer.
+    pub fn scan_shared_edge_step(
         &mut self,
         roots: &mut Vec<SharedManagedReference>,
         work_items: usize,
     ) -> HeapResult<usize> {
-        self.managed.scan_shared_root_step(roots, work_items)
+        self.managed.scan_shared_edge_step(roots, work_items)
     }
 
     /// Pin one local managed reference against movement.

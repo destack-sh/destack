@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::Heap;
-use crate::HeapResult;
-use crate::core::sum_bytes;
+use crate::{HeapResult, sum_bytes};
 
 /// Exact managed-space usage for one live heap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
