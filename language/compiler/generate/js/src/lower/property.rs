@@ -41,6 +41,7 @@ impl ModuleLowerer<'_> {
             dir::Property::Field {
                 key,
                 value,
+                is_shorthand,
                 symbol: _,
             } => {
                 let modifiers = None;
@@ -53,7 +54,7 @@ impl ModuleLowerer<'_> {
                     modifiers,
                     key,
                     value,
-                    is_shorthand: false,
+                    is_shorthand: *is_shorthand,
                 }
             }
             dir::Property::Method {
