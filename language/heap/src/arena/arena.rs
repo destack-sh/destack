@@ -13,6 +13,15 @@ const MAX_ARENA_SEGMENTS: usize = 1 << 16;
 /// Sentinel for one missing fresh segment.
 const MISSING_SEGMENT_INDEX: usize = usize::MAX;
 
+/// The shared pool of reusable physical runs.
+#[derive(Debug, Default)]
+struct PageRunPool {
+    /// Reusable runs keyed by page count.
+    by_len: BTreeMap<usize, Vec<PageRun>>,
+    /// Reusable runs keyed by first page index.
+    by_start: BTreeMap<usize, PageRun>,
+}
+
 /// One runtime-local branchable arena of fixed-width pages.
 #[derive(Debug)]
 pub struct Arena {
@@ -28,8 +37,8 @@ pub struct Arena {
     reserved_segment_count: AtomicUsize,
     /// The current fresh segment used for monotonic single-segment allocation.
     fresh_segment: AtomicUsize,
-    /// The reusable page-run pool.
-    page_run_pool: Mutex<PageRunPool>,
+    /// The reusable physical runs.
+    page_runs: Mutex<PageRunPool>,
 }
 
 // segment slots, fresh allocation, and run refcounts are synchronized internally
@@ -37,15 +46,6 @@ unsafe impl Send for Arena {}
 
 // payload access is external, arena metadata is synchronized internally
 unsafe impl Sync for Arena {}
-
-/// One reusable page-run pool.
-#[derive(Debug)]
-struct PageRunPool {
-    /// The reusable physical runs keyed by page count.
-    by_len: BTreeMap<usize, Vec<PageRun>>,
-    /// The reusable physical runs keyed by first page index.
-    by_start: BTreeMap<usize, PageRun>,
-}
 
 impl Default for Arena {
     fn default() -> Self {
@@ -73,7 +73,7 @@ impl Drop for Arena {
 impl Arena {
     /// Create one empty arena with default page and segment widths.
     pub fn new() -> Self {
-        let options = HeapOptions::default();
+        let options = HeapOptions::local();
         let page_bytes = options.page_bytes;
         let segment_bytes = options.arena_segment_bytes;
 
@@ -86,7 +86,7 @@ impl Arena {
                 .collect(),
             reserved_segment_count: AtomicUsize::new(0),
             fresh_segment: AtomicUsize::new(MISSING_SEGMENT_INDEX),
-            page_run_pool: Mutex::new(PageRunPool::new()),
+            page_runs: Mutex::new(PageRunPool::default()),
         }
     }
 
@@ -105,7 +105,7 @@ impl Arena {
                 .collect(),
             reserved_segment_count: AtomicUsize::new(0),
             fresh_segment: AtomicUsize::new(MISSING_SEGMENT_INDEX),
-            page_run_pool: Mutex::new(PageRunPool::new()),
+            page_runs: Mutex::new(PageRunPool::default()),
         })
     }
 
@@ -188,7 +188,7 @@ impl Arena {
         }
 
         // reuse an existing run when possible
-        if let Some(run) = self.take_page_run(page_count)? {
+        if let Some(run) = self.take_page_run(page_count) {
             self.zero_run(run)?;
             self.initialize_run_refcount(run)?;
 
@@ -274,7 +274,7 @@ impl Arena {
 
             // return the fully released run to the global page-run pool
             if next_refcount == 0 {
-                self.return_page_run(run)?;
+                self.return_page_run(run);
             }
 
             return Ok(());
@@ -327,9 +327,10 @@ impl Arena {
     }
 
     /// Return one reusable run large enough for the requested size.
-    fn take_page_run(&self, page_count: usize) -> HeapResult<Option<PageRun>> {
-        let mut page_run_pool = self.page_run_pool.lock();
-        page_run_pool.take(page_count)
+    fn take_page_run(&self, page_count: usize) -> Option<PageRun> {
+        let mut page_runs = self.page_runs.lock();
+
+        Self::take_reusable_run(&mut page_runs, page_count)
     }
 
     /// Return one fresh run that fits inside one existing or new segment.
@@ -345,7 +346,6 @@ impl Arena {
 
             // slow path: pick or reserve the next fresh segment
             let segment_index = self.ensure_fresh_segment(page_count)?;
-
             if let Some(run) = self.try_allocate_segment_run(segment_index, page_count)? {
                 return Ok(Some(run));
             }
@@ -666,29 +666,31 @@ impl Arena {
     }
 
     /// Return one reusable run to the arena page-run pool.
-    fn return_page_run(&self, run: PageRun) -> HeapResult<()> {
-        let mut page_run_pool = self.page_run_pool.lock();
+    fn return_page_run(&self, run: PageRun) {
+        let mut page_runs = self.page_runs.lock();
 
-        page_run_pool.insert(run)
+        Self::insert_reusable_run(&mut page_runs, run);
     }
 
     /// Release one cache-owned run back into the arena page-run pool.
-    pub(super) fn release_cached_run(&self, run: PageRun) -> HeapResult<()> {
+    pub(super) fn release_cached_run(&self, run: PageRun) {
         if run.is_empty() {
-            return Ok(());
+            return;
         }
 
-        let refcount = self.run_refcount(run)?;
+        let refcount = self.run_refcount(run).unwrap_or_else(|error| {
+            panic!("cached page run should resolve one live refcount: {error}")
+        });
 
         let current_refcount = refcount.swap(0, Ordering::AcqRel);
         if current_refcount != 1 {
-            return Err(HeapError::InvalidRunRefcount {
-                first_page: run.first_page,
-                refcount: current_refcount,
-            });
+            panic!(
+                "cached page run should stay uniquely owned: first_page={}, refcount={current_refcount}",
+                run.first_page.index()
+            );
         }
 
-        self.return_page_run(run)
+        self.return_page_run(run);
     }
 
     /// Raise one segment fresh-allocation cursor to the given high watermark.
@@ -726,121 +728,116 @@ impl Arena {
 
         Some(unsafe { &*segment_ptr })
     }
-}
-
-impl PageRunPool {
-    /// Create one empty page-run pool.
-    fn new() -> Self {
-        Self {
-            by_len: BTreeMap::new(),
-            by_start: BTreeMap::new(),
-        }
-    }
 
     /// Return one reusable run large enough for the requested size.
-    fn take(&mut self, page_count: usize) -> HeapResult<Option<PageRun>> {
-        let Some((run_len, run)) = self
+    fn take_reusable_run(page_runs: &mut PageRunPool, page_count: usize) -> Option<PageRun> {
+        let Some((run_len, run)) = page_runs
             .by_len
             .range_mut(page_count..)
             .find_map(|(&run_len, runs)| runs.pop().map(|run| (run_len, run)))
         else {
-            return Ok(None);
+            return None;
         };
 
         // drop the selected extent from both indexes
-        self.by_start.remove(&run.first_page.index());
+        page_runs.by_start.remove(&run.first_page.index());
 
         // drop empty buckets after one successful pop
-        if self.by_len.get(&run_len).is_some_and(Vec::is_empty) {
-            self.by_len.remove(&run_len);
+        if page_runs.by_len.get(&run_len).is_some_and(Vec::is_empty) {
+            page_runs.by_len.remove(&run_len);
         }
 
-        let (allocation, remainder) =
-            run.split_prefix(page_count)
-                .ok_or(HeapError::InvalidPageRun {
-                    first_page: run.first_page,
-                    page_count,
-                })?;
+        let (allocation, remainder) = run.split_prefix(page_count).unwrap_or_else(|| {
+            panic!(
+                "reusable page run should split cleanly: first_page={}, page_count={page_count}, run_len={}",
+                run.first_page.index(),
+                run.len()
+            )
+        });
 
         // return any remainder to the indexes
         if !remainder.is_empty() {
-            self.insert(remainder)?;
+            Self::insert_reusable_run(page_runs, remainder);
         }
 
-        Ok(Some(allocation))
+        Some(allocation)
     }
 
-    /// Return one reusable run and coalesce it with adjacent reusable runs.
-    fn insert(&mut self, run: PageRun) -> HeapResult<()> {
+    /// Return one reusable run large enough for the requested size.
+    fn insert_reusable_run(page_runs: &mut PageRunPool, run: PageRun) {
         let mut run = run;
 
         // merge the immediate predecessor when it touches this run
-        if let Some(previous_run) = self.previous(run)
+        if let Some(previous_run) = Self::previous_reusable_run(&page_runs.by_start, run)
             && previous_run.is_immediately_before(run)
         {
-            self.remove(previous_run);
-            run = PageRun::new(
-                previous_run.first_page,
-                previous_run
-                    .len()
-                    .checked_add(run.len())
-                    .ok_or(HeapError::InvariantOverflow {
-                        context: "arena page-run merge length",
-                    })?,
-            )?;
+            Self::remove_reusable_run(page_runs, previous_run);
+            run = Self::merged_run(previous_run, run);
         }
 
         // merge the immediate successor when it touches this run
-        if let Some(next_run) = self.next(run)
+        if let Some(next_run) = Self::next_reusable_run(&page_runs.by_start, run)
             && run.is_immediately_before(next_run)
         {
-            self.remove(next_run);
-            run = PageRun::new(
-                run.first_page,
-                run.len()
-                    .checked_add(next_run.len())
-                    .ok_or(HeapError::InvariantOverflow {
-                        context: "arena page-run merge length",
-                    })?,
-            )?;
+            Self::remove_reusable_run(page_runs, next_run);
+            run = Self::merged_run(run, next_run);
         }
 
         // record the merged run in both indexes
-        self.by_len.entry(run.len()).or_default().push(run);
-        self.by_start.insert(run.first_page.index(), run);
-
-        Ok(())
+        page_runs.by_len.entry(run.len()).or_default().push(run);
+        page_runs.by_start.insert(run.first_page.index(), run);
     }
 
     /// Remove one reusable run from both indexes.
-    fn remove(&mut self, run: PageRun) {
-        if let Some(runs) = self.by_len.get_mut(&run.len()) {
+    fn remove_reusable_run(page_runs: &mut PageRunPool, run: PageRun) {
+        if let Some(runs) = page_runs.by_len.get_mut(&run.len()) {
             if let Some(run_index) = runs.iter().position(|candidate| *candidate == run) {
                 runs.swap_remove(run_index);
             }
 
             if runs.is_empty() {
-                self.by_len.remove(&run.len());
+                page_runs.by_len.remove(&run.len());
             }
         }
 
-        self.by_start.remove(&run.first_page.index());
+        page_runs.by_start.remove(&run.first_page.index());
     }
 
     /// Return the immediately preceding reusable run when one exists.
-    fn previous(&self, run: PageRun) -> Option<PageRun> {
-        self.by_start
+    fn previous_reusable_run(
+        page_runs_by_start: &BTreeMap<usize, PageRun>,
+        run: PageRun,
+    ) -> Option<PageRun> {
+        page_runs_by_start
             .range(..run.start_page_index())
             .next_back()
             .map(|(_, run)| *run)
     }
 
     /// Return the immediately following reusable run when one exists.
-    fn next(&self, run: PageRun) -> Option<PageRun> {
-        self.by_start
+    fn next_reusable_run(
+        page_runs_by_start: &BTreeMap<usize, PageRun>,
+        run: PageRun,
+    ) -> Option<PageRun> {
+        page_runs_by_start
             .range(run.end_page_index()..)
             .next()
             .map(|(_, run)| *run)
+    }
+
+    /// Merge two adjacent reusable runs.
+    fn merged_run(left: PageRun, right: PageRun) -> PageRun {
+        let page_count = left.len().checked_add(right.len()).unwrap_or_else(|| {
+            panic!(
+                "adjacent reusable runs should not overflow: first_page={}, left_len={}, right_len={}",
+                left.first_page.index(),
+                left.len(),
+                right.len()
+            )
+        });
+
+        PageRun::new(left.first_page, page_count)
+            .unwrap_or_else(|error| panic!("adjacent reusable runs should stay valid: {error}"))
     }
 }
 

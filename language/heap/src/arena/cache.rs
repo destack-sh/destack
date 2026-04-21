@@ -77,16 +77,16 @@ impl PageRunCache {
             return Ok(());
         }
 
-        arena.release_cached_run(run)
+        arena.release_cached_run(run);
+
+        Ok(())
     }
 
     /// Flush this cache back into the arena page-run pool.
-    pub(crate) fn try_flush(&mut self, arena: &Arena) -> HeapResult<()> {
+    pub(crate) fn flush(&mut self, arena: &Arena) {
         for run in self.drain() {
-            arena.release_cached_run(run)?;
+            arena.release_cached_run(run);
         }
-
-        Ok(())
     }
 
     /// Return the currently cached byte count.
@@ -100,12 +100,15 @@ impl PageRunCache {
             return Some(PageRun::empty());
         }
 
-        let run_index = self.runs.iter().position(|run| run.len() >= page_count)?;
+        // prefer the most recently released run first
+        let run_index = self.runs.iter().rposition(|run| run.len() >= page_count)?;
         let run = self.runs.swap_remove(run_index);
         self.cached_pages -= run.len();
+        if run.len() == page_count {
+            return Some(run);
+        }
 
         let (allocation, remainder) = run.split_prefix(page_count)?;
-
         if !remainder.is_empty() {
             self.insert(remainder);
         }
@@ -153,9 +156,9 @@ impl PageRunCache {
         while run_index < self.runs.len() {
             let candidate = self.runs[run_index];
             let merged = if candidate.is_immediately_before(run) {
-                PageRun::new(candidate.first_page, candidate.len() + run.len()).ok()
+                Some(Self::merged_run(candidate, run))
             } else if run.is_immediately_before(candidate) {
-                PageRun::new(run.first_page, run.len() + candidate.len()).ok()
+                Some(Self::merged_run(run, candidate))
             } else {
                 None
             };
@@ -171,5 +174,20 @@ impl PageRunCache {
         }
 
         run
+    }
+
+    /// Merge two adjacent cached runs.
+    fn merged_run(left: PageRun, right: PageRun) -> PageRun {
+        let page_count = left.len().checked_add(right.len()).unwrap_or_else(|| {
+            panic!(
+                "adjacent cached runs should not overflow: first_page={}, left_len={}, right_len={}",
+                left.first_page.index(),
+                left.len(),
+                right.len()
+            )
+        });
+
+        PageRun::new(left.first_page, page_count)
+            .unwrap_or_else(|error| panic!("adjacent cached runs should stay valid: {error}"))
     }
 }
