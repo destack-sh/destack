@@ -13,7 +13,7 @@ use crate::format::declaration::r#type::{
 use crate::format::declaration::{
     format_lambda_declaration, write_statement_terminator_after_anchor,
 };
-use crate::format::expression::format_declarator;
+use crate::format::expression::{format_declarator, write_control_branch_after_head};
 use crate::format::operator::{
     AssignmentLikeLayout, write_assignment_like_right,
     write_type_expression_with_inline_prefix_annotations,
@@ -549,6 +549,37 @@ pub(crate) fn format_let_statement_expression<'ast>(
                 write!(f, [format_declarators])
             }
         }))]
+    )
+}
+
+/// Format one `let else` statement.
+pub(crate) fn format_let_else_statement_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    kind: LetKind,
+    declarator: LocalNodeId<Declarator>,
+    else_branch: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let tree = f.context().tree;
+
+    write!(
+        f,
+        [group(&format_args![
+            format_with(|f| {
+                // binding head
+                match kind {
+                    LetKind::Let => write!(f, [Keyword::Let])?,
+                    LetKind::Var => write!(f, [Keyword::Var])?,
+                    LetKind::Const => write!(f, [Keyword::Const])?,
+                }
+
+                write!(f, [space()])?;
+                format_declarator(f, tree, declarator)?;
+                write!(f, [space(), Keyword::Else])?;
+
+                Ok(())
+            }),
+            format_with(|f| write_control_branch_after_head(f, else_branch)),
+        ])]
     )
 }
 

@@ -71,6 +71,19 @@ fn test_format_block_statement_like() {
     );
 }
 
+/// Let-else branches should format like other control heads with statement bodies.
+#[test]
+fn test_format_let_else_statement() {
+    assert_format!(
+        r#"let {x}=value else{return}"#,
+        r#"let { x } = value else {
+    return;
+}"#,
+        |p| p.eat_expression(Default::default()),
+        DestackFormatOptions::default()
+    );
+}
+
 /// Declarations after expressions should not force an extra blank line.
 #[test]
 fn test_format_block_declaration_after_expression_no_forced_blank_line() {

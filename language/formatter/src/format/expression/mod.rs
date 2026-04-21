@@ -12,6 +12,7 @@ mod statement;
 mod ternary;
 mod r#type;
 
+pub(crate) use self::control::write_control_branch_after_head;
 pub(crate) use self::declarator::format_declarator;
 pub(crate) use self::dispatch::{
     format_expression, write_expression_without_prefix_annotations,

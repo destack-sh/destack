@@ -28,6 +28,7 @@ fn write_expression_without_prefix_annotations_inner<'ast>(
         | Expression::Export { .. }
         | Expression::ExportNamespace { .. }
         | Expression::Let { .. }
+        | Expression::LetElse { .. }
         | Expression::Using { .. }
         | Expression::If { .. }
         | Expression::While { .. }
@@ -118,6 +119,7 @@ fn format_expression_body<'ast>(
         | Expression::Export { .. }
         | Expression::ExportNamespace { .. }
         | Expression::Let { .. }
+        | Expression::LetElse { .. }
         | Expression::Using { .. }
         | Expression::If { .. }
         | Expression::While { .. }

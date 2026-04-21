@@ -9,7 +9,8 @@ pub mod signature;
 pub mod statement;
 
 pub(crate) use self::declaration::{
-    format_let_statement_expression, format_using_statement_expression,
+    format_let_else_statement_expression, format_let_statement_expression,
+    format_using_statement_expression,
 };
 pub(crate) use self::function::{
     FormatLambdaDeclarationOptions, GroupedCallArgumentLayout, format_lambda_declaration,

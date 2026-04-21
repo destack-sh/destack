@@ -12,7 +12,8 @@ use crate::format::annotation::{
 };
 use crate::format::declaration::dependency::format_dependency_statement_expression;
 use crate::format::declaration::{
-    format_let_statement_expression, format_using_statement_expression,
+    format_let_else_statement_expression, format_let_statement_expression,
+    format_using_statement_expression,
 };
 use destack_ast::{Comment, Expression, IfKind, LocalNodeId, TokenType};
 use destack_fir::format::{Buffer, Format, FormatResult};
@@ -124,6 +125,16 @@ pub(crate) fn format_statement_expression<'ast>(
             ..
         } => {
             format_let_statement_expression(f, *kind, *export, *ambient, declarators)?;
+        }
+
+        // let else
+        Expression::LetElse {
+            kind,
+            declarator,
+            else_branch,
+            ..
+        } => {
+            format_let_else_statement_expression(f, *kind, *declarator, *else_branch)?;
         }
 
         // using
