@@ -9,6 +9,7 @@ pub(crate) fn is_extractable_expression(expression: &dir::Expression) -> bool {
     !matches!(
         expression,
         dir::Expression::Let { .. }
+            | dir::Expression::LetElse { .. }
             | dir::Expression::Using { .. }
             | dir::Expression::Declaration { .. }
             | dir::Expression::Block { .. }
@@ -71,6 +72,7 @@ pub(crate) fn statement_span_for_expression(
             if matches!(
                 parent_expression,
                 dir::Expression::Let { .. }
+                    | dir::Expression::LetElse { .. }
                     | dir::Expression::Using { .. }
                     | dir::Expression::Declaration { .. }
             ) {
