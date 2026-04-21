@@ -168,7 +168,7 @@ impl Trivia {
         !self.saw_newline
             && !matches!(
                 self.previous_token_type,
-                TokenType::Assign | TokenType::OpenParenthesis
+                TokenType::Assign | TokenType::OpenParenthesis | TokenType::OpenBrace
             )
     }
 }

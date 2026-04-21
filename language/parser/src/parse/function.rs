@@ -1039,10 +1039,10 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, Asynchrony, BlockContext, BlockFormat, ClassDeclaration, CommentKind,
-        Declaration, Declarator, Expression, FunctionCardinality, FunctionDeclaration,
-        FunctionKind, FunctionMode, GenericArgument, GenericParameter, IntType, NodeType,
-        Parameter, Pattern, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
-        VarianceModifier, WhereClause, YieldCardinality,
+        CommentPosition, Declaration, Declarator, Expression, FunctionCardinality,
+        FunctionDeclaration, FunctionKind, FunctionMode, GenericArgument, GenericParameter,
+        IntType, NodeType, Parameter, Pattern, ScalarLiteral, TypeDeclaration, TypeExpression,
+        TypeLiteral, VarianceModifier, WhereClause, YieldCardinality,
     };
 
     use destack_source::LanguageType;
@@ -2323,6 +2323,30 @@ function onResolve(
         });
         assert_eq!(parser.tree.comments().len(), 1);
         assert_comment!(parser, 0, CommentKind::SingleLineBlock, " empty");
+    }
+
+    #[test]
+    fn test_parse_lambda_comment_only_block_body_attaches_inside_block() {
+        let mut test =
+            TestParser::new_with_options("() => {\n  // code\n}", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+        parser.attach_comments();
+
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
+                let body_span = parser.tree.get_span(*body_id);
+                let comment = parser.tree.comments()[0];
+
+                assert_eq!(comment.position, CommentPosition::Leading);
+                assert!(comment.span.start >= body_span.start);
+                assert!(comment.span.end <= body_span.end);
+            });
+        });
+
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentKind::Line, "code");
     }
 
     /// Reject direct calls on unparenthesized arrow functions.
