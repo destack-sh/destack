@@ -29,7 +29,7 @@ use destack_source::{
     FileType, MemoryFileSystem, ModuleId, ModuleVersion, MultiSpan, PackageId, PhysicalFileSystem,
     TargetId, Uri, print_diff,
 };
-use destack_vm::{Heap, Isolate, IsolateOptions, MemoryContext, SharedHeap, Value};
+use destack_vm::{Heap, Isolate, IsolateOptions, SharedHeap, Value};
 use destack_workspace::{
     AmbientSnapshot, BoundsCheckPolicy, BundleFormat, BundleMode, CacheMode, Change,
     CheckFailurePolicy, DivisionCheckPolicy, Edit, EsTarget, Module, Package, Profile, ProfileId,
@@ -496,10 +496,8 @@ impl TestIsolate {
         function: &str,
         arguments: &[Value],
     ) -> destack_vm::RuntimeResult<destack_vm::RunOutput> {
-        let mut memory = MemoryContext::new(&mut self.heap, &mut self.shared);
-
         self.isolate
-            .run_function_by_name(&mut memory, function, arguments)
+            .run_function_by_name(&mut self.heap, &mut self.shared, function, arguments)
     }
 
     /// Run a MIR function by name and return its output value.
@@ -2796,10 +2794,9 @@ impl TestProgram {
         let mut heap = heap;
         let shared = SharedHeap::new();
         let mut shared = shared;
-        let mut memory = MemoryContext::new(&mut heap, &mut shared);
 
         isolate
-            .initialize(&mut memory)
+            .initialize(&mut heap, &mut shared)
             .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
         TestIsolate {

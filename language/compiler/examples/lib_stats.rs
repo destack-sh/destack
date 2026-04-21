@@ -5,9 +5,8 @@ use std::sync::Arc;
 use clap::Parser;
 
 use destack_ast::{
-    Annotation, Argument, Blank, Comment, Declaration, Declarator, Decorator, DependencyItem, Doc,
-    EnumField, Expression, MatchCase, Member, Parameter, Pattern, PatternField, Property,
-    WhereClause,
+    Annotation, Argument, Declaration, Declarator, Decorator, DependencyItem, EnumField,
+    Expression, MatchCase, Member, Parameter, Pattern, PatternField, Property, WhereClause,
 };
 use destack_builtin::{BuiltinLibrary, BuiltinLibraryKind, builtin_library};
 use destack_parser::Parser as DestackParser;
@@ -524,7 +523,6 @@ fn collect_counts(parser: &DestackParser) -> Counts {
 
     // count annotation related nodes
     counts.annotations += parser.tree.get_nodes::<Annotation>().len();
-    counts.annotations += parser.tree.get_nodes::<Doc>().len();
     counts.annotations += parser.tree.comments().len();
     counts.annotations += parser.tree.get_nodes::<Decorator>().len();
 
