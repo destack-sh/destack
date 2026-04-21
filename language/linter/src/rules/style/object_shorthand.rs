@@ -380,14 +380,18 @@ fn shorthand_name(
     let property = ctx.tree.get(property_id);
 
     match property {
-        ast::Property::Field { key, value } => {
+        ast::Property::Field {
+            key,
+            value,
+            is_shorthand,
+        } => {
             let property_name = property_key_shorthand_name(ctx, key)?;
             let path_segments = expression_path_segments(ctx.tree, *value)?;
             if path_segments.len() != 1 || ctx.strings.get(path_segments[0]) != &property_name {
                 return None;
             }
 
-            field_source_is_shorthand(ctx, property_id, &property_name).then_some(property_name)
+            is_shorthand.then_some(property_name)
         }
         ast::Property::Method {
             key: Some(key),
@@ -410,7 +414,12 @@ fn redundant_property_name(
     property_id: ast::LocalNodeId<ast::Property>,
 ) -> Option<String> {
     let property = ctx.tree.get(property_id);
-    let ast::Property::Field { key, value } = property else {
+    let ast::Property::Field {
+        key,
+        value,
+        is_shorthand,
+    } = property
+    else {
         return None;
     };
 
@@ -419,7 +428,7 @@ fn redundant_property_name(
     if path_segments.len() != 1 {
         return None;
     }
-    if field_source_is_shorthand(ctx, property_id, &property_name) {
+    if *is_shorthand {
         return None;
     }
 
@@ -433,12 +442,17 @@ fn redundant_method_name(
     methods_ignore_pattern: Option<&Regex>,
 ) -> Option<String> {
     let property = ctx.tree.get(property_id);
-    let ast::Property::Field { key, value } = property else {
+    let ast::Property::Field {
+        key,
+        value,
+        is_shorthand,
+    } = property
+    else {
         return None;
     };
 
     let method_name = property_key_redundant_name(ctx, key)?;
-    if field_source_is_shorthand(ctx, property_id, &method_name) {
+    if *is_shorthand {
         return None;
     }
     if ctx.options.style.object_shorthand_ignore_constructors && is_constructor_name(&method_name) {
@@ -496,18 +510,6 @@ fn property_key_redundant_name(ctx: &LintAstContext<'_>, key: &Key) -> Option<St
         }
         _ => None,
     }
-}
-
-/// Return true when one field is written in shorthand source form.
-fn field_source_is_shorthand(
-    ctx: &LintAstContext<'_>,
-    property_id: ast::LocalNodeId<ast::Property>,
-    property_name: &str,
-) -> bool {
-    let property_span = ctx.tree.get_span(property_id);
-    let property_text = ctx.get_span_text(property_span);
-
-    property_text.trim() == property_name
 }
 
 /// Return true when one property name looks like a constructor.
