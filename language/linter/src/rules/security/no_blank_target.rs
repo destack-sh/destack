@@ -45,6 +45,7 @@ impl LintRule for NoBlankTarget {
                 left,
                 arguments,
                 elements: _,
+                generic_arguments: _,
             } = expression
             else {
                 continue;

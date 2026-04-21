@@ -262,7 +262,6 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         let dir::Expression::Member {
             left: regex_expression_id,
             name,
-            generic_arguments,
         } = member_expression
         else {
             return;
@@ -349,14 +348,10 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         let dir::Expression::Member {
             left: receiver_id,
             name,
-            generic_arguments,
         } = member_expression
         else {
             return None;
         };
-        if !generic_arguments.is_empty() {
-            return None;
-        }
         let method = if *name == Some(self.index_of_name) {
             IncludesMethod::IndexOf
         } else if *name == Some(self.last_index_of_name) {

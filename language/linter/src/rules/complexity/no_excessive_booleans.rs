@@ -219,9 +219,10 @@ fn count_boolean_type_member_fields(
         .filter(|member_id| {
             let member = ctx.tree.get(**member_id);
             match member {
-                ast::TypeMember::Field { declared_type, .. } => {
-                    expression_is_boolean_type(ctx, *declared_type)
-                }
+                ast::TypeMember::Field {
+                    declared_type: Some(declared_type),
+                    ..
+                } => expression_is_boolean_type(ctx, *declared_type),
                 _ => false,
             }
         })
@@ -245,7 +246,7 @@ fn count_boolean_object_type_fields(
             let member = ctx.tree.get(**member_id);
             match member {
                 ast::TypeMember::Field {
-                    declared_type: value_id,
+                    declared_type: Some(value_id),
                     ..
                 } => expression_is_boolean_type(ctx, *value_id),
                 _ => false,

@@ -169,11 +169,10 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
         }
 
         // skip static member arguments for Object.assign<T>(...)
-        if let dir::Expression::Member {
-            generic_arguments, ..
-        } = self.ctx.tree.get(member_id)
-            && !generic_arguments.is_empty()
-        {
+        if !matches!(
+            self.ctx.tree.get(member_id),
+            dir::Expression::Member { left: _, name: _ }
+        ) {
             return None;
         }
 

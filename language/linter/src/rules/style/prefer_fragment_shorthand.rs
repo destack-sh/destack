@@ -57,6 +57,7 @@ impl LintRule for PreferFragmentShorthand {
                 left,
                 arguments,
                 elements: _,
+                generic_arguments: _,
             } = expression
             else {
                 continue;

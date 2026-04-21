@@ -111,15 +111,9 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
 
         // check flat() member static arguments
         let flat_member = self.ctx.tree.get(flat_call.callee_id);
-        let dir::Expression::Member {
-            generic_arguments, ..
-        } = flat_member
-        else {
+        let dir::Expression::Member { left: _, name: _ } = flat_member else {
             return;
         };
-        if !generic_arguments.is_empty() {
-            return;
-        }
 
         // check flat() arguments: must be no args or literal 1
         if !self.is_valid_flat_depth(arguments) {
@@ -150,15 +144,9 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         // check map() member static arguments
         let map_member_id = map_call.callee_id;
         let map_member = self.ctx.tree.get(map_member_id);
-        let dir::Expression::Member {
-            generic_arguments, ..
-        } = map_member
-        else {
+        let dir::Expression::Member { left: _, name: _ } = map_member else {
             return;
         };
-        if !generic_arguments.is_empty() {
-            return;
-        }
 
         // verify the base is an array type
         if !self.is_array_receiver(map_call.receiver_id) {
