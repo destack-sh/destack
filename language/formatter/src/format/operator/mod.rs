@@ -7,7 +7,8 @@ mod r#type;
 
 pub(crate) use self::assign::{
     AssignmentLikeLayout, assignment_rhs_prefers_break_after_operator,
-    expression_is_commonjs_require_call, write_assignment_like_right,
+    expression_is_commonjs_require_call, is_poorly_breakable_member_or_call_chain,
+    write_assignment_like_right,
 };
 pub(crate) use self::expression::{
     format_operator_expression, write_operator_expression_trailing_annotations,

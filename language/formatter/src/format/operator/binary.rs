@@ -29,8 +29,8 @@ fn binary_expression_postfix_gap(
 
             next_token.span.start
         } else {
-            let (line_index, _) = context.source_position(expression_span.end)?;
-            let line_span = context.source_line_span(line_index)?;
+            let (line_index, _) = context.file.get_position(expression_span.end)?;
+            let line_span = context.file.get_line_span(line_index)?;
             line_span.end
         };
 

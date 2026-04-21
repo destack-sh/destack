@@ -3,7 +3,6 @@ use crate::format::annotation::{
     infix_or_postfix_annotations, postfix_annotations, prefix_annotations_without_decorators,
 };
 use crate::format::chain::transparent_inner_expression;
-use crate::format::declaration::is_poorly_breakable_member_or_call_chain;
 use crate::format::declaration::signature::{
     default_generic_parameter_trailing_separator, expression_body_requires_head_space,
     format_where_clause_with_break, parameter_is_variadic, should_hug_function_parameters,
@@ -15,8 +14,8 @@ use crate::format::declaration::statement::write_block_body;
 use crate::format::expression::write_expression_without_prefix_annotations;
 use crate::format::file::{node_has_ignore_directive, write_ignored_node};
 use crate::format::operator::{
-    write_colon_prefixed_type_annotation, write_type_annotation_prefix,
-    write_type_expression_with_inline_prefix_annotations,
+    is_poorly_breakable_member_or_call_chain, write_colon_prefixed_type_annotation,
+    write_type_annotation_prefix, write_type_expression_with_inline_prefix_annotations,
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{

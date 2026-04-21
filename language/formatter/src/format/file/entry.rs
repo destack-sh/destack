@@ -107,6 +107,9 @@ fn format_parser_file_source(
     let mut parser = Parser::lex_file(parser_file.clone(), language_type);
     let expressions = parser.parse();
 
+    // finalize retained comments before formatting
+    parser.attach_comments();
+
     // fail loudly on parse errors
     if parser
         .diagnostics
@@ -129,7 +132,7 @@ fn format_parser_file_source(
     let strings = parser.strings.into_immutable();
     let mut tree = parser.tree.clone();
     normalize_formatter_tree(&mut tree, &expressions);
-    let parents = NodeParentIndex::from_expression_roots(&tree, &expressions);
+    let parents = NodeParentIndex::from_tree(&tree);
     let options = DestackFormatOptions::from_formatter_options(options, language_type);
     let context = DestackFormatContext::new(
         options,

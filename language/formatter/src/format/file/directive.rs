@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 use destack_ast::{LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan, TokenType};
-use destack_fir::format::{text, FormatResult};
+use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_source::Span;
@@ -116,6 +116,36 @@ fn prefix_comment_token_for_node(
     Some(token)
 }
 
+/// Return the source line distance between two byte offsets.
+fn line_distance_between_offsets(
+    ctx: &DestackFormatContext<'_>,
+    start_offset: u32,
+    end_offset: u32,
+) -> Option<u32> {
+    let (start_line, _) = ctx.file.get_position(start_offset)?;
+    let (end_line, _) = ctx.file.get_position(end_offset)?;
+
+    end_line.checked_sub(start_line)
+}
+
+/// Return the raw line prefix before one byte offset.
+fn line_prefix_text<'a>(ctx: &'a DestackFormatContext<'a>, offset: u32) -> Option<&'a str> {
+    let (line_index, column) = ctx.file.get_position(offset)?;
+    let line_span = ctx.file.get_line_span(line_index)?;
+    let line_text = ctx.span_str(line_span);
+
+    line_text.get(..column as usize)
+}
+
+/// Return whether one comment token starts at the first non-whitespace position on its line.
+fn comment_token_is_line_leading(ctx: &DestackFormatContext<'_>, token: TokenSpan) -> bool {
+    let Some(prefix) = line_prefix_text(ctx, token.span.start) else {
+        return false;
+    };
+
+    prefix.trim().is_empty()
+}
+
 /// Return whether one node has a prefix ignore directive.
 pub fn node_has_ignore_directive<T: Node + Clone>(
     ctx: &DestackFormatContext<'_>,
@@ -140,8 +170,7 @@ where
             .span
             .gap_to(node_span)
             .is_none_or(|between_span| !ctx.has_non_whitespace_content(between_span));
-        let line_distance = ctx
-            .source_line_distance(token.span.end, node_span.start)
+        let line_distance = line_distance_between_offsets(ctx, token.span.end, node_span.start)
             .map_or(2, |distance| distance as usize);
         (between_is_whitespace_only, line_distance)
     };
@@ -171,7 +200,8 @@ where
     let node_span = ctx.span(node_id);
     let token = prefix_comment_token_for_node(ctx, node_span, comment_tokens)?;
 
-    let is_adjacent = ctx.source_line_distance(token.span.start, node_span.start) == Some(1);
+    let is_adjacent =
+        line_distance_between_offsets(ctx, token.span.start, node_span.start) == Some(1);
     if !is_adjacent {
         return None;
     }
@@ -187,8 +217,8 @@ where
 
             // line end markers should preserve their trailing newline
             if ctx.comment_is_line(end_token) {
-                if let Some((line_index, _)) = ctx.source_position(end_token.span.start) {
-                    if let Some(next_line_span) = ctx.source_line_span(line_index + 1) {
+                if let Some((line_index, _)) = ctx.file.get_position(end_token.span.start) {
+                    if let Some(next_line_span) = ctx.file.get_line_span(line_index + 1) {
                         end_span = Span::new(end_span.file, end_span.start, next_line_span.start);
                     }
                 }
@@ -233,11 +263,6 @@ where
         .any(|node_id| ignore_range_for_node(ctx, node_id, comment_tokens).is_some())
 }
 
-/// Return whether a comment token starts at the first non-whitespace position on its line.
-fn comment_token_is_line_leading(ctx: &DestackFormatContext<'_>, token: TokenSpan) -> bool {
-    ctx.line_prefix_is_whitespace(token.span.start)
-}
-
 /// Return whether this file has a formatter ignore-file directive comment.
 pub fn has_file_ignore_directive(ctx: &DestackFormatContext<'_>) -> bool {
     if !ctx.has_ignore_directive_markers() {
@@ -271,10 +296,10 @@ pub fn has_file_ignore_directive(ctx: &DestackFormatContext<'_>) -> bool {
 /// Extract the source for an ignored span.
 pub fn ignored_span_source(ctx: &DestackFormatContext<'_>, span: Span) -> String {
     let source = ctx.span_str(span);
-    if ctx.source_position(span.start).is_none() {
+    if ctx.file.get_position(span.start).is_none() {
         return source.to_owned();
     }
-    let Some(prefix) = ctx.line_prefix_text(span.start) else {
+    let Some(prefix) = line_prefix_text(ctx, span.start) else {
         return source.to_owned();
     };
     if prefix.is_empty() || !prefix.trim().is_empty() {
@@ -547,6 +572,8 @@ fn strip_comment_markers(comment_text: &str) -> Cow<'_, str> {
 fn parse_directive_token(comment: &str) -> Option<IgnoreDirective> {
     let mut first_significant_line = None;
     let mut has_additional_significant_line = false;
+
+    // collect the first non-empty directive line and reject multiline payloads
     for line in comment.lines() {
         let trimmed = line.trim().trim_start_matches('*').trim();
         if trimmed.is_empty() {
@@ -561,30 +588,35 @@ fn parse_directive_token(comment: &str) -> Option<IgnoreDirective> {
     }
     let first_significant_line = first_significant_line?;
 
+    // single-line suppression
     if !has_additional_significant_line
         && marker_matches_any(first_significant_line, IGNORE_DIRECTIVES)
     {
         return Some(IgnoreDirective::Ignore);
     }
 
+    // single-line file suppression
     if !has_additional_significant_line
         && marker_matches_any(first_significant_line, IGNORE_FILE_DIRECTIVES)
     {
         return Some(IgnoreDirective::IgnoreFile);
     }
 
+    // range start
     if !has_additional_significant_line
         && marker_matches_any(first_significant_line, IGNORE_START_DIRECTIVES)
     {
         return Some(IgnoreDirective::IgnoreStart);
     }
 
+    // range end
     if !has_additional_significant_line
         && marker_matches_any(first_significant_line, IGNORE_END_DIRECTIVES)
     {
         return Some(IgnoreDirective::IgnoreEnd);
     }
 
+    // prefix suppression aliases
     if !has_additional_significant_line
         && marker_matches_prefix(first_significant_line, IGNORE_PREFIX_DIRECTIVES)
     {
@@ -598,8 +630,8 @@ fn parse_directive_token(comment: &str) -> Option<IgnoreDirective> {
 mod tests {
     use super::{comment_text_has_ignore_directive_marker, comment_text_has_suppression_directive};
 
-    #[test]
     /// Suppression aliases should map to single-node ignore directives.
+    #[test]
     fn test_comment_text_has_suppression_directive_aliases() {
         // accepted aliases
         assert!(comment_text_has_suppression_directive("// fmt-ignore"));
@@ -620,8 +652,8 @@ mod tests {
         ));
     }
 
-    #[test]
     /// Directive markers should include single-node, range, and file aliases.
+    #[test]
     fn test_comment_text_has_ignore_directive_marker_aliases() {
         // accepted directives
         assert!(comment_text_has_ignore_directive_marker("// fmt-ignore"));

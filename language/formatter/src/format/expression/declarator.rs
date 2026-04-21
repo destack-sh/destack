@@ -3,17 +3,17 @@ use crate::format::annotation::{
     write_inline_prefix_annotations,
 };
 use crate::format::chain::{is_chain_root, is_expression_chain, transparent_inner_expression};
-use crate::format::declaration::is_poorly_breakable_member_or_call_chain;
 use crate::format::expression::write_expression_without_prefix_annotations;
 use crate::format::operator::{
     AssignmentLikeLayout, assignment_rhs_prefers_break_after_operator,
     expression_has_generic_arguments, expression_is_commonjs_require_call,
-    write_assignment_like_right, write_type_expression_with_inline_prefix_annotations,
+    is_poorly_breakable_member_or_call_chain, write_assignment_like_right,
+    write_type_expression_with_inline_prefix_annotations,
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     ClassDeclaration, Comment, Declaration, Declarator, DecoratorPosition, Expression,
-    FunctionDeclaration, FunctionKind, LocalNodeId, NodeTree, Pattern, PatternField, ScalarLiteral,
+    FunctionDeclaration, FunctionKind, LocalNodeId, NodeTree, Pattern, PatternField,
     StructDeclaration, TokenType, TypeExpression,
 };
 use destack_fir::format::{
@@ -635,10 +635,6 @@ pub(crate) fn format_declarator<'ast>(
             .comment_tokens_in_range(span.start, span.end)
             .is_empty()
     }) && !value_has_assignment_operator_prefix_annotation;
-    let value_is_string_literal = matches!(
-        value_inner_expr,
-        Expression::ScalarLiteral(ScalarLiteral::String(_))
-    );
     let value_is_template_expression =
         matches!(value_inner_expr, Expression::TemplateExpression { .. });
     let value_is_await_expression = matches!(
@@ -654,7 +650,7 @@ pub(crate) fn format_declarator<'ast>(
         value_is_chain && is_poorly_breakable_member_or_call_chain(f, value_inner_id)?;
     let value_is_lambda_like = declarator_value_is_lambda_like(f.context(), *value_id);
     let value_prefers_break_after_operator =
-        assignment_rhs_prefers_break_after_operator(f, *value_id);
+        assignment_rhs_prefers_break_after_operator(f, *value_id, is_left_short)?;
     let right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write_assignment_operator_comments(f, *value_id, true)?;
 
@@ -705,7 +701,6 @@ pub(crate) fn format_declarator<'ast>(
         || (value_is_keyword_expression
             && !value_has_between_comment
             && !value_has_prefix_annotation_that_forces_break)
-        || value_is_string_literal
         || (value_is_class_declaration
             && !value_has_generic_class_heritage
             && !value_has_prefix_annotation_that_forces_break
@@ -716,8 +711,7 @@ pub(crate) fn format_declarator<'ast>(
     }
     // short and stable rhs values stay attached to `=`
     else {
-        let value_is_compact =
-            value_is_string_literal || value_is_template_expression || value_is_class_declaration;
+        let value_is_compact = value_is_template_expression || value_is_class_declaration;
 
         if !left_may_break && (is_left_short || value_is_compact) {
             AssignmentLikeLayout::NeverBreakAfterOperator

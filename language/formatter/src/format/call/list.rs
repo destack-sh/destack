@@ -1,9 +1,9 @@
 use super::argument::write_call_argument_node_body;
 use crate::format::annotation::{
-    block_infix_annotations, format_trailing_comments, DanglingIndentMode, FormatDanglingComments,
-    FormatLeadingComments,
+    DanglingIndentMode, FormatDanglingComments, FormatLeadingComments, block_infix_annotations,
+    format_trailing_comments,
 };
-use crate::format::collection::{separated_entries, TrailingSeparator};
+use crate::format::collection::{TrailingSeparator, separated_entries};
 use crate::format::file::any_ignore_range_for_nodes;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{Argument, Comment, DecoratorPosition, Expression, LocalNodeId, TokenType};
@@ -14,6 +14,18 @@ use destack_fir::prelude::{
 };
 use destack_fir::{format_args, write};
 use destack_workspace::TrailingComma;
+
+/// Return the source line distance between two byte offsets.
+fn line_distance_between_offsets(
+    context: &DestackFormatContext<'_>,
+    start_offset: u32,
+    end_offset: u32,
+) -> Option<u32> {
+    let (start_line, _) = context.file.get_position(start_offset)?;
+    let (end_line, _) = context.file.get_position(end_offset)?;
+
+    end_line.checked_sub(start_line)
+}
 
 /// Return whether source text contains an empty line between adjacent arguments.
 pub(crate) fn arguments_have_empty_line(
@@ -28,8 +40,7 @@ pub(crate) fn arguments_have_empty_line(
         let current_span = context.span(*current_argument_id);
         let next_span = context.span(*next_argument_id);
 
-        context
-            .source_line_distance(current_span.end, next_span.start)
+        line_distance_between_offsets(context, current_span.end, next_span.start)
             .is_some_and(|line_distance| line_distance > 1)
     })
 }
