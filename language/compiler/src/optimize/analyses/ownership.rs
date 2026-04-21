@@ -479,10 +479,13 @@ impl OwnershipAnalysis {
             }
 
             // explicit dispose hooks do not end ownership on their own
-            Instruction::Dispose { .. } | Instruction::AsyncDispose { .. } => {}
+            Instruction::Dispose { .. }
+            | Instruction::AsyncDispose { .. }
+            | Instruction::Pin { .. }
+            | Instruction::Unpin { .. } => {}
 
             // drop marks ownership end and raw.free consumes explicit raw storage
-            Instruction::Drop { value } | Instruction::AsyncDrop { value } => {
+            Instruction::Drop { value } => {
                 state.mark_moved_with_source(*value, at);
             }
             Instruction::RawFree { pointer } => {
@@ -1301,10 +1304,13 @@ fn process_instruction(
         }
 
         // explicit dispose hooks do not end ownership on their own
-        Instruction::Dispose { .. } | Instruction::AsyncDispose { .. } => {}
+        Instruction::Dispose { .. }
+        | Instruction::AsyncDispose { .. }
+        | Instruction::Pin { .. }
+        | Instruction::Unpin { .. } => {}
 
         // drop marks ownership end and raw.free consumes explicit raw storage
-        Instruction::Drop { value } | Instruction::AsyncDrop { value } => {
+        Instruction::Drop { value } => {
             state.mark_moved_with_source(*value, at);
         }
         Instruction::RawFree { pointer } => {

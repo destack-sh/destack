@@ -1152,8 +1152,9 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Instruction::RawFree { .. }
             | mir::Instruction::Dispose { .. }
             | mir::Instruction::AsyncDispose { .. }
+            | mir::Instruction::Pin { .. }
+            | mir::Instruction::Unpin { .. }
             | mir::Instruction::Drop { .. }
-            | mir::Instruction::AsyncDrop { .. }
             | mir::Instruction::ManagedAlloc { .. }
             | mir::Instruction::ManagedAllocArray { .. }
             | mir::Instruction::RawAlloc { .. }

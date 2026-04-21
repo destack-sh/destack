@@ -627,8 +627,9 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::RawFree { .. }
         | mir::Instruction::Dispose { .. }
         | mir::Instruction::AsyncDispose { .. }
+        | mir::Instruction::Pin { .. }
+        | mir::Instruction::Unpin { .. }
         | mir::Instruction::Drop { .. }
-        | mir::Instruction::AsyncDrop { .. }
         | mir::Instruction::StackAlloc { .. }
         | mir::Instruction::Struct { .. }
         | mir::Instruction::Tuple { .. }

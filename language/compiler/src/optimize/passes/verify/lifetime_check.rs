@@ -1092,8 +1092,9 @@ fn apply_instruction_effects(
         | Instruction::RawFree { .. }
         | Instruction::Dispose { .. }
         | Instruction::AsyncDispose { .. }
+        | Instruction::Pin { .. }
+        | Instruction::Unpin { .. }
         | Instruction::Drop { .. }
-        | Instruction::AsyncDrop { .. }
         | Instruction::Assume { .. } => {}
     }
 }
