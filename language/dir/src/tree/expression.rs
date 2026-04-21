@@ -79,6 +79,14 @@ pub enum Expression {
         mutability: Mutability,
         declarators: Vec<LocalNodeId<Declarator>>,
     },
+    /// Let-else binding with an early-exit branch.
+    /// The else branch is currently an explicit block.
+    LetElse {
+        kind: LetKind,
+        mutability: Mutability,
+        declarator: LocalNodeId<Declarator>,
+        else_branch: LocalNodeId<Expression>,
+    },
     /// Using binding for explicit resource management.
     Using {
         asynchrony: Asynchrony,
@@ -436,6 +444,7 @@ impl Expression {
             Expression::Labelled { .. } => "labelled",
 
             Expression::Let { .. } => "let",
+            Expression::LetElse { .. } => "let else",
             Expression::Using { .. } => "using",
 
             Expression::As { .. } => "as",
@@ -525,6 +534,7 @@ impl Expression {
     pub fn symbol(&self) -> Option<LocalSymbolId> {
         match self {
             Expression::Let { .. } => None,
+            Expression::LetElse { .. } => None,
             Expression::Using { .. } => None,
             _ => None,
         }
