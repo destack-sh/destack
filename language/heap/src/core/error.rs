@@ -140,8 +140,6 @@ pub enum HeapError {
     SharedCollectionActive,
     /// One shared managed mark operation was requested while shared mark was inactive.
     SharedCollectionNotMarking,
-    /// One managed collection was requested while scoped pins were active.
-    ManagedCollectionPinsActive,
     /// One managed pin count could not represent one additional scoped pin.
     ManagedPinCountOverflow {
         /// The pinned managed reference.
@@ -602,12 +600,6 @@ impl Display for HeapError {
             }
             Self::SharedCollectionNotMarking => {
                 write!(formatter, "shared managed heap is not currently marking")
-            }
-            Self::ManagedCollectionPinsActive => {
-                write!(
-                    formatter,
-                    "managed heap collection requires no active scoped pins"
-                )
             }
             Self::ManagedPinCountOverflow { reference, count } => {
                 write!(

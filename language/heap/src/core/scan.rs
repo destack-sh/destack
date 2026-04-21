@@ -1,6 +1,6 @@
 use std::mem::size_of;
 
-use super::{overlapping_repeated_index_range, ranges_overlap, HeapScan};
+use super::{HeapScan, overlapping_repeated_index_range, ranges_overlap};
 use crate::{HeapError, HeapResult, ManagedReference, SharedManagedReference};
 
 /// The packed byte width for one runtime value lane in heap storage.
@@ -348,10 +348,10 @@ fn decode_value_tag(window: &[u8], start: usize) -> HeapResult<u8> {
     }
 
     let Some(tag) = window.get(VALUE_TAG_OFFSET).copied() else {
-        return Err(HeapError::InvalidValuePayload { start });
+        return Err(HeapError::InvalidReferenceValuePayload { start });
     };
     if tag > MAX_VALUE_TAG {
-        return Err(HeapError::InvalidValuePayload { start });
+        return Err(HeapError::InvalidReferenceValuePayload { start });
     }
 
     Ok(tag)
