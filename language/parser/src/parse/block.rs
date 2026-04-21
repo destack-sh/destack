@@ -457,7 +457,8 @@ impl Parser {
                 Declaration::Function(FunctionDeclaration { signature, .. })
                     if signature.kind == FunctionKind::Lambda
             ),
-            Expression::Using { .. }
+            Expression::LetElse { .. }
+            | Expression::Using { .. }
             | Expression::Import { .. }
             | Expression::Export { .. }
             | Expression::ExportNamespace { .. } => true,
