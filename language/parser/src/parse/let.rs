@@ -1,10 +1,10 @@
-use crate::parse::NonNewlineTokenCursor;
 use crate::parse::timing::tags;
+use crate::parse::NonNewlineTokenCursor;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Asynchrony, Declarator, Expression, Keyword, LetKind, LocalNodeId, Mutability, NodeType,
-    Pattern, TokenType,
+    Asynchrony, BlockContext, Declarator, Expression, Keyword, LetKind, LocalNodeId, Mutability,
+    NodeType, Pattern, TokenType,
 };
 use destack_source::NodeSpanType;
 
@@ -94,18 +94,56 @@ impl Parser {
     ) -> ParseResult<LocalNodeId<Expression>> {
         self.eat_newlines_maybe()?;
 
-        // parse declarators (comma-separated list)
-        let mut declarators = Vec::new();
-        loop {
-            let declarator_id = self.eat_declarator(false, false)?;
-            declarators.push(declarator_id);
+        let first_declarator = self.eat_declarator(false, false)?;
 
-            // continue when a comma follows, even after line terminators
+        // let else
+        if self.is_keyword(Keyword::Else) || self.is_keyword_after_newlines(Keyword::Else) {
+            if header.export.is_some() || header.ambient.is_ambient() {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
+
+            let declarator = self.tree.get(first_declarator);
+            if declarator.value.is_none() {
+                return Err(ParseError::expected(self.peek()?.span, TokenType::Assign));
+            }
+
+            self.eat_newlines_maybe()?;
+            self.eat_keyword(Keyword::Else)?;
+            self.eat_newlines_maybe()?;
+
+            // else { ... }
+            let else_branch = {
+                let branch_start = self.mark_span();
+                let else_block = self.eat_block(BlockContext::Statement)?;
+
+                self.insert_node(
+                    Expression::Block(else_block),
+                    self.get_span_from(&branch_start),
+                )
+            };
+
+            let let_else_id = self.insert_node(
+                Expression::LetElse {
+                    kind,
+                    mutability,
+                    declarator: first_declarator,
+                    else_branch,
+                },
+                self.get_span_from(start),
+            );
+
+            return Ok(let_else_id);
+        }
+
+        // rest of declarators for regular let
+        let mut declarators = vec![first_declarator];
+        loop {
             if self.eat_declarator_separator_maybe()? {
+                let declarator_id = self.eat_declarator(false, false)?;
+                declarators.push(declarator_id);
                 continue;
             }
 
-            // declarations require statement boundaries after declarators
             if !self.declarator_has_statement_boundary() {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
@@ -474,6 +512,7 @@ impl Parser {
             || self.input_has_line_terminator_before_current_token()
             || self.peek_is(TokenType::CloseBrace)
             || self.peek_is(TokenType::CloseParenthesis)
+            || self.is_keyword_after_newlines(Keyword::Else)
     }
 
     /// Return true when a declarator pattern is a valid binding.
@@ -505,7 +544,7 @@ mod tests {
 
     use crate::parse::expression::common::DeclarationHeader;
     use crate::{
-        TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
+        assert_expression_path, assert_name, assert_node, assert_path, assert_string, TestParser,
     };
 
     #[test]
@@ -828,8 +867,8 @@ var x: float64[3] = undefined
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
+        // var x: float64[3] = undefined
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
-            // var (mutable)
             assert_eq!(*mutability, Mutability::Mutable);
             assert_eq!(declarators.len(), 1);
 
@@ -866,8 +905,8 @@ const (x, y) = foo()
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
+        // const (x, y) = foo()
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
-            // let (immutable)
             assert_eq!(*mutability, Mutability::Immutable);
             assert_eq!(declarators.len(), 1);
 
@@ -885,10 +924,8 @@ const (x, y) = foo()
                     });
                 });
 
-                // no explicit type
                 assert!(ty.is_none());
 
-                // foo()
                 assert!(value.is_some());
             });
         });
@@ -932,7 +969,6 @@ const (x, y) = foo()
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "x");
                 });
-                // int32
                 assert!(ty.is_some());
                 assert!(value.is_none());
             });
@@ -988,7 +1024,7 @@ const registry: Map<
 
         let let_id = parser.eat_expression(parser.options).unwrap();
 
-        // const renderCounter
+        // const registry: Map<..., ...> = new Map()
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
             assert_eq!(*mutability, Mutability::Immutable);
             assert_eq!(declarators.len(), 1);
@@ -1043,9 +1079,11 @@ const registry: Map<
         let let_id = parser
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
+        // let a: int32 = 1, b: string = "hello"
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
             assert_eq!(*mutability, Mutability::Mutable);
             assert_eq!(declarators.len(), 2);
+
             // a: int32 = 1
             assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
@@ -1078,20 +1116,19 @@ const registry: Map<
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
-        // parse both declarators split by a newline before the comma
+        // var args = new Array(arguments.length - 1)
+        //   , callbacks = this._callbacks['$' + event]
         assert_node!(parser.tree, let_id, Expression::Let { kind, mutability, declarators, .. } => {
             assert_eq!(*kind, LetKind::Var);
             assert_eq!(*mutability, Mutability::Mutable);
             assert_eq!(declarators.len(), 2);
 
-            // first declarator name
             assert_node!(parser.tree, declarators[0], Declarator { pattern, .. } => {
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "args");
                 });
             });
 
-            // second declarator name
             assert_node!(parser.tree, declarators[1], Declarator { pattern, .. } => {
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "callbacks");
@@ -1114,20 +1151,20 @@ const registry: Map<
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
-        // parse two declarators split across newlines after const
+        // const
+        //   first = 1,
+        //   second = 2
         assert_node!(parser.tree, let_id, Expression::Let { kind, mutability, declarators, .. } => {
             assert_eq!(*kind, LetKind::Const);
             assert_eq!(*mutability, Mutability::Immutable);
             assert_eq!(declarators.len(), 2);
 
-            // first declarator name
             assert_node!(parser.tree, declarators[0], Declarator { pattern, .. } => {
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "first");
                 });
             });
 
-            // second declarator name
             assert_node!(parser.tree, declarators[1], Declarator { pattern, .. } => {
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "second");
@@ -1149,13 +1186,13 @@ const registry: Map<
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
-        // const declarator stops before return after line terminator trivia
+        // const result = CreateRecord(IntegerKey, value)
         assert_node!(parser.tree, let_id, Expression::Let { kind, declarators, .. } => {
             assert_eq!(*kind, LetKind::Const);
             assert_eq!(declarators.len(), 1);
         });
 
-        // return expression is parsed separately as a cast
+        // return result as never
         let return_id = parser.eat_return().unwrap();
         assert_node!(parser.tree, return_id, Expression::Return { value } => {
             let value = value.expect("expected return value");
@@ -1165,8 +1202,72 @@ const registry: Map<
     }
 
     #[test]
+    fn test_parse_let_else_with_block_branch() {
+        let mut test = TestParser::new("let { x } = value else { return }");
+        let mut parser = test.prepare();
+        let start = parser.mark();
+        let expression_id = parser
+            .eat_let(&start, DeclarationHeader::default())
+            .unwrap();
+
+        // let { x } = value else { return }
+        assert_node!(parser.tree, expression_id, Expression::LetElse { kind, mutability, declarator, else_branch } => {
+            assert_eq!(*kind, LetKind::Let);
+            assert_eq!(*mutability, Mutability::Mutable);
+
+            // let { x } = value
+            assert_node!(parser.tree, *declarator, Declarator { pattern, value, .. } => {
+                assert!(value.is_some());
+                assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
+                    assert_eq!(fields.len(), 1);
+                });
+            });
+
+            // else { return }
+            assert_node!(parser.tree, *else_branch, Expression::Block(block_id) => {
+                let block = parser.tree.get(*block_id);
+                let branch_expression = block
+                    .leading_expressions
+                    .first()
+                    .copied()
+                    .or(block.tail_expression)
+                    .expect("expected else branch expression");
+
+                assert_node!(parser.tree, branch_expression, Expression::Return { .. } => {
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_reject_let_else_without_initializer() {
+        let mut test = TestParser::new("let x else { return }");
+        let mut parser = test.prepare();
+        let start = parser.mark();
+        let error = parser
+            .eat_let(&start, DeclarationHeader::default())
+            .unwrap_err();
+
+        // let x else { return }
+        assert_eq!(parser.get_span_str(error.leaf_span()), "else");
+    }
+
+    #[test]
+    fn test_reject_let_else_without_block_branch() {
+        let mut test = TestParser::new("let x = value else return");
+        let mut parser = test.prepare();
+        let start = parser.mark();
+        let error = parser
+            .eat_let(&start, DeclarationHeader::default())
+            .unwrap_err();
+
+        // let x = value else return
+        assert_eq!(parser.get_span_str(error.leaf_span()), "return");
+    }
+
+    #[test]
     fn test_reject_indexed_declarator_target_in_untyped_source() {
-        // source: var a[0]=0;
+        // var a[0] = 0
         let mut test = TestParser::new_with_options("var a[0]=0;", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let start = parser.mark();
@@ -1174,7 +1275,6 @@ const registry: Map<
             .eat_let(&start, DeclarationHeader::default())
             .unwrap_err();
 
-        // [
         assert_eq!(parser.get_span_str(error.leaf_span()), "[");
     }
 
