@@ -277,7 +277,7 @@ impl ManagedSpace {
     }
 
     /// Record one managed write barrier for one live managed location.
-    fn write_barrier_location(
+    pub(crate) fn write_barrier_location(
         &mut self,
         location: ManagedLocation,
         byte_offset: usize,
@@ -306,7 +306,7 @@ impl ManagedSpace {
         byte_offset: usize,
         byte_len: usize,
     ) -> HeapResult<()> {
-        if !self.is_scanning_shared_roots {
+        if !self.is_scanning_shared_edges {
             return Ok(());
         }
 
