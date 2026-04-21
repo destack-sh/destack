@@ -84,7 +84,7 @@ def generate_chained_calls():
     print("generating chained_calls.ds...")
     with open(OUT_DIR / "chained_calls.ds", "w") as f:
         f.write("struct Builder { value: int32 }\n")
-        f.write("extension for Builder {\n")
+        f.write("extension of Builder {\n")
         f.write("    add(n: int32): Builder { Builder { value: this.value + n } }\n")
         f.write("}\n")
         f.write("const built = Builder { value: 0 }")

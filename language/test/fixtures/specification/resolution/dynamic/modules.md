@@ -10,11 +10,11 @@
 export struct Cat { name: string }
 export struct Dog { name: string }
 
-extension for Cat {
+extension of Cat {
     speak(): string { "meow" }
 }
 
-extension for Dog {
+extension of Dog {
     speak(): string { "woof" }
 }
 ```
@@ -40,11 +40,11 @@ export struct Dog { name: string }
 ```ds:extensions.ds
 import { Cat, Dog } from "./types.ds"
 
-export extension CatTalk for Cat {
+export extension CatTalk of Cat {
     speak(): string { "meow" }
 }
 
-export extension DogTalk for Dog {
+export extension DogTalk of Dog {
     speak(): string { "woof" }
 }
 ```
@@ -71,11 +71,11 @@ export struct Dog { name: string }
 ```ds:extensions.ds
 import { Cat, Dog } from "./types.ds"
 
-export extension CatTalk for Cat {
+export extension CatTalk of Cat {
     speak(): string { "meow" }
 }
 
-export extension DogTalk for Dog {
+export extension DogTalk of Dog {
     speak(): string { "woof" }
 }
 ```
@@ -102,11 +102,11 @@ export struct Dog { name: string }
 ```ds:extensions.ds
 import { Cat, Dog } from "./types.ds"
 
-export extension CatTalk for Cat {
+export extension CatTalk of Cat {
     speak(): string { "meow" }
 }
 
-export extension DogTalk for Dog {
+export extension DogTalk of Dog {
     speak(): string { "woof" }
 }
 ```
@@ -137,11 +137,11 @@ export struct Dog { name: string }
 ```ds:extensions.ds
 import { Cat, Dog } from "./types.ds"
 
-export extension CatTalk for Cat {
+export extension CatTalk of Cat {
     speak(): string { "meow" }
 }
 
-export extension DogTalk for Dog {
+export extension DogTalk of Dog {
     speak(): string { "woof" }
 }
 ```
@@ -159,7 +159,7 @@ getPet().speak();
 
 ### union method call requires all named extension variants to be visible
 
-> Union method calls require named extension visibility for every union variant.
+> Union method calls require named extension visibility of every union variant.
 
 ```ds:types.ds
 export struct Cat { name: string }
@@ -169,11 +169,11 @@ export struct Dog { name: string }
 ```ds:extensions.ds
 import { Cat, Dog } from "./types.ds"
 
-export extension CatTalk for Cat {
+export extension CatTalk of Cat {
     speak(): string { "meow" }
 }
 
-export extension DogTalk for Dog {
+export extension DogTalk of Dog {
     speak(): string { "woof" }
 }
 ```
@@ -201,11 +201,11 @@ export struct Dog { name: string }
 ```ds:extensions.ds
 import { Cat, Dog } from "./types.ds"
 
-export extension CatTalk for Cat {
+export extension CatTalk of Cat {
     speak(): string { "meow" }
 }
 
-export extension DogTalk for Dog {
+export extension DogTalk of Dog {
     speak(): string { "woof" }
 }
 ```

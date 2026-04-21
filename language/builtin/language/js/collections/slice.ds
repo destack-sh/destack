@@ -8,7 +8,7 @@ struct Slice<T> {
     length: uint32;
 }
 
-extension<T> for Slice<T> implements Index<number, T>, IndexSet<number, T>, Iterable<T> {
+extension<T> of Slice<T> implements Index<number, T>, IndexSet<number, T>, Iterable<T> {
     /// Get the length of the slice.
     get length(): number {
         this.length as number

@@ -14,7 +14,7 @@ struct RawBuffer {
     capacity: uint64;
 }
 
-extension for RawBuffer {
+extension of RawBuffer {
     /// Create a new buffer with given capacity.
     static withCapacity(capacity: uint64): RawBuffer {
         let data = rawAlloc(capacity, 8) as *uint8;

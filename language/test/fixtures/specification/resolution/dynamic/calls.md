@@ -75,7 +75,7 @@ struct Dog {
     name: string
 }
 
-extension for Dog {
+extension of Dog {
     speak(): string {
         "woof"
     }
@@ -188,13 +188,13 @@ sound satisfies string | int32;
 struct Cat { name: string }
 struct Dog { name: string }
 
-extension for Cat {
+extension of Cat {
     speak(): string {
         "meow"
     }
 }
 
-extension for Dog {
+extension of Dog {
     speak(): int32 {
         1
     }

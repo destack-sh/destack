@@ -31,7 +31,7 @@ struct FancyTry<T, E> {
     value: FancyBranch<T, E>;
 }
 
-extension<T, E> for FancyTry<T, E> implements Try<T, E> {
+extension<T, E> of FancyTry<T, E> implements Try<T, E> {
     branch(): FancyBranch<T, E> {
         this.value
     }
@@ -61,7 +61,7 @@ struct AliasTry<T, E> {
     value: Result<T, E>;
 }
 
-extension<T, E> for AliasTry<T, E> implements Try<T, E> {
+extension<T, E> of AliasTry<T, E> implements Try<T, E> {
     branch(): AliasBranch<T, E> {
         match (this.value) {
             Ok { value } => ({ kind: "ok", value })
@@ -96,7 +96,7 @@ struct BrokenTry<T, E> {
     value: BrokenBranch<T, E>;
 }
 
-extension<T, E> for BrokenTry<T, E> implements Try<T, E> {
+extension<T, E> of BrokenTry<T, E> implements Try<T, E> {
     branch(): BrokenBranch<T, E> {
         this.value
     }
@@ -125,7 +125,7 @@ struct LooseTry<T, E> {
     value: LooseBranch<T, E>;
 }
 
-extension<T, E> for LooseTry<T, E> {
+extension<T, E> of LooseTry<T, E> {
     branch(): LooseBranch<T, E> {
         this.value
     }
@@ -158,7 +158,7 @@ struct BadTry<T, E> {
     value: BadBranch<T, E>;
 }
 
-extension<T, E> for BadTry<T, E> implements Try<T, E> {
+extension<T, E> of BadTry<T, E> implements Try<T, E> {
     branch(): BadBranch<T, E> {
         this.value
     }
@@ -191,7 +191,7 @@ struct WrongTry<T, E> {
     value: WrongBranch<T, E>;
 }
 
-extension<T, E> for WrongTry<T, E> implements Try<T, E> {
+extension<T, E> of WrongTry<T, E> implements Try<T, E> {
     branch(): WrongBranch<T, E> {
         this.value
     }
@@ -345,7 +345,7 @@ struct BrokenTry<T, E> {
     value: BrokenBranch<T, E>;
 }
 
-extension<T, E> for BrokenTry<T, E> implements Try<T, E> {
+extension<T, E> of BrokenTry<T, E> implements Try<T, E> {
     branch(): BrokenBranch<T, E> {
         this.value
     }

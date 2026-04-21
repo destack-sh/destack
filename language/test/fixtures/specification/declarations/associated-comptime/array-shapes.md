@@ -47,7 +47,7 @@ interface Tiled<T> {
     type Tile = T[this.TileRows][this.TileCols];
 }
 
-extension<T> for ImageBatch<T> implements Tiled<T> {
+extension<T> of ImageBatch<T> implements Tiled<T> {
     comptime const TileRows: int = 8;
     comptime const TileCols: int = 8;
 }

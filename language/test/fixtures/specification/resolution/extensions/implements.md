@@ -15,7 +15,7 @@ interface Describable {
 
 struct Point { x: number; y: number }
 
-extension for Point implements Describable {
+extension of Point implements Describable {
     describe(): string {
         return ""
     }
@@ -42,7 +42,7 @@ interface Serializable {
 
 struct Document { content: string }
 
-extension for Document implements Printable, Serializable {
+extension of Document implements Printable, Serializable {
     print(): void {}
     serialize(): string { return "" }
 }
@@ -69,7 +69,7 @@ interface Serializable {
 
 struct Document { content: string }
 
-extension for Document implements Printable, Serializable {
+extension of Document implements Printable, Serializable {
     print(): void {}
 }
 ```
@@ -94,7 +94,7 @@ export struct Document { content: string }
 import { Printable } from "./contracts";
 import { Document } from "./model";
 
-extension for Document implements Printable {
+extension of Document implements Printable {
     print(): string { return this.content }
 }
 
@@ -126,7 +126,7 @@ export struct Document { content: string }
 import { Printable, Serializable } from "./contracts";
 import { Document } from "./model";
 
-extension for Document implements Printable, Serializable {
+extension of Document implements Printable, Serializable {
     print(): string { return this.content }
 }
 ```

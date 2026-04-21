@@ -14,7 +14,7 @@ struct Point {
     y: number
 }
 
-extension for Point {
+extension of Point {
     magnitude(): number {
         return 0
     }
@@ -36,7 +36,7 @@ struct Point {
     y: number
 }
 
-extension for Point {
+extension of Point {
     magnitude(): number {
         return 0
     }
@@ -56,13 +56,13 @@ point.y satisfies number;
 ```ds
 struct Vector2 { x: number; y: number }
 
-extension for Vector2 {
+extension of Vector2 {
     add(other: Vector2): Vector2 {
         return Vector2 { x: 0, y: 0 }
     }
 }
 
-extension for Vector2 {
+extension of Vector2 {
     scale(factor: number): Vector2 {
         return Vector2 { x: 0, y: 0 }
     }
@@ -90,7 +90,7 @@ class Counter {
     }
 }
 
-extension for Counter {
+extension of Counter {
     increment(): void {}
     reset(): void {}
 }
@@ -113,7 +113,7 @@ interface Shape {
     area(): number
 }
 
-extension for Shape {
+extension of Shape {
     describe(): string {
         return ""
     }
@@ -138,7 +138,7 @@ enum Status {
     Pending
 }
 
-extension for Status {
+extension of Status {
     isActive(): boolean {
         return true
     }

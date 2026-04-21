@@ -94,7 +94,7 @@ struct BrokenTry<T, E> {
     value: BrokenBranch<T, E>;
 }
 
-extension<T, E> for BrokenTry<T, E> implements Try<T, E> {
+extension<T, E> of BrokenTry<T, E> implements Try<T, E> {
     branch(): BrokenBranch<T, E> {
         this.value
     }
@@ -125,7 +125,7 @@ struct BrokenTry<T, E> {
     value: BrokenBranch<T, E>;
 }
 
-extension<T, E> for BrokenTry<T, E> implements Try<T, E> {
+extension<T, E> of BrokenTry<T, E> implements Try<T, E> {
     branch(): BrokenBranch<T, E> {
         this.value
     }

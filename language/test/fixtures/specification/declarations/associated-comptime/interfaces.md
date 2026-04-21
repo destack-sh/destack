@@ -129,7 +129,7 @@ interface RetryPolicy {
 
 struct HttpRetryPolicy {}
 
-extension for HttpRetryPolicy implements RetryPolicy {
+extension of HttpRetryPolicy implements RetryPolicy {
     comptime const MaxRetries: number = 5;
 }
 

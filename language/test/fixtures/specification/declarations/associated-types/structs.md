@@ -350,7 +350,7 @@ struct Buffer<T> {
     value: T;
 }
 
-extension<T> for Buffer<T> implements Projected<T> {}
+extension<T> of Buffer<T> implements Projected<T> {}
 
 // inherited contracts should apply before projection
 declare const value: Buffer<int32>.View<boolean>;

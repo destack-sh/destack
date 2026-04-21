@@ -22,7 +22,7 @@ export struct StringBuilder {
 
 // TODO #Incomplete: support proper native String and StringBuilder
 
-extension for String {
+extension of String {
     /// The length in UTF-16 code units (TypeScript-compatible).
     get length(): number {
         throw "not implemented";

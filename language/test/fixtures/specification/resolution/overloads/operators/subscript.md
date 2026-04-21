@@ -11,7 +11,7 @@ Tests for subscript operator overloading via interface implementations.
 ```ds
 struct Bag { value: int }
 
-extension for Bag implements Index<int, int> {
+extension of Bag implements Index<int, int> {
     index(key: int): int { return key }
 }
 
@@ -31,7 +31,7 @@ value satisfies int;
 ```ds
 struct Bag { value: int }
 
-extension for Bag implements IndexSet<int, int> {
+extension of Bag implements IndexSet<int, int> {
     indexSet(key: int, value: int): void {}
 }
 
@@ -48,7 +48,7 @@ bag[1] = 2;
 ```ds
 struct Bag { value: int }
 
-extension for Bag implements IndexSet<int, int> {
+extension of Bag implements IndexSet<int, int> {
     indexSet(key: int, value: int): void {}
 }
 
@@ -98,7 +98,7 @@ bag[1] = 2;
 ```ds
 struct Bag { value: int }
 
-extension for Bag implements Index<int, int> {
+extension of Bag implements Index<int, int> {
     index(key: int): int { return key }
 }
 

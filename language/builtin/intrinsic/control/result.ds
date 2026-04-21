@@ -76,7 +76,7 @@ export struct Err<E> {
 export newtype Result<T, E> = Ok<T> | Err<E>;
 
 /// Extension methods for Result.
-extension<T, E> for Result<T, E> {
+extension<T, E> of Result<T, E> {
     /// Create a success result.
     static ok(value: T): Result<T, E> {
         Result(Ok { kind: "ok", value });
@@ -198,7 +198,7 @@ extension<T, E> for Result<T, E> {
 }
 
 /// Result implements Try for the ? operator.
-extension<T, E> for Result<T, E> implements Try<T, E> {
+extension<T, E> of Result<T, E> implements Try<T, E> {
     branch(): TryBranch<T, E> {
         match (this) {
             Ok { value } => ({ kind: "ok", value })
@@ -212,7 +212,7 @@ extension<T, E> for Result<T, E> implements Try<T, E> {
 }
 
 /// Result equality when both T and E implement Equal.
-extension<T: Equal<T>, E: Equal<E>> for Result<T, E> implements Equal<Result<T, E>> {
+extension<T: Equal<T>, E: Equal<E>> of Result<T, E> implements Equal<Result<T, E>> {
     equal(other: Result<T, E>): boolean {
         match (this) {
             Ok { value: a } => {
@@ -266,7 +266,7 @@ extension<T: Equal<T>, E: Equal<E>> for Result<T, E> implements Equal<Result<T, 
 export newtype AsyncResult<T, E> = Promise<Result<T, E>>;
 
 /// Extension methods for AsyncResult.
-extension<T, E> for AsyncResult<T, E> {
+extension<T, E> of AsyncResult<T, E> {
     /// Create a successful async result.
     static ok(value: T): AsyncResult<T, E> {
         AsyncResult(Promise.resolve(Result.ok(value)));

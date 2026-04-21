@@ -30,7 +30,7 @@ export newtype interface IndexSet<I, V> {
 ///     value: T,
 /// }
 ///
-/// extension<T> for Ref<T> implements Deref<T> {
+/// extension<T> of Ref<T> implements Deref<T> {
 ///     deref(): T { this.value }
 /// }
 ///

@@ -137,13 +137,13 @@ getPet().speak(1);
 struct Cat { name: string }
 struct Dog { name: string }
 
-extension for Cat {
+extension of Cat {
     speak(): string {
         "meow"
     }
 }
 
-extension for Dog {
+extension of Dog {
     speak(): string {
         "woof"
     }
@@ -203,7 +203,7 @@ getPet().speak();
 struct Cat { name: string }
 struct Dog { name: string }
 
-extension for Cat {
+extension of Cat {
     speak(): string {
         "meow"
     }

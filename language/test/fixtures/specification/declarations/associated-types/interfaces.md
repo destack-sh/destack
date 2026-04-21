@@ -18,7 +18,7 @@ struct Counter {
     value: int32 = 0;
 }
 
-extension for Counter implements Iterable<int32> {
+extension of Counter implements Iterable<int32> {
     type Item = int32;
 
     next(): Item {
@@ -44,7 +44,7 @@ struct Counter {
     value: int32 = 0;
 }
 
-extension for Counter implements SizedIterable {
+extension of Counter implements SizedIterable {
     type Item = int32;
 
     next(): Item {
@@ -70,7 +70,7 @@ struct Counter {
     value: int32 = 0;
 }
 
-extension for Counter implements Iterable<int32> {
+extension of Counter implements Iterable<int32> {
     type Item = int32;
 
     next(): Item {
@@ -95,7 +95,7 @@ struct Box<T> {
     value: T;
 }
 
-extension<T> for Box<T> implements Wrapper<T> {
+extension<T> of Box<T> implements Wrapper<T> {
     type Item = T;
 }
 
@@ -117,7 +117,7 @@ struct IntBox {
     value: int32 = 0;
 }
 
-extension for IntBox implements Wrapper<int32> {
+extension of IntBox implements Wrapper<int32> {
     type Item = string;
 }
 ```
@@ -137,7 +137,7 @@ struct Buffer<T> {
     value: T;
 }
 
-extension<T> for Buffer<T> implements Slice<T> {
+extension<T> of Buffer<T> implements Slice<T> {
     type View<U> = [T, U];
 }
 
@@ -157,7 +157,7 @@ interface Windowed<T> {
 
 struct MetricWindow {}
 
-extension for MetricWindow implements Windowed<int32> {
+extension of MetricWindow implements Windowed<int32> {
     type View<comptime n: uint> = [int32, n];
 }
 
@@ -179,7 +179,7 @@ struct Counter {
     value: int32 = 0;
 }
 
-extension for Counter implements Iterable<int32> {
+extension of Counter implements Iterable<int32> {
     next(): Item {
         this.value
     }
@@ -277,7 +277,7 @@ export struct Counter {
 import { Stream } from "./stream";
 import { Counter } from "./counter";
 
-extension for Counter implements Stream<int32> {
+extension of Counter implements Stream<int32> {
     next(): Item {
         this.value
     }
@@ -306,7 +306,7 @@ struct Box<T> {
     value: T;
 }
 
-extension<T> for Box<T> implements Wrapper<T> {
+extension<T> of Box<T> implements Wrapper<T> {
     type Item = [T, T];
 }
 
@@ -355,7 +355,7 @@ struct Buffer<T> {
     value: T;
 }
 
-extension<T> for Buffer<T> implements Windowed<T> {}
+extension<T> of Buffer<T> implements Windowed<T> {}
 
 // inherited contracts should apply before projection
 declare const view: Buffer<int32>.View<boolean>;
@@ -377,7 +377,7 @@ struct Bad {
     value: string = "no";
 }
 
-extension for Bad implements SizedIterable<int32> {
+extension of Bad implements SizedIterable<int32> {
     type Item = string;
 
     next(): Item {
@@ -400,7 +400,7 @@ interface Factory {
 
 struct Thing {}
 
-extension for Thing implements Factory {
+extension of Thing implements Factory {
     type Item = int32;
 }
 ```
@@ -421,7 +421,7 @@ struct Samples {
     value: int32 = 0;
 }
 
-extension for Samples implements Windowed<int32> {
+extension of Samples implements Windowed<int32> {
     type View<T> = [T, T];
 }
 ```
@@ -474,7 +474,7 @@ interface Graph<T> {
 
 struct IntGraph {}
 
-extension for IntGraph implements Graph<int32> {}
+extension of IntGraph implements Graph<int32> {}
 
 declare const node: IntGraph.Node;
 node satisfies int32;
@@ -498,7 +498,7 @@ struct Counter {
     value: int32 = 0;
 }
 
-extension for Counter implements Container<int32> {
+extension of Counter implements Container<int32> {
     get(): Item {
         this.value
     }
@@ -527,7 +527,7 @@ struct Counter {
     value: int32 = 0;
 }
 
-extension for Counter implements LocalCursor<int32> {
+extension of Counter implements LocalCursor<int32> {
     type Item = int32;
 
     read(): Item {
@@ -792,7 +792,7 @@ struct MissingItem<T> {
     value: T;
 }
 
-extension<T> for MissingItem<T> implements Container<T> {}
+extension<T> of MissingItem<T> implements Container<T> {}
 ```
 
 - contains: associated
@@ -1053,7 +1053,7 @@ struct MissingFactory<T> {
     value: T;
 }
 
-extension<T> for MissingFactory<T> implements Factory<T> {}
+extension<T> of MissingFactory<T> implements Factory<T> {}
 ```
 
 - contains: associated

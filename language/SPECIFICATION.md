@@ -435,7 +435,7 @@ struct Vec2 {
 const v: Add<Vec2> = Vec2 { x: 1, y: 2 }  // ERROR: Vec2 doesn't implement Add
 
 // explicit opt-in required
-extension for Vec2 implements Add<Vec2> {
+extension of Vec2 implements Add<Vec2> {
     add(other: Vec2): Vec2 {
         return Vec2 { x: this.x + other.x, y: this.y + other.y };
     }
@@ -614,7 +614,7 @@ interface Iterable<T> {
     iter(): Iter;
 }
 
-extension<T> for Container<T> implements Iterable<T> {
+extension<T> of Container<T> implements Iterable<T> {
     type Item = T;
     type Iter = ContainerIterator<T>;
 
@@ -751,7 +751,7 @@ Unlike TypeScript's prototype extension, Destack extensions are type-safe and sc
 Extension visibility depends on where the extension is defined relative to the type.
 
 ```ds
-extension for Vector2 {
+extension of Vector2 {
     magnitude(): float32 {
         (this.x * this.x + this.y * this.y).sqrt()
     }
@@ -782,12 +782,12 @@ The same mechanism works for newtypes and even precise primitives:
 
 ```ds
 newtype UserId = int;
-extension for UserId {
+extension of UserId {
     isValid(): boolean { this > 0; }
 }
 
 // anonymous extension on builtin type: only visible in this file
-extension for int32 {
+extension of int32 {
     abs(): int32 { if (this < 0) { -this } else { this }; }
 }
 ```
@@ -807,7 +807,7 @@ interface Add<T, U = T> {
 ```
 
 ```ds
-extension for Vector2 implements Add<Vector2> {
+extension of Vector2 implements Add<Vector2> {
     add(other: Vector2): Vector2 {
         Vector2 { x: this.x + other.x, y: this.y + other.y }
     }
@@ -819,7 +819,7 @@ extension for Vector2 implements Add<Vector2> {
 Multiple overloads for the same operator are supported via multiple interface implementations:
 
 ```ds
-extension for Vector2 implements Add<Vector2>, Add<float> {
+extension of Vector2 implements Add<Vector2>, Add<float> {
     add(other: Vector2): Vector2 {
         Vector2 { x: this.x + other.x, y: this.y + other.y }
     }
@@ -844,7 +844,7 @@ Extend types from other modules:
 import { Vector2 } from "somewhere";
 
 // anonymous: only visible in this file (foreign type)
-extension for Vector2 {
+extension of Vector2 {
     magnitude(): float32 {
         (this.x * this.x + this.y * this.y).sqrt()
     }
@@ -862,7 +862,7 @@ Named extensions can be exported and must be imported where used:
 // in date-utils.ds
 import { Date } from "builtin";
 
-export extension DateUtils for Date implements Add<Date> {
+export extension DateUtils of Date implements Add<Date> {
     addDays(days: int): Date { ... }
 
     add(other: Date): Date { ... }
@@ -1631,7 +1631,7 @@ a + b;        // error: Foo does not implement Add
 a.add(b);     // ok: direct method call works
 
 // Foo explicitly implements Add<T>
-extension for Foo implements Add<Foo> {
+extension of Foo implements Add<Foo> {
     add(other: Foo): Foo { ... }
 }
 

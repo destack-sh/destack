@@ -21,7 +21,7 @@ Extension visibility depends on where the extension is defined relative to the t
 ```ds
 struct Point { x: number; y: number }
 
-extension for Point {
+extension of Point {
     length(): number { return 0 }
 }
 
@@ -44,7 +44,7 @@ class User {
     }
 }
 
-extension for User {
+extension of User {
     greet(): string { return "" }
 }
 
@@ -63,7 +63,7 @@ interface Shape {
     area(): number
 }
 
-extension for Shape {
+extension of Shape {
     describe(): string { return "" }
 }
 
@@ -84,7 +84,7 @@ enum Color {
     Blue
 }
 
-extension for Color {
+extension of Color {
     isWarm(): boolean { return true }
 }
 
@@ -101,11 +101,11 @@ color.isWarm() satisfies boolean;
 ```ds
 struct Vector2 { x: number; y: number }
 
-extension for Vector2 {
+extension of Vector2 {
     magnitude(): number { return 0 }
 }
 
-extension for Vector2 {
+extension of Vector2 {
     normalized(): Vector2 { return Vector2 { x: 0, y: 0 } }
 }
 
@@ -123,7 +123,7 @@ vector.normalized() satisfies Vector2;
 ```ds:types.ds
 export struct Vector2 { x: number; y: number }
 
-extension for Vector2 {
+extension of Vector2 {
     magnitude(): number { return 0 }
 }
 ```
@@ -153,7 +153,7 @@ export struct Vector2 { x: number; y: number }
 ```ds:extensions.ds
 import { Vector2 } from "./types.ds"
 
-extension for Vector2 {
+extension of Vector2 {
     magnitude(): number { return 0 }
 }
 ```
@@ -171,17 +171,17 @@ const m = vector.magnitude();
 
 ## Named Extensions
 
-> Named extensions use the syntax `extension Name for Type { }`.
+> Named extensions use the syntax `extension Name of Type { }`.
 > They can be exported and must be imported to use (not yet fully implemented).
 
 ### named extension syntax
 
-> Named extensions have a name before the `for` keyword.
+> Named extensions have a name before the `of` keyword.
 
 ```ds
 struct Point { x: number; y: number }
 
-extension PointHelpers for Point {
+extension PointHelpers of Point {
     distance(): number { return 0 }
 }
 
@@ -202,7 +202,7 @@ export struct Point { x: number; y: number }
 ```ds:extensions.ds
 import { Point } from "./types.ds"
 
-export extension PointHelpers for Point {
+export extension PointHelpers of Point {
     distance(): number { return 0 }
 }
 ```
@@ -228,7 +228,7 @@ export struct Point { x: number; y: number }
 ```ds:extensions.ds
 import { Point } from "./types.ds"
 
-export extension PointHelpers for Point {
+export extension PointHelpers of Point {
     distance(): number { return 0 }
 }
 ```
@@ -246,18 +246,18 @@ point.distance();
 
 ## Overlapping Extensions
 
-### first extension wins for duplicates
+### first extension wins of duplicates
 
 > When multiple extensions define the same method, the first one wins.
 
 ```ds
 struct Vector2 { x: number; y: number }
 
-extension for Vector2 {
+extension of Vector2 {
     process(): number { return 1 }
 }
 
-extension for Vector2 {
+extension of Vector2 {
     process(): string { return "" }
 }
 

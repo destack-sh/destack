@@ -62,7 +62,7 @@ export struct Crate<T> {
     value: T;
 }
 
-extension<T> for Crate<T> implements Container<T> {
+extension<T> of Crate<T> implements Container<T> {
     type Item = T;
 }
 ```

@@ -619,7 +619,7 @@ let same = left !== right;
 ```ds:main.ds
 struct Measure { value: int }
 
-extension for Measure implements Equal<Measure> {
+extension of Measure implements Equal<Measure> {
     equal(other: Measure): boolean { return true }
 }
 

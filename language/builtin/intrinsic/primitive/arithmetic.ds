@@ -78,7 +78,7 @@ export declare function shlUnchecked<T: int>(value: T, amount: T): T;
 ///
 /// Shifts right without checking if shift amount exceeds bit width.
 /// Behavior is undefined if `amount` >= bit width of T.
-/// Sign extension applies for signed types.
+/// Sign extension applies of signed types.
 @intrinsic("shr.unchecked")
 export declare function shrUnchecked<T: int>(value: T, amount: T): T;
 
