@@ -1,5 +1,5 @@
+use crate::ManagedReference;
 use crate::local::managed::ManagedLocation;
-use crate::value::ManagedReference;
 
 /// One planned relocation for a managed reference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

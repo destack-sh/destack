@@ -1,15 +1,15 @@
 use crate::local::managed::ManagedLocation;
 use crate::tests::test_arena;
 use crate::{
-    GcCycle, GcKind, GcPacing, Heap, HeapError, HeapOptions, ManagedReference, ManagedSpace,
+    GcKind, GcOptions, Heap, HeapError, HeapOptions, ManagedReference, ManagedSpace,
     SharedManagedReference,
 };
 use destack_mir::LayoutTrace;
 
 /// Build one local heap whose pacer triggers immediately in step-driven tests.
-fn pacing_heap() -> Heap {
+fn test_heap() -> Heap {
     let options = HeapOptions {
-        gc: GcPacing {
+        gc: GcOptions {
             growth_percent: 10,
             trigger_percent: 75,
             soft_limit_bytes: None,
@@ -148,13 +148,8 @@ fn test_collect_minor_updates_gc_state() {
         .expect("young collection should succeed");
 
     assert_eq!(managed.gc_state().completed_cycles, 1);
-    assert_eq!(
-        managed.gc_state().last_cycle,
-        Some(GcCycle {
-            kind: GcKind::Minor,
-            stats,
-        })
-    );
+    assert_eq!(managed.gc_state().last_kind, Some(GcKind::Minor));
+    assert_eq!(managed.gc_state().last_stats, Some(stats));
 }
 
 /// Pinning one young reference should tenure it immediately.
@@ -282,17 +277,17 @@ fn test_scan_shared_roots_uses_shared_reference_width() {
         .expect("managed allocation should succeed");
     let mut roots = Vec::new();
 
-    managed.start_shared_root_scan();
+    managed.start_shared_edge_scan();
 
     let work_done = managed
-        .scan_shared_root_step(&mut roots, 1)
+        .scan_shared_edge_step(&mut roots, 1)
         .expect("shared root scan should succeed");
 
     assert_eq!(work_done, 1);
     assert_eq!(roots, vec![shared]);
-    assert!(managed.shared_root_scan_idle());
+    assert!(managed.shared_edge_scan_idle());
 
-    managed.finish_shared_root_scan();
+    managed.finish_shared_edge_scan();
 
     assert!(managed.is_live(local));
 }
@@ -310,7 +305,7 @@ fn test_heap_gc_step_stays_idle_without_request() {
 /// Run one minor cycle after local managed allocation pressure.
 #[test]
 fn test_heap_gc_step_runs_minor_after_pressure() {
-    let mut heap = pacing_heap();
+    let mut heap = test_heap();
     let root = heap
         .allocate_managed_bytes(&vec![1; 64], LayoutTrace::empty(), None)
         .expect("managed allocation should succeed");
@@ -322,10 +317,7 @@ fn test_heap_gc_step_runs_minor_after_pressure() {
 
     assert_eq!(stats.freed_allocations, 0);
     assert!(heap.is_managed_live(root));
-    assert_eq!(
-        heap.gc_state().last_cycle.map(|cycle| cycle.kind),
-        Some(GcKind::Minor)
-    );
+    assert_eq!(heap.gc_state().last_kind, Some(GcKind::Minor));
 }
 
 /// Honor one explicit full local collection request below the pacing trigger.
@@ -344,8 +336,5 @@ fn test_heap_gc_step_honors_manual_full_request() {
         .expect("manual request should run one cycle");
 
     assert_eq!(stats.freed_allocations, 0);
-    assert_eq!(
-        heap.gc_state().last_cycle.map(|cycle| cycle.kind),
-        Some(GcKind::Full)
-    );
+    assert_eq!(heap.gc_state().last_kind, Some(GcKind::Full));
 }
