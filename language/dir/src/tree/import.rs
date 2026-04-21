@@ -43,8 +43,6 @@ pub enum ImportTarget {
 pub enum ImportAttributeClauseKind {
     /// The standard `with` attribute clause keyword.
     With,
-    /// The legacy `assert` attribute clause keyword.
-    Assert,
 }
 
 /// One import attribute clause.
