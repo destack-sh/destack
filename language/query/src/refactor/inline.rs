@@ -1049,28 +1049,49 @@ fn expression_has_side_effects(
 fn symbol_is_assigned(dir_tree: &dir::NodeTree, symbol_id: dir::GlobalSymbolId) -> bool {
     // scan for assignments to this symbol
     for (_expr_id, expr) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
-        let left = match expr {
-            dir::Expression::Assign { left, .. } => Some(*left),
-            dir::Expression::AssignBinary { left, .. } => Some(*left),
+        let target_symbol = match expr {
+            dir::Expression::Assign { left, .. } => assign_pattern_target_symbol(dir_tree, *left),
+            dir::Expression::AssignBinary { left, .. } => expression_target_symbol(dir_tree, *left),
             _ => None,
-        };
-        let Some(left) = left else {
-            continue;
         };
 
-        let left_expr = dir_tree.get::<dir::Expression>(left);
-        let target_symbol = match left_expr {
-            dir::Expression::LocalReference { target_symbol, .. }
-            | dir::Expression::ModuleReference { target_symbol, .. }
-            | dir::Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
-            _ => None,
-        };
         if target_symbol == Some(symbol_id) {
             return true;
         }
     }
 
     false
+}
+
+/// Return the target symbol for one direct expression assignment target.
+fn expression_target_symbol(
+    dir_tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<dir::GlobalSymbolId> {
+    let expression = dir_tree.get::<dir::Expression>(expression_id);
+
+    match expression {
+        dir::Expression::LocalReference { target_symbol, .. }
+        | dir::Expression::ModuleReference { target_symbol, .. }
+        | dir::Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
+        _ => None,
+    }
+}
+
+/// Return the target symbol for one assign pattern when it is a simple reference.
+fn assign_pattern_target_symbol(
+    dir_tree: &dir::NodeTree,
+    assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
+) -> Option<dir::GlobalSymbolId> {
+    let assign_pattern = dir_tree.get(assign_pattern_id);
+
+    match assign_pattern {
+        dir::AssignPattern::Expression { value } => expression_target_symbol(dir_tree, *value),
+        dir::AssignPattern::Assign { pattern, .. } => {
+            assign_pattern_target_symbol(dir_tree, *pattern)
+        }
+        dir::AssignPattern::Array { .. } | dir::AssignPattern::Object { .. } => None,
+    }
 }
 
 /// Visitor that collects symbols captured by an inline value.
