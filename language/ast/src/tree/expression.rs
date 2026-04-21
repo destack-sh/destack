@@ -113,6 +113,26 @@ pub enum Expression {
         declarators: Vec<LocalNodeId<Declarator>>,
     },
 
+    /// Let-else binding with an early-exit branch.
+    /// The else branch is currently an explicit block.
+    ///
+    /// Examples:
+    /// ```
+    /// let Some(x) = maybe else {
+    ///     return;
+    /// }
+    ///
+    /// const [head, ...tail] = values else {
+    ///     throw Error("expected values");
+    /// }
+    /// ```
+    LetElse {
+        kind: LetKind,
+        mutability: Mutability,
+        declarator: LocalNodeId<Declarator>,
+        else_branch: LocalNodeId<Expression>,
+    },
+
     /// Using binding for resources with deterministic disposal.
     ///
     /// Examples:
@@ -810,8 +830,10 @@ impl Expression {
     /// Return whether this expression behaves like a statement boundary.
     #[inline]
     pub fn is_statement_boundary(&self) -> bool {
-        matches!(self, Expression::Let { .. } | Expression::Using { .. })
-            || self.is_top_level_statement()
+        matches!(
+            self,
+            Expression::Let { .. } | Expression::LetElse { .. } | Expression::Using { .. }
+        ) || self.is_top_level_statement()
     }
 
     /// Return whether this expression may remain a value tail in an expression block.
@@ -851,6 +873,7 @@ impl Expression {
                 | Expression::ExportNamespace { .. }
                 | Expression::TreeExpression { .. }
                 | Expression::Let { .. }
+                | Expression::LetElse { .. }
                 | Expression::Using { .. }
                 | Expression::If { .. }
                 | Expression::While { .. }
@@ -883,6 +906,7 @@ impl Expression {
                 | Expression::Import { .. }
                 | Expression::ExportNamespace { .. }
                 | Expression::Let { .. }
+                | Expression::LetElse { .. }
                 | Expression::Using { .. }
                 | Expression::While { .. }
                 | Expression::Loop { .. }

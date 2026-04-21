@@ -667,6 +667,18 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_declarator(tree, *declarator_id, declarator);
             }
         }
+        Expression::LetElse {
+            kind: _,
+            mutability: _,
+            declarator,
+            else_branch,
+        } => {
+            let declarator_node = tree.get(*declarator);
+            visitor.visit_declarator(tree, *declarator, declarator_node);
+
+            let else_branch_node = tree.get(*else_branch);
+            visitor.visit_expression(tree, *else_branch, else_branch_node);
+        }
         Expression::Using {
             asynchrony: _,
             export: _,
