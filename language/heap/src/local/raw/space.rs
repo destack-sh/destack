@@ -86,7 +86,7 @@ impl RawSpace {
 
     /// Create one raw space with explicit options.
     pub fn with_options(arena: Arc<Arena>, options: &HeapOptions) -> Result<Self, HeapError> {
-        options.validate()?;
+        options.validate_local()?;
         options.validate_arena(&arena)?;
         let page_run_cache = PageRunCache::new(arena.pages_per_segment());
 
@@ -177,14 +177,9 @@ impl RawSpace {
             .release_page_view(&self.arena, page_view)
     }
 
-    /// Flush the local page-run cache back into the arena page-run pool.
-    pub(crate) fn flush_page_run_cache(&mut self) {
-        self.page_run_cache.flush(&self.arena);
-    }
-
     /// Flush transient cache state before one exact branch boundary.
     pub(crate) fn flush_branch_boundary(&mut self) {
-        self.flush_page_run_cache();
+        self.page_run_cache.flush(&self.arena);
     }
 
     /// Return the dense table index for one raw pointer id.
@@ -196,16 +191,6 @@ impl RawSpace {
         };
 
         Ok(index as usize)
-    }
-
-    /// Store one dense raw pointer record by stable pointer id.
-    pub(crate) fn set_pointer_entry(
-        &mut self,
-        pointer_id: u32,
-        record: RawPointerEntry,
-    ) -> HeapResult<()> {
-        self.pointers
-            .set_or_push(Self::pointer_index(pointer_id)?, record)
     }
 
     /// Retire one stable raw pointer slot.
@@ -246,6 +231,6 @@ impl RawSpace {
 
 impl Drop for RawSpace {
     fn drop(&mut self) {
-        self.flush_page_run_cache();
+        self.page_run_cache.flush(&self.arena);
     }
 }

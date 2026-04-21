@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::arena::PageView;
+use crate::{HeapError, HeapResult};
 
 /// One frozen raw large-entry root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -29,9 +30,9 @@ impl LargeEntryId {
     }
 
     /// Return the zero-based large-entry slot index.
-    pub(crate) fn index(self) -> crate::HeapResult<usize> {
+    pub(crate) fn index(self) -> HeapResult<usize> {
         let Some(index) = self.0.checked_sub(1) else {
-            return Err(crate::HeapError::InvalidLargeEntryId { id: self.0 });
+            return Err(HeapError::InvalidLargeEntryId { id: self.0 });
         };
 
         Ok(index as usize)

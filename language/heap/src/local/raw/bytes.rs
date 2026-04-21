@@ -1,7 +1,6 @@
 use super::{RawLocation, RawPointerEntry, RawSpace};
 use crate::arena::{PageView, SpanSlot};
-use crate::value::{RawPointer, Value};
-use crate::{HeapError, HeapResult};
+use crate::{HeapError, HeapResult, HeapSpace, RawPointer};
 
 impl RawSpace {
     /// Return the projected mapped-byte delta for one raw write.
@@ -11,10 +10,7 @@ impl RawSpace {
         start: usize,
         byte_len: usize,
     ) -> HeapResult<i64> {
-        let Some(record) = self.pointer(pointer) else {
-            return Err(HeapError::InvalidRawPointer { pointer });
-        };
-        checked_byte_range(pointer.byte_offset(), start, byte_len, record.byte_len)?;
+        self.checked_location_range(pointer, start, byte_len)?;
 
         Ok(0)
     }
@@ -26,16 +22,7 @@ impl RawSpace {
         start: usize,
         target: &mut [u8],
     ) -> HeapResult<()> {
-        // resolve the live entry and requested slice
-        let Some(record) = self.pointer(pointer) else {
-            return Err(HeapError::InvalidRawPointer { pointer });
-        };
-        let byte_offset =
-            checked_byte_range(pointer.byte_offset(), start, target.len(), record.byte_len)?;
-
-        let Some(location) = record.location() else {
-            return Err(HeapError::InvalidRawPointer { pointer });
-        };
+        let (location, byte_offset) = self.checked_location_range(pointer, start, target.len())?;
 
         self.fill_location_bytes(location, byte_offset, target)
     }
@@ -105,21 +92,6 @@ impl RawSpace {
         checked_remaining_byte_len(pointer.byte_offset(), record.byte_len)
     }
 
-    /// Return the values for one raw entry.
-    pub fn values(&self, pointer: RawPointer) -> HeapResult<Vec<Value>> {
-        let bytes = self.read_bytes(pointer)?;
-        let mut values = Vec::new();
-
-        // decode each full value slot from the materialized payload
-        for bytes in bytes.chunks_exact(Value::BYTE_LEN) {
-            if let Some(value) = Value::from_byte_slice(bytes) {
-                values.push(value);
-            }
-        }
-
-        Ok(values)
-    }
-
     /// Fill one caller-provided buffer from one live raw location.
     fn fill_location_bytes(
         &self,
@@ -158,18 +130,28 @@ impl RawSpace {
 
     /// Overwrite one raw byte range.
     pub fn set_bytes(&mut self, pointer: RawPointer, start: usize, bytes: &[u8]) -> HeapResult<()> {
-        // validate the write against the live entry bounds
+        let (location, byte_offset) = self.checked_location_range(pointer, start, bytes.len())?;
+
+        self.set_location_bytes(location, byte_offset, bytes)
+    }
+
+    /// Return one checked live location and byte offset for one raw range.
+    fn checked_location_range(
+        &self,
+        pointer: RawPointer,
+        start: usize,
+        byte_len: usize,
+    ) -> HeapResult<(RawLocation, usize)> {
         let Some(record) = self.pointer(pointer) else {
             return Err(HeapError::InvalidRawPointer { pointer });
         };
-        let byte_offset =
-            checked_byte_range(pointer.byte_offset(), start, bytes.len(), record.byte_len)?;
-
         let Some(location) = record.location() else {
             return Err(HeapError::InvalidRawPointer { pointer });
         };
+        let byte_offset =
+            checked_byte_range(pointer.byte_offset(), start, byte_len, record.byte_len)?;
 
-        self.set_location_bytes(location, byte_offset, bytes)
+        Ok((location, byte_offset))
     }
 
     /// Overwrite one byte range for one live raw location.
@@ -250,8 +232,8 @@ impl RawSpace {
                 if bytes.len() <= size_class {
                     self.replace_small_location_bytes(slot, pointer, bytes)?;
 
-                    self.totals
-                        .resize(previous_byte_len, bytes.len(), crate::HeapDomain::Raw)?;
+                    self.usage
+                        .resize(previous_byte_len, bytes.len(), HeapSpace::Raw)?;
 
                     return Ok(());
                 }
@@ -276,16 +258,16 @@ impl RawSpace {
                     record.set_byte_len(bytes.len());
                 }
 
-                self.totals
-                    .resize(previous_byte_len, bytes.len(), crate::HeapDomain::Raw)?;
+                self.usage
+                    .resize(previous_byte_len, bytes.len(), HeapSpace::Raw)?;
 
                 Ok(())
             }
             RawLocation::Large(entry_id) => {
                 let previous_len = self.replace_large_location_bytes(entry_id, pointer, bytes)?;
 
-                self.totals
-                    .resize(previous_len, bytes.len(), crate::HeapDomain::Raw)?;
+                self.usage
+                    .resize(previous_len, bytes.len(), HeapSpace::Raw)?;
 
                 Ok(())
             }
