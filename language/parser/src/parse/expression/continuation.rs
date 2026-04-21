@@ -4,9 +4,10 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use super::operator::{ParseInfixOperator, TypeBinaryOperator, TypeUnaryOperator};
 use destack_ast::{
-    Argument, AssignOperator, BinaryOperator, Declaration, Expression, FunctionDeclaration,
-    FunctionKind, GenericArgument, IfCondition, IfKind, Keyword, LiteralType, LocalNodeId,
-    NodeType, PostfixPosition, TokenType, TypeExpression, UnaryOperator,
+    Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Declaration,
+    Expression, FunctionDeclaration, FunctionKind, GenericArgument, IfCondition, IfKind, Key,
+    Keyword, LiteralType, LocalNodeId, Name, NodeType, PostfixPosition, Property, TokenType,
+    TypeExpression, UnaryOperator,
 };
 use destack_source::Span;
 
@@ -311,6 +312,191 @@ impl Parser {
             Expression::As { .. } => !is_parenthesized,
 
             // all other lhs forms are handled by assignment-target validation later
+            _ => false,
+        }
+    }
+
+    /// Convert one assignment lhs expression into one assign pattern.
+    pub(crate) fn expression_to_assign_pattern(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> ParseResult<LocalNodeId<AssignPattern>> {
+        let inner_expression_id = self.without_parentheses_expression(expression_id);
+        let inner_expression = self.tree.get(inner_expression_id).clone();
+
+        // object and array destructuring own recursive assign pattern lowering
+        let assign_pattern = match inner_expression {
+            Expression::ObjectExpression {
+                ty: None,
+                properties,
+            } => {
+                let fields =
+                    self.object_properties_to_assign_pattern_fields(properties.as_slice())?;
+                AssignPattern::Object { fields }
+            }
+            Expression::ArrayExpression { elements } => {
+                let fields = self.array_elements_to_assign_pattern_fields(elements.as_slice())?;
+                AssignPattern::Array { fields }
+            }
+
+            // everything else remains a direct expression target
+            _ => AssignPattern::Expression {
+                value: inner_expression_id,
+            },
+        };
+
+        Ok(self.insert_node(assign_pattern, self.tree.get_span(expression_id)))
+    }
+
+    /// Convert one array literal element list into assign pattern fields.
+    fn array_elements_to_assign_pattern_fields(
+        &mut self,
+        elements: &[LocalNodeId<Argument>],
+    ) -> ParseResult<Vec<LocalNodeId<AssignPatternField>>> {
+        let mut fields = Vec::with_capacity(elements.len());
+
+        for element_id in elements {
+            let element = self.tree.get(*element_id).clone();
+            let field = match element {
+                Argument::Positional { value }
+                    if matches!(self.tree.get(value), Expression::Stub | Expression::Missing) =>
+                {
+                    AssignPatternField::Elision
+                }
+                Argument::Positional { value } => {
+                    let pattern = self.expression_to_assign_pattern(value)?;
+                    AssignPatternField::Positional { pattern }
+                }
+                Argument::Spread { value, .. } => {
+                    let pattern = self.expression_to_assign_pattern(value)?;
+                    AssignPatternField::Spread {
+                        pattern: Some(pattern),
+                    }
+                }
+                Argument::Named { .. } | Argument::Labeled { .. } | Argument::Error => {
+                    return Err(ParseError::unexpected(self.tree.get_span(*element_id)));
+                }
+            };
+
+            let field_id = self.insert_node(field, self.tree.get_span(*element_id));
+            fields.push(field_id);
+        }
+
+        Ok(fields)
+    }
+
+    /// Convert one object literal property list into assign pattern fields.
+    fn object_properties_to_assign_pattern_fields(
+        &mut self,
+        properties: &[LocalNodeId<Property>],
+    ) -> ParseResult<Vec<LocalNodeId<AssignPatternField>>> {
+        let mut fields = Vec::with_capacity(properties.len());
+
+        for property_id in properties {
+            let property = self.tree.get(*property_id).clone();
+            let field = match property {
+                Property::Field {
+                    key: Key::Name(name),
+                    value,
+                } => {
+                    let pattern = self.expression_to_assign_pattern(value)?;
+
+                    // bare shorthand keeps the nested pattern slot empty
+                    if self.assign_pattern_is_simple_name(pattern, name) {
+                        AssignPatternField::Named {
+                            name,
+                            is_shorthand: true,
+                            pattern: None,
+                        }
+                    }
+                    // shorthand with default keeps the nested assign pattern
+                    else if self.assign_pattern_is_defaulted_name(pattern, name) {
+                        AssignPatternField::Named {
+                            name,
+                            is_shorthand: true,
+                            pattern: Some(pattern),
+                        }
+                    }
+                    // expanded named field
+                    else {
+                        AssignPatternField::Named {
+                            name,
+                            is_shorthand: false,
+                            pattern: Some(pattern),
+                        }
+                    }
+                }
+                Property::Field {
+                    key: Key::Expression(key),
+                    value,
+                } => {
+                    let pattern = self.expression_to_assign_pattern(value)?;
+                    AssignPatternField::Computed { key, pattern }
+                }
+                Property::Field {
+                    key: Key::Private(_),
+                    value: _,
+                }
+                | Property::Method { .. }
+                | Property::Error => {
+                    return Err(ParseError::unexpected(self.tree.get_span(*property_id)));
+                }
+                Property::Spread { value } => {
+                    let pattern = self.expression_to_assign_pattern(value)?;
+                    AssignPatternField::Spread {
+                        pattern: Some(pattern),
+                    }
+                }
+            };
+
+            let field_id = self.insert_node(field, self.tree.get_span(*property_id));
+            fields.push(field_id);
+        }
+
+        Ok(fields)
+    }
+
+    /// Return whether one assign pattern is the plain shorthand form for a property name.
+    fn assign_pattern_is_simple_name(
+        &self,
+        assign_pattern_id: LocalNodeId<AssignPattern>,
+        name: Name,
+    ) -> bool {
+        let assign_pattern = self.tree.get(assign_pattern_id);
+        let AssignPattern::Expression { value } = assign_pattern else {
+            return false;
+        };
+
+        self.expression_is_simple_name(*value, name)
+    }
+
+    /// Return whether one assign pattern is the defaulted shorthand form for a property name.
+    fn assign_pattern_is_defaulted_name(
+        &self,
+        assign_pattern_id: LocalNodeId<AssignPattern>,
+        name: Name,
+    ) -> bool {
+        let assign_pattern = self.tree.get(assign_pattern_id);
+        let AssignPattern::Assign { pattern, value: _ } = assign_pattern else {
+            return false;
+        };
+
+        self.assign_pattern_is_simple_name(*pattern, name)
+    }
+
+    /// Return whether one expression is the plain shorthand source for a property name.
+    fn expression_is_simple_name(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        name: Name,
+    ) -> bool {
+        let expression_id = self.without_parentheses_expression(expression_id);
+        let expression = self.tree.get(expression_id);
+
+        match expression {
+            Expression::Identifier {
+                name: expression_name,
+            } => *expression_name == name.string(),
             _ => false,
         }
     }

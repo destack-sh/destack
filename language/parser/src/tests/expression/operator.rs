@@ -431,6 +431,20 @@ fn test_parse_assign_operator_span() {
     assert_eq!(parser.get_span_str(main_span), "+=");
 }
 
+/// Reject compound assignment on one destructuring target.
+#[test]
+fn test_reject_compound_assignment_on_destructuring_target() {
+    let mut test = TestParser::new("({ x } += value)");
+    let mut parser = test.prepare();
+
+    let result = parser.eat_expression(parser.options);
+
+    assert!(
+        result.is_err(),
+        "expected compound destructuring assignment to fail"
+    );
+}
+
 /// Assignment chains bind right associatively.
 #[test]
 fn test_parse_precedence_assignment_right_associative() {

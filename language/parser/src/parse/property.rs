@@ -870,9 +870,10 @@ impl Parser {
                     let default_span = self.tree.get_span(default);
                     let assign_span =
                         Span::new(value_span.file, value_span.start, default_span.end);
+                    let left = self.expression_to_assign_pattern(value)?;
                     let assign_id = self.insert_node(
                         Expression::Assign {
-                            left: value,
+                            left,
                             operator: AssignOperator::Assign,
                             right: default,
                         },
