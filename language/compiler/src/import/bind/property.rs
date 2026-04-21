@@ -77,7 +77,11 @@ impl Compiler {
             tree.reserve_from_source(NodeType::Property, ast_property_id.id, scope, parent_id);
 
         match ast_property {
-            ast::Property::Field { key, value } => {
+            ast::Property::Field {
+                key,
+                value,
+                is_shorthand,
+            } => {
                 let key = self.bind_key(
                     module,
                     ast,
@@ -112,6 +116,7 @@ impl Compiler {
                     Property::Field {
                         key,
                         value,
+                        is_shorthand: *is_shorthand,
                         symbol: symbol_id,
                     },
                 );

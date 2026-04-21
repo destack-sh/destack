@@ -36,7 +36,12 @@ impl Compiler {
         let span = self.unbind_span(module, property_id.into());
 
         let ast_property = match property {
-            dir::Property::Field { key, value, .. } => {
+            dir::Property::Field {
+                key,
+                value,
+                is_shorthand,
+                ..
+            } => {
                 let key = self.unbind_key(
                     module,
                     key,
@@ -58,7 +63,11 @@ impl Compiler {
                     context,
                 );
 
-                ast::Property::Field { key, value }
+                ast::Property::Field {
+                    key,
+                    value,
+                    is_shorthand: *is_shorthand,
+                }
             }
             dir::Property::Method {
                 key,

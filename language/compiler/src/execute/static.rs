@@ -257,6 +257,7 @@ impl Compiler {
                 Ok(dir::Property::Field {
                     key: *key,
                     value: value_id,
+                    is_shorthand: false,
                     symbol: *symbol,
                 })
             }

@@ -3893,6 +3893,7 @@ impl Compiler {
             Property::Field {
                 key,
                 value,
+                is_shorthand: _,
                 symbol: _,
             } => {
                 // extract the static key from the property key

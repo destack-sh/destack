@@ -622,7 +622,12 @@ impl Compiler {
                 for property_id in properties {
                     let property = ctx.tree.get(*property_id).clone();
                     let evaluated_property = match property {
-                        Property::Field { key, value, symbol } => {
+                        Property::Field {
+                            key,
+                            value,
+                            is_shorthand: _,
+                            symbol,
+                        } => {
                             let value = self.evaluate_static_expression_value_inner(
                                 &mut ctx.reborrow(),
                                 value,
