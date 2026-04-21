@@ -12,6 +12,11 @@ pub enum Pattern {
     Wildcard,
     /// Must pattern (like `x!`).
     Must(LocalNodeId<Pattern>),
+    /// Assignment pattern (like `x = 1` or `{ x } = {}`).
+    Assign {
+        pattern: LocalNodeId<Pattern>,
+        value: LocalNodeId<Expression>,
+    },
     /// Reference pattern (like `&x`).
     ReferenceOf {
         mutability: Option<Mutability>,
@@ -77,33 +82,22 @@ impl Pattern {
 /// Field resolution (which struct field it maps to) is in ResolutionTable.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum PatternField {
-    /// Named field, maybe with a nested pattern (like `x` or `x: 4` or `x: int32`).
+    /// Named field, maybe shorthand and maybe with a nested pattern.
     Named {
         mutability: Option<Mutability>,
         name: StringId,
+        symbol: Option<LocalSymbolId>,
+        is_shorthand: bool,
         pattern: Option<LocalNodeId<Pattern>>,
-        default: Option<LocalNodeId<Expression>>,
     },
     /// Computed field (like `[key]: value`).
     Computed {
         mutability: Option<Mutability>,
         key: LocalNodeId<Expression>,
-        pattern: Option<LocalNodeId<Pattern>>,
-        default: Option<LocalNodeId<Expression>>,
-    },
-    /// Named field with an alias (like `x: y` where `x` is the field name, `y` is the binding).
-    Alias {
-        mutability: Option<Mutability>,
-        name: StringId,
-        alias: StringId,
-        default: Option<LocalNodeId<Expression>>,
-        symbol: LocalSymbolId,
-    },
-    /// Positional field with a pattern and optional default (like `4` or `x = 1`).
-    Positional {
         pattern: LocalNodeId<Pattern>,
-        default: Option<LocalNodeId<Expression>>,
     },
+    /// Positional field with a pattern (like `4` or `x = 1`).
+    Positional { pattern: LocalNodeId<Pattern> },
     /// Spread field (like `...x` or `...[a, b]`).
     Spread {
         mutability: Option<Mutability>,
@@ -121,9 +115,8 @@ impl PatternField {
     /// Get the symbol of the pattern field (the local binding it creates).
     pub fn symbol(&self) -> Option<LocalSymbolId> {
         match self {
-            PatternField::Named { .. } => None,
+            PatternField::Named { symbol, .. } => *symbol,
             PatternField::Computed { .. } => None,
-            PatternField::Alias { symbol, .. } => Some(*symbol),
             PatternField::Positional { .. } => None,
             PatternField::Spread { .. } => None,
             PatternField::Elision => None,

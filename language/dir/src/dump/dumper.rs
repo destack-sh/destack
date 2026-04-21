@@ -2047,6 +2047,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("symbol", symbol)
                     .end();
             }
+            Pattern::Assign {
+                pattern: _,
+                value: _,
+            } => {
+                self.node("Pattern::Assign", id.id).end();
+            }
             Pattern::Expression { value: _ } => {
                 self.node("Pattern::Expression", id.id).end();
             }
@@ -2087,11 +2093,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
             PatternField::Named {
                 mutability,
                 name,
-                default: _,
+                symbol,
+                is_shorthand,
                 pattern: _,
             } => {
                 self.node("PatternField::Named", id.id)
                     .field("name", name)
+                    .field_optional("symbol", symbol)
+                    .field("is_shorthand", is_shorthand)
                     .field_optional("mutability", mutability)
                     .end();
             }
@@ -2099,30 +2108,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 mutability,
                 key: _,
                 pattern: _,
-                default: _,
             } => {
                 self.node("PatternField::Computed", id.id)
                     .field_optional("mutability", mutability)
                     .end();
             }
-            PatternField::Alias {
-                mutability,
-                name,
-                alias,
-                default: _,
-                symbol,
-            } => {
-                self.node("PatternField::Alias", id.id)
-                    .field("name", name)
-                    .field("alias", alias)
-                    .field_optional("mutability", mutability)
-                    .field("symbol", symbol)
-                    .end();
-            }
-            PatternField::Positional {
-                pattern: _,
-                default: _,
-            } => {
+            PatternField::Positional { pattern: _ } => {
                 self.node("PatternField::Positional", id.id).end();
             }
             PatternField::Spread {
