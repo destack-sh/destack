@@ -461,6 +461,7 @@ impl_dump_display! {
     FunctionKind,
     FunctionMode,
     IfKind,
+    LetKind,
     LoopKind,
     MatchKind,
     MatchSource,
@@ -949,6 +950,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::Let", id.id)
                     .field_optional("export", export)
                     .field("ambient", ambient)
+                    .field("mutability", mutability)
+                    .end();
+            }
+            Expression::LetElse {
+                kind,
+                mutability,
+                declarator: _,
+                else_branch: _,
+            } => {
+                self.node("Expression::LetElse", id.id)
+                    .field("kind", kind)
                     .field("mutability", mutability)
                     .end();
             }

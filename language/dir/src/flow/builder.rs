@@ -1643,7 +1643,32 @@ impl<'tree> FlowGraphBuilder<'tree> {
             | Expression::ReExport { .. }
             | Expression::Export { .. } => Some(current_block_id),
             Expression::ExportNamespace { .. } => Some(current_block_id),
-            Expression::Let { declarators, .. } | Expression::Using { declarators, .. } => {
+            Expression::Let { declarators, .. } => {
+                self.build_declarators(declarators, current_block_id)
+            }
+            Expression::LetElse {
+                declarator,
+                else_branch,
+                ..
+            } => {
+                self.record_node(current_block_id, (*declarator).into_any());
+                let declarator = self.tree.get(*declarator);
+
+                // evaluate the initializer before the branch split
+                let branch_entry_block_id =
+                    self.build_declarator_value(declarator.value, current_block_id)?;
+
+                // follow the success path through the pattern
+                let declarator_block_id =
+                    self.build_pattern(declarator.pattern, branch_entry_block_id)?;
+
+                // follow the failure path through the else branch
+                let _else_branch_block_id =
+                    self.build_expression(*else_branch, branch_entry_block_id);
+
+                Some(declarator_block_id)
+            }
+            Expression::Using { declarators, .. } => {
                 self.build_declarators(declarators, current_block_id)
             }
             Expression::PointerOf { right, .. } => self.build_expression(*right, current_block_id),
@@ -1876,10 +1901,8 @@ impl<'tree> FlowGraphBuilder<'tree> {
         let declarator = self.tree.get(declarator_id);
 
         // evaluate the initializer first
-        let mut declarator_block_id = current_block_id;
-        if let Some(value_id) = declarator.value {
-            declarator_block_id = self.build_expression(value_id, declarator_block_id)?;
-        }
+        let mut declarator_block_id =
+            self.build_declarator_value(declarator.value, current_block_id)?;
 
         // evaluate the binding pattern next
         if let Some(pattern_exit_block_id) =
@@ -1889,6 +1912,21 @@ impl<'tree> FlowGraphBuilder<'tree> {
         }
 
         Some(declarator_block_id)
+    }
+
+    /// Build one declarator initializer when it exists.
+    fn build_declarator_value(
+        &mut self,
+        value_id: Option<LocalNodeId<Expression>>,
+        current_block_id: FlowBlockId,
+    ) -> Option<FlowBlockId> {
+        // skip missing initializers
+        let Some(value_id) = value_id else {
+            return Some(current_block_id);
+        };
+
+        // evaluate the initializer expression
+        self.build_expression(value_id, current_block_id)
     }
 
     /// Build a list of generic arguments.
