@@ -7,7 +7,7 @@ use destack_source::ModuleId;
 use destack_workspace::{ProfileId, TrustPolicy};
 
 use super::{ComptimeOutput, ComptimePatch, collect_comptime_dependencies};
-use vm::{Heap, MemoryContext, SharedHeap};
+use vm::{Heap, SharedHeap};
 use {destack_dir as dir, destack_vm as vm};
 
 /// In-flight comptime results for one module build.
@@ -183,16 +183,15 @@ impl Compiler {
                 message: format!("{error}"),
             })?;
             let mut shared = SharedHeap::new();
-            let mut memory = MemoryContext::new(&mut heap, &mut shared);
 
             isolate
-                .initialize(&mut memory)
+                .initialize(&mut heap, &mut shared)
                 .map_err(|error| ExecuteError::FailedExecution {
                     module: module_id,
                     message: format!("{error}"),
                 })?;
             let output = isolate
-                .run_function(&mut memory, function_id, &[])
+                .run_function(&mut heap, &mut shared, function_id, &[])
                 .map_err(|error| ExecuteError::FailedExecution {
                     module: module_id,
                     message: format!("{error}"),
