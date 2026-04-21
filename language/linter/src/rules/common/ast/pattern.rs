@@ -25,14 +25,52 @@ pub fn parameter_default_expression_id(
 
 /// Return one default expression id for a pattern field when present.
 pub fn pattern_field_default_expression_id(
+    tree: &ast::NodeTree,
     pattern_field: &ast::PatternField,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
     match pattern_field {
-        ast::PatternField::Named { default, .. }
-        | ast::PatternField::Computed { default, .. }
-        | ast::PatternField::Alias { default, .. }
-        | ast::PatternField::Positional { default, .. } => *default,
+        ast::PatternField::Named { pattern, .. } => pattern
+            .and_then(|pattern_id| pattern_assignment_value_expression_id(tree, pattern_id)),
+        ast::PatternField::Computed { pattern, .. } => {
+            pattern_assignment_value_expression_id(tree, *pattern)
+        }
+        ast::PatternField::Positional { pattern } => {
+            pattern_assignment_value_expression_id(tree, *pattern)
+        }
         ast::PatternField::Spread { .. } | ast::PatternField::Elision => None,
+    }
+}
+
+/// Return the default value expression for one assignment pattern.
+fn pattern_assignment_value_expression_id(
+    tree: &ast::NodeTree,
+    pattern_id: ast::LocalNodeId<ast::Pattern>,
+) -> Option<ast::LocalNodeId<ast::Expression>> {
+    match tree.get(pattern_id) {
+        ast::Pattern::Assign { value, .. } => Some(*value),
+        ast::Pattern::Binding {
+            pattern: Some(inner_pattern_id),
+            ..
+        }
+        | ast::Pattern::Must(inner_pattern_id)
+        | ast::Pattern::ReferenceOf {
+            right: inner_pattern_id,
+            ..
+        }
+        | ast::Pattern::ValueOf {
+            right: inner_pattern_id,
+            ..
+        } => pattern_assignment_value_expression_id(tree, *inner_pattern_id),
+        ast::Pattern::Wildcard
+        | ast::Pattern::Binding { pattern: None, .. }
+        | ast::Pattern::Expression { .. }
+        | ast::Pattern::TypeExpression { .. }
+        | ast::Pattern::Tuple { .. }
+        | ast::Pattern::TaggedTuple { .. }
+        | ast::Pattern::Array { .. }
+        | ast::Pattern::Object { .. }
+        | ast::Pattern::TaggedObject { .. }
+        | ast::Pattern::Union { .. } => None,
     }
 }
 
@@ -44,6 +82,7 @@ pub fn pattern_expression_id(
     let pattern = ctx.tree.get(pattern_id);
     match pattern {
         ast::Pattern::Expression { value } => Some(*value),
+        ast::Pattern::Assign { pattern, .. } => pattern_expression_id(ctx, *pattern),
         ast::Pattern::Binding {
             pattern: Some(inner_pattern_id),
             ..
@@ -69,6 +108,7 @@ pub fn pattern_matches_all(
     let pattern = ctx.tree.get(pattern_id);
     match pattern {
         ast::Pattern::Wildcard => true,
+        ast::Pattern::Assign { pattern, .. } => pattern_matches_all(ctx, *pattern),
         ast::Pattern::Binding { pattern, .. } => pattern
             .map(|inner_pattern_id| pattern_matches_all(ctx, inner_pattern_id))
             .unwrap_or(true),
@@ -90,6 +130,9 @@ pub fn pattern_is_underscore_binding_or_wildcard(
     // match wildcard and underscore bindings
     match pattern {
         ast::Pattern::Wildcard => true,
+        ast::Pattern::Assign { pattern, .. } => {
+            pattern_is_underscore_binding_or_wildcard(ctx, *pattern)
+        }
         ast::Pattern::Binding { name, .. } => ctx.strings.get(*name).starts_with('_'),
         _ => false,
     }

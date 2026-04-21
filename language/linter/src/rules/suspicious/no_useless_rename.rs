@@ -42,25 +42,14 @@ impl LintRule for NoUselessRename {
             for node_id in ctx.tree.iter_nodes::<ast::PatternField>() {
                 let field = ctx.tree.get(node_id);
 
-                // keep only alias fields with one identifier key
-                let ast::PatternField::Alias {
-                    mutability,
-                    name,
-                    alias,
-                    default,
-                } = field
+                // keep only expanded named fields with one identifier alias
+                let Some((mutability, name_id, default_expression_id)) =
+                    useless_destructuring_alias_parts(ctx, field)
                 else {
-                    continue;
-                };
-                let ast::Name::Identifier(name_id) = name else {
                     continue;
                 };
 
                 // enforce one identical alias pair
-                if *name_id != *alias {
-                    continue;
-                }
-
                 // resolve effective severity
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
@@ -68,7 +57,7 @@ impl LintRule for NoUselessRename {
                 }
 
                 // build one diagnostic message
-                let name_text: String = ctx.strings.get(*name_id).as_ref().to_string();
+                let name_text: String = ctx.strings.get(name_id).as_ref().to_string();
                 let field_span = ctx.tree.get_span(node_id);
                 let mut diagnostic = LintDiagnostic::new(
                     NO_USELESS_RENAME.id,
@@ -86,9 +75,9 @@ impl LintRule for NoUselessRename {
                     && let Some(fix) = useless_destructuring_rename_fix(
                         ctx,
                         field_span,
-                        *mutability,
+                        mutability,
                         name_text,
-                        *default,
+                        default_expression_id,
                     )
                 {
                     diagnostic = diagnostic.with_fix(fix);
@@ -173,6 +162,73 @@ impl LintRule for NoUselessRename {
                 ctx.report(diagnostic);
             }
         }
+    }
+}
+
+/// Return the shorthand-collapse parts for one destructuring rename.
+fn useless_destructuring_alias_parts(
+    ctx: &LintAstContext<'_>,
+    field: &ast::PatternField,
+) -> Option<(
+    Option<ast::Mutability>,
+    ast::StringId,
+    Option<ast::LocalNodeId<ast::Expression>>,
+)> {
+    let ast::PatternField::Named {
+        mutability,
+        name,
+        is_shorthand,
+        pattern: Some(pattern_id),
+    } = field
+    else {
+        return None;
+    };
+
+    if *is_shorthand {
+        return None;
+    }
+
+    let ast::Name::Identifier(name_id) = name else {
+        return None;
+    };
+
+    let Some((binding_name, default_expression_id)) =
+        destructuring_alias_pattern_parts(ctx, *pattern_id)
+    else {
+        return None;
+    };
+
+    if *name_id != binding_name {
+        return None;
+    }
+
+    Some((*mutability, *name_id, default_expression_id))
+}
+
+/// Return the nested binding name and default for one alias pattern.
+fn destructuring_alias_pattern_parts(
+    ctx: &LintAstContext<'_>,
+    pattern_id: ast::LocalNodeId<ast::Pattern>,
+) -> Option<(ast::StringId, Option<ast::LocalNodeId<ast::Expression>>)> {
+    match ctx.tree.get(pattern_id) {
+        ast::Pattern::Binding {
+            name,
+            pattern: None,
+            ..
+        } => Some((*name, None)),
+        ast::Pattern::Assign { pattern, value } => {
+            let ast::Pattern::Binding {
+                name,
+                pattern: None,
+                ..
+            } = ctx.tree.get(*pattern)
+            else {
+                return None;
+            };
+
+            Some((*name, Some(*value)))
+        }
+        _ => None,
     }
 }
 

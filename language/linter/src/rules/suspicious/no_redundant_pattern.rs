@@ -83,6 +83,9 @@ fn binds_anything(ctx: &LintAstContext<'_>, pattern_id: ast::LocalNodeId<ast::Pa
         // wildcard binds nothing
         ast::Pattern::Wildcard => false,
 
+        // assignment patterns bind through the wrapped pattern
+        ast::Pattern::Assign { pattern, .. } => binds_anything(ctx, *pattern),
+
         // binding always binds something
         ast::Pattern::Binding { .. } => true,
 
@@ -125,20 +128,13 @@ fn field_binds_anything(
             if pattern.is_none() {
                 return true;
             }
+
             // if there's a pattern, check if it binds
-            pattern.map(|p| binds_anything(ctx, p)).unwrap_or(true)
+            pattern.is_some_and(|pattern_id| binds_anything(ctx, pattern_id))
         }
 
         // computed fields bind if their nested pattern binds
-        ast::PatternField::Computed { pattern, .. } => {
-            pattern.map(|p| binds_anything(ctx, p)).unwrap_or(false)
-        }
-
-        // alias binds unless it's a wildcard
-        ast::PatternField::Alias { alias, .. } => {
-            let alias_name = ctx.strings.get(*alias);
-            alias_name != "_"
-        }
+        ast::PatternField::Computed { pattern, .. } => binds_anything(ctx, *pattern),
 
         // positional field binds if its pattern binds
         ast::PatternField::Positional { pattern, .. } => binds_anything(ctx, *pattern),
