@@ -5,10 +5,10 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, Argument, Block, Comment, Declaration, Declarator, Decorator, DecoratorPosition,
-    DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId,
-    MatchCase, Member, Node, NodeType, Parameter, Pattern, PatternField, Property, TupleElement,
-    TypeExpression, TypeMember, WhereClause,
+    Arena, Argument, AssignPattern, AssignPatternField, Block, Comment, Declaration, Declarator,
+    Decorator, DecoratorPosition, DependencyItem, EnumField, Expression, GenericArgument,
+    GenericParameter, LocalNodeId, MatchCase, Member, Node, NodeType, Parameter, Pattern,
+    PatternField, Property, TupleElement, TypeExpression, TypeMember, WhereClause,
 };
 
 /// Dense metadata for one global node id.
@@ -63,7 +63,9 @@ impl NodeIndexEntry {
             16 => NodeType::MatchCase,
             17 => NodeType::Pattern,
             18 => NodeType::PatternField,
-            19 => NodeType::Decorator,
+            19 => NodeType::AssignPattern,
+            20 => NodeType::AssignPatternField,
+            21 => NodeType::Decorator,
             _ => unreachable!("invalid node type tag in packed node index"),
         }
     }
@@ -113,6 +115,10 @@ pub struct NodeTreeMark {
     patterns_len: usize,
     /// The pattern field arena length.
     pattern_fields_len: usize,
+    /// The assign pattern arena length.
+    assign_patterns_len: usize,
+    /// The assign pattern field arena length.
+    assign_pattern_fields_len: usize,
     /// The comment arena length.
     comments_len: usize,
     /// The decorator arena length.
@@ -161,6 +167,8 @@ pub struct NodeTree {
     pub(crate) match_cases: Arena<MatchCase>,
     pub(crate) patterns: Arena<Pattern>,
     pub(crate) pattern_fields: Arena<PatternField>,
+    pub(crate) assign_patterns: Arena<AssignPattern>,
+    pub(crate) assign_pattern_fields: Arena<AssignPatternField>,
     pub(crate) comments: Vec<Comment>,
     pub(crate) decorators: Arena<Decorator>,
 }
@@ -216,6 +224,8 @@ impl NodeTree {
             match_cases: Arena::with(capacity / 16),
             patterns: Arena::with(capacity / 8),
             pattern_fields: Arena::with(capacity / 8),
+            assign_patterns: Arena::with(capacity / 8),
+            assign_pattern_fields: Arena::with(capacity / 8),
             comments: Vec::with_capacity(capacity / 16),
             decorators: Arena::with(capacity / 16),
         }
@@ -298,6 +308,8 @@ impl NodeTree {
             match_cases_len: self.match_cases.len(),
             patterns_len: self.patterns.len(),
             pattern_fields_len: self.pattern_fields.len(),
+            assign_patterns_len: self.assign_patterns.len(),
+            assign_pattern_fields_len: self.assign_pattern_fields.len(),
             comments_len: self.comments.len(),
             decorators_len: self.decorators.len(),
         }
@@ -331,6 +343,9 @@ impl NodeTree {
         self.match_cases.truncate(mark.match_cases_len);
         self.patterns.truncate(mark.patterns_len);
         self.pattern_fields.truncate(mark.pattern_fields_len);
+        self.assign_patterns.truncate(mark.assign_patterns_len);
+        self.assign_pattern_fields
+            .truncate(mark.assign_pattern_fields_len);
         self.comments.truncate(mark.comments_len);
         self.decorators.truncate(mark.decorators_len);
 
@@ -802,5 +817,7 @@ impl_node_tree_stores! {
     MatchCase => match_cases,
     Pattern => patterns,
     PatternField => pattern_fields,
+    AssignPattern => assign_patterns,
+    AssignPatternField => assign_pattern_fields,
     Decorator => decorators,
 }

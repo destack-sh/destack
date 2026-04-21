@@ -1,9 +1,10 @@
 use crate::{
-    Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField, Expression,
-    ForEachBinding, FunctionSignature, GenericArgument, GenericParameter, IfCondition,
-    ImportAliasTarget, ImportTarget, Key, LocalNodeId, LocalNodeIdAny, MatchCase, MatchSelector,
-    Member, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property,
-    TemplateLiteral, TupleElement, TypeExpression, TypeMember, WhereClause,
+    Argument, AssignPattern, AssignPatternField, Block, Declaration, Declarator, Decorator,
+    DependencyItem, EnumField, Expression, ForEachBinding, FunctionSignature, GenericArgument,
+    GenericParameter, IfCondition, ImportAliasTarget, ImportTarget, Key, LocalNodeId,
+    LocalNodeIdAny, MatchCase, MatchSelector, Member, NodeTree, NodeType, NodeVisitor, Parameter,
+    Pattern, PatternField, Property, TemplateLiteral, TupleElement, TypeExpression, TypeMember,
+    WhereClause,
 };
 
 /// Walk any node.
@@ -93,6 +94,19 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::PatternField => {
             let pattern_field = tree.pattern_fields.get(local_idx);
             walk_pattern_field(visitor, tree, LocalNodeId::new(node_id), pattern_field);
+        }
+        NodeType::AssignPattern => {
+            let assign_pattern = tree.assign_patterns.get(local_idx);
+            walk_assign_pattern(visitor, tree, LocalNodeId::new(node_id), assign_pattern);
+        }
+        NodeType::AssignPatternField => {
+            let assign_pattern_field = tree.assign_pattern_fields.get(local_idx);
+            walk_assign_pattern_field(
+                visitor,
+                tree,
+                LocalNodeId::new(node_id),
+                assign_pattern_field,
+            );
         }
         NodeType::MatchCase => {
             let match_case = tree.match_cases.get(local_idx);
@@ -200,6 +214,16 @@ pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, root
             let pattern_field_id = LocalNodeId::<PatternField>::new(root.id);
             let pattern_field = tree.get(pattern_field_id);
             visitor.visit_pattern_field(tree, pattern_field_id, pattern_field);
+        }
+        NodeType::AssignPattern => {
+            let assign_pattern_id = LocalNodeId::<AssignPattern>::new(root.id);
+            let assign_pattern = tree.get(assign_pattern_id);
+            visitor.visit_assign_pattern(tree, assign_pattern_id, assign_pattern);
+        }
+        NodeType::AssignPatternField => {
+            let assign_pattern_field_id = LocalNodeId::<AssignPatternField>::new(root.id);
+            let assign_pattern_field = tree.get(assign_pattern_field_id);
+            visitor.visit_assign_pattern_field(tree, assign_pattern_field_id, assign_pattern_field);
         }
         NodeType::Declarator => {
             let declarator_id = LocalNodeId::<Declarator>::new(root.id);
@@ -1131,8 +1155,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             operator: _,
             right,
         } => {
-            let left_expr = tree.get(*left);
-            visitor.visit_expression(tree, *left, left_expr);
+            let left_pattern = tree.get(*left);
+            visitor.visit_assign_pattern(tree, *left, left_pattern);
             let right_expr = tree.get(*right);
             visitor.visit_expression(tree, *right, right_expr);
         }
@@ -1835,6 +1859,79 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
         }
         PatternField::Elision => {
             // nothing to visit
+        }
+    }
+}
+
+/// Walk the AssignPattern.
+pub fn walk_assign_pattern<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: LocalNodeId<AssignPattern>,
+    assign_pattern: &AssignPattern,
+) {
+    visitor.visit_any(tree, NodeType::AssignPattern, id.id);
+
+    match assign_pattern {
+        AssignPattern::Expression { value } => {
+            let value_expression = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expression);
+        }
+        AssignPattern::Assign { pattern, value } => {
+            let pattern_node = tree.get(*pattern);
+            visitor.visit_assign_pattern(tree, *pattern, pattern_node);
+
+            let value_expression = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expression);
+        }
+        AssignPattern::Array { fields } | AssignPattern::Object { fields } => {
+            for field_id in fields {
+                let field = tree.get(*field_id);
+                visitor.visit_assign_pattern_field(tree, *field_id, field);
+            }
+        }
+    }
+}
+
+/// Walk the AssignPatternField.
+pub fn walk_assign_pattern_field<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: LocalNodeId<AssignPatternField>,
+    assign_pattern_field: &AssignPatternField,
+) {
+    visitor.visit_any(tree, NodeType::AssignPatternField, id.id);
+
+    match assign_pattern_field {
+        AssignPatternField::Named {
+            name: _,
+            is_shorthand: _,
+            pattern,
+        } => {
+            if let Some(pattern_id) = pattern {
+                let pattern_node = tree.get(*pattern_id);
+                visitor.visit_assign_pattern(tree, *pattern_id, pattern_node);
+            }
+        }
+        AssignPatternField::Computed { key, pattern } => {
+            let key_expression = tree.get(*key);
+            visitor.visit_expression(tree, *key, key_expression);
+
+            let pattern_node = tree.get(*pattern);
+            visitor.visit_assign_pattern(tree, *pattern, pattern_node);
+        }
+        AssignPatternField::Positional { pattern } => {
+            let pattern_node = tree.get(*pattern);
+            visitor.visit_assign_pattern(tree, *pattern, pattern_node);
+        }
+        AssignPatternField::Spread { pattern } => {
+            if let Some(pattern_id) = pattern {
+                let pattern_node = tree.get(*pattern_id);
+                visitor.visit_assign_pattern(tree, *pattern_id, pattern_node);
+            }
+        }
+        AssignPatternField::Elision => {
+            // no child nodes to visit
         }
     }
 }

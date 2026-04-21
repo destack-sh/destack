@@ -2,11 +2,11 @@ use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Ambientness, Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
-    Declarator, DependencyItem, DependencyKind, ExportMode, GenericArgument, ImportAttributeClause,
-    ImportSource, ImportTarget, Keyword, LocalNodeId, MatchCase, MatchKind, Mutability, Node,
-    NodeType, Path, Pattern, Property, ScalarLiteral, TemplateLiteral, TypeExpression,
-    UnaryOperator,
+    Ambientness, Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block,
+    Declaration, Declarator, DependencyItem, DependencyKind, ExportMode, GenericArgument,
+    ImportAttributeClause, ImportSource, ImportTarget, Keyword, LocalNodeId, MatchCase, MatchKind,
+    Mutability, Node, NodeType, Path, Pattern, Property, ScalarLiteral, TemplateLiteral,
+    TypeExpression, UnaryOperator,
 };
 
 // NOTE #Performance: reduce Expression size to <=64B
@@ -748,10 +748,9 @@ pub enum Expression {
         right: LocalNodeId<Expression>,
     },
 
-    // FUGU #Incomplete: pattern assign expression (without let, see JS/TS)
     /// Assignment operation.
     Assign {
-        left: LocalNodeId<Expression>,
+        left: LocalNodeId<AssignPattern>,
         operator: AssignOperator,
         right: LocalNodeId<Expression>,
     },

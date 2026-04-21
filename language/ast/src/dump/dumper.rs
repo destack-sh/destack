@@ -1943,6 +1943,71 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
+    fn visit_assign_pattern(
+        &mut self,
+        _tree: &NodeTree,
+        _id: LocalNodeId<AssignPattern>,
+        assign_pattern: &AssignPattern,
+    ) {
+        match assign_pattern {
+            AssignPattern::Expression { value: _ } => {
+                self.node("AssignPattern::Expression", _id.id).end();
+            }
+            AssignPattern::Assign {
+                pattern: _,
+                value: _,
+            } => {
+                self.node("AssignPattern::Assign", _id.id).end();
+            }
+            AssignPattern::Array { fields: _ } => {
+                self.node("AssignPattern::Array", _id.id).end();
+            }
+            AssignPattern::Object { fields: _ } => {
+                self.node("AssignPattern::Object", _id.id).end();
+            }
+        }
+
+        self.with_depth(|dumper| {
+            walk_assign_pattern(dumper, _tree, _id, assign_pattern);
+        });
+    }
+
+    fn visit_assign_pattern_field(
+        &mut self,
+        _tree: &NodeTree,
+        _id: LocalNodeId<AssignPatternField>,
+        assign_pattern_field: &AssignPatternField,
+    ) {
+        match assign_pattern_field {
+            AssignPatternField::Named {
+                name,
+                is_shorthand,
+                pattern: _,
+            } => {
+                self.node("AssignPatternField::Named", _id.id)
+                    .field("name", name)
+                    .field("is_shorthand", is_shorthand)
+                    .end();
+            }
+            AssignPatternField::Computed { key: _, pattern: _ } => {
+                self.node("AssignPatternField::Computed", _id.id).end();
+            }
+            AssignPatternField::Positional { pattern: _ } => {
+                self.node("AssignPatternField::Positional", _id.id).end();
+            }
+            AssignPatternField::Spread { pattern: _ } => {
+                self.node("AssignPatternField::Spread", _id.id).end();
+            }
+            AssignPatternField::Elision => {
+                self.node("AssignPatternField::Elision", _id.id).end();
+            }
+        }
+
+        self.with_depth(|dumper| {
+            walk_assign_pattern_field(dumper, _tree, _id, assign_pattern_field);
+        });
+    }
+
     fn visit_decorator(
         &mut self,
         _tree: &NodeTree,
