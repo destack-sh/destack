@@ -92,6 +92,31 @@ impl Compiler {
         self.set_never_expression_type(state.types, state.ctx.module_id, expression_id);
     }
 
+    /// Insert one assignment pattern that targets one expression.
+    pub(crate) fn insert_expression_assign_pattern(
+        &self,
+        state: &mut ElaborateState<'_>,
+        origin_id: LocalNodeIdAny,
+        scope: dir::LocalScope,
+        parent_id: LocalNodeIdAny,
+        expression_id: LocalNodeId<Expression>,
+    ) -> LocalNodeId<dir::AssignPattern> {
+        let assign_pattern_id = state.tree.reserve_from(
+            NodeType::AssignPattern,
+            origin_id,
+            scope,
+            Some(parent_id),
+            Some(dir::ProvenanceReason::Elaborated),
+        );
+
+        state.tree.insert_as_owner(
+            assign_pattern_id,
+            dir::AssignPattern::Expression {
+                value: expression_id,
+            },
+        )
+    }
+
     /// Replace one expression with an explicit assignment expression.
     pub(crate) fn replace_expression_with_explicit_assignment(
         &self,
@@ -104,12 +129,19 @@ impl Compiler {
         let original_expression = state.tree.get(expression_id).clone();
         let value_id =
             self.clone_expression_with_analysis(state, expression_id, &original_expression, scope);
+        let left = self.insert_expression_assign_pattern(
+            state,
+            expression_id.into_any(),
+            scope,
+            expression_id.into_any(),
+            target,
+        );
 
         // replace the original expression with an explicit assignment
         state.tree.replace(
             expression_id,
             Expression::Assign {
-                left: target,
+                left,
                 right: value_id,
             },
         );

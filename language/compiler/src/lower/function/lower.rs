@@ -693,9 +693,11 @@ impl<'a> FunctionLowerer<'a> {
     fn lower_assign_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        left: dir::LocalNodeId<dir::Expression>,
+        left: dir::LocalNodeId<dir::AssignPattern>,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        let left = self.assign_pattern_target_expression(left)?;
+
         // lower the assigned value
         let (value, value_type) = self.lower_value_expression(right)?;
 
@@ -820,6 +822,35 @@ impl<'a> FunctionLowerer<'a> {
         }
 
         Ok((value, value_type))
+    }
+
+    /// Return one simple expression target from one assignment pattern.
+    fn assign_pattern_target_expression(
+        &self,
+        mut assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
+    ) -> LowerResult<dir::LocalNodeId<dir::Expression>> {
+        loop {
+            let assign_pattern = self.context.dir_tree.get(assign_pattern_id);
+
+            // keep direct expression targets
+            if let dir::AssignPattern::Expression { value } = assign_pattern {
+                return Ok(*value);
+            }
+
+            // unwrap defaulted targets before checking the base
+            if let dir::AssignPattern::Assign { pattern, .. } = assign_pattern {
+                assign_pattern_id = *pattern;
+                continue;
+            }
+
+            // MIR lowering does not yet support destructuring assignment
+            return Err(LowerError::UnsupportedConstruct {
+                node: assign_pattern_id
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
+                message: "destructuring assignment is not supported in MIR lowering".to_string(),
+            });
+        }
     }
 
     /// Lower a unary expression.

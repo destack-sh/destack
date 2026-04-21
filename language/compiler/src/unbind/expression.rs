@@ -68,6 +68,244 @@ impl Compiler {
         ast_argument_id
     }
 
+    /// Unbind one DIR assignment pattern to an AST assignment pattern.
+    #[allow(clippy::too_many_arguments)]
+    fn unbind_assign_pattern(
+        &self,
+        module: &Module,
+        assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
+        tree: &dir::NodeTree,
+        symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
+        ast_tree: &mut ast::NodeTree,
+        ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
+    ) -> ast::LocalNodeId<ast::AssignPattern> {
+        let assign_pattern = tree.get(assign_pattern_id);
+        let span = self.unbind_span(module, assign_pattern_id.into());
+
+        let ast_assign_pattern = match assign_pattern {
+            dir::AssignPattern::Expression { value } => {
+                let value = self.unbind_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+
+                ast::AssignPattern::Expression { value }
+            }
+            dir::AssignPattern::Assign { pattern, value } => {
+                let pattern = self.unbind_assign_pattern(
+                    module,
+                    *pattern,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+                let value = self.unbind_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+
+                ast::AssignPattern::Assign { pattern, value }
+            }
+            dir::AssignPattern::Array { fields } => {
+                let fields = fields
+                    .iter()
+                    .map(|field_id| {
+                        self.unbind_assign_pattern_field(
+                            module,
+                            *field_id,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+
+                ast::AssignPattern::Array { fields }
+            }
+            dir::AssignPattern::Object { fields } => {
+                let fields = fields
+                    .iter()
+                    .map(|field_id| {
+                        self.unbind_assign_pattern_field(
+                            module,
+                            *field_id,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+
+                ast::AssignPattern::Object { fields }
+            }
+        };
+
+        let ast_assign_pattern_id = ast_tree.insert(ast_assign_pattern, span);
+        context.map(
+            assign_pattern_id.into_any(),
+            ast_assign_pattern_id.into_any(),
+        );
+        ast_assign_pattern_id
+    }
+
+    /// Unbind one DIR assignment pattern field to an AST assignment pattern field.
+    #[allow(clippy::too_many_arguments)]
+    fn unbind_assign_pattern_field(
+        &self,
+        module: &Module,
+        assign_pattern_field_id: dir::LocalNodeId<dir::AssignPatternField>,
+        tree: &dir::NodeTree,
+        symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
+        ast_tree: &mut ast::NodeTree,
+        ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
+    ) -> ast::LocalNodeId<ast::AssignPatternField> {
+        let assign_pattern_field = tree.get(assign_pattern_field_id);
+        let span = self.unbind_span(module, assign_pattern_field_id.into());
+
+        let ast_assign_pattern_field = match assign_pattern_field {
+            dir::AssignPatternField::Named {
+                name,
+                is_shorthand,
+                pattern,
+            } => {
+                let name = self.unbind_name(ast_strings, *name);
+                let pattern = pattern.map(|pattern_id| {
+                    self.unbind_assign_pattern(
+                        module,
+                        pattern_id,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+
+                ast::AssignPatternField::Named {
+                    name,
+                    is_shorthand: *is_shorthand,
+                    pattern,
+                }
+            }
+            dir::AssignPatternField::Computed { key, pattern } => {
+                let key = self.unbind_expression(
+                    module,
+                    *key,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+                let pattern = self.unbind_assign_pattern(
+                    module,
+                    *pattern,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+
+                ast::AssignPatternField::Computed { key, pattern }
+            }
+            dir::AssignPatternField::Positional { pattern } => {
+                let pattern = self.unbind_assign_pattern(
+                    module,
+                    *pattern,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+
+                ast::AssignPatternField::Positional { pattern }
+            }
+            dir::AssignPatternField::Spread { pattern } => {
+                let pattern = pattern.map(|pattern_id| {
+                    self.unbind_assign_pattern(
+                        module,
+                        pattern_id,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+
+                ast::AssignPatternField::Spread { pattern }
+            }
+            dir::AssignPatternField::Elision => ast::AssignPatternField::Elision,
+        };
+
+        let ast_assign_pattern_field_id = ast_tree.insert(ast_assign_pattern_field, span);
+        context.map(
+            assign_pattern_field_id.into_any(),
+            ast_assign_pattern_field_id.into_any(),
+        );
+        ast_assign_pattern_field_id
+    }
+
+    /// Unbind one simple expression target into an AST assignment pattern.
+    #[allow(clippy::too_many_arguments)]
+    fn unbind_expression_assign_pattern(
+        &self,
+        module: &Module,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        tree: &dir::NodeTree,
+        symbols: &dir::SymbolTable,
+        types: &dir::TypeTable,
+        ast_tree: &mut ast::NodeTree,
+        ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
+    ) -> ast::LocalNodeId<ast::AssignPattern> {
+        let value = self.unbind_expression(
+            module,
+            expression_id,
+            tree,
+            symbols,
+            types,
+            ast_tree,
+            ast_strings,
+            context,
+        );
+        let span = self.unbind_span(module, expression_id.into());
+
+        ast_tree.insert(ast::AssignPattern::Expression { value }, span)
+    }
+
     destack_core::ensure_sufficient_stack! {
         /// Unbind a DIR expression to an AST expression.
         #[allow(clippy::too_many_arguments)]
@@ -472,13 +710,31 @@ impl Compiler {
                 }
 
                 dir::Expression::Assign { left, right } => {
-                    let left = self.unbind_expression(module, *left, tree, symbols, types, ast_tree, ast_strings, context);
+                    let left = self.unbind_assign_pattern(
+                        module,
+                        *left,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    );
                     let right = self.unbind_expression(module, *right, tree, symbols, types, ast_tree, ast_strings, context);
                     ast::Expression::Assign { left, operator: ast::AssignOperator::Assign, right }
                 }
 
                 dir::Expression::AssignBinary { left, operator, right } => {
-                    let left = self.unbind_expression(module, *left, tree, symbols, types, ast_tree, ast_strings, context);
+                    let left = self.unbind_expression_assign_pattern(
+                        module,
+                        *left,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    );
                     let operator = self.unbind_assign_operator(context, *operator);
                     let right = self.unbind_expression(module, *right, tree, symbols, types, ast_tree, ast_strings, context);
                     ast::Expression::Assign { left, operator, right }

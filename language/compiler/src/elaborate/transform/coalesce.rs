@@ -25,6 +25,70 @@ struct CoalesceBindingState {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Normalize nested coalesce expressions inside one assignment pattern.
+    fn normalize_nested_coalesce_in_assign_pattern(
+        &self,
+        state: &mut ElaborateState<'_>,
+        scope: dir::LocalScope,
+        assign_pattern_id: LocalNodeId<dir::AssignPattern>,
+    ) -> ElaborateResult<bool> {
+        let assign_pattern = state.tree.get(assign_pattern_id).clone();
+        let mut modified = false;
+
+        match assign_pattern {
+            dir::AssignPattern::Expression { value } => {
+                modified |= self.normalize_nested_coalesce_in_expression(state, scope, value)?;
+            }
+            dir::AssignPattern::Assign { pattern, value } => {
+                modified |=
+                    self.normalize_nested_coalesce_in_assign_pattern(state, scope, pattern)?;
+                modified |= self.normalize_nested_coalesce_in_expression(state, scope, value)?;
+            }
+            dir::AssignPattern::Array { fields } | dir::AssignPattern::Object { fields } => {
+                for field_id in fields {
+                    modified |= self.normalize_nested_coalesce_in_assign_pattern_field(
+                        state, scope, field_id,
+                    )?;
+                }
+            }
+        }
+
+        Ok(modified)
+    }
+
+    /// Normalize nested coalesce expressions inside one assignment pattern field.
+    fn normalize_nested_coalesce_in_assign_pattern_field(
+        &self,
+        state: &mut ElaborateState<'_>,
+        scope: dir::LocalScope,
+        assign_pattern_field_id: LocalNodeId<dir::AssignPatternField>,
+    ) -> ElaborateResult<bool> {
+        let assign_pattern_field = state.tree.get(assign_pattern_field_id).clone();
+        let mut modified = false;
+
+        match assign_pattern_field {
+            dir::AssignPatternField::Named { pattern, .. }
+            | dir::AssignPatternField::Spread { pattern } => {
+                if let Some(pattern_id) = pattern {
+                    modified |=
+                        self.normalize_nested_coalesce_in_assign_pattern(state, scope, pattern_id)?;
+                }
+            }
+            dir::AssignPatternField::Computed { key, pattern } => {
+                modified |= self.normalize_nested_coalesce_in_expression(state, scope, key)?;
+                modified |=
+                    self.normalize_nested_coalesce_in_assign_pattern(state, scope, pattern)?;
+            }
+            dir::AssignPatternField::Positional { pattern } => {
+                modified |=
+                    self.normalize_nested_coalesce_in_assign_pattern(state, scope, pattern)?;
+            }
+            dir::AssignPatternField::Elision => {}
+        }
+
+        Ok(modified)
+    }
+
     /// Normalize nullish coalescing in one let initializer.
     pub(super) fn normalize_coalesce_in_let(
         &self,
@@ -212,7 +276,7 @@ impl Compiler {
                 modified |= self.normalize_nested_coalesce_in_expression(state, scope, value)?;
             }
             Expression::Assign { left, right } => {
-                modified |= self.normalize_nested_coalesce_in_expression(state, scope, left)?;
+                modified |= self.normalize_nested_coalesce_in_assign_pattern(state, scope, left)?;
                 modified |= self.normalize_nested_coalesce_in_expression(state, scope, right)?;
             }
             Expression::Index { left, right } => {

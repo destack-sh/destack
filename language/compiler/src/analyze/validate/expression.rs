@@ -2,12 +2,12 @@ use crate::analyze::common::{NormalizationMode, RelationMode, TypeContext};
 use crate::{AnalyzeError, AnalyzeOptions, Compiler};
 use destack_ast::Keyword;
 use destack_dir::{
-    Ambientness, Argument, Asynchrony, BinaryOperator, Declaration, Declarator, DependencyItem,
-    DependencyKind, DependencyMode, Expression, ForEachBinding, ForEachKind, GlobalSymbolId,
-    ImportSource, Key, LocalNodeId, LocalNodeIdAny, MatchCase, MatchKind, MatchSelector, Member,
-    Mutability, NodeTree, NodeType, Parameter, Path, Pattern, PatternField, Property,
-    RuntimeCheckKind, ScalarLiteral, StringId, SymbolType, TemplateLiteral, Type, TypeExpression,
-    TypeLiteral, UnaryOperator, WhereClause,
+    Ambientness, Argument, AssignPattern, AssignPatternField, Asynchrony, BinaryOperator,
+    Declaration, Declarator, DependencyItem, DependencyKind, DependencyMode, Expression,
+    ForEachBinding, ForEachKind, GlobalSymbolId, ImportSource, Key, LocalNodeId, LocalNodeIdAny,
+    MatchCase, MatchKind, MatchSelector, Member, Mutability, NodeTree, NodeType, Parameter, Path,
+    Pattern, PatternField, Property, RuntimeCheckKind, ScalarLiteral, StringId, SymbolType,
+    TemplateLiteral, Type, TypeExpression, TypeLiteral, UnaryOperator, WhereClause,
 };
 use std::str::FromStr;
 
@@ -2016,6 +2016,58 @@ impl Compiler {
                 .into_global_any(ctx.module.id)
                 .into_anchored(Some(ctx.profile));
             self.error(AnalyzeError::ReservedIdentifier { node, name });
+        }
+    }
+
+    /// Validate one assignment pattern target recursively.
+    pub(crate) fn validate_assign_pattern_target(
+        &self,
+        ctx: &TypeContext<'_>,
+        assign_pattern_id: LocalNodeId<AssignPattern>,
+        is_strict: bool,
+    ) {
+        let assign_pattern = ctx.tree.get(assign_pattern_id);
+
+        match assign_pattern {
+            // direct expression targets use the normal assignment validator
+            AssignPattern::Expression { value } => {
+                self.validate_assignment_target(ctx, *value, is_strict);
+            }
+
+            // defaulted targets validate their base target
+            AssignPattern::Assign { pattern, .. } => {
+                self.validate_assign_pattern_target(ctx, *pattern, is_strict);
+            }
+
+            // destructuring targets validate nested child targets
+            AssignPattern::Array { fields } | AssignPattern::Object { fields } => {
+                for field_id in fields {
+                    self.validate_assign_pattern_field_target(ctx, *field_id, is_strict);
+                }
+            }
+        }
+    }
+
+    /// Validate one assignment pattern field recursively.
+    fn validate_assign_pattern_field_target(
+        &self,
+        ctx: &TypeContext<'_>,
+        assign_pattern_field_id: LocalNodeId<AssignPatternField>,
+        is_strict: bool,
+    ) {
+        let assign_pattern_field = ctx.tree.get(assign_pattern_field_id);
+
+        match assign_pattern_field {
+            AssignPatternField::Named { pattern, .. } | AssignPatternField::Spread { pattern } => {
+                if let Some(pattern_id) = pattern {
+                    self.validate_assign_pattern_target(ctx, *pattern_id, is_strict);
+                }
+            }
+            AssignPatternField::Computed { pattern, .. }
+            | AssignPatternField::Positional { pattern } => {
+                self.validate_assign_pattern_target(ctx, *pattern, is_strict);
+            }
+            AssignPatternField::Elision => {}
         }
     }
 

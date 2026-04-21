@@ -82,7 +82,10 @@ impl Compiler {
         let is_strict = ctx.module.source_type.is_module() || ctx.options.always_strict;
 
         match expression {
-            Expression::Assign { left, .. } | Expression::AssignBinary { left, .. } => {
+            Expression::Assign { left, .. } => {
+                self.validate_assign_pattern_target(&ctx.reborrow(), *left, is_strict);
+            }
+            Expression::AssignBinary { left, .. } => {
                 self.validate_assignment_target(&ctx.reborrow(), *left, is_strict);
             }
             Expression::Super => {
