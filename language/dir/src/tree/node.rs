@@ -29,6 +29,8 @@ pub enum NodeType {
     MatchCase,
     Pattern,
     PatternField,
+    AssignPattern,
+    AssignPatternField,
     Decorator,
 }
 
@@ -56,6 +58,8 @@ impl NodeType {
             NodeType::MatchCase => "match case",
             NodeType::Pattern => "pattern",
             NodeType::PatternField => "pattern field",
+            NodeType::AssignPattern => "assign pattern",
+            NodeType::AssignPatternField => "assign pattern field",
             NodeType::Decorator => "decorator",
         }
     }
