@@ -117,6 +117,9 @@ pub fn collect_pattern_value_binding_symbols(
         dir::Pattern::Wildcard
         | dir::Pattern::Expression { .. }
         | dir::Pattern::TypeExpression { .. } => {}
+        dir::Pattern::Assign { pattern, .. } => {
+            collect_pattern_value_binding_symbols(tree, symbols, *pattern, bindings);
+        }
         dir::Pattern::Must(inner)
         | dir::Pattern::ReferenceOf { right: inner, .. }
         | dir::Pattern::ValueOf { right: inner, .. } => {
@@ -160,17 +163,18 @@ pub fn collect_pattern_field_value_binding_symbols(
 
     // recurse into nested field patterns
     match field {
-        dir::PatternField::Named { pattern, .. }
-        | dir::PatternField::Computed { pattern, .. }
-        | dir::PatternField::Spread { pattern, .. } => {
+        dir::PatternField::Named { pattern, .. } | dir::PatternField::Spread { pattern, .. } => {
             if let Some(pattern_id) = pattern {
                 collect_pattern_value_binding_symbols(tree, symbols, *pattern_id, bindings);
             }
         }
+        dir::PatternField::Computed { pattern, .. } => {
+            collect_pattern_value_binding_symbols(tree, symbols, *pattern, bindings);
+        }
         dir::PatternField::Positional { pattern, .. } => {
             collect_pattern_value_binding_symbols(tree, symbols, *pattern, bindings);
         }
-        dir::PatternField::Alias { .. } | dir::PatternField::Elision => {}
+        dir::PatternField::Elision => {}
     }
 }
 

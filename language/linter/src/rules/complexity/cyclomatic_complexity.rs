@@ -277,7 +277,7 @@ impl NodeVisitor for ComplexityVisitor {
         pattern_field: &PatternField,
     ) {
         // defaulted destructuring fields are assignment-pattern branches
-        if pattern_field_default_expression_id(pattern_field).is_some() {
+        if pattern_field_default_expression_id(tree, pattern_field).is_some() {
             self.complexity += 1;
         }
 

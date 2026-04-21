@@ -288,9 +288,11 @@ fn collect_occupied_names(ctx: &LintAstContext<'_>) -> HashSet<String> {
                 if pattern.is_none() {
                     names.insert(ctx.strings.get(name.string()).to_string());
                 }
-            }
-            ast::PatternField::Alias { alias, .. } => {
-                names.insert(ctx.strings.get(*alias).to_string());
+                else if let Some(pattern_id) = pattern
+                    && let Some(binding_name) = named_pattern_field_binding_name(ctx, *pattern_id)
+                {
+                    names.insert(ctx.strings.get(binding_name).to_string());
+                }
             }
             _ => {}
         }
@@ -309,6 +311,18 @@ fn collect_occupied_names(ctx: &LintAstContext<'_>) -> HashSet<String> {
     }
 
     names
+}
+
+/// Return the binding name introduced by one nested named field pattern.
+fn named_pattern_field_binding_name(
+    ctx: &LintAstContext<'_>,
+    pattern_id: ast::LocalNodeId<ast::Pattern>,
+) -> Option<ast::StringId> {
+    match ctx.tree.get(pattern_id) {
+        ast::Pattern::Binding { name, .. } => Some(*name),
+        ast::Pattern::Assign { pattern, .. } => named_pattern_field_binding_name(ctx, *pattern),
+        _ => None,
+    }
 }
 
 #[cfg(test)]

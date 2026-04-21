@@ -1739,16 +1739,6 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
             ast::PatternField::Computed { mutability, .. } => {
                 self.push_debug_optional("pattern_field_mutability", *mutability);
             }
-            ast::PatternField::Alias {
-                mutability,
-                name,
-                alias,
-                ..
-            } => {
-                self.push_debug_optional("pattern_field_mutability", *mutability);
-                self.push_name("pattern_field_name", *name);
-                self.push_identifier_id("pattern_field_alias", *alias);
-            }
             ast::PatternField::Positional { .. } | ast::PatternField::Elision => {}
             ast::PatternField::Spread { mutability, .. } => {
                 self.push_debug_optional("pattern_field_mutability", *mutability);
