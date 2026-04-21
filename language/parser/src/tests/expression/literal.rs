@@ -93,7 +93,7 @@ fn test_parse_statement_position_object_literal_with_comment() {
     let expr_id = parser.eat_expression(parser.options).unwrap();
     assert_node!(parser.tree, expr_id, Expression::ObjectExpression { ty: None, properties, .. } => {
         assert_eq!(properties.len(), 1);
-        assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+        assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
             assert_string!(parser, *name, "a");
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
@@ -109,9 +109,61 @@ fn test_parse_statement_position_object_literal_computed_key() {
     let expr_id = parser.eat_expression(parser.options.in_type()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::ObjectExpression { ty: None, properties, .. } => {
         assert_eq!(properties.len(), 1);
-        assert_node!(parser.tree, properties[0], Property::Field { key: Key::Expression(key_id), value } => {
+        assert_node!(parser.tree, properties[0], Property::Field { key: Key::Expression(key_id), value, .. } => {
             assert_expression_path!(parser, parser.tree.get(*key_id), "key");
             assert_expression_path!(parser, parser.tree.get(*value), "value");
+        });
+    });
+}
+
+/// Parse a parenthesized object literal shorthand field.
+#[test]
+fn test_parse_parenthesized_object_literal_shorthand_field() {
+    let mut test = TestParser::new("({ value })");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+    assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
+        assert_node!(parser.tree, *expression, Expression::ObjectExpression { ty: None, properties, .. } => {
+            assert_eq!(properties.len(), 1);
+            assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
+                assert_string!(parser, *name, "value");
+                assert!(*is_shorthand);
+                assert_expression_path!(parser, parser.tree.get(*value), "value");
+            });
+        });
+    });
+}
+
+/// Parse a parenthesized object literal explicit field.
+#[test]
+fn test_parse_parenthesized_object_literal_explicit_field_is_not_shorthand() {
+    let mut test = TestParser::new("({ value: value })");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+    assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
+        assert_node!(parser.tree, *expression, Expression::ObjectExpression { ty: None, properties, .. } => {
+            assert_eq!(properties.len(), 1);
+            assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
+                assert_string!(parser, *name, "value");
+                assert!(!*is_shorthand);
+                assert_expression_path!(parser, parser.tree.get(*value), "value");
+            });
+        });
+    });
+}
+
+/// Recover a parenthesized object literal computed field without a value.
+#[test]
+fn test_parse_parenthesized_object_literal_computed_field_without_value() {
+    let mut test = TestParser::new("({ [value] })");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_eq!(parser.errors.len(), 1);
+    assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
+        assert_node!(parser.tree, *expression, Expression::ObjectExpression { ty: None, properties, .. } => {
+            assert_eq!(properties.len(), 1);
+            assert_node!(parser.tree, properties[0], Property::Error);
         });
     });
 }
@@ -188,11 +240,11 @@ fn test_parse_object_literal_in_parenthesis() {
     assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
         assert_node!(parser.tree, *expression, Expression::ObjectExpression { ty: None, properties, .. } => {
             assert_eq!(properties.len(), 2);
-            assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+            assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
                 assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
-            assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+            assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
                 assert_string!(parser, *name, "y");
                 assert_expression_path!(parser, parser.tree.get(*value), "y");
             });
@@ -266,13 +318,13 @@ fn test_parse_struct_literal_path() {
                 assert_path!(parser, *path, "geom.Vector2");
             });
             assert_eq!(properties.len(), 2);
-            assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+            assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
                 assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(val)) => {
                     assert_eq!(*val, 1);
                 });
             });
-            assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+            assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
                 assert_string!(parser, *name, "y");
                 assert_expression_path!(parser, parser.tree.get(*value), "y");
             });
@@ -305,11 +357,11 @@ geom.Mesh<2, 4> {
                 assert_eq!(generic_arguments.len(), 2);
             });
             assert_eq!(properties.len(), 2);
-            assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+            assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
                 assert_string!(parser, *name, "vertices");
                 assert_node!(parser.tree, *value, Expression::ArrayExpression { .. });
             });
-            assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+            assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
                 assert_string!(parser, *name, "y");
                 assert_expression_path!(parser, parser.tree.get(*value), "y");
             });
@@ -332,14 +384,14 @@ fn test_parse_object_boolean_identifier_name_keys() {
     assert_node!(parser.tree, expr_id, Expression::ObjectExpression { properties, .. } => {
         assert_eq!(properties.len(), 4);
 
-        assert_node!(parser.tree, properties[0], Property::Field { key, value } => {
+        assert_node!(parser.tree, properties[0], Property::Field { key, value, .. } => {
             assert_node!(key, Key::Name(Name::Identifier(name)) => {
                 assert_string!(parser, *name, "true");
             });
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
 
-        assert_node!(parser.tree, properties[1], Property::Field { key, value } => {
+        assert_node!(parser.tree, properties[1], Property::Field { key, value, .. } => {
             assert_node!(key, Key::Name(Name::Identifier(name)) => {
                 assert_string!(parser, *name, "false");
             });
@@ -375,7 +427,7 @@ fn test_parse_object_literal_with_typed_arrow_value() {
     let expr_id = parser.eat_expression(parser.options).unwrap();
     assert_node!(parser.tree, expr_id, Expression::ObjectExpression { properties, .. } => {
         assert_eq!(properties.len(), 1);
-        assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+        assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
             assert_string!(parser, *name, "reproFunc");
             assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(_), .. }) => {

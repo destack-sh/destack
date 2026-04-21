@@ -996,13 +996,6 @@ impl Parser {
             |parser| parser.eat_properties(),
         )?;
 
-        // typed and untyped object shorthand only supports identifier names
-        if (self.language.is_javascript() || self.language.is_typescript())
-            && !self.options.is_in_type()
-        {
-            self.validate_object_literal_shorthand_keys(&properties)?;
-        }
-
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Expression)?;
         Ok(properties)
     }
@@ -1474,35 +1467,6 @@ impl Parser {
         Ok(self.insert_node(expression, self.get_span_from(&start)))
     }
 
-    /// Validate shorthand object literal keys in typed and untyped object forms.
-    fn validate_object_literal_shorthand_keys(
-        &self,
-        properties: &[LocalNodeId<Property>],
-    ) -> ParseResult<()> {
-        for property_id in properties {
-            let property = self.tree.get(*property_id);
-            let Property::Field { key, value } = property else {
-                continue;
-            };
-
-            // fields with explicit values are always valid
-            let is_identifier_shorthand = matches!(
-                (key, self.tree.get(*value)),
-                (
-                    destack_ast::Key::Name(destack_ast::Name::Identifier(key_name)),
-                    Expression::Identifier { name: value_name },
-                ) if key_name == value_name
-            );
-            if !is_identifier_shorthand {
-                continue;
-            }
-
-            continue;
-        }
-
-        Ok(())
-    }
-
     /// Return true when a tree literal path combines namespace and member syntax.
     pub(crate) fn tree_literal_path_has_namespace_member(&self, path: &Path) -> bool {
         if path.segments.len() <= 1 {
@@ -1600,7 +1564,7 @@ mod tests {
         assert_eq!(parser.errors.len(), 1);
         assert_eq!(properties.len(), 1);
 
-        assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+        assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
             assert_string!(parser, *name, "foo");
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
@@ -2931,7 +2895,7 @@ mod tests {
 
                 assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
                     assert_eq!(properties.len(), 1);
-                    assert_node!(parser.tree, properties[0], destack_ast::Property::Field { key: destack_ast::Key::Name(Name::Identifier(key_name)), value: callback } => {
+                    assert_node!(parser.tree, properties[0], destack_ast::Property::Field { key: destack_ast::Key::Name(Name::Identifier(key_name)), value: callback, .. } => {
                         assert_string!(parser, *key_name, "resend");
                         assert_node!(parser.tree, *callback, Expression::Declaration(declaration_id) => {
                             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {

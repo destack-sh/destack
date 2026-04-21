@@ -398,11 +398,12 @@ impl Parser {
                 Property::Field {
                     key: Key::Name(name),
                     value,
+                    is_shorthand,
                 } => {
                     let pattern = self.expression_to_assign_pattern(value)?;
 
                     // bare shorthand keeps the nested pattern slot empty
-                    if self.assign_pattern_is_simple_name(pattern, name) {
+                    if is_shorthand && self.assign_pattern_is_simple_name(pattern, name) {
                         AssignPatternField::Named {
                             name,
                             is_shorthand: true,
@@ -410,7 +411,7 @@ impl Parser {
                         }
                     }
                     // shorthand with default keeps the nested assign pattern
-                    else if self.assign_pattern_is_defaulted_name(pattern, name) {
+                    else if is_shorthand && self.assign_pattern_is_defaulted_name(pattern, name) {
                         AssignPatternField::Named {
                             name,
                             is_shorthand: true,
@@ -429,6 +430,7 @@ impl Parser {
                 Property::Field {
                     key: Key::Expression(key),
                     value,
+                    is_shorthand: _,
                 } => {
                     let pattern = self.expression_to_assign_pattern(value)?;
                     AssignPatternField::Computed { key, pattern }
@@ -436,6 +438,7 @@ impl Parser {
                 Property::Field {
                     key: Key::Private(_),
                     value: _,
+                    is_shorthand: _,
                 }
                 | Property::Method { .. }
                 | Property::Error => {

@@ -517,7 +517,7 @@ fn test_parse_call_argument_object_relational_arrow_then_typed_block_arrow() {
                 assert_eq!(properties.len(), 2);
 
                 // skip: (req, res) => res.statusCode < 400
-                assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+                assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
                     assert_string!(parser, *name, "skip");
                     assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
@@ -530,7 +530,7 @@ fn test_parse_call_argument_object_relational_arrow_then_typed_block_arrow() {
                 });
 
                 // write: (str: string) => { str }
-                assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+                assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
                     assert_string!(parser, *name, "write");
                     assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {

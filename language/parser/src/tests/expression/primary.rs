@@ -221,7 +221,7 @@ fn test_parse_typed_object_method_in_call_argument() {
                     });
                 });
 
-                assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+                assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
                     assert_string!(parser, *name, "inc");
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
                         assert_string!(parser, *value, "inc");
@@ -280,7 +280,7 @@ fn test_parse_typed_object_method_in_decorator_argument() {
                     });
                 });
 
-                assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+                assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
                     assert_string!(parser, *name, "inc");
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
                         assert_string!(parser, *value, "inc");
@@ -331,22 +331,22 @@ fn test_parse_keywords_as_fields_and_identifiers() {
     assert_node!(parser.tree, expression_id, Expression::ObjectExpression { properties, .. } => {
         assert_eq!(properties.len(), 25);
 
-        assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+        assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
             assert_string!(parser, *name, "namespace");
             assert_expression_path!(parser, parser.tree.get(*value), "namespace");
         });
 
-        assert_node!(parser.tree, properties[10], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+        assert_node!(parser.tree, properties[10], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
             assert_string!(parser, *name, "constructor");
             assert_expression_path!(parser, parser.tree.get(*value), "constructor");
         });
 
-        assert_node!(parser.tree, properties[11], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+        assert_node!(parser.tree, properties[11], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
             assert_string!(parser, *name, "let");
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
         });
 
-        assert_node!(parser.tree, properties[24], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+        assert_node!(parser.tree, properties[24], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
             assert_string!(parser, *name, "match");
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
         });

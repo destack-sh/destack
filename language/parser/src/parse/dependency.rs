@@ -788,7 +788,7 @@ impl Parser {
                 let mut attributes = Vec::with_capacity(properties.len());
 
                 for property_id in properties {
-                    let Property::Field { key, value } = self.tree.get(property_id) else {
+                    let Property::Field { key, value, .. } = self.tree.get(property_id) else {
                         return Err(ParseError::unexpected(self.tree.get_span(property_id)));
                     };
 

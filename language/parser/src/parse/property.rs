@@ -892,7 +892,12 @@ impl Parser {
             };
 
             // shorthand field value
-            let value = if value.is_none() && modifiers.is_none() {
+            let is_shorthand = value.is_none()
+                && default.is_none()
+                && modifiers.is_none()
+                && matches!(key, Some(Key::Name(Name::Identifier(_))));
+
+            let value = if is_shorthand {
                 match key {
                     Some(Key::Name(Name::Identifier(name))) => {
                         let value = self.insert_node(
@@ -907,17 +912,23 @@ impl Parser {
                 value
             };
 
-            // property
+            // unkeyed empty heads are not properties
             if modifiers.is_none() && key.is_none() && value.is_none() && default.is_none() {
-                // not a property
                 return Err(ParseError::expected(
                     self.peek()?.span,
                     TokenType::Identifier,
                 ));
             }
+
+            // keyed fields without `:` or `=` are invalid unless they were shorthand
+            if value.is_none() {
+                return Err(ParseError::expected(self.peek()?.span, TokenType::Colon));
+            }
+
             let property = Property::Field {
                 key: key.expect("field property requires key"),
                 value: value.expect("field property requires value"),
+                is_shorthand,
             };
             let property_id = self.insert_node(property, self.get_span_from(&start));
 
@@ -1766,7 +1777,7 @@ port2 = {
             assert_string!(parser, *name, "port2");
             assert_node!(parser.tree, *default, Expression::ObjectExpression { properties, .. } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+                assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
                     assert_string!(parser, *name, "postMessage");
                     assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
@@ -2165,8 +2176,9 @@ foo(): string;"#,
         let mut parser = test.prepare();
         parser.options.set_in_variant(true);
         let property = parser.eat_property().unwrap();
-        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
             assert_string!(parser, *name, "x");
+            assert!(!*is_shorthand);
             assert_node!(parser.tree, *value, Expression::Type { value } => {
                 assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                     assert_eq!(
@@ -2186,8 +2198,9 @@ foo(): string;"#,
         let mut test = TestParser::new("x = 42");
         let mut parser = test.prepare();
         let property = parser.eat_property().unwrap();
-        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value: default } => {
+        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value: default, is_shorthand } => {
             assert_string!(parser, *name, "x");
+            assert!(!*is_shorthand);
             assert_node!(parser.tree, *default, Expression::ScalarLiteral(ScalarLiteral::Integer(42)));
         });
     }
@@ -2202,7 +2215,7 @@ foo(): string;"#,
         assert_eq!(parser.errors.len(), 1);
 
         // x:
-        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
             assert_string!(parser, *name, "x");
             assert_node!(parser.tree, *value, Expression::Missing);
         });
@@ -2216,7 +2229,7 @@ foo(): string;"#,
         );
         let mut parser = test.prepare();
         let property = parser.eat_property().unwrap();
-        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
             assert_string!(parser, *name, "reproFunc");
             assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(_), .. }) => {
@@ -2233,7 +2246,7 @@ foo(): string;"#,
         let mut parser = test.prepare();
         parser.options.set_in_variant(true);
         let property = parser.eat_property().unwrap();
-        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
             assert_string!(parser, *name, "x");
             assert_node!(parser.tree, *value, Expression::Assign { .. });
         });
@@ -2244,7 +2257,7 @@ foo(): string;"#,
         let mut test = TestParser::new_with_options("prop!: LongType[]", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let property = parser.eat_property().unwrap();
-        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
             assert_string!(parser, *name, "prop");
             assert_node!(parser.tree, *value, Expression::Index { left, index, .. } => {
                 assert!(index.is_none());
@@ -2266,7 +2279,7 @@ foo(): string;"#,
 
         // error, y: int32
         assert_node!(parser.tree, properties[0], Property::Error);
-        assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+        assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
             assert_string!(parser, *name, "y");
             assert_node!(parser.tree, *value, Expression::Type { value } => {
                 assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
