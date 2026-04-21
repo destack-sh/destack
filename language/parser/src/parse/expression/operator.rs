@@ -8,8 +8,8 @@ use super::common::{
 };
 
 use destack_ast::{
-    AssignOperator, BinaryOperator, Expression, Keyword, LocalNodeId, OperatorPrecedence,
-    TokenSpan, TokenType, TypeExpression, TypePredicateSubject, UnaryOperator,
+    AssignOperator, AssignPattern, BinaryOperator, Expression, Keyword, LocalNodeId,
+    OperatorPrecedence, TokenSpan, TokenType, TypeExpression, TypePredicateSubject, UnaryOperator,
 };
 use destack_source::Span;
 
@@ -483,11 +483,22 @@ impl Parser {
             ParseInfixOperator::TypeBinary(_type_binary_operator) => {
                 return Err(ParseError::unexpected(self.tree.get_span(right)));
             }
-            ParseInfixOperator::Assign(assign_operator) => Expression::Assign {
-                left,
-                operator: assign_operator,
-                right,
-            },
+            ParseInfixOperator::Assign(assign_operator) => {
+                let left = self.expression_to_assign_pattern(left)?;
+
+                // only plain `=` may target destructuring patterns
+                if assign_operator != AssignOperator::Assign
+                    && !matches!(self.tree.get(left), AssignPattern::Expression { .. })
+                {
+                    return Err(ParseError::unexpected(self.tree.get_span(left)));
+                }
+
+                Expression::Assign {
+                    left,
+                    operator: assign_operator,
+                    right,
+                }
+            }
         })
     }
 

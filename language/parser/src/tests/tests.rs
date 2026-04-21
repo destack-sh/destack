@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use destack_ast::{
-    Block, Expression, ImportTarget, LocalNodeId, NodeType, TokenType, TypeExpression,
+    AssignPattern, Block, Expression, ImportTarget, LocalNodeId, NodeType, StringId, TokenType,
+    TypeExpression, normalize_comment_payload,
 };
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 
@@ -207,37 +208,29 @@ pub(crate) fn expression_path_string(
 /// Collect path-like segments from one node.
 pub(crate) trait ExpressionPathLike {
     /// Collect path-like segments from one node.
-    fn collect_path_segments(
-        &self,
-        parser: &Parser,
-        segments: &mut Vec<destack_ast::StringId>,
-    ) -> Option<()>;
+    fn collect_path_segments(&self, parser: &Parser, segments: &mut Vec<StringId>) -> Option<()>;
 }
 
-impl ExpressionPathLike for destack_ast::Expression {
-    fn collect_path_segments(
-        &self,
-        parser: &Parser,
-        segments: &mut Vec<destack_ast::StringId>,
-    ) -> Option<()> {
+impl ExpressionPathLike for Expression {
+    fn collect_path_segments(&self, parser: &Parser, segments: &mut Vec<StringId>) -> Option<()> {
         match self {
-            destack_ast::Expression::Parenthesized { expression } => {
+            Expression::Parenthesized { expression } => {
                 let expression = parser.tree.get(*expression);
                 expression.collect_path_segments(parser, segments)
             }
-            destack_ast::Expression::Type { value } => {
+            Expression::Type { value } => {
                 let expression = parser.tree.get(*value);
                 expression.collect_path_segments(parser, segments)
             }
-            destack_ast::Expression::Identifier { name } => {
+            Expression::Identifier { name } => {
                 segments.push(*name);
                 Some(())
             }
-            destack_ast::Expression::QualifiedReference { path, .. } => {
+            Expression::QualifiedReference { path, .. } => {
                 segments.extend_from_slice(&path.segments);
                 Some(())
             }
-            destack_ast::Expression::Member {
+            Expression::Member {
                 left,
                 name: Some(name),
                 ..
@@ -252,12 +245,24 @@ impl ExpressionPathLike for destack_ast::Expression {
     }
 }
 
-impl ExpressionPathLike for destack_ast::TypeExpression {
-    fn collect_path_segments(
-        &self,
-        parser: &Parser,
-        segments: &mut Vec<destack_ast::StringId>,
-    ) -> Option<()> {
+impl ExpressionPathLike for AssignPattern {
+    fn collect_path_segments(&self, parser: &Parser, segments: &mut Vec<StringId>) -> Option<()> {
+        match self {
+            AssignPattern::Expression { value } => {
+                let expression = parser.tree.get(*value);
+                expression.collect_path_segments(parser, segments)
+            }
+            AssignPattern::Assign { pattern, .. } => {
+                let pattern = parser.tree.get(*pattern);
+                pattern.collect_path_segments(parser, segments)
+            }
+            AssignPattern::Array { .. } | AssignPattern::Object { .. } => None,
+        }
+    }
+}
+
+impl ExpressionPathLike for TypeExpression {
+    fn collect_path_segments(&self, parser: &Parser, segments: &mut Vec<StringId>) -> Option<()> {
         match self {
             TypeExpression::Parenthesized { expression } => {
                 let expression = parser.tree.get(*expression);
@@ -275,7 +280,7 @@ impl ExpressionPathLike for destack_ast::TypeExpression {
 /// Collect one value-space path string from an expression.
 pub(crate) fn value_expression_path_string(
     parser: &Parser,
-    expression: &destack_ast::Expression,
+    expression: &Expression,
 ) -> Option<String> {
     let mut segments = Vec::new();
     collect_value_expression_path_segments(parser, expression, &mut segments)?;
@@ -292,19 +297,19 @@ pub(crate) fn value_expression_path_string(
 /// Collect one value-space path as path segments.
 fn collect_value_expression_path_segments(
     parser: &Parser,
-    expression: &destack_ast::Expression,
-    segments: &mut Vec<destack_ast::StringId>,
+    expression: &Expression,
+    segments: &mut Vec<StringId>,
 ) -> Option<()> {
     match expression {
-        destack_ast::Expression::Parenthesized { expression } => {
+        Expression::Parenthesized { expression } => {
             let expression = parser.tree.get(*expression);
             collect_value_expression_path_segments(parser, expression, segments)
         }
-        destack_ast::Expression::Identifier { name } => {
+        Expression::Identifier { name } => {
             segments.push(*name);
             Some(())
         }
-        destack_ast::Expression::Member {
+        Expression::Member {
             left,
             name: Some(name),
             ..
@@ -333,6 +338,11 @@ pub(crate) fn qualified_reference_path_string(
             .collect::<Vec<_>>()
             .join("."),
     )
+}
+
+/// Normalize one comment payload for test assertions.
+pub(crate) fn normalized_comment_payload(source: &str) -> std::borrow::Cow<'_, str> {
+    normalize_comment_payload(source)
 }
 
 /// Assert one path-like expression directly against an expected path string.
@@ -383,7 +393,7 @@ macro_rules! assert_comment {
         assert_eq!(comment.kind, $expected_kind, "expected comment kind");
 
         let source = $parser.file.span_str(comment.span);
-        let got = destack_ast::normalize_comment_payload(source);
+        let got = $crate::tests::normalized_comment_payload(source);
         assert_eq!(got.as_ref(), $expected_text, "expected comment text");
     }};
 }

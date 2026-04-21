@@ -735,16 +735,16 @@ switch (tag.injectTo) {
                     // first statement: (bodyTags ??= []).push(tag)
                     assert_node!(parser.tree, expressions[0], Expression::Call { left, arguments, .. } => {
                         assert_eq!(arguments.len(), 1);
-                        assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
-                            assert_string!(parser, *name, "push");
-                            assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
-                                assert_node!(parser.tree, *expression, Expression::Assign { left, right, .. } => {
+                                assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                                    assert_string!(parser, *name, "push");
+                                    assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                                        assert_node!(parser.tree, *expression, Expression::Assign { left, right, .. } => {
                                     assert_expression_path!(parser, parser.tree.get(*left), "bodyTags");
-                                    assert_node!(parser.tree, *right, Expression::ArrayExpression { elements } => {
-                                        assert!(elements.is_empty());
+                                            assert_node!(parser.tree, *right, Expression::ArrayExpression { elements } => {
+                                                assert!(elements.is_empty());
+                                            });
+                                        });
                                     });
-                                });
-                            });
                         });
                     });
 

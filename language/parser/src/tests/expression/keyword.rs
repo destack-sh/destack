@@ -347,12 +347,14 @@ fn test_parse_namespace_as_identifier_in_index_assignment() {
     assert_node!(parser.tree, expression_id, Expression::Assign { left, operator, right, .. } => {
         assert_eq!(*operator, AssignOperator::Assign);
 
-        assert_node!(parser.tree, *left, Expression::Index { left, index, .. } => {
-            assert_expression_path!(parser, parser.tree.get(*left), "namespace");
+        assert_node!(parser.tree, *left, AssignPattern::Expression { value } => {
+            assert_node!(parser.tree, *value, Expression::Index { left, index, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "namespace");
 
-            assert_node!(parser.tree, index.expect("expected index"), Expression::Member { left, name, .. } => {
-                assert_node!(parser.tree, *left, Expression::This);
-                assert_string!(parser, *name, "dest");
+                assert_node!(parser.tree, index.expect("expected index"), Expression::Member { left, name, .. } => {
+                    assert_node!(parser.tree, *left, Expression::This);
+                    assert_string!(parser, *name, "dest");
+                });
             });
         });
 
