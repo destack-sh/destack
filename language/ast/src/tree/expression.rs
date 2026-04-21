@@ -871,7 +871,6 @@ impl Expression {
                 | Expression::Import { .. }
                 | Expression::Export { .. }
                 | Expression::ExportNamespace { .. }
-                | Expression::TreeExpression { .. }
                 | Expression::Let { .. }
                 | Expression::LetElse { .. }
                 | Expression::Using { .. }
