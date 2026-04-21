@@ -63,14 +63,12 @@ impl RawSpace {
     /// Allocate one raw byte entry.
     pub fn allocate_bytes(&mut self, bytes: &[u8]) -> HeapResult<RawPointer> {
         let path = self.allocation_path(bytes.len());
-
         self.allocate_with_bytes(bytes.len(), Some(bytes), path)
     }
 
     /// Allocate one zeroed raw byte entry.
     pub fn allocate_zeroed(&mut self, byte_len: usize) -> HeapResult<RawPointer> {
         let path = self.allocation_path(byte_len);
-
         self.allocate_with_bytes(byte_len, None, path)
     }
 
@@ -166,7 +164,10 @@ impl RawSpace {
         let location = self.allocate_location(byte_len, bytes, path)?;
 
         // then install the live pointer record
-        self.set_pointer_entry(pointer_id, RawPointerEntry::new(location, byte_len))?;
+        self.pointers.set_or_push(
+            Self::pointer_index(pointer_id)?,
+            RawPointerEntry::new(location, byte_len),
+        )?;
 
         // charge the live raw entry counters
         self.usage.allocate(byte_len, HeapSpace::Raw)?;

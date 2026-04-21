@@ -4,7 +4,7 @@ use crate::{HeapError, HeapOptions, RawPointer, RawSpace};
 /// Preserve stable raw ids across allocation growth and id reuse.
 #[test]
 fn test_allocate_raw_ids_reuse_after_free() {
-    let options = HeapOptions::default();
+    let options = HeapOptions::local();
     let mut raw = RawSpace::with_options(test_arena(&options), &options)
         .expect("default raw options should build");
     let mut last = RawPointer::NULL;
@@ -35,7 +35,7 @@ fn test_free_raw_reuses_large_entry_ids() {
     let options = HeapOptions {
         managed_small_bytes: 32,
         raw_small_bytes: 32,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     };
     let large_byte_len = options.size_classes.max_small_allocation_bytes() + 1;
     let mut raw = RawSpace::with_options(test_arena(&options), &options)
@@ -66,7 +66,7 @@ fn test_free_raw_reuses_large_entry_ids() {
 /// Raw free reports invalid pointers loudly.
 #[test]
 fn test_free_raw_rejects_invalid_pointer() {
-    let options = HeapOptions::default();
+    let options = HeapOptions::local();
     let mut raw = RawSpace::with_options(test_arena(&options), &options)
         .expect("default raw options should build");
 
