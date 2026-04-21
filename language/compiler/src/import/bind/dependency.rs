@@ -56,7 +56,6 @@ impl Compiler {
     ) -> ImportAttributeClauseKind {
         match kind {
             ast::ImportAttributeClauseKind::With => ImportAttributeClauseKind::With,
-            ast::ImportAttributeClauseKind::Assert => ImportAttributeClauseKind::Assert,
         }
     }
 
