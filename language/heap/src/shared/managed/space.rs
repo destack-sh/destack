@@ -269,6 +269,7 @@ impl SharedManagedSpace {
         // allocate the backing location before installing the live reference
         let location = self.allocate_location(
             &mut store,
+            reference_id,
             byte_len,
             scan.clone(),
             layout_id,
@@ -312,7 +313,15 @@ impl SharedManagedSpace {
         let reference = SharedManagedReference::new(reference_id);
 
         // allocate the zeroed backing location before installing the live reference
-        let location = self.allocate_location(&mut store, byte_len, scan, layout_id, None, path)?;
+        let location = self.allocate_location(
+            &mut store,
+            reference_id,
+            byte_len,
+            scan,
+            layout_id,
+            None,
+            path,
+        )?;
 
         let index = shared_reference_index(reference_id)?;
         let record = SharedManagedReferenceEntry::new(location, byte_len);
@@ -495,6 +504,7 @@ impl SharedManagedSpace {
     fn allocate_location(
         &self,
         store: &mut SharedManagedState,
+        reference_id: u32,
         byte_len: usize,
         scan: impl Into<HeapScan>,
         layout_id: Option<LayoutId>,
@@ -510,8 +520,15 @@ impl SharedManagedSpace {
                 size_class,
                 ..
             } => {
-                let slot =
-                    self.allocate_small(store, class_index, size_class, scan, layout_id, bytes)?;
+                let slot = self.allocate_small(
+                    store,
+                    reference_id,
+                    class_index,
+                    size_class,
+                    scan,
+                    layout_id,
+                    bytes,
+                )?;
 
                 Ok(SharedManagedLocation::Small(slot))
             }
@@ -607,6 +624,7 @@ impl SharedManagedSpace {
             occupied_count: 0,
             next_free_slot: 0,
             occupied: crate::Bitmap::with_capacity(slot_count),
+            reference_ids: vec![None; slot_count].into_boxed_slice(),
             shape_ids: vec![None; slot_count].into_boxed_slice(),
             pages,
         };
@@ -621,6 +639,7 @@ impl SharedManagedSpace {
     fn allocate_small(
         &self,
         store: &mut SharedManagedState,
+        reference_id: u32,
         class_index: usize,
         size_class: usize,
         scan: HeapScan,
@@ -649,6 +668,7 @@ impl SharedManagedSpace {
         span.occupied.set(slot_index);
         span.occupied_count += 1;
         span.next_free_slot = find_next_free_slot(&span.occupied, slot_index + 1, span.slot_count);
+        span.set_reference_id(slot_index, Some(reference_id));
         span.set_shape_id(slot_index, Some(shape_id));
 
         if span.occupied_count < span.slot_count {
@@ -751,6 +771,7 @@ impl SharedManagedSpace {
             span.occupied.clear(slot_index);
             span.occupied_count -= 1;
             span.next_free_slot = span.next_free_slot.min(slot_index);
+            span.set_reference_id(slot_index, None);
             span.set_shape_id(slot_index, None);
 
             if span.occupied_count == 0 {
@@ -1154,7 +1175,7 @@ fn checked_byte_range(
 }
 
 /// Return the byte offset for one slot payload inside one span.
-fn checked_slot_offset(size_class: usize, slot_index: usize) -> HeapResult<usize> {
+pub(crate) fn checked_slot_offset(size_class: usize, slot_index: usize) -> HeapResult<usize> {
     size_class
         .checked_mul(slot_index)
         .ok_or(HeapError::InvariantOverflow {
@@ -1163,7 +1184,11 @@ fn checked_slot_offset(size_class: usize, slot_index: usize) -> HeapResult<usize
 }
 
 /// Return one nested storage offset inside one bounded page view.
-fn checked_storage_offset(base: usize, byte_offset: usize, capacity: usize) -> HeapResult<usize> {
+pub(crate) fn checked_storage_offset(
+    base: usize,
+    byte_offset: usize,
+    capacity: usize,
+) -> HeapResult<usize> {
     let storage_offset = base
         .checked_add(byte_offset)
         .ok_or(HeapError::InvalidByteRange {

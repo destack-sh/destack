@@ -278,6 +278,7 @@ impl SharedManagedSpace {
                             occupied_count: span.occupied.count_ones(),
                             next_free_slot: 0,
                             occupied: span.occupied.clone(),
+                            reference_ids: span.reference_ids.clone(),
                             shape_ids: span
                                 .shape_ids
                                 .iter()
@@ -341,6 +342,7 @@ impl SharedManagedSpace {
                         size_class: span.size_class,
                         slot_count: span.slot_count,
                         occupied: span.occupied.clone(),
+                        reference_ids: span.reference_ids.clone(),
                         shape_ids: span
                             .shape_ids
                             .iter()

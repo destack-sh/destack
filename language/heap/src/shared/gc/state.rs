@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU8, AtomicU32, AtomicU64, AtomicUsize, Ordering};
 
 use parking_lot::{Mutex, RwLock};
 
-use super::SharedGcPhase;
+use super::{SharedGcPhase, SharedSmallSpanWork, SharedSmallSpanWorkTable, SharedTraceWork};
 use crate::SharedManagedReference;
 
 /// The number of shared trace-queue shards.
@@ -184,8 +184,8 @@ impl SharedMarkSet {
 /// One sharded shared trace queue.
 #[derive(Debug)]
 pub(crate) struct SharedTraceQueue {
-    /// The per-shard pending references whose outgoing edges still need scanning.
-    shards: Box<[Mutex<VecDeque<SharedManagedReference>>]>,
+    /// The per-shard pending work whose outgoing edges still need scanning.
+    shards: Box<[Mutex<VecDeque<SharedTraceWork>>]>,
     /// The next shard to probe for pop work.
     next_pop_shard: AtomicUsize,
 }
@@ -205,20 +205,22 @@ impl Default for SharedTraceQueue {
 }
 
 impl SharedTraceQueue {
-    /// Push one pending reference into its shard.
-    pub(crate) fn push(&self, reference: SharedManagedReference) {
-        if reference.id() == 0 {
-            return;
+    /// Push one pending trace work item into its shard.
+    pub(crate) fn push(&self, work: SharedTraceWork) {
+        if let SharedTraceWork::Reference(reference) = work {
+            if reference.id() == 0 {
+                return;
+            }
         }
 
-        let shard_index = self.shard_index(reference);
+        let shard_index = self.shard_index(work);
         let mut shard = self.shards[shard_index].lock();
 
-        shard.push_back(reference);
+        shard.push_back(work);
     }
 
-    /// Pop one bounded batch of pending references.
-    pub(crate) fn pop_batch(&self, batch_len: usize) -> Vec<SharedManagedReference> {
+    /// Pop one bounded batch of pending work.
+    pub(crate) fn pop_batch(&self, batch_len: usize) -> Vec<SharedTraceWork> {
         let mut batch = Vec::with_capacity(batch_len);
         let start = self.next_pop_shard.fetch_add(1, Ordering::AcqRel);
 
@@ -227,11 +229,11 @@ impl SharedTraceQueue {
             let mut shard = self.shards[shard_index].lock();
 
             while batch.len() < batch_len {
-                let Some(reference) = shard.pop_front() else {
+                let Some(work) = shard.pop_front() else {
                     break;
                 };
 
-                batch.push(reference);
+                batch.push(work);
             }
 
             if batch.len() == batch_len {
@@ -253,16 +255,19 @@ impl SharedTraceQueue {
         true
     }
 
-    /// Clear every pending reference from every shard.
+    /// Clear every pending work item from every shard.
     pub(crate) fn clear(&self) {
         for shard in &*self.shards {
             shard.lock().clear();
         }
     }
 
-    /// Return the shard index for one shared managed reference.
-    fn shard_index(&self, reference: SharedManagedReference) -> usize {
-        reference.id() as usize % self.shards.len()
+    /// Return the shard index for one queued work item.
+    fn shard_index(&self, work: SharedTraceWork) -> usize {
+        match work {
+            SharedTraceWork::SmallSpan(span_index) => span_index % self.shards.len(),
+            SharedTraceWork::Reference(reference) => reference.id() as usize % self.shards.len(),
+        }
     }
 }
 
@@ -275,6 +280,8 @@ pub(crate) struct SharedGcState {
     pub(crate) marks: SharedMarkSet,
     /// The reusable collector trace queue.
     pub(crate) trace_queue: SharedTraceQueue,
+    /// The per-span pending work state for shared small-span tracing.
+    small_span_work: RwLock<SharedSmallSpanWorkTable>,
     /// The current shared collection phase.
     phase: AtomicU8,
     /// Whether shared mark publication is temporarily closed for termination.
@@ -329,6 +336,51 @@ impl SharedGcState {
         let publishers = self.mark_publishers.load(Ordering::Acquire);
 
         is_queue_empty && inflight == 0 && publishers == 0
+    }
+
+    /// Return one per-span pending work state, growing the table when needed.
+    pub(crate) fn ensure_small_span_work(
+        &self,
+        span_index: usize,
+        slot_count: usize,
+    ) -> Arc<SharedSmallSpanWork> {
+        {
+            let work = self.small_span_work.read();
+
+            if let Some(span_work) = work.get(span_index).cloned() {
+                if span_work.matches_slot_count(slot_count) {
+                    return span_work;
+                }
+            }
+        }
+
+        let mut work = self.small_span_work.write();
+
+        while work.len() <= span_index {
+            work.push(Arc::new(SharedSmallSpanWork::new(slot_count)));
+        }
+
+        if !work[span_index].matches_slot_count(slot_count) {
+            work[span_index] = Arc::new(SharedSmallSpanWork::new(slot_count));
+        }
+
+        work[span_index].clone()
+    }
+
+    /// Return one per-span pending work state when it already exists.
+    pub(crate) fn small_span_work(&self, span_index: usize) -> Option<Arc<SharedSmallSpanWork>> {
+        let work = self.small_span_work.read();
+
+        work.get(span_index).cloned()
+    }
+
+    /// Clear every pending small-span work state for one new cycle.
+    pub(crate) fn clear_small_span_work(&self) {
+        let work = self.small_span_work.read();
+
+        for span_work in &*work {
+            span_work.clear();
+        }
     }
 
     /// Join one active shared mark publication.
