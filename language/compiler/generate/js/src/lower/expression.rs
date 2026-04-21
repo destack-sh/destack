@@ -1003,9 +1003,7 @@ impl ModuleLowerer<'_> {
                 .lower_binary_expression(expression_id, *left, *operator, *right)?
                 .into_any(),
             dir::Expression::Assign { left, right } => {
-                let left_id = self
-                    .lower_expression(*left)
-                    .expect_node::<js::Expression>(left.into_global_any(self.module.id), self)?;
+                let left_id = self.lower_assign_pattern(*left)?;
                 let right_id = self
                     .lower_expression(*right)
                     .expect_node::<js::Expression>(right.into_global_any(self.module.id), self)?;
