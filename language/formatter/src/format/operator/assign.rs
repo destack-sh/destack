@@ -1,23 +1,30 @@
 use super::binary::is_logical_binary_operator;
+use super::r#type::{
+    expression_has_generic_arguments, write_type_expression_with_inline_prefix_annotations,
+};
+use crate::format::annotation::{
+    format_comment, prefix_annotations, write_comment_slice, write_inline_prefix_annotations,
+};
 use crate::format::chain::{
     MemberChain, assignment_like_parent, has_own_line_or_multiline_comment_between_expressions,
     is_assignment_chain_tail_lambda, transparent_inner_expression,
 };
 use crate::format::context::DestackFormatterSpeculationExt;
-use crate::format::expression::ExpressionLeftSide;
+use crate::format::expression::{ExpressionLeftSide, write_expression_without_prefix_annotations};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, AssignOperator, BinaryOperator, Comment, Declaration, DecoratorPosition, Expression,
-    GenericArgument, IfCondition, IfKind, Key, LocalNodeId, Name, NodeType, Property,
-    ScalarLiteral, TemplateLiteral, TokenType, TypeExpression,
+    Argument, AssignOperator, BinaryOperator, Comment, Declaration, Declarator, DecoratorPosition,
+    Expression, FunctionKind, GenericArgument, IfCondition, IfKind, Key, LocalNodeId, Name,
+    NodeType, Pattern, PatternField, Property, ScalarLiteral, TemplateLiteral, TokenType,
+    TypeExpression,
 };
 use destack_fir::format::{
     Buffer, Format, FormatNode as FirFormatNode, FormatNodes, FormatResult,
     Formatter as FirFormatter, VecBuffer,
 };
 use destack_fir::prelude::{
-    format_with, group, indent, indent_if_group_breaks, line_suffix_boundary,
-    soft_line_break_or_space, soft_line_indent_or_space, space,
+    empty_line, format_with, group, hard_line_break, indent, indent_if_group_breaks,
+    line_suffix_boundary, soft_line_break_or_space, soft_line_indent_or_space, space, token,
 };
 use destack_fir::write;
 use destack_source::Span;
@@ -470,6 +477,400 @@ fn buffer_assignment_expression_layout_left<'ast>(
     Ok((nodes, is_short, may_break))
 }
 
+/// Buffer one declarator left-hand side for layout selection.
+fn buffer_declarator_layout_left<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    pattern_id: LocalNodeId<Pattern>,
+    type_id: Option<LocalNodeId<TypeExpression>>,
+) -> FormatResult<(Vec<FirFormatNode>, bool, bool)> {
+    const MIN_OVERLAP_FOR_BREAK: u32 = 3;
+
+    let mut buffer = VecBuffer::new(f.state_mut());
+    let formatter = &mut FirFormatter::new(&mut buffer);
+
+    // pattern
+    write!(formatter, [pattern_id])?;
+
+    // type annotation
+    if let Some(type_id) = type_id {
+        write!(formatter, [token(":"), space()])?;
+        write_type_expression_with_inline_prefix_annotations(formatter, type_id)?;
+    }
+
+    let nodes = buffer.into_vec();
+    let is_short = nodes.single_line_width().is_some_and(|width| {
+        width < (u32::from(f.context().options.indent_width) + MIN_OVERLAP_FOR_BREAK)
+    });
+    let may_break = nodes.may_directly_break();
+
+    Ok((nodes, is_short, may_break))
+}
+
+/// Return whether one declarator pattern subtree contains one default assignment.
+fn declarator_pattern_has_default_assignment(
+    context: &DestackFormatContext<'_>,
+    pattern_id: LocalNodeId<Pattern>,
+) -> bool {
+    match context.tree.get(pattern_id) {
+        // direct assignment wrapper
+        Pattern::Assign { .. } => true,
+
+        // leaf patterns
+        Pattern::Wildcard | Pattern::Expression { .. } | Pattern::TypeExpression { .. } => false,
+
+        // transparent wrappers
+        Pattern::Must(inner_pattern_id)
+        | Pattern::ReferenceOf {
+            right: inner_pattern_id,
+            ..
+        }
+        | Pattern::ValueOf {
+            right: inner_pattern_id,
+            ..
+        } => declarator_pattern_has_default_assignment(context, *inner_pattern_id),
+
+        // binding wrapper
+        Pattern::Binding { pattern, .. } => pattern.as_ref().is_some_and(|inner_pattern_id| {
+            declarator_pattern_has_default_assignment(context, *inner_pattern_id)
+        }),
+
+        // field collections
+        Pattern::Tuple { fields }
+        | Pattern::TaggedTuple { fields, .. }
+        | Pattern::Array { fields }
+        | Pattern::Object { fields }
+        | Pattern::TaggedObject { fields, .. } => fields
+            .iter()
+            .copied()
+            .any(|field_id| declarator_pattern_field_has_default_assignment(context, field_id)),
+
+        // union members
+        Pattern::Union { patterns } => patterns.iter().copied().any(|inner_pattern_id| {
+            declarator_pattern_has_default_assignment(context, inner_pattern_id)
+        }),
+    }
+}
+
+/// Return whether one declarator pattern field contains one default assignment.
+fn declarator_pattern_field_has_default_assignment(
+    context: &DestackFormatContext<'_>,
+    pattern_field_id: LocalNodeId<PatternField>,
+) -> bool {
+    match context.tree.get(pattern_field_id) {
+        // optional nested field
+        PatternField::Named { pattern, .. } => pattern.as_ref().is_some_and(|pattern_id| {
+            declarator_pattern_has_default_assignment(context, *pattern_id)
+        }),
+
+        // required nested field
+        PatternField::Computed { pattern, .. } => {
+            declarator_pattern_has_default_assignment(context, *pattern)
+        }
+        PatternField::Positional { pattern } => {
+            declarator_pattern_has_default_assignment(context, *pattern)
+        }
+
+        // spread field
+        PatternField::Spread { pattern, .. } => pattern.as_ref().is_some_and(|pattern_id| {
+            declarator_pattern_has_default_assignment(context, *pattern_id)
+        }),
+
+        // empty slot
+        PatternField::Elision => false,
+    }
+}
+
+/// Return whether one declarator pattern is complex enough to break its left side first.
+fn declarator_pattern_is_complex_destructuring(
+    context: &DestackFormatContext<'_>,
+    pattern_id: LocalNodeId<Pattern>,
+) -> bool {
+    match context.tree.get(pattern_id) {
+        // binding wrapper
+        Pattern::Binding { pattern, .. } => pattern.as_ref().is_some_and(|inner_pattern_id| {
+            declarator_pattern_is_complex_destructuring(context, *inner_pattern_id)
+        }),
+
+        // transparent wrappers
+        Pattern::Must(inner_pattern_id)
+        | Pattern::ReferenceOf {
+            right: inner_pattern_id,
+            ..
+        }
+        | Pattern::ValueOf {
+            right: inner_pattern_id,
+            ..
+        } => declarator_pattern_is_complex_destructuring(context, *inner_pattern_id),
+
+        // wide object destructuring
+        Pattern::Object { fields } | Pattern::TaggedObject { fields, .. } => {
+            if fields.len() <= 2 {
+                return false;
+            }
+
+            fields.iter().copied().any(|field_id| {
+                declarator_pattern_field_is_complex_destructuring(context, field_id)
+            })
+        }
+
+        // other patterns stay compact
+        _ => false,
+    }
+}
+
+/// Return whether one declarator object-pattern field makes the left side complex.
+fn declarator_pattern_field_is_complex_destructuring(
+    context: &DestackFormatContext<'_>,
+    pattern_field_id: LocalNodeId<PatternField>,
+) -> bool {
+    match context.tree.get(pattern_field_id) {
+        // named nesting expands the lhs
+        PatternField::Named { pattern, .. } => pattern.is_some(),
+
+        // computed keys are always complex
+        PatternField::Computed { .. } => true,
+
+        // flat fields stay compact
+        PatternField::Positional { .. } | PatternField::Spread { .. } | PatternField::Elision => {
+            false
+        }
+    }
+}
+
+/// Return whether one declarator rhs is one lambda-like declaration.
+fn declarator_value_is_lambda_like(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression_id = transparent_inner_expression(context, expression_id);
+
+    match context.tree.get(expression_id) {
+        Expression::Declaration(declaration_id) => matches!(
+            context.tree.get(*declaration_id),
+            Declaration::Function(function) if function.signature.kind == FunctionKind::Lambda
+        ),
+        _ => false,
+    }
+}
+
+/// Return whether one type expression contains generic arguments.
+fn declaration_type_expression_has_generic_arguments(
+    context: &DestackFormatContext<'_>,
+    type_id: LocalNodeId<TypeExpression>,
+) -> bool {
+    match context.tree.get(type_id) {
+        TypeExpression::Reference {
+            generic_arguments, ..
+        }
+        | TypeExpression::Member {
+            generic_arguments, ..
+        }
+        | TypeExpression::Import {
+            generic_arguments, ..
+        } => !generic_arguments.is_empty(),
+        _ => false,
+    }
+}
+
+/// Return whether one declaration heritage clause contains generic arguments.
+fn declaration_has_generic_heritage(
+    context: &DestackFormatContext<'_>,
+    declaration_id: LocalNodeId<Declaration>,
+) -> bool {
+    match context.tree.get(declaration_id) {
+        Declaration::Struct(declaration) => {
+            declaration
+                .implements_types
+                .iter()
+                .copied()
+                .any(|type_id| declaration_type_expression_has_generic_arguments(context, type_id))
+                || declaration.embedded_types.iter().copied().any(|type_id| {
+                    declaration_type_expression_has_generic_arguments(context, type_id)
+                })
+        }
+        Declaration::Class(declaration) => {
+            declaration
+                .extends_expression
+                .iter()
+                .copied()
+                .any(|expression_id| expression_has_generic_arguments(context, expression_id))
+                || !declaration.extends_generic_arguments.is_empty()
+                || declaration.implements_types.iter().copied().any(|type_id| {
+                    declaration_type_expression_has_generic_arguments(context, type_id)
+                })
+        }
+        Declaration::Enum(declaration) => declaration
+            .implements_types
+            .iter()
+            .copied()
+            .any(|type_id| declaration_type_expression_has_generic_arguments(context, type_id)),
+        Declaration::Interface(declaration) => declaration
+            .extends_types
+            .iter()
+            .copied()
+            .any(|type_id| declaration_type_expression_has_generic_arguments(context, type_id)),
+        Declaration::Extension(declaration) => {
+            declaration_type_expression_has_generic_arguments(context, declaration.target_type)
+                || declaration.implements_types.iter().copied().any(|type_id| {
+                    declaration_type_expression_has_generic_arguments(context, type_id)
+                })
+        }
+        _ => false,
+    }
+}
+
+/// Return whether one declarator rhs wraps a class declaration with generic heritage.
+fn declarator_value_has_generic_class_heritage(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression_id = transparent_inner_expression(context, expression_id);
+
+    match context.tree.get(expression_id) {
+        Expression::Declaration(declaration_id) => {
+            matches!(context.tree.get(*declaration_id), Declaration::Class(_))
+                && declaration_has_generic_heritage(context, *declaration_id)
+        }
+        Expression::Call { left, .. }
+        | Expression::New { left, .. }
+        | Expression::Instantiation { left, .. } => {
+            declarator_value_has_generic_class_heritage(context, *left)
+        }
+        _ => false,
+    }
+}
+
+/// Write comments between one assignment operator and rhs expression.
+pub(crate) fn write_assignment_rhs_operator_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    right: LocalNodeId<Expression>,
+    omit_leading_separator: bool,
+) -> FormatResult<()> {
+    let comment_nodes = assignment_rhs_operator_comment_nodes(f.context(), right);
+    if comment_nodes.is_empty() {
+        return Ok(());
+    }
+
+    let Some(previous_token) = f
+        .context()
+        .previous_non_trivia_token_before_span(comment_nodes[0].span)
+    else {
+        return Ok(());
+    };
+
+    // leading separator
+    let first_comment_span = comment_nodes[0].span;
+    let leading_gap = Span::new(
+        first_comment_span.file,
+        previous_token.span.end,
+        first_comment_span.start,
+    );
+    if !omit_leading_separator {
+        if f.context().has_newline(leading_gap)
+            || f.context().span_starts_on_own_line(first_comment_span)
+        {
+            write!(f, [hard_line_break()])?;
+        } else {
+            write!(f, [space()])?;
+        }
+    }
+
+    // comment body
+    format_comment(f, comment_nodes[0])?;
+    if comment_nodes.len() > 1 {
+        write_comment_slice(f, &comment_nodes[1..])?;
+    }
+
+    // trailing separator
+    let Some(last_comment) = comment_nodes.last().copied() else {
+        return Ok(());
+    };
+
+    let next_token = f
+        .context()
+        .next_non_whitespace_token_after_span(last_comment.span);
+    let gap_span = next_token.and_then(|next_token| last_comment.span.gap_to(next_token.span));
+
+    if last_comment.is_line() || gap_span.is_some_and(|gap_span| f.context().has_newline(gap_span))
+    {
+        if gap_span.is_some_and(|gap_span| f.context().has_blank_line(gap_span)) {
+            write!(f, [empty_line()])?;
+        } else {
+            write!(f, [hard_line_break()])?;
+        }
+    } else {
+        write!(f, [space()])?;
+    }
+
+    Ok(())
+}
+
+/// Write one declarator rhs while preserving inline operator prefix annotations.
+fn write_declarator_assignment_value<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    value_id: LocalNodeId<Expression>,
+    rhs_has_inline_operator_prefix_comment: bool,
+    rhs_operator_comment_nodes: &[Comment],
+) -> FormatResult<()> {
+    let prefix_annotation_ids: Vec<_> = f
+        .context()
+        .annotation_ids(value_id)
+        .iter()
+        .copied()
+        .filter(|annotation_id| {
+            matches!(
+                f.context().annotation(*annotation_id).position,
+                DecoratorPosition::BlockPrefix | DecoratorPosition::LinePrefix
+            )
+        })
+        .collect();
+
+    let mut write_value = || {
+        // plain rhs
+        if prefix_annotation_ids.is_empty() {
+            if !rhs_operator_comment_nodes.is_empty() {
+                return write_expression_without_prefix_annotations(f, value_id);
+            }
+
+            write!(f, [value_id])?;
+            return Ok(());
+        }
+
+        // inline operator prefix annotations
+        if rhs_has_inline_operator_prefix_comment {
+            write_inline_prefix_annotations(f, &prefix_annotation_ids)?;
+            write!(f, [space()])?;
+            return write_expression_without_prefix_annotations(f, value_id);
+        }
+
+        // normal prefix annotations
+        write!(f, [prefix_annotations(f.context(), value_id)])?;
+
+        if let Some(last_prefix_annotation_id) = prefix_annotation_ids.last().copied()
+            && f.context()
+                .annotation_next_token_is_on_same_line(last_prefix_annotation_id)
+        {
+            write!(f, [space()])?;
+        }
+
+        write_expression_without_prefix_annotations(f, value_id)
+    };
+
+    if rhs_operator_comment_nodes.is_empty() {
+        return write_value();
+    }
+
+    write_value()
+}
+
+/// Format one declarator assignment shell through the shared assignment-like owner.
+pub(crate) fn format_declarator_assignment<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    declarator_id: LocalNodeId<Declarator>,
+) -> FormatResult<()> {
+    AssignmentLike::Declarator(declarator_id).format(f)
+}
+
 /// One layout for one assignment-like shell.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AssignmentLikeLayout {
@@ -493,6 +894,412 @@ pub(crate) enum AssignmentLikeLayout {
 
     /// Keep one arrow-function tail attached to the final chain operator.
     ChainTailArrowFunction,
+}
+
+/// One assignment-like formatter owner.
+#[derive(Clone, Copy, Debug)]
+enum AssignmentLike {
+    /// One declarator assignment shell.
+    Declarator(LocalNodeId<Declarator>),
+
+    /// One assignment expression shell.
+    Expression {
+        node_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+        operator: AssignOperator,
+        right: LocalNodeId<Expression>,
+    },
+}
+
+impl AssignmentLike {
+    /// Return the right-hand side expression when one exists.
+    fn right(self, context: &DestackFormatContext<'_>) -> Option<LocalNodeId<Expression>> {
+        match self {
+            AssignmentLike::Declarator(declarator_id) => context.tree.get(declarator_id).value,
+            AssignmentLike::Expression { right, .. } => Some(right),
+        }
+    }
+
+    /// Buffer the left-hand side for layout selection.
+    fn buffer_left<'ast>(
+        self,
+        f: &mut DestackFormatter<'ast, '_>,
+    ) -> FormatResult<(Vec<FirFormatNode>, bool, bool)> {
+        match self {
+            AssignmentLike::Declarator(declarator_id) => {
+                let declarator = f.context().tree.get(declarator_id);
+                buffer_declarator_layout_left(f, declarator.pattern, declarator.ty)
+            }
+            AssignmentLike::Expression { left, .. } => {
+                buffer_assignment_expression_layout_left(f, left)
+            }
+        }
+    }
+
+    /// Select one layout for one assignment-like shell.
+    fn layout<'ast>(
+        self,
+        f: &mut DestackFormatter<'ast, '_>,
+        is_left_short: bool,
+        left_may_break: bool,
+    ) -> FormatResult<AssignmentLikeLayout> {
+        let right = self
+            .right(f.context())
+            .expect("assignment-like layout requires a right-hand side");
+
+        // assignment chains
+        if let Some(layout) = self.chain_layout(f.context()) {
+            return Ok(layout);
+        }
+
+        // compact CommonJS require calls stay attached to `=`
+        if expression_is_commonjs_require_call(f.context(), right)
+            && !f
+                .context()
+                .comments()
+                .has_leading_own_line_comment(f.context().span(right).start)
+        {
+            return Ok(AssignmentLikeLayout::NeverBreakAfterOperator);
+        }
+
+        // left side pressure
+        if self.should_break_left_hand_side(f.context(), is_left_short, left_may_break) {
+            return Ok(AssignmentLikeLayout::BreakLeftHandSide);
+        }
+
+        // operator-bound trivia and rhs pressure
+        if self.should_break_after_operator(f, is_left_short)? {
+            return Ok(AssignmentLikeLayout::BreakAfterOperator);
+        }
+
+        // compact rhs
+        match self {
+            // declarator compact rhs
+            AssignmentLike::Declarator(declarator_id) => {
+                let context = f.context();
+                let declarator = context.tree.get(declarator_id);
+                let value_inner_id = transparent_inner_expression(context, right);
+                let value_inner_expr = context.tree.get(value_inner_id);
+
+                let rhs_is_template_expression =
+                    matches!(value_inner_expr, Expression::TemplateExpression { .. });
+                let rhs_is_keyword_expression = matches!(
+                    context.tree.get(right),
+                    Expression::Await { .. }
+                        | Expression::AwaitMaybe { .. }
+                        | Expression::Comptime { .. }
+                );
+                let rhs_is_class_declaration =
+                    expression_is_class_declaration(context, value_inner_id);
+                let rhs_has_generic_class_heritage =
+                    declarator_value_has_generic_class_heritage(context, value_inner_id);
+                let rhs_has_inline_operator_prefix_comment =
+                    assignment_rhs_has_inline_operator_prefix_comment(context, right);
+                let rhs_has_prefix_annotation_that_forces_break =
+                    context.has_prefix_annotation(right) && !rhs_has_inline_operator_prefix_comment;
+
+                let header_end = declarator
+                    .ty
+                    .map(|type_id| context.span(type_id).end)
+                    .unwrap_or(context.span(declarator.pattern).end);
+                let value_span = context.span(right);
+                let between_span = if header_end < value_span.start {
+                    Some(Span::new(value_span.file, header_end, value_span.start))
+                } else {
+                    None
+                };
+                let rhs_has_between_comment = between_span.is_some_and(|span| {
+                    !context
+                        .comment_tokens_in_range(span.start, span.end)
+                        .is_empty()
+                }) && !rhs_has_inline_operator_prefix_comment;
+                let rhs_has_own_line_prefix_annotation =
+                    assign_expression_has_own_line_prefix_annotation(context, right);
+
+                let rhs_is_compact_keyword = rhs_is_keyword_expression
+                    && !rhs_has_between_comment
+                    && !rhs_has_prefix_annotation_that_forces_break;
+                let rhs_is_compact_class = rhs_is_class_declaration
+                    && !rhs_has_generic_class_heritage
+                    && !rhs_has_prefix_annotation_that_forces_break
+                    && !rhs_has_between_comment
+                    && !rhs_has_own_line_prefix_annotation;
+                if rhs_is_template_expression || rhs_is_compact_keyword || rhs_is_compact_class {
+                    return Ok(AssignmentLikeLayout::NeverBreakAfterOperator);
+                }
+
+                if !left_may_break
+                    && (is_left_short || rhs_is_template_expression || rhs_is_class_declaration)
+                {
+                    return Ok(AssignmentLikeLayout::NeverBreakAfterOperator);
+                }
+            }
+
+            // assignment-expression compact rhs
+            AssignmentLike::Expression { .. } => {
+                let context = f.context();
+
+                if !left_may_break && (is_left_short || assignment_rhs_is_compact(context, right)) {
+                    return Ok(AssignmentLikeLayout::NeverBreakAfterOperator);
+                }
+            }
+        }
+
+        Ok(AssignmentLikeLayout::Fluid)
+    }
+
+    /// Write the operator for one assignment-like shell.
+    fn write_operator<'ast>(self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+        match self {
+            AssignmentLike::Declarator(_) => write!(f, [space(), token("=")]),
+            AssignmentLike::Expression { left, operator, .. } => {
+                let has_left_postfix = f.context().has_postfix_annotation(left);
+
+                if !has_left_postfix {
+                    write!(f, [space()])?;
+                }
+
+                write!(f, [operator])
+            }
+        }
+    }
+
+    /// Write the right-hand side for one assignment-like shell.
+    fn write_right<'ast>(
+        self,
+        f: &mut DestackFormatter<'ast, '_>,
+        layout: AssignmentLikeLayout,
+    ) -> FormatResult<()> {
+        match self {
+            AssignmentLike::Declarator(declarator_id) => {
+                let declarator = f.context().tree.get(declarator_id);
+                let value = declarator
+                    .value
+                    .expect("declarator rhs requires an initializer");
+
+                let rhs_operator_comment_nodes =
+                    assignment_rhs_operator_comment_nodes(f.context(), value);
+                let rhs_has_inline_operator_prefix_comment =
+                    assignment_rhs_has_inline_operator_prefix_comment(f.context(), value);
+                let formatted_right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    write_assignment_rhs_operator_comments(f, value, true)?;
+                    write_declarator_assignment_value(
+                        f,
+                        value,
+                        rhs_has_inline_operator_prefix_comment,
+                        &rhs_operator_comment_nodes,
+                    )
+                });
+
+                write_assignment_like_right(f, layout, &formatted_right)
+            }
+            AssignmentLike::Expression { right, .. } => {
+                write_assignment_like_right(f, layout, &right)
+            }
+        }
+    }
+
+    /// Return one explicit chain layout when this shell is eligible.
+    fn chain_layout(self, context: &DestackFormatContext<'_>) -> Option<AssignmentLikeLayout> {
+        let AssignmentLike::Expression { node_id, right, .. } = self else {
+            return None;
+        };
+
+        let right = transparent_inner_expression(context, right);
+        let right_is_tail = !matches!(context.tree.get(right), Expression::Assign { .. });
+        let Some((parent_type, parent_id)) = assignment_like_parent(context, node_id) else {
+            return None;
+        };
+
+        // eligible chain shells
+        let is_eligible = match parent_type {
+            NodeType::Declarator => !right_is_tail,
+            NodeType::Expression => {
+                let parent_id = LocalNodeId::<Expression>::new(parent_id);
+                if !matches!(context.tree.get(parent_id), Expression::Assign { .. }) {
+                    return None;
+                }
+
+                !right_is_tail || assignment_like_parent(context, parent_id).is_some()
+            }
+            _ => false,
+        };
+        if !is_eligible {
+            return None;
+        }
+
+        // tail layout
+        if right_is_tail {
+            if is_assignment_chain_tail_lambda(context, node_id, right) {
+                return Some(AssignmentLikeLayout::ChainTailArrowFunction);
+            }
+
+            return Some(AssignmentLikeLayout::ChainTail);
+        }
+
+        Some(AssignmentLikeLayout::Chain)
+    }
+
+    /// Return whether the left side should break before the operator.
+    fn should_break_left_hand_side(
+        self,
+        context: &DestackFormatContext<'_>,
+        is_left_short: bool,
+        left_may_break: bool,
+    ) -> bool {
+        match self {
+            // declarator lhs shape
+            AssignmentLike::Declarator(declarator_id) => {
+                let declarator = context.tree.get(declarator_id);
+                let pattern = declarator.pattern;
+                let pattern_span = context.span(pattern);
+
+                let pattern_has_newline = context.has_newline(pattern_span);
+                let pattern_has_comments_or_annotations = context.has_annotation(pattern)
+                    || !context
+                        .comment_tokens_in_range(pattern_span.start, pattern_span.end)
+                        .is_empty();
+                if pattern_has_newline
+                    || pattern_has_comments_or_annotations
+                    || declarator_pattern_is_complex_destructuring(context, pattern)
+                {
+                    return true;
+                }
+
+                let Some(value) = declarator.value else {
+                    return false;
+                };
+
+                (left_may_break || !is_left_short)
+                    && declarator_value_is_lambda_like(context, value)
+            }
+
+            // assignment target shape
+            AssignmentLike::Expression { left, .. } => {
+                assignment_target_is_complex_destructuring(context, left)
+            }
+        }
+    }
+
+    /// Return whether the operator should break before the rhs.
+    fn should_break_after_operator<'ast>(
+        self,
+        f: &mut DestackFormatter<'ast, '_>,
+        is_left_short: bool,
+    ) -> FormatResult<bool> {
+        let context = f.context();
+        let right = self
+            .right(context)
+            .expect("assignment-like break check requires a right-hand side");
+
+        match self {
+            // declarator rhs pressure
+            AssignmentLike::Declarator(declarator_id) => {
+                let declarator = context.tree.get(declarator_id);
+                let pattern = declarator.pattern;
+                let type_id = declarator.ty;
+                let value_span = context.span(right);
+                let value_inner_id = transparent_inner_expression(context, right);
+                let value_inner_expr = context.tree.get(value_inner_id);
+
+                let rhs_operator_comment_nodes =
+                    assignment_rhs_operator_comment_nodes(context, right);
+                let rhs_has_inline_operator_prefix_comment =
+                    assignment_rhs_has_inline_operator_prefix_comment(context, right);
+                let rhs_has_prefix_annotation_that_forces_break =
+                    context.has_prefix_annotation(right) && !rhs_has_inline_operator_prefix_comment;
+                let rhs_has_own_line_prefix_annotation =
+                    assign_expression_has_own_line_prefix_annotation(context, right);
+
+                let header_end = type_id
+                    .map(|type_id| context.span(type_id).end)
+                    .unwrap_or(context.span(pattern).end);
+                let between_span = if header_end < value_span.start {
+                    Some(Span::new(value_span.file, header_end, value_span.start))
+                } else {
+                    None
+                };
+                let rhs_has_between_comment = between_span.is_some_and(|span| {
+                    !context
+                        .comment_tokens_in_range(span.start, span.end)
+                        .is_empty()
+                }) && !rhs_has_inline_operator_prefix_comment;
+
+                let rhs_is_call_like = matches!(
+                    value_inner_expr,
+                    Expression::Call { .. }
+                        | Expression::New { .. }
+                        | Expression::Instantiation { .. }
+                );
+                let rhs_has_generic_class_heritage =
+                    declarator_value_has_generic_class_heritage(context, value_inner_id);
+                let pattern_has_default_assignment =
+                    declarator_pattern_has_default_assignment(context, pattern);
+
+                Ok(!rhs_operator_comment_nodes.is_empty()
+                    || rhs_has_prefix_annotation_that_forces_break
+                    || rhs_has_between_comment
+                    || rhs_has_own_line_prefix_annotation
+                    || rhs_has_generic_class_heritage
+                    || (rhs_is_call_like && pattern_has_default_assignment)
+                    || assignment_rhs_prefers_break_after_operator(f, right, is_left_short)?)
+            }
+
+            // assignment-expression rhs pressure
+            AssignmentLike::Expression { left, .. } => Ok(
+                assignment_rhs_has_inline_operator_prefix_comment(context, right)
+                    || assignment_operator_has_line_comment_between(context, left, right)
+                    || assignment_expression_rhs_has_forcing_leading_trivia(context, left, right)
+                    || assignment_rhs_prefers_break_after_operator(f, right, is_left_short)?,
+            ),
+        }
+    }
+
+    /// Format one assignment-like shell.
+    fn format<'ast>(self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+        // left side only
+        let Some(_) = self.right(f.context()) else {
+            let (left_nodes, _, _) = self.buffer_left(f)?;
+            let left_nodes = f.intern_vec(left_nodes);
+
+            if let Some(left_nodes) = left_nodes {
+                f.write_node(left_nodes);
+            }
+
+            return Ok(());
+        };
+
+        // buffered left side
+        let (left_nodes, is_left_short, left_may_break) = self.buffer_left(f)?;
+        let layout = self.layout(f, is_left_short, left_may_break)?;
+        let left_nodes = f.intern_vec(left_nodes);
+        let formatted_left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+            if let Some(left_nodes) = &left_nodes {
+                f.write_node(left_nodes.clone());
+            }
+
+            Ok(())
+        });
+
+        // shell
+        let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            if layout == AssignmentLikeLayout::BreakLeftHandSide {
+                write!(f, [formatted_left])?;
+            } else {
+                write!(f, [group(&formatted_left)])?;
+            }
+
+            self.write_operator(f)?;
+            self.write_right(f, layout)
+        });
+
+        match layout {
+            AssignmentLikeLayout::Chain
+            | AssignmentLikeLayout::ChainTail
+            | AssignmentLikeLayout::ChainTailArrowFunction => write!(f, [content]),
+            _ => write!(f, [group(&content)]),
+        }
+    }
 }
 
 /// Write the right-hand side for one assignment-like layout.
@@ -701,139 +1508,6 @@ fn assignment_expression_rhs_has_forcing_leading_trivia(
     has_prefix_annotation || has_between_comment || has_own_line_prefix_annotation
 }
 
-/// Return one explicit chain layout for an eligible assignment shell.
-fn assignment_expression_chain_layout(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    right: LocalNodeId<Expression>,
-) -> Option<AssignmentLikeLayout> {
-    let right = transparent_inner_expression(context, right);
-    let right_is_tail = !matches!(context.tree.get(right), Expression::Assign { .. });
-    let Some((parent_type, parent_id)) = assignment_like_parent(context, node_id) else {
-        return None;
-    };
-
-    let is_eligible = match parent_type {
-        NodeType::Declarator => !right_is_tail,
-        NodeType::Expression => {
-            let parent_id = LocalNodeId::<Expression>::new(parent_id);
-            if !matches!(context.tree.get(parent_id), Expression::Assign { .. }) {
-                return None;
-            }
-
-            !right_is_tail || assignment_like_parent(context, parent_id).is_some()
-        }
-        _ => false,
-    };
-
-    if !is_eligible {
-        return None;
-    }
-
-    if right_is_tail {
-        if is_assignment_chain_tail_lambda(context, node_id, right) {
-            return Some(AssignmentLikeLayout::ChainTailArrowFunction);
-        }
-
-        return Some(AssignmentLikeLayout::ChainTail);
-    }
-
-    Some(AssignmentLikeLayout::Chain)
-}
-
-/// Select one layout for one assignment expression shell.
-fn assignment_expression_layout<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
-    left: LocalNodeId<Expression>,
-    right: LocalNodeId<Expression>,
-    is_left_short: bool,
-    left_may_break: bool,
-) -> FormatResult<AssignmentLikeLayout> {
-    // assignment chains
-    if let Some(layout) = assignment_expression_chain_layout(f.context(), node_id, right) {
-        return Ok(layout);
-    }
-
-    // compact CommonJS require calls stay attached to `=`
-    if expression_is_commonjs_require_call(f.context(), right)
-        && !f
-            .context()
-            .comments()
-            .has_leading_own_line_comment(f.context().span(right).start)
-    {
-        return Ok(AssignmentLikeLayout::NeverBreakAfterOperator);
-    }
-
-    // complex destructuring breaks its left side first
-    if assignment_target_is_complex_destructuring(f.context(), left) {
-        return Ok(AssignmentLikeLayout::BreakLeftHandSide);
-    }
-
-    // operator-bound trivia and rhs pressure break after the operator
-    if assignment_rhs_has_inline_operator_prefix_comment(f.context(), right)
-        || assignment_operator_has_line_comment_between(f.context(), left, right)
-        || assignment_expression_rhs_has_forcing_leading_trivia(f.context(), left, right)
-        || assignment_rhs_prefers_break_after_operator(f, right, is_left_short)?
-    {
-        return Ok(AssignmentLikeLayout::BreakAfterOperator);
-    }
-
-    // compact rhs
-    if !left_may_break && (is_left_short || assignment_rhs_is_compact(f.context(), right)) {
-        return Ok(AssignmentLikeLayout::NeverBreakAfterOperator);
-    }
-
-    Ok(AssignmentLikeLayout::Fluid)
-}
-
-/// Write one assignment expression with one chosen layout.
-fn write_assignment_expression_layout<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    left_nodes: Vec<FirFormatNode>,
-    left: LocalNodeId<Expression>,
-    operator: &AssignOperator,
-    right: LocalNodeId<Expression>,
-    layout: AssignmentLikeLayout,
-) -> FormatResult<()> {
-    let has_left_postfix = f.context().has_postfix_annotation(left);
-    let left_nodes = f.intern_vec(left_nodes);
-    let formatted_left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-        if let Some(left_nodes) = &left_nodes {
-            f.write_node(left_nodes.clone());
-        }
-
-        Ok(())
-    });
-    let formatted_operator = format_with(|f| {
-        if !has_left_postfix {
-            write!(f, [space()])?;
-        }
-
-        write!(f, [operator])?;
-        Ok(())
-    });
-
-    let content = format_with(|f| {
-        if layout == AssignmentLikeLayout::BreakLeftHandSide {
-            write!(f, [formatted_left])?;
-        } else {
-            write!(f, [group(&formatted_left)])?;
-        }
-
-        write!(f, [formatted_operator])?;
-
-        write_assignment_like_right(f, layout, &right)
-    });
-
-    match layout {
-        AssignmentLikeLayout::Chain
-        | AssignmentLikeLayout::ChainTail
-        | AssignmentLikeLayout::ChainTailArrowFunction => write!(f, [content]),
-        _ => write!(f, [group(&content)]),
-    }
-}
-
 /// Format an assignment expression with one selected layout.
 pub(crate) fn format_assign_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -842,9 +1516,11 @@ pub(crate) fn format_assign_expression<'ast>(
     operator: &AssignOperator,
     right: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let (left_nodes, is_left_short, left_may_break) =
-        buffer_assignment_expression_layout_left(f, left)?;
-    let layout =
-        assignment_expression_layout(f, node_id, left, right, is_left_short, left_may_break)?;
-    write_assignment_expression_layout(f, left_nodes, left, operator, right, layout)
+    AssignmentLike::Expression {
+        node_id,
+        left,
+        operator: *operator,
+        right,
+    }
+    .format(f)
 }

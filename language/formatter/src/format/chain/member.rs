@@ -1,4 +1,5 @@
 use super::groups::{TailChainGroups, build_tail_chain_groups, chain_head_operation_count};
+use crate::format::expression::parenthesized_expression_needs_preserved_wrapper;
 use crate::format::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
@@ -650,11 +651,6 @@ pub(crate) fn chain_has_call_like_expression(
     })
 }
 
-/// Check whether an expression is the root of a chain.
-pub(crate) fn is_chain_root(tree: &NodeTree, node_id: LocalNodeId<Expression>) -> bool {
-    chain_node_left_id(tree, node_id).is_some_and(|left_id| !is_chain_expression(tree.get(left_id)))
-}
-
 /// Walk upward through transparent wrappers to find an assignment-like parent rhs.
 pub(crate) fn assignment_like_parent(
     context: &DestackFormatContext<'_>,
@@ -718,7 +714,17 @@ pub(crate) fn transparent_inner_expression(
         }
 
         let next_id = match context.tree.get(current_id) {
-            Expression::Parenthesized { expression } => Some(*expression),
+            Expression::Parenthesized { expression } => {
+                if parenthesized_expression_needs_preserved_wrapper(
+                    context,
+                    current_id,
+                    *expression,
+                ) {
+                    None
+                } else {
+                    Some(*expression)
+                }
+            }
             Expression::Await { expression } | Expression::AwaitMaybe { expression } => {
                 Some(*expression)
             }

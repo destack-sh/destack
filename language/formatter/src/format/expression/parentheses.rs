@@ -3,6 +3,7 @@ use crate::DestackFormatContext;
 use destack_ast::{
     Declaration, Expression, FunctionKind, IfCondition, IfKind, LocalNodeId, NodeType,
 };
+use destack_source::Span;
 
 /// Return whether one parent slot behaves like a type-relation left slot.
 fn expression_is_type_relation_left_slot(
@@ -298,6 +299,46 @@ pub(crate) fn expression_needs_parentheses_in_parent(
     }
 
     false
+}
+
+/// Return whether one explicit parenthesized wrapper must stay visible.
+pub(crate) fn parenthesized_expression_needs_preserved_wrapper(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    // statement position owns its shell directly
+    if expression_is_in_statement_position(context, node_id) {
+        return false;
+    }
+
+    // inner expressions that already need a shell must not gain another one
+    if expression_needs_parentheses_in_parent(context, expression_id) {
+        return false;
+    }
+
+    // wrapper span
+    let outer_span = context.span(node_id);
+    let outer_token_start = context.node_token_start(node_id);
+    let inner_token_start = context.node_token_start(expression_id);
+    let wrapper_start = Span::new(outer_span.file, outer_token_start, outer_token_start);
+
+    // comment scan start
+    let comment_scan_start = context
+        .previous_non_trivia_token_before_span(wrapper_start)
+        .map_or(outer_span.start, |token| token.span.end);
+
+    // comments before `(` stay attached to the wrapper
+    let has_leading_wrapper_comments = context
+        .comment_tokens_in_range(comment_scan_start, inner_token_start)
+        .iter()
+        .any(|comment| comment.span.start < outer_token_start);
+    if has_leading_wrapper_comments {
+        return true;
+    }
+
+    // multiline wrappers stay visible
+    context.has_newline(outer_span)
 }
 
 /// Return whether one expression appears inside a template interpolation.

@@ -24,45 +24,6 @@ impl<'ast> Format<DestackFormatContext<'ast>> for Mutability {
     }
 }
 
-/// Return whether one pattern is object-like or array-like.
-fn pattern_is_object_or_array_like(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -> bool {
-    match tree.get(pattern_id) {
-        Pattern::Binding {
-            pattern: Some(pattern),
-            ..
-        } => pattern_is_object_or_array_like(tree, *pattern),
-        Pattern::Object { .. } | Pattern::TaggedObject { .. } | Pattern::Array { .. } => true,
-        _ => false,
-    }
-}
-
-/// Return whether one field contains a nested object-like or array-like pattern.
-fn pattern_field_has_nested_object_or_array_like_pattern(
-    tree: &NodeTree,
-    field_id: LocalNodeId<PatternField>,
-) -> bool {
-    match tree.get(field_id) {
-        PatternField::Named {
-            pattern: Some(pattern),
-            ..
-        }
-        | PatternField::Computed {
-            pattern: Some(pattern),
-            ..
-        }
-        | PatternField::Spread {
-            pattern: Some(pattern),
-            ..
-        } => pattern_is_object_or_array_like(tree, *pattern),
-        PatternField::Positional { pattern, .. } => pattern_is_object_or_array_like(tree, *pattern),
-        PatternField::Named { pattern: None, .. }
-        | PatternField::Computed { pattern: None, .. }
-        | PatternField::Alias { .. }
-        | PatternField::Spread { pattern: None, .. }
-        | PatternField::Elision => false,
-    }
-}
-
 /// Return object-pattern fields to render, normalizing out parser elision artifacts.
 fn object_pattern_render_fields<'a>(
     tree: &NodeTree,
@@ -254,13 +215,103 @@ fn object_pattern_should_break_properties(
     node_id: LocalNodeId<Pattern>,
     fields: &[LocalNodeId<PatternField>],
 ) -> bool {
-    if object_pattern_is_inline(context, node_id) {
+    // assignment wrappers keep nested object patterns flat
+    if object_pattern_has_assignment_wrapper_parent(context, node_id) {
         return false;
     }
 
-    fields.iter().copied().any(|field_id| {
-        pattern_field_has_nested_object_or_array_like_pattern(context.tree, field_id)
-    }) || object_pattern_has_separator_comments(context, fields)
+    // direct nested destructuring
+    let has_direct_nested_pattern = fields
+        .iter()
+        .copied()
+        .any(|field_id| object_pattern_field_has_direct_nested_pattern(context.tree, field_id));
+
+    // separator comments
+    let has_separator_comments = object_pattern_has_separator_comments(context, fields);
+
+    has_direct_nested_pattern || has_separator_comments
+}
+
+/// Return whether one object-like pattern is wrapped by a defaulting pattern.
+fn object_pattern_has_assignment_wrapper_parent(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Pattern>,
+) -> bool {
+    // parent kind
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+        return false;
+    };
+
+    if parent_type != NodeType::Pattern {
+        return false;
+    }
+
+    // assignment wrapper
+    matches!(
+        context.tree.get(LocalNodeId::<Pattern>::new(parent_id)),
+        Pattern::Assign { .. }
+    )
+}
+
+/// Return whether one pattern field contains a direct nested object or array pattern.
+fn object_pattern_field_has_direct_nested_pattern(
+    tree: &NodeTree,
+    field_id: LocalNodeId<PatternField>,
+) -> bool {
+    match tree.get(field_id) {
+        // nested value
+        PatternField::Named {
+            pattern: Some(pattern_id),
+            ..
+        }
+        | PatternField::Computed {
+            pattern: pattern_id,
+            ..
+        }
+        | PatternField::Positional {
+            pattern: pattern_id,
+        } => pattern_is_direct_object_or_array_like(tree, *pattern_id),
+
+        // flat field
+        PatternField::Named { pattern: None, .. }
+        | PatternField::Spread { .. }
+        | PatternField::Elision => false,
+    }
+}
+
+/// Return whether one pattern is directly object-like or array-like.
+fn pattern_is_direct_object_or_array_like(
+    tree: &NodeTree,
+    pattern_id: LocalNodeId<Pattern>,
+) -> bool {
+    match tree.get(pattern_id) {
+        // direct nested destructuring
+        Pattern::Object { .. }
+        | Pattern::TaggedObject { .. }
+        | Pattern::Array { .. }
+        | Pattern::TaggedTuple { .. }
+        | Pattern::Tuple { .. } => true,
+
+        // assignment wrappers stay owned by assignment-like layout
+        Pattern::Assign { .. } => false,
+
+        // transparent wrappers
+        Pattern::Must(pattern)
+        | Pattern::ReferenceOf { right: pattern, .. }
+        | Pattern::ValueOf { right: pattern, .. } => {
+            pattern_is_direct_object_or_array_like(tree, *pattern)
+        }
+
+        // non-destructuring patterns
+        Pattern::Binding { pattern: None, .. }
+        | Pattern::Binding {
+            pattern: Some(_), ..
+        }
+        | Pattern::Wildcard
+        | Pattern::Expression { .. }
+        | Pattern::TypeExpression { .. }
+        | Pattern::Union { .. } => false,
+    }
 }
 
 /// Return whether field separators have comments.
@@ -296,21 +347,27 @@ fn object_pattern_layout(
     node_id: LocalNodeId<Pattern>,
     fields: &[LocalNodeId<PatternField>],
 ) -> ObjectPatternLayout {
+    // empty pattern
     if fields.is_empty() {
         return ObjectPatternLayout::Empty;
     }
 
+    // inline parameter pattern
     if object_pattern_is_inline(context, node_id) {
         return ObjectPatternLayout::Inline;
     }
 
+    // expanded nested destructuring
     if object_pattern_should_break_properties(context, node_id, fields) {
-        ObjectPatternLayout::Group { expand: true }
-    } else if object_pattern_is_in_assignment_like(context, node_id) {
-        ObjectPatternLayout::Inline
-    } else {
-        ObjectPatternLayout::Group { expand: false }
+        return ObjectPatternLayout::Group { expand: true };
     }
+
+    // assignment-like shell
+    if object_pattern_is_in_assignment_like(context, node_id) {
+        return ObjectPatternLayout::Inline;
+    }
+
+    ObjectPatternLayout::Group { expand: false }
 }
 
 /// Format one object-like pattern, optionally prefixed with a type expression.
@@ -320,16 +377,20 @@ fn format_object_pattern_like<'ast>(
     ty: Option<LocalNodeId<TypeExpression>>,
     fields: &[LocalNodeId<PatternField>],
 ) -> FormatResult<()> {
+    // tagged prefix
     if let Some(ty) = ty {
         write!(f, [ty, space()])?;
     }
 
+    // layout
     let render_fields = object_pattern_render_fields(f.context().tree, fields);
     let layout = object_pattern_layout(f.context(), node_id, render_fields.as_ref());
+
     if matches!(layout, ObjectPatternLayout::Empty) {
         return format_empty_pattern_delimiter_with_interior_annotations(f, node_id, "{", "}");
     }
 
+    // separator policy
     let allow_trailing_separator =
         !pattern_fields_disallow_trailing_separator(f.context().tree, render_fields.as_ref());
     let trailing_separator = if !allow_trailing_separator
@@ -340,6 +401,7 @@ fn format_object_pattern_like<'ast>(
         TrailingSeparator::Allowed
     };
 
+    // field writers
     let format_fields = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write!(
             f,
@@ -353,6 +415,7 @@ fn format_object_pattern_like<'ast>(
         Ok(())
     });
 
+    // bracket spacing
     let format_properties = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         if f.context().options.bracket_spacing {
             write!(f, [soft_space_or_block_indent(&format_fields)])?;
@@ -362,7 +425,9 @@ fn format_object_pattern_like<'ast>(
         Ok(())
     });
 
+    // shell
     write!(f, [token("{")])?;
+
     match layout {
         ObjectPatternLayout::Empty => unreachable!(),
         ObjectPatternLayout::Inline => write!(f, [format_properties])?,
@@ -386,45 +451,64 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
         match self {
             Pattern::Wildcard => write!(f, [token("_")])?,
             Pattern::Must(unwrap) => write!(f, [unwrap, token("!")])?,
+
+            Pattern::Assign { pattern, value } => {
+                write!(f, [pattern, space(), token("="), space(), value])?;
+            }
+
             Pattern::ReferenceOf { right, mutability } => {
                 format_prefixed_pattern(f, "&", *right, *mutability)?;
             }
+
             Pattern::ValueOf { right, mutability } => {
                 format_prefixed_pattern(f, "^", *right, *mutability)?;
             }
+
             Pattern::Binding {
                 mutability,
                 name,
                 pattern,
             } => {
+                // mutable binding
                 if let Some(mutability) = mutability
                     && *mutability == Mutability::Mutable
                 {
                     write!(f, [mutability, space()])?;
                 }
+
+                // binding name
                 write!(f, [name])?;
+
+                // nested pattern
                 if let Some(pattern) = pattern {
                     write!(f, [token(":"), space(), pattern])?;
                 }
             }
+
             Pattern::Expression { value } => write!(f, [value])?,
             Pattern::TypeExpression { value } => write!(f, [value])?,
+
             Pattern::Tuple { fields } => {
                 format_pattern_field_list(f, node_id, "(", ")", fields, false)?;
             }
+
             Pattern::TaggedTuple { ty, fields } => {
                 write!(f, [ty])?;
                 format_pattern_field_list(f, node_id, "(", ")", fields, false)?;
             }
+
             Pattern::Array { fields } => {
                 format_pattern_field_list(f, node_id, "[", "]", fields, false)?;
             }
+
             Pattern::Object { fields } => {
                 format_object_pattern_like(f, node_id, None, fields)?;
             }
+
             Pattern::TaggedObject { ty, fields } => {
                 format_object_pattern_like(f, node_id, Some(*ty), fields)?;
             }
+
             Pattern::Union { patterns } => write!(
                 f,
                 [format_with(|f| f
@@ -452,70 +536,66 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
             PatternField::Named {
                 mutability,
                 name,
+                is_shorthand,
                 pattern,
-                default,
             } => {
+                // mutable field
                 if let Some(mutability) = mutability {
                     write!(f, [mutability, space()])?;
                 }
-                if let Some(pattern) = pattern {
+
+                // expanded field
+                if !is_shorthand {
+                    let pattern = pattern.expect("expanded named pattern field");
                     write!(f, [name, token(":"), space(), pattern])?;
-                } else {
+                }
+                // shorthand assignment field
+                else if let Some(pattern) = pattern {
+                    write!(f, [name])?;
+                    write_shorthand_assignment_value(f, *pattern)?;
+                }
+                // plain shorthand field
+                else {
                     write!(f, [name])?;
                 }
-                if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
-                }
             }
+
             PatternField::Computed {
                 mutability,
                 key,
                 pattern,
-                default,
             } => {
+                // mutable field
                 if let Some(mutability) = mutability {
                     write!(f, [mutability, space()])?;
                 }
+
+                // computed key and value
                 write!(f, [token("["), key, token("]")])?;
-                if let Some(pattern) = pattern {
-                    write!(f, [token(":"), space(), pattern])?;
-                }
-                if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
-                }
+                write!(f, [token(":"), space(), pattern])?;
             }
-            PatternField::Alias {
-                mutability,
-                name,
-                alias,
-                default,
-            } => {
-                if let Some(mutability) = mutability {
-                    write!(f, [mutability, space()])?;
-                }
-                write!(f, [name, token(":"), space(), alias])?;
-                if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
-                }
-            }
-            PatternField::Positional { pattern, default } => {
+
+            PatternField::Positional { pattern } => {
                 write!(f, [pattern])?;
-                if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
-                }
             }
+
             PatternField::Spread {
                 mutability,
                 pattern,
             } => {
+                // mutable field
                 if let Some(mutability) = mutability {
                     write!(f, [mutability, space()])?;
                 }
+
+                // spread value
                 write!(f, [token("...")])?;
+
                 if let Some(pattern) = pattern {
                     write!(f, [pattern])?;
                 }
             }
+
             PatternField::Elision => {
                 // elision is represented by empty slot; comma is handled at list level
             }
@@ -525,4 +605,19 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
 
         Ok(())
     }
+}
+
+/// Write the value side of one shorthand assignment pattern.
+fn write_shorthand_assignment_value(
+    f: &mut DestackFormatter<'_, '_>,
+    pattern_id: LocalNodeId<Pattern>,
+) -> FormatResult<()> {
+    // shorthand defaults always lower to assignment wrappers
+    let pattern = f.context().tree.get(pattern_id);
+
+    let Pattern::Assign { value, .. } = pattern else {
+        unreachable!("expected shorthand assignment pattern");
+    };
+
+    write!(f, [space(), token("="), space(), value])
 }
