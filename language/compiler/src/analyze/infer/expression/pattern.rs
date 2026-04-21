@@ -34,6 +34,10 @@ impl Compiler {
             Pattern::Wildcard => {
                 // nothing to do
             }
+            Pattern::Assign { pattern, value } => {
+                self.infer_expression(&mut ctx.reborrow(), *value, state)?;
+                self.infer_pattern(&mut ctx.reborrow(), *pattern, binding_ty_id, state)?;
+            }
             Pattern::Must(pattern_id) => {
                 let binding_ty_id = binding_ty_id.and_then(|binding_ty_id| {
                     let (non_nullish, _) = self.strip_nullish_from_union(binding_ty_id, ctx.types);
@@ -150,11 +154,8 @@ impl Compiler {
                 // handle scalar tagged patterns like `UserId(value)`
                 if fields.len() == 1 {
                     let field = ctx.tree.get(fields[0]);
-                    if let PatternField::Positional { pattern, default } = field {
+                    if let PatternField::Positional { pattern } = field {
                         self.infer_pattern(&mut ctx.reborrow(), *pattern, Some(ty_id), state)?;
-                        if let Some(default) = default {
-                            self.infer_expression(&mut ctx.reborrow(), *default, state)?;
-                        }
                         return Ok(());
                     }
                 }
@@ -352,7 +353,11 @@ impl Compiler {
             Pattern::Wildcard | Pattern::Binding { .. } => true,
 
             // wrappers preserve the inner pattern compatibility
-            Pattern::Must(pattern_id)
+            Pattern::Assign {
+                pattern: pattern_id,
+                value: _,
+            }
+            | Pattern::Must(pattern_id)
             | Pattern::ReferenceOf {
                 mutability: _,
                 right: pattern_id,
@@ -525,7 +530,6 @@ impl Compiler {
                 }
                 PatternField::Spread { .. }
                 | PatternField::Named { .. }
-                | PatternField::Alias { .. }
                 | PatternField::Computed { .. } => {
                     return true;
                 }
@@ -567,12 +571,7 @@ impl Compiler {
         for field_id in fields {
             let field = ctx.tree.get(*field_id);
             match field {
-                PatternField::Named {
-                    name,
-                    pattern,
-                    default: _,
-                    mutability: _,
-                } => {
+                PatternField::Named { name, pattern, .. } => {
                     let Some(field_ty_id) = self.pattern_member_type_for_narrowing(
                         &mut ctx.reborrow(),
                         *field_id,
@@ -587,25 +586,6 @@ impl Compiler {
                             *pattern_id,
                             field_ty_id,
                         )
-                    {
-                        return false;
-                    }
-                }
-                PatternField::Alias {
-                    name,
-                    alias: _,
-                    default: _,
-                    mutability: _,
-                    symbol: _,
-                } => {
-                    if self
-                        .pattern_member_type_for_narrowing(
-                            &mut ctx.reborrow(),
-                            *field_id,
-                            candidate_ty_id,
-                            StaticKey::Name(*name),
-                        )
-                        .is_none()
                     {
                         return false;
                     }
@@ -852,7 +832,6 @@ impl Compiler {
             let field = ctx.tree.get(*field_id);
             let field_ty = match field {
                 PatternField::Named { .. }
-                | PatternField::Alias { .. }
                 | PatternField::Positional { .. }
                 | PatternField::Computed { .. } => {
                     if !binding_ty_fields.is_empty() {
@@ -1020,7 +999,11 @@ impl Compiler {
         let pattern = tree.get(pattern_id);
         match pattern {
             Pattern::Wildcard | Pattern::Binding { .. } => Some(TuplePatternLiteralCoverage::All),
-            Pattern::Must(pattern_id)
+            Pattern::Assign {
+                pattern: pattern_id,
+                value: _,
+            }
+            | Pattern::Must(pattern_id)
             | Pattern::ReferenceOf {
                 mutability: _,
                 right: pattern_id,
@@ -1160,8 +1143,9 @@ impl Compiler {
             PatternField::Named {
                 mutability: _,
                 name,
-                default,
                 pattern,
+                symbol,
+                ..
             } => {
                 // resolve the field type from the binding type when possible
                 let field_ty_id = self.pattern_field_binding_type(
@@ -1172,9 +1156,12 @@ impl Compiler {
                     state,
                 )?;
 
-                // infer default expressions for named fields
-                if let Some(default) = default {
-                    self.infer_expression(&mut ctx.reborrow(), *default, state)?;
+                // propagate the resolved type to direct field bindings
+                if let Some(symbol_id) = symbol
+                    && let Some(field_ty_id) = field_ty_id
+                {
+                    ctx.types
+                        .set_value_type(symbol_id.into_global(ctx.module.id), field_ty_id);
                 }
 
                 // propagate the field type into nested patterns
@@ -1182,50 +1169,12 @@ impl Compiler {
                     self.infer_pattern(&mut ctx.reborrow(), *pattern_id, field_ty_id, state)?;
                 }
             }
-            PatternField::Computed {
-                key,
-                pattern,
-                default,
-                ..
-            } => {
+            PatternField::Computed { key, pattern, .. } => {
                 self.infer_expression(&mut ctx.reborrow(), *key, state)?;
-                if let Some(default) = default {
-                    self.infer_expression(&mut ctx.reborrow(), *default, state)?;
-                }
-                if let Some(pattern_id) = pattern {
-                    self.infer_pattern(&mut ctx.reborrow(), *pattern_id, None, state)?;
-                }
+                self.infer_pattern(&mut ctx.reborrow(), *pattern, None, state)?;
             }
-            PatternField::Alias {
-                mutability: _,
-                name,
-                alias: _,
-                default,
-                symbol,
-            } => {
-                // resolve the field type from the binding type when possible
-                let field_ty_id = self.pattern_field_binding_type(
-                    &mut ctx.type_context_reborrow(),
-                    field_id,
-                    binding_ty_id,
-                    StaticKey::Name(*name),
-                    state,
-                )?;
-                if let Some(ty_id) = field_ty_id {
-                    ctx.types
-                        .set_value_type(symbol.into_global(ctx.module.id), ty_id);
-                }
-
-                if let Some(default) = default {
-                    self.infer_expression(&mut ctx.reborrow(), *default, state)?;
-                }
-            }
-            PatternField::Positional { pattern, default } => {
+            PatternField::Positional { pattern } => {
                 self.infer_pattern(&mut ctx.reborrow(), *pattern, binding_ty_id, state)?;
-
-                if let Some(default) = default {
-                    self.infer_expression(&mut ctx.reborrow(), *default, state)?;
-                }
             }
             PatternField::Spread {
                 mutability: _,

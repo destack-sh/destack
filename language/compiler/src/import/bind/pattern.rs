@@ -3,9 +3,9 @@ use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
     BindingCategory, ExportMode, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
-    LocalSymbolId, ModuleBinding, Mutability, NodeTree, NodeType, Pattern, PatternField,
-    ProvenanceReason, ScopeKind, StaticKey, StringId, SymbolBinding, SymbolKind, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable,
+    LocalSymbolId, ModuleBinding, Mutability, NodeTree, NodeType, Pattern, PatternField, ScopeKind,
+    StaticKey, StringId, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    SymbolType, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -156,6 +156,43 @@ impl Compiler {
                 symbols,
                 types,
             )),
+            ast::Pattern::Assign {
+                pattern: ast_pattern_id,
+                value,
+            } => {
+                let pattern = self.bind_pattern(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    export,
+                    binding,
+                    binding_mutability,
+                    binding_category,
+                    *ast_pattern_id,
+                    Some(pattern_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let value = self.bind_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *value,
+                    Some(pattern_id),
+                    tree,
+                    symbols,
+                    types,
+                    SymbolSpaceOrder::ValueThenType,
+                );
+                Pattern::Assign { pattern, value }
+            }
             ast::Pattern::ReferenceOf {
                 mutability,
                 right: right_id,
@@ -479,15 +516,11 @@ impl Compiler {
         }
     }
 
-    /// Bind a shorthand object field to one explicit binding pattern.
-    fn bind_shorthand_named_pattern_for_field(
+    /// Bind one named pattern field symbol.
+    fn bind_named_pattern_field_symbol(
         &self,
         module: &Module,
         ast: &Ast,
-        _namespace_scope: LocalScopeId,
-        _global_augmentation_scope: LocalScopeId,
-        _module_bindings: &mut Vec<ModuleBinding>,
-        scope: (LocalScopeId, LocalScopeMark),
         export: Option<ExportMode>,
         binding: SymbolBinding,
         binding_scope: (LocalScopeId, LocalScopeMark),
@@ -495,11 +528,9 @@ impl Compiler {
         binding_category: Option<BindingCategory>,
         field_mutability: Option<Mutability>,
         field_name: StringId,
-        parent_id: LocalNodeIdAny,
-        tree: &mut NodeTree,
         symbols: &mut SymbolTable,
-    ) -> LocalNodeId<Pattern> {
-        // bind the shorthand field name as a regular local symbol
+    ) -> LocalSymbolId {
+        // symbol
         let (symbol, _) = self.bind_named_symbol_with_binding(
             module,
             ast,
@@ -519,24 +550,31 @@ impl Compiler {
             self.apply_binding_category(symbols, symbol, binding_category);
         }
 
-        // canonicalize shorthand as an explicit nested binding pattern
-        let pattern_id = tree.reserve_from(
-            NodeType::Pattern,
-            parent_id,
-            scope,
-            Some(parent_id),
-            Some(ProvenanceReason::Bound),
-        );
-        let pattern = Pattern::Binding {
-            mutability: field_mutability,
-            name: field_name,
-            pattern: None,
-            symbol,
-        };
-        let pattern_id = tree.insert(pattern_id, pattern);
-        symbols.get_symbol_mut(symbol).declare_primary(pattern_id);
+        symbol
+    }
 
-        pattern_id
+    /// Return the binding symbol introduced by one bound pattern.
+    fn bound_pattern_symbol(
+        &self,
+        tree: &NodeTree,
+        pattern_id: LocalNodeId<Pattern>,
+    ) -> Option<LocalSymbolId> {
+        match tree.get(pattern_id) {
+            Pattern::Binding { symbol, .. } => Some(*symbol),
+            Pattern::Assign { pattern, .. } => self.bound_pattern_symbol(tree, *pattern),
+            Pattern::Must(pattern)
+            | Pattern::ReferenceOf { right: pattern, .. }
+            | Pattern::ValueOf { right: pattern, .. } => self.bound_pattern_symbol(tree, *pattern),
+            Pattern::Wildcard
+            | Pattern::Expression { .. }
+            | Pattern::TypeExpression { .. }
+            | Pattern::Tuple { .. }
+            | Pattern::TaggedTuple { .. }
+            | Pattern::Array { .. }
+            | Pattern::Object { .. }
+            | Pattern::TaggedObject { .. }
+            | Pattern::Union { .. } => None,
+        }
     }
 
     /// Bind a pattern field to a DIR pattern field.
@@ -571,98 +609,14 @@ impl Compiler {
             ast::PatternField::Named {
                 mutability,
                 name,
+                is_shorthand,
                 pattern,
-                default,
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
                 let name = self
                     .repository
                     .strings
                     .intern_from(&ast.strings, name.string());
-                let pattern = if let Some(pattern) = pattern {
-                    Some(self.bind_pattern(
-                        module,
-                        ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        scope,
-                        export,
-                        binding,
-                        binding_mutability,
-                        binding_category,
-                        *pattern,
-                        Some(pattern_field_id),
-                        tree,
-                        symbols,
-                        types,
-                    ))
-                }
-                // canonicalize shorthand object fields to explicit nested bindings
-                else {
-                    Some(self.bind_shorthand_named_pattern_for_field(
-                        module,
-                        ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        scope,
-                        export,
-                        binding,
-                        binding_scope,
-                        binding_mutability,
-                        binding_category,
-                        mutability,
-                        name,
-                        pattern_field_id,
-                        tree,
-                        symbols,
-                    ))
-                };
-                let default = default.map(|default| {
-                    self.bind_expression(
-                        module,
-                        ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        scope,
-                        default,
-                        Some(pattern_field_id),
-                        tree,
-                        symbols,
-                        types,
-                        SymbolSpaceOrder::ValueThenType,
-                    )
-                });
-                PatternField::Named {
-                    mutability,
-                    name,
-                    pattern,
-                    default,
-                }
-            }
-            ast::PatternField::Computed {
-                mutability,
-                key,
-                pattern,
-                default,
-            } => {
-                let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
-                let key = self.bind_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
-                    scope,
-                    *key,
-                    Some(pattern_field_id),
-                    tree,
-                    symbols,
-                    types,
-                    SymbolSpaceOrder::ValueThenType,
-                );
                 let pattern = pattern.map(|pattern| {
                     self.bind_pattern(
                         module,
@@ -682,84 +636,81 @@ impl Compiler {
                         types,
                     )
                 });
-                let default = default.map(|default| {
-                    self.bind_expression(
+
+                // symbol
+                let symbol = if let Some(pattern) = pattern {
+                    self.bound_pattern_symbol(tree, pattern)
+                } else if *is_shorthand {
+                    Some(self.bind_named_pattern_field_symbol(
                         module,
                         ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        scope,
-                        default,
-                        Some(pattern_field_id),
-                        tree,
+                        export,
+                        binding,
+                        binding_scope,
+                        binding_mutability,
+                        binding_category,
+                        mutability,
+                        name,
                         symbols,
-                        types,
-                        SymbolSpaceOrder::ValueThenType,
-                    )
-                });
+                    ))
+                } else {
+                    None
+                };
+
+                PatternField::Named {
+                    mutability,
+                    name,
+                    symbol,
+                    is_shorthand: *is_shorthand,
+                    pattern,
+                }
+            }
+            ast::PatternField::Computed {
+                mutability,
+                key,
+                pattern,
+            } => {
+                let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
+                let key = self.bind_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *key,
+                    Some(pattern_field_id),
+                    tree,
+                    symbols,
+                    types,
+                    SymbolSpaceOrder::ValueThenType,
+                );
+                let pattern = self.bind_pattern(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    export,
+                    binding,
+                    binding_mutability,
+                    binding_category,
+                    *pattern,
+                    Some(pattern_field_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+
                 PatternField::Computed {
                     mutability,
                     key,
                     pattern,
-                    default,
-                }
-            }
-            ast::PatternField::Alias {
-                mutability,
-                name,
-                alias,
-                default,
-            } => {
-                let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
-                let name = self
-                    .repository
-                    .strings
-                    .intern_from(&ast.strings, name.string());
-                let alias = self.repository.strings.intern_from(&ast.strings, *alias);
-                let default = default.map(|default| {
-                    self.bind_expression(
-                        module,
-                        ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        scope,
-                        default,
-                        Some(pattern_field_id),
-                        tree,
-                        symbols,
-                        types,
-                        SymbolSpaceOrder::ValueThenType,
-                    )
-                });
-                let (symbol, _) = self.bind_named_symbol_with_binding(
-                    module,
-                    ast,
-                    SymbolSpace::Value,
-                    StaticKey::Name(alias),
-                    binding,
-                    binding_scope,
-                    export,
-                    symbols,
-                );
-                let symbol_mutability =
-                    self.resolve_binding_mutability(module, mutability, binding_mutability);
-                self.apply_binding_mutability(symbols, symbol, symbol_mutability);
-                if let Some(binding_category) = binding_category {
-                    self.apply_binding_category(symbols, symbol, binding_category);
-                }
-                PatternField::Alias {
-                    mutability,
-                    name,
-                    alias,
-                    default,
-                    symbol,
                 }
             }
             ast::PatternField::Positional {
                 pattern: pattern_id,
-                default,
             } => {
                 let pattern = self.bind_pattern(
                     module,
@@ -778,23 +729,7 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                let default = default.map(|default| {
-                    self.bind_expression(
-                        module,
-                        ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        scope,
-                        default,
-                        Some(pattern_field_id),
-                        tree,
-                        symbols,
-                        types,
-                        SymbolSpaceOrder::ValueThenType,
-                    )
-                });
-                PatternField::Positional { pattern, default }
+                PatternField::Positional { pattern }
             }
             ast::PatternField::Spread {
                 mutability,

@@ -1110,7 +1110,8 @@ impl Compiler {
         // walk nested patterns
         match pattern {
             Pattern::Wildcard | Pattern::Expression { .. } | Pattern::TypeExpression { .. } => {}
-            Pattern::Must(inner)
+            Pattern::Assign { pattern: inner, .. }
+            | Pattern::Must(inner)
             | Pattern::ReferenceOf { right: inner, .. }
             | Pattern::ValueOf { right: inner, .. } => {
                 self.collect_pattern_value_binding_symbols(ctx, *inner, bindings);
@@ -1159,10 +1160,7 @@ impl Compiler {
                 pattern: Some(pattern),
                 ..
             }
-            | PatternField::Computed {
-                pattern: Some(pattern),
-                ..
-            }
+            | PatternField::Computed { pattern, .. }
             | PatternField::Positional { pattern, .. } => {
                 self.collect_pattern_value_binding_symbols(ctx, *pattern, bindings);
             }

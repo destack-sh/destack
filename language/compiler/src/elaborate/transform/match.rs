@@ -574,13 +574,6 @@ impl Compiler {
             let pattern_id = match field {
                 PatternField::Positional { pattern, .. } => Some(pattern),
                 PatternField::Named { pattern, .. } => pattern,
-                PatternField::Alias { .. } => {
-                    return Err(ElaborateError::UnsupportedConstruct {
-                        node: field_id
-                            .into_global_any(state.tree.module_id)
-                            .into_anchored(None),
-                    });
-                }
                 PatternField::Computed { .. }
                 | PatternField::Spread { .. }
                 | PatternField::Elision => {
@@ -691,7 +684,6 @@ impl Compiler {
             let field = state.tree.get(*field_id).clone();
             let (field_name, pattern_id) = match field {
                 PatternField::Named { name, pattern, .. } => (Some(name), pattern),
-                PatternField::Alias { name, .. } => (Some(name), None),
                 PatternField::Positional { .. } => {
                     return Err(ElaborateError::UnsupportedConstruct {
                         node: field_id
@@ -1025,6 +1017,11 @@ impl Compiler {
                 Ok(self.insert_boolean_literal_expression(state, match_id, true, scope))
             }
 
+            // defaulting patterns defer to their wrapped pattern
+            Pattern::Assign { pattern, .. } => {
+                self.build_pattern_check(state, match_id, value, pattern, scope)
+            }
+
             // nested bindings defer to their inner pattern
             Pattern::Binding {
                 pattern: Some(inner),
@@ -1110,9 +1107,7 @@ impl Compiler {
                 PatternField::Positional { pattern, .. } => Some(pattern),
                 PatternField::Named { pattern, .. } => pattern,
                 PatternField::Elision => None,
-                PatternField::Alias { .. }
-                | PatternField::Computed { .. }
-                | PatternField::Spread { .. } => {
+                PatternField::Computed { .. } | PatternField::Spread { .. } => {
                     return Err(ElaborateError::UnsupportedConstruct {
                         node: field_id
                             .into_global_any(state.tree.module_id)
@@ -1170,7 +1165,6 @@ impl Compiler {
             let field = state.tree.get(*field_id).clone();
             let (field_name, pattern_id) = match field {
                 PatternField::Named { name, pattern, .. } => (Some(name), pattern),
-                PatternField::Alias { .. } => (None, None),
                 PatternField::Positional { .. }
                 | PatternField::Computed { .. }
                 | PatternField::Spread { .. }
@@ -1531,7 +1525,6 @@ impl Compiler {
                     }
                 }
                 PatternField::Spread { .. }
-                | PatternField::Alias { .. }
                 | PatternField::Computed { .. }
                 | PatternField::Elision => {
                     return Err(ElaborateError::UnsupportedConstruct {
@@ -1556,7 +1549,8 @@ impl Compiler {
 
         loop {
             match state.tree.get(current) {
-                Pattern::Must(inner)
+                Pattern::Assign { pattern: inner, .. }
+                | Pattern::Must(inner)
                 | Pattern::ReferenceOf { right: inner, .. }
                 | Pattern::ValueOf { right: inner, .. } => {
                     current = *inner;
@@ -1586,27 +1580,25 @@ impl Compiler {
         for field_id in fields.iter() {
             let field = state.tree.get(*field_id).clone();
             match field {
-                PatternField::Named { name, pattern, .. } => {
+                PatternField::Named {
+                    name,
+                    symbol,
+                    is_shorthand,
+                    pattern,
+                    mutability,
+                } => {
                     let access = self.build_member_access(state, match_id, value, name, scope)?;
 
-                    // bind only direct nested binding patterns
-                    if let Some(pattern_id) = pattern
-                        && let Some((binding_name, symbol, mutability)) =
+                    // bind either nested bindings or shorthand field bindings
+                    if let Some(pattern_id) = pattern {
+                        if let Some((binding_name, symbol, mutability)) =
                             self.direct_binding_from_pattern(state, pattern_id)
-                    {
-                        bindings.push((binding_name, symbol, mutability, access));
+                        {
+                            bindings.push((binding_name, symbol, mutability, access));
+                        }
+                    } else if is_shorthand && let Some(symbol) = symbol {
+                        bindings.push((name, symbol, mutability, access));
                     }
-                }
-                PatternField::Alias {
-                    name,
-                    alias,
-                    symbol,
-                    mutability,
-                    ..
-                } => {
-                    // `field: binding`, access by field name, bind to alias
-                    let access = self.build_member_access(state, match_id, value, name, scope)?;
-                    bindings.push((alias, symbol, mutability, access));
                 }
                 PatternField::Positional { .. }
                 | PatternField::Spread { .. }

@@ -530,6 +530,9 @@ impl Compiler {
         bindings: &mut Vec<BindingExport>,
     ) {
         match tree.get(pattern_id) {
+            Pattern::Assign { pattern, .. } => {
+                self.collect_binding_exports_from_pattern(tree, symbols, *pattern, bindings);
+            }
             Pattern::Wildcard | Pattern::Expression { .. } | Pattern::TypeExpression { .. } => {}
             Pattern::Must(right)
             | Pattern::ReferenceOf { right, .. }
@@ -579,26 +582,25 @@ impl Compiler {
         bindings: &mut Vec<BindingExport>,
     ) {
         match tree.get(field_id) {
-            PatternField::Named { name, pattern, .. } => {
+            PatternField::Named {
+                name,
+                symbol,
+                pattern,
+                ..
+            } => {
                 if let Some(pattern) = pattern {
                     self.collect_binding_exports_from_pattern(tree, symbols, *pattern, bindings);
                 } else {
                     bindings.push(BindingExport {
                         name: *name,
-                        conflict_kind: ExportConflictKind::Other,
+                        conflict_kind: symbol.map_or(ExportConflictKind::Other, |symbol| {
+                            self.export_conflict_kind_for_symbol(symbols, symbol)
+                        }),
                     });
                 }
             }
             PatternField::Computed { pattern, .. } => {
-                if let Some(pattern) = pattern {
-                    self.collect_binding_exports_from_pattern(tree, symbols, *pattern, bindings);
-                }
-            }
-            PatternField::Alias { alias, symbol, .. } => {
-                bindings.push(BindingExport {
-                    name: *alias,
-                    conflict_kind: self.export_conflict_kind_for_symbol(symbols, *symbol),
-                });
+                self.collect_binding_exports_from_pattern(tree, symbols, *pattern, bindings);
             }
             PatternField::Positional { pattern, .. } => {
                 self.collect_binding_exports_from_pattern(tree, symbols, *pattern, bindings);

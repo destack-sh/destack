@@ -354,6 +354,12 @@ impl Compiler {
 
         let is_irrefutable = match ctx.tree.get(pattern_id) {
             Pattern::Wildcard => true,
+            Pattern::Assign { pattern, .. } => self.is_irrefutable_pattern_for_type_inner(
+                &mut ctx.reborrow(),
+                *pattern,
+                value_type_id,
+                visited,
+            ),
             Pattern::Binding { pattern, .. } => match pattern {
                 None => {
                     let value_type = ctx.types.get_type(value_type_id);
@@ -545,7 +551,7 @@ impl Compiler {
                         return false;
                     }
                 }
-                PatternField::Alias { .. } | PatternField::Elision => {}
+                PatternField::Elision => {}
                 PatternField::Computed { .. } | PatternField::Spread { .. } => {
                     return false;
                 }
@@ -586,6 +592,15 @@ impl Compiler {
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
         match ctx.tree.get(pattern_id) {
+            Pattern::Assign { pattern, .. } => {
+                self.is_irrefutable_sequence_rest_pattern(
+                    &mut ctx.reborrow(),
+                    *pattern,
+                    rest_elements,
+                    rest_pattern_kind,
+                    visited,
+                )
+            }
             Pattern::Wildcard => true,
             Pattern::Binding { pattern, .. } => {
                 if let Some(inner_pattern_id) = pattern {
@@ -683,7 +698,7 @@ impl Compiler {
             let nested_pattern = match field {
                 PatternField::Positional { pattern, .. } => Some(*pattern),
                 PatternField::Named { pattern, .. } => *pattern,
-                PatternField::Alias { .. } | PatternField::Elision => None,
+                PatternField::Elision => None,
                 PatternField::Computed { .. } | PatternField::Spread { .. } => return false,
             };
 
@@ -788,15 +803,6 @@ impl Compiler {
                         return false;
                     }
                 }
-                PatternField::Alias { name, .. } => {
-                    let key = StaticKey::Name(*name);
-                    let Some(field_ty) = field_map.get(&key) else {
-                        return false;
-                    };
-                    if field_ty.is_optional {
-                        return false;
-                    }
-                }
                 PatternField::Computed { key, pattern, .. } => {
                     let Some(key) = self.static_key_from_key(
                         ctx.compiler_context.revision(),
@@ -814,13 +820,12 @@ impl Compiler {
                     if field_ty.is_optional {
                         return false;
                     }
-                    if let Some(inner) = pattern
-                        && !self.is_irrefutable_pattern_for_type_inner(
-                            &mut ctx.reborrow(),
-                            *inner,
-                            field_ty.ty,
-                            visited,
-                        )
+                    if !self.is_irrefutable_pattern_for_type_inner(
+                        &mut ctx.reborrow(),
+                        *pattern,
+                        field_ty.ty,
+                        visited,
+                    )
                     {
                         return false;
                     }
@@ -1561,7 +1566,7 @@ impl Compiler {
                     Some(MatchPatternCoverage::All)
                 }
             }
-            PatternField::Alias { .. } | PatternField::Elision => Some(MatchPatternCoverage::All),
+            PatternField::Elision => Some(MatchPatternCoverage::All),
             PatternField::Computed { .. } | PatternField::Spread { .. } => None,
         }
     }
@@ -1600,9 +1605,7 @@ impl Compiler {
         // locate the matching field by key
         for field_id in fields {
             let field_key = match ctx.tree.get(*field_id) {
-                PatternField::Named { name, .. } | PatternField::Alias { name, .. } => {
-                    Some(StaticKey::Name(*name))
-                }
+                PatternField::Named { name, .. } => Some(StaticKey::Name(*name)),
                 PatternField::Computed { key: field_key, .. } => self.static_key_from_key(
                     ctx.compiler_context.revision(),
                     ctx.profile,
@@ -1631,12 +1634,14 @@ impl Compiler {
         tree: &NodeTree,
     ) -> Option<MatchPatternCoverage<MatchLiteral>> {
         match tree.get(field_id) {
-            PatternField::Alias { .. } => Some(MatchPatternCoverage::All),
-            PatternField::Named { pattern, .. } | PatternField::Computed { pattern, .. } => {
+            PatternField::Named { pattern, .. } => {
                 let Some(pattern_id) = *pattern else {
                     return Some(MatchPatternCoverage::All);
                 };
                 self.literal_pattern_coverage(pattern_id, tree)
+            }
+            PatternField::Computed { pattern, .. } => {
+                self.literal_pattern_coverage(*pattern, tree)
             }
             _ => None,
         }
@@ -1849,7 +1854,7 @@ impl Compiler {
         for field_id in fields {
             if matches!(
                 ctx.tree.get(*field_id),
-                PatternField::Named { .. } | PatternField::Alias { .. }
+                PatternField::Named { .. }
             ) {
                 let node = field_id
                     .into_global_any(ctx.module.id)
@@ -1871,6 +1876,9 @@ impl Compiler {
         // unwrap and scan nested patterns
         match pattern {
             Pattern::Must(_) => true,
+            Pattern::Assign { pattern, .. } => {
+                self.pattern_has_definite_assignment(tree, *pattern)
+            }
             Pattern::ReferenceOf { right, .. } | Pattern::ValueOf { right, .. } => {
                 self.pattern_has_definite_assignment(tree, *right)
             }
@@ -1903,13 +1911,15 @@ impl Compiler {
 
         // scan nested patterns inside fields
         match field {
-            PatternField::Named { pattern, .. } | PatternField::Computed { pattern, .. } => {
-                pattern.is_some_and(|inner| self.pattern_has_definite_assignment(tree, inner))
+            PatternField::Named { pattern, .. } => pattern
+                .is_some_and(|inner| self.pattern_has_definite_assignment(tree, inner)),
+            PatternField::Computed { pattern, .. } => {
+                self.pattern_has_definite_assignment(tree, *pattern)
             }
             PatternField::Positional { pattern, .. } => {
                 self.pattern_has_definite_assignment(tree, *pattern)
             }
-            PatternField::Alias { .. } | PatternField::Elision => false,
+            PatternField::Elision => false,
             PatternField::Spread { pattern, .. } => {
                 pattern.is_some_and(|inner| self.pattern_has_definite_assignment(tree, inner))
             }
@@ -1928,6 +1938,7 @@ impl Compiler {
             | Pattern::Tuple { .. }
             | Pattern::TaggedTuple { .. }
             | Pattern::TaggedObject { .. } => true,
+            Pattern::Assign { pattern, .. } => self.is_destructuring_pattern(tree, *pattern),
             Pattern::Binding {
                 pattern: Some(inner),
                 ..
