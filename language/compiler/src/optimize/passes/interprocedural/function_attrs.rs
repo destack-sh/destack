@@ -744,8 +744,9 @@ fn effects_for_instruction(
         }
         mir::Instruction::Dispose { .. }
         | mir::Instruction::AsyncDispose { .. }
-        | mir::Instruction::Drop { .. }
-        | mir::Instruction::AsyncDrop { .. } => {
+        | mir::Instruction::Pin { .. }
+        | mir::Instruction::Unpin { .. }
+        | mir::Instruction::Drop { .. } => {
             (mir::MemoryEffect::unknown(), mir::CallBehavior::unknown())
         }
         mir::Instruction::Intrinsic { intrinsic, .. } => {

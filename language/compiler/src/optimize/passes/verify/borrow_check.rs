@@ -993,7 +993,7 @@ fn check_instruction(
         }
 
         // drop invalidates any borrows from this value
-        Instruction::Drop { value } | Instruction::AsyncDrop { value } => {
+        Instruction::Drop { value } => {
             let Some(value) = value.value() else {
                 return;
             };
@@ -1009,6 +1009,9 @@ fn check_instruction(
 
             checker.check_drop_while_borrowed(pointer, instruction_id, context);
         }
+
+        // pinning does not create or end borrows on its own
+        Instruction::Pin { .. } | Instruction::Unpin { .. } => {}
 
         // load through a reference
         Instruction::Load { .. } => {

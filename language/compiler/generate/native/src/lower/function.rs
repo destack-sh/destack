@@ -651,7 +651,8 @@ impl<'a> FunctionLowerer<'a> {
             // dispose hooks are not lowered into native code yet
             mir::Instruction::Dispose { value }
             | mir::Instruction::AsyncDispose { value }
-            | mir::Instruction::AsyncDrop { value } => {
+            | mir::Instruction::Pin { value }
+            | mir::Instruction::Unpin { value } => {
                 let _ = self.lowered_value(*value, value_map, "cleanup value")?;
                 return Err(CodegenCraneliftError::unsupported_instruction(
                     "cleanup",

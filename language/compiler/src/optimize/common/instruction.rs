@@ -106,8 +106,9 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         // cleanup and drops run user hooks / deallocate
         Instruction::Dispose { .. }
         | Instruction::AsyncDispose { .. }
-        | Instruction::Drop { .. }
-        | Instruction::AsyncDrop { .. } => false,
+        | Instruction::Pin { .. }
+        | Instruction::Unpin { .. }
+        | Instruction::Drop { .. } => false,
 
         // calls may have side effects
         Instruction::Call { .. }
@@ -271,8 +272,9 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         // cleanup and drops have side effects
         Instruction::Dispose { .. }
         | Instruction::AsyncDispose { .. }
-        | Instruction::Drop { .. }
-        | Instruction::AsyncDrop { .. } => true,
+        | Instruction::Pin { .. }
+        | Instruction::Unpin { .. }
+        | Instruction::Drop { .. } => true,
 
         // calls may have side effects
         Instruction::Call { .. }
@@ -345,8 +347,9 @@ pub fn instruction_may_affect_memory(instruction: &Instruction) -> bool {
             | Instruction::RawFree { .. }
             | Instruction::Dispose { .. }
             | Instruction::AsyncDispose { .. }
+            | Instruction::Pin { .. }
+            | Instruction::Unpin { .. }
             | Instruction::Drop { .. }
-            | Instruction::AsyncDrop { .. }
             | Instruction::StackAlloc { .. }
     )
 }
@@ -656,10 +659,13 @@ pub fn instruction_substitute_uses(
         mir::Instruction::AsyncDispose { value } => mir::Instruction::AsyncDispose {
             value: substitute(value),
         },
-        mir::Instruction::Drop { value } => mir::Instruction::Drop {
+        mir::Instruction::Pin { value } => mir::Instruction::Pin {
             value: substitute(value),
         },
-        mir::Instruction::AsyncDrop { value } => mir::Instruction::AsyncDrop {
+        mir::Instruction::Unpin { value } => mir::Instruction::Unpin {
+            value: substitute(value),
+        },
+        mir::Instruction::Drop { value } => mir::Instruction::Drop {
             value: substitute(value),
         },
         mir::Instruction::FieldGet {
@@ -2112,10 +2118,13 @@ pub fn instruction_map(
         mir::Instruction::AsyncDispose { value } => mir::Instruction::AsyncDispose {
             value: remap(*value),
         },
-        mir::Instruction::Drop { value } => mir::Instruction::Drop {
+        mir::Instruction::Pin { value } => mir::Instruction::Pin {
             value: remap(*value),
         },
-        mir::Instruction::AsyncDrop { value } => mir::Instruction::AsyncDrop {
+        mir::Instruction::Unpin { value } => mir::Instruction::Unpin {
+            value: remap(*value),
+        },
+        mir::Instruction::Drop { value } => mir::Instruction::Drop {
             value: remap(*value),
         },
         mir::Instruction::FieldGet {
@@ -3333,10 +3342,13 @@ pub fn instruction_map_with_locals(
         mir::Instruction::AsyncDispose { value } => mir::Instruction::AsyncDispose {
             value: remap(*value),
         },
-        mir::Instruction::Drop { value } => mir::Instruction::Drop {
+        mir::Instruction::Pin { value } => mir::Instruction::Pin {
             value: remap(*value),
         },
-        mir::Instruction::AsyncDrop { value } => mir::Instruction::AsyncDrop {
+        mir::Instruction::Unpin { value } => mir::Instruction::Unpin {
+            value: remap(*value),
+        },
+        mir::Instruction::Drop { value } => mir::Instruction::Drop {
             value: remap(*value),
         },
         mir::Instruction::StackAlloc {
