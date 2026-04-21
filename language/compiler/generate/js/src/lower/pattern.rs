@@ -113,8 +113,9 @@ impl ModuleLowerer<'_> {
             dir::PatternField::Named {
                 mutability,
                 name,
+                symbol,
+                is_shorthand: _,
                 pattern,
-                default,
             } => {
                 let pattern = match pattern {
                     Some(pattern_id) => self.lower_pattern_in_mode(*pattern_id, mode)?,
@@ -127,58 +128,18 @@ impl ModuleLowerer<'_> {
                         };
                         let name = self.strings.intern_from(self.source_strings, *name);
                         let pattern = js::Pattern::Binding { mutability, name };
-                        self.tree
-                            .insert_from_source(pattern, self.module.id, pattern_field_id)
+                        let pattern_id =
+                            self.tree
+                                .insert_from_source(pattern, self.module.id, pattern_field_id);
+
+                        if let Some(symbol) = symbol {
+                            self.set_source_node_symbol(pattern_id, *symbol);
+                        }
+
+                        pattern_id
                     }
                 };
-                let default = default
-                    .map(|default| {
-                        self.lower_expression(default)
-                            .expect_node::<js::Expression>(
-                                default.into_global_any(self.module.id),
-                                self,
-                            )
-                    })
-                    .transpose()?;
-                let pattern_field = js::PatternField::Positional { pattern, default };
-
-                Ok(self
-                    .tree
-                    .insert_from_source(pattern_field, self.module.id, pattern_field_id))
-            }
-            dir::PatternField::Alias {
-                mutability,
-                alias,
-                default,
-                symbol,
-                ..
-            } => {
-                let mutability = match mode {
-                    PatternMutabilityMode::Keep => {
-                        mutability.map(|mutability| self.lower_mutability(mutability))
-                    }
-                    PatternMutabilityMode::Omit => None,
-                };
-                let name = self.strings.intern_from(self.source_strings, *alias);
-                let pattern = js::Pattern::Binding { mutability, name };
-                let pattern_id =
-                    self.tree
-                        .insert_from_source(pattern, self.module.id, pattern_field_id);
-                self.set_source_node_symbol(pattern_id, *symbol);
-
-                let default = default
-                    .map(|default| {
-                        self.lower_expression(default)
-                            .expect_node::<js::Expression>(
-                                default.into_global_any(self.module.id),
-                                self,
-                            )
-                    })
-                    .transpose()?;
-                let pattern_field = js::PatternField::Positional {
-                    pattern: pattern_id,
-                    default,
-                };
+                let pattern_field = js::PatternField::Positional { pattern };
 
                 Ok(self
                     .tree
@@ -213,8 +174,9 @@ impl ModuleLowerer<'_> {
             dir::PatternField::Named {
                 mutability,
                 name,
+                symbol,
+                is_shorthand,
                 pattern,
-                default,
             } => {
                 let mutability = match mode {
                     PatternMutabilityMode::Keep => {
@@ -226,29 +188,26 @@ impl ModuleLowerer<'_> {
                 let pattern = pattern
                     .map(|pattern| self.lower_pattern_in_mode(pattern, mode))
                     .transpose()?;
-                let default = default
-                    .map(|default| {
-                        self.lower_expression(default)
-                            .expect_node::<js::Expression>(
-                                default.into_global_any(self.module.id),
-                                self,
-                            )
-                    })
-                    .transpose()?;
                 let pattern_field = js::PatternField::Named {
                     mutability,
                     name,
+                    is_shorthand: *is_shorthand,
                     pattern,
-                    default,
                 };
-                self.tree
-                    .insert_from_source(pattern_field, self.module.id, pattern_field_id)
+                let pattern_field_id =
+                    self.tree
+                        .insert_from_source(pattern_field, self.module.id, pattern_field_id);
+
+                if let Some(symbol) = symbol {
+                    self.set_source_node_symbol(pattern_field_id, *symbol);
+                }
+
+                pattern_field_id
             }
             dir::PatternField::Computed {
                 mutability,
                 key,
                 pattern,
-                default,
             } => {
                 let mutability = match mode {
                     PatternMutabilityMode::Keep => {
@@ -259,75 +218,18 @@ impl ModuleLowerer<'_> {
                 let key = self
                     .lower_expression(*key)
                     .expect_node::<js::Expression>(key.into_global_any(self.module.id), self)?;
-                let pattern = pattern
-                    .map(|pattern| self.lower_pattern_in_mode(pattern, mode))
-                    .transpose()?;
-                let default = default
-                    .map(|default| {
-                        self.lower_expression(default)
-                            .expect_node::<js::Expression>(
-                                default.into_global_any(self.module.id),
-                                self,
-                            )
-                    })
-                    .transpose()?;
+                let pattern = self.lower_pattern_in_mode(*pattern, mode)?;
                 let pattern_field = js::PatternField::Computed {
                     mutability,
                     key,
                     pattern,
-                    default,
                 };
                 self.tree
                     .insert_from_source(pattern_field, self.module.id, pattern_field_id)
             }
-            dir::PatternField::Alias {
-                mutability,
-                name,
-                alias,
-                default,
-                symbol,
-            } => {
-                let mutability = match mode {
-                    PatternMutabilityMode::Keep => {
-                        mutability.map(|mutability| self.lower_mutability(mutability))
-                    }
-                    PatternMutabilityMode::Omit => None,
-                };
-                let name = self.strings.intern_from(self.source_strings, *name);
-                let alias = self.strings.intern_from(self.source_strings, *alias);
-                let default = default
-                    .map(|default| {
-                        self.lower_expression(default)
-                            .expect_node::<js::Expression>(
-                                default.into_global_any(self.module.id),
-                                self,
-                            )
-                    })
-                    .transpose()?;
-                let pattern_field = js::PatternField::Alias {
-                    mutability,
-                    name,
-                    alias,
-                    default,
-                };
-                let pattern_field_id =
-                    self.tree
-                        .insert_from_source(pattern_field, self.module.id, pattern_field_id);
-                self.set_source_node_symbol(pattern_field_id, *symbol);
-                pattern_field_id
-            }
-            dir::PatternField::Positional { pattern, default } => {
+            dir::PatternField::Positional { pattern } => {
                 let pattern = self.lower_pattern_in_mode(*pattern, mode)?;
-                let default = default
-                    .map(|default| {
-                        self.lower_expression(default)
-                            .expect_node::<js::Expression>(
-                                default.into_global_any(self.module.id),
-                                self,
-                            )
-                    })
-                    .transpose()?;
-                let pattern_field = js::PatternField::Positional { pattern, default };
+                let pattern_field = js::PatternField::Positional { pattern };
                 self.tree
                     .insert_from_source(pattern_field, self.module.id, pattern_field_id)
             }

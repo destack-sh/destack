@@ -1360,6 +1360,12 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
                     .field("name", name)
                     .end();
             }
+            js::Pattern::Assign {
+                pattern: _,
+                value: _,
+            } => {
+                self.node("js::Pattern::Assign", id.id).end();
+            }
             js::Pattern::Array { fields: _ } => {
                 self.node("js::Pattern::Array", id.id).end();
             }
@@ -1385,40 +1391,25 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             js::PatternField::Named {
                 mutability,
                 name,
+                is_shorthand,
                 pattern: _,
-                default: _,
             } => {
                 self.node("js::PatternField::Named", id.id)
                     .field_optional("mutability", mutability)
                     .field("name", name)
+                    .field("is_shorthand", is_shorthand)
                     .end();
             }
             js::PatternField::Computed {
                 mutability,
                 key: _,
                 pattern: _,
-                default: _,
             } => {
                 self.node("js::PatternField::Computed", id.id)
                     .field_optional("mutability", mutability)
                     .end();
             }
-            js::PatternField::Alias {
-                mutability,
-                name,
-                alias,
-                default: _,
-            } => {
-                self.node("js::PatternField::Alias", id.id)
-                    .field("name", name)
-                    .field("alias", alias)
-                    .field_optional("mutability", mutability)
-                    .end();
-            }
-            js::PatternField::Positional {
-                pattern: _,
-                default: _,
-            } => {
+            js::PatternField::Positional { pattern: _ } => {
                 self.node("js::PatternField::Positional", id.id).end();
             }
             js::PatternField::Spread {
