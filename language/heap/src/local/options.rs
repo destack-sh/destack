@@ -1,26 +1,13 @@
 use serde::{Deserialize, Serialize};
 
+use super::constants::{
+    DEFAULT_ARENA_SEGMENT_BYTES, DEFAULT_CARD_BYTES, DEFAULT_MANAGED_REFERENCE_BYTES,
+    DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES, DEFAULT_PAGE_BYTES,
+    DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_BYTES, DEFAULT_TABLE_CHUNK_LEN,
+    DEFAULT_YOUNG_BYTES,
+};
 use crate::arena::{Arena, SizeClassPolicy, SizeClassTable};
 use crate::{GcOptions, HeapError};
-
-/// The standard heap page width aligned to common OS pages.
-const DEFAULT_PAGE_BYTES: usize = 4 * 1024;
-/// The standard arena segment width that amortizes mapping and metadata work.
-const DEFAULT_ARENA_SEGMENT_BYTES: usize = 1024 * 1024;
-/// The standard small-span width for size-classed allocation.
-const DEFAULT_SMALL_BYTES: usize = 16 * 1024;
-/// The standard remembered-card width for local write tracking.
-const DEFAULT_CARD_BYTES: usize = 256;
-/// The standard small young-space width for worker-local heaps.
-const DEFAULT_YOUNG_BYTES: usize = 64 * 1024;
-/// The standard nursery bypass threshold for larger payloads.
-const DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES: usize = 4 * 1024;
-/// The standard byte width for managed references inside traced payloads.
-const DEFAULT_MANAGED_REFERENCE_BYTES: u8 = 8;
-/// The standard alignment for configured small-allocation classes.
-const DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES: usize = 8;
-/// The standard entry count per copy on write metadata table chunk.
-const DEFAULT_TABLE_CHUNK_LEN: usize = 256;
 
 /// Constructor policy for resolving local heap options.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
