@@ -1,6 +1,7 @@
 use std::sync::atomic::Ordering;
 
-use crate::shared::gc::SharedGcPhase;
+use crate::shared::gc::{SharedGcPhase, SharedTraceWork};
+use crate::shared::managed::space::{checked_slot_offset, checked_storage_offset};
 use crate::shared::managed::{SharedManagedLocation, SharedManagedSpace};
 use crate::{
     GcKind, GcStats, HeapError, HeapResult, HeapSpace, SharedManagedReference,
@@ -27,6 +28,7 @@ impl SharedManagedSpace {
         // cycle state
         self.gc.marks.start_cycle();
         self.gc.trace_queue.clear();
+        self.gc.clear_small_span_work();
         self.gc.open_mark_publication();
         self.gc.sweep_cursor.store(0, Ordering::Release);
         self.gc.mark_publishers.store(0, Ordering::Release);
@@ -82,22 +84,63 @@ impl SharedManagedSpace {
         // mark queue
         while work_done < work_items {
             let batch_len = (work_items - work_done).min(SHARED_MARK_BATCH_LEN);
-            let batch = self.gc.trace_queue.pop_batch(batch_len);
+            let mut batch = self.gc.trace_queue.pop_batch(batch_len);
 
             if batch.is_empty() {
                 break;
             }
 
+            // trace nearby storage together
+            self.sort_trace_batch(&mut batch)?;
+
             self.gc
                 .mark_inflight
                 .fetch_add(batch.len(), Ordering::AcqRel);
 
-            for reference in batch {
-                let trace_result = self.trace_reference(reference);
-                self.gc.mark_inflight.fetch_sub(1, Ordering::AcqRel);
-                trace_result?;
-                work_done += 1;
+            let trace_result = self.trace_batch(&batch);
+            self.gc
+                .mark_inflight
+                .fetch_sub(batch.len(), Ordering::AcqRel);
+            trace_result?;
+            work_done += batch.len();
+        }
+
+        Ok(())
+    }
+
+    /// Trace one sorted shared mark batch.
+    fn trace_batch(&self, batch: &[SharedTraceWork]) -> HeapResult<()> {
+        let mut start = 0usize;
+
+        // trace small spans together and fall back to large references otherwise
+        while start < batch.len() {
+            let work = batch[start];
+
+            if let SharedTraceWork::Reference(reference) = work {
+                self.trace_reference(reference)?;
+                start += 1;
+
+                continue;
             }
+
+            let SharedTraceWork::SmallSpan(span_index) = work else {
+                return Err(HeapError::InvariantOverflow {
+                    context: "shared trace work",
+                });
+            };
+
+            let mut end = start + 1;
+
+            while end < batch.len() {
+                if batch[end] != SharedTraceWork::SmallSpan(span_index) {
+                    break;
+                }
+
+                end += 1;
+            }
+
+            self.trace_small_span_work(span_index)?;
+            start = end;
         }
 
         Ok(())
@@ -256,6 +299,164 @@ impl SharedManagedSpace {
         Ok(())
     }
 
+    /// Trace one shared small-span work item under one span read.
+    fn trace_small_span_work(&self, span_index: usize) -> HeapResult<()> {
+        let Some(span_work) = self.gc.small_span_work(span_index) else {
+            return Ok(());
+        };
+
+        // keep draining until this span really goes idle
+        loop {
+            let pending_slots = span_work.drain_slots();
+
+            if pending_slots.is_empty() {
+                if !span_work.has_more_slots() {
+                    return Ok(());
+                }
+
+                continue;
+            }
+
+            let mut edge_buffer = Vec::new();
+
+            {
+                let store = self.store.read();
+                let Some(span) = store.small.spans.get(span_index).cloned() else {
+                    return Err(HeapError::MissingSpan { span_index });
+                };
+                let span = span.read();
+                let span_bytes = store.small.span_bytes;
+
+                // shared small-span scan
+                for slot_index in pending_slots {
+                    let reference_id = span
+                        .reference_ids
+                        .get(slot_index)
+                        .copied()
+                        .flatten()
+                        .ok_or(HeapError::MissingSmallSlot {
+                            span_index,
+                            slot_index,
+                        })?;
+                    let reference = SharedManagedReference::new(reference_id);
+
+                    if !self.gc.marks.mark(reference) {
+                        continue;
+                    }
+
+                    let shape_id = span.shape_ids.get(slot_index).copied().flatten().ok_or(
+                        HeapError::MissingSmallSlot {
+                            span_index,
+                            slot_index,
+                        },
+                    )?;
+                    let shape =
+                        store
+                            .shape_table
+                            .shape(shape_id)
+                            .ok_or(HeapError::InvalidShapeId {
+                                index: shape_id.index(),
+                            })?;
+
+                    if !shape.scan.has_shared_reference() {
+                        continue;
+                    }
+
+                    let slot_offset = checked_slot_offset(span.size_class, slot_index)?;
+                    let mut first_reader_error = None;
+
+                    // payload scan
+                    let trace_result = visit_shared_references_in_reader(
+                        &shape.scan,
+                        SharedManagedReference::BYTE_LEN,
+                        |start, buffer| {
+                            let read_offset =
+                                match checked_storage_offset(slot_offset, start, span_bytes) {
+                                    Ok(offset) => offset,
+                                    Err(error) => {
+                                        first_reader_error.get_or_insert(error);
+
+                                        return false;
+                                    }
+                                };
+
+                            match self.arena.fill_bytes_from(&span.pages, read_offset, buffer) {
+                                Ok(()) => true,
+                                Err(error) => {
+                                    first_reader_error.get_or_insert(error);
+                                    false
+                                }
+                            }
+                        },
+                        |reference: SharedManagedReference| {
+                            if !reference.is_null() {
+                                edge_buffer.push(reference);
+                            }
+                        },
+                    );
+
+                    // payload errors
+                    if let Err(error) = trace_result {
+                        if let Some(error) = first_reader_error {
+                            return Err(error);
+                        }
+
+                        return Err(error);
+                    }
+                }
+            }
+
+            // discovered edges
+            self.queue_references(edge_buffer)?;
+
+            if !span_work.has_more_slots() {
+                return Ok(());
+            }
+        }
+    }
+
+    /// Sort one shared mark batch by storage locality before tracing it.
+    fn sort_trace_batch(&self, batch: &mut [SharedTraceWork]) -> HeapResult<()> {
+        let mut keyed_batch = Vec::with_capacity(batch.len());
+
+        // gather stable storage keys once before sorting
+        for &work in &*batch {
+            let key = self.trace_order_key(work)?;
+            keyed_batch.push((key, work));
+        }
+
+        // sort small spans and large entries into a more contiguous walk
+        keyed_batch.sort_unstable_by_key(|(key, _)| *key);
+
+        // write the reordered batch back in place
+        for (slot, (_, reference)) in batch.iter_mut().zip(keyed_batch) {
+            *slot = reference;
+        }
+
+        Ok(())
+    }
+
+    /// Return one stable sort key for tracing this queued work.
+    fn trace_order_key(&self, work: SharedTraceWork) -> HeapResult<u64> {
+        match work {
+            SharedTraceWork::SmallSpan(span_index) => Ok(span_index as u64),
+            SharedTraceWork::Reference(reference) => {
+                let Some(record) = self.reference_entry(reference) else {
+                    return Err(HeapError::InvalidSharedManagedReference { reference });
+                };
+                let Some(location) = record.location() else {
+                    return Err(HeapError::InvalidSharedManagedReference { reference });
+                };
+                let SharedManagedLocation::Large(entry_id) = location else {
+                    return Err(HeapError::InvalidSharedManagedReference { reference });
+                };
+                let large_base = 1_u64 << 63;
+
+                Ok(large_base | entry_id.id())
+            }
+        }
+    }
+
     /// Free one shared managed reference by stable reference id.
     fn free_reference(&self, reference_id: u32) -> HeapResult<u64> {
         let reference = SharedManagedReference::new(reference_id);
@@ -334,6 +535,7 @@ impl SharedManagedSpace {
         self.gc.freed_allocations.store(0, Ordering::Release);
         self.gc.freed_bytes.store(0, Ordering::Release);
         self.gc.trace_queue.clear();
+        self.gc.clear_small_span_work();
 
         // cycle summary
         store.gc_state.record_cycle(GcKind::Full, stats)?;
@@ -514,18 +716,18 @@ impl SharedManagedSpace {
                 continue;
             }
 
-            self.gc.trace_queue.push(reference);
+            self.queue_reference_work(reference)?;
         }
 
         Ok(())
     }
 
-    /// Queue one shared reference for mark work.
+    /// Queue one shared reference for later trace work.
     fn queue_reference(&self, reference: SharedManagedReference) -> HeapResult<()> {
         self.queue_references([reference])
     }
 
-    /// Queue shared references for later mark work.
+    /// Queue shared references for later trace work.
     fn queue_references(
         &self,
         references: impl IntoIterator<Item = SharedManagedReference>,
@@ -541,9 +743,51 @@ impl SharedManagedSpace {
                 return Err(HeapError::InvalidSharedManagedReference { reference });
             };
 
-            // duplicate queue entries are fine: mark-time deduplicates them
-            self.gc.trace_queue.push(reference);
+            self.queue_reference_work(reference)?;
         }
+
+        Ok(())
+    }
+
+    /// Queue one shared reference as span work or direct reference work.
+    fn queue_reference_work(&self, reference: SharedManagedReference) -> HeapResult<()> {
+        let Some(record) = self.reference_entry(reference) else {
+            return Err(HeapError::InvalidSharedManagedReference { reference });
+        };
+        let Some(location) = record.location() else {
+            return Err(HeapError::InvalidSharedManagedReference { reference });
+        };
+
+        // small references queue one span work item with pending slots
+        if let SharedManagedLocation::Small(slot) = location {
+            let slot_count = {
+                let store = self.store.read();
+                let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
+                    return Err(HeapError::MissingSpan {
+                        span_index: slot.span_index(),
+                    });
+                };
+                let span = span.read();
+
+                span.slot_count
+            };
+            let span_work = self
+                .gc
+                .ensure_small_span_work(slot.span_index(), slot_count);
+
+            if span_work.queue_slot(slot.slot_index()) {
+                self.gc
+                    .trace_queue
+                    .push(SharedTraceWork::SmallSpan(slot.span_index()));
+            }
+
+            return Ok(());
+        }
+
+        // large references stay as direct trace work
+        self.gc
+            .trace_queue
+            .push(SharedTraceWork::Reference(reference));
 
         Ok(())
     }

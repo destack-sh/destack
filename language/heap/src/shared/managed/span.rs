@@ -12,6 +12,8 @@ pub struct SharedManagedSmallSpanImage {
     pub slot_count: usize,
     /// The occupied slots in this span.
     pub occupied: Bitmap,
+    /// The per-slot stable reference ids for this span.
+    pub reference_ids: Box<[Option<u32>]>,
     /// The per-slot shape ids for this span.
     pub shape_ids: Box<[Option<u32>]>,
     /// The arena pages for this span.
@@ -31,6 +33,8 @@ pub(crate) struct SharedSmallSpan {
     pub(crate) next_free_slot: usize,
     /// The occupied slots in this span.
     pub(crate) occupied: Bitmap,
+    /// The per-slot stable reference ids for this span.
+    pub(crate) reference_ids: Box<[Option<u32>]>,
     /// The per-slot shape ids for this span.
     pub(crate) shape_ids: Box<[Option<ShapeId>]>,
     /// The arena pages for this span.
@@ -38,10 +42,13 @@ pub(crate) struct SharedSmallSpan {
 }
 
 impl SharedSmallSpan {
+    /// Set the reference id for one slot in this span.
+    pub(crate) fn set_reference_id(&mut self, slot_index: usize, reference_id: Option<u32>) {
+        self.reference_ids[slot_index] = reference_id;
+    }
+
     /// Set the shape id for one slot in this span.
     pub(crate) fn set_shape_id(&mut self, slot_index: usize, shape_id: Option<ShapeId>) {
-        if let Some(entry) = self.shape_ids.get_mut(slot_index) {
-            *entry = shape_id;
-        }
+        self.shape_ids[slot_index] = shape_id;
     }
 }

@@ -6,8 +6,7 @@ use serde::{Deserialize, Serialize};
 use super::constants::{
     MAX_SHARED_EDGE_SCAN_BUDGET, MAX_SHARED_MARK_BUDGET, MAX_SHARED_SWEEP_BUDGET,
     MIN_SHARED_EDGE_SCAN_BUDGET, MIN_SHARED_MARK_BUDGET, MIN_SHARED_SWEEP_BUDGET,
-    SHARED_ASSIST_BUDGET, SHARED_DIRECT_ROOT_SCAN_BUDGET_PER_WORKER,
-    SHARED_EDGE_SCAN_BUDGET_PER_WORKER, SHARED_MARK_BUDGET_PER_WORKER,
+    SHARED_ASSIST_BUDGET, SHARED_EDGE_SCAN_BUDGET_PER_WORKER, SHARED_MARK_BUDGET_PER_WORKER,
     SHARED_MARK_PAGES_PER_BUDGET, SHARED_SWEEP_BUDGET_PER_WORKER, SHARED_SWEEP_PAGES_PER_BUDGET,
 };
 use super::{
@@ -165,6 +164,11 @@ impl SharedHeap {
         self.managed.gc_state()
     }
 
+    /// Return whether the active shared mark phase is currently drained.
+    pub fn mark_idle(&self) -> bool {
+        self.managed.mark_idle()
+    }
+
     /// Return the current derived collector pacing targets.
     pub fn gc_pacer(&self) -> GcPacer {
         let mut gc_pacer = GcPacer::default();
@@ -227,20 +231,6 @@ impl SharedHeap {
             })
             .map(|pending| pending.min(SHARED_ASSIST_BUDGET))
             .unwrap_or(0)
-    }
-
-    /// Return the bounded shared direct-root scan budget for one world step.
-    pub fn direct_root_scan_budget(&self, worker_count: usize, pending_workers: usize) -> usize {
-        // no pending workers
-        if pending_workers == 0 {
-            return 0;
-        }
-
-        // worker-scaled scan budget
-        let worker_count = worker_count.max(1);
-        let root_budget = worker_count.saturating_mul(SHARED_DIRECT_ROOT_SCAN_BUDGET_PER_WORKER);
-
-        pending_workers.min(root_budget.max(1))
     }
 
     /// Return the bounded local-to-shared edge scan budget for one worker step.

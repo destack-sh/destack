@@ -7,9 +7,6 @@ pub(crate) const SHARED_MARK_PAGES_PER_BUDGET: usize = 16;
 /// The heap pages represented by one shared sweep budget unit.
 pub(crate) const SHARED_SWEEP_PAGES_PER_BUDGET: usize = 8;
 
-/// The direct-root scan budget contributed by one live worker.
-pub(crate) const SHARED_DIRECT_ROOT_SCAN_BUDGET_PER_WORKER: usize = 4;
-
 /// The mark budget contributed by one live worker.
 pub(crate) const SHARED_MARK_BUDGET_PER_WORKER: usize = 32;
 
