@@ -1396,6 +1396,7 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
         Property::Field {
             key,
             value,
+            is_shorthand: _,
             symbol: _,
         } => {
             walk_key(visitor, tree, key);
