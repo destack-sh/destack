@@ -1481,8 +1481,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_property(&mut self, tree: &NodeTree, id: LocalNodeId<Property>, property: &Property) {
         match property {
-            Property::Field { key, value: _ } => {
-                self.node("Property::Field", id.id).field("key", key).end();
+            Property::Field {
+                key,
+                value: _,
+                is_shorthand,
+            } => {
+                self.node("Property::Field", id.id)
+                    .field("key", key)
+                    .field("is_shorthand", is_shorthand)
+                    .end();
             }
             Property::Method {
                 key,

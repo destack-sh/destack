@@ -63,6 +63,7 @@ pub enum Property {
     Field {
         key: Key,
         value: LocalNodeId<Expression>,
+        is_shorthand: bool,
     },
     /// Object-like member function.
     Method {

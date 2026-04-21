@@ -1444,7 +1444,11 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Property, id.id);
     match property {
-        Property::Field { key, value } => {
+        Property::Field {
+            key,
+            value,
+            is_shorthand: _,
+        } => {
             walk_key(visitor, tree, key);
 
             let value_expr = tree.get(*value);
