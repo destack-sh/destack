@@ -1,6 +1,6 @@
 use super::*;
 use crate::analyze::StaticMemberSymbolKind;
-use destack_dir::{Name, Resolution};
+use destack_dir::{AssignPattern, Name, Resolution};
 
 /// Shared assignment target metadata used by assignment inference paths.
 #[derive(Clone, Copy, Debug)]
@@ -13,22 +13,58 @@ struct AssignTargetBinding {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Return one simple expression target from one assignment pattern.
+    fn assign_pattern_target_expression(
+        &self,
+        tree: &NodeTree,
+        mut assign_pattern_id: LocalNodeId<AssignPattern>,
+    ) -> Option<LocalNodeId<Expression>> {
+        loop {
+            let assign_pattern = tree.get(assign_pattern_id);
+
+            // keep direct expression targets
+            if let AssignPattern::Expression { value } = assign_pattern {
+                return Some(*value);
+            }
+
+            // unwrap defaulted targets before checking the base
+            if let AssignPattern::Assign { pattern, .. } = assign_pattern {
+                assign_pattern_id = *pattern;
+                continue;
+            }
+
+            // destructuring assignments do not have one simple target expression
+            return None;
+        }
+    }
+
     pub(crate) fn infer_assign_expression(
         &self,
         ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        left_id: LocalNodeId<Expression>,
+        left_id: LocalNodeId<AssignPattern>,
         right_id: LocalNodeId<Expression>,
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_OPERATOR);
 
+        let Some(left_expression_id) = self.assign_pattern_target_expression(ctx.tree, left_id)
+        else {
+            let mut right_ctx = state.fork();
+            let _ = self.infer_expression(&mut ctx.reborrow(), right_id, &mut right_ctx)?;
+
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Void,
+            };
+            return Ok(ctx.types.insert_type_from(ty, expression_id));
+        };
+
         // route index assignment to index set resolution
-        if let Expression::Index { left: _, right: _ } = ctx.tree.get(left_id) {
+        if let Expression::Index { left: _, right: _ } = ctx.tree.get(left_expression_id) {
             return self.infer_index_assignment_expression(
                 ctx,
                 expression_id,
-                left_id,
+                left_expression_id,
                 right_id,
                 state,
             );
@@ -37,14 +73,14 @@ impl Compiler {
         let AssignTargetBinding {
             target_id,
             target_symbol,
-        } = self.check_assignment_left_target(&mut ctx.reborrow(), left_id, state)?;
+        } = self.check_assignment_left_target(&mut ctx.reborrow(), left_expression_id, state)?;
 
-        let left_ty_id = self.infer_expression(&mut ctx.reborrow(), left_id, state)?;
+        let left_ty_id = self.infer_expression(&mut ctx.reborrow(), left_expression_id, state)?;
 
         // reject assignments to associated projections in value space
-        if self.assignment_target_is_associated_projection(&ctx.reborrow(), left_id)? {
+        if self.assignment_target_is_associated_projection(&ctx.reborrow(), left_expression_id)? {
             self.error(AnalyzeError::InvalidAssignmentTarget {
-                node: left_id
+                node: left_expression_id
                     .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),
             });

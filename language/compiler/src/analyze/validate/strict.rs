@@ -2,11 +2,11 @@ use std::collections::{HashMap, HashSet};
 
 use destack_core::StringId;
 use destack_dir::{
-    Declaration, Declarator, DependencyItem, Expression, FlowGraphBuilder, FunctionCardinality,
-    FunctionMode, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
-    MatchCase, MatchKind, Member, NodeTree, NodeType, Parameter, Pattern, PatternField,
-    ScalarLiteral, StaticKey, SymbolBinding, SymbolSpace, SymbolTable, Type, TypeLiteral,
-    TypeTable,
+    AssignPattern, Declaration, Declarator, DependencyItem, Expression, FlowGraphBuilder,
+    FunctionCardinality, FunctionMode, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalSymbolId,
+    LocalTypeId, MatchCase, MatchKind, Member, NodeTree, NodeType, Parameter, Pattern,
+    PatternField, ScalarLiteral, StaticKey, SymbolBinding, SymbolSpace, SymbolTable, Type,
+    TypeLiteral, TypeTable,
 };
 use destack_workspace::ModuleSource;
 
@@ -729,13 +729,29 @@ impl Compiler {
     ) -> Option<StaticKey> {
         // peel assignment expressions down to targets
         match tree.get(expression_id) {
-            Expression::Assign { left, .. } | Expression::AssignBinary { left, .. } => {
-                self.assignment_key_for_target(*left, tree)
-            }
+            Expression::Assign { left, .. } => self.assignment_key_for_assign_pattern(*left, tree),
+            Expression::AssignBinary { left, .. } => self.assignment_key_for_target(*left, tree),
             Expression::Parenthesized { expression } => {
                 self.assignment_key_for_expression(*expression, tree)
             }
             _ => None,
+        }
+    }
+
+    /// Resolve a field key from one assignment pattern target.
+    fn assignment_key_for_assign_pattern(
+        &self,
+        assign_pattern_id: LocalNodeId<AssignPattern>,
+        tree: &NodeTree,
+    ) -> Option<StaticKey> {
+        let assign_pattern = tree.get(assign_pattern_id);
+
+        match assign_pattern {
+            AssignPattern::Expression { value } => self.assignment_key_for_target(*value, tree),
+            AssignPattern::Assign { pattern, .. } => {
+                self.assignment_key_for_assign_pattern(*pattern, tree)
+            }
+            AssignPattern::Array { .. } | AssignPattern::Object { .. } => None,
         }
     }
 

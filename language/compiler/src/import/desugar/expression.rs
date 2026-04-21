@@ -1,5 +1,6 @@
 use destack_dir::{
-    AssignOperator, BinaryOperator, Expression, LocalNodeId, NodeTree, NodeType, ProvenanceReason,
+    AssignOperator, AssignPattern, BinaryOperator, Expression, LocalNodeId, NodeTree, NodeType,
+    ProvenanceReason,
 };
 
 use crate::Compiler;
@@ -40,11 +41,22 @@ impl Compiler {
                     },
                 );
 
+                // wrap the assignment lhs in one assign pattern
+                let assign_pattern_id = tree.reserve_from(
+                    NodeType::AssignPattern,
+                    expression_id.into_any(),
+                    scope,
+                    Some(expression_id.into_any()),
+                    Some(ProvenanceReason::Desugared),
+                );
+                let assign_pattern_id: LocalNodeId<AssignPattern> =
+                    tree.insert(assign_pattern_id, AssignPattern::Expression { value: left });
+
                 // replace AssignBinary with Assign
                 tree.replace(
                     expression_id,
                     Expression::Assign {
-                        left,
+                        left: assign_pattern_id,
                         right: binary_id,
                     },
                 );

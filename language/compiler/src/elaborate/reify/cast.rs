@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use dir::{
-    Argument, AssignOperator, BinaryOperator, CastOperator, CastSource, Declarator,
+    Argument, AssignOperator, AssignPattern, BinaryOperator, CastOperator, CastSource, Declarator,
     EnumBackingType, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, MatchCase, NodeType,
     Type, TypeExpression,
 };
@@ -15,6 +15,31 @@ use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
 impl Compiler {
+    /// Return one simple expression target from one assignment pattern.
+    fn reify_assign_pattern_target_expression(
+        &self,
+        tree: &dir::NodeTree,
+        mut assign_pattern_id: LocalNodeId<AssignPattern>,
+    ) -> Option<LocalNodeId<Expression>> {
+        loop {
+            let assign_pattern = tree.get(assign_pattern_id);
+
+            // keep direct expression targets
+            if let AssignPattern::Expression { value } = assign_pattern {
+                return Some(*value);
+            }
+
+            // unwrap defaulted targets before checking the base
+            if let AssignPattern::Assign { pattern, .. } = assign_pattern {
+                assign_pattern_id = *pattern;
+                continue;
+            }
+
+            // destructuring assignments do not have one simple target type
+            return None;
+        }
+    }
+
     /// Reify one explicit cast expression.
     pub(super) fn reify_explicit_cast_expression(
         &self,
@@ -136,11 +161,18 @@ impl Compiler {
         &self,
         state: &mut ElaborateState<'_>,
         expression_id: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
+        left: LocalNodeId<AssignPattern>,
         right: LocalNodeId<Expression>,
     ) -> ElaborateResult<()> {
+        let Some(left_expression_id) =
+            self.reify_assign_pattern_target_expression(state.tree, left)
+        else {
+            return Ok(());
+        };
+
         // read the target type from the assignment target
-        let Some(target_type_id) = self.value_type_id_for_expression(state, left) else {
+        let Some(target_type_id) = self.value_type_id_for_expression(state, left_expression_id)
+        else {
             return Ok(());
         };
 

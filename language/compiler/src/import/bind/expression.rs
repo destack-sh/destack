@@ -2,8 +2,9 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    Ambientness, BindingCategory, CastSource, Declarator, ExportMode, Expression, ForEachBinding,
-    ForEachKind, IfCondition, IfKind, ImportSource, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    Ambientness, AssignPattern, AssignPatternField, BindingCategory, CastSource, Declarator,
+    ExportMode, Expression, ForEachBinding, ForEachDeclarationKind, ForEachKind, IfCondition,
+    IfKind, ImportSource, ImportTarget, LetKind, LocalNodeId, LocalNodeIdAny, LocalScopeId,
     LocalScopeMark, LoopKind, MatchKind, MatchSource, ModuleBinding, Mutability, NodeTree,
     NodeType, Path, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder,
     SymbolTable, SymbolType, Type, TypeTable, YieldCardinality,
@@ -31,11 +32,297 @@ impl Compiler {
     }
 
     /// Bind an AST let kind into a DIR let kind.
-    fn bind_let_kind(&self, kind: ast::LetKind) -> destack_dir::LetKind {
+    fn bind_let_kind(&self, kind: ast::LetKind) -> LetKind {
         match kind {
-            ast::LetKind::Var => destack_dir::LetKind::Var,
-            ast::LetKind::Let => destack_dir::LetKind::Let,
-            ast::LetKind::Const => destack_dir::LetKind::Const,
+            ast::LetKind::Var => LetKind::Var,
+            ast::LetKind::Let => LetKind::Let,
+            ast::LetKind::Const => LetKind::Const,
+        }
+    }
+
+    /// Bind one AST assignment pattern into a DIR assignment pattern.
+    #[allow(clippy::too_many_arguments)]
+    fn bind_assign_pattern(
+        &self,
+        module: &Module,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
+        scope: (LocalScopeId, LocalScopeMark),
+        ast_assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
+        parent_id: Option<LocalNodeIdAny>,
+        tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
+        types: &mut TypeTable,
+    ) -> LocalNodeId<AssignPattern> {
+        let ast_assign_pattern = ast.tree.get(ast_assign_pattern_id);
+        let assign_pattern_id = tree.reserve_from_source(
+            NodeType::AssignPattern,
+            ast_assign_pattern_id.id,
+            scope,
+            parent_id,
+        );
+
+        let assign_pattern = match ast_assign_pattern {
+            ast::AssignPattern::Expression { value } => {
+                let value = self.bind_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *value,
+                    Some(assign_pattern_id),
+                    tree,
+                    symbols,
+                    types,
+                    SymbolSpaceOrder::ValueThenType,
+                );
+
+                AssignPattern::Expression { value }
+            }
+            ast::AssignPattern::Assign { pattern, value } => {
+                let pattern = self.bind_assign_pattern(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *pattern,
+                    Some(assign_pattern_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let value = self.bind_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *value,
+                    Some(assign_pattern_id),
+                    tree,
+                    symbols,
+                    types,
+                    SymbolSpaceOrder::ValueThenType,
+                );
+
+                AssignPattern::Assign { pattern, value }
+            }
+            ast::AssignPattern::Array { fields } => {
+                let fields = fields
+                    .iter()
+                    .map(|field_id| {
+                        self.bind_assign_pattern_field(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            *field_id,
+                            Some(assign_pattern_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect();
+
+                AssignPattern::Array { fields }
+            }
+            ast::AssignPattern::Object { fields } => {
+                let fields = fields
+                    .iter()
+                    .map(|field_id| {
+                        self.bind_assign_pattern_field(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            *field_id,
+                            Some(assign_pattern_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect();
+
+                AssignPattern::Object { fields }
+            }
+        };
+
+        tree.insert(assign_pattern_id, assign_pattern)
+    }
+
+    /// Bind one AST assignment pattern field into a DIR assignment pattern field.
+    #[allow(clippy::too_many_arguments)]
+    fn bind_assign_pattern_field(
+        &self,
+        module: &Module,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
+        scope: (LocalScopeId, LocalScopeMark),
+        ast_assign_pattern_field_id: ast::LocalNodeId<ast::AssignPatternField>,
+        parent_id: Option<LocalNodeIdAny>,
+        tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
+        types: &mut TypeTable,
+    ) -> LocalNodeId<AssignPatternField> {
+        let ast_assign_pattern_field = ast.tree.get(ast_assign_pattern_field_id);
+        let assign_pattern_field_id = tree.reserve_from_source(
+            NodeType::AssignPatternField,
+            ast_assign_pattern_field_id.id,
+            scope,
+            parent_id,
+        );
+
+        let assign_pattern_field = match ast_assign_pattern_field {
+            ast::AssignPatternField::Named {
+                name,
+                is_shorthand,
+                pattern,
+            } => {
+                let name = self.bind_name(ast, *name);
+                let pattern = pattern.map(|pattern_id| {
+                    self.bind_assign_pattern(
+                        module,
+                        ast,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
+                        scope,
+                        pattern_id,
+                        Some(assign_pattern_field_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
+
+                AssignPatternField::Named {
+                    name,
+                    is_shorthand: *is_shorthand,
+                    pattern,
+                }
+            }
+            ast::AssignPatternField::Computed { key, pattern } => {
+                let key = self.bind_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *key,
+                    Some(assign_pattern_field_id),
+                    tree,
+                    symbols,
+                    types,
+                    SymbolSpaceOrder::ValueThenType,
+                );
+                let pattern = self.bind_assign_pattern(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *pattern,
+                    Some(assign_pattern_field_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+
+                AssignPatternField::Computed { key, pattern }
+            }
+            ast::AssignPatternField::Positional { pattern } => {
+                let pattern = self.bind_assign_pattern(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *pattern,
+                    Some(assign_pattern_field_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+
+                AssignPatternField::Positional { pattern }
+            }
+            ast::AssignPatternField::Spread { pattern } => {
+                let pattern = pattern.map(|pattern_id| {
+                    self.bind_assign_pattern(
+                        module,
+                        ast,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
+                        scope,
+                        pattern_id,
+                        Some(assign_pattern_field_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
+
+                AssignPatternField::Spread { pattern }
+            }
+            ast::AssignPatternField::Elision => AssignPatternField::Elision,
+        };
+
+        tree.insert(assign_pattern_field_id, assign_pattern_field)
+    }
+
+    /// Bind one simple assignment target expression from an AST assignment pattern.
+    #[allow(clippy::too_many_arguments)]
+    fn bind_assign_target_expression(
+        &self,
+        module: &Module,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
+        scope: (LocalScopeId, LocalScopeMark),
+        ast_assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
+        parent_id: Option<LocalNodeIdAny>,
+        tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
+        types: &mut TypeTable,
+    ) -> LocalNodeId<Expression> {
+        let ast_assign_pattern = ast.tree.get(ast_assign_pattern_id);
+
+        match ast_assign_pattern {
+            ast::AssignPattern::Expression { value } => self.bind_expression(
+                module,
+                ast,
+                namespace_scope,
+                global_augmentation_scope,
+                module_bindings,
+                scope,
+                *value,
+                parent_id,
+                tree,
+                symbols,
+                types,
+                SymbolSpaceOrder::ValueThenType,
+            ),
+            _ => unreachable!("compound assignment target must be one expression target"),
         }
     }
 
@@ -51,23 +338,24 @@ impl Compiler {
     fn bind_for_each_declaration_kind(
         &self,
         kind: ast::ForEachDeclarationKind,
-    ) -> destack_dir::ForEachDeclarationKind {
+    ) -> ForEachDeclarationKind {
         match kind {
-            ast::ForEachDeclarationKind::Var => destack_dir::ForEachDeclarationKind::Var,
-            ast::ForEachDeclarationKind::Let => destack_dir::ForEachDeclarationKind::Let,
-            ast::ForEachDeclarationKind::Const => destack_dir::ForEachDeclarationKind::Const,
+            ast::ForEachDeclarationKind::Var => ForEachDeclarationKind::Var,
+            ast::ForEachDeclarationKind::Let => ForEachDeclarationKind::Let,
+            ast::ForEachDeclarationKind::Const => ForEachDeclarationKind::Const,
         }
     }
 
     /// Map for each declaration kind into duplicate-binding category.
     fn binding_category_for_for_each_declaration_kind(
         &self,
-        kind: destack_dir::ForEachDeclarationKind,
+        kind: ForEachDeclarationKind,
     ) -> BindingCategory {
         match kind {
-            destack_dir::ForEachDeclarationKind::Var => BindingCategory::FunctionScoped,
-            destack_dir::ForEachDeclarationKind::Let
-            | destack_dir::ForEachDeclarationKind::Const => BindingCategory::BlockScoped,
+            ForEachDeclarationKind::Var => BindingCategory::FunctionScoped,
+            ForEachDeclarationKind::Let | ForEachDeclarationKind::Const => {
+                BindingCategory::BlockScoped
+            }
         }
     }
 
@@ -237,7 +525,7 @@ impl Compiler {
                 let (target, dependency_target) = match target {
                     ast::ImportTarget::String(target) => {
                         let target = self.repository.strings.intern_from(&ast.strings, *target);
-                        (destack_dir::ImportTarget::String(target), Some(target))
+                        (ImportTarget::String(target), Some(target))
                     }
                     ast::ImportTarget::Expression { target } => {
                         let target = self.bind_expression(
@@ -255,7 +543,7 @@ impl Compiler {
                             space_order,
                         );
                         (
-                            destack_dir::ImportTarget::Expression { target },
+                            ImportTarget::Expression { target },
                             None,
                         )
                     }
@@ -814,20 +1102,6 @@ impl Compiler {
                 operator,
                 right,
             } => {
-                let left = self.bind_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
-                    scope,
-                    *left,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                    space_order,
-                );
                 let right = self.bind_expression(
                     module,
                     ast,
@@ -843,13 +1117,42 @@ impl Compiler {
                     space_order,
                 );
                 let operator = self.bind_assign_operator(*operator);
+
                 if let Some(operator) = operator {
+                    let left = self.bind_assign_target_expression(
+                        module,
+                        ast,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
+                        scope,
+                        *left,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                    );
+
                     Expression::AssignBinary {
                         left,
                         operator,
                         right,
                     }
                 } else {
+                    let left = self.bind_assign_pattern(
+                        module,
+                        ast,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
+                        scope,
+                        *left,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                    );
+
                     Expression::Assign { left, right }
                 }
             }
