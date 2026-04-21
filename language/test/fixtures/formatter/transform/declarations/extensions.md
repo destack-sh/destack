@@ -6,16 +6,16 @@ Tests for Destack extension declaration formatting.
 
 ### simple extension
 
-Extensions use `for` to specify the type being extended.
+Extensions use `of` to specify the type being extended.
 
 ```ds
-extension for  Vector2  { }
+extension of  Vector2  { }
 ```
 
 Empty extension bodies stay on one line with internal spacing.
 
 ```ds expected
-extension for Vector2 {}
+extension of Vector2 {}
 ```
 
 ### extension with implements
@@ -23,27 +23,27 @@ extension for Vector2 {}
 Extensions can implement traits for the extended type.
 
 ```ds
-extension for  Vector2  implements  Add < Vector2 >  { }
+extension of  Vector2  implements  Add < Vector2 >  { }
 ```
 
 Generic type arguments have no internal spacing.
 
 ```ds expected
-extension for Vector2 implements Add<Vector2> {}
+extension of Vector2 implements Add<Vector2> {}
 ```
 
 ## Named Extensions
 
 ### named extension
 
-Named extensions include the name before `for`.
+Named extensions include the name before `of`.
 
 ```ds
-extension  MathUtils  for  int32  { }
+extension  MathUtils  of  int32  { }
 ```
 
 ```ds expected
-extension MathUtils for int32 {}
+extension MathUtils of int32 {}
 ```
 
 ## Generic Extensions
@@ -53,11 +53,11 @@ extension MathUtils for int32 {}
 Generic extensions keep static parameters and format member bodies.
 
 ```ds
-extension<T> for Box<T> { map<U>(f: (T) => U): Box<U> { return Box { value: f(this.value) } } }
+extension<T> of Box<T> { map<U>(f: (T) => U): Box<U> { return Box { value: f(this.value) } } }
 ```
 
 ```ds expected
-extension<T> for Box<T> {
+extension<T> of Box<T> {
     map<U>(f: (T) => U): Box<U> {
         return Box { value: f(this.value) };
     }
@@ -69,9 +69,9 @@ extension<T> for Box<T> {
 Extensions can include implements and where constraints.
 
 ```ds
-extension<T> for Buffer<T> implements Iterable<T> where T: Copy { }
+extension<T> of Buffer<T> implements Iterable<T> where T: Copy { }
 ```
 
 ```ds expected
-extension<T> for Buffer<T> implements Iterable<T> where T: Copy {}
+extension<T> of Buffer<T> implements Iterable<T> where T: Copy {}
 ```

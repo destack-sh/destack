@@ -254,11 +254,11 @@ struct Dog {
     name: string
 }
 
-extension for Cat {
+extension of Cat {
     speak(): string { "meow" }
 }
 
-extension for Dog {
+extension of Dog {
     speak(): string { "woof" }
 }
 
@@ -278,12 +278,12 @@ struct Cat {
 struct Dog {
     name: string;
 }
-extension for Cat {
+extension of Cat {
     speak(): string {
         return "meow";
     }
 }
-extension for Dog {
+extension of Dog {
     speak(): string {
         return "woof";
     }
@@ -366,13 +366,13 @@ struct Dog {
     value: int32
 }
 
-extension for Cat implements Add<int32, int32> {
+extension of Cat implements Add<int32, int32> {
     add(other: int32): int32 {
         this.value + other
     }
 }
 
-extension for Dog implements Add<int32, int32> {
+extension of Dog implements Add<int32, int32> {
     add(other: int32): int32 {
         this.value + other
     }
@@ -396,13 +396,13 @@ struct Dog {
     value: int32;
 }
 
-extension for Cat implements Add<int32, int32> {
+extension of Cat implements Add<int32, int32> {
     add(other): int32 {
         return this.value + other;
     }
 }
 
-extension for Dog implements Add<int32, int32> {
+extension of Dog implements Add<int32, int32> {
     add(other): int32 {
         return this.value + other;
     }
@@ -499,7 +499,7 @@ struct Counter {
     value: int32
 }
 
-extension for Counter implements Add<int32> {
+extension of Counter implements Add<int32> {
     add(other: int32): Counter {
         Counter { value: this.value + other }
     }
@@ -518,7 +518,7 @@ function increment(counter: Counter): Counter {
 struct Counter {
     value: int32;
 }
-extension for Counter implements Add<int32> {
+extension of Counter implements Add<int32> {
     add(other): Counter {
         return Counter { value: this.value + other };
     }
@@ -541,7 +541,7 @@ struct Counter {
     value: int32
 }
 
-extension for Counter implements Equal {
+extension of Counter implements Equal {
     equal(other: Counter): boolean {
         this.value == other.value
     }
@@ -560,7 +560,7 @@ function differs(left: Counter, right: Counter): boolean {
 struct Counter {
     value: int32;
 }
-extension for Counter implements Equal {
+extension of Counter implements Equal {
     equal(other): boolean {
         return this.value == other.value;
     }
@@ -583,7 +583,7 @@ struct Counter {
     value: int32
 }
 
-extension for Counter implements Compare {
+extension of Counter implements Compare {
     compare(other: Counter): Ordering {
         if (this.value < other.value) {
             return Ordering.Less;
@@ -608,7 +608,7 @@ function isLess(left: Counter, right: Counter): boolean {
 struct Counter {
     value: int32;
 }
-extension for Counter implements Compare {
+extension of Counter implements Compare {
     compare(other): Ordering {
         if (this.value < other.value) {
             return Ordering.Less;
@@ -636,7 +636,7 @@ struct Counter {
     value: int32
 }
 
-extension for Counter implements Compare {
+extension of Counter implements Compare {
     compare(other: Counter): Ordering {
         if (this.value < other.value) {
             return Ordering.Less;
@@ -661,7 +661,7 @@ function isAtLeast(left: Counter, right: Counter): boolean {
 struct Counter {
     value: int32;
 }
-extension for Counter implements Compare {
+extension of Counter implements Compare {
     compare(other): Ordering {
         if (this.value < other.value) {
             return Ordering.Less;
@@ -689,7 +689,7 @@ struct Counter {
     value: int32
 }
 
-extension for Counter implements Compare {
+extension of Counter implements Compare {
     compare(other: Counter): Ordering {
         if (this.value < other.value) {
             return Ordering.Less;
@@ -714,7 +714,7 @@ function isAtMost(left: Counter, right: Counter): boolean {
 struct Counter {
     value: int32;
 }
-extension for Counter implements Compare {
+extension of Counter implements Compare {
     compare(other): Ordering {
         if (this.value < other.value) {
             return Ordering.Less;
@@ -742,7 +742,7 @@ struct Counter {
     value: int32
 }
 
-extension for Counter implements Compare {
+extension of Counter implements Compare {
     compare(other: Counter): Ordering {
         if (this.value < other.value) {
             return Ordering.Less;
@@ -767,7 +767,7 @@ function isGreater(left: Counter, right: Counter): boolean {
 struct Counter {
     value: int32;
 }
-extension for Counter implements Compare {
+extension of Counter implements Compare {
     compare(other): Ordering {
         if (this.value < other.value) {
             return Ordering.Less;
@@ -795,7 +795,7 @@ struct Counter {
     value: int32
 }
 
-extension for Counter implements Negate {
+extension of Counter implements Negate {
     negate(): Counter {
         Counter { value: -this.value }
     }
@@ -814,7 +814,7 @@ function flip(counter: Counter): Counter {
 struct Counter {
     value: int32;
 }
-extension for Counter implements Negate {
+extension of Counter implements Negate {
     negate(): Counter {
         return Counter { value: -this.value };
     }
@@ -837,7 +837,7 @@ struct Counter {
     value: int32
 }
 
-extension for Counter implements Plus {
+extension of Counter implements Plus {
     plus(): Counter {
         Counter { value: this.value }
     }
@@ -856,7 +856,7 @@ function keep(counter: Counter): Counter {
 struct Counter {
     value: int32;
 }
-extension for Counter implements Plus {
+extension of Counter implements Plus {
     plus(): Counter {
         return Counter { value: this.value };
     }

@@ -760,7 +760,7 @@ fn format_extension_declaration<'ast>(
     }
 
     write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
-    write!(f, [space(), Keyword::For, space()])?;
+    write!(f, [space(), Keyword::Of, space()])?;
     write_type_expression_with_inline_prefix_annotations(f, declaration.target_type)?;
 
     // heritage

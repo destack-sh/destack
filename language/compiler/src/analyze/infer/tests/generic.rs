@@ -692,7 +692,7 @@ struct Counter {
     value: int32 = 0;
 }
 
-extension for Counter implements LocalCursor<int32> {
+extension of Counter implements LocalCursor<int32> {
     type Item = int32;
 
     read(): Item {

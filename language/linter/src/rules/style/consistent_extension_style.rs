@@ -7,7 +7,7 @@ use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 declare_lint! {
     /// Enforce consistent extension naming style.
     ///
-    /// Extensions can be named (`extension Foo for Bar`) or anonymous (`extension for Bar`).
+    /// Extensions can be named (`extension Foo of Bar`) or anonymous (`extension of Bar`).
     /// This rule prefers named extensions for better discoverability and debugging.
     #[lint(
         id = "consistent-extension-style",
@@ -56,7 +56,7 @@ impl LintRule for ConsistentExtensionStyle {
                         ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )
-                    .with_label("add a name like `extension MyExt for ...`"),
+                    .with_label("add a name like `extension MyExt of ...`"),
                 );
             }
         }
@@ -74,7 +74,7 @@ mod tests {
         let result = test.lint_ast(
             "consistent_extension_style/test_allows_named_extension.ds",
             r#"
-extension StringUtils for string {
+extension StringUtils of string {
     function capitalize(): string {
         return this
     }
@@ -91,7 +91,7 @@ extension StringUtils for string {
         let result = test.lint_ast(
             "consistent_extension_style/test_detects_anonymous_extension.ds",
             r#"
-extension for string {
+extension of string {
     function capitalize(): string {
         return this
     }
@@ -108,7 +108,7 @@ extension for string {
         let result = test.lint_ast(
             "consistent_extension_style/test_allows_named_generic_extension.ds",
             r#"
-extension ArrayUtils<T> for Array<T> {
+extension ArrayUtils<T> of Array<T> {
     function first(): T | undefined {
         return this[0]
     }

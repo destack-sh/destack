@@ -705,7 +705,7 @@ Widget: struct
 
 ### Complete fields and extension methods
 
-Member access should include fields and extension methods for nominal types.
+Member access should include fields and extension methods of nominal types.
 
 ```ds
 struct Point {
@@ -713,7 +713,7 @@ struct Point {
     y: int32
 }
 
-extension for Point {
+extension of Point {
     magnitude(): float32 {
         return 0.0;
     }
@@ -1379,7 +1379,7 @@ Extension methods should appear after dot on the target type.
 ```ds
 struct Calculator2 {}
 
-extension for Calculator2 {
+extension of Calculator2 {
     sum(a: int32, b: int32): int32 {
         return a + b;
     }

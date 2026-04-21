@@ -1588,7 +1588,7 @@ struct Pair<A, B> {
     right: B;
 }
 
-extension PairOps<Left, Right> for Pair<Right, Left> {
+extension PairOps<Left, Right> of Pair<Right, Left> {
     map<U>(value: U): U {
         return value;
     }

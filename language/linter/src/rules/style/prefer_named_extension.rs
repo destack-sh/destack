@@ -87,7 +87,7 @@ mod tests {
         let result = test.lint_ast(
             "prefer_named_extension/test_anonymous_extension_of_foreign_type_detected.ds",
             r#"
-extension for std.io.File {
+extension of std.io.File {
     function read() {}
 }
 "#,
@@ -101,7 +101,7 @@ extension for std.io.File {
         let result = test.lint_ast(
             "prefer_named_extension/test_named_extension_of_foreign_type_allowed.ds",
             r#"
-extension FileHelpers for std.io.File {
+extension FileHelpers of std.io.File {
     function read() {}
 }
 "#,
@@ -117,7 +117,7 @@ extension FileHelpers for std.io.File {
             r#"
 struct Point { x: int32, y: int32 }
 
-extension for Point {
+extension of Point {
     function distance() {}
 }
 "#,

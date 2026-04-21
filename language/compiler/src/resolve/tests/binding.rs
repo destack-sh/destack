@@ -1775,7 +1775,7 @@ fn test_resolve_extension_target_symbol() {
         "test.ds",
         r#"
 struct Foo {}
-extension for Foo {
+extension of Foo {
     bar() {}
 "#,
     );
@@ -1819,7 +1819,7 @@ namespace Foo {
     export struct Bar {}
 }
 
-extension for Foo.Bar {
+extension of Foo.Bar {
     baz() {}
 }
 "#,

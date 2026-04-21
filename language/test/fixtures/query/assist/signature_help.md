@@ -219,7 +219,7 @@ When the cursor is inside a method call's argument list, signature help should d
 struct Calculator {
 }
 
-extension for Calculator {
+extension of Calculator {
     add(x: int32, y: int32): int32 {
         return x + y;
     }
