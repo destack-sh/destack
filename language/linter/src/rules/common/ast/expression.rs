@@ -2083,6 +2083,7 @@ pub fn expression_has_side_effects(
         ast::Expression::Declaration(_)
         | ast::Expression::Block(_)
         | ast::Expression::Let { .. }
+        | ast::Expression::LetElse { .. }
         | ast::Expression::Using { .. }
         | ast::Expression::Import { .. }
         | ast::Expression::Export { .. }

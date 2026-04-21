@@ -78,6 +78,10 @@ impl LintRule for NoBarrelFile {
                     // let bindings indicate real code
                     has_non_reexport_code = true;
                 }
+                Expression::LetElse { .. } => {
+                    // let else bindings indicate real code
+                    has_non_reexport_code = true;
+                }
                 Expression::Using { .. } => {
                     // using bindings indicate real code
                     has_non_reexport_code = true;
