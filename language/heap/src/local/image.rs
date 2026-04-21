@@ -5,13 +5,13 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::Heap;
 use crate::arena::{Arena, ArenaImage, PageId};
-use crate::core::sum_bytes;
 use crate::local::managed::{
-    GcState, ManagedLocation, ManagedSpace, ManagedSpaceImage, live_page_views,
+    GcSummary, ManagedLocation, ManagedSpace, ManagedSpaceImage, live_page_views,
 };
 use crate::local::raw::{RawLocation, RawSpace, RawSpaceImage};
-use crate::value::{ManagedReference, RawPointer};
-use crate::{HeapError, HeapLimits, HeapOptions, HeapResult};
+use crate::{
+    HeapError, HeapLimits, HeapOptions, HeapResult, ManagedReference, RawPointer, sum_bytes,
+};
 
 /// One frozen heap root over one shared arena.
 #[derive(Debug, Clone)]
@@ -107,7 +107,7 @@ impl HeapImage {
     }
 
     /// Return the captured collector state.
-    pub fn gc_state(&self) -> &GcState {
+    pub fn gc_state(&self) -> &GcSummary {
         self.managed.gc_state()
     }
 
@@ -353,7 +353,7 @@ impl HeapImage {
 
 impl Heap {
     /// Fork one live heap over the same shared arena.
-    pub fn fork(&self) -> Result<Self, HeapError> {
+    pub fn fork(&mut self) -> Result<Self, HeapError> {
         let managed = self.managed.fork()?;
         let raw = match self.raw.fork() {
             Ok(raw) => raw,
@@ -369,6 +369,8 @@ impl Heap {
         Ok(Self {
             arena: self.arena.clone(),
             options: self.options.clone(),
+            gc_pacer: self.gc_pacer,
+            gc_request: self.gc_request,
             managed,
             raw,
             limits: self.limits,
@@ -385,7 +387,7 @@ impl Heap {
         image: &HeapImage,
         limits: HeapLimits,
     ) -> Result<Self, HeapError> {
-        image.options().validate()?;
+        image.options().validate_local()?;
 
         let managed = ManagedSpace::from_image(image.arena().clone(), image.managed())?;
         let raw = match RawSpace::from_image(image.arena().clone(), image.raw()) {
@@ -399,17 +401,23 @@ impl Heap {
             }
         };
 
-        Ok(Self {
+        let mut heap = Self {
             arena: image.arena().clone(),
             options: image.options().clone(),
+            gc_pacer: Default::default(),
+            gc_request: None,
             managed,
             raw,
             limits,
-        })
+        };
+
+        heap.refresh_gc_request();
+
+        Ok(heap)
     }
 
     /// Capture one frozen heap root.
-    pub fn image(&self) -> Result<HeapImage, HeapError> {
+    pub fn image(&mut self) -> Result<HeapImage, HeapError> {
         let managed = self.managed.image()?;
         let raw = self.raw.image();
 

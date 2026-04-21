@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::arena::{Arena, SizeClassPolicy, SizeClassTable};
-use crate::{GcPacing, HeapError};
+use crate::{GcOptions, HeapError};
 
 /// The standard heap page width aligned to common OS pages.
 const DEFAULT_PAGE_BYTES: usize = 4 * 1024;
@@ -25,8 +25,8 @@ const DEFAULT_TABLE_CHUNK_LEN: usize = 256;
 /// Constructor policy for resolving local heap options.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocalHeapPolicy {
-    /// The collector pacing policy.
-    pub gc: GcPacing,
+    /// The collector configuration.
+    pub gc: GcOptions,
     /// The small-object allocation policy.
     pub small: SizeClassPolicy,
     /// The encoded byte width for managed references inside traced payloads.
@@ -52,7 +52,7 @@ pub struct LocalHeapPolicy {
 impl Default for LocalHeapPolicy {
     fn default() -> Self {
         Self {
-            gc: GcPacing::local(),
+            gc: GcOptions::local(),
             small: SizeClassPolicy::default(),
             managed_reference_bytes: DEFAULT_MANAGED_REFERENCE_BYTES,
             managed_young_bytes: DEFAULT_YOUNG_BYTES,
@@ -94,8 +94,8 @@ impl LocalHeapPolicy {
 /// Constructor policy for resolving shared heap options.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SharedHeapPolicy {
-    /// The collector pacing policy.
-    pub gc: GcPacing,
+    /// The collector configuration.
+    pub gc: GcOptions,
     /// The small-object allocation policy.
     pub small: SizeClassPolicy,
     /// The byte width for managed small-allocation spans.
@@ -111,7 +111,7 @@ pub struct SharedHeapPolicy {
 impl Default for SharedHeapPolicy {
     fn default() -> Self {
         Self {
-            gc: GcPacing::shared(),
+            gc: GcOptions::shared(),
             small: SizeClassPolicy::default(),
             managed_small_bytes: DEFAULT_SMALL_BYTES,
             page_bytes: DEFAULT_PAGE_BYTES,
@@ -148,8 +148,8 @@ impl SharedHeapPolicy {
 /// The configuration for one heap instance.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HeapOptions {
-    /// The collector pacing policy.
-    pub gc: GcPacing,
+    /// The collector configuration.
+    pub gc: GcOptions,
     /// The configured small-allocation class table.
     pub size_classes: SizeClassTable,
     /// The encoded byte width for managed references inside traced payloads.
@@ -178,7 +178,7 @@ impl HeapOptions {
     /// Build the default option set for one local heap.
     pub fn local() -> Self {
         Self {
-            gc: GcPacing::local(),
+            gc: GcOptions::local(),
             size_classes: SizeClassTable::default(),
             managed_reference_bytes: DEFAULT_MANAGED_REFERENCE_BYTES,
             managed_young_bytes: DEFAULT_YOUNG_BYTES,
@@ -196,7 +196,7 @@ impl HeapOptions {
     /// Build the default option set for one shared heap.
     pub fn shared() -> Self {
         Self {
-            gc: GcPacing::shared(),
+            gc: GcOptions::shared(),
             size_classes: SizeClassTable::default(),
             managed_reference_bytes: DEFAULT_MANAGED_REFERENCE_BYTES,
             managed_young_bytes: 0,
