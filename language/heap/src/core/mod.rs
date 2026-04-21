@@ -17,8 +17,9 @@ pub(crate) use overlap::{
 };
 pub use scan::trace_managed_references;
 pub(crate) use scan::{
-    visit_managed_references_in_reader, visit_managed_references_in_reader_range,
-    visit_shared_references_in_reader, visit_shared_references_in_reader_range, PACKED_VALUE_BYTES,
+    PACKED_VALUE_BYTES, visit_managed_references_in_reader,
+    visit_managed_references_in_reader_range, visit_shared_references_in_reader,
+    visit_shared_references_in_reader_range,
 };
 pub use shape::HeapScan;
 pub(crate) use shape::*;
