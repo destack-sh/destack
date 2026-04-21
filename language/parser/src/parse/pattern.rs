@@ -384,12 +384,12 @@ impl Parser {
                     self.eat_token(TokenType::Colon)?;
                     self.eat_newlines_maybe()?;
                     let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
-                    let default = self.eat_pattern_field_default_maybe()?;
+                    let pattern = self
+                        .eat_pattern_assignment_maybe(pattern, self.get_span_from(&field_start))?;
                     PatternField::Computed {
                         mutability,
                         key,
-                        pattern: Some(pattern),
-                        default,
+                        pattern,
                     }
                 }
                 // named field variants and spread fields
@@ -459,24 +459,38 @@ impl Parser {
                                     .eat_binding_identifier_with_span()
                                     .for_node_type(NodeType::Pattern)?;
                                 name_span = Some(alias_span);
-                                let default = self.eat_pattern_field_default_maybe()?;
-                                PatternField::Alias {
+                                let alias_pattern = self.insert_node(
+                                    Pattern::Binding {
+                                        mutability: None,
+                                        name: alias,
+                                        pattern: None,
+                                    },
+                                    alias_span,
+                                );
+                                let pattern = self.eat_pattern_assignment_maybe(
+                                    alias_pattern,
+                                    self.get_span_from(&field_start),
+                                )?;
+                                PatternField::Named {
                                     mutability,
                                     name,
-                                    alias,
-                                    default,
+                                    is_shorthand: false,
+                                    pattern: Some(pattern),
                                 }
                             }
                             // named field with nested pattern
                             else {
                                 let pattern =
                                     self.eat_pattern().for_node_type(NodeType::Pattern)?;
-                                let default = self.eat_pattern_field_default_maybe()?;
+                                let pattern = self.eat_pattern_assignment_maybe(
+                                    pattern,
+                                    self.get_span_from(&field_start),
+                                )?;
                                 PatternField::Named {
                                     mutability,
                                     name,
+                                    is_shorthand: false,
                                     pattern: Some(pattern),
-                                    default,
                                 }
                             }
                         }
@@ -484,12 +498,17 @@ impl Parser {
                         else {
                             let (name, span) = self.eat_pattern_field_name_with_span(terminator)?;
                             name_span = Some(span);
-                            let default = self.eat_pattern_field_default_maybe()?;
+                            let shorthand_pattern = self
+                                .eat_pattern_field_shorthand_assignment_maybe(
+                                    name,
+                                    span,
+                                    self.get_span_from(&field_start),
+                                )?;
                             PatternField::Named {
                                 mutability,
                                 name,
-                                pattern: None,
-                                default,
+                                is_shorthand: true,
+                                pattern: shorthand_pattern,
                             }
                         }
                     }
@@ -535,18 +554,22 @@ impl Parser {
     // eat a positional pattern field with an optional default
     fn eat_positional_pattern_field(&mut self) -> ParseResult<PatternField> {
         let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
-        let default = self.eat_pattern_field_default_maybe()?;
+        let pattern = self.eat_pattern_assignment_maybe(pattern, self.tree.get_span(pattern))?;
 
-        Ok(PatternField::Positional { pattern, default })
+        Ok(PatternField::Positional { pattern })
     }
 
-    // eat a pattern field default assignment if present
-    fn eat_pattern_field_default_maybe(&mut self) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    // wrap one pattern in an assignment pattern if `=` follows
+    fn eat_pattern_assignment_maybe(
+        &mut self,
+        pattern_id: LocalNodeId<Pattern>,
+        span: Span,
+    ) -> ParseResult<LocalNodeId<Pattern>> {
         let has_immediate_default = self.peek_is(TokenType::Assign);
         let has_newline_default = self.peek_is(TokenType::Newline)
             && self.is_token_after_newlines(self.pos(), TokenType::Assign);
         if !has_immediate_default && !has_newline_default {
-            return Ok(None);
+            return Ok(pattern_id);
         }
 
         if has_newline_default {
@@ -554,9 +577,42 @@ impl Parser {
         }
 
         self.bump(); // eat assign
-        let default =
+        let value =
             self.eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
-        Ok(Some(default))
+        let pattern = Pattern::Assign {
+            pattern: pattern_id,
+            value,
+        };
+
+        Ok(self.insert_node(pattern, span))
+    }
+
+    // build one shorthand assignment pattern if `=` follows
+    fn eat_pattern_field_shorthand_assignment_maybe(
+        &mut self,
+        name: Name,
+        name_span: Span,
+        field_span: Span,
+    ) -> ParseResult<Option<LocalNodeId<Pattern>>> {
+        let identifier = match name {
+            Name::Identifier(name) | Name::String(name) | Name::Number(name) => name,
+        };
+
+        let binding_pattern = self.insert_node(
+            Pattern::Binding {
+                mutability: None,
+                name: identifier,
+                pattern: None,
+            },
+            name_span,
+        );
+        let pattern = self.eat_pattern_assignment_maybe(binding_pattern, field_span)?;
+
+        if pattern == binding_pattern {
+            Ok(None)
+        } else {
+            Ok(Some(pattern))
+        }
     }
 
     // check whether object pattern field head is a literal alias key before `:`
