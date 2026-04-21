@@ -1,7 +1,7 @@
 use super::Promotion;
 use crate::local::managed::{
     GcKind, GcStats, LargeEntryId, ManagedLocation, ManagedSpace, ManagedYoungId,
-    checked_reference_id,
+    checked_packed_reference_id,
 };
 use crate::{
     HeapError, HeapResult, ManagedReference, MarkSet, ScanSource, ShapeId, SharedManagedReference,
@@ -26,43 +26,43 @@ impl ManagedSpace {
                 continue;
             }
 
-            let reference_id = checked_reference_id(index as u64 + 1)?;
+            let reference_id = checked_packed_reference_id(index as u64 + 1)?;
             references.push(ManagedReference::new(reference_id));
         }
 
         Ok(references)
     }
 
-    /// Start one incremental local-to-shared root scan.
-    pub(crate) fn start_shared_root_scan(&mut self) {
-        self.is_scanning_shared_roots = true;
-        self.shared_root_cursor = 0;
-        self.shared_root_queue.clear();
-        self.shared_root_pending.clear();
+    /// Start one incremental local-to-shared edge scan.
+    pub(crate) fn start_shared_edge_scan(&mut self) {
+        self.is_scanning_shared_edges = true;
+        self.shared_edge_cursor = 0;
+        self.shared_edge_queue.clear();
+        self.shared_edge_pending.clear();
     }
 
-    /// Return whether the current local-to-shared scan is fully drained.
-    pub(crate) fn shared_root_scan_idle(&self) -> bool {
-        !self.is_scanning_shared_roots
-            || (self.shared_root_cursor >= self.references.len()
-                && self.shared_root_queue.is_empty())
+    /// Return whether the current local-to-shared edge scan is fully drained.
+    pub(crate) fn shared_edge_scan_idle(&self) -> bool {
+        !self.is_scanning_shared_edges
+            || (self.shared_edge_cursor >= self.shared_edge_roots.len()
+                && self.shared_edge_queue.is_empty())
     }
 
-    /// Finish the current local-to-shared root scan.
-    pub(crate) fn finish_shared_root_scan(&mut self) {
-        self.is_scanning_shared_roots = false;
-        self.shared_root_cursor = 0;
-        self.shared_root_queue.clear();
-        self.shared_root_pending.clear();
+    /// Finish the current local-to-shared edge scan.
+    pub(crate) fn finish_shared_edge_scan(&mut self) {
+        self.is_scanning_shared_edges = false;
+        self.shared_edge_cursor = 0;
+        self.shared_edge_queue.clear();
+        self.shared_edge_pending.clear();
     }
 
-    /// Scan bounded local-to-shared root work into the provided root buffer.
-    pub(crate) fn scan_shared_root_step(
+    /// Scan bounded local-to-shared edge work into the provided root buffer.
+    pub(crate) fn scan_shared_edge_step(
         &mut self,
         roots: &mut Vec<SharedManagedReference>,
         work_items: usize,
     ) -> HeapResult<usize> {
-        if !self.is_scanning_shared_roots || work_items == 0 {
+        if !self.is_scanning_shared_edges || work_items == 0 {
             return Ok(0);
         }
 
@@ -70,77 +70,66 @@ impl ManagedSpace {
 
         // drain queued rescans first
         while work_done < work_items {
-            let Some(reference) = self.shared_root_queue.pop() else {
+            let Some(reference) = self.shared_edge_queue.pop() else {
                 break;
             };
 
-            self.clear_shared_root_pending(reference)?;
-            self.trace_shared_roots(reference, roots)?;
+            self.clear_shared_edge_pending(reference)?;
+            self.trace_shared_edges(reference, roots)?;
             work_done += 1;
         }
 
-        // then continue the full-table walk
+        // then continue the tracked shared-edge walk
         while work_done < work_items {
-            let Some(reference) = self.next_shared_root_reference()? else {
+            let Some(reference) = self.next_shared_edge_root()? else {
                 break;
             };
 
-            self.trace_shared_roots(reference, roots)?;
+            self.trace_shared_edges(reference, roots)?;
             work_done += 1;
         }
 
         Ok(work_done)
     }
 
-    /// Queue one local reference for one later shared-root rescan.
+    /// Queue one local reference for one later shared-edge rescan.
     pub(crate) fn queue_shared_reference(&mut self, reference: ManagedReference) -> HeapResult<()> {
-        if !self.is_scanning_shared_roots || !self.reference_has_shared_roots(reference)? {
+        if !self.is_scanning_shared_edges || !self.reference_has_shared_roots(reference)? {
             return Ok(());
         }
 
         let index = Self::reference_index(reference.id())?;
-        if self.shared_root_pending.len() <= index {
-            self.shared_root_pending.resize(index + 1, false);
+        if self.shared_edge_pending.len() <= index {
+            self.shared_edge_pending.resize(index + 1, false);
         }
 
-        if self.shared_root_pending[index] {
+        if self.shared_edge_pending[index] {
             return Ok(());
         }
 
-        self.shared_root_pending[index] = true;
-        self.shared_root_queue.push(reference);
+        self.shared_edge_pending[index] = true;
+        self.shared_edge_queue.push(reference);
 
         Ok(())
     }
 
-    /// Return the next live local reference that may contain shared roots.
-    fn next_shared_root_reference(&mut self) -> HeapResult<Option<ManagedReference>> {
-        while self.shared_root_cursor < self.references.len() {
-            let index = self.shared_root_cursor;
-            self.shared_root_cursor += 1;
+    /// Return the next tracked local reference that may contain shared edges.
+    fn next_shared_edge_root(&mut self) -> HeapResult<Option<ManagedReference>> {
+        while self.shared_edge_cursor < self.shared_edge_roots.len() {
+            let index = self.shared_edge_cursor;
+            self.shared_edge_cursor += 1;
 
-            let Some(record) = self.references.get(index).copied() else {
-                continue;
-            };
-            if record.is_vacant() {
-                continue;
-            }
-
-            let reference_id = checked_reference_id(index as u64 + 1)?;
-            let reference = ManagedReference::new(reference_id);
-
-            if !self.reference_has_shared_roots(reference)? {
-                continue;
-            }
-
-            return Ok(Some(reference));
+            return Ok(self.shared_edge_roots.get(index).copied());
         }
 
         Ok(None)
     }
 
     /// Return whether one live local reference may contain shared managed roots.
-    fn reference_has_shared_roots(&self, reference: ManagedReference) -> HeapResult<bool> {
+    pub(crate) fn reference_has_shared_roots(
+        &self,
+        reference: ManagedReference,
+    ) -> HeapResult<bool> {
         let Some(record) = self.reference(reference).copied() else {
             return Ok(false);
         };
@@ -159,11 +148,11 @@ impl ManagedSpace {
         Ok(shape.scan.has_shared_reference())
     }
 
-    /// Clear the queued bit for one local shared-root rescan.
-    fn clear_shared_root_pending(&mut self, reference: ManagedReference) -> HeapResult<()> {
+    /// Clear the queued bit for one local shared-edge rescan.
+    fn clear_shared_edge_pending(&mut self, reference: ManagedReference) -> HeapResult<()> {
         let index = Self::reference_index(reference.id())?;
 
-        if let Some(is_pending) = self.shared_root_pending.get_mut(index) {
+        if let Some(is_pending) = self.shared_edge_pending.get_mut(index) {
             *is_pending = false;
         }
 
@@ -171,7 +160,7 @@ impl ManagedSpace {
     }
 
     /// Trace shared managed roots from one local managed reference.
-    fn trace_shared_roots(
+    fn trace_shared_edges(
         &mut self,
         reference: ManagedReference,
         roots: &mut Vec<SharedManagedReference>,
@@ -238,26 +227,31 @@ impl ManagedSpace {
         &mut self,
         roots: impl IntoIterator<Item = ManagedReference>,
     ) -> HeapResult<GcStats> {
+        // reject overlapping collection work
         if self.is_collecting {
             return Err(HeapError::ManagedCollectionActive);
         }
 
-        if self.pins.is_active() {
-            return Err(HeapError::ManagedCollectionPinsActive);
-        }
-
+        // prepare reusable collection state
         let marks = std::mem::take(&mut self.marks);
         let queue = std::mem::take(&mut self.trace_queue);
         let mut marks = marks;
         let mut pending = queue;
         let mut promotions = Vec::new();
+        let pinned = self.pins.references().collect::<Vec<_>>();
+
+        // begin the new cycle
         marks.start_cycle();
         pending.clear();
         self.is_collecting = true;
 
         // trace every reachable young entry from roots and remembered mature writes
         let result = (|| {
-            self.mark_reachable_young_references(roots, &mut marks, &mut pending)?;
+            self.mark_reachable_young_references(
+                roots.into_iter().chain(pinned.iter().copied()),
+                &mut marks,
+                &mut pending,
+            )?;
             let (freed_allocations, freed_bytes) =
                 self.promote_or_free_young_references(&marks, &mut promotions)?;
 
@@ -284,26 +278,34 @@ impl ManagedSpace {
         &mut self,
         roots: impl IntoIterator<Item = ManagedReference>,
     ) -> HeapResult<GcStats> {
+        // materialize roots before the minor prepass
         let roots = roots.into_iter().collect::<Vec<_>>();
+        let pinned = self.pins.references().collect::<Vec<_>>();
         let _minor = self.collect_minor(roots.iter().copied())?;
+
+        // reject overlapping collection work
         if self.is_collecting {
             return Err(HeapError::ManagedCollectionActive);
         }
-        if self.pins.is_active() {
-            return Err(HeapError::ManagedCollectionPinsActive);
-        }
 
+        // prepare reusable collection state
         let marks = std::mem::take(&mut self.marks);
         let queue = std::mem::take(&mut self.trace_queue);
         let mut marks = marks;
         let mut pending = queue;
+
+        // begin the new cycle
         marks.start_cycle();
         pending.clear();
         self.is_collecting = true;
 
         // trace every reachable mature entry from the explicit roots
         let result = (|| {
-            self.mark_reachable_references(roots.iter().copied(), &mut marks, &mut pending)?;
+            self.mark_reachable_references(
+                roots.iter().copied().chain(pinned.iter().copied()),
+                &mut marks,
+                &mut pending,
+            )?;
             let (freed_allocations, freed_bytes) = self.free_unreachable_references(&marks)?;
 
             // finalize the completed full-cycle statistics
@@ -319,6 +321,64 @@ impl ManagedSpace {
         self.is_collecting = false;
 
         result
+    }
+
+    /// Promote one pinned young reference into mature space.
+    pub(crate) fn promote_pin_reference(&mut self, reference: ManagedReference) -> HeapResult<()> {
+        // resolve the current live location
+        let Some(record) = self.reference(reference).copied() else {
+            return Err(HeapError::InvalidManagedReference { reference });
+        };
+        let Some(location) = record.location() else {
+            return Err(HeapError::InvalidManagedReference { reference });
+        };
+
+        // mature references already have stable addresses
+        let ManagedLocation::Young(young_id) = location else {
+            return Ok(());
+        };
+
+        // stage the young to mature relocation
+        let shape_id = self.shape_id(reference, location)?;
+        let mut promotions = Vec::with_capacity(1);
+
+        self.stage_young_promotion(reference, young_id, &mut promotions)?;
+
+        // publish the mature location only after staging succeeds
+        if let Err(error) = self.commit_young_promotions(&promotions) {
+            self.discard_young_promotions(&promotions)?;
+
+            return Err(error);
+        }
+
+        // retire the old nursery source after the stable reference points at mature storage
+        let Some(entry) = self.young_entry_mut(young_id) else {
+            return Err(HeapError::MissingYoungEntry {
+                generation: young_id.generation(),
+                entry_index: young_id.index(),
+            });
+        };
+        entry.is_live = false;
+
+        // remember the new mature location conservatively
+        let Some(promotion) = promotions.first().copied() else {
+            return Err(HeapError::InvalidManagedReference { reference });
+        };
+
+        self.write_barrier_location(promotion.target, 0, record.byte_len())?;
+
+        // keep active shared-edge scans aware of the now-mature entry
+        let Some(shape) = self.shape_table.shape(shape_id) else {
+            return Err(HeapError::InvalidShapeId {
+                index: shape_id.index(),
+            });
+        };
+
+        if self.is_scanning_shared_edges && shape.scan.has_shared_reference() {
+            self.queue_shared_reference(reference)?;
+        }
+
+        Ok(())
     }
 
     /// Stage one live young entry relocation into mature space.
@@ -499,7 +559,7 @@ impl ManagedSpace {
 
         // walk every stable reference slot directly
         for reference_index in 0..self.references.len() {
-            let reference_id = checked_reference_id(reference_index as u64 + 1)?;
+            let reference_id = checked_packed_reference_id(reference_index as u64 + 1)?;
             let reference = ManagedReference::new(reference_id);
             let Some(record) = self.reference(reference).copied() else {
                 continue;
@@ -567,7 +627,7 @@ impl ManagedSpace {
 
         // walk every stable reference slot directly
         for reference_index in 0..self.references.len() {
-            let reference_id = checked_reference_id(reference_index as u64 + 1)?;
+            let reference_id = checked_packed_reference_id(reference_index as u64 + 1)?;
             let reference = ManagedReference::new(reference_id);
 
             // keep reachable references intact
