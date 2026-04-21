@@ -38,6 +38,29 @@ impl Compiler {
                 );
                 ast::Pattern::Must(inner)
             }
+            dir::Pattern::Assign { pattern, value } => {
+                let pattern = self.unbind_pattern(
+                    module,
+                    *pattern,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+                let value = self.unbind_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+                ast::Pattern::Assign { pattern, value }
+            }
             dir::Pattern::ReferenceOf { mutability, right } => {
                 let mutability = mutability.map(|m| self.unbind_mutability(context, m));
                 let right = self.unbind_pattern(
@@ -270,8 +293,8 @@ impl Compiler {
             dir::PatternField::Named {
                 mutability,
                 name,
+                is_shorthand,
                 pattern,
-                default,
                 ..
             } => {
                 let mutability = mutability.map(|m| self.unbind_mutability(context, m));
@@ -289,30 +312,17 @@ impl Compiler {
                         context,
                     )
                 });
-                let default = default.map(|d| {
-                    self.unbind_expression(
-                        module,
-                        d,
-                        tree,
-                        symbols,
-                        types,
-                        ast_tree,
-                        ast_strings,
-                        context,
-                    )
-                });
                 ast::PatternField::Named {
                     mutability,
                     name,
+                    is_shorthand: *is_shorthand,
                     pattern,
-                    default,
                 }
             }
             dir::PatternField::Computed {
                 mutability,
                 key,
                 pattern,
-                default,
             } => {
                 let mutability = mutability.map(|m| self.unbind_mutability(context, m));
                 let key = self.unbind_expression(
@@ -325,68 +335,6 @@ impl Compiler {
                     ast_strings,
                     context,
                 );
-                let pattern = pattern.map(|p| {
-                    self.unbind_pattern(
-                        module,
-                        p,
-                        tree,
-                        symbols,
-                        types,
-                        ast_tree,
-                        ast_strings,
-                        context,
-                    )
-                });
-                let default = default.map(|d| {
-                    self.unbind_expression(
-                        module,
-                        d,
-                        tree,
-                        symbols,
-                        types,
-                        ast_tree,
-                        ast_strings,
-                        context,
-                    )
-                });
-                ast::PatternField::Computed {
-                    mutability,
-                    key,
-                    pattern,
-                    default,
-                }
-            }
-            dir::PatternField::Alias {
-                mutability,
-                name,
-                alias,
-                default,
-                ..
-            } => {
-                let mutability = mutability.map(|m| self.unbind_mutability(context, m));
-                let name =
-                    ast::Name::Identifier(ast_strings.intern_from(&self.repository.strings, *name));
-                let alias = ast_strings.intern_from(&self.repository.strings, *alias);
-                let default = default.map(|d| {
-                    self.unbind_expression(
-                        module,
-                        d,
-                        tree,
-                        symbols,
-                        types,
-                        ast_tree,
-                        ast_strings,
-                        context,
-                    )
-                });
-                ast::PatternField::Alias {
-                    mutability,
-                    name,
-                    alias,
-                    default,
-                }
-            }
-            dir::PatternField::Positional { pattern, default } => {
                 let pattern = self.unbind_pattern(
                     module,
                     *pattern,
@@ -397,19 +345,24 @@ impl Compiler {
                     ast_strings,
                     context,
                 );
-                let default = default.map(|d| {
-                    self.unbind_expression(
-                        module,
-                        d,
-                        tree,
-                        symbols,
-                        types,
-                        ast_tree,
-                        ast_strings,
-                        context,
-                    )
-                });
-                ast::PatternField::Positional { pattern, default }
+                ast::PatternField::Computed {
+                    mutability,
+                    key,
+                    pattern,
+                }
+            }
+            dir::PatternField::Positional { pattern } => {
+                let pattern = self.unbind_pattern(
+                    module,
+                    *pattern,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+                ast::PatternField::Positional { pattern }
             }
             dir::PatternField::Spread {
                 mutability,

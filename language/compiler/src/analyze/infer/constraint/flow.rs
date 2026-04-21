@@ -1283,7 +1283,6 @@ impl Compiler {
                         PatternField::Named { name, pattern, .. } => {
                             (Some(StaticKey::Name(*name)), *pattern)
                         }
-                        PatternField::Alias { name, .. } => (Some(StaticKey::Name(*name)), None),
                         PatternField::Computed { key, pattern, .. } => (
                             self.static_key_from_key(
                                 ctx.compiler_context.revision(),
@@ -1293,7 +1292,7 @@ impl Compiler {
                                 ctx.types,
                                 Key::Expression(*key),
                             ),
-                            *pattern,
+                            Some(*pattern),
                         ),
                         PatternField::Positional { .. }
                         | PatternField::Spread { .. }

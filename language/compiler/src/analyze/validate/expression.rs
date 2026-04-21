@@ -1092,6 +1092,9 @@ impl Compiler {
         is_strict: bool,
     ) {
         match ctx.tree.get(pattern_id) {
+            Pattern::Assign { pattern, .. } => {
+                self.validate_for_each_assignment_pattern(&mut ctx.reborrow(), *pattern, is_strict);
+            }
             // expression patterns must be valid assignment targets
             Pattern::Expression { value } => {
                 self.validate_assignment_target(ctx, *value, is_strict);
@@ -1191,23 +1194,7 @@ impl Compiler {
 
             // computed fields delegate validation to the value pattern
             PatternField::Computed { pattern, .. } => {
-                if let Some(pattern) = pattern {
-                    self.validate_for_each_assignment_pattern(
-                        &mut ctx.reborrow(),
-                        *pattern,
-                        is_strict,
-                    );
-                }
-            }
-
-            // aliases bind by alias name
-            PatternField::Alias { alias, .. } => {
-                if ctx.module.is_user() && is_strict && self.is_reserved_binding_name(*alias) {
-                    let node = field_id
-                        .into_global_any(ctx.module.id)
-                        .into_anchored(Some(ctx.profile));
-                    self.error(AnalyzeError::ReservedIdentifier { node, name: *alias });
-                }
+                self.validate_for_each_assignment_pattern(&mut ctx.reborrow(), *pattern, is_strict);
             }
 
             // positional fields forward to their pattern

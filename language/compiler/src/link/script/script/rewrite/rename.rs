@@ -311,7 +311,7 @@ impl ScriptLinker<'_> {
                 used_names.insert(module.strings.get(*name).to_string());
             }
 
-            // aliased patterns
+            // shorthand pattern field bindings
             for pattern_field_id in module.tree.get_nodes::<js::PatternField>() {
                 if module
                     .tree
@@ -323,12 +323,13 @@ impl ScriptLinker<'_> {
                     continue;
                 }
 
-                let pattern_field = module.tree.get(pattern_field_id);
-                let js::PatternField::Alias { alias, .. } = pattern_field else {
+                let Some(name) =
+                    Self::shorthand_pattern_field_binding_name(module, pattern_field_id)
+                else {
                     continue;
                 };
 
-                used_names.insert(module.strings.get(*alias).to_string());
+                used_names.insert(name);
             }
 
             // named parameters
@@ -444,18 +445,17 @@ impl ScriptLinker<'_> {
             self.record_binding_symbol(symbol_id, name, false, source_contexts, bindings)?;
         }
 
-        // aliased pattern bindings
+        // shorthand pattern field bindings
         for pattern_field_id in module.tree.get_nodes::<js::PatternField>() {
             let Some(symbol_id) = module.tree.symbol(pattern_field_id) else {
                 continue;
             };
 
-            let pattern_field = module.tree.get(pattern_field_id);
-            let js::PatternField::Alias { alias, .. } = pattern_field else {
+            let Some(name) = Self::shorthand_pattern_field_binding_name(module, pattern_field_id)
+            else {
                 continue;
             };
 
-            let name = module.strings.get(*alias).to_string();
             self.record_binding_symbol(symbol_id, name, false, source_contexts, bindings)?;
         }
 
@@ -633,6 +633,64 @@ impl ScriptLinker<'_> {
         }
     }
 
+    /// Return the bound name for one shorthand object pattern field.
+    fn shorthand_pattern_field_binding_name(
+        module: &js::ScriptModule,
+        pattern_field_id: js::LocalNodeId<js::PatternField>,
+    ) -> Option<String> {
+        let pattern_field = module.tree.get(pattern_field_id);
+        let js::PatternField::Named {
+            name,
+            is_shorthand: true,
+            pattern: None,
+            ..
+        } = pattern_field
+        else {
+            return None;
+        };
+
+        Some(module.strings.get(*name).to_string())
+    }
+
+    /// Expand one shorthand object pattern field into an explicit binding pattern.
+    fn expand_shorthand_pattern_field_binding(
+        module: &mut js::ScriptModule,
+        pattern_field_id: js::LocalNodeId<js::PatternField>,
+        binding_name: &str,
+    ) {
+        let pattern_field = module.tree.get(pattern_field_id).clone();
+        let js::PatternField::Named {
+            mutability,
+            is_shorthand: true,
+            pattern: None,
+            ..
+        } = pattern_field
+        else {
+            return;
+        };
+
+        // explicit binding pattern
+        let binding_name = module.strings.intern(binding_name);
+        let binding_pattern = js::Pattern::Binding {
+            mutability,
+            name: binding_name,
+        };
+        let binding_pattern_id = module.tree.insert_from(binding_pattern, pattern_field_id);
+
+        // rewrite the field into non-shorthand form
+        let pattern_field = module.tree.get_mut(pattern_field_id);
+        let js::PatternField::Named {
+            is_shorthand,
+            pattern,
+            ..
+        } = pattern_field
+        else {
+            unreachable!("expected shorthand named pattern field");
+        };
+        *is_shorthand = false;
+        *pattern = Some(binding_pattern_id);
+    }
+
     /// Collect one exported pattern tree as preserved bindings.
     fn collect_exported_pattern_bindings(
         &self,
@@ -651,6 +709,14 @@ impl ScriptLinker<'_> {
                 let name = module.strings.get(*name).to_string();
                 self.record_binding_symbol(symbol_id, name, true, source_contexts, bindings)?;
             }
+            js::Pattern::Assign { pattern, .. } => {
+                self.collect_exported_pattern_bindings(
+                    module,
+                    *pattern,
+                    source_contexts,
+                    bindings,
+                )?;
+            }
             js::Pattern::Array { fields } => {
                 for field_id in fields {
                     let field = module.tree.get(*field_id);
@@ -660,10 +726,7 @@ impl ScriptLinker<'_> {
                             pattern: Some(pattern),
                             ..
                         }
-                        | js::PatternField::Computed {
-                            pattern: Some(pattern),
-                            ..
-                        }
+                        | js::PatternField::Computed { pattern, .. }
                         | js::PatternField::Positional { pattern, .. } => {
                             self.collect_exported_pattern_bindings(
                                 module,
@@ -672,11 +735,9 @@ impl ScriptLinker<'_> {
                                 bindings,
                             )?;
                         }
-                        js::PatternField::Alias { .. }
-                        | js::PatternField::Spread { .. }
+                        js::PatternField::Spread { .. }
                         | js::PatternField::Elision
-                        | js::PatternField::Named { pattern: None, .. }
-                        | js::PatternField::Computed { pattern: None, .. } => {}
+                        | js::PatternField::Named { pattern: None, .. } => {}
                     }
                 }
             }
@@ -689,10 +750,7 @@ impl ScriptLinker<'_> {
                             pattern: Some(pattern),
                             ..
                         }
-                        | js::PatternField::Computed {
-                            pattern: Some(pattern),
-                            ..
-                        }
+                        | js::PatternField::Computed { pattern, .. }
                         | js::PatternField::Positional { pattern, .. } => {
                             self.collect_exported_pattern_bindings(
                                 module,
@@ -701,11 +759,19 @@ impl ScriptLinker<'_> {
                                 bindings,
                             )?;
                         }
-                        js::PatternField::Alias { alias, .. } => {
+                        js::PatternField::Named {
+                            pattern: None,
+                            is_shorthand: true,
+                            ..
+                        } => {
                             let Some(symbol_id) = module.tree.symbol(*field_id) else {
                                 continue;
                             };
-                            let name = module.strings.get(*alias).to_string();
+                            let Some(name) =
+                                Self::shorthand_pattern_field_binding_name(module, *field_id)
+                            else {
+                                continue;
+                            };
                             self.record_binding_symbol(
                                 symbol_id,
                                 name,
@@ -726,7 +792,6 @@ impl ScriptLinker<'_> {
                             )?;
                         }
                         js::PatternField::Named { pattern: None, .. }
-                        | js::PatternField::Computed { pattern: None, .. }
                         | js::PatternField::Spread { pattern: None, .. }
                         | js::PatternField::Elision => {}
                     }
@@ -910,7 +975,7 @@ impl ScriptLinker<'_> {
             }
         }
 
-        // aliased pattern names
+        // shorthand pattern field bindings
         for pattern_field_id in module.tree.get_nodes::<js::PatternField>() {
             let Some(symbol_id) = module.tree.symbol(pattern_field_id) else {
                 continue;
@@ -919,10 +984,7 @@ impl ScriptLinker<'_> {
                 continue;
             };
 
-            let pattern_field = module.tree.get_mut(pattern_field_id);
-            if let js::PatternField::Alias { alias, .. } = pattern_field {
-                *alias = module.strings.intern(name);
-            }
+            Self::expand_shorthand_pattern_field_binding(module, pattern_field_id, name);
         }
 
         // named parameters
