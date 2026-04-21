@@ -3,8 +3,9 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_outer_parenthesized_source_form, expression_path_segments,
-    expression_statement_ancestor, expression_unwrap_parenthesized_source_form,
+    assign_pattern_expression, expression_outer_parenthesized_source_form,
+    expression_path_segments, expression_statement_ancestor,
+    expression_unwrap_parenthesized_source_form,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
@@ -228,7 +229,9 @@ fn collect_assignment_chain(
         return Some(expression_id);
     };
 
-    left_ids.push(*left);
+    let left_expression_id = assign_pattern_expression(ctx.tree, *left)?;
+    left_ids.push(left_expression_id);
+
     collect_assignment_chain(ctx, *right, left_ids)
 }
 

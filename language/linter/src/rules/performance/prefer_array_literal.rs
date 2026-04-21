@@ -8,7 +8,9 @@ use destack_dir::{
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{expand_span_to_statement_terminator, expression_method_call};
+use crate::rules::common::{
+    assign_pattern_contains_expression, expand_span_to_statement_terminator, expression_method_call,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -373,9 +375,17 @@ impl NodeVisitor for PreferArrayLiteralVisitor<'_, '_> {
         }
 
         // check assignment-like writes to tracked arrays as other use
-        if let dir::Expression::Assign { left, .. } | dir::Expression::AssignBinary { left, .. } =
-            expression
-        {
+        if let dir::Expression::Assign { left, .. } = expression {
+            for (expression_id, _) in self.ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+                if assign_pattern_contains_expression(self.ctx.tree, *left, expression_id) {
+                    self.mark_other_use(expression_id);
+                }
+            }
+
+            return;
+        }
+
+        if let dir::Expression::AssignBinary { left, .. } = expression {
             self.mark_other_use(*left);
         }
 

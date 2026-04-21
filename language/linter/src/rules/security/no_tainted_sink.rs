@@ -1,7 +1,10 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{TaintAnalysis, TaintCache, TaintLabels, expression_sink_taint_labels};
+use crate::rules::common::{
+    TaintAnalysis, TaintCache, TaintLabels, assign_pattern_target_expression,
+    expression_sink_taint_labels,
+};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -191,7 +194,11 @@ impl NodeVisitor for NoTaintedSinkVisitor<'_, '_> {
         expression: &dir::Expression,
     ) {
         if let dir::Expression::Assign { left, right } = expression {
-            self.check_assign(*left, *right);
+            let Some(left_expression_id) = assign_pattern_target_expression(self.ctx.tree, *left)
+            else {
+                return;
+            };
+            self.check_assign(left_expression_id, *right);
         }
 
         if let dir::Expression::Call {

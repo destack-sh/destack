@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_is_equal;
+use crate::rules::common::{assign_pattern_expression, assign_pattern_is_equal};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -56,13 +56,16 @@ impl LintRule for NoSelfAssign {
 
             // keep property assignments behind the upstream option
             let checks_properties = ctx.options.correctness.no_self_assign_check_properties;
-            if !checks_properties && expression_is_property_assignment_target(ctx.tree, *left) {
+            if !checks_properties && assign_pattern_is_property_assignment_target(ctx.tree, *left) {
                 continue;
             }
 
             // compare assignment operands structurally
-            let left_span = ctx.tree.get_span(*left);
-            if !expression_is_equal(ctx, *left, *right) {
+            let Some(left_expression_id) = assign_pattern_expression(ctx.tree, *left) else {
+                continue;
+            };
+            let left_span = ctx.tree.get_span(left_expression_id);
+            if !assign_pattern_is_equal(ctx, *left, *right) {
                 continue;
             }
 
@@ -104,10 +107,14 @@ impl LintRule for NoSelfAssign {
 }
 
 /// Return true when one assignment target is property-like.
-fn expression_is_property_assignment_target(
+fn assign_pattern_is_property_assignment_target(
     tree: &ast::NodeTree,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
 ) -> bool {
+    let Some(expression_id) = assign_pattern_expression(tree, assign_pattern_id) else {
+        return false;
+    };
+
     let expression = tree.get(expression_id);
 
     matches!(

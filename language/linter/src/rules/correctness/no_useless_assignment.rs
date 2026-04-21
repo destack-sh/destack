@@ -4,7 +4,8 @@ use destack_dir::{self as dir, GlobalSymbolId, NodeVisitor, NodeVisitorOptions, 
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    collect_expression_read_symbol_usage, collect_pattern_value_binding_symbols,
+    assign_pattern_target_symbol, collect_expression_read_symbol_usage,
+    collect_pattern_value_binding_symbols, expression_target_symbol,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -127,10 +128,16 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
 
         // branch by expression kind
         match expression {
-            // regular assignments like `x = 1` and `x += 1`
-            dir::Expression::Assign { left, .. } | dir::Expression::AssignBinary { left, .. } => {
-                let left_expr = self.ctx.tree.get(*left);
-                if let Some(target_symbol) = left_expr.target_symbol() {
+            // regular assignments like `x = 1`
+            dir::Expression::Assign { left, .. } => {
+                if let Some(target_symbol) = assign_pattern_target_symbol(self.ctx.tree, *left) {
+                    targets.push(target_symbol);
+                }
+            }
+
+            // compound assignments like `x += 1`
+            dir::Expression::AssignBinary { left, .. } => {
+                if let Some(target_symbol) = expression_target_symbol(self.ctx.tree, *left) {
                     targets.push(target_symbol);
                 }
             }

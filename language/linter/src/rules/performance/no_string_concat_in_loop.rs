@@ -3,7 +3,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    ReferencePath, expression_enters_nested_declaration_scope, expression_reference_path,
+    ReferencePath, assign_pattern_reference_path, assign_pattern_target_expression,
+    expression_enters_nested_declaration_scope, expression_reference_path,
     expression_unwrap_parenthesized, is_string_type,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
@@ -110,9 +111,13 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
         let dir::Expression::Assign { left, right } = expression else {
             return;
         };
+        let Some(left_expression_id) = assign_pattern_target_expression(self.ctx.tree, *left)
+        else {
+            return;
+        };
 
         // resolve the left reference path
-        let Some(left_path) = expression_reference_path(self.ctx.tree, *left) else {
+        let Some(left_path) = assign_pattern_reference_path(self.ctx.tree, *left) else {
             return;
         };
 
@@ -125,7 +130,7 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
 
         // require at least one string operand
         let has_string_operand = self.add_chain_has_string_operand(*right);
-        if !self.is_string_expression(*left) && !has_string_operand {
+        if !self.is_string_expression(left_expression_id) && !has_string_operand {
             return;
         }
 

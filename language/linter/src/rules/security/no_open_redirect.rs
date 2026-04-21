@@ -4,8 +4,9 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    TaintAnalysis, TaintCache, expression_is_global_qualified_member,
-    expression_is_symbol_or_global_qualified_member, expression_static_property_access,
+    TaintAnalysis, TaintCache, assign_pattern_target_expression,
+    expression_is_global_qualified_member, expression_is_symbol_or_global_qualified_member,
+    expression_static_property_access,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -279,7 +280,11 @@ impl NodeVisitor for NoOpenRedirectVisitor<'_, '_> {
     ) {
         // check assignments
         if let dir::Expression::Assign { left, right } = expression {
-            self.check_assign(id, *left, *right);
+            let Some(left_expression_id) = assign_pattern_target_expression(self.ctx.tree, *left)
+            else {
+                return;
+            };
+            self.check_assign(id, left_expression_id, *right);
         }
 
         // check calls

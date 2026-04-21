@@ -2,7 +2,8 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_numeric_sign, expression_path_segments, expression_unwrap_parenthesized_source_form,
+    assign_pattern_expression, expression_numeric_sign, expression_path_segments,
+    expression_unwrap_parenthesized_source_form,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
@@ -179,12 +180,16 @@ fn increment_with_expected_direction(
             left,
             right,
         } => {
+            let Some(left_expression_id) = assign_pattern_expression(ctx.tree, *left) else {
+                return None;
+            };
+
             // map assignment operator to target direction
             let replacement_operator =
                 assign_operator_with_expected_direction(*operator, expected_direction)?;
 
             // preserve original left and right expression text
-            let left_text = ctx.get_span_text(ctx.tree.get_span(*left));
+            let left_text = ctx.get_span_text(ctx.tree.get_span(left_expression_id));
             let right_text = ctx.get_span_text(ctx.tree.get_span(*right));
 
             Some(format!("{left_text} {replacement_operator} {right_text}"))
@@ -290,8 +295,12 @@ fn update_direction_for_counter(
             left,
             right,
         } => {
+            let Some(left_expression_id) = assign_pattern_expression(ctx.tree, *left) else {
+                return None;
+            };
+
             // require assignment target to match the counter path
-            if !expression_matches_counter(ctx, *left, counter_segments) {
+            if !expression_matches_counter(ctx, left_expression_id, counter_segments) {
                 return None;
             }
 

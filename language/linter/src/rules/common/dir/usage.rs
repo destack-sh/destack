@@ -6,8 +6,8 @@ use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Repository, Revision};
 
 use super::{
-    expression_assignment_target, expression_candidate_symbols, expression_is_standalone_statement,
-    resolution_target_symbols,
+    assign_pattern_contains_expression, expression_assignment_target, expression_candidate_symbols,
+    expression_is_standalone_statement, resolution_target_symbols,
 };
 
 /// Collected symbol usage for one DIR module.
@@ -194,7 +194,8 @@ pub fn collect_assigned_symbol_usage(
     for (assignment_expression_id, assignment_expression) in
         tree.iter_nodes_of_type::<dir::Expression>()
     {
-        let Some(assigned_expression_id) = expression_assignment_target(assignment_expression)
+        let Some(assigned_expression_id) =
+            expression_assignment_target(tree, assignment_expression)
         else {
             continue;
         };
@@ -313,7 +314,9 @@ pub fn expression_reference_is_read(
             }
 
             // plain assignment left side is write only
-            dir::Expression::Assign { left, right: _ } if *left == current_id => {
+            dir::Expression::Assign { left, right: _ }
+                if assign_pattern_contains_expression(tree, *left, current_id) =>
+            {
                 return false;
             }
 

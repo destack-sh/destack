@@ -28,13 +28,87 @@ pub fn expression_is_numeric_literal(
         }
     )
 }
+
+/// Return one simple expression target from an assignment pattern.
+pub fn assign_pattern_target_expression(
+    tree: &dir::NodeTree,
+    mut assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    loop {
+        let assign_pattern = tree.get(assign_pattern_id);
+
+        // keep direct expression targets
+        if let dir::AssignPattern::Expression { value } = assign_pattern {
+            return Some(*value);
+        }
+
+        // unwrap defaulted targets before checking the base
+        if let dir::AssignPattern::Assign { pattern, .. } = assign_pattern {
+            assign_pattern_id = *pattern;
+            continue;
+        }
+
+        // destructuring patterns are not one simple expression target
+        return None;
+    }
+}
+
+/// Return true when one assignment pattern contains one expression node.
+pub fn assign_pattern_contains_expression(
+    tree: &dir::NodeTree,
+    assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let assign_pattern = tree.get(assign_pattern_id);
+
+    match assign_pattern {
+        dir::AssignPattern::Expression { value } => *value == expression_id,
+        dir::AssignPattern::Assign { pattern, value } => {
+            assign_pattern_contains_expression(tree, *pattern, expression_id)
+                || *value == expression_id
+        }
+        dir::AssignPattern::Array { fields } | dir::AssignPattern::Object { fields } => {
+            fields.iter().copied().any(|field_id| {
+                assign_pattern_field_contains_expression(tree, field_id, expression_id)
+            })
+        }
+    }
+}
+
+/// Return true when one assignment pattern field contains one expression node.
+pub fn assign_pattern_field_contains_expression(
+    tree: &dir::NodeTree,
+    assign_pattern_field_id: dir::LocalNodeId<dir::AssignPatternField>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let assign_pattern_field = tree.get(assign_pattern_field_id);
+
+    match assign_pattern_field {
+        dir::AssignPatternField::Named { pattern, .. } => pattern.is_some_and(|pattern_id| {
+            assign_pattern_contains_expression(tree, pattern_id, expression_id)
+        }),
+        dir::AssignPatternField::Computed { key, pattern } => {
+            *key == expression_id
+                || assign_pattern_contains_expression(tree, *pattern, expression_id)
+        }
+        dir::AssignPatternField::Positional { pattern } => {
+            assign_pattern_contains_expression(tree, *pattern, expression_id)
+        }
+        dir::AssignPatternField::Spread { pattern } => pattern.is_some_and(|pattern_id| {
+            assign_pattern_contains_expression(tree, pattern_id, expression_id)
+        }),
+        dir::AssignPatternField::Elision => false,
+    }
+}
+
 /// Return one assignment target expression for assignment-like expressions.
 pub fn expression_assignment_target(
+    tree: &dir::NodeTree,
     expression: &dir::Expression,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     match expression {
-        dir::Expression::Assign { left, right: _ }
-        | dir::Expression::AssignBinary {
+        dir::Expression::Assign { left, right: _ } => assign_pattern_target_expression(tree, *left),
+        dir::Expression::AssignBinary {
             left,
             operator: _,
             right: _,

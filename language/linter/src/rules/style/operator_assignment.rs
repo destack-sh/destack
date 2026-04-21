@@ -3,8 +3,8 @@ use destack_ast::{self as ast, AssignOperator, BinaryOperator, ScalarLiteral};
 use destack_workspace::{LintSeverity, OperatorAssignmentMode};
 
 use crate::rules::common::{
-    expression_is_equal, expression_path_segments, expression_unwrap_parenthesized_source_form,
-    span_has_comment,
+    assign_pattern_expression, expression_is_equal, expression_path_segments,
+    expression_unwrap_parenthesized_source_form, span_has_comment,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
@@ -73,8 +73,11 @@ impl LintRule for OperatorAssignment {
             };
 
             // resolve normalized operands for structural comparison
+            let Some(assignment_left_id) = assign_pattern_expression(ctx.tree, *left) else {
+                continue;
+            };
             let normalized_assignment_left_id =
-                expression_unwrap_parenthesized_source_form(ctx.tree, *left);
+                expression_unwrap_parenthesized_source_form(ctx.tree, assignment_left_id);
             let normalized_binary_left_id =
                 expression_unwrap_parenthesized_source_form(ctx.tree, *binary_left_id);
             let normalized_binary_right_id =
@@ -149,9 +152,13 @@ impl OperatorAssignment {
         ctx: &mut LintAstContext<'_>,
         meta: &'static LintMeta,
         node_id: ast::LocalNodeId<ast::Expression>,
-        left_id: ast::LocalNodeId<ast::Expression>,
+        left_id: ast::LocalNodeId<ast::AssignPattern>,
         operator: AssignOperator,
     ) {
+        let Some(left_id) = assign_pattern_expression(ctx.tree, left_id) else {
+            return;
+        };
+
         let Some(binary_text) = expanded_assignment_operator_text(operator) else {
             return;
         };

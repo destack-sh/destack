@@ -3,8 +3,9 @@ use destack_ast::{self as ast, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_is_direct_block_leading_expression, expression_is_direct_statement,
-    expression_is_unqualified_path_name, expression_subtree_mentions_identifier_name,
+    assign_pattern_is_unqualified_path_name, expression_is_direct_block_leading_expression,
+    expression_is_direct_statement, expression_is_unqualified_path_name,
+    expression_subtree_mentions_identifier_name,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
@@ -269,7 +270,7 @@ impl NodeVisitor for CatchAssignmentCollector {
     ) {
         // capture direct assignments to the catch binding
         if let ast::Expression::Assign { left, .. } = expression
-            && expression_is_unqualified_path_name(tree, *left, self.catch_name)
+            && assign_pattern_is_unqualified_path_name(tree, *left, self.catch_name)
         {
             self.assignment_ids.push(id);
         }

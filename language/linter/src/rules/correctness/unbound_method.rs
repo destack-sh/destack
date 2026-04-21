@@ -3,9 +3,9 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    call_like_invocation_is_receiver_bound, has_non_void_this_parameter_type, member_receiver_text,
-    parent_is_receiver_helper, resolution_target_symbols, symbol_primary_declaration_for,
-    symbol_value_type_id_for,
+    assign_pattern_contains_expression, call_like_invocation_is_receiver_bound,
+    has_non_void_this_parameter_type, member_receiver_text, parent_is_receiver_helper,
+    resolution_target_symbols, symbol_primary_declaration_for, symbol_value_type_id_for,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -331,7 +331,9 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
                     return false;
                 }
-                dir::Expression::Assign { left, .. } if *left == current_id => {
+                dir::Expression::Assign { left, .. }
+                    if assign_pattern_contains_expression(self.ctx.tree, *left, current_id) =>
+                {
                     return true;
                 }
                 dir::Expression::Member { left, name, .. } if *left == current_id => {

@@ -7,7 +7,8 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_is_unqualified_path_name, is_simple_identifier, subtree_mentions_identifier_name,
+    assign_pattern_is_unqualified_path_name, expression_is_unqualified_path_name,
+    is_simple_identifier, subtree_mentions_identifier_name,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
@@ -449,7 +450,7 @@ fn identifier_has_write_usage(ctx: &LintAstContext<'_>, name: ast::StringId) -> 
 
         // capture direct assignment writes
         if let ast::Expression::Assign { left, .. } = expression
-            && expression_is_unqualified_path_name(ctx.tree, *left, name)
+            && assign_pattern_is_unqualified_path_name(ctx.tree, *left, name)
         {
             return true;
         }

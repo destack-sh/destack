@@ -2,7 +2,8 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_unwrap_transparent, expressions_have_equivalent_source_form,
+    assign_pattern_target_expression, expression_unwrap_transparent,
+    expressions_have_equivalent_source_form,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -183,7 +184,10 @@ impl NodeVisitor for UselessIncrementVisitor<'_, '_> {
     ) {
         // check assignments where postfix right side targets the same reference
         if let dir::Expression::Assign { left, right } = expression {
-            self.check_useless_postfix_assignment(id, *left, *right);
+            let Some(left_expression_id) = assign_pattern_target_expression(tree, *left) else {
+                return;
+            };
+            self.check_useless_postfix_assignment(id, left_expression_id, *right);
         }
 
         // check return statements with postfix increment/decrement

@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_ast::{self as ast, Expression, Pattern};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_path_segments;
+use crate::rules::common::{assign_pattern_expression, expression_path_segments};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -141,7 +141,8 @@ fn detect_swap_pattern(
     // second expression: a = b (assignment)
     let (assigned_var, var_b) = match second {
         Expression::Assign { left, right, .. } => {
-            let assigned = get_simple_path_from_expression(ctx, *left)?;
+            let left_expression_id = assign_pattern_expression(ctx.tree, *left)?;
+            let assigned = get_simple_path_from_expression(ctx, left_expression_id)?;
             let source = get_simple_path_from_expression(ctx, *right)?;
             (assigned, source)
         }
@@ -156,7 +157,8 @@ fn detect_swap_pattern(
     // third expression: b = temp
     let (final_assigned, final_source) = match third {
         Expression::Assign { left, right, .. } => {
-            let assigned = get_simple_path_from_expression(ctx, *left)?;
+            let left_expression_id = assign_pattern_expression(ctx.tree, *left)?;
+            let assigned = get_simple_path_from_expression(ctx, left_expression_id)?;
             let source = get_simple_path_from_expression(ctx, *right)?;
             (assigned, source)
         }
