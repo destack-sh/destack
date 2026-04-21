@@ -31,6 +31,54 @@ enum ExpressionSlotOwner {
     Type,
 }
 
+/// Return whether one assign pattern contains the expression.
+fn assign_pattern_contains_expression(
+    tree: &ast::NodeTree,
+    assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let assign_pattern = tree.get(assign_pattern_id);
+
+    match assign_pattern {
+        ast::AssignPattern::Expression { value } => *value == expression_id,
+        ast::AssignPattern::Assign { pattern, value } => {
+            assign_pattern_contains_expression(tree, *pattern, expression_id)
+                || *value == expression_id
+        }
+        ast::AssignPattern::Array { fields } | ast::AssignPattern::Object { fields } => {
+            fields.iter().any(|field_id| {
+                assign_pattern_field_contains_expression(tree, *field_id, expression_id)
+            })
+        }
+    }
+}
+
+/// Return whether one assign pattern field contains the expression.
+fn assign_pattern_field_contains_expression(
+    tree: &ast::NodeTree,
+    assign_pattern_field_id: ast::LocalNodeId<ast::AssignPatternField>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let assign_pattern_field = tree.get(assign_pattern_field_id);
+
+    match assign_pattern_field {
+        ast::AssignPatternField::Named { pattern, .. } => pattern.is_some_and(|pattern_id| {
+            assign_pattern_contains_expression(tree, pattern_id, expression_id)
+        }),
+        ast::AssignPatternField::Computed { key, pattern } => {
+            *key == expression_id
+                || assign_pattern_contains_expression(tree, *pattern, expression_id)
+        }
+        ast::AssignPatternField::Positional { pattern } => {
+            assign_pattern_contains_expression(tree, *pattern, expression_id)
+        }
+        ast::AssignPatternField::Spread { pattern } => pattern.is_some_and(|pattern_id| {
+            assign_pattern_contains_expression(tree, pattern_id, expression_id)
+        }),
+        ast::AssignPatternField::Elision => false,
+    }
+}
+
 /// Resolve the structural context for the innermost expression slot at the cursor.
 pub(crate) fn expression_slot_position(
     ast: AstQuery<'_>,
@@ -141,7 +189,7 @@ fn expression_slot_owner_for_missing_node(
         }
         ast::NodeType::Expression => {
             let parent = ast_tree.get(ast::LocalNodeId::<ast::Expression>::new(parent_id));
-            expression_slot_position_in_expression(parent, expr_id)
+            expression_slot_position_in_expression(ast_tree, parent, expr_id)
                 .map(expression_slot_owner_from_position)
         }
         _ => None,
@@ -354,6 +402,7 @@ fn expression_slot_position_in_member(
 
 /// Resolve the structural context for an expression child.
 fn expression_slot_position_in_expression(
+    ast_tree: &ast::NodeTree,
     expression: &ast::Expression,
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ExpressionSlotPosition> {
@@ -388,9 +437,15 @@ fn expression_slot_position_in_expression(
 
             None
         }
-        ast::Expression::Binary { left, right, .. }
-        | ast::Expression::Assign { left, right, .. } => {
+        ast::Expression::Binary { left, right, .. } => {
             if *left == expr_id || *right == expr_id {
+                return Some(ExpressionSlotPosition::Value);
+            }
+
+            None
+        }
+        ast::Expression::Assign { left, right, .. } => {
+            if assign_pattern_contains_expression(ast_tree, *left, expr_id) || *right == expr_id {
                 return Some(ExpressionSlotPosition::Value);
             }
 
