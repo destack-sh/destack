@@ -29,8 +29,9 @@ pub fn pattern_field_default_expression_id(
     pattern_field: &ast::PatternField,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
     match pattern_field {
-        ast::PatternField::Named { pattern, .. } => pattern
-            .and_then(|pattern_id| pattern_assignment_value_expression_id(tree, pattern_id)),
+        ast::PatternField::Named { pattern, .. } => {
+            pattern.and_then(|pattern_id| pattern_assignment_value_expression_id(tree, pattern_id))
+        }
         ast::PatternField::Computed { pattern, .. } => {
             pattern_assignment_value_expression_id(tree, *pattern)
         }

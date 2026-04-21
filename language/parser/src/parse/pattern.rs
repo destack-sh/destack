@@ -738,7 +738,7 @@ mod tests {
 
         assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
             assert_eq!(fields.len(), 1);
-            assert_node!(parser.tree, fields[0], PatternField::Computed { key, pattern: Some(pattern), .. } => {
+            assert_node!(parser.tree, fields[0], PatternField::Computed { key, pattern, .. } => {
                 assert_expression_path!(parser, parser.tree.get(*key), "key");
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "value");
@@ -822,7 +822,7 @@ mod tests {
             assert_eq!(fields.len(), 5);
 
             // x: 1
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None, default: None } => {
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), is_shorthand: false, mutability: None } => {
                 assert_name!(parser, *name, "x");
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
@@ -830,20 +830,20 @@ mod tests {
             });
 
             // 2
-            assert_node!(parser.tree, fields[1], PatternField::Positional { pattern, default: None } => {
+            assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
                 });
             });
 
             // var y
-            assert_node!(parser.tree, fields[2], PatternField::Named { name, pattern: None, mutability: Some(mutability), default: None } => {
+            assert_node!(parser.tree, fields[2], PatternField::Named { name, pattern: None, is_shorthand: true, mutability: Some(mutability) } => {
                 assert_name!(parser, *name, "y");
                 assert_eq!(*mutability, Mutability::Mutable);
             });
 
             // const z
-            assert_node!(parser.tree, fields[3], PatternField::Named { name, pattern: None, mutability: Some(mutability), default: None } => {
+            assert_node!(parser.tree, fields[3], PatternField::Named { name, pattern: None, is_shorthand: true, mutability: Some(mutability) } => {
                 assert_name!(parser, *name, "z");
                 assert_eq!(*mutability, Mutability::Immutable);
             });
@@ -867,7 +867,7 @@ mod tests {
             assert_eq!(fields.len(), 2);
 
             // _
-            assert_node!(parser.tree, fields[0], PatternField::Positional { pattern, default: None } => {
+            assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
                 assert_node!(parser.tree, *pattern, Pattern::Wildcard);
             });
 
@@ -889,13 +889,15 @@ mod tests {
             assert_eq!(fields.len(), 2);
 
             // const: value
-            assert_node!(parser.tree, fields[0], PatternField::Alias { mutability: None, name, alias, default: None } => {
+            assert_node!(parser.tree, fields[0], PatternField::Named { mutability: None, name, is_shorthand: false, pattern: Some(pattern) } => {
                 assert_name!(parser, *name, "const");
-                assert_string!(parser, *alias, "value");
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
+                    assert_string!(parser, *name, "value");
+                });
             });
 
             // title
-            assert_node!(parser.tree, fields[1], PatternField::Named { mutability: None, name, pattern: None, default: None } => {
+            assert_node!(parser.tree, fields[1], PatternField::Named { mutability: None, name, is_shorthand: true, pattern: None } => {
                 assert_name!(parser, *name, "title");
             });
         });
@@ -909,7 +911,7 @@ mod tests {
 
         assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields, .. } => {
             assert_eq!(fields.len(), 3);
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, mutability: None, default: None } => {
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, is_shorthand: true, mutability: None } => {
                 assert_name!(parser, *name, "x");
             });
             assert_node!(parser.tree, fields[1], PatternField::Spread { mutability: None, pattern: Some(pattern) } => {
@@ -917,7 +919,7 @@ mod tests {
                     assert_string!(parser, *name, "rest");
                 });
             });
-            assert_node!(parser.tree, fields[2], PatternField::Named { name, pattern: None, mutability: None, default: None } => {
+            assert_node!(parser.tree, fields[2], PatternField::Named { name, pattern: None, is_shorthand: true, mutability: None } => {
                 assert_name!(parser, *name, "z");
             });
         });
@@ -942,7 +944,7 @@ mod tests {
             assert_eq!(fields.len(), 3);
 
             // x: 1
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None, default: None } => {
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), is_shorthand: false, mutability: None } => {
                 assert_name!(parser, *name, "x");
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
@@ -950,7 +952,7 @@ mod tests {
             });
 
             // 2
-            assert_node!(parser.tree, fields[1], PatternField::Positional { pattern, default: None } => {
+            assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
                 });
@@ -999,7 +1001,7 @@ mod tests {
             assert_eq!(fields.len(), 5);
 
             // x: 1
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None, default: None } => {
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), is_shorthand: false, mutability: None } => {
                 assert_name!(parser, *name, "x");
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
@@ -1007,18 +1009,18 @@ mod tests {
             });
 
             // y
-            assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, mutability: None, default: None } => {
+            assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, is_shorthand: true, mutability: None } => {
                 assert_name!(parser, *name, "y");
             });
 
             // var z
-            assert_node!(parser.tree, fields[2], PatternField::Named { name, pattern: None, mutability: Some(mutability), default: None } => {
+            assert_node!(parser.tree, fields[2], PatternField::Named { name, pattern: None, is_shorthand: true, mutability: Some(mutability) } => {
                 assert_name!(parser, *name, "z");
                 assert_eq!(*mutability, Mutability::Mutable);
             });
 
             // const w: 4
-            assert_node!(parser.tree, fields[3], PatternField::Named { name, pattern: Some(pattern), mutability: Some(mutability), default: None } => {
+            assert_node!(parser.tree, fields[3], PatternField::Named { name, pattern: Some(pattern), is_shorthand: false, mutability: Some(mutability) } => {
                 assert_name!(parser, *name, "w");
                 assert_eq!(*mutability, Mutability::Immutable);
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
@@ -1040,9 +1042,14 @@ mod tests {
 
         assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
             assert_eq!(fields.len(), 1);
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, default: Some(default), .. } => {
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, is_shorthand: true, pattern: Some(pattern), .. } => {
                 assert_name!(parser, *name, "d");
-                assert_expression_path!(parser, parser.tree.get(*default), "b");
+                assert_node!(parser.tree, *pattern, Pattern::Assign { pattern, value } => {
+                    assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
+                        assert_string!(parser, *name, "d");
+                    });
+                    assert_expression_path!(parser, parser.tree.get(*value), "b");
+                });
             });
         });
     }
@@ -1055,21 +1062,27 @@ mod tests {
 
         assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
             assert_eq!(fields.len(), 3);
-            assert_node!(parser.tree, fields[0], PatternField::Alias { name, alias, .. } => {
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, is_shorthand: false, pattern: Some(pattern), .. } => {
                 assert_node!(name, Name::Number(name) => {
                     assert_string!(parser, *name, "0");
                 });
-                assert_string!(parser, *alias, "fieldNameOrOptions");
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
+                    assert_string!(parser, *name, "fieldNameOrOptions");
+                });
             });
-            assert_node!(parser.tree, fields[1], PatternField::Alias { name, alias, .. } => {
+            assert_node!(parser.tree, fields[1], PatternField::Named { name, is_shorthand: false, pattern: Some(pattern), .. } => {
                 assert_node!(name, Name::Number(name) => {
                     assert_string!(parser, *name, "1");
                 });
-                assert_string!(parser, *alias, "from");
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
+                    assert_string!(parser, *name, "from");
+                });
             });
-            assert_node!(parser.tree, fields[2], PatternField::Alias { name, alias, .. } => {
+            assert_node!(parser.tree, fields[2], PatternField::Named { name, is_shorthand: false, pattern: Some(pattern), .. } => {
                 assert_name!(parser, *name, "length");
-                assert_string!(parser, *alias, "argc");
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
+                    assert_string!(parser, *name, "argc");
+                });
             });
         });
     }
@@ -1085,13 +1098,17 @@ mod tests {
 
         assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
             assert_eq!(fields.len(), 2);
-            assert_node!(parser.tree, fields[0], PatternField::Alias { name, alias, .. } => {
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, is_shorthand: false, pattern: Some(pattern), .. } => {
                 assert_name!(parser, *name, "false");
-                assert_string!(parser, *alias, "decorators");
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
+                    assert_string!(parser, *name, "decorators");
+                });
             });
-            assert_node!(parser.tree, fields[1], PatternField::Alias { name, alias, .. } => {
+            assert_node!(parser.tree, fields[1], PatternField::Named { name, is_shorthand: false, pattern: Some(pattern), .. } => {
                 assert_name!(parser, *name, "true");
-                assert_string!(parser, *alias, "metadata");
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
+                    assert_string!(parser, *name, "metadata");
+                });
             });
         });
     }
@@ -1104,7 +1121,7 @@ mod tests {
 
         assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
             assert_eq!(fields.len(), 1);
-            assert_node!(parser.tree, fields[0], PatternField::Positional { pattern, default: None } => {
+            assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(5)));
                 });
@@ -1120,12 +1137,11 @@ mod tests {
 
         assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
             assert_eq!(fields.len(), 1);
-            assert_node!(parser.tree, fields[0], PatternField::Computed { mutability: None, key, pattern, default } => {
-                assert!(default.is_none());
+            assert_node!(parser.tree, fields[0], PatternField::Computed { mutability: None, key, pattern } => {
                 assert_node!(parser.tree, *key, Expression::Identifier { name } => {
                     assert_string!(parser, *name, "key");
                 });
-                assert_node!(parser.tree, pattern.unwrap(), Pattern::Binding { name, pattern: None, .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
                     assert_string!(parser, *name, "value");
                 });
             });
@@ -1145,7 +1161,7 @@ mod tests {
             assert_eq!(fields.len(), 2);
 
             // x: 0
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None, default: None } => {
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), is_shorthand: false, mutability: None } => {
                 assert_name!(parser, *name, "x");
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
@@ -1153,7 +1169,7 @@ mod tests {
             });
 
             // y
-            assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, mutability: None, default: None } => {
+            assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, is_shorthand: true, mutability: None } => {
                 assert_name!(parser, *name, "y");
             });
         });
@@ -1168,7 +1184,7 @@ mod tests {
         assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
             assert_eq!(fields.len(), 2);
             // 1
-            assert_node!(parser.tree, fields[0], PatternField::Positional { pattern, default: None } => {
+            assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
                 });
@@ -1210,7 +1226,7 @@ mod tests {
 
         assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
             assert_eq!(fields.len(), 1);
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, is_shorthand: true, pattern: None } => {
                 assert_name!(parser, *name, "readonly");
             });
         });
@@ -1224,7 +1240,7 @@ mod tests {
 
         assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
             assert_eq!(fields.len(), 1);
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, is_shorthand: true, pattern: None } => {
                 assert_name!(parser, *name, "readonly");
             });
         });
@@ -1237,7 +1253,7 @@ mod tests {
 
         assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
             assert_eq!(fields.len(), 1);
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, is_shorthand: true, pattern: None } => {
                 assert_name!(parser, *name, "readonly");
             });
         });
@@ -1252,10 +1268,10 @@ mod tests {
 
         assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
             assert_eq!(fields.len(), 2);
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, is_shorthand: true, pattern: None } => {
                 assert_name!(parser, *name, "readonly");
             });
-            assert_node!(parser.tree, fields[1], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+            assert_node!(parser.tree, fields[1], PatternField::Named { name, mutability: None, is_shorthand: true, pattern: None } => {
                 assert_name!(parser, *name, "setReadonly");
             });
         });
@@ -1269,10 +1285,10 @@ mod tests {
 
         assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
             assert_eq!(fields.len(), 2);
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, is_shorthand: true, pattern: None } => {
                 assert_name!(parser, *name, "readonly");
             });
-            assert_node!(parser.tree, fields[1], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+            assert_node!(parser.tree, fields[1], PatternField::Named { name, mutability: None, is_shorthand: true, pattern: None } => {
                 assert_name!(parser, *name, "setReadonly");
             });
         });
@@ -1297,7 +1313,7 @@ mod tests {
 
         assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
             assert_eq!(fields.len(), 2);
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, mutability: None, default: None } => {
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, is_shorthand: true, mutability: None } => {
                 assert_name!(parser, *name, "onSuccess");
             });
             assert_node!(parser.tree, fields[1], PatternField::Spread { mutability: None, pattern: Some(pattern) } => {
@@ -1394,7 +1410,7 @@ mod tests {
             assert_node!(parser.tree, fields[0], PatternField::Elision);
 
             // a (identifiers are parsed as Named shorthand)
-            assert_node!(parser.tree, fields[1], PatternField::Named { mutability: None, name, pattern: None, default: None } => {
+            assert_node!(parser.tree, fields[1], PatternField::Named { mutability: None, name, is_shorthand: true, pattern: None } => {
                 assert_name!(parser, *name, "a");
             });
         });
@@ -1417,7 +1433,7 @@ mod tests {
             assert_node!(parser.tree, fields[1], PatternField::Elision);
 
             // a (identifiers are parsed as Named shorthand)
-            assert_node!(parser.tree, fields[2], PatternField::Named { mutability: None, name, pattern: None, default: None } => {
+            assert_node!(parser.tree, fields[2], PatternField::Named { mutability: None, name, is_shorthand: true, pattern: None } => {
                 assert_name!(parser, *name, "a");
             });
         });
@@ -1435,7 +1451,7 @@ mod tests {
             assert_eq!(fields.len(), 1);
 
             // a (identifiers are parsed as Named shorthand)
-            assert_node!(parser.tree, fields[0], PatternField::Named { mutability: None, name, pattern: None, default: None } => {
+            assert_node!(parser.tree, fields[0], PatternField::Named { mutability: None, name, is_shorthand: true, pattern: None } => {
                 assert_name!(parser, *name, "a");
             });
         });
@@ -1453,23 +1469,23 @@ mod tests {
             assert_eq!(fields.len(), 5);
 
             // b=1
-            assert_node!(parser.tree, fields[1], PatternField::Named { default, .. } => {
-                assert!(default.is_some());
+            assert_node!(parser.tree, fields[1], PatternField::Named { is_shorthand: true, pattern: Some(pattern), .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Assign { .. });
             });
 
             // c:d
-            assert_node!(parser.tree, fields[2], PatternField::Alias { default, .. } => {
-                assert!(default.is_none());
+            assert_node!(parser.tree, fields[2], PatternField::Named { is_shorthand: false, pattern: Some(pattern), .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { .. });
             });
 
             // e:f=2
-            assert_node!(parser.tree, fields[3], PatternField::Alias { default, .. } => {
-                assert!(default.is_some());
+            assert_node!(parser.tree, fields[3], PatternField::Named { is_shorthand: false, pattern: Some(pattern), .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Assign { .. });
             });
 
             // [g]:[h]
             assert_node!(parser.tree, fields[4], PatternField::Computed { pattern, .. } => {
-                assert!(pattern.is_some());
+                assert_node!(parser.tree, *pattern, Pattern::Array { .. });
             });
         });
     }
@@ -1486,18 +1502,18 @@ mod tests {
             assert_eq!(fields.len(), 4);
 
             // d:e=1
-            assert_node!(parser.tree, fields[1], PatternField::Alias { default, .. } => {
-                assert!(default.is_some());
+            assert_node!(parser.tree, fields[1], PatternField::Named { is_shorthand: false, pattern: Some(pattern), .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Assign { .. });
             });
 
             // [f]:g=2
-            assert_node!(parser.tree, fields[2], PatternField::Computed { default, .. } => {
-                assert!(default.is_some());
+            assert_node!(parser.tree, fields[2], PatternField::Computed { pattern, .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Assign { .. });
             });
 
             // h=i
-            assert_node!(parser.tree, fields[3], PatternField::Named { default, .. } => {
-                assert!(default.is_some());
+            assert_node!(parser.tree, fields[3], PatternField::Named { is_shorthand: true, pattern: Some(pattern), .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Assign { .. });
             });
         });
     }
@@ -1512,7 +1528,7 @@ mod tests {
         assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
             assert_eq!(fields.len(), 1);
 
-            assert_node!(parser.tree, fields[0], PatternField::Computed { mutability: None, key, pattern: Some(pattern), default: None } => {
+            assert_node!(parser.tree, fields[0], PatternField::Computed { mutability: None, key, pattern } => {
                 assert_node!(parser.tree, *key, Expression::Identifier { name } => {
                     assert_string!(parser, *name, "key");
                 });
@@ -1535,9 +1551,11 @@ mod tests {
         assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
             assert_eq!(fields.len(), 1);
 
-            assert_node!(parser.tree, fields[0], PatternField::Alias { mutability: None, name, alias, default: None } => {
+            assert_node!(parser.tree, fields[0], PatternField::Named { mutability: None, name, is_shorthand: false, pattern: Some(pattern) } => {
                 assert_name!(parser, *name, "source");
-                assert_string!(parser, *alias, "target");
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
+                    assert_string!(parser, *name, "target");
+                });
             });
         });
     }

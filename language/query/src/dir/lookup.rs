@@ -860,9 +860,7 @@ fn pattern_field_symbol_at_offset(
 
     match field {
         PatternField::Named {
-            symbol,
-            pattern,
-            ..
+            symbol, pattern, ..
         } => {
             if let Some(symbol) = symbol {
                 let node_id = field_id.into();

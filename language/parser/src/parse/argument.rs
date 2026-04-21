@@ -2207,11 +2207,17 @@ mod tests {
         assert_node!(parser.tree, parameter_id, Parameter::Pattern { pattern, declared_type: Some(declared_type), default: Some(default), .. } => {
             // { x = 4 }
             assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
-                assert_node!(parser.tree, fields[0], PatternField::Named { mutability: None, name, pattern: None, default: Some(default) } => {
+                assert_node!(parser.tree, fields[0], PatternField::Named { mutability: None, name, is_shorthand: true, pattern: Some(pattern) } => {
                     // x
                     assert_name!(parser, *name, "x");
-                    // 4
-                    assert_node!(parser.tree, *default, Expression::ScalarLiteral(ScalarLiteral::Integer(4)));
+
+                    // x = 4
+                    assert_node!(parser.tree, *pattern, Pattern::Assign { pattern, value } => {
+                        assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
+                            assert_string!(parser, *name, "x");
+                        });
+                        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(4)));
+                    });
                 });
             });
             // boolean
@@ -2364,26 +2370,34 @@ mod tests {
                 assert_eq!(fields.len(), 2);
 
                 // src
-                assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, default: None, .. } => {
+                assert_node!(parser.tree, fields[0], PatternField::Named { name, is_shorthand: true, pattern: None, .. } => {
                     assert_name!(parser, *name, "src");
                 });
 
                 // { id, systemId, input, syncSnapshot = false } = {} as any
-                assert_node!(parser.tree, fields[1], PatternField::Positional { pattern, default: Some(default) } => {
-                    assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
-                        assert_eq!(fields.len(), 4);
+                assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
+                    assert_node!(parser.tree, *pattern, Pattern::Assign { pattern, value } => {
+                        assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
+                            assert_eq!(fields.len(), 4);
 
-                        assert_node!(parser.tree, fields[3], PatternField::Named { name, pattern: None, default: Some(default), .. } => {
-                            assert_name!(parser, *name, "syncSnapshot");
-                            assert_node!(parser.tree, *default, Expression::ScalarLiteral(ScalarLiteral::Boolean(false)));
-                        });
-                    });
+                            assert_node!(parser.tree, fields[3], PatternField::Named { name, is_shorthand: true, pattern: Some(pattern), .. } => {
+                                assert_name!(parser, *name, "syncSnapshot");
 
-                    assert_node!(parser.tree, *default, Expression::As { expression, target_type } => {
-                        assert_node!(parser.tree, *expression, Expression::ObjectExpression { properties, .. } => {
-                            assert!(properties.is_empty());
+                                assert_node!(parser.tree, *pattern, Pattern::Assign { pattern, value } => {
+                                    assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
+                                        assert_string!(parser, *name, "syncSnapshot");
+                                    });
+                                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(false)));
+                                });
+                            });
                         });
-                        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value: TypeLiteral::Any });
+
+                        assert_node!(parser.tree, *value, Expression::As { expression, target_type } => {
+                            assert_node!(parser.tree, *expression, Expression::ObjectExpression { properties, .. } => {
+                                assert!(properties.is_empty());
+                            });
+                            assert_node!(parser.tree, *target_type, TypeExpression::Literal { value: TypeLiteral::Any });
+                        });
                     });
                 });
             });
