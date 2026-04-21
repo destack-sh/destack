@@ -7,27 +7,26 @@ use destack_source::NodeSpanType;
 
 impl Parser {
     /// Eat an extension (incl. `extension` keyword).
-    /// FUGU: change `extension for T` to `extension of T`?
     ///
     /// Examples:
     /// ```
-    /// extension for Foo {
+    /// extension of Foo {
     ///     ...
     /// }
     ///
-    /// extension MyExt for Foo<int32> {
+    /// extension MyExt of Foo<int32> {
     ///     ...
     /// }
     ///
-    /// extension for Bar<int32> implements Baz {
+    /// extension of Bar<int32> implements Baz {
     ///     ...
     /// }
     ///
-    /// extension MyExt<T> for Bar<T> implements Baz {
+    /// extension MyExt<T> of Bar<T> implements Baz {
     ///     ...
     /// }
     ///
-    /// extension<T> for Bar<T> implements Baz {
+    /// extension<T> of Bar<T> implements Baz {
     ///     ...
     /// }
     /// ```
@@ -42,7 +41,7 @@ impl Parser {
         // name and generic parameters
         let (generic_parameters, name, name_span) =
             // named extension
-            if self.peek_name_is() && !self.is_keyword(Keyword::For) {
+            if self.peek_name_is() && !self.is_keyword(Keyword::Of) {
                 let (name, span) = self.eat_name_with_span()?;
                 let generic_parameters = self.eat_generic_parameters_maybe(false)?;
                 (generic_parameters, Some(name), Some(span))
@@ -53,8 +52,8 @@ impl Parser {
                 (generic_parameters, None, None)
             };
 
-        // `for` keyword (required)
-        self.eat_keyword(Keyword::For)?;
+        // `of` keyword
+        self.eat_keyword(Keyword::Of)?;
 
         // target type
         let target_start = self.mark_span();
@@ -126,7 +125,7 @@ mod tests {
     fn test_parse_extension_simple() {
         let mut test = TestParser::new(
             r###"
-extension for Foo {
+extension of Foo {
 }
 "###,
         );
@@ -152,7 +151,7 @@ extension for Foo {
     fn test_parse_extension_rejects_comma_separated_members() {
         let mut test = TestParser::new(
             r###"
-extension for Foo {
+extension of Foo {
     value: int32,
 }
 "###,
@@ -167,7 +166,7 @@ extension for Foo {
 
     #[test]
     fn test_parse_extension_target_type_span() {
-        let mut test = TestParser::new("extension for Foo.Bar {}");
+        let mut test = TestParser::new("extension of Foo.Bar {}");
         let mut parser = test.prepare();
 
         let start = parser.mark();
@@ -189,7 +188,7 @@ extension for Foo {
     fn test_parse_extension_with_generic_arguments_and_alias() {
         let mut test = TestParser::new(
             r###"
-extension MyExt for Foo<int32> {
+extension MyExt of Foo<int32> {
 }
 "###,
         );
@@ -225,7 +224,7 @@ extension MyExt for Foo<int32> {
     fn test_parse_extension_with_implements_type() {
         let mut test = TestParser::new(
             r###"
-extension for Bar<int32> implements Baz {
+extension of Bar<int32> implements Baz {
 }
 "###,
         );
@@ -265,7 +264,7 @@ extension for Bar<int32> implements Baz {
     fn test_parse_extension_with_generic_parameters() {
         let mut test = TestParser::new(
             r###"
-extension<U> for Bar<T> implements Baz<T> {
+extension<U> of Bar<T> implements Baz<T> {
 }
 "###,
         );
@@ -320,7 +319,7 @@ extension<U> for Bar<T> implements Baz<T> {
     fn test_parse_extension_named_with_generic_parameters() {
         let mut test = TestParser::new(
             r###"
-extension MyExt<U> for Bar<T> implements Baz<T> {
+extension MyExt<U> of Bar<T> implements Baz<T> {
 }
 "###,
         );
@@ -375,7 +374,7 @@ extension MyExt<U> for Bar<T> implements Baz<T> {
     fn test_parse_extension_with_path_name_and_where() {
         let mut test = TestParser::new(
             r###"
-extension for Foo where Guard: Limit {
+extension of Foo where Guard: Limit {
 }
 "###,
         );
@@ -406,7 +405,7 @@ extension for Foo where Guard: Limit {
     fn test_parse_extension_method_with_explicit_this_parameter() {
         let mut test = TestParser::new(
             r###"
-extension<T> for Slice<T> {
+extension<T> of Slice<T> {
     indexSet(this: &Slice<T>, i: number, value: T): void {
         undefined!;
     }

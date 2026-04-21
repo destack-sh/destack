@@ -122,7 +122,7 @@ Goto definition on an extension method call should resolve to the extension meth
 ```ds
 struct Calculator {}
 
-extension for Calculator {
+extension of Calculator {
     add(x: int32, y: int32): int32 {
 //    ^^^ def:calc_add
         return x + y;

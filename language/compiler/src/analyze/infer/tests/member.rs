@@ -146,7 +146,7 @@ fn test_analyze_this_type_member_call() {
         r#"
 struct Builder { value: int32 }
 
-extension for Builder {
+extension of Builder {
     combine(other: this): this { return other; }
 }
 
@@ -187,7 +187,7 @@ interface Box<T> { value: T }
 
 struct Builder { value: int32 }
 
-extension for Builder {
+extension of Builder {
     box(): Box<this> { return { value: this }; }
 }
 

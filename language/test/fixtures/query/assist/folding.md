@@ -21,7 +21,7 @@ struct Vector {
     dy: float;
 }
 
-extension for Vector {
+extension of Vector {
     magnitude(): float32 {
         return 0.0;
     }
