@@ -1261,6 +1261,13 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             mutability: _,
             name: _,
         } => {}
+        Pattern::Assign { pattern, value } => {
+            let inner_pattern = tree.get(*pattern);
+            visitor.visit_pattern(tree, *pattern, inner_pattern);
+
+            let value_expression = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expression);
+        }
         Pattern::Hole => {}
         Pattern::Array { fields } => {
             for field_id in fields {
@@ -1290,53 +1297,27 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
         PatternField::Named {
             mutability: _,
             name: _,
+            is_shorthand: _,
             pattern,
-            default,
         } => {
             if let Some(pattern) = pattern {
                 let pattern_node = tree.get(*pattern);
                 visitor.visit_pattern(tree, *pattern, pattern_node);
-            }
-            if let Some(default) = default {
-                let default_expr = tree.get(*default);
-                visitor.visit_expression(tree, *default, default_expr);
             }
         }
         PatternField::Computed {
             mutability: _,
             key,
             pattern,
-            default,
         } => {
             let key_expr = tree.get(*key);
             visitor.visit_expression(tree, *key, key_expr);
-            if let Some(pattern) = pattern {
-                let pattern_node = tree.get(*pattern);
-                visitor.visit_pattern(tree, *pattern, pattern_node);
-            }
-            if let Some(default) = default {
-                let default_expr = tree.get(*default);
-                visitor.visit_expression(tree, *default, default_expr);
-            }
-        }
-        PatternField::Alias {
-            mutability: _,
-            name: _,
-            alias: _,
-            default,
-        } => {
-            if let Some(default) = default {
-                let default_expr = tree.get(*default);
-                visitor.visit_expression(tree, *default, default_expr);
-            }
-        }
-        PatternField::Positional { pattern, default } => {
             let pattern_node = tree.get(*pattern);
             visitor.visit_pattern(tree, *pattern, pattern_node);
-            if let Some(default) = default {
-                let default_expression = tree.get(*default);
-                visitor.visit_expression(tree, *default, default_expression);
-            }
+        }
+        PatternField::Positional { pattern } => {
+            let pattern_node = tree.get(*pattern);
+            visitor.visit_pattern(tree, *pattern, pattern_node);
         }
         PatternField::Spread {
             mutability: _,

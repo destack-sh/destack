@@ -397,6 +397,11 @@ impl<'a> Printer<'a> {
 
                 self.write_string_id(*name);
             }
+            Pattern::Assign { pattern, value } => {
+                self.print_pattern_id(*pattern)?;
+                self.write_punct("=");
+                self.print_expression_id(*value)?;
+            }
             Pattern::Array { fields } => {
                 self.write_punct("[");
                 self.print_pattern_array_field_list(fields)?;
@@ -421,66 +426,38 @@ impl<'a> Printer<'a> {
             PatternField::Named {
                 mutability,
                 name,
+                is_shorthand,
                 pattern,
-                default,
             } => {
                 self.print_pattern_field_mutability(*mutability);
                 self.write_string_id(*name);
 
-                if let Some(pattern) = pattern {
+                if !is_shorthand {
+                    let pattern = pattern.expect("expanded named js pattern field");
                     self.write_punct(":");
-                    self.print_pattern_id(*pattern)?;
-                }
-
-                if let Some(default) = default {
+                    self.print_pattern_id(pattern)?;
+                } else if let Some(pattern) = pattern {
+                    let Pattern::Assign { value, .. } = self.tree.get(*pattern) else {
+                        unreachable!("expected shorthand assignment pattern");
+                    };
                     self.write_punct("=");
-                    self.print_expression_id(*default)?;
+                    self.print_expression_id(*value)?;
                 }
             }
             PatternField::Computed {
                 mutability,
                 key,
                 pattern,
-                default,
             } => {
                 self.print_pattern_field_mutability(*mutability);
                 self.write_punct("[");
                 self.print_expression_id(*key)?;
                 self.write_punct("]");
-
-                if let Some(pattern) = pattern {
-                    self.write_punct(":");
-                    self.print_pattern_id(*pattern)?;
-                }
-
-                if let Some(default) = default {
-                    self.write_punct("=");
-                    self.print_expression_id(*default)?;
-                }
-            }
-            PatternField::Alias {
-                mutability,
-                name,
-                alias,
-                default,
-            } => {
-                self.print_pattern_field_mutability(*mutability);
-                self.write_string_id(*name);
                 self.write_punct(":");
-                self.write_string_id(*alias);
-
-                if let Some(default) = default {
-                    self.write_punct("=");
-                    self.print_expression_id(*default)?;
-                }
-            }
-            PatternField::Positional { pattern, default } => {
                 self.print_pattern_id(*pattern)?;
-
-                if let Some(default) = default {
-                    self.write_punct("=");
-                    self.print_expression_id(*default)?;
-                }
+            }
+            PatternField::Positional { pattern } => {
+                self.print_pattern_id(*pattern)?;
             }
             PatternField::Spread { pattern, .. } => {
                 self.write_punct("...");
