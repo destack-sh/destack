@@ -602,7 +602,7 @@ for (
                 assert_eq!(*declaration_kind, Some(ForEachDeclarationKind::Const));
                 assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
                     assert_eq!(fields.len(), 1);
-                    assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, default: None, .. } => {
+                    assert_node!(parser.tree, fields[0], PatternField::Named { name, is_shorthand: true, pattern: None, .. } => {
                         assert_name!(parser, *name, "relation");
                     });
                 });
@@ -638,7 +638,7 @@ for (const { item } of await fetchList<{ item: string }>(values)) {}
                 assert_eq!(*declaration_kind, Some(ForEachDeclarationKind::Const));
                 assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
                     assert_eq!(fields.len(), 1);
-                    assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, default: None, .. } => {
+                    assert_node!(parser.tree, fields[0], PatternField::Named { name, is_shorthand: true, pattern: None, .. } => {
                         assert_name!(parser, *name, "item");
                     });
                 });

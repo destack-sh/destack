@@ -592,15 +592,13 @@ impl Compiler {
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
         match ctx.tree.get(pattern_id) {
-            Pattern::Assign { pattern, .. } => {
-                self.is_irrefutable_sequence_rest_pattern(
-                    &mut ctx.reborrow(),
-                    *pattern,
-                    rest_elements,
-                    rest_pattern_kind,
-                    visited,
-                )
-            }
+            Pattern::Assign { pattern, .. } => self.is_irrefutable_sequence_rest_pattern(
+                &mut ctx.reborrow(),
+                *pattern,
+                rest_elements,
+                rest_pattern_kind,
+                visited,
+            ),
             Pattern::Wildcard => true,
             Pattern::Binding { pattern, .. } => {
                 if let Some(inner_pattern_id) = pattern {
@@ -825,8 +823,7 @@ impl Compiler {
                         *pattern,
                         field_ty.ty,
                         visited,
-                    )
-                    {
+                    ) {
                         return false;
                     }
                 }
@@ -1640,9 +1637,7 @@ impl Compiler {
                 };
                 self.literal_pattern_coverage(pattern_id, tree)
             }
-            PatternField::Computed { pattern, .. } => {
-                self.literal_pattern_coverage(*pattern, tree)
-            }
+            PatternField::Computed { pattern, .. } => self.literal_pattern_coverage(*pattern, tree),
             _ => None,
         }
     }
@@ -1852,10 +1847,7 @@ impl Compiler {
 
         // reject named or aliased fields in array and tuple patterns
         for field_id in fields {
-            if matches!(
-                ctx.tree.get(*field_id),
-                PatternField::Named { .. }
-            ) {
+            if matches!(ctx.tree.get(*field_id), PatternField::Named { .. }) {
                 let node = field_id
                     .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile));
@@ -1876,9 +1868,7 @@ impl Compiler {
         // unwrap and scan nested patterns
         match pattern {
             Pattern::Must(_) => true,
-            Pattern::Assign { pattern, .. } => {
-                self.pattern_has_definite_assignment(tree, *pattern)
-            }
+            Pattern::Assign { pattern, .. } => self.pattern_has_definite_assignment(tree, *pattern),
             Pattern::ReferenceOf { right, .. } | Pattern::ValueOf { right, .. } => {
                 self.pattern_has_definite_assignment(tree, *right)
             }
@@ -1911,8 +1901,9 @@ impl Compiler {
 
         // scan nested patterns inside fields
         match field {
-            PatternField::Named { pattern, .. } => pattern
-                .is_some_and(|inner| self.pattern_has_definite_assignment(tree, inner)),
+            PatternField::Named { pattern, .. } => {
+                pattern.is_some_and(|inner| self.pattern_has_definite_assignment(tree, inner))
+            }
             PatternField::Computed { pattern, .. } => {
                 self.pattern_has_definite_assignment(tree, *pattern)
             }

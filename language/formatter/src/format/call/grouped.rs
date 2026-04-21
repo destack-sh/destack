@@ -5,10 +5,10 @@ use super::list::{
 };
 use super::pattern::argument_expression_id;
 use crate::format::annotation::{infix_or_postfix_annotations, prefix_annotations};
-use crate::format::chain::{transparent_inner_expression, SimpleArgument};
+use crate::format::chain::{SimpleArgument, transparent_inner_expression};
 use crate::format::declaration::{
-    format_lambda_declaration_with_options, FormatLambdaDeclarationOptions,
-    GroupedCallArgumentLayout,
+    FormatLambdaDeclarationOptions, GroupedCallArgumentLayout,
+    format_lambda_declaration_with_options,
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{

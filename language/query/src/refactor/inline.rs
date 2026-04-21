@@ -436,9 +436,7 @@ fn collect_pattern_bindings_field(
     let field = dir_tree.get::<dir::PatternField>(field_id);
     match field {
         dir::PatternField::Named {
-            symbol,
-            pattern,
-            ..
+            symbol, pattern, ..
         } => {
             if let Some(symbol) = symbol {
                 bindings.insert(*symbol);
@@ -595,9 +593,7 @@ fn pattern_access_path_indexed(
                 index += 1;
             }
             dir::PatternField::Named {
-                symbol,
-                pattern,
-                ..
+                symbol, pattern, ..
             } => {
                 if symbol.is_some_and(|symbol| symbol == target_symbol) {
                     return Some(vec![AccessSegment::Index(index)]);

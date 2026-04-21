@@ -445,10 +445,7 @@ fn resolve_name_from_primary_declaration(
 
                     if let Some(pattern) = pattern {
                         return rename_pattern_binding_name(
-                            repository,
-                            dir_tree,
-                            *pattern,
-                            *symbol,
+                            repository, dir_tree, *pattern, *symbol,
                         );
                     }
 
@@ -470,7 +467,10 @@ fn rename_pattern_binding_name(
 ) -> Option<String> {
     match dir_tree.get::<dir::Pattern>(pattern_id) {
         dir::Pattern::Binding {
-            symbol, name, pattern, ..
+            symbol,
+            name,
+            pattern,
+            ..
         } => {
             if *symbol == target_symbol {
                 return Some(repository.strings.get(*name).to_string());

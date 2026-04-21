@@ -758,10 +758,10 @@ using x = open()
             assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
                 assert_node!(parser.tree, *pattern, Pattern::Array { fields } => {
                     assert_eq!(fields.len(), 2);
-                    assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+                    assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, is_shorthand: true, pattern: None } => {
                         assert_name!(parser, *name, "readonly");
                     });
-                    assert_node!(parser.tree, fields[1], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+                    assert_node!(parser.tree, fields[1], PatternField::Named { name, mutability: None, is_shorthand: true, pattern: None } => {
                         assert_name!(parser, *name, "setReadonly");
                     });
                 });
