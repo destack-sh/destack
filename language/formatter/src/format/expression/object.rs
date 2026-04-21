@@ -229,29 +229,42 @@ fn is_multiline_pattern_field_default_object(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((field_id, field_type)) = context.parent(expression_id) else {
+    // assignment wrapper
+    let Some((assignment_id, assignment_type)) = context.parent(expression_id) else {
         return false;
     };
-    if field_type != NodeType::PatternField {
+
+    if assignment_type != NodeType::Pattern {
         return false;
     }
 
-    let field_id = LocalNodeId::<PatternField>::new(field_id);
-    let is_default_value = match context.tree.get(field_id) {
-        PatternField::Named { default, .. }
-        | PatternField::Computed { default, .. }
-        | PatternField::Alias { default, .. } => {
-            default.is_some_and(|id| id.id == expression_id.id)
-        }
+    let assignment_id = LocalNodeId::<Pattern>::new(assignment_id);
+
+    // default value slot
+    let is_default_value = match context.tree.get(assignment_id) {
+        Pattern::Assign { value, .. } => value.id == expression_id.id,
         _ => false,
     };
     if !is_default_value {
         return false;
     }
 
+    // pattern field
+    let Some((field_id, field_type)) = context.parent(assignment_id) else {
+        return false;
+    };
+
+    if field_type != NodeType::PatternField {
+        return false;
+    }
+
+    let field_id = LocalNodeId::<PatternField>::new(field_id);
+
+    // outer pattern
     let Some((pattern_id, pattern_type)) = context.parent(field_id) else {
         return false;
     };
+
     if pattern_type != NodeType::Pattern {
         return false;
     }

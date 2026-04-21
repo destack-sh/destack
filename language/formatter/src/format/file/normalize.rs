@@ -423,6 +423,7 @@ fn normalize_pattern(tree: &NodeTree, pattern: &mut Pattern) {
         | Pattern::TaggedObject { ty: value, .. } => {
             *value = normalize_type_expression_id(tree, *value);
         }
+        Pattern::Assign { .. } => {}
         Pattern::Wildcard
         | Pattern::Must(_)
         | Pattern::ReferenceOf { .. }

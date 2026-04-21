@@ -110,6 +110,31 @@ class A {
     );
 }
 
+/// Assignment comment wrappers should preserve explicit grouping around the rhs.
+#[test]
+fn test_format_assignment_comment_wrapper_preserves_parenthesized_rhs() {
+    assert_format_program_reference_widths(
+        r#"{
+  sourcemap =
+  /** @type {'inline' | 'hidden' | 'sourcemap'} */ (
+      process.env.WORKER_MODE
+    ) || sourcemap;
+}
+"#,
+        FileType::TypeScript,
+        &[(
+            80,
+            r#"{
+  sourcemap =
+    /** @type {'inline' | 'hidden' | 'sourcemap'} */ (
+      process.env.WORKER_MODE
+    ) || sourcemap;
+}
+"#,
+        )],
+    );
+}
+
 /// CommonJS require initializers should keep the call attached to `=`.
 #[test]
 fn test_format_assignment_require_initializer_stays_attached() {
@@ -156,6 +181,29 @@ fn test_format_assignment_null_argument_breaks_after_operator() {
             30,
             r#"const veryLongBindingName =
   namespace.foo(null);
+"#,
+        )],
+    );
+}
+
+/// Defaulted nested object patterns should stay flat within their assignment wrapper.
+#[test]
+fn test_format_assignment_nested_object_pattern_stays_inline() {
+    assert_format_program_reference_widths(
+        r#"const {
+  data: { args: { something } } = {
+    args: { something: []},
+  }
+} = obj;
+"#,
+        FileType::TypeScript,
+        &[(
+            80,
+            r#"const {
+  data: { args: { something } } = {
+    args: { something: [] },
+  },
+} = obj;
 "#,
         )],
     );
@@ -331,7 +379,6 @@ fn test_format_assignment_break_left_hand_side_layout() {
     ...attrs
   } = { className: "name", unfurl: "unfurl", others: [1, 2, 3] });
 }
-
 "#,
             ),
             (
