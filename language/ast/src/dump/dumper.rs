@@ -861,6 +861,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("ambient", ambient)
                     .end();
             }
+            Expression::LetElse {
+                kind,
+                mutability,
+                declarator: _,
+                else_branch: _,
+            } => {
+                self.node("Expression::LetElse", _id.id)
+                    .field("kind", kind)
+                    .field("mutability", mutability)
+                    .end();
+            }
             Expression::Using {
                 asynchrony,
                 export,
