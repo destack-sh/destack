@@ -278,6 +278,18 @@ call // C4
 call?.(); // C4
 ```
 
+### optional call separator block comment
+
+Block comments between the callee and `?.` stay before the optional operator.
+
+```ts:main.ts
+alert /* comment */?.("value")
+```
+
+```ts expected
+alert /* comment */?.("value");
+```
+
 ### optional call with inline comment argument
 
 Inline block comments in empty optional call arguments stay inside `()`.

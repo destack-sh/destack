@@ -28,6 +28,66 @@ first = second = third
 first = second = third;
 ```
 
+### assignment expression call chain breaks after operator
+
+Poorly breakable call chains should break after `=`.
+
+```ts:main.ts line-width=20
+result = api.namespace.member().tail()
+```
+
+```ts expected
+result =
+    api.namespace
+        .member()
+        .tail();
+```
+
+### require initializer stays attached to the operator
+
+Compact CommonJS `require(...)` calls stay attached to `=`.
+
+```ts:main.ts line-width=30
+const veryLongPackageBindingName = require(jestPath)
+```
+
+```ts expected
+const veryLongPackageBindingName = require(
+    jestPath,
+);
+```
+
+### interpolated template argument uses fluid layout
+
+Interpolated template arguments should not trigger the poorly breakable shortcut.
+
+```ts:main.ts line-width=30
+const veryLongBindingName = namespace.foo(`hello ${name}`)
+```
+
+```ts expected
+const veryLongBindingName =
+    namespace.foo(
+        `hello ${name}`,
+    );
+```
+
+### string RHS breaks after operator
+
+Long left-hand sides with string RHS values should break after `=`.
+
+```ts:main.ts line-width=20
+const veryLongVariableName = "value"
+veryLongVariableName = "value"
+```
+
+```ts expected
+const veryLongVariableName =
+    "value";
+veryLongVariableName =
+    "value";
+```
+
 ## Compound Assignments
 
 ### additive assignment
