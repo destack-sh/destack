@@ -87,9 +87,6 @@ impl ModuleLowerer<'_> {
         Ok(crate::DependencyAttributeClause {
             kind: match attributes.kind {
                 dir::ImportAttributeClauseKind::With => crate::DependencyAttributeClauseKind::With,
-                dir::ImportAttributeClauseKind::Assert => {
-                    crate::DependencyAttributeClauseKind::Assert
-                }
             },
             properties,
         })

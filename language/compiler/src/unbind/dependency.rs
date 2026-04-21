@@ -30,7 +30,6 @@ impl Compiler {
     ) -> ast::ImportAttributeClauseKind {
         match kind {
             dir::ImportAttributeClauseKind::With => ast::ImportAttributeClauseKind::With,
-            dir::ImportAttributeClauseKind::Assert => ast::ImportAttributeClauseKind::Assert,
         }
     }
 
