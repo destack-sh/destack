@@ -7,6 +7,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
+    assign_pattern_contains_expression, assign_pattern_target_symbol,
     fresh_name_in_expression_scope, is_array_type, strip_dot_member_suffix,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
@@ -264,8 +265,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
 
         // match i = i + 1 (desugared from i += 1)
         if let dir::Expression::Assign { left, right } = incr {
-            let left_expr = self.ctx.tree.get(*left);
-            if left_expr.target_symbol() != Some(index_symbol) {
+            if assign_pattern_target_symbol(self.ctx.tree, *left) != Some(index_symbol) {
                 return false;
             }
 
@@ -459,9 +459,11 @@ fn index_expression_is_write_target(
     let parent_expression_id = LocalNodeId::<dir::Expression>::new(parent_id);
     let parent_expression = tree.get(parent_expression_id);
 
-    if let dir::Expression::Assign { left, .. } | dir::Expression::AssignBinary { left, .. } =
-        parent_expression
-    {
+    if let dir::Expression::Assign { left, .. } = parent_expression {
+        return assign_pattern_contains_expression(tree, *left, expression_id);
+    }
+
+    if let dir::Expression::AssignBinary { left, .. } = parent_expression {
         return *left == expression_id;
     }
 

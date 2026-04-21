@@ -6,7 +6,7 @@ use destack_ast::{
 use destack_core::StringId;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_path_segments;
+use crate::rules::common::{assign_pattern_expression, expression_path_segments};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -272,7 +272,10 @@ fn branch_assigned_value(
     };
 
     // keep plain `name = value` assignments
-    if !is_path_with_name(tree, *left, variable_name) {
+    let Some(left_expression_id) = assign_pattern_expression(tree, *left) else {
+        return None;
+    };
+    if !is_path_with_name(tree, left_expression_id, variable_name) {
         return None;
     }
 

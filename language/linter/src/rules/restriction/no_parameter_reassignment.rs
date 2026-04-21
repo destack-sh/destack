@@ -50,7 +50,8 @@ impl LintRule for NoParameterReassignment {
         // inspect assignment expressions and match direct reference targets
         for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
             // require an assignment-style target expression
-            let Some(assigned_expression_id) = expression_assignment_target(expression) else {
+            let Some(assigned_expression_id) = expression_assignment_target(ctx.tree, expression)
+            else {
                 continue;
             };
 

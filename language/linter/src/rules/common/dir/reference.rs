@@ -3,7 +3,7 @@ use destack_dir as dir;
 
 use crate::LintModuleDirContext;
 
-use super::expression_unwrap_transparent;
+use super::{assign_pattern_target_expression, expression_unwrap_transparent};
 
 /// The base of a reference path.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,6 +36,16 @@ pub fn expression_target_symbol(
     // return the reference target symbol when present
     let expression = tree.get(expression_id);
     expression.target_symbol()
+}
+
+/// Resolve the target symbol for one assignment pattern.
+pub fn assign_pattern_target_symbol(
+    tree: &dir::NodeTree,
+    assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
+) -> Option<dir::GlobalSymbolId> {
+    let expression_id = assign_pattern_target_expression(tree, assign_pattern_id)?;
+
+    expression_target_symbol(tree, expression_id)
 }
 
 /// Return true when one expression is exactly `new.target`.
@@ -88,6 +98,16 @@ pub fn expression_reference_path(
     Some(ReferencePath { base, members })
 }
 
+/// Resolve a reference path for one assignment pattern.
+pub fn assign_pattern_reference_path(
+    tree: &dir::NodeTree,
+    assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
+) -> Option<ReferencePath> {
+    let expression_id = assign_pattern_target_expression(tree, assign_pattern_id)?;
+
+    expression_reference_path(tree, expression_id)
+}
+
 /// Return true when two expressions have equivalent source form.
 pub fn expressions_have_equivalent_source_form(
     ctx: &LintModuleDirContext<'_>,
@@ -109,6 +129,20 @@ pub fn expressions_have_equivalent_source_form(
     let left_text = ctx.get_span_text(ctx.get_span(left_id));
     let right_text = ctx.get_span_text(ctx.get_span(right_id));
     normalize_expression_source_text(left_text) == normalize_expression_source_text(right_text)
+}
+
+/// Return true when one assignment pattern has the same source form as one expression.
+pub fn assign_pattern_has_equivalent_source_form(
+    ctx: &LintModuleDirContext<'_>,
+    assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let Some(assign_expression_id) = assign_pattern_target_expression(ctx.tree, assign_pattern_id)
+    else {
+        return false;
+    };
+
+    expressions_have_equivalent_source_form(ctx, assign_expression_id, expression_id)
 }
 
 /// Normalize expression source text for token style equality checks.

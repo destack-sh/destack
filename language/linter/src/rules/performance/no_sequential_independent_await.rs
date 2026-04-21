@@ -4,7 +4,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_source::LabeledSpan;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::collect_pattern_value_binding_symbols;
+use crate::rules::common::{assign_pattern_target_symbol, collect_pattern_value_binding_symbols};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -128,7 +128,7 @@ fn await_statement_from_expression(
     {
         let mut bound_symbols = HashSet::new();
 
-        if let Some(target_symbol) = ctx.tree.get(*left).target_symbol()
+        if let Some(target_symbol) = assign_pattern_target_symbol(ctx.tree, *left)
             && target_symbol.module_id == ctx.module_id()
         {
             bound_symbols.insert(target_symbol.local_id);

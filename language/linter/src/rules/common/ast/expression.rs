@@ -31,6 +31,183 @@ pub fn expression_unwrap_statement_source_form(
     expression_id
 }
 
+/// Return one simple expression target from one assignment pattern.
+pub fn assign_pattern_expression(
+    tree: &ast::NodeTree,
+    mut assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
+) -> Option<ast::LocalNodeId<ast::Expression>> {
+    loop {
+        let assign_pattern = tree.get(assign_pattern_id);
+
+        // keep direct expression targets
+        if let ast::AssignPattern::Expression { value } = assign_pattern {
+            return Some(*value);
+        }
+
+        // unwrap defaulted targets before checking the base
+        if let ast::AssignPattern::Assign { pattern, .. } = assign_pattern {
+            assign_pattern_id = *pattern;
+            continue;
+        }
+
+        // destructuring patterns are not one simple expression target
+        return None;
+    }
+}
+
+/// Return true when one assignment pattern is one unqualified path name.
+pub fn assign_pattern_is_unqualified_path_name(
+    tree: &ast::NodeTree,
+    assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
+    target_name: destack_core::StringId,
+) -> bool {
+    let Some(expression_id) = assign_pattern_expression(tree, assign_pattern_id) else {
+        return false;
+    };
+
+    expression_is_unqualified_path_name(tree, expression_id, target_name)
+}
+
+/// Return true when one assignment pattern matches one expression.
+pub fn assign_pattern_is_equal(
+    ctx: &LintAstContext<'_>,
+    assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let Some(assign_expression_id) = assign_pattern_expression(ctx.tree, assign_pattern_id) else {
+        return false;
+    };
+
+    expression_is_equal(ctx, assign_expression_id, expression_id)
+}
+
+/// Return true when two assignment patterns are structurally equal.
+pub fn assign_patterns_are_equal(
+    ctx: &LintAstContext<'_>,
+    left_id: ast::LocalNodeId<ast::AssignPattern>,
+    right_id: ast::LocalNodeId<ast::AssignPattern>,
+) -> bool {
+    let left_pattern = ctx.tree.get(left_id);
+    let right_pattern = ctx.tree.get(right_id);
+
+    match (left_pattern, right_pattern) {
+        (
+            ast::AssignPattern::Expression { value: left_value },
+            ast::AssignPattern::Expression { value: right_value },
+        ) => expression_is_equal(ctx, *left_value, *right_value),
+        (
+            ast::AssignPattern::Assign {
+                pattern: left_pattern,
+                value: left_value,
+            },
+            ast::AssignPattern::Assign {
+                pattern: right_pattern,
+                value: right_value,
+            },
+        ) => {
+            assign_patterns_are_equal(ctx, *left_pattern, *right_pattern)
+                && expression_is_equal(ctx, *left_value, *right_value)
+        }
+        (
+            ast::AssignPattern::Array {
+                fields: left_fields,
+            },
+            ast::AssignPattern::Array {
+                fields: right_fields,
+            },
+        )
+        | (
+            ast::AssignPattern::Object {
+                fields: left_fields,
+            },
+            ast::AssignPattern::Object {
+                fields: right_fields,
+            },
+        ) => {
+            left_fields.len() == right_fields.len()
+                && left_fields
+                    .iter()
+                    .zip(right_fields.iter())
+                    .all(|(left_field, right_field)| {
+                        assign_pattern_fields_are_equal(ctx, *left_field, *right_field)
+                    })
+        }
+        _ => false,
+    }
+}
+
+/// Return true when two assignment pattern fields are structurally equal.
+pub fn assign_pattern_fields_are_equal(
+    ctx: &LintAstContext<'_>,
+    left_id: ast::LocalNodeId<ast::AssignPatternField>,
+    right_id: ast::LocalNodeId<ast::AssignPatternField>,
+) -> bool {
+    let left_field = ctx.tree.get(left_id);
+    let right_field = ctx.tree.get(right_id);
+
+    match (left_field, right_field) {
+        (
+            ast::AssignPatternField::Named {
+                name: left_name,
+                is_shorthand: left_is_shorthand,
+                pattern: left_pattern,
+            },
+            ast::AssignPatternField::Named {
+                name: right_name,
+                is_shorthand: right_is_shorthand,
+                pattern: right_pattern,
+            },
+        ) => {
+            left_name == right_name
+                && left_is_shorthand == right_is_shorthand
+                && match (left_pattern, right_pattern) {
+                    (Some(left_pattern), Some(right_pattern)) => {
+                        assign_patterns_are_equal(ctx, *left_pattern, *right_pattern)
+                    }
+                    (None, None) => true,
+                    _ => false,
+                }
+        }
+        (
+            ast::AssignPatternField::Computed {
+                key: left_key,
+                pattern: left_pattern,
+            },
+            ast::AssignPatternField::Computed {
+                key: right_key,
+                pattern: right_pattern,
+            },
+        ) => {
+            expression_is_equal(ctx, *left_key, *right_key)
+                && assign_patterns_are_equal(ctx, *left_pattern, *right_pattern)
+        }
+        (
+            ast::AssignPatternField::Positional {
+                pattern: left_pattern,
+            },
+            ast::AssignPatternField::Positional {
+                pattern: right_pattern,
+            },
+        ) => assign_patterns_are_equal(ctx, *left_pattern, *right_pattern),
+        (
+            ast::AssignPatternField::Spread {
+                pattern: left_pattern,
+            },
+            ast::AssignPatternField::Spread {
+                pattern: right_pattern,
+            },
+        ) => match (left_pattern, right_pattern) {
+            (Some(left_pattern), Some(right_pattern)) => {
+                assign_patterns_are_equal(ctx, *left_pattern, *right_pattern)
+            }
+            (None, None) => true,
+            _ => false,
+        },
+        (ast::AssignPatternField::Elision, ast::AssignPatternField::Elision) => true,
+        _ => false,
+    }
+}
+
 /// The assignment wrapping style for one conditional expression.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConditionAssignmentStyle {
@@ -1396,7 +1573,7 @@ pub fn expression_is_equal(
             },
         ) => {
             left_operator == right_operator
-                && expression_is_equal(ctx, *left_left, *right_left)
+                && assign_patterns_are_equal(ctx, *left_left, *right_left)
                 && expression_is_equal(ctx, *left_right, *right_right)
         }
 

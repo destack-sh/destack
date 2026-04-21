@@ -386,7 +386,7 @@ fn reference_write_kind(
 
     let parent_id = parent.into_typed::<dir::Expression>();
     let parent_expression = tree.get(parent_id);
-    let target_id = expression_assignment_target(parent_expression)?;
+    let target_id = expression_assignment_target(tree, parent_expression)?;
     if target_id != reference_id {
         return None;
     }

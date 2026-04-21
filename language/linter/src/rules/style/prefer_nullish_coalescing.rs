@@ -2,9 +2,9 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_reference_path, expression_unwrap_parenthesized,
-    expressions_have_equivalent_source_form, has_non_nullish_falsy_type, is_maybe_nullish_type,
-    is_strict_boolean_type, span_has_comment,
+    assign_pattern_has_equivalent_source_form, expression_reference_path,
+    expression_unwrap_parenthesized, expressions_have_equivalent_source_form,
+    has_non_nullish_falsy_type, is_maybe_nullish_type, is_strict_boolean_type, span_has_comment,
 };
 use crate::{
     ConstValue, LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint,
@@ -684,7 +684,7 @@ fn logical_or_is_or_assign_lowering(
         return false;
     }
 
-    expressions_have_equivalent_source_form(ctx, *assignment_left, left_id)
+    assign_pattern_has_equivalent_source_form(ctx, *assignment_left, left_id)
 }
 
 #[cfg(test)]

@@ -178,6 +178,111 @@ impl<'a> TaintAnalysis<'a> {
         self.expression_taint_labels(expression_id).is_tainted()
     }
 
+    /// Return taint labels for one assignment pattern.
+    fn assign_pattern_taint_labels_inner(
+        &mut self,
+        assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
+        expression_stack: &mut Vec<dir::LocalNodeId<dir::Expression>>,
+        symbol_stack: &mut Vec<dir::GlobalSymbolId>,
+    ) -> TaintLabels {
+        let assign_pattern = self.tree.get(assign_pattern_id);
+        let mut labels = TaintLabels::default();
+
+        match assign_pattern {
+            // expression targets can read receiver state
+            dir::AssignPattern::Expression { value } => {
+                let value_labels =
+                    self.expression_taint_labels_inner(*value, expression_stack, symbol_stack);
+                labels.merge(&value_labels);
+            }
+
+            // defaulted targets read both the base target and fallback value
+            dir::AssignPattern::Assign { pattern, value } => {
+                let pattern_labels = self.assign_pattern_taint_labels_inner(
+                    *pattern,
+                    expression_stack,
+                    symbol_stack,
+                );
+                labels.merge(&pattern_labels);
+
+                let value_labels =
+                    self.expression_taint_labels_inner(*value, expression_stack, symbol_stack);
+                labels.merge(&value_labels);
+            }
+
+            // destructuring targets read from every nested key and target
+            dir::AssignPattern::Array { fields } | dir::AssignPattern::Object { fields } => {
+                for field_id in fields {
+                    let field_labels = self.assign_pattern_field_taint_labels_inner(
+                        *field_id,
+                        expression_stack,
+                        symbol_stack,
+                    );
+                    labels.merge(&field_labels);
+                }
+            }
+        }
+
+        labels
+    }
+
+    /// Return taint labels for one assignment pattern field.
+    fn assign_pattern_field_taint_labels_inner(
+        &mut self,
+        assign_pattern_field_id: dir::LocalNodeId<dir::AssignPatternField>,
+        expression_stack: &mut Vec<dir::LocalNodeId<dir::Expression>>,
+        symbol_stack: &mut Vec<dir::GlobalSymbolId>,
+    ) -> TaintLabels {
+        let assign_pattern_field = self.tree.get(assign_pattern_field_id);
+        let mut labels = TaintLabels::default();
+
+        match assign_pattern_field {
+            dir::AssignPatternField::Named { pattern, .. } => {
+                if let Some(pattern_id) = pattern {
+                    let pattern_labels = self.assign_pattern_taint_labels_inner(
+                        *pattern_id,
+                        expression_stack,
+                        symbol_stack,
+                    );
+                    labels.merge(&pattern_labels);
+                }
+            }
+            dir::AssignPatternField::Computed { key, pattern } => {
+                let key_labels =
+                    self.expression_taint_labels_inner(*key, expression_stack, symbol_stack);
+                labels.merge(&key_labels);
+
+                let pattern_labels = self.assign_pattern_taint_labels_inner(
+                    *pattern,
+                    expression_stack,
+                    symbol_stack,
+                );
+                labels.merge(&pattern_labels);
+            }
+            dir::AssignPatternField::Positional { pattern } => {
+                let pattern_labels = self.assign_pattern_taint_labels_inner(
+                    *pattern,
+                    expression_stack,
+                    symbol_stack,
+                );
+                labels.merge(&pattern_labels);
+            }
+            dir::AssignPatternField::Spread { pattern } => {
+                if let Some(pattern_id) = pattern {
+                    let pattern_labels = self.assign_pattern_taint_labels_inner(
+                        *pattern_id,
+                        expression_stack,
+                        symbol_stack,
+                    );
+                    labels.merge(&pattern_labels);
+                }
+            }
+            dir::AssignPatternField::Elision => {}
+        }
+
+        labels
+    }
+
     /// Resolve one expression with recursion guards.
     fn expression_taint_labels_inner(
         &mut self,
@@ -241,11 +346,20 @@ impl<'a> TaintAnalysis<'a> {
                 labels.merge(&right_labels);
             }
             dir::Expression::Binary { left, right, .. }
-            | dir::Expression::Assign { left, right }
             | dir::Expression::AssignBinary { left, right, .. } => {
                 // binary expressions taint from both operands
                 let left_labels =
                     self.expression_taint_labels_inner(*left, expression_stack, symbol_stack);
+                labels.merge(&left_labels);
+
+                let right_labels =
+                    self.expression_taint_labels_inner(*right, expression_stack, symbol_stack);
+                labels.merge(&right_labels);
+            }
+            dir::Expression::Assign { left, right } => {
+                // assignments taint from both the target and the assigned value
+                let left_labels =
+                    self.assign_pattern_taint_labels_inner(*left, expression_stack, symbol_stack);
                 labels.merge(&left_labels);
 
                 let right_labels =

@@ -213,7 +213,7 @@ fn expression_structural_key(
             right,
         } => {
             hash_debug_into(&mut hasher, operator);
-            hash_expression_kind(ctx, &mut hasher, *left);
+            hash_assign_pattern_kind(ctx, &mut hasher, *left);
             hash_expression_kind(ctx, &mut hasher, *right);
         }
         ast::Expression::Call {
@@ -272,6 +272,29 @@ fn expression_structural_key(
     }
 
     hasher.finish()
+}
+
+/// Hash one assignment pattern shape into the running hasher.
+fn hash_assign_pattern_kind(
+    ctx: &LintAstContext<'_>,
+    hasher: &mut std::collections::hash_map::DefaultHasher,
+    assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
+) {
+    let assign_pattern = ctx.tree.get(assign_pattern_id);
+    std::mem::discriminant(assign_pattern).hash(hasher);
+
+    match assign_pattern {
+        ast::AssignPattern::Expression { value } => {
+            hash_expression_kind(ctx, hasher, *value);
+        }
+        ast::AssignPattern::Assign { pattern, value } => {
+            hash_assign_pattern_kind(ctx, hasher, *pattern);
+            hash_expression_kind(ctx, hasher, *value);
+        }
+        ast::AssignPattern::Array { fields } | ast::AssignPattern::Object { fields } => {
+            fields.len().hash(hasher);
+        }
+    }
 }
 
 /// Build a coarse prefilter key for one block.

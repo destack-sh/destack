@@ -3,7 +3,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::expression_target_symbol;
+use crate::rules::common::{assign_pattern_target_expression, expression_target_symbol};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -229,7 +229,11 @@ impl NodeVisitor for NoPrototypePollutionVisitor<'_, '_> {
     ) {
         // check assignments
         if let dir::Expression::Assign { left, .. } = expression {
-            self.check_assign(id, *left);
+            let Some(left_expression_id) = assign_pattern_target_expression(self.ctx.tree, *left)
+            else {
+                return;
+            };
+            self.check_assign(id, left_expression_id);
         }
 
         // check index expressions

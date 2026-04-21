@@ -2,7 +2,9 @@ use crate::LintMeta;
 use destack_ast::{self as ast, AssignOperator, BinaryOperator, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_is_optional_chain_target, expression_trailing_bang_span};
+use crate::rules::common::{
+    assign_pattern_expression, expression_is_optional_chain_target, expression_trailing_bang_span,
+};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -50,7 +52,7 @@ impl LintRule for NoConfusingNonNullAssertion {
             }
 
             // handle operator confusion cases
-            let Some(operator_case) = confusing_operator_case(expression) else {
+            let Some(operator_case) = confusing_operator_case(ctx.tree, expression) else {
                 continue;
             };
             if !has_confusing_non_null_left_operand(ctx, operator_case.left_expression_id) {
@@ -135,14 +137,17 @@ enum ConfusingOperatorKind {
 }
 
 /// Return one confusing operator case when one expression matches.
-fn confusing_operator_case(expression: &Expression) -> Option<ConfusingOperatorCase> {
+fn confusing_operator_case(
+    tree: &ast::NodeTree,
+    expression: &Expression,
+) -> Option<ConfusingOperatorCase> {
     match expression {
         Expression::Assign {
             left,
             operator: AssignOperator::Assign,
             ..
         } => Some(ConfusingOperatorCase {
-            left_expression_id: *left,
+            left_expression_id: assign_pattern_expression(tree, *left)?,
             kind: ConfusingOperatorKind::Assign,
         }),
         Expression::Binary { left, operator, .. } => {

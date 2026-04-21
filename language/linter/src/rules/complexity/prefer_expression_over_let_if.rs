@@ -3,7 +3,7 @@ use destack_ast::{self as ast, Pattern};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_is_unqualified_path_name, expression_unwrap_statement_source_form,
+    assign_pattern_is_unqualified_path_name, expression_unwrap_statement_source_form,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
@@ -52,7 +52,7 @@ fn is_assignment_to(
     match expr {
         ast::Expression::Assign { left, .. } => {
             // check if left is the same variable
-            if expression_is_unqualified_path_name(ctx.tree, *left, target_name) {
+            if assign_pattern_is_unqualified_path_name(ctx.tree, *left, target_name) {
                 return true;
             }
 
@@ -257,7 +257,7 @@ fn assignment_value_text(
     let ast::Expression::Assign { left, right, .. } = assignment_expression else {
         return None;
     };
-    if !expression_is_unqualified_path_name(ctx.tree, *left, target_name) {
+    if !assign_pattern_is_unqualified_path_name(ctx.tree, *left, target_name) {
         return None;
     }
 
