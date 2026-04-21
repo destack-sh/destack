@@ -1564,10 +1564,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Property::Field {
                 key,
                 value: _,
+                is_shorthand,
                 symbol,
             } => {
                 self.node("Property::Field", id.id)
                     .field("key", key)
+                    .field("is_shorthand", is_shorthand)
                     .field("symbol", symbol)
                     .end();
             }

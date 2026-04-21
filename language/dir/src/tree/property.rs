@@ -80,6 +80,7 @@ pub enum Property {
     Field {
         key: Key,
         value: LocalNodeId<Expression>,
+        is_shorthand: bool,
         symbol: LocalSymbolId,
     },
     /// Named member function.
