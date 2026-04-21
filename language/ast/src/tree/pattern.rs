@@ -127,3 +127,55 @@ pub enum PatternField {
 impl Node for PatternField {
     const TYPE: NodeType = NodeType::PatternField;
 }
+
+/// An AssignPattern is one assignment left hand side.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum AssignPattern {
+    /// Expression target like `x`, `obj.x`, or `obj[key]`.
+    Expression { value: LocalNodeId<Expression> },
+    /// Defaulted destructuring target like `x = 1`.
+    Assign {
+        pattern: LocalNodeId<AssignPattern>,
+        value: LocalNodeId<Expression>,
+    },
+    /// Array destructuring target like `[a, , ...rest]`.
+    Array {
+        fields: Vec<LocalNodeId<AssignPatternField>>,
+    },
+    /// Object destructuring target like `{ x, y: z }`.
+    Object {
+        fields: Vec<LocalNodeId<AssignPatternField>>,
+    },
+}
+
+impl Node for AssignPattern {
+    const TYPE: NodeType = NodeType::AssignPattern;
+}
+
+/// An AssignPatternField is one field in a destructuring assignment target.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum AssignPatternField {
+    /// Named field like `{ x }` or `{ x: y }`.
+    Named {
+        name: Name,
+        is_shorthand: bool,
+        pattern: Option<LocalNodeId<AssignPattern>>,
+    },
+    /// Computed field like `{ [key]: value }`.
+    Computed {
+        key: LocalNodeId<Expression>,
+        pattern: LocalNodeId<AssignPattern>,
+    },
+    /// Positional field like `[value]`.
+    Positional { pattern: LocalNodeId<AssignPattern> },
+    /// Spread field like `{ ...rest }` or `[...rest]`.
+    Spread {
+        pattern: Option<LocalNodeId<AssignPattern>>,
+    },
+    /// Elision like `[, value]`.
+    Elision,
+}
+
+impl Node for AssignPatternField {
+    const TYPE: NodeType = NodeType::AssignPatternField;
+}

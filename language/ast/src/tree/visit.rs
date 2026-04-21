@@ -1,10 +1,11 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField, Expression,
-    GenericArgument, GenericParameter, LocalNodeId, MatchCase, Member, NodeTree, NodeType,
-    Parameter, Pattern, PatternField, Property, TupleElement, TypeExpression, TypeMember,
-    WhereClause, walk_argument, walk_block, walk_declaration, walk_declarator, walk_decorator,
+    Argument, AssignPattern, AssignPatternField, Block, Declaration, Declarator, Decorator,
+    DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId,
+    MatchCase, Member, NodeTree, NodeType, Parameter, Pattern, PatternField, Property,
+    TupleElement, TypeExpression, TypeMember, WhereClause, walk_argument, walk_assign_pattern,
+    walk_assign_pattern_field, walk_block, walk_declaration, walk_declarator, walk_decorator,
     walk_dependency_item, walk_enum_field, walk_expression, walk_generic_argument,
     walk_generic_parameter, walk_match_case, walk_member, walk_parameter, walk_pattern,
     walk_pattern_field, walk_property, walk_tuple_element, walk_type_expression, walk_type_member,
@@ -191,6 +192,26 @@ pub trait NodeVisitor {
         walk_pattern_field(self, tree, id, pattern_field);
     }
 
+    /// Visit an AssignPattern.
+    fn visit_assign_pattern(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<AssignPattern>,
+        assign_pattern: &AssignPattern,
+    ) {
+        walk_assign_pattern(self, tree, id, assign_pattern);
+    }
+
+    /// Visit an AssignPatternField.
+    fn visit_assign_pattern_field(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<AssignPatternField>,
+        assign_pattern_field: &AssignPatternField,
+    ) {
+        walk_assign_pattern_field(self, tree, id, assign_pattern_field);
+    }
+
     /// Visit a Decorator.
     fn visit_decorator(
         &mut self,
@@ -353,6 +374,24 @@ impl NodeVisitor for CapturingNodeVisitor {
         pattern_field: &PatternField,
     ) {
         self.visit_any(tree, NodeType::PatternField, id.id);
+    }
+
+    fn visit_assign_pattern(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<AssignPattern>,
+        assign_pattern: &AssignPattern,
+    ) {
+        self.visit_any(tree, NodeType::AssignPattern, id.id);
+    }
+
+    fn visit_assign_pattern_field(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<AssignPatternField>,
+        assign_pattern_field: &AssignPatternField,
+    ) {
+        self.visit_any(tree, NodeType::AssignPatternField, id.id);
     }
 
     fn visit_match_case(
