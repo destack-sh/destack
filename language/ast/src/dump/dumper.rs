@@ -1833,6 +1833,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::Must(_) => {
                 self.node("Pattern::Must", _id.id).end();
             }
+            Pattern::Assign {
+                pattern: _,
+                value: _,
+            } => {
+                self.node("Pattern::Assign", _id.id).end();
+            }
             Pattern::ReferenceOf {
                 mutability,
                 right: _,
@@ -1899,11 +1905,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             PatternField::Named {
                 mutability,
                 name,
+                is_shorthand,
                 pattern: _,
-                default: _,
             } => {
                 self.node("PatternField::Named", _id.id)
                     .field("name", name)
+                    .field("is_shorthand", is_shorthand)
                     .field_optional("mutability", mutability)
                     .end();
             }
@@ -1911,28 +1918,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 mutability,
                 key: _,
                 pattern: _,
-                default: _,
             } => {
                 self.node("PatternField::Computed", _id.id)
                     .field_optional("mutability", mutability)
                     .end();
             }
-            PatternField::Alias {
-                mutability,
-                name,
-                alias,
-                default: _,
-            } => {
-                self.node("PatternField::Alias", _id.id)
-                    .field("name", name)
-                    .field("alias", alias)
-                    .field_optional("mutability", mutability)
-                    .end();
-            }
-            PatternField::Positional {
-                pattern: _,
-                default: _,
-            } => {
+            PatternField::Positional { pattern: _ } => {
                 self.node("PatternField::Positional", _id.id).end();
             }
             PatternField::Spread {
