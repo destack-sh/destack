@@ -2127,6 +2127,10 @@ impl<'tree> FlowGraphBuilder<'tree> {
         // walk the pattern structure
         match pattern {
             Pattern::Wildcard => Some(current_block_id),
+            Pattern::Assign { pattern, value } => {
+                let pattern_block_id = self.build_pattern(*pattern, current_block_id)?;
+                self.build_expression(*value, pattern_block_id)
+            }
             Pattern::Must(inner)
             | Pattern::ReferenceOf { right: inner, .. }
             | Pattern::ValueOf { right: inner, .. } => self.build_pattern(*inner, current_block_id),
@@ -2181,46 +2185,19 @@ impl<'tree> FlowGraphBuilder<'tree> {
 
         // walk the pattern field shape
         match field {
-            PatternField::Named {
-                pattern, default, ..
-            } => {
+            PatternField::Named { pattern, .. } => {
                 let mut field_block_id = current_block_id;
                 if let Some(pattern_id) = pattern {
                     field_block_id = self.build_pattern(*pattern_id, field_block_id)?;
                 }
-                if let Some(default_id) = default {
-                    return self.build_expression(*default_id, field_block_id);
-                }
                 Some(field_block_id)
             }
-            PatternField::Computed {
-                key,
-                pattern,
-                default,
-                ..
-            } => {
+            PatternField::Computed { key, pattern, .. } => {
                 let mut field_block_id = self.build_expression(*key, current_block_id)?;
-                if let Some(pattern_id) = pattern {
-                    field_block_id = self.build_pattern(*pattern_id, field_block_id)?;
-                }
-                if let Some(default_id) = default {
-                    return self.build_expression(*default_id, field_block_id);
-                }
+                field_block_id = self.build_pattern(*pattern, field_block_id)?;
                 Some(field_block_id)
             }
-            PatternField::Alias { default, .. } => {
-                if let Some(default_id) = default {
-                    return self.build_expression(*default_id, current_block_id);
-                }
-                Some(current_block_id)
-            }
-            PatternField::Positional { pattern, default } => {
-                let mut field_block_id = self.build_pattern(*pattern, current_block_id)?;
-                if let Some(default_id) = default {
-                    field_block_id = self.build_expression(*default_id, field_block_id)?;
-                }
-                Some(field_block_id)
-            }
+            PatternField::Positional { pattern } => self.build_pattern(*pattern, current_block_id),
             PatternField::Spread { pattern, .. } => {
                 if let Some(pattern_id) = pattern {
                     self.build_pattern(*pattern_id, current_block_id)
