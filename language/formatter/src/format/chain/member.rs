@@ -3,8 +3,8 @@ use crate::format::expression::parenthesized_expression_needs_preserved_wrapper;
 use crate::format::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Declarator, DecoratorPosition, Expression, GenericArgument, LocalNodeId, NodeTree,
-    NodeType, PostfixPosition, ScalarLiteral, TokenType,
+    Argument, Declarator, DecoratorPosition, Expression, GenericArgument, IfKind, LocalNodeId,
+    NodeTree, NodeType, PostfixPosition, ScalarLiteral, TokenType,
 };
 use destack_core::StringId;
 use destack_fir::format::{Buffer, FormatError, FormatResult};
@@ -191,7 +191,7 @@ pub(crate) fn expression_has_ternary_ancestor(
         if matches!(
             context.tree.get(parent_expression_id),
             Expression::If {
-                kind: destack_ast::IfKind::Ternary,
+                kind: IfKind::Ternary,
                 ..
             }
         ) {
@@ -337,21 +337,6 @@ pub(crate) fn has_comment_between_expressions(
     !context
         .comment_tokens_in_range(between_span.start, between_span.end)
         .is_empty()
-}
-
-/// Check whether source contains one own-line or multiline comment between two expression nodes.
-pub(crate) fn has_own_line_or_multiline_comment_between_expressions(
-    context: &DestackFormatContext<'_>,
-    left_id: LocalNodeId<Expression>,
-    right_id: LocalNodeId<Expression>,
-) -> bool {
-    let left_span = context.span(left_id);
-    let right_span = context.span(right_id);
-    let Some(between_span) = left_span.gap_to(right_span) else {
-        return false;
-    };
-
-    context.has_own_line_or_multiline_comment(between_span)
 }
 
 /// Check whether an optional index is numerically inline.

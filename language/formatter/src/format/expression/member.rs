@@ -1,7 +1,7 @@
 use super::format_generic_argument_list;
 use crate::format::annotation::{FormatLeadingComments, FormatTrailingComments};
 use crate::format::chain::{member_property_start, transparent_inner_expression};
-use crate::format::operator::write_postfix_base_expression;
+use crate::format::operator::{assign_pattern_target_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Comment, Expression, GenericArgument, LocalNodeId, NodeType, PostfixPosition, TypeExpression,
@@ -258,7 +258,12 @@ fn static_member_layout(
             StaticMemberLayout::NoBreak
         }
         Some((_, Expression::Assign { left, .. })) => {
-            if matches!(context.tree.get(*left), Expression::Identifier { .. }) {
+            if assign_pattern_target_expression(context, *left).is_some_and(|left_expression_id| {
+                matches!(
+                    context.tree.get(left_expression_id),
+                    Expression::Identifier { .. }
+                )
+            }) {
                 StaticMemberLayout::BreakAfterObject
             } else {
                 StaticMemberLayout::NoBreak

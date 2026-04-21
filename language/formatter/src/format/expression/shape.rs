@@ -1,4 +1,5 @@
 use crate::DestackFormatContext;
+use crate::format::operator::assign_pattern_target_expression;
 use destack_ast::{
     Argument, Expression, GenericArgument, IfCondition, IfKind, LocalNodeId, NodeTree, NodeType,
     Pattern, Property, ScalarLiteral, TokenType, TypeExpression, UnaryOperator,
@@ -44,8 +45,8 @@ impl ExpressionLeftSide {
             | Expression::Satisfies {
                 expression: left, ..
             }
-            | Expression::Binary { left, .. }
-            | Expression::Assign { left, .. } => Some(*left),
+            | Expression::Binary { left, .. } => Some(*left),
+            Expression::Assign { left, .. } => assign_pattern_target_expression(context, *left),
             Expression::Is { value, .. } | Expression::InstanceOf { value, .. } => Some(*value),
             Expression::TaggedTemplateExpression { tag, .. } => Some(*tag),
             Expression::If {

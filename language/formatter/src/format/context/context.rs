@@ -5,10 +5,11 @@ use std::cell::OnceCell;
 
 pub use destack_ast::Decorator;
 use destack_ast::{
-    Argument, Block, Declaration, Declarator, DependencyItem, EnumField, Expression,
-    GenericArgument, GenericParameter, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node,
-    NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Property,
-    TokenSpan, TokenType, TupleElement, TypeExpression, TypeMember, WhereClause,
+    Argument, AssignPattern, AssignPatternField, Block, Declaration, Declarator, DependencyItem,
+    EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId, LocalNodeIdAny,
+    MatchCase, Member, Node, NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern,
+    PatternField, Property, TokenSpan, TokenType, TupleElement, TypeExpression, TypeMember,
+    WhereClause,
 };
 use destack_core::ImmutableStringPool;
 use destack_fir::format::{Format, FormatContext, FormatResult, Formatter};
@@ -236,6 +237,16 @@ impl<'a> Format<DestackFormatContext<'a>> for LocalNodeIdAny {
             }
             NodeType::PatternField => {
                 let node_id = LocalNodeId::<PatternField>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::AssignPattern => {
+                let node_id = LocalNodeId::<AssignPattern>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::AssignPatternField => {
+                let node_id = LocalNodeId::<AssignPatternField>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
