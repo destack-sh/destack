@@ -4,7 +4,7 @@ use destack_workspace::OrganizeImports;
 
 use crate::{
     DestackFormatOptions, assert_format, assert_format_program,
-    assert_format_program_reference_widths,
+    assert_format_program_reference_widths, assert_format_program_roundtrip_with_file_type,
 };
 
 /// Return formatter options with import organization enabled.
@@ -209,5 +209,68 @@ export /* keep */ type T = string;
 "#,
             ),
         ],
+    );
+}
+
+/// Ignore directive aliases should preserve the following raw statement text.
+#[test]
+fn test_format_program_ignore_directive_aliases_roundtrip() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"const keepFormatted = 1;
+
+// fmt-ignore
+const fmtIgnored   =  [  1,2,3 ]
+
+// format-ignore
+const formatIgnored   =  {  alpha:1,  beta:2 }
+
+// prettier-ignore
+const prettierIgnored   =  call(  alpha,  beta )
+
+// oxfmt-ignore
+const oxfmtIgnored   =  source /* hop */ ?. ( "value" )
+
+// deno-fmt-ignore
+const denoIgnored   =  foo?.( "value" )
+
+// biome-ignore format: keep raw
+const biomeIgnored   =  run(  first,  second )
+
+// fmt-ignore-start
+const rangeIgnoredA   =  [  4,5,6 ]
+const rangeIgnoredB   =  {  gamma:3,  delta:4 }
+// fmt-ignore-end
+
+const keepFormattedToo = 2;
+"#,
+        r#"const keepFormatted = 1;
+
+// fmt-ignore
+const fmtIgnored   =  [  1,2,3 ]
+
+// format-ignore
+const formatIgnored   =  {  alpha:1,  beta:2 }
+
+// prettier-ignore
+const prettierIgnored   =  call(  alpha,  beta )
+
+// oxfmt-ignore
+const oxfmtIgnored   =  source /* hop */ ?. ( "value" )
+
+// deno-fmt-ignore
+const denoIgnored   =  foo?.( "value" )
+
+// biome-ignore format: keep raw
+const biomeIgnored   =  run(  first,  second )
+
+// fmt-ignore-start
+const rangeIgnoredA   =  [  4,5,6 ]
+const rangeIgnoredB   =  {  gamma:3,  delta:4 }
+// fmt-ignore-end
+
+const keepFormattedToo = 2;
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
     );
 }

@@ -120,6 +120,28 @@ fn test_format_optional_call_separator_line_comment() {
     );
 }
 
+/// Comments between the callee and `?.` should stay before the optional operator.
+#[test]
+fn test_format_optional_call_separator_block_comment() {
+    assert_format_program_reference_widths(
+        r#"alert /* comment */?.("value")
+"#,
+        FileType::TypeScript,
+        &[
+            (
+                80,
+                r#"alert /* comment */?.("value");
+"#,
+            ),
+            (
+                100,
+                r#"alert /* comment */?.("value");
+"#,
+            ),
+        ],
+    );
+}
+
 /// Block comments inside empty optional calls stay inside the argument list.
 #[test]
 fn test_format_optional_call_empty_argument_comment() {
