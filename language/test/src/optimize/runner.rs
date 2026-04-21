@@ -2280,16 +2280,22 @@ fn find_instruction_block(
 
 /// Describe where a value is defined, if known.
 fn find_value_definition(tree: &mir::NodeTree, value: mir::Value) -> String {
+    let value_reference = mir::ValueReference::Value(value);
+
     // scan blocks for parameter definitions
     for (block_id, block) in tree.iter_nodes::<mir::Block>() {
-        if let Some(param) = block.parameters.iter().find(|param| param.value == value) {
+        if let Some(param) = block
+            .parameters
+            .iter()
+            .find(|param| param.value == value_reference)
+        {
             return format!("{block_id:?} param {param:?}");
         }
 
         // scan instructions for destination definitions
         for instruction_id in &block.instructions {
             let instruction = tree.get(*instruction_id);
-            if instruction.destination() == Some(value) {
+            if instruction.destination() == Some(value_reference) {
                 return format!("{block_id:?} {instruction_id:?} {instruction:?}");
             }
         }
