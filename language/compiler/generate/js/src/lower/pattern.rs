@@ -12,6 +12,125 @@ enum PatternMutabilityMode {
 }
 
 impl ModuleLowerer<'_> {
+    /// Lower one assign pattern from DIR into JS AST.
+    pub fn lower_assign_pattern(
+        &mut self,
+        assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
+    ) -> CodegenJsResult<js::LocalNodeId<js::AssignPattern>> {
+        let assign_pattern = self.dir_tree.get(assign_pattern_id);
+        let assign_pattern_id = match assign_pattern {
+            dir::AssignPattern::Expression { value } => {
+                let value = self
+                    .lower_expression(*value)
+                    .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
+                let assign_pattern = js::AssignPattern::Expression { value };
+                self.tree
+                    .insert_from_source(assign_pattern, self.module.id, assign_pattern_id)
+            }
+            dir::AssignPattern::Assign { pattern, value } => {
+                let pattern = self.lower_assign_pattern(*pattern)?;
+                let value = self
+                    .lower_expression(*value)
+                    .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
+                let assign_pattern = js::AssignPattern::Assign { pattern, value };
+                self.tree
+                    .insert_from_source(assign_pattern, self.module.id, assign_pattern_id)
+            }
+            dir::AssignPattern::Array { fields } => {
+                let fields = fields
+                    .iter()
+                    .map(|field_id| self.lower_assign_pattern_field(*field_id))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                let assign_pattern = js::AssignPattern::Array { fields };
+                self.tree
+                    .insert_from_source(assign_pattern, self.module.id, assign_pattern_id)
+            }
+            dir::AssignPattern::Object { fields } => {
+                let fields = fields
+                    .iter()
+                    .map(|field_id| self.lower_assign_pattern_field(*field_id))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                let assign_pattern = js::AssignPattern::Object { fields };
+                self.tree
+                    .insert_from_source(assign_pattern, self.module.id, assign_pattern_id)
+            }
+        };
+
+        Ok(assign_pattern_id)
+    }
+
+    /// Lower one assign pattern field from DIR into JS AST.
+    pub fn lower_assign_pattern_field(
+        &mut self,
+        assign_pattern_field_id: dir::LocalNodeId<dir::AssignPatternField>,
+    ) -> CodegenJsResult<js::LocalNodeId<js::AssignPatternField>> {
+        let assign_pattern_field = self.dir_tree.get(assign_pattern_field_id);
+        let assign_pattern_field_id = match assign_pattern_field {
+            dir::AssignPatternField::Named {
+                name,
+                is_shorthand,
+                pattern,
+            } => {
+                let name = self.lower_name(*name);
+                let pattern = pattern
+                    .map(|pattern_id| self.lower_assign_pattern(pattern_id))
+                    .transpose()?;
+                let assign_pattern_field = js::AssignPatternField::Named {
+                    name,
+                    is_shorthand: *is_shorthand,
+                    pattern,
+                };
+                self.tree.insert_from_source(
+                    assign_pattern_field,
+                    self.module.id,
+                    assign_pattern_field_id,
+                )
+            }
+            dir::AssignPatternField::Computed { key, pattern } => {
+                let key = self
+                    .lower_expression(*key)
+                    .expect_node::<js::Expression>(key.into_global_any(self.module.id), self)?;
+                let pattern = self.lower_assign_pattern(*pattern)?;
+                let assign_pattern_field = js::AssignPatternField::Computed { key, pattern };
+                self.tree.insert_from_source(
+                    assign_pattern_field,
+                    self.module.id,
+                    assign_pattern_field_id,
+                )
+            }
+            dir::AssignPatternField::Positional { pattern } => {
+                let pattern = self.lower_assign_pattern(*pattern)?;
+                let assign_pattern_field = js::AssignPatternField::Positional { pattern };
+                self.tree.insert_from_source(
+                    assign_pattern_field,
+                    self.module.id,
+                    assign_pattern_field_id,
+                )
+            }
+            dir::AssignPatternField::Spread { pattern } => {
+                let pattern = pattern
+                    .map(|pattern_id| self.lower_assign_pattern(pattern_id))
+                    .transpose()?;
+                let assign_pattern_field = js::AssignPatternField::Spread { pattern };
+                self.tree.insert_from_source(
+                    assign_pattern_field,
+                    self.module.id,
+                    assign_pattern_field_id,
+                )
+            }
+            dir::AssignPatternField::Elision => {
+                let assign_pattern_field = js::AssignPatternField::Elision;
+                self.tree.insert_from_source(
+                    assign_pattern_field,
+                    self.module.id,
+                    assign_pattern_field_id,
+                )
+            }
+        };
+
+        Ok(assign_pattern_field_id)
+    }
+
     /// Lower a pattern from DIR into JS AST.
     pub fn lower_pattern(
         &mut self,
