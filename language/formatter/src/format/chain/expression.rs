@@ -23,7 +23,7 @@ use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Comment, CommentPosition, DecoratorPosition, Expression, LocalNodeId, NodeType, PostfixPosition,
 };
-use destack_fir::format::{BestFittingMode, Buffer, Format, FormatResult};
+use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{
     empty_line, expand_parent, format_with, group, hard_line_break, indent, token,
 };
@@ -71,12 +71,12 @@ impl MemberChain {
         })
     }
 
-    /// Return the number of tail groups in one normalized chain.
-    pub(crate) fn tail_group_count(
+    /// Return whether one normalized call chain has multiple tail groups.
+    pub(crate) fn is_member_call_chain(
         context: &DestackFormatContext<'_>,
         node_id: LocalNodeId<Expression>,
-    ) -> FormatResult<usize> {
-        Self::from_expression(context, node_id).map(|chain| chain.tail_groups.len())
+    ) -> FormatResult<bool> {
+        Self::from_expression(context, node_id).map(|chain| chain.tail_groups.len() > 1)
     }
 
     /// Inspect the formatted base and return whether it breaks.
@@ -414,7 +414,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for MemberChain {
         }
 
         if has_member_comment || has_new_line_or_comment_between || groups_should_break {
-            return write!(f, [group(&format_expanded_chain).should_expand(true)]);
+            return write!(f, [group(&format_expanded_chain)]);
         }
 
         if chain
@@ -427,10 +427,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for MemberChain {
 
         write!(
             f,
-            [
-                best_fitting![group(&format_one_line_chain), group(&format_expanded_chain)]
-                    .with_mode(BestFittingMode::AllLines)
-            ]
+            [best_fitting![format_one_line_chain, format_expanded_chain]]
         )
     }
 }

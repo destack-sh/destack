@@ -1,4 +1,3 @@
-mod assignment;
 mod declaration;
 mod function;
 mod semicolon;
@@ -9,7 +8,6 @@ pub mod dependency;
 pub mod signature;
 pub mod statement;
 
-pub(crate) use self::assignment::is_poorly_breakable_member_or_call_chain;
 pub(crate) use self::declaration::{
     format_let_statement_expression, format_using_statement_expression,
 };

@@ -38,7 +38,7 @@ pub(crate) fn format_comment<'ast>(
 ) -> FormatResult<()> {
     f.context_mut().comments_mut().increment_printed_count();
 
-    let comment_source = f.context().comment_source_text(comment);
+    let comment_source = f.context().span_str(comment.span);
     let is_block_comment = comment.is_block();
     format_comment_source_text(f, comment_source, is_block_comment)
 }
@@ -148,7 +148,7 @@ fn write_trailing_comments_with_options<'ast>(
     for comment in comments.iter().copied() {
         f.context_mut().comments_mut().increment_printed_count();
 
-        let comment_source = f.context().comment_source_text(comment);
+        let comment_source = f.context().span_str(comment.span);
         let is_block_comment = comment.is_block();
         let lines_before = {
             let comment_cursor = f.context().comments();
@@ -216,7 +216,7 @@ pub(crate) fn write_comment_slice<'ast>(
     for comment in comments.iter().copied() {
         f.context_mut().comments_mut().increment_printed_count();
 
-        let comment_source = f.context().comment_source_text(comment);
+        let comment_source = f.context().span_str(comment.span);
         let is_block_comment = comment.is_block();
         let lines_before = {
             let comment_cursor = f.context().comments();

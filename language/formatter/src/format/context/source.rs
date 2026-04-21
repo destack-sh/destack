@@ -2,7 +2,7 @@ use super::comment::Comments;
 use super::context::DestackFormatContext;
 use std::ops::Deref;
 
-use destack_ast::{Comment, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan};
+use destack_ast::{LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan};
 use destack_source::Span;
 
 /// Source text wrapper for formatter byte and span queries.
@@ -262,6 +262,96 @@ fn is_single_line_whitespace(current: char) -> bool {
     current.is_whitespace() && !is_line_terminator(current)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use destack_source::FileId;
+
+    // line endings
+
+    /// Keep line counting stable for LF input.
+    #[test]
+    fn test_source_text_counts_lines_before_for_lf_input() {
+        let source_text = r"
+const x = 1;
+
+const y = 2;
+
+
+const z = 3;
+"
+        .trim();
+        let source_text = SourceText::new(source_text);
+        let comments = vec![];
+        let comments = Comments::new(source_text, &comments);
+        let file_id = FileId::EPHEMERAL;
+
+        let span_x = Span::new(file_id, 0, 12);
+        let span_y = Span::new(file_id, 14, 26);
+        let span_z = Span::new(file_id, 29, 41);
+
+        assert_eq!(source_text.text_for(&span_x), "const x = 1;");
+        assert_eq!(source_text.text_for(&span_y), "const y = 2;");
+        assert_eq!(source_text.text_for(&span_z), "const z = 3;");
+
+        assert_eq!(source_text.get_lines_before(span_x, &comments), 0);
+        assert_eq!(source_text.get_lines_before(span_y, &comments), 2);
+        assert_eq!(source_text.get_lines_before(span_z, &comments), 3);
+
+        assert_eq!(source_text.lines_after(span_x.end), 2);
+        assert_eq!(source_text.lines_after(span_y.end), 3);
+        assert_eq!(source_text.lines_after(span_z.end), 0);
+    }
+
+    /// Keep line counting stable for CRLF input.
+    #[test]
+    fn test_source_text_counts_lines_before_for_crlf_input() {
+        let source_text = "const x = 1;\r\n\r\nconst y = 2;\r\n\r\n\r\nconst z = 3;";
+        let source_text = SourceText::new(source_text);
+        let comments = vec![];
+        let comments = Comments::new(source_text, &comments);
+        let file_id = FileId::EPHEMERAL;
+
+        let span_x = Span::new(file_id, 0, 12);
+        let span_y = Span::new(file_id, 16, 28);
+        let span_z = Span::new(file_id, 34, 46);
+
+        assert_eq!(source_text.text_for(&span_x), "const x = 1;");
+        assert_eq!(source_text.text_for(&span_y), "const y = 2;");
+        assert_eq!(source_text.text_for(&span_z), "const z = 3;");
+
+        assert_eq!(source_text.get_lines_before(span_y, &comments), 2);
+        assert_eq!(source_text.get_lines_before(span_z, &comments), 3);
+
+        assert_eq!(source_text.lines_after(span_x.end), 2);
+        assert_eq!(source_text.lines_after(span_y.end), 3);
+    }
+
+    /// Keep line counting stable for mixed line endings.
+    #[test]
+    fn test_source_text_counts_lines_before_for_mixed_line_endings() {
+        let source_text = "const x = 1;\n\r\nconst y = 2;\r\n\nconst z = 3;";
+        let source_text = SourceText::new(source_text);
+        let comments = vec![];
+        let comments = Comments::new(source_text, &comments);
+        let file_id = FileId::EPHEMERAL;
+
+        let span_x = Span::new(file_id, 0, 12);
+        let span_y = Span::new(file_id, 15, 27);
+        let span_z = Span::new(file_id, 30, 42);
+
+        assert_eq!(source_text.text_for(&span_x), "const x = 1;");
+        assert_eq!(source_text.text_for(&span_y), "const y = 2;");
+        assert_eq!(source_text.text_for(&span_z), "const z = 3;");
+
+        assert_eq!(source_text.get_lines_before(span_y, &comments), 2);
+        assert_eq!(source_text.get_lines_before(span_z, &comments), 2);
+
+        assert_eq!(source_text.lines_after(span_x.end), 2);
+        assert_eq!(source_text.lines_after(span_y.end), 2);
+    }
+}
+
 impl<'a> DestackFormatContext<'a> {
     /// Return the source text wrapper for this file.
     pub fn source_text(&self) -> SourceText<'a> {
@@ -296,62 +386,6 @@ impl<'a> DestackFormatContext<'a> {
     #[inline]
     pub fn token_str(&self, token: TokenSpan) -> &'a str {
         self.span_str(token.span)
-    }
-
-    /// Get one source-preserving comment slice.
-    #[inline]
-    pub fn comment_source_text(&self, comment: Comment) -> &'a str {
-        self.span_str(comment.span)
-    }
-
-    /// Get one source position for one byte offset.
-    #[inline]
-    pub fn source_position(&self, offset: u32) -> Option<(u32, u32)> {
-        self.file.get_position(offset)
-    }
-
-    /// Get the source span for one line index.
-    #[inline]
-    pub fn source_line_span(&self, line_index: u32) -> Option<Span> {
-        self.file.get_line_span(line_index)
-    }
-
-    /// Return whether one line prefix contains only whitespace trivia.
-    #[inline]
-    pub fn line_prefix_is_whitespace(&self, offset: u32) -> bool {
-        let Some((line_index, _)) = self.source_position(offset) else {
-            return false;
-        };
-        let Some(line_span) = self.source_line_span(line_index) else {
-            return false;
-        };
-
-        if line_span.start >= offset {
-            return true;
-        }
-
-        let prefix_span = Span::new(line_span.file, line_span.start, offset);
-
-        !self.has_non_whitespace_content(prefix_span)
-    }
-
-    /// Get the source line distance between two byte offsets.
-    #[inline]
-    pub fn source_line_distance(&self, start_offset: u32, end_offset: u32) -> Option<u32> {
-        let (start_line, _) = self.source_position(start_offset)?;
-        let (end_line, _) = self.source_position(end_offset)?;
-
-        end_line.checked_sub(start_line)
-    }
-
-    /// Get the raw line prefix string before one byte offset.
-    #[inline]
-    pub fn line_prefix_text(&self, offset: u32) -> Option<&'a str> {
-        let (line_index, column) = self.source_position(offset)?;
-        let line_span = self.source_line_span(line_index)?;
-        let line_text = self.span_str(line_span);
-
-        line_text.get(..column as usize)
     }
 
     /// Return whether one node span contains a newline.

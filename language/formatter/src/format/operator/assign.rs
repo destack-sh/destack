@@ -1,13 +1,15 @@
 use super::binary::is_logical_binary_operator;
 use crate::format::chain::{
-    assignment_like_parent, has_own_line_or_multiline_comment_between_expressions,
+    MemberChain, assignment_like_parent, has_own_line_or_multiline_comment_between_expressions,
     is_assignment_chain_tail_lambda, transparent_inner_expression,
 };
+use crate::format::context::DestackFormatterSpeculationExt;
 use crate::format::expression::ExpressionLeftSide;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    AssignOperator, Comment, Declaration, DecoratorPosition, Expression, IfCondition, IfKind, Key,
-    LocalNodeId, Name, NodeType, Property, ScalarLiteral, TokenType,
+    Argument, AssignOperator, BinaryOperator, Comment, Declaration, DecoratorPosition, Expression,
+    GenericArgument, IfCondition, IfKind, Key, LocalNodeId, Name, NodeType, Property,
+    ScalarLiteral, TemplateLiteral, TokenType, TypeExpression,
 };
 use destack_fir::format::{
     Buffer, Format, FormatNode as FirFormatNode, FormatNodes, FormatResult,
@@ -20,7 +22,254 @@ use destack_fir::prelude::{
 use destack_fir::write;
 use destack_source::Span;
 
-const MIN_OVERLAP_FOR_BREAK: u32 = 3;
+/// Return whether one argument expression is short enough to keep a call attached.
+fn is_short_argument(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+    threshold: u32,
+) -> bool {
+    let argument_expression_id = match context.tree.get(argument_id) {
+        Argument::Named { value, .. }
+        | Argument::Labeled { value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. } => *value,
+        Argument::Error => return false,
+    };
+
+    is_short_expression(context, argument_expression_id, threshold)
+}
+
+/// Return whether one expression is short enough to keep a call attached.
+fn is_short_expression(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+    threshold: u32,
+) -> bool {
+    let expression_id = transparent_inner_expression(context, expression_id);
+
+    match context.tree.get(expression_id) {
+        Expression::Identifier { name } => context.strings.get(*name).len() <= threshold as usize,
+        Expression::Unary { right, .. } => is_short_expression(context, *right, threshold),
+        Expression::ScalarLiteral(
+            ScalarLiteral::Null
+            | ScalarLiteral::Boolean(_)
+            | ScalarLiteral::Integer(_)
+            | ScalarLiteral::Bigint(_)
+            | ScalarLiteral::Float(_),
+        )
+        | Expression::This => true,
+        Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+            context.strings.get(*string_id).len() <= threshold as usize
+        }
+        Expression::ScalarLiteral(ScalarLiteral::RegexString { content, .. }) => {
+            context.strings.get(*content).len() <= threshold as usize
+        }
+        Expression::TemplateExpression { value } => {
+            // interpolated templates are not short in the OXC assignment-like rules
+            let TemplateLiteral::String { string } = value else {
+                return false;
+            };
+
+            let content = context.strings.get(*string);
+
+            content.len() <= threshold as usize && !content.contains('\n')
+        }
+        Expression::Call {
+            left, arguments, ..
+        } => {
+            arguments.is_empty()
+                && matches!(
+                    context.tree.get(transparent_inner_expression(context, *left)),
+                    Expression::Identifier { name }
+                        if context.strings.get(*name).len()
+                            <= threshold.saturating_sub(2) as usize
+                )
+        }
+        _ => false,
+    }
+}
+
+/// Return whether one single type argument is complex in the upstream sense.
+fn type_argument_is_complex(
+    context: &DestackFormatContext<'_>,
+    type_id: LocalNodeId<TypeExpression>,
+) -> bool {
+    matches!(
+        context.tree.get(type_id),
+        TypeExpression::Union { .. }
+            | TypeExpression::Intersection { .. }
+            | TypeExpression::Object { .. }
+    )
+}
+
+/// Return whether one generic argument list is complex enough to break a call chain.
+fn is_complex_generic_arguments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    generic_arguments: &[LocalNodeId<GenericArgument>],
+) -> FormatResult<bool> {
+    if generic_arguments.len() > 1 {
+        return Ok(true);
+    }
+
+    let Some(argument_id) = generic_arguments.first().copied() else {
+        return Ok(false);
+    };
+
+    match f.context().tree.get(argument_id) {
+        GenericArgument::Type { value } => {
+            if type_argument_is_complex(f.context(), *value) {
+                return Ok(true);
+            }
+        }
+        GenericArgument::Value { value } => {
+            let value = transparent_inner_expression(f.context(), *value);
+
+            // destack-only value arguments use the same complexity threshold as type arguments
+            if matches!(
+                f.context().tree.get(value),
+                Expression::Binary {
+                    operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
+                    ..
+                }
+            ) {
+                return Ok(true);
+            }
+
+            if let Expression::Type { value } = f.context().tree.get(value)
+                && type_argument_is_complex(f.context(), *value)
+            {
+                return Ok(true);
+            }
+        }
+        GenericArgument::Error => return Ok(false),
+    }
+
+    // speculative formatting
+    let start = generic_arguments
+        .first()
+        .map(|argument_id| f.context().span(*argument_id))
+        .and_then(|argument_span| {
+            f.context()
+                .previous_non_trivia_token_before_span(argument_span)
+                .map(|token| token.span.start)
+                .or(Some(argument_span.start))
+        })
+        .unwrap_or(0);
+    let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        super::r#type::format_generic_argument_list(f, generic_arguments)
+    });
+
+    f.speculate_will_break_after(start, &content)
+}
+
+/// Return whether one call or member chain is awkward to break inside an assignment shell.
+pub(crate) fn is_poorly_breakable_member_or_call_chain<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<bool> {
+    let threshold = u32::from(f.context().options.line_width) / 4;
+    let root_expression_id = transparent_inner_expression(f.context(), expression_id);
+    let mut current_expression_id = root_expression_id;
+    let mut is_chain = false;
+    let mut has_simple_head = false;
+    let mut call_expression_ids = Vec::new();
+    let mut call_generic_argument_groups = Vec::<Vec<LocalNodeId<GenericArgument>>>::new();
+
+    loop {
+        current_expression_id = match f.context().tree.get(current_expression_id) {
+            // call
+            Expression::Call {
+                left,
+                generic_arguments,
+                ..
+            } => {
+                is_chain = true;
+                call_expression_ids.push(current_expression_id);
+                call_generic_argument_groups.push(generic_arguments.clone());
+                transparent_inner_expression(f.context(), *left)
+            }
+
+            // instantiation
+            Expression::Instantiation {
+                left,
+                generic_arguments,
+            } => {
+                is_chain = true;
+                if is_complex_generic_arguments(f, generic_arguments)? {
+                    return Ok(false);
+                }
+
+                transparent_inner_expression(f.context(), *left)
+            }
+
+            // member
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Maybe { left, .. }
+            | Expression::Must { left, .. } => {
+                is_chain = true;
+                transparent_inner_expression(f.context(), *left)
+            }
+
+            // simple heads
+            Expression::Identifier { .. } | Expression::This => {
+                has_simple_head = true;
+                break;
+            }
+
+            // non-chains
+            _ => break,
+        };
+    }
+
+    // non-simple chain heads do not use this shell shortcut
+    if !is_chain || !has_simple_head {
+        return Ok(false);
+    }
+
+    // pure member chains are cheap to keep attached
+    if call_expression_ids.is_empty() {
+        return Ok(true);
+    }
+
+    // comments on the outer call break the shortcut
+    if f.context()
+        .comments()
+        .has_comment_in_span(f.context().span(call_expression_ids[0]))
+    {
+        return Ok(false);
+    }
+
+    // breakable calls defeat the shortcut
+    for (index, call_expression_id) in call_expression_ids.iter().copied().enumerate() {
+        let Expression::Call { arguments, .. } = f.context().tree.get(call_expression_id) else {
+            continue;
+        };
+
+        let is_breakable_call = match arguments.len() {
+            0 => false,
+            1 => {
+                let argument_id = arguments[0];
+                !is_short_argument(f.context(), argument_id, threshold)
+            }
+            _ => true,
+        };
+        if is_breakable_call {
+            return Ok(false);
+        }
+
+        if let Some(generic_arguments) = call_generic_argument_groups.get(index)
+            && is_complex_generic_arguments(f, generic_arguments)?
+        {
+            return Ok(false);
+        }
+    }
+
+    // member call chains already have enough internal structure
+    MemberChain::is_member_call_chain(f.context(), call_expression_ids[0])
+        .map(|is_member_call_chain| !is_member_call_chain)
+}
 
 /// Return whether one expression has an own-line prefix annotation.
 fn assign_expression_has_own_line_prefix_annotation(
@@ -201,8 +450,8 @@ fn assignment_rhs_operator_comment_nodes(
     }
 }
 
-/// Buffer the assignment left-hand side so layout can inspect the formatted width first.
-fn buffer_assignment_left<'ast>(
+/// Buffer one assignment-expression left-hand side for layout selection.
+fn buffer_assignment_expression_layout_left<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     left: LocalNodeId<Expression>,
 ) -> FormatResult<(Vec<FirFormatNode>, bool, bool)> {
@@ -213,9 +462,9 @@ fn buffer_assignment_left<'ast>(
     write!(formatter, [left])?;
 
     let nodes = buffer.into_vec();
-    let is_short = nodes.single_line_width().is_some_and(|width| {
-        width < (u32::from(f.context().options.indent_width) + MIN_OVERLAP_FOR_BREAK)
-    });
+
+    // assignment-expression layout is driven by the rhs
+    let is_short = false;
     let may_break = nodes.may_directly_break();
 
     Ok((nodes, is_short, may_break))
@@ -280,7 +529,8 @@ pub(crate) fn write_assignment_like_right<'ast>(
 pub(crate) fn assignment_rhs_prefers_break_after_operator<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     right: LocalNodeId<Expression>,
-) -> bool {
+    is_left_short: bool,
+) -> FormatResult<bool> {
     let context = f.context();
     let right = transparent_inner_expression(context, right);
 
@@ -290,11 +540,11 @@ pub(crate) fn assignment_rhs_prefers_break_after_operator<'ast>(
         .comments_before_iter(context.span(right).start)
     {
         if comment.preceded_by_newline() && comment.followed_by_newline() {
-            return true;
+            return Ok(true);
         }
     }
 
-    match context.tree.get(right) {
+    let should_break = match context.tree.get(right) {
         // assignment chains break after `=`
         Expression::Assign {
             right: nested_right,
@@ -323,7 +573,7 @@ pub(crate) fn assignment_rhs_prefers_break_after_operator<'ast>(
                         operator, right, ..
                     } => {
                         if !is_logical_binary_operator(*operator) {
-                            return true;
+                            return Ok(true);
                         }
 
                         let logical_right = transparent_inner_expression(context, *right);
@@ -344,8 +594,40 @@ pub(crate) fn assignment_rhs_prefers_break_after_operator<'ast>(
             IfCondition::Let { .. } => false,
         },
 
-        _ => false,
+        _ if matches!(
+            assignment_rhs_innermost_expression(context, right),
+            Expression::ScalarLiteral(ScalarLiteral::String(_))
+        ) =>
+        {
+            true
+        }
+        _ if is_left_short => false,
+        _ => is_poorly_breakable_member_or_call_chain(f, right)?,
+    };
+
+    Ok(should_break)
+}
+
+/// Return the innermost rhs expression after unwrapping unary-like shells.
+fn assignment_rhs_innermost_expression<'a>(
+    context: &'a DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> &'a Expression {
+    let mut current_expression_id = expression_id;
+
+    loop {
+        current_expression_id = match context.tree.get(current_expression_id) {
+            Expression::Unary { right, .. } => *right,
+            Expression::Await { expression } | Expression::AwaitMaybe { expression } => *expression,
+            Expression::Yield {
+                value: Some(value), ..
+            } => *value,
+            Expression::Must { left, .. } => *left,
+            _ => break,
+        };
     }
+
+    context.tree.get(current_expression_id)
 }
 
 /// Return whether one object field is shorthand.
@@ -398,11 +680,7 @@ fn assignment_rhs_is_compact(
     matches!(
         right_expression,
         Expression::ScalarLiteral(
-            ScalarLiteral::Boolean(_)
-                | ScalarLiteral::Integer(_)
-                | ScalarLiteral::Bigint(_)
-                | ScalarLiteral::Float(_)
-                | ScalarLiteral::String(_)
+            ScalarLiteral::Boolean(_) | ScalarLiteral::Integer(_) | ScalarLiteral::Float(_)
         ) | Expression::TemplateExpression { .. }
             | Expression::TaggedTemplateExpression { .. }
     ) || expression_is_class_declaration(context, right)
@@ -471,10 +749,10 @@ fn assignment_expression_layout<'ast>(
     right: LocalNodeId<Expression>,
     is_left_short: bool,
     left_may_break: bool,
-) -> AssignmentLikeLayout {
+) -> FormatResult<AssignmentLikeLayout> {
     // assignment chains
     if let Some(layout) = assignment_expression_chain_layout(f.context(), node_id, right) {
-        return layout;
+        return Ok(layout);
     }
 
     // compact CommonJS require calls stay attached to `=`
@@ -484,29 +762,29 @@ fn assignment_expression_layout<'ast>(
             .comments()
             .has_leading_own_line_comment(f.context().span(right).start)
     {
-        return AssignmentLikeLayout::NeverBreakAfterOperator;
+        return Ok(AssignmentLikeLayout::NeverBreakAfterOperator);
     }
 
     // complex destructuring breaks its left side first
     if assignment_target_is_complex_destructuring(f.context(), left) {
-        return AssignmentLikeLayout::BreakLeftHandSide;
+        return Ok(AssignmentLikeLayout::BreakLeftHandSide);
     }
 
     // operator-bound trivia and rhs pressure break after the operator
     if assignment_rhs_has_inline_operator_prefix_comment(f.context(), right)
         || assignment_operator_has_line_comment_between(f.context(), left, right)
         || assignment_expression_rhs_has_forcing_leading_trivia(f.context(), left, right)
-        || assignment_rhs_prefers_break_after_operator(f, right)
+        || assignment_rhs_prefers_break_after_operator(f, right, is_left_short)?
     {
-        return AssignmentLikeLayout::BreakAfterOperator;
+        return Ok(AssignmentLikeLayout::BreakAfterOperator);
     }
 
     // compact rhs
     if !left_may_break && (is_left_short || assignment_rhs_is_compact(f.context(), right)) {
-        return AssignmentLikeLayout::NeverBreakAfterOperator;
+        return Ok(AssignmentLikeLayout::NeverBreakAfterOperator);
     }
 
-    AssignmentLikeLayout::Fluid
+    Ok(AssignmentLikeLayout::Fluid)
 }
 
 /// Write one assignment expression with one chosen layout.
@@ -564,8 +842,9 @@ pub(crate) fn format_assign_expression<'ast>(
     operator: &AssignOperator,
     right: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let (left_nodes, is_left_short, left_may_break) = buffer_assignment_left(f, left)?;
+    let (left_nodes, is_left_short, left_may_break) =
+        buffer_assignment_expression_layout_left(f, left)?;
     let layout =
-        assignment_expression_layout(f, node_id, left, right, is_left_short, left_may_break);
+        assignment_expression_layout(f, node_id, left, right, is_left_short, left_may_break)?;
     write_assignment_expression_layout(f, left_nodes, left, operator, right, layout)
 }

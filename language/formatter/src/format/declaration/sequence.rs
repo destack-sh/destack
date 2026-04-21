@@ -152,6 +152,56 @@ pub(crate) fn expression_postfix_end(
         .fold(default_end, |end, comment| end.max(comment.span.end))
 }
 
+/// Skip a source semicolon and horizontal trivia after one formatted statement end.
+fn advance_past_source_statement_terminator(
+    context: &DestackFormatContext<'_>,
+    mut offset: u32,
+) -> u32 {
+    // skip the source semicolon that the formatter already re-emitted
+    while let Some(byte) = context.source_text().byte_at(offset) {
+        if matches!(byte, b';' | b' ' | b'\t') {
+            offset += 1;
+            continue;
+        }
+
+        break;
+    }
+
+    offset
+}
+
+/// Return the raw prefix start before one ignored range.
+fn ignored_range_prefix_start(
+    context: &DestackFormatContext<'_>,
+    previous_output_end: Option<(FileId, u32)>,
+    previous_output_was_ignored: bool,
+    previous_expression_id: Option<LocalNodeId<Expression>>,
+    expression_id: LocalNodeId<Expression>,
+    expression_span: Span,
+) -> u32 {
+    // stay on the formatter-managed source cursor when the previous output was formatted
+    if let Some((previous_file, previous_end)) = previous_output_end
+        && previous_file == expression_span.file
+    {
+        if previous_output_was_ignored {
+            return previous_end;
+        }
+
+        return advance_past_source_statement_terminator(context, previous_end);
+    }
+
+    // otherwise fall back to the previous source statement end in the same file
+    if let Some(previous_expression_id) = previous_expression_id {
+        let previous_span = context.span(previous_expression_id);
+
+        if previous_span.file == expression_span.file {
+            return advance_past_source_statement_terminator(context, previous_span.end);
+        }
+    }
+
+    expression_prefix_start(context, expression_id, expression_span.start)
+}
+
 /// Return comments between one previous statement end and the next expression head.
 fn expression_gap_comment_nodes(
     context: &DestackFormatContext<'_>,
@@ -459,6 +509,7 @@ pub(crate) fn format_block_statement_sequence<'ast>(
     };
     let effective_expressions = expressions;
     let mut previous_output_end: Option<(FileId, u32)> = None;
+    let mut previous_output_was_ignored = false;
     let mut skip_until: Option<u32> = None;
 
     for (i, &expression_id) in effective_expressions.iter().enumerate() {
@@ -530,23 +581,21 @@ pub(crate) fn format_block_statement_sequence<'ast>(
         }
 
         if let Some(range_span) = ignore_range {
-            let prefix_start = if let Some((previous_file, previous_end)) = previous_output_end {
-                if previous_file == range_span.file {
-                    previous_end
-                } else {
-                    expression_prefix_start(f.context(), expression_id, expression_span.start)
-                }
-            } else if i > 0 {
-                let previous_expression_id = effective_expressions[i - 1];
-                let previous_span = f.context().span(previous_expression_id);
-                if previous_span.file == range_span.file {
-                    previous_span.end
-                } else {
-                    expression_prefix_start(f.context(), expression_id, expression_span.start)
-                }
+            // the first ignored statement has no previous source sibling
+            let previous_expression_id = if i > 0 {
+                Some(effective_expressions[i - 1])
             } else {
-                expression_prefix_start(f.context(), expression_id, expression_span.start)
+                None
             };
+
+            let prefix_start = ignored_range_prefix_start(
+                f.context(),
+                previous_output_end,
+                previous_output_was_ignored,
+                previous_expression_id,
+                expression_id,
+                expression_span,
+            );
             if prefix_start < range_span.start {
                 let prefix_span = Span::new(range_span.file, prefix_start, range_span.start);
                 write_ignored_span(f, prefix_span)?;
@@ -555,6 +604,7 @@ pub(crate) fn format_block_statement_sequence<'ast>(
             write_ignored_span(f, range_span)?;
             skip_until = Some(range_span.end);
             previous_output_end = Some((range_span.file, range_span.end));
+            previous_output_was_ignored = true;
             continue;
         }
 
@@ -585,6 +635,7 @@ pub(crate) fn format_block_statement_sequence<'ast>(
             following_expression_start,
         )?;
         previous_output_end = Some((expression_span.file, expression_output_end));
+        previous_output_was_ignored = false;
     }
     Ok(())
 }
@@ -607,6 +658,7 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
         std::collections::HashMap::new()
     };
     let mut previous_output_end: Option<(FileId, u32)> = None;
+    let mut previous_output_was_ignored = false;
     let mut previous_expression_id: Option<LocalNodeId<Expression>> = None;
     let mut skip_until: Option<u32> = None;
 
@@ -678,22 +730,14 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
         }
 
         if let Some(range_span) = ignore_range {
-            let prefix_start = if let Some((previous_file, previous_end)) = previous_output_end {
-                if previous_file == range_span.file {
-                    previous_end
-                } else {
-                    expression_prefix_start(f.context(), expression_id, expression_span.start)
-                }
-            } else if let Some(previous_expression_id) = previous_expression_id {
-                let previous_span = f.context().span(previous_expression_id);
-                if previous_span.file == range_span.file {
-                    previous_span.end
-                } else {
-                    expression_prefix_start(f.context(), expression_id, expression_span.start)
-                }
-            } else {
-                expression_prefix_start(f.context(), expression_id, expression_span.start)
-            };
+            let prefix_start = ignored_range_prefix_start(
+                f.context(),
+                previous_output_end,
+                previous_output_was_ignored,
+                previous_expression_id,
+                expression_id,
+                expression_span,
+            );
             if prefix_start < range_span.start {
                 let prefix_span = Span::new(range_span.file, prefix_start, range_span.start);
                 write_ignored_span(f, prefix_span)?;
@@ -702,6 +746,7 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
             write_ignored_span(f, range_span)?;
             skip_until = Some(range_span.end);
             previous_output_end = Some((range_span.file, range_span.end));
+            previous_output_was_ignored = true;
             continue;
         }
 
@@ -741,6 +786,7 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
             following_expression_start,
         )?;
         previous_output_end = Some((expression_span.file, expression_output_end));
+        previous_output_was_ignored = false;
         previous_expression_id = Some(expression_id);
     }
     Ok(())
@@ -791,6 +837,7 @@ fn format_program_statement_sequence<'ast>(
     let mut prev_was_import = false;
     let mut prev_import_id: Option<LocalNodeId<Expression>> = None;
     let mut previous_output_end: Option<(FileId, u32)> = None;
+    let mut previous_output_was_ignored = false;
     let mut skip_until: Option<u32> = None;
 
     for (i, &expression_id) in effective_expressions.iter().enumerate() {
@@ -875,23 +922,21 @@ fn format_program_statement_sequence<'ast>(
         }
 
         if let Some(range_span) = ignore_range {
-            let prefix_start = if let Some((previous_file, previous_end)) = previous_output_end {
-                if previous_file == range_span.file {
-                    previous_end
-                } else {
-                    expression_prefix_start(f.context(), expression_id, expression_span.start)
-                }
-            } else if i > 0 {
-                let previous_expression_id = effective_expressions[i - 1];
-                let previous_span = f.context().span(previous_expression_id);
-                if previous_span.file == range_span.file {
-                    previous_span.end
-                } else {
-                    expression_prefix_start(f.context(), expression_id, expression_span.start)
-                }
+            // the first ignored statement has no previous source sibling
+            let previous_expression_id = if i > 0 {
+                Some(effective_expressions[i - 1])
             } else {
-                expression_prefix_start(f.context(), expression_id, expression_span.start)
+                None
             };
+
+            let prefix_start = ignored_range_prefix_start(
+                f.context(),
+                previous_output_end,
+                previous_output_was_ignored,
+                previous_expression_id,
+                expression_id,
+                expression_span,
+            );
             if prefix_start < range_span.start {
                 let prefix_span = Span::new(range_span.file, prefix_start, range_span.start);
                 write_ignored_span(f, prefix_span)?;
@@ -902,6 +947,7 @@ fn format_program_statement_sequence<'ast>(
             prev_was_import = false;
             prev_import_id = None;
             previous_output_end = Some((range_span.file, range_span.end));
+            previous_output_was_ignored = true;
             continue;
         }
 
@@ -936,6 +982,7 @@ fn format_program_statement_sequence<'ast>(
                 .map(|expression_id| f.context().span(*expression_id).start),
         )?;
         previous_output_end = Some((expression_span.file, expression_output_end));
+        previous_output_was_ignored = false;
     }
 
     Ok(())

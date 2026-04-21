@@ -78,7 +78,6 @@ The shared conformance catalog is generated from `suite.json` and `status.json`.
 | web | fetch | fetch | translated 20, excluded 11 | 55d076dca564300616a75eec5ec696e805c7bc3b |
 | web | fileapi | FileAPI | translated 5 | 55d076dca564300616a75eec5ec696e805c7bc3b |
 | web | filesystem-access | File System Access | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
-| web | html | HTML | none | f994590f528ac8b6073665791ddb1ed85c66dfb2 |
 | web | indexeddb | IndexedDB | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
 | web | streams | Streams | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
 | web | url | URL | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
