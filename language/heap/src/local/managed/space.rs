@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::{
-    GcState, LargeEntry, LargeEntryId, ManagedLocation, ManagedReferenceEntry, ManagedYoungId,
+    GcSummary, LargeEntry, LargeEntryId, ManagedLocation, ManagedReferenceEntry, ManagedYoungId,
     PinSet, SmallSpan, YoungEntry, YoungSpace,
 };
 use crate::arena::{Arena, PageRunCache, PageView, SizeClassTable};
@@ -24,7 +24,7 @@ pub(crate) const FIRST_ALLOCATED_REFERENCE_ID: u64 = 1;
 const FIRST_ALLOCATED_LARGE_ENTRY_ID: u64 = 1;
 
 /// Convert a stable managed reference id into its packed representation.
-pub(crate) fn checked_reference_id(reference_id: u64) -> HeapResult<u32> {
+pub(crate) fn checked_packed_reference_id(reference_id: u64) -> HeapResult<u32> {
     if reference_id == 0 || reference_id > u32::MAX as u64 {
         return Err(HeapError::InvalidManagedReferenceId { id: reference_id });
     }
@@ -58,7 +58,7 @@ pub(crate) struct LargeSpace {
     pub(crate) next_unused_large_entry_id: u64,
 }
 
-/// One live managed entry space rooted in one arena.
+/// One managed space over a shared arena.
 #[derive(Debug)]
 pub struct ManagedSpace {
     /// The shared page arena for every managed payload.
@@ -95,27 +95,31 @@ pub struct ManagedSpace {
     pub(crate) usage: AllocationUsage,
 
     /// The live GC state.
-    pub(crate) gc_state: GcState,
+    pub(crate) gc_state: GcSummary,
     /// The reusable collector mark set.
     pub(crate) marks: ManagedMarkSet,
     /// The reusable collector trace queue.
     pub(crate) trace_queue: ManagedTraceQueue,
     /// Whether a managed collection is currently running.
     pub(crate) is_collecting: bool,
-    /// The scoped managed pins that block branch boundaries and movement.
+    /// The scoped managed pins that keep stable addresses and block branch boundaries.
     pub(crate) pins: PinSet,
     /// Mature spans queued for dirty-card scanning.
     pub(crate) dirty_spans: Vec<usize>,
     /// Mature large entries queued for dirty-card scanning.
     pub(crate) dirty_large_entries: Vec<LargeEntryId>,
-    /// Whether one local-to-shared root scan is currently active.
-    pub(crate) is_scanning_shared_roots: bool,
-    /// The next dense reference slot to scan for shared roots.
-    pub(crate) shared_root_cursor: usize,
+    /// Live local references whose shapes may contain shared managed edges.
+    pub(crate) shared_edge_roots: Vec<ManagedReference>,
+    /// Dense reverse index into tracked shared edges keyed by reference id minus one.
+    pub(crate) shared_edge_index: Vec<Option<usize>>,
+    /// Whether one local-to-shared edge scan is currently active.
+    pub(crate) is_scanning_shared_edges: bool,
+    /// The next dense reference slot to scan for shared edges.
+    pub(crate) shared_edge_cursor: usize,
     /// The pending local references whose shared edges need rescanning.
-    pub(crate) shared_root_queue: ManagedTraceQueue,
-    /// Queue-membership bits for pending shared rescans.
-    pub(crate) shared_root_pending: Vec<bool>,
+    pub(crate) shared_edge_queue: ManagedTraceQueue,
+    /// Queue-membership bits for pending shared-edge rescans.
+    pub(crate) shared_edge_pending: Vec<bool>,
 }
 
 impl ManagedSpace {
@@ -132,7 +136,7 @@ impl ManagedSpace {
 
     /// Create one managed space with explicit options.
     pub fn with_options(arena: Arc<Arena>, options: &HeapOptions) -> Result<Self, HeapError> {
-        options.validate()?;
+        options.validate_local()?;
         options.validate_arena(&arena)?;
 
         Self::build_with_options(arena, options)
@@ -186,17 +190,19 @@ impl ManagedSpace {
             free_reference_ids: Vec::new(),
             next_unused_reference_id: FIRST_ALLOCATED_REFERENCE_ID,
             usage: AllocationUsage::default(),
-            gc_state: GcState::default(),
+            gc_state: GcSummary::default(),
             marks: MarkSet::default(),
             trace_queue: TraceQueue::default(),
             is_collecting: false,
             pins: PinSet::default(),
             dirty_spans: Vec::new(),
             dirty_large_entries: Vec::new(),
-            is_scanning_shared_roots: false,
-            shared_root_cursor: 0,
-            shared_root_queue: TraceQueue::default(),
-            shared_root_pending: Vec::new(),
+            shared_edge_roots: Vec::new(),
+            shared_edge_index: Vec::new(),
+            is_scanning_shared_edges: false,
+            shared_edge_cursor: 0,
+            shared_edge_queue: TraceQueue::default(),
+            shared_edge_pending: Vec::new(),
         })
     }
 
@@ -229,12 +235,16 @@ impl ManagedSpace {
     }
 
     /// Return the current GC state.
-    pub fn gc_state(&self) -> &GcState {
+    pub fn gc_state(&self) -> &GcSummary {
         &self.gc_state
     }
 
     /// Pin one local managed reference against movement.
     pub fn pin(&mut self, reference: ManagedReference) -> HeapResult<()> {
+        // first ensure the reference already points at stable mature storage
+        self.promote_pin_reference(reference)?;
+
+        // then record the active pin count
         self.pins.pin(reference)
     }
 
@@ -264,14 +274,9 @@ impl ManagedSpace {
         })
     }
 
-    /// Flush the local page-run cache back into the arena page-run pool.
-    pub(crate) fn flush_page_run_cache(&mut self) {
-        self.page_run_cache.flush(&self.arena);
-    }
-
     /// Flush transient cache state before one exact branch boundary.
     pub(crate) fn flush_branch_boundary(&mut self) {
-        self.flush_page_run_cache();
+        self.page_run_cache.flush(&self.arena);
     }
 
     /// Allocate one zeroed page view through the local page-run cache.
@@ -324,23 +329,93 @@ impl ManagedSpace {
         Ok(index as usize)
     }
 
-    /// Store one dense managed reference record by stable reference id.
-    pub(crate) fn set_reference_entry(
-        &mut self,
-        reference_id: u32,
-        record: ManagedReferenceEntry,
-    ) -> HeapResult<()> {
-        self.references
-            .set_or_push(Self::reference_index(reference_id)?, record)
-    }
-
     /// Retire one stable managed reference slot.
     pub(crate) fn retire_reference(&mut self, reference_id: u32) -> HeapResult<()> {
+        self.remove_shared_edge_root(ManagedReference::new(reference_id))?;
+
         self.references.set(
             Self::reference_index(reference_id)?,
             ManagedReferenceEntry::vacant(),
         )?;
         self.free_reference_ids.push(reference_id.into());
+
+        Ok(())
+    }
+
+    /// Rebuild the tracked local references that may contain shared edges.
+    pub(crate) fn rebuild_shared_edge_roots(&mut self) -> HeapResult<()> {
+        self.shared_edge_roots.clear();
+        self.shared_edge_index.clear();
+        let mut tracked_references = Vec::new();
+
+        for (index, record) in self.references.iter().enumerate() {
+            if record.is_vacant() {
+                continue;
+            }
+
+            let reference = ManagedReference::new(checked_packed_reference_id(index as u64 + 1)?);
+
+            if !self.reference_has_shared_roots(reference)? {
+                continue;
+            }
+
+            tracked_references.push(reference);
+        }
+
+        for reference in tracked_references {
+            self.track_shared_edge_root(reference)?;
+        }
+
+        Ok(())
+    }
+
+    /// Record one live reference whose shape may contain shared edges.
+    pub(crate) fn track_shared_edge_root(&mut self, reference: ManagedReference) -> HeapResult<()> {
+        let index = Self::reference_index(reference.id())?;
+
+        if self.shared_edge_index.len() <= index {
+            self.shared_edge_index.resize(index + 1, None);
+        }
+
+        if self.shared_edge_index[index].is_some() {
+            return Ok(());
+        }
+
+        let tracked_index = self.shared_edge_roots.len();
+        self.shared_edge_roots.push(reference);
+        self.shared_edge_index[index] = Some(tracked_index);
+
+        Ok(())
+    }
+
+    /// Remove one live reference from the tracked shared-edge set.
+    pub(crate) fn remove_shared_edge_root(
+        &mut self,
+        reference: ManagedReference,
+    ) -> HeapResult<()> {
+        let index = Self::reference_index(reference.id())?;
+        let Some(&tracked_index) = self.shared_edge_index.get(index) else {
+            return Ok(());
+        };
+
+        let Some(tracked_index) = tracked_index else {
+            return Ok(());
+        };
+
+        let moved_reference = self.shared_edge_roots.pop();
+        self.shared_edge_index[index] = None;
+
+        let Some(moved_reference) = moved_reference else {
+            return Ok(());
+        };
+
+        if tracked_index == self.shared_edge_roots.len() {
+            return Ok(());
+        }
+
+        self.shared_edge_roots[tracked_index] = moved_reference;
+        let moved_index = Self::reference_index(moved_reference.id())?;
+        self.shared_edge_index[moved_index] = Some(tracked_index);
 
         Ok(())
     }
@@ -513,7 +588,6 @@ impl ManagedSpace {
             byte_len,
             self.managed_reference_bytes,
         )?;
-
         if !is_overlapping {
             return Ok(());
         }
@@ -535,7 +609,6 @@ impl ManagedSpace {
                         context: "managed dirty card start",
                     })?;
             span.dirty_cards.mark_range(dirty_start, byte_len);
-
             if !span.is_dirty_queued {
                 span.is_dirty_queued = true;
                 should_queue = true;
@@ -621,6 +694,6 @@ impl ManagedSpace {
 
 impl Drop for ManagedSpace {
     fn drop(&mut self) {
-        self.flush_page_run_cache();
+        self.page_run_cache.flush(&self.arena);
     }
 }

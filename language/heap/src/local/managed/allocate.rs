@@ -1,6 +1,6 @@
 use super::{
     CardSet, HeapScan, LargeEntry, LargeEntryId, ManagedLocation, ManagedReferenceEntry,
-    ManagedSpace, ManagedYoungId, SmallSpan, YoungEntry, checked_reference_id,
+    ManagedSpace, ManagedYoungId, SmallSpan, YoungEntry, checked_packed_reference_id,
 };
 use crate::arena::{Arena, PageView, SpanAllocationPath, SpanSlot};
 use crate::{Bitmap, HeapError, HeapResult, HeapSpace, LayoutId, ManagedReference, Shape, ShapeId};
@@ -268,8 +268,21 @@ impl ManagedSpace {
         let location = self.allocate_location(byte_len, bytes, shape_id, path)?;
 
         // install the live reference record and counters
-        self.set_reference_entry(reference_id, ManagedReferenceEntry::new(location, byte_len))?;
+        self.references.set_or_push(
+            Self::reference_index(reference_id)?,
+            ManagedReferenceEntry::new(location, byte_len),
+        )?;
         self.usage.allocate(byte_len, HeapSpace::Managed)?;
+        let Some(shape) = self.shape_table.shape(shape_id) else {
+            return Err(HeapError::InvalidShapeId {
+                index: shape_id.index(),
+            });
+        };
+
+        // track every live reference whose shape may contain shared edges
+        if shape.scan.has_shared_reference() {
+            self.track_shared_edge_root(reference)?;
+        }
 
         // queue newly published shared edges during an active shared cycle
         if bytes.is_some() {
@@ -342,12 +355,12 @@ impl ManagedSpace {
     fn allocate_reference_id(&mut self) -> HeapResult<u32> {
         // reuse one freed reference id when possible
         if let Some(reference_id) = self.free_reference_ids.pop() {
-            checked_reference_id(reference_id)
+            checked_packed_reference_id(reference_id)
         }
         // otherwise allocate from the unused tail
         else {
             let reference_id = self.next_unused_reference_id;
-            let reference_id = checked_reference_id(reference_id)?;
+            let reference_id = checked_packed_reference_id(reference_id)?;
             self.next_unused_reference_id = self.next_unused_reference_id.checked_add(1).ok_or(
                 HeapError::InvalidManagedReferenceId {
                     id: self.next_unused_reference_id,

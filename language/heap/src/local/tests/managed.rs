@@ -1,10 +1,11 @@
 use crate::tests::test_arena;
-use crate::{EdgeMap, HeapError, HeapOptions, ManagedReference, ManagedSpace};
+use crate::{HeapError, HeapOptions, ManagedReference, ManagedSpace};
+use destack_mir::LayoutTrace;
 
 /// Preserve stable managed ids across allocation growth and id reuse.
 #[test]
 fn test_allocate_managed_ids_reuse_after_free() {
-    let options = HeapOptions::default();
+    let options = HeapOptions::local();
     let mut managed = ManagedSpace::with_options(test_arena(&options), &options)
         .expect("default managed options should build");
     let mut last = ManagedReference::NULL;
@@ -12,7 +13,7 @@ fn test_allocate_managed_ids_reuse_after_free() {
     // grow the reference table beyond one short run
     for index in 0..12 {
         last = managed
-            .allocate_bytes(&[index as u8], EdgeMap::empty(), None)
+            .allocate_bytes(&[index as u8], LayoutTrace::empty(), None)
             .expect("managed allocation should succeed");
     }
 
@@ -23,7 +24,7 @@ fn test_allocate_managed_ids_reuse_after_free() {
     assert!(managed.free(reused).expect("managed free should succeed"));
 
     let reference = managed
-        .allocate_bytes(&[0xAB], EdgeMap::empty(), None)
+        .allocate_bytes(&[0xAB], LayoutTrace::empty(), None)
         .expect("managed allocation should succeed");
 
     assert_eq!(reference.id(), reused.id());
@@ -35,13 +36,13 @@ fn test_free_managed_reuses_large_entry_ids() {
     let options = HeapOptions {
         managed_young_bytes: 0,
         managed_small_bytes: 32,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     };
     let large_byte_len = options.size_classes.max_small_allocation_bytes() + 1;
     let mut managed = ManagedSpace::with_options(test_arena(&options), &options)
         .expect("explicit managed options should build");
     let first = managed
-        .allocate_bytes(&vec![0xAB; large_byte_len], EdgeMap::empty(), None)
+        .allocate_bytes(&vec![0xAB; large_byte_len], LayoutTrace::empty(), None)
         .expect("managed large allocation should succeed");
 
     // the first large allocation should consume the first large-entry id
@@ -59,7 +60,7 @@ fn test_free_managed_reuses_large_entry_ids() {
     assert_eq!(managed.large.free_large_entry_ids, vec![1]);
 
     let second = managed
-        .allocate_bytes(&vec![0xCD; large_byte_len], EdgeMap::empty(), None)
+        .allocate_bytes(&vec![0xCD; large_byte_len], LayoutTrace::empty(), None)
         .expect("managed large reallocation should succeed");
 
     assert!(matches!(
@@ -73,7 +74,7 @@ fn test_free_managed_reuses_large_entry_ids() {
 /// Managed free reports invalid references loudly.
 #[test]
 fn test_free_managed_rejects_invalid_reference() {
-    let options = HeapOptions::default();
+    let options = HeapOptions::local();
     let mut managed = ManagedSpace::with_options(test_arena(&options), &options)
         .expect("default managed options should build");
 

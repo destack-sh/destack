@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use super::{
-    CardSet, GcState, LargeEntry, LargeEntryImage, ManagedReferenceEntry, ManagedSpace, SmallSpan,
-    SmallSpanImage, YoungImage, YoungSpace,
+    CardSet, GcSummary, LargeEntry, LargeEntryImage, ManagedReferenceEntry, ManagedSpace,
+    SmallSpan, SmallSpanImage, YoungImage, YoungSpace,
 };
 use crate::arena::{Arena, PageRunCache, PageView, SizeClassTable};
 use crate::{
@@ -55,7 +55,7 @@ pub(crate) struct ManagedSpaceImage {
     allocated_bytes: u64,
 
     /// The captured GC state.
-    gc_state: GcState,
+    gc_state: GcSummary,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -79,7 +79,7 @@ impl ManagedSpaceImage {
         next_unused_large_entry_id: u64,
         allocated_count: usize,
         allocated_bytes: u64,
-        gc_state: GcState,
+        gc_state: GcSummary,
     ) -> Self {
         Self {
             young,
@@ -200,7 +200,7 @@ impl ManagedSpaceImage {
     }
 
     /// Return the captured collector state.
-    pub(crate) fn gc_state(&self) -> &GcState {
+    pub(crate) fn gc_state(&self) -> &GcSummary {
         &self.gc_state
     }
 }
@@ -250,14 +250,17 @@ impl ManagedSpace {
                 pins: Default::default(),
                 dirty_spans: Vec::new(),
                 dirty_large_entries: Vec::new(),
-                is_scanning_shared_roots: false,
-                shared_root_cursor: 0,
-                shared_root_queue: TraceQueue::default(),
-                shared_root_pending: Vec::new(),
+                shared_edge_roots: Vec::new(),
+                shared_edge_index: Vec::new(),
+                is_scanning_shared_edges: false,
+                shared_edge_cursor: 0,
+                shared_edge_queue: TraceQueue::default(),
+                shared_edge_pending: Vec::new(),
             };
 
             // rebuild remembered-set state conservatively after fork
             space.rebuild_remembered_set()?;
+            space.rebuild_shared_edge_roots()?;
 
             Ok(space)
         })();
@@ -357,14 +360,17 @@ impl ManagedSpace {
                 pins: Default::default(),
                 dirty_spans: Vec::new(),
                 dirty_large_entries: Vec::new(),
-                is_scanning_shared_roots: false,
-                shared_root_cursor: 0,
-                shared_root_queue: TraceQueue::default(),
-                shared_root_pending: Vec::new(),
+                shared_edge_roots: Vec::new(),
+                shared_edge_index: Vec::new(),
+                is_scanning_shared_edges: false,
+                shared_edge_cursor: 0,
+                shared_edge_queue: TraceQueue::default(),
+                shared_edge_pending: Vec::new(),
             };
 
             // rebuild remembered-set state conservatively after restore
             space.rebuild_remembered_set()?;
+            space.rebuild_shared_edge_roots()?;
 
             Ok(space)
         })();
