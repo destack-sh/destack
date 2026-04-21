@@ -1,15 +1,20 @@
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+
+use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
 
 use super::{
     SharedLargeEntry, SharedManagedLargeEntryImage, SharedManagedReferenceEntry,
     SharedManagedSmallSpanImage, SharedManagedSpace, SharedSmallSpan,
 };
-use crate::shared::gc::SharedGcPhase;
-use crate::shared::managed::space::{SharedLargeSpace, SharedSmallSpace};
+use crate::arena::PageRunCache;
+use crate::shared::gc::SharedGcState;
+use crate::shared::managed::space::{
+    SharedLargeSpace, SharedManagedState, SharedSmallSpace, find_next_free_slot,
+};
 use crate::{
-    AllocationUsage, Arena, GcState, HeapResult, MarkSet, PageId, Shape, ShapeId, ShapeTable,
-    SizeClassTable, TraceQueue,
+    AllocationUsage, Arena, GcSummary, HeapResult, PageId, Shape, ShapeId, ShapeTable,
+    SizeClassTable,
 };
 
 /// One frozen shared managed-space root.
@@ -25,7 +30,6 @@ pub struct SharedManagedSpaceImage {
     page_bytes: usize,
     /// The captured shared managed entries in large space.
     entries: Box<[SharedManagedLargeEntryImage]>,
-
     /// Captured shared managed references keyed by reference id minus one.
     references: Box<[SharedManagedReferenceEntry]>,
     /// The captured shared managed entry shapes.
@@ -38,20 +42,19 @@ pub struct SharedManagedSpaceImage {
     free_large_entry_ids: Box<[u64]>,
     /// The next shared managed large-entry id to allocate.
     next_unused_large_entry_id: u64,
-
     /// The number of allocated shared managed-space entries.
     allocated_count: usize,
     /// The number of allocated shared managed-space bytes.
     allocated_bytes: u64,
     /// The captured shared managed collector state.
-    gc_state: GcState,
+    gc_state: GcSummary,
 }
 
 impl SharedManagedSpaceImage {
     /// Create one frozen shared managed-space root.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
-        size_classes: crate::SizeClassTable,
+        size_classes: SizeClassTable,
         small_bytes: usize,
         spans: Box<[SharedManagedSmallSpanImage]>,
         page_bytes: usize,
@@ -64,7 +67,7 @@ impl SharedManagedSpaceImage {
         next_unused_large_entry_id: u64,
         allocated_count: usize,
         allocated_bytes: u64,
-        gc_state: GcState,
+        gc_state: GcSummary,
     ) -> Self {
         Self {
             size_classes,
@@ -85,7 +88,7 @@ impl SharedManagedSpaceImage {
     }
 
     /// Return the configured size-class table.
-    pub fn size_classes(&self) -> &crate::SizeClassTable {
+    pub fn size_classes(&self) -> &SizeClassTable {
         &self.size_classes
     }
 
@@ -130,7 +133,7 @@ impl SharedManagedSpaceImage {
     }
 
     /// Return the captured shared managed collector state.
-    pub fn gc_state(&self) -> &GcState {
+    pub fn gc_state(&self) -> &GcSummary {
         &self.gc_state
     }
 
@@ -155,10 +158,13 @@ impl SharedManagedSpaceImage {
 impl SharedManagedSpace {
     /// Fork one shared managed-space root over the same shared arena.
     pub fn fork(&self) -> HeapResult<Self> {
+        let store = self.store.read();
         let mut retained = Vec::new();
 
         // span pages
-        for span in &self.small.spans {
+        for span in &store.small.spans {
+            let span = span.read();
+
             if let Err(error) = self.arena.retain_page_view(&span.pages) {
                 for page_view in retained.into_iter().rev() {
                     self.arena.release_page_view(&page_view)?;
@@ -171,7 +177,9 @@ impl SharedManagedSpace {
         }
 
         // large-entry pages
-        for entry in &self.large.entries {
+        for entry in &store.large.entries {
+            let entry = entry.read();
+
             if let Err(error) = self.arena.retain_page_view(&entry.pages) {
                 for page_view in retained.into_iter().rev() {
                     self.arena.release_page_view(&page_view)?;
@@ -183,23 +191,42 @@ impl SharedManagedSpace {
             retained.push(entry.pages);
         }
 
+        let cloned_store = SharedManagedState {
+            page_run_cache: PageRunCache::new(self.arena.pages_per_segment()),
+            small: SharedSmallSpace {
+                size_classes: store.small.size_classes.clone(),
+                span_bytes: store.small.span_bytes,
+                spans: store
+                    .small
+                    .spans
+                    .iter()
+                    .map(|span| Arc::new(RwLock::new(span.read().clone())))
+                    .collect(),
+                available_spans: store.small.available_spans.clone(),
+            },
+            large: SharedLargeSpace {
+                page_bytes: store.large.page_bytes,
+                entries: store
+                    .large
+                    .entries
+                    .iter()
+                    .map(|entry| Arc::new(RwLock::new(entry.read().clone())))
+                    .collect(),
+                free_large_entry_ids: store.large.free_large_entry_ids.clone(),
+                next_unused_large_entry_id: store.large.next_unused_large_entry_id,
+            },
+            references: store.references.clone(),
+            shape_table: store.shape_table.clone(),
+            free_reference_ids: store.free_reference_ids.clone(),
+            next_unused_reference_id: store.next_unused_reference_id,
+            usage: store.usage,
+            gc_state: store.gc_state.clone(),
+        };
+
         Ok(Self {
             arena: self.arena.clone(),
-            small: self.small.clone(),
-            large: self.large.clone(),
-            references: self.references.clone(),
-            shape_table: self.shape_table.clone(),
-            free_reference_ids: self.free_reference_ids.clone(),
-            next_unused_reference_id: self.next_unused_reference_id,
-            usage: self.usage,
-            gc_state: self.gc_state.clone(),
-            marks: MarkSet::default(),
-            trace_queue: TraceQueue::default(),
-            edge_buffer: Vec::new(),
-            phase: SharedGcPhase::Idle,
-            sweep_cursor: 0,
-            cycle_freed_allocations: 0,
-            cycle_freed_bytes: 0,
+            store: RwLock::new(cloned_store),
+            gc: SharedGcState::default(),
         })
     }
 
@@ -236,16 +263,16 @@ impl SharedManagedSpace {
             retained.push(entry.pages);
         }
 
-        Ok(Self {
-            arena: arena.clone(),
+        let store = SharedManagedState {
+            page_run_cache: PageRunCache::new(arena.pages_per_segment()),
             small: SharedSmallSpace {
                 size_classes: image.size_classes().clone(),
                 span_bytes: image.small_bytes(),
                 spans: image
                     .spans()
                     .iter()
-                    .map(|span| -> HeapResult<SharedSmallSpan> {
-                        Ok(SharedSmallSpan {
+                    .map(|span| -> HeapResult<Arc<RwLock<SharedSmallSpan>>> {
+                        Ok(Arc::new(RwLock::new(SharedSmallSpan {
                             size_class: span.size_class,
                             slot_count: span.slot_count,
                             occupied_count: span.occupied.count_ones(),
@@ -258,7 +285,7 @@ impl SharedManagedSpace {
                                 .collect::<HeapResult<Vec<_>>>()?
                                 .into_boxed_slice(),
                             pages: span.pages,
-                        })
+                        })))
                     })
                     .collect::<HeapResult<Vec<_>>>()?,
                 available_spans: vec![Vec::new(); image.size_classes().classes.len()],
@@ -268,13 +295,13 @@ impl SharedManagedSpace {
                 entries: image
                     .entries()
                     .iter()
-                    .map(|entry| -> HeapResult<SharedLargeEntry> {
-                        Ok(SharedLargeEntry {
+                    .map(|entry| -> HeapResult<Arc<RwLock<SharedLargeEntry>>> {
+                        Ok(Arc::new(RwLock::new(SharedLargeEntry {
                             is_live: entry.is_live,
                             len: entry.len,
                             pages: entry.pages,
                             shape_id: ShapeId::from_raw(entry.shape_id)?,
-                        })
+                        })))
                     })
                     .collect::<HeapResult<Vec<_>>>()?,
                 free_large_entry_ids: image.free_large_entry_ids.to_vec(),
@@ -286,106 +313,120 @@ impl SharedManagedSpace {
             next_unused_reference_id: image.next_unused_reference_id(),
             usage: AllocationUsage::new(image.allocated_count(), image.allocated_bytes()),
             gc_state: image.gc_state().clone(),
-            marks: MarkSet::default(),
-            trace_queue: TraceQueue::default(),
-            edge_buffer: Vec::new(),
-            phase: SharedGcPhase::Idle,
-            sweep_cursor: 0,
-            cycle_freed_allocations: 0,
-            cycle_freed_bytes: 0,
+        };
+
+        Ok(Self {
+            arena,
+            store: RwLock::new(store),
+            gc: SharedGcState::default(),
         }
         .with_rebuilt_small_availability())
     }
 
     /// Return one frozen shared managed-space root.
     pub fn image(&self) -> SharedManagedSpaceImage {
+        let store = self.store.read();
+
         SharedManagedSpaceImage::new(
-            self.small.size_classes.clone(),
-            self.small.span_bytes,
-            self.small
+            store.small.size_classes.clone(),
+            store.small.span_bytes,
+            store
+                .small
                 .spans
                 .iter()
-                .map(|span| SharedManagedSmallSpanImage {
-                    size_class: span.size_class,
-                    slot_count: span.slot_count,
-                    occupied: span.occupied.clone(),
-                    shape_ids: span
-                        .shape_ids
-                        .iter()
-                        .map(|shape_id| shape_id.map(ShapeId::raw))
-                        .collect::<Vec<_>>()
-                        .into_boxed_slice(),
-                    pages: span.pages,
+                .map(|span| {
+                    let span = span.read();
+
+                    SharedManagedSmallSpanImage {
+                        size_class: span.size_class,
+                        slot_count: span.slot_count,
+                        occupied: span.occupied.clone(),
+                        shape_ids: span
+                            .shape_ids
+                            .iter()
+                            .map(|shape_id| shape_id.map(ShapeId::raw))
+                            .collect::<Vec<_>>()
+                            .into_boxed_slice(),
+                        pages: span.pages,
+                    }
                 })
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
-            self.large.page_bytes,
-            self.large
+            store.large.page_bytes,
+            store
+                .large
                 .entries
                 .iter()
-                .map(|entry| SharedManagedLargeEntryImage {
-                    is_live: entry.is_live,
-                    len: entry.len,
-                    pages: entry.pages,
-                    shape_id: entry.shape_id.raw(),
+                .map(|entry| {
+                    let entry = entry.read();
+
+                    SharedManagedLargeEntryImage {
+                        is_live: entry.is_live,
+                        len: entry.len,
+                        pages: entry.pages,
+                        shape_id: entry.shape_id.raw(),
+                    }
                 })
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
-            self.references.clone().into_boxed_slice(),
-            self.shape_table.shapes().to_vec().into_boxed_slice(),
-            self.free_reference_ids.clone().into_boxed_slice(),
-            self.next_unused_reference_id,
-            self.large.free_large_entry_ids.clone().into_boxed_slice(),
-            self.large.next_unused_large_entry_id,
-            self.usage.allocation_count(),
-            self.usage.allocated_bytes(),
-            self.gc_state.clone(),
+            store.references.clone().into_boxed_slice(),
+            store.shape_table.shapes().to_vec().into_boxed_slice(),
+            store.free_reference_ids.clone().into_boxed_slice(),
+            store.next_unused_reference_id,
+            store.large.free_large_entry_ids.clone().into_boxed_slice(),
+            store.large.next_unused_large_entry_id,
+            store.usage.allocation_count(),
+            store.usage.allocated_bytes(),
+            store.gc_state.clone(),
         )
     }
 
     /// Return every arena page reachable from this live shared managed space.
     pub fn page_ids(&self) -> Vec<PageId> {
+        let store = self.store.read();
         let mut pages = Vec::new();
 
         // span pages
-        for span in &self.small.spans {
-            pages.extend(span.pages.page_ids());
+        for span in &store.small.spans {
+            pages.extend(span.read().pages.page_ids());
         }
 
         // large-entry pages
-        for entry in &self.large.entries {
-            pages.extend(entry.pages.page_ids());
+        for entry in &store.large.entries {
+            pages.extend(entry.read().pages.page_ids());
         }
 
         pages
     }
 
     /// Rebuild shared small-span availability after cloning or restore.
-    fn with_rebuilt_small_availability(mut self) -> Self {
-        for span_index in 0..self.small.spans.len() {
-            let span = &mut self.small.spans[span_index];
-            span.next_free_slot = find_next_free_slot(&span.occupied, 0, span.slot_count);
+    fn with_rebuilt_small_availability(self) -> Self {
+        let mut store = self.store.write();
 
-            if span.occupied_count == 0 || span.occupied_count >= span.slot_count {
+        for span_index in 0..store.small.spans.len() {
+            let size_class;
+            let occupied_count;
+            let slot_count;
+
+            {
+                let mut span = store.small.spans[span_index].write();
+                span.next_free_slot = find_next_free_slot(&span.occupied, 0, span.slot_count);
+                size_class = span.size_class;
+                occupied_count = span.occupied_count;
+                slot_count = span.slot_count;
+            }
+
+            if occupied_count == 0 || occupied_count >= slot_count {
                 continue;
             }
 
-            if let Some(class_index) = self.small.size_classes.class_index_for(span.size_class) {
-                self.small.available_spans[class_index].push(span_index);
+            if let Some(class_index) = store.small.size_classes.class_index_for(size_class) {
+                store.small.available_spans[class_index].push(span_index);
             }
         }
 
+        drop(store);
+
         self
     }
-}
-
-/// Return the next clear slot starting at the given cursor.
-fn find_next_free_slot(occupied: &crate::Bitmap, start: usize, slot_count: usize) -> usize {
-    for slot_index in start..slot_count {
-        if !occupied.contains(slot_index) {
-            return slot_index;
-        }
-    }
-
-    slot_count
 }

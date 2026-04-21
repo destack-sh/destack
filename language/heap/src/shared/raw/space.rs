@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
+use parking_lot::{Mutex, RwLock};
+
 use super::SharedRawEntry;
+use crate::arena::PageRunCache;
 use crate::{
     AllocationUsage, Arena, HeapError, HeapResult, HeapSpace, SharedRawPointer, SharedRawSpaceUsage,
 };
@@ -17,21 +20,28 @@ fn checked_shared_entry_id(entry_id: u64) -> HeapResult<u32> {
     Ok(entry_id as u32)
 }
 
+/// Allocator metadata for one shared raw space.
+#[derive(Debug, Default)]
+pub(crate) struct SharedRawAllocator {
+    /// The shared front-end cache of reusable page runs.
+    pub(crate) page_run_cache: PageRunCache,
+    /// Free shared raw-space entry ids available for reuse.
+    pub(crate) free_ids: Vec<u64>,
+    /// The next shared raw-space entry id to allocate.
+    pub(crate) next_unused_id: u64,
+    /// The exact live shared raw-space usage.
+    pub(crate) usage: AllocationUsage,
+}
+
 /// One live shared raw-space store rooted in one arena.
 #[derive(Debug)]
 pub struct SharedRawSpace {
     /// The shared raw-space arena for every entry.
     pub(crate) arena: Arc<Arena>,
-
+    /// The shared raw-space allocator control state.
+    pub(crate) allocator: Mutex<SharedRawAllocator>,
     /// Stable shared raw-space entries keyed by entry id minus one.
-    pub(crate) entries: Vec<SharedRawEntry>,
-    /// Free shared raw-space entry ids available for reuse.
-    pub(crate) free_ids: Vec<u64>,
-    /// The next shared raw-space entry id to allocate.
-    pub(crate) next_unused_id: u64,
-
-    /// The exact live shared raw-space usage.
-    pub(crate) usage: AllocationUsage,
+    pub(crate) entries: RwLock<Vec<Arc<RwLock<SharedRawEntry>>>>,
 }
 
 impl Default for SharedRawSpace {
@@ -48,12 +58,17 @@ impl SharedRawSpace {
 
     /// Create a new empty shared raw-space store over one shared arena.
     pub fn with_arena(arena: Arc<Arena>) -> Self {
+        let page_run_cache = PageRunCache::new(arena.pages_per_segment());
+
         Self {
             arena,
-            entries: Vec::new(),
-            free_ids: Vec::new(),
-            next_unused_id: FIRST_SHARED_ENTRY_ID,
-            usage: AllocationUsage::default(),
+            allocator: Mutex::new(SharedRawAllocator {
+                page_run_cache,
+                free_ids: Vec::new(),
+                next_unused_id: FIRST_SHARED_ENTRY_ID,
+                usage: AllocationUsage::default(),
+            }),
+            entries: RwLock::new(Vec::new()),
         }
     }
 
@@ -69,41 +84,92 @@ impl SharedRawSpace {
 
     /// Return the exact mapped shared page bytes.
     pub fn mapped_bytes(&self) -> u64 {
-        self.arena
-            .mapped_bytes_for_page_views(self.entries.iter().map(|entry| &entry.pages))
+        let allocator = self.allocator.lock();
+
+        self.live_mapped_bytes(&allocator)
     }
 
     /// Return the exact borrowed shared bytes.
     pub fn borrowed_bytes(&self) -> HeapResult<u64> {
-        self.arena
-            .borrowed_bytes_for_page_views(self.entries.iter().map(|entry| &entry.pages))
+        let entries = self.entries.read();
+        let pages = self.live_pages(&entries);
+
+        self.arena.borrowed_bytes_for_page_views(pages.iter())
     }
 
     /// Return the exact usage for this live shared raw-space store.
     pub fn usage(&self) -> HeapResult<SharedRawSpaceUsage> {
+        // allocator summary
+        let allocator = self.allocator.lock();
+        let allocation_count = allocator.usage.allocation_count();
+        let allocated_bytes = allocator.usage.allocated_bytes();
+        let mapped_bytes = self.live_mapped_bytes(&allocator);
+        let active_bytes = mapped_bytes;
+
+        drop(allocator);
+
+        // borrowed bytes
+        let borrowed_bytes = self.borrowed_bytes()?;
+
         Ok(SharedRawSpaceUsage {
-            allocation_count: self.usage.allocation_count(),
-            allocated_bytes: self.usage.allocated_bytes(),
-            active_bytes: self.active_bytes(),
-            mapped_bytes: self.mapped_bytes(),
-            borrowed_bytes: self.borrowed_bytes()?,
+            allocation_count,
+            allocated_bytes,
+            active_bytes,
+            mapped_bytes,
+            borrowed_bytes,
         })
+    }
+
+    /// Return the mapped live bytes for the current shared raw state.
+    fn live_mapped_bytes(&self, allocator: &SharedRawAllocator) -> u64 {
+        let entries = self.entries.read();
+        let pages = self.live_pages(&entries);
+        let cached_bytes = allocator
+            .page_run_cache
+            .cached_bytes(self.arena.page_bytes());
+
+        self.arena
+            .mapped_bytes_for_page_views(pages.iter())
+            .saturating_add(cached_bytes)
     }
 
     /// Return whether one shared raw pointer currently refers to one live entry slot.
     pub fn is_live(&self, pointer: SharedRawPointer) -> bool {
-        self.entry(pointer).is_some()
+        let Some(entry) = self.entry(pointer) else {
+            return false;
+        };
+
+        !entry.read().is_vacant()
     }
 
     /// Allocate one shared raw byte entry.
-    pub fn allocate_bytes(&mut self, bytes: &[u8]) -> HeapResult<SharedRawPointer> {
-        let entry_id = self.allocate_entry_id()?;
-        let pages = self.arena.allocate_bytes(bytes)?;
-        let entry = SharedRawEntry::new(bytes.len(), pages);
+    pub fn allocate_bytes(&self, bytes: &[u8]) -> HeapResult<SharedRawPointer> {
+        let mut allocator = self.allocator.lock();
+        let entry_id = self.allocate_entry_id(&mut allocator)?;
+        let pages = allocator
+            .page_run_cache
+            .allocate_bytes(&self.arena, bytes)?;
+        let entry = Arc::new(RwLock::new(SharedRawEntry::new(bytes.len(), pages)));
 
         // install the live entry slot and usage
-        self.set_entry(entry_id, entry)?;
-        self.usage.allocate(bytes.len(), HeapSpace::SharedRaw)?;
+        let index = Self::entry_index(entry_id)?;
+        let mut entries = self.entries.write();
+
+        if index > entries.len() {
+            return Err(HeapError::InvalidSharedRawPointerId {
+                id: entry_id.into(),
+            });
+        }
+
+        if index == entries.len() {
+            entries.push(entry);
+        } else {
+            entries[index] = entry;
+        }
+
+        allocator
+            .usage
+            .allocate(bytes.len(), HeapSpace::SharedRaw)?;
 
         Ok(SharedRawPointer::new(entry_id))
     }
@@ -118,73 +184,96 @@ impl SharedRawSpace {
         let Some(entry) = self.entry(pointer) else {
             return Err(HeapError::InvalidSharedRawPointer { pointer });
         };
+        let entry = entry.read();
+
+        if entry.is_vacant() {
+            return Err(HeapError::InvalidSharedRawPointer { pointer });
+        }
 
         checked_remaining_byte_len(pointer, entry.len)
     }
 
     /// Return the bytes for one shared raw pointer.
     pub fn read_bytes(&self, pointer: SharedRawPointer) -> HeapResult<Vec<u8>> {
-        // resolve the live entry first
         let Some(entry) = self.entry(pointer) else {
             return Err(HeapError::InvalidSharedRawPointer { pointer });
         };
+        let entry = entry.read();
+
+        if entry.is_vacant() {
+            return Err(HeapError::InvalidSharedRawPointer { pointer });
+        }
+
         let byte_offset = pointer.byte_offset();
         let byte_len = checked_remaining_byte_len(pointer, entry.len)?;
 
-        // then materialize the requested logical range
         self.arena
             .bytes_to_vec_from(&entry.pages, byte_offset, byte_len)
     }
 
     /// Replace the bytes for one shared raw pointer.
-    pub fn replace_bytes(&mut self, pointer: SharedRawPointer, bytes: &[u8]) -> HeapResult<()> {
-        // resolve the live entry and shared arena first
-        let arena = self.arena.clone();
-        let Some(previous_entry) = self.entry(pointer) else {
+    pub fn replace_bytes(&self, pointer: SharedRawPointer, bytes: &[u8]) -> HeapResult<()> {
+        let Some(entry) = self.entry(pointer) else {
             return Err(HeapError::InvalidSharedRawPointer { pointer });
         };
-        let previous_pages = previous_entry.pages;
-        let next_pages = arena.allocate_bytes(bytes)?;
-        let previous_len = previous_entry.len;
 
-        let Some(entry) = self.entry_mut(pointer) else {
+        let mut allocator = self.allocator.lock();
+        let next_pages = allocator
+            .page_run_cache
+            .allocate_bytes(&self.arena, bytes)?;
+        let mut entry = entry.write();
+
+        if entry.is_vacant() {
+            allocator
+                .page_run_cache
+                .release_page_view(&self.arena, next_pages)?;
+
             return Err(HeapError::InvalidSharedRawPointer { pointer });
-        };
+        }
+
+        let previous_pages = entry.pages;
+        let previous_len = entry.len;
 
         // commit the replacement before releasing the previous pages
         entry.pages = next_pages;
-
-        // update the live byte count
         entry.len = bytes.len();
-        self.usage
+        allocator
+            .usage
             .resize(previous_len, bytes.len(), HeapSpace::SharedRaw)?;
-
-        // release the previous page view after commit
-        arena.release_page_view(&previous_pages)?;
+        allocator
+            .page_run_cache
+            .release_page_view(&self.arena, previous_pages)?;
 
         Ok(())
     }
 
     /// Free one shared raw-space entry.
-    pub fn free(&mut self, pointer: SharedRawPointer) -> HeapResult<bool> {
-        // resolve the live entry first
-        let entry_id = pointer.id();
+    pub fn free(&self, pointer: SharedRawPointer) -> HeapResult<bool> {
         let Some(entry) = self.entry(pointer) else {
             return Err(HeapError::InvalidSharedRawPointer { pointer });
         };
+
+        let mut allocator = self.allocator.lock();
+        let mut entry = entry.write();
+
+        if entry.is_vacant() {
+            return Err(HeapError::InvalidSharedRawPointer { pointer });
+        }
+
         let pages = entry.pages;
         let previous_len = entry.len as u64;
 
-        self.usage.check_free(previous_len, HeapSpace::SharedRaw)?;
+        allocator
+            .usage
+            .check_free(previous_len, HeapSpace::SharedRaw)?;
 
         // retire the live entry slot before releasing its pages
-        self.retire_entry(entry_id)?;
-
-        // update shared usage before releasing the old pages
-        self.usage.free(previous_len, HeapSpace::SharedRaw)?;
-
-        // release the old physical pages after the live slot is gone
-        self.arena.release_page_view(&pages)?;
+        entry.retire();
+        allocator.free_ids.push(pointer.id().into());
+        allocator.usage.free(previous_len, HeapSpace::SharedRaw)?;
+        allocator
+            .page_run_cache
+            .release_page_view(&self.arena, pages)?;
 
         Ok(true)
     }
@@ -198,6 +287,11 @@ impl SharedRawSpace {
         let Some(entry) = self.entry(pointer) else {
             return Err(HeapError::InvalidSharedRawPointer { pointer });
         };
+        let entry = entry.read();
+
+        if entry.is_vacant() {
+            return Err(HeapError::InvalidSharedRawPointer { pointer });
+        }
 
         let previous_mapped_bytes = self.round_up_allocation_bytes(entry.len);
         let next_mapped_bytes = self.round_up_allocation_bytes(next_byte_len);
@@ -206,23 +300,11 @@ impl SharedRawSpace {
     }
 
     /// Return one allocated shared entry by pointer.
-    fn entry(&self, pointer: SharedRawPointer) -> Option<&SharedRawEntry> {
-        // resolve the dense entry slot first
+    fn entry(&self, pointer: SharedRawPointer) -> Option<Arc<RwLock<SharedRawEntry>>> {
         let index = pointer.id().checked_sub(1)? as usize;
-        let entry = self.entries.get(index)?;
+        let entries = self.entries.read();
 
-        // skip free entry entries
-        (!entry.is_vacant()).then_some(entry)
-    }
-
-    /// Return one live shared entry mutably by pointer.
-    fn entry_mut(&mut self, pointer: SharedRawPointer) -> Option<&mut SharedRawEntry> {
-        // resolve the dense entry slot first
-        let index = pointer.id().checked_sub(1)? as usize;
-        let entry = self.entries.get_mut(index)?;
-
-        // skip free entry entries
-        (!entry.is_vacant()).then_some(entry)
+        entries.get(index).cloned()
     }
 
     /// Return the dense table index for one shared pointer id.
@@ -237,82 +319,44 @@ impl SharedRawSpace {
     }
 
     /// Allocate one stable shared entry id.
-    fn allocate_entry_id(&mut self) -> HeapResult<u32> {
-        // reuse one freed entry id when possible
-        if let Some(entry_id) = self.free_ids.pop() {
+    fn allocate_entry_id(&self, allocator: &mut SharedRawAllocator) -> HeapResult<u32> {
+        if let Some(entry_id) = allocator.free_ids.pop() {
             let entry_id = checked_shared_entry_id(entry_id)?;
             let index = Self::entry_index(entry_id)?;
+            let entries = self.entries.read();
 
-            if index > self.entries.len() {
-                self.free_ids.push(entry_id.into());
+            if index > entries.len() {
+                allocator.free_ids.push(entry_id.into());
 
                 return Err(HeapError::InvalidSharedRawPointerId {
                     id: entry_id.into(),
                 });
             }
 
-            if self
-                .entries
+            if entries
                 .get(index)
-                .is_some_and(|entry| !entry.is_vacant())
+                .is_some_and(|entry| !entry.read().is_vacant())
             {
-                self.free_ids.push(entry_id.into());
+                allocator.free_ids.push(entry_id.into());
 
                 return Err(HeapError::InvalidSharedRawPointerId {
                     id: entry_id.into(),
                 });
             }
 
-            Ok(entry_id)
-        }
-        // otherwise allocate from the unused tail
-        else {
-            let entry_id = self.next_unused_id;
-            let entry_id = checked_shared_entry_id(entry_id)?;
-
-            self.next_unused_id =
-                self.next_unused_id
-                    .checked_add(1)
-                    .ok_or(HeapError::InvalidSharedRawPointerId {
-                        id: self.next_unused_id,
-                    })?;
-
-            Ok(entry_id)
-        }
-    }
-
-    /// Store one dense shared entry by stable entry id.
-    fn set_entry(&mut self, entry_id: u32, entry: SharedRawEntry) -> HeapResult<()> {
-        let index = Self::entry_index(entry_id)?;
-
-        if index > self.entries.len() {
-            return Err(HeapError::InvalidSharedRawPointerId {
-                id: entry_id.into(),
-            });
+            return Ok(entry_id);
         }
 
-        if index == self.entries.len() {
-            self.entries.push(entry);
-        } else {
-            self.entries[index] = entry;
-        }
+        let entry_id = allocator.next_unused_id;
+        let entry_id = checked_shared_entry_id(entry_id)?;
 
-        Ok(())
-    }
+        allocator.next_unused_id = allocator.next_unused_id.checked_add(1).ok_or(
+            HeapError::InvalidSharedRawPointerId {
+                id: allocator.next_unused_id,
+            },
+        )?;
 
-    /// Retire one stable shared entry slot.
-    fn retire_entry(&mut self, entry_id: u32) -> HeapResult<()> {
-        let index = Self::entry_index(entry_id)?;
-        let Some(entry) = self.entries.get_mut(index) else {
-            return Err(HeapError::InvalidSharedRawPointerId {
-                id: entry_id.into(),
-            });
-        };
-
-        entry.retire();
-        self.free_ids.push(entry_id.into());
-
-        Ok(())
+        Ok(entry_id)
     }
 
     /// Return the page-rounded mapped bytes for one shared entry.
@@ -321,6 +365,30 @@ impl SharedRawSpace {
         let byte_len = byte_len as u64;
 
         byte_len.div_ceil(page_bytes) * page_bytes
+    }
+
+    /// Return the current live raw entry page views.
+    fn live_pages(&self, entries: &[Arc<RwLock<SharedRawEntry>>]) -> Vec<crate::PageView> {
+        let mut pages = Vec::with_capacity(entries.len());
+
+        for entry in entries {
+            let entry = entry.read();
+            if entry.is_vacant() {
+                continue;
+            }
+
+            pages.push(entry.pages);
+        }
+
+        pages
+    }
+}
+
+impl Drop for SharedRawSpace {
+    fn drop(&mut self) {
+        let mut allocator = self.allocator.lock();
+
+        allocator.page_run_cache.flush(&self.arena);
     }
 }
 

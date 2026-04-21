@@ -2,7 +2,7 @@ mod image;
 mod large;
 mod location;
 mod reference;
-mod space;
+pub(crate) mod space;
 mod span;
 
 pub use image::SharedManagedSpaceImage;

@@ -12,7 +12,7 @@ fn test_roundtrip_shared_memory_image_and_fork() {
         ..HeapOptions::shared()
     };
     let arena = test_arena(&layout);
-    let mut shared = SharedRawSpace::with_arena(arena);
+    let shared = SharedRawSpace::with_arena(arena);
 
     // capture two allocations so only one has to detach later
     let first = shared
@@ -23,7 +23,7 @@ fn test_roundtrip_shared_memory_image_and_fork() {
         .expect("shared allocation should succeed");
     let image = shared.image();
     let forked = shared.fork().expect("shared fork should retain live pages");
-    let mut restored = SharedRawSpace::from_image_with_arena(shared.arena.clone(), &image)
+    let restored = SharedRawSpace::from_image_with_arena(shared.arena.clone(), &image)
         .expect("shared image restore should succeed");
     let forked_image = forked.image();
     let restored_image = restored.image();
@@ -72,7 +72,7 @@ fn test_roundtrip_shared_managed_space_image() {
         ..HeapOptions::shared()
     };
     let arena = test_arena(&layout);
-    let mut managed = SharedManagedSpace::with_arena(arena.clone());
+    let managed = SharedManagedSpace::with_arena(arena.clone());
 
     // capture two entries in one shared small span
     let first_bytes = vec![1; 6];
@@ -87,13 +87,13 @@ fn test_roundtrip_shared_managed_space_image() {
         .set_layout_id(first, LayoutId::new(41))
         .expect("shared managed storage layout id should update");
     let image = managed.image();
-    let mut restored = SharedManagedSpace::from_image_with_arena(arena.clone(), &image)
+    let restored = SharedManagedSpace::from_image_with_arena(arena.clone(), &image)
         .expect("shared managed image restore should succeed");
     let restored_image = restored.image();
 
     // restored metadata should match and untouched pages should still share
     assert_eq!(restored.layout_id(first), Ok(Some(LayoutId::new(41))));
-    assert_eq!(restored.scan(first), Ok(&HeapScan::empty()));
+    assert_eq!(restored.scan(first), Ok(HeapScan::empty()));
     assert!(Arc::ptr_eq(&restored.arena, &arena));
     assert_eq!(image.spans()[0].pages, restored_image.spans()[0].pages);
 
