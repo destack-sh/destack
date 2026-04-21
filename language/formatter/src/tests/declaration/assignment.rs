@@ -127,6 +127,40 @@ fn test_format_assignment_require_initializer_stays_attached() {
     );
 }
 
+/// Interpolated template arguments should not trigger the poorly-breakable call shortcut.
+#[test]
+fn test_format_assignment_interpolated_template_argument_uses_fluid_layout() {
+    assert_format_program_reference_widths(
+        r#"const veryLongBindingName = namespace.foo(`hello ${name}`)
+"#,
+        FileType::TypeScript,
+        &[(
+            30,
+            r#"const veryLongBindingName =
+  namespace.foo(
+    `hello ${name}`,
+  );
+"#,
+        )],
+    );
+}
+
+/// Primitive `null` arguments should still count as short in the assignment-like chain shell.
+#[test]
+fn test_format_assignment_null_argument_breaks_after_operator() {
+    assert_format_program_reference_widths(
+        r#"const veryLongBindingName = namespace.foo(null)
+"#,
+        FileType::TypeScript,
+        &[(
+            30,
+            r#"const veryLongBindingName =
+  namespace.foo(null);
+"#,
+        )],
+    );
+}
+
 /// Call-expression type arguments should preserve leading comments.
 #[test]
 fn test_format_assignment_call_with_type_args_comments() {
@@ -297,6 +331,7 @@ fn test_format_assignment_break_left_hand_side_layout() {
     ...attrs
   } = { className: "name", unfurl: "unfurl", others: [1, 2, 3] });
 }
+
 "#,
             ),
             (
@@ -451,5 +486,42 @@ const requestTrie = TernarySearchTree.forPaths<IRecursiveWatchRequest>(!isLinux)
 "#,
             ),
         ],
+    );
+}
+
+/// Assignment expressions should break after `=` for poorly breakable call chains.
+#[test]
+fn test_format_assignment_expression_call_chain_breaks_after_operator() {
+    assert_format_program_reference_widths(
+        r#"result = api.namespace.member().tail()
+"#,
+        FileType::TypeScript,
+        &[(
+            20,
+            r#"result =
+  api.namespace
+    .member()
+    .tail();
+"#,
+        )],
+    );
+}
+
+/// Long left-hand sides with string rhs values should break after `=`.
+#[test]
+fn test_format_assignment_string_rhs_breaks_after_operator() {
+    assert_format_program_reference_widths(
+        r#"const veryLongVariableName = "value"
+veryLongVariableName = "value"
+"#,
+        FileType::TypeScript,
+        &[(
+            20,
+            r#"const veryLongVariableName =
+  "value";
+veryLongVariableName =
+  "value";
+"#,
+        )],
     );
 }
