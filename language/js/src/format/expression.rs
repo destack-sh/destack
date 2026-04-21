@@ -235,7 +235,7 @@ fn format_expression_with_precedence<'ast>(
             format_expression_id_with_precedence(*right, right_precedence, f)?;
         }
         Expression::Assign { left, right } => {
-            format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
+            write!(f, [left])?;
             write!(f, [token("=")])?;
             format_expression_id_with_precedence(*right, Precedence::Assignment, f)?;
         }

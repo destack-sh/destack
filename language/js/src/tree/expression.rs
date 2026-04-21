@@ -1,7 +1,7 @@
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Block, Declaration, FunctionSignature, LocalNodeId,
-    Node, NodeType, Path, Property, ScalarLiteral, StringId, TemplateLiteral, TypeExpression,
-    UnaryOperator,
+    Argument, AssignOperator, AssignPattern, BinaryOperator, Block, Declaration, FunctionSignature,
+    LocalNodeId, Node, NodeType, Path, Property, ScalarLiteral, StringId, TemplateLiteral,
+    TypeExpression, UnaryOperator,
 };
 use destack_source::ModuleId;
 
@@ -86,7 +86,7 @@ pub enum Expression {
     },
     /// Assignment operation.
     Assign {
-        left: LocalNodeId<Expression>,
+        left: LocalNodeId<AssignPattern>,
         right: LocalNodeId<Expression>,
     },
     /// Assignment binary operation.
