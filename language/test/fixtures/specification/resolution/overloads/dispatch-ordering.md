@@ -9,11 +9,11 @@ For receiver calls, overload resolution should commit to the first compatible re
 ```ds
 struct Counter {}
 
-extension for Counter implements Add<number> {
+extension of Counter implements Add<number> {
     add(other: number): "number" { return "number" }
 }
 
-extension for Counter implements Add<int32> {
+extension of Counter implements Add<int32> {
     add(other: int32): "int32" { return "int32" }
 }
 
@@ -29,11 +29,11 @@ A later receiver overload must not replace an already applicable earlier receive
 ```ds
 struct Counter {}
 
-extension for Counter implements Add<number> {
+extension of Counter implements Add<number> {
     add(other: number): "number" { return "number" }
 }
 
-extension for Counter implements Add<int32> {
+extension of Counter implements Add<int32> {
     add(other: int32): "int32" { return "int32" }
 }
 
@@ -52,7 +52,7 @@ When only a receiver form exists, rhs-only implementations should not be conside
 struct Left {}
 struct Right {}
 
-extension for Right implements Add<Left> {
+extension of Right implements Add<Left> {
     add(other: Left): Right { return Right {} }
 }
 
@@ -75,11 +75,11 @@ export struct Counter {}
 ```ds:extensions.ds
 import { Counter } from "./counter";
 
-export extension CounterNumberAdd for Counter implements Add<number> {
+export extension CounterNumberAdd of Counter implements Add<number> {
     add(other: number): "number" { return "number" }
 }
 
-export extension CounterIntAdd for Counter implements Add<int32> {
+export extension CounterIntAdd of Counter implements Add<int32> {
     add(other: int32): "int32" { return "int32" }
 }
 ```

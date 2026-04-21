@@ -11,7 +11,7 @@ Tests for unary operator overloading via interface implementations.
 ```ds
 struct Signed { value: int }
 
-extension for Signed implements Negate, Plus, Not {
+extension of Signed implements Negate, Plus, Not {
     negate(): Signed { return this }
     plus(): Signed { return this }
     not(): Signed { return this }
@@ -38,7 +38,7 @@ inverted satisfies Signed;
 ```ds
 struct Pointer { value: int }
 
-extension for Pointer implements Deref<int> {
+extension of Pointer implements Deref<int> {
     deref(): int { return this.value }
 }
 
@@ -56,7 +56,7 @@ derefValue satisfies int;
 ```ds
 struct Signed { value: int }
 
-extension for Signed implements Negate {
+extension of Signed implements Negate {
     negate(): Signed { return this }
 }
 
@@ -93,11 +93,11 @@ derefValue satisfies int;
 struct Signed { value: int }
 struct Unsigned { value: int }
 
-extension for Signed implements Negate {
+extension of Signed implements Negate {
     negate(): Signed { return this }
 }
 
-extension for Unsigned implements Plus {
+extension of Unsigned implements Plus {
     plus(): Unsigned { return this }
 }
 
@@ -118,7 +118,7 @@ unsignedValue satisfies Unsigned;
 ```ds
 struct Signed { value: int }
 
-extension for Signed implements Plus {
+extension of Signed implements Plus {
     plus(): Signed { return this }
 }
 

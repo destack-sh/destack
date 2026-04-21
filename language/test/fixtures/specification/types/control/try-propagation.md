@@ -66,7 +66,7 @@ struct Custom<T, E> {
     value: Branch<T, E>;
 }
 
-extension<T, E> for Custom<T, E> implements Try<T, E> {
+extension<T, E> of Custom<T, E> implements Try<T, E> {
     branch(): Branch<T, E> {
         this.value
     }

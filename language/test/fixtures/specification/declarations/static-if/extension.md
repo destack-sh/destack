@@ -13,7 +13,7 @@ struct Box {
     value: number;
 }
 
-extension for Box {
+extension of Box {
     @if(import.meta.emit == "js" && import.meta.emit == "native")
     missing(): MissingType {
         return missingSymbol;
@@ -39,7 +39,7 @@ struct Box {
     value: number;
 }
 
-extension for Box {
+extension of Box {
     @if(true)
     get(): number {
         return this.value;
@@ -61,7 +61,7 @@ struct Box {
     value: number;
 }
 
-extension for Box {
+extension of Box {
     @if(false)
     missing(): number {
         return this.value;
@@ -89,7 +89,7 @@ struct Box {
     value: number;
 }
 
-extension for Box {
+extension of Box {
     @if(false)
     hidden(): number {
         this.value
@@ -120,7 +120,7 @@ struct Box {
     value: number;
 }
 
-extension for Box {
+extension of Box {
     @if(true)
     double(): number {
         this.value * 2

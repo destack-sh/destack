@@ -10,7 +10,7 @@ export struct Set<T> {
     buckets: *T;
 }
 
-extension<T> for Set<T> implements Iterable<T> {
+extension<T> of Set<T> implements Iterable<T> {
     /// Create an empty set.
     static new(): Set<T> {
         Set { length: 0, capacity: 0, ctrl: null as *uint8, buckets: null as *T }

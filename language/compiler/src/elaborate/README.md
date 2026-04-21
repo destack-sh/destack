@@ -424,7 +424,7 @@ struct Vec2 {
     y: int32;
 }
 
-extension for Vec2 implements Add<Vec2> {
+extension of Vec2 implements Add<Vec2> {
     add(other: Vec2): Vec2 {
         return Vec2 { x: this.x + other.x, y: this.y + other.y };
     }
@@ -482,7 +482,7 @@ struct Cat {
     name: string;
 }
 
-extension for Cat {
+extension of Cat {
     speak(): string { 
         return "meow";
     }
@@ -512,12 +512,12 @@ struct Dog {
     name: string;
 }
 
-extension for Cat {
+extension of Cat {
     speak(): string { 
         return "meow"; 
     }
 }
-extension for Dog {
+extension of Dog {
     speak(): string {
         return "woof";
     }
@@ -622,7 +622,7 @@ function first(arr: int32[]): int32 {
 // source
 struct Vec2 { x: int32, y: int32 }
 
-extension for Vec2 implements Index<int32, int32> {
+extension of Vec2 implements Index<int32, int32> {
     index(i: int32): int32 { 
         if (i == 0) { 
             return this.x; 

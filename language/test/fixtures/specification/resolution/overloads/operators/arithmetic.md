@@ -11,7 +11,7 @@ Tests for arithmetic operator overloading via interface implementations.
 ```ds
 struct Scalar { value: int }
 
-extension for Scalar implements Add<Scalar>, Subtract<Scalar>, Multiply<Scalar>, Divide<Scalar>, Remainder<Scalar>, Power<Scalar> {
+extension of Scalar implements Add<Scalar>, Subtract<Scalar>, Multiply<Scalar>, Divide<Scalar>, Remainder<Scalar>, Power<Scalar> {
     add(other: Scalar): Scalar { return this }
     subtract(other: Scalar): Scalar { return this }
     multiply(other: Scalar): Scalar { return this }
@@ -75,7 +75,7 @@ powSaturating satisfies Scalar;
 ```ds
 struct Scalar { value: int }
 
-extension for Scalar implements Add<Scalar> {
+extension of Scalar implements Add<Scalar> {
     add(other: Scalar): Scalar { return this }
 }
 
@@ -101,7 +101,7 @@ subtract satisfies Scalar;
 struct Scalar { value: int }
 struct Other { value: int }
 
-extension for Scalar implements Add<Scalar> {
+extension of Scalar implements Add<Scalar> {
     add(other: Scalar): Scalar { return this }
 }
 
@@ -125,7 +125,7 @@ add satisfies Scalar;
 struct Scalar { value: int }
 struct Other { value: int }
 
-extension for Other implements Add<Scalar> {
+extension of Other implements Add<Scalar> {
     add(other: Scalar): Other { return this }
 }
 
@@ -148,7 +148,7 @@ add satisfies Other;
 ```ds
 struct Scalar { value: int }
 
-extension for Scalar implements Add<Scalar> {
+extension of Scalar implements Add<Scalar> {
     add(other: Scalar): Scalar { return this }
 }
 
@@ -169,7 +169,7 @@ wrapped satisfies Scalar;
 struct Scalar { value: int }
 struct Other { value: int }
 
-extension for Scalar implements Add<Scalar> {
+extension of Scalar implements Add<Scalar> {
     add(other: Scalar): Scalar { return this }
 }
 

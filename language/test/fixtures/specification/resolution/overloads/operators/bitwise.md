@@ -11,7 +11,7 @@ Tests for bitwise and shift operator overloading via interface implementations.
 ```ds
 struct Bits { value: int }
 
-extension for Bits implements ShiftLeft<Bits>, ShiftRight<Bits>, ShiftRightUnsigned<Bits>, And<Bits>, Or<Bits>, Xor<Bits> {
+extension of Bits implements ShiftLeft<Bits>, ShiftRight<Bits>, ShiftRightUnsigned<Bits>, And<Bits>, Or<Bits>, Xor<Bits> {
     shiftLeft(other: Bits): Bits { return this }
     shiftRight(other: Bits): Bits { return this }
     shiftRightUnsigned(other: Bits): Bits { return this }
@@ -54,7 +54,7 @@ xorValue satisfies Bits;
 ```ds
 struct Bits { value: int }
 
-extension for Bits implements ShiftLeft<Bits>, And<Bits> {
+extension of Bits implements ShiftLeft<Bits>, And<Bits> {
     shiftLeft(other: Bits): Bits { return this }
     and(other: Bits): Bits { return this }
 }
@@ -81,7 +81,7 @@ shiftUnsigned satisfies Bits;
 struct Bits { value: int }
 struct OtherBits { value: int }
 
-extension for Bits implements And<Bits> {
+extension of Bits implements And<Bits> {
     and(other: Bits): Bits { return this }
 }
 
@@ -105,7 +105,7 @@ andValue satisfies Bits;
 struct Bits { value: int }
 struct OtherBits { value: int }
 
-extension for OtherBits implements And<Bits> {
+extension of OtherBits implements And<Bits> {
     and(other: Bits): OtherBits { return this }
 }
 
@@ -128,7 +128,7 @@ andValue satisfies OtherBits;
 ```ds
 struct Bits { value: int }
 
-extension for Bits implements ShiftLeft<Bits> {
+extension of Bits implements ShiftLeft<Bits> {
     shiftLeft(other: Bits): Bits { return this }
 }
 
@@ -149,7 +149,7 @@ shifted satisfies Bits;
 struct Bits { value: int }
 struct OtherBits { value: int }
 
-extension for Bits implements ShiftLeft<Bits> {
+extension of Bits implements ShiftLeft<Bits> {
     shiftLeft(other: Bits): Bits { return this }
 }
 

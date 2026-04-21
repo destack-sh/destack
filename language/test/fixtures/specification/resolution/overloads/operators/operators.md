@@ -11,7 +11,7 @@ Tests for operator overloading via interface implementations.
 ```ds
 struct Vector2 { x: number; y: number }
 
-extension for Vector2 implements Add<Vector2> {
+extension of Vector2 implements Add<Vector2> {
     add(other: Vector2): Vector2 {
         return Vector2 { x: 0, y: 0 }
     }
@@ -32,7 +32,7 @@ sum satisfies Vector2;
 ```ds
 struct Vector2 { x: number; y: number }
 
-extension for Vector2 {
+extension of Vector2 {
     add(other: Vector2): Vector2 {
         return Vector2 { x: 0, y: 0 }
     }
@@ -98,11 +98,11 @@ export struct Counter {}
 ```ds:extensions.ds
 import { Counter } from "./counter";
 
-export extension CounterNumberAdd for Counter implements Add<number> {
+export extension CounterNumberAdd of Counter implements Add<number> {
     add(other: number): "number" { return "number" }
 }
 
-export extension CounterIntAdd for Counter implements Add<int32> {
+export extension CounterIntAdd of Counter implements Add<int32> {
     add(other: int32): "int32" { return "int32" }
 }
 ```
@@ -132,11 +132,11 @@ export struct Counter {}
 ```ds:extensions.ds
 import { Counter } from "./counter";
 
-export extension CounterNumberAdd for Counter implements Add<number> {
+export extension CounterNumberAdd of Counter implements Add<number> {
     add(other: number): "number" { return "number" }
 }
 
-export extension CounterIntAdd for Counter implements Add<int32> {
+export extension CounterIntAdd of Counter implements Add<int32> {
     add(other: int32): "int32" { return "int32" }
 }
 ```

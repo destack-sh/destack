@@ -22,7 +22,7 @@ parse(42)     // calls second
 Operator overloading requires explicit `implements`:
 
 ```ds
-extension for Vector2 implements Add<Vector2> {
+extension of Vector2 implements Add<Vector2> {
     add(other: Vector2): Vector2 { ... }
 }
 

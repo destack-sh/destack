@@ -68,7 +68,7 @@ interface Window<Row> {
 
 struct Data<Row> {}
 
-extension<Row> for Data<Row> implements Window<Row> {
+extension<Row> of Data<Row> implements Window<Row> {
     comptime const Rows: number = 16;
 }
 

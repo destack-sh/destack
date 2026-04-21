@@ -11,7 +11,7 @@ Tests for static parameters on extensions.
 ```ds
 struct Box<T> { value: T }
 
-extension<T> for Box<T> {
+extension<T> of Box<T> {
     get(): T {
         return this.value;
     }
@@ -30,7 +30,7 @@ boxed.get() satisfies number;
 ```ds
 struct Buffer<T, comptime N: number> { value: T }
 
-extension<T, comptime N: number> for Buffer<T, N> {
+extension<T, comptime N: number> of Buffer<T, N> {
     get(): T {
         return this.value;
     }
@@ -52,7 +52,7 @@ struct Pair<A, B> {
     right: B
 }
 
-extension<Left, Right> for Pair<Right, Left> {
+extension<Left, Right> of Pair<Right, Left> {
     swap(): Pair<Left, Right> {
         return Pair<Left, Right> {
             left: this.right,
@@ -76,7 +76,7 @@ struct Buffer<T, comptime N: number = 4> {
     value: T
 }
 
-extension<T, comptime N: number> for Buffer<T, N> {
+extension<T, comptime N: number> of Buffer<T, N> {
     get(): T {
         return this.value;
     }
@@ -97,7 +97,7 @@ struct Buffer<T, comptime N: number> {
     value: T
 }
 
-extension<T, comptime N: number> for Buffer<T, N> {
+extension<T, comptime N: number> of Buffer<T, N> {
     requireSize(value: T[N as comptime]): T[N as comptime] {
         return value;
     }
@@ -121,7 +121,7 @@ struct Registry<T, comptime N: number = 2> {
     value: T
 }
 
-extension<T, comptime N: number> for Registry<T, N> {
+extension<T, comptime N: number> of Registry<T, N> {
     pair(): [T, T] {
         [this.value, this.value]
     }

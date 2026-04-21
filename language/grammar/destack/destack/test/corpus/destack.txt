@@ -71,7 +71,7 @@ newtype UserId = int64
 Extension declaration
 ==================================
 
-extension for Vec2 implements Add<Vec2> {
+extension of Vec2 implements Add<Vec2> {
   add(other: Vec2): Vec2 {
     Vec2 { x: this.x + other.x, y: this.y + other.y }
   }
@@ -125,7 +125,7 @@ extension for Vec2 implements Add<Vec2> {
 Named extension declaration
 ==================================
 
-export extension DateUtils for Date {
+export extension DateUtils of Date {
   addDays(days: int32): Date {
     this
   }

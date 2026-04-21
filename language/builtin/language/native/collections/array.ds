@@ -14,7 +14,7 @@ export type ReadonlyArray<T> = readonly T[];
 /// Fixed-size array alias with explicit comptime disambiguation.
 export type FixedArray<T, comptime N: number> = T[N as comptime];
 
-extension<T> for Array<T> implements Index<number, T>, IndexSet<number, T>, Iterable<T> {
+extension<T> of Array<T> implements Index<number, T>, IndexSet<number, T>, Iterable<T> {
     /// Get the length of the array.
     get length(): number {
         this.length as number

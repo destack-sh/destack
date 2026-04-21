@@ -507,7 +507,7 @@ Destack adds type extensions and real overloading for type-based dispatch and op
 Destack introduces extensions to add methods and static constants for any _nominal_ type:
 
 ```ds
-extension for Vector2 {
+extension of Vector2 {
     magnitude(): float32 { (this.x * this.x + this.y * this.y).sqrt() }
 }
 ```
@@ -521,17 +521,17 @@ To extend a structural shape, wrap it in a nominal type:
 ```ds
 type Point = { x: number, y: number };
 
-extension for Point { ... }  // ERROR
+extension of Point { ... }  // ERROR
 
 newtype Point = { x: number, y: number };
 // works - extend newtype / struct / class / ..
-extension for Point { ... }  // ok
+extension of Point { ... }  // ok
 ```
 
 Extension visiblity is basically as you would expect:
 - **Same file as type**: Extensions are automatically visible wherever the type is used.
-- **Anonymous on foreign type**: Only visible in the file where declared (`extension for int32 { ... }`).
-- **Named on foreign type**: Must be explicitly imported to use (`export extension DateUtils for Date { ... }`).
+- **Anonymous on foreign type**: Only visible in the file where declared (`extension of int32 { ... }`).
+- **Named on foreign type**: Must be explicitly imported to use (`export extension DateUtils of Date { ... }`).
 
 ### Nominal Interfaces
 
@@ -584,7 +584,7 @@ Real function and operator overloading with distinct implementations:
 function parse(input: string): int32 { parseInt(input) }
 function parse(input: int32): int32 { input }
 
-extension for Vector2 implements Add<Vector2> {
+extension of Vector2 implements Add<Vector2> {
     add(other: Vector2): Vector2 { ... }
 }
 ```

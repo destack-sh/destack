@@ -11,7 +11,7 @@ Tests for error cases with extensions.
 ```ds
 struct Point { x: number; y: number }
 
-extension for Point {
+extension of Point {
     magnitude(): number { return 0 }
 }
 
@@ -31,7 +31,7 @@ point.nonexistent();
 struct Point { x: number; y: number }
 struct Vector3 { x: number; y: number; z: number }
 
-extension for Point {
+extension of Point {
     magnitude(): number { return 0 }
 }
 
@@ -52,7 +52,7 @@ vector.magnitude();
 ```ds
 struct Calculator { value: number }
 
-extension for Calculator {
+extension of Calculator {
     add(a: number, b: number): number { return 0 }
 }
 
@@ -77,7 +77,7 @@ export struct Vector2 { x: number; y: number }
 ```ds:extensions.ds
 import { Vector2 } from "./types.ds"
 
-extension for Vector2 {
+extension of Vector2 {
     magnitude(): number { return 0 }
 }
 ```
@@ -103,11 +103,11 @@ vector.magnitude();
 ```ds
 struct Vector2 { x: number; y: number }
 
-extension for Vector2 {
+extension of Vector2 {
     process(): number { return 1 }
 }
 
-extension for Vector2 {
+extension of Vector2 {
     process(): string { return "" }
 }
 

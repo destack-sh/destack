@@ -270,7 +270,7 @@ struct Vec2 {
     y: float32
 }
 
-extension for Vec2 implements Add<Vec2> {
+extension of Vec2 implements Add<Vec2> {
     add(other: Vec2): Vec2 {
         Vec2 { x: this.x + other.x, y: this.y + other.y }
     }

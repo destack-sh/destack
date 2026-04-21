@@ -20,7 +20,7 @@ struct MapEntry<K, V> {
 /// In native, Record<K, V> is a Map<K, V>.
 export type Record<K, V> = Map<K, V>;
 
-extension<K, V> for Map<K, V> implements Index<K, V>, IndexSet<K, V>, Iterable<[K, V]> {
+extension<K, V> of Map<K, V> implements Index<K, V>, IndexSet<K, V>, Iterable<[K, V]> {
     /// Get the number of entries.
     get size(): number {
         this.length as number

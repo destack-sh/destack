@@ -11,7 +11,7 @@ Tests for comparison operator overloading via interface implementations.
 ```ds
 struct Measure { value: int }
 
-extension for Measure implements Equal<Measure>, Compare<Measure> {
+extension of Measure implements Equal<Measure>, Compare<Measure> {
     equal(other: Measure): boolean { return true }
     compare(other: Measure): Ordering { return Ordering.Equal }
 }
@@ -65,7 +65,7 @@ left !== right;
 ```ds
 struct Measure { value: int }
 
-extension for Measure implements Equal<Measure> {
+extension of Measure implements Equal<Measure> {
     equal(other: Measure): boolean { return true }
 }
 
@@ -87,7 +87,7 @@ isLess satisfies boolean;
 ```ds
 struct Measure { value: int }
 
-extension for Measure implements Compare<Measure> {
+extension of Measure implements Compare<Measure> {
     compare(other: Measure): Ordering { return Ordering.Equal }
 }
 
@@ -122,7 +122,7 @@ different satisfies boolean;
 struct Measure { value: int }
 struct OtherMeasure { value: int }
 
-extension for Measure implements Compare<Measure> {
+extension of Measure implements Compare<Measure> {
     compare(other: Measure): Ordering { return Ordering.Equal }
 }
 

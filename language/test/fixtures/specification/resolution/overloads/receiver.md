@@ -12,11 +12,11 @@ Overload order should be honored even when overloads come from multiple extensio
 ```ds
 struct Counter {}
 
-extension for Counter implements Add<number> {
+extension of Counter implements Add<number> {
     add(other: number): "number" { return "number" }
 }
 
-extension for Counter implements Add<int32> {
+extension of Counter implements Add<int32> {
     add(other: int32): "int32" { return "int32" }
 }
 
@@ -33,11 +33,11 @@ selected satisfies "number";
 ```ds
 struct Counter {}
 
-extension for Counter implements Add<number> {
+extension of Counter implements Add<number> {
     add(other: number): "number" { return "number" }
 }
 
-extension for Counter implements Add<int32> {
+extension of Counter implements Add<int32> {
     add(other: int32): "int32" { return "int32" }
 }
 
@@ -56,11 +56,11 @@ selected satisfies "int32";
 ```ds
 struct Counter {}
 
-extension for Counter implements Add<int32> {
+extension of Counter implements Add<int32> {
     add(other: int32): "int32" { return "int32" }
 }
 
-extension for Counter implements Add<number> {
+extension of Counter implements Add<number> {
     add(other: number): "number" { return "number" }
 }
 
@@ -77,11 +77,11 @@ selected satisfies "int32";
 ```ds
 struct Counter {}
 
-extension for Counter implements Add<int32> {
+extension of Counter implements Add<int32> {
     add(other: int32): "int32" { return "int32" }
 }
 
-extension for Counter implements Add<number> {
+extension of Counter implements Add<number> {
     add(other: number): "number" { return "number" }
 }
 
@@ -104,11 +104,11 @@ export struct Counter {}
 ```ds:extensions.ds
 import { Counter } from "./counter";
 
-export extension CounterNumberAdd for Counter implements Add<number> {
+export extension CounterNumberAdd of Counter implements Add<number> {
     add(other: number): "number" { return "number" }
 }
 
-export extension CounterIntAdd for Counter implements Add<int32> {
+export extension CounterIntAdd of Counter implements Add<int32> {
     add(other: int32): "int32" { return "int32" }
 }
 ```
@@ -134,11 +134,11 @@ export struct Counter {}
 ```ds:extensions.ds
 import { Counter } from "./counter";
 
-export extension CounterNumberAdd for Counter implements Add<number> {
+export extension CounterNumberAdd of Counter implements Add<number> {
     add(other: number): "number" { return "number" }
 }
 
-export extension CounterIntAdd for Counter implements Add<int32> {
+export extension CounterIntAdd of Counter implements Add<int32> {
     add(other: int32): "int32" { return "int32" }
 }
 ```
@@ -166,11 +166,11 @@ export struct Counter {}
 ```ds:extensions.ds
 import { Counter } from "./counter";
 
-export extension CounterNumberAdd for Counter implements Add<number> {
+export extension CounterNumberAdd of Counter implements Add<number> {
     add(other: number): "number" { return "number" }
 }
 
-export extension CounterIntAdd for Counter implements Add<int32> {
+export extension CounterIntAdd of Counter implements Add<int32> {
     add(other: int32): "int32" { return "int32" }
 }
 ```
