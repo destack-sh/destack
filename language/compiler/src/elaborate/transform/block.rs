@@ -98,7 +98,9 @@ impl Compiler {
 
         // don't unwrap bindings from block position
         match inner_expr {
-            Expression::Let { .. } | Expression::Using { .. } => expr_id,
+            Expression::Let { .. } | Expression::LetElse { .. } | Expression::Using { .. } => {
+                expr_id
+            }
             _ => inner_expr_id,
         }
     }

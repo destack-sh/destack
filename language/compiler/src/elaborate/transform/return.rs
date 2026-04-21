@@ -141,6 +141,7 @@ impl Compiler {
             }
 
             Expression::Let { .. }
+            | Expression::LetElse { .. }
             | Expression::Using { .. }
             | Expression::Labelled { .. }
             | Expression::Loop { .. }

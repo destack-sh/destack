@@ -49,7 +49,9 @@ impl Compiler {
 
         for &expression_id in &block.leading_expressions {
             let binding_expression_id = match state.tree.get(expression_id) {
-                Expression::Let { .. } | Expression::Using { .. } => expression_id,
+                Expression::Let { .. } | Expression::LetElse { .. } | Expression::Using { .. } => {
+                    expression_id
+                }
                 _ => {
                     new_leading_expressions.push(expression_id);
                     continue;

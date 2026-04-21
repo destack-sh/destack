@@ -764,6 +764,56 @@ impl Compiler {
                     },
                 );
             }
+            ast::Expression::LetElse {
+                kind,
+                mutability,
+                declarator: ast_declarator,
+                else_branch,
+            } => {
+                let binding_category = self.binding_category_for_let_kind(*kind);
+                let mutability = self.bind_mutability(*mutability);
+                let declarator = self.bind_declarator(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    None,
+                    SymbolBinding::Runtime,
+                    Some(mutability),
+                    Some(binding_category),
+                    *ast_declarator,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let else_branch = self.bind_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    scope,
+                    *else_branch,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                    space_order,
+                );
+
+                return tree.insert(
+                    expression_id,
+                    Expression::LetElse {
+                        kind: self.bind_let_kind(*kind),
+                        mutability,
+                        declarator,
+                        else_branch,
+                    },
+                );
+            }
             ast::Expression::Using {
                 asynchrony,
                 export,

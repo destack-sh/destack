@@ -1139,6 +1139,30 @@ impl Compiler {
                 };
                 ctx.types.insert_type_from(ty, expression_id)
             }
+            Expression::LetElse {
+                mutability,
+                declarator,
+                else_branch,
+                ..
+            } => {
+                let mut decl_ctx = state.fork().with_binding_mutability(*mutability);
+                self.infer_declarator(
+                    &mut ctx.reborrow(),
+                    *declarator,
+                    expression_id,
+                    DeclaratorConstraint::Assignable,
+                    &mut decl_ctx,
+                )?;
+
+                let _else_ty =
+                    self.infer_expression(&mut ctx.reborrow(), *else_branch, &mut state.fork())?;
+
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                ctx.types.insert_type_from(ty, expression_id)
+            }
+
             // using
             Expression::Using {
                 asynchrony: _,
@@ -2622,6 +2646,7 @@ impl Compiler {
             | Expression::UnresolvedReExport { .. }
             | Expression::ExportNamespace { .. }
             | Expression::Let { .. }
+            | Expression::LetElse { .. }
             | Expression::Using { .. } => self
                 .infer_statement_expression(&mut ctx.reborrow(), expression_id, state)?,
 
