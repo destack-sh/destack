@@ -8,6 +8,11 @@ pub enum Pattern {
         mutability: Option<Mutability>,
         name: StringId,
     },
+    /// Assignment pattern (like `x = 1`).
+    Assign {
+        pattern: LocalNodeId<Pattern>,
+        value: LocalNodeId<Expression>,
+    },
     /// Array pattern (like `[1, 2, .., x, 3]`).
     Array {
         fields: Vec<LocalNodeId<PatternField>>,
@@ -31,28 +36,17 @@ pub enum PatternField {
     Named {
         mutability: Option<Mutability>,
         name: StringId,
+        is_shorthand: bool,
         pattern: Option<LocalNodeId<Pattern>>,
-        default: Option<LocalNodeId<Expression>>,
     },
     /// Computed pattern field (like `[key]: value`).
     Computed {
         mutability: Option<Mutability>,
         key: LocalNodeId<Expression>,
-        pattern: Option<LocalNodeId<Pattern>>,
-        default: Option<LocalNodeId<Expression>>,
-    },
-    /// Named field with an alias (like `x: y`).
-    Alias {
-        mutability: Option<Mutability>,
-        name: StringId,
-        alias: StringId,
-        default: Option<LocalNodeId<Expression>>,
-    },
-    /// Positional field with a pattern and optional default (like `4` or `x = 1`).
-    Positional {
         pattern: LocalNodeId<Pattern>,
-        default: Option<LocalNodeId<Expression>>,
     },
+    /// Positional field with a pattern (like `4` or `x = 1`).
+    Positional { pattern: LocalNodeId<Pattern> },
     /// Spread field (like `...x` or `...[a, b]`).
     Spread {
         mutability: Option<Mutability>,

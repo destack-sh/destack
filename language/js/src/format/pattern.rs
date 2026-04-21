@@ -21,6 +21,9 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 }
                 write!(f, [name])?;
             }
+            Pattern::Assign { pattern, value } => {
+                write!(f, [pattern, space(), token("="), space(), value])?;
+            }
             Pattern::Array { fields } => {
                 write!(f, [list_like("[", "]", ",", fields)])?;
             }
@@ -45,8 +48,8 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
             PatternField::Named {
                 mutability,
                 name,
+                is_shorthand,
                 pattern,
-                default,
             } => {
                 if let Some(mutability) = mutability
                     && *mutability == Mutability::Immutable
@@ -54,18 +57,18 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                     write!(f, [token("const"), space()])?;
                 }
                 write!(f, [name])?;
-                if let Some(pattern) = pattern {
+
+                if !is_shorthand {
+                    let pattern = pattern.expect("expanded named js pattern field");
                     write!(f, [token(":"), space(), pattern])?;
-                }
-                if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
+                } else if let Some(pattern) = pattern {
+                    write_shorthand_assignment_value(f, *pattern)?;
                 }
             }
             PatternField::Computed {
                 mutability,
                 key,
                 pattern,
-                default,
             } => {
                 if let Some(mutability) = mutability
                     && *mutability == Mutability::Immutable
@@ -73,34 +76,10 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                     write!(f, [token("const"), space()])?;
                 }
                 write!(f, [token("["), key, token("]")])?;
-                if let Some(pattern) = pattern {
-                    write!(f, [token(":"), space(), pattern])?;
-                }
-                if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
-                }
+                write!(f, [token(":"), space(), pattern])?;
             }
-            PatternField::Alias {
-                mutability,
-                name,
-                alias,
-                default,
-            } => {
-                if let Some(mutability) = mutability
-                    && *mutability == Mutability::Immutable
-                {
-                    write!(f, [token("const"), space()])?;
-                }
-                write!(f, [name, token(":"), space(), alias])?;
-                if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
-                }
-            }
-            PatternField::Positional { pattern, default } => {
+            PatternField::Positional { pattern } => {
                 write!(f, [pattern])?;
-                if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
-                }
             }
             PatternField::Spread {
                 mutability: _,
@@ -117,4 +96,17 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
         }
         Ok(())
     }
+}
+
+/// Write the value side of one shorthand assignment pattern.
+fn write_shorthand_assignment_value(
+    f: &mut JsFormatter<'_, '_>,
+    pattern_id: LocalNodeId<Pattern>,
+) -> FormatResult<()> {
+    let pattern = f.context().tree.get(pattern_id);
+    let Pattern::Assign { value, .. } = pattern else {
+        unreachable!("expected shorthand assignment pattern");
+    };
+
+    write!(f, [space(), token("="), space(), value])
 }
