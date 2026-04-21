@@ -111,6 +111,7 @@ impl Compiler {
             | Expression::For { .. }
             | Expression::Try { .. }
             | Expression::Let { .. }
+            | Expression::LetElse { .. }
             | Expression::Using { .. } => false,
 
             // other expressions: be conservative

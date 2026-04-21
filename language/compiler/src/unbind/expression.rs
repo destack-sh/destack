@@ -560,6 +560,46 @@ impl Compiler {
                         declarators,
                     }
                 }
+                dir::Expression::LetElse {
+                    kind,
+                    mutability,
+                    declarator,
+                    else_branch,
+                } => {
+                    let kind = match kind {
+                        dir::LetKind::Let => ast::LetKind::Let,
+                        dir::LetKind::Var => ast::LetKind::Var,
+                        dir::LetKind::Const => ast::LetKind::Const,
+                    };
+                    let mutability = self.unbind_mutability(context, *mutability);
+                    let declarator = self.unbind_declarator(
+                        module,
+                        *declarator,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    );
+                    let else_branch = self.unbind_expression(
+                        module,
+                        *else_branch,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    );
+
+                    ast::Expression::LetElse {
+                        kind,
+                        mutability,
+                        declarator,
+                        else_branch,
+                    }
+                }
                 dir::Expression::Using {
                     asynchrony,
                     export,
@@ -572,16 +612,16 @@ impl Compiler {
                     let declarators = declarators
                         .iter()
                         .map(|decl| {
-                        self.unbind_declarator(
-                            module,
-                            *decl,
-                            tree,
-                            symbols,
-                            types,
-                            ast_tree,
-                            ast_strings,
-                            context,
-                        )
+                            self.unbind_declarator(
+                                module,
+                                *decl,
+                                tree,
+                                symbols,
+                                types,
+                                ast_tree,
+                                ast_strings,
+                                context,
+                            )
                         })
                         .collect();
                     ast::Expression::Using {
