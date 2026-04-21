@@ -27,6 +27,11 @@ pub enum Pattern {
     Wildcard,
     /// Must pattern (like `x!`).
     Must(LocalNodeId<Pattern>),
+    /// Assignment pattern (like `x = 1` or `{ x } = {}`).
+    Assign {
+        pattern: LocalNodeId<Pattern>,
+        value: LocalNodeId<Expression>,
+    },
     /// Reference of pattern (like `&x`).
     ReferenceOf {
         mutability: Option<Mutability>,
@@ -95,32 +100,21 @@ impl Node for Pattern {
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PatternField {
-    /// Named field, maybe with a pattern (like `x` or `x: 4`).
+    /// Named field, maybe shorthand and maybe with a nested pattern.
     Named {
         mutability: Option<Mutability>,
         name: Name,
+        is_shorthand: bool,
         pattern: Option<LocalNodeId<Pattern>>,
-        default: Option<LocalNodeId<Expression>>,
     },
     /// Computed field (like `[key]: value`).
     Computed {
         mutability: Option<Mutability>,
         key: LocalNodeId<Expression>,
-        pattern: Option<LocalNodeId<Pattern>>,
-        default: Option<LocalNodeId<Expression>>,
-    },
-    /// Named field with an alias (like `x: y`).
-    Alias {
-        mutability: Option<Mutability>,
-        name: Name,
-        alias: StringId,
-        default: Option<LocalNodeId<Expression>>,
-    },
-    /// Positional field with a pattern and optional default (like `4` or `x = 1`).
-    Positional {
         pattern: LocalNodeId<Pattern>,
-        default: Option<LocalNodeId<Expression>>,
     },
+    /// Positional field with a pattern (like `4` or `x = 1`).
+    Positional { pattern: LocalNodeId<Pattern> },
     /// Spread field (like `...x` or `...[a, b]`).
     Spread {
         mutability: Option<Mutability>,
