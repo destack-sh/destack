@@ -485,7 +485,7 @@ fn test_parse_callback_parameter_named_type() {
             assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
                 assert_eq!(properties.len(), 1);
 
-                assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value } => {
+                assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
                     assert_string!(parser, *name, "onsubtitlechange");
                     assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {

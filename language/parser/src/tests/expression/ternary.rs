@@ -229,7 +229,7 @@ fn test_parse_export_const_ternary_object_literal_arrow_value() {
                 let else_expression = else_expression.expect("expected else branch");
                 assert_node!(parser.tree, else_expression, Expression::ObjectExpression { properties, .. } => {
                     assert_eq!(properties.len(), 1);
-                    assert_node!(parser.tree, properties[0], Property::Field { key, value } => {
+                    assert_node!(parser.tree, properties[0], Property::Field { key, value, .. } => {
                         assert_node!(key, Key::Name(Name::Identifier(name)) => {
                             assert_string!(parser, *name, "reproFunc");
                         });
@@ -279,7 +279,7 @@ fn test_parse_ternary_object_literal_arrow_value_expression() {
                 let else_expression = else_expression.expect("expected else branch");
                 assert_node!(parser.tree, else_expression, Expression::ObjectExpression { properties, .. } => {
                     assert_eq!(properties.len(), 1);
-                    assert_node!(parser.tree, properties[0], Property::Field { key, value } => {
+                    assert_node!(parser.tree, properties[0], Property::Field { key, value, .. } => {
                         assert_node!(key, Key::Name(Name::Identifier(name)) => {
                             assert_string!(parser, *name, "reproFunc");
                         });
