@@ -6,17 +6,17 @@ use crate::format::annotation::{
     format_comment, prefix_annotations, write_comment_slice, write_inline_prefix_annotations,
 };
 use crate::format::chain::{
-    MemberChain, assignment_like_parent, has_own_line_or_multiline_comment_between_expressions,
-    is_assignment_chain_tail_lambda, transparent_inner_expression,
+    MemberChain, assignment_like_parent, is_assignment_chain_tail_lambda,
+    transparent_inner_expression,
 };
 use crate::format::context::DestackFormatterSpeculationExt;
 use crate::format::expression::{ExpressionLeftSide, write_expression_without_prefix_annotations};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, AssignOperator, BinaryOperator, Comment, Declaration, Declarator, DecoratorPosition,
-    Expression, FunctionKind, GenericArgument, IfCondition, IfKind, Key, LocalNodeId, Name,
-    NodeType, Pattern, PatternField, Property, ScalarLiteral, TemplateLiteral, TokenType,
-    TypeExpression,
+    Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Comment,
+    Declaration, Declarator, DecoratorPosition, Expression, FunctionKind, GenericArgument,
+    IfCondition, IfKind, LocalNodeId, NodeType, Pattern, PatternField, ScalarLiteral,
+    TemplateLiteral, TokenType, TypeExpression,
 };
 use destack_fir::format::{
     Buffer, Format, FormatNode as FirFormatNode, FormatNodes, FormatResult,
@@ -402,7 +402,7 @@ pub(crate) fn expression_is_commonjs_require_call(
 /// Return whether one assignment operator has a slash line comment between left and right.
 pub(crate) fn assignment_operator_has_line_comment_between(
     context: &DestackFormatContext<'_>,
-    left: LocalNodeId<Expression>,
+    left: LocalNodeId<AssignPattern>,
     right: LocalNodeId<Expression>,
 ) -> bool {
     let left_span = context.span(left);
@@ -457,10 +457,82 @@ fn assignment_rhs_operator_comment_nodes(
     }
 }
 
+/// Return the simple expression target inside one assign-pattern, when one exists.
+pub(crate) fn assign_pattern_target_expression(
+    context: &DestackFormatContext<'_>,
+    pattern_id: LocalNodeId<AssignPattern>,
+) -> Option<LocalNodeId<Expression>> {
+    match context.tree.get(pattern_id) {
+        // direct target
+        AssignPattern::Expression { value } => Some(*value),
+
+        // default wrapper
+        AssignPattern::Assign { pattern, .. } => {
+            assign_pattern_target_expression(context, *pattern)
+        }
+
+        // destructuring targets
+        AssignPattern::Array { .. } | AssignPattern::Object { .. } => None,
+    }
+}
+
+/// Return whether one assign-pattern contains the expression.
+pub(crate) fn assign_pattern_contains_expression(
+    context: &DestackFormatContext<'_>,
+    pattern_id: LocalNodeId<AssignPattern>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    match context.tree.get(pattern_id) {
+        // direct target
+        AssignPattern::Expression { value } => *value == expression_id,
+
+        // default wrapper
+        AssignPattern::Assign { pattern, value } => {
+            assign_pattern_contains_expression(context, *pattern, expression_id)
+                || *value == expression_id
+        }
+
+        // destructuring fields
+        AssignPattern::Array { fields } | AssignPattern::Object { fields } => {
+            fields.iter().copied().any(|field_id| {
+                assign_pattern_field_contains_expression(context, field_id, expression_id)
+            })
+        }
+    }
+}
+
+/// Return whether one assign-pattern field contains the expression.
+fn assign_pattern_field_contains_expression(
+    context: &DestackFormatContext<'_>,
+    field_id: LocalNodeId<AssignPatternField>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    match context.tree.get(field_id) {
+        // named and spread fields
+        AssignPatternField::Named { pattern, .. } | AssignPatternField::Spread { pattern } => {
+            pattern.is_some_and(|pattern_id| {
+                assign_pattern_contains_expression(context, pattern_id, expression_id)
+            })
+        }
+
+        // keyed and positional fields
+        AssignPatternField::Computed { key, pattern } => {
+            *key == expression_id
+                || assign_pattern_contains_expression(context, *pattern, expression_id)
+        }
+        AssignPatternField::Positional { pattern } => {
+            assign_pattern_contains_expression(context, *pattern, expression_id)
+        }
+
+        // elisions
+        AssignPatternField::Elision => false,
+    }
+}
+
 /// Buffer one assignment-expression left-hand side for layout selection.
 fn buffer_assignment_expression_layout_left<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    left: LocalNodeId<Expression>,
+    left: LocalNodeId<AssignPattern>,
 ) -> FormatResult<(Vec<FirFormatNode>, bool, bool)> {
     let mut buffer = VecBuffer::new(f.state_mut());
     let formatter = &mut FirFormatter::new(&mut buffer);
@@ -905,7 +977,7 @@ enum AssignmentLike {
     /// One assignment expression shell.
     Expression {
         node_id: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
+        left: LocalNodeId<AssignPattern>,
         operator: AssignOperator,
         right: LocalNodeId<Expression>,
     },
@@ -1053,7 +1125,10 @@ impl AssignmentLike {
         match self {
             AssignmentLike::Declarator(_) => write!(f, [space(), token("=")]),
             AssignmentLike::Expression { left, operator, .. } => {
-                let has_left_postfix = f.context().has_postfix_annotation(left);
+                let has_left_postfix = assign_pattern_target_expression(f.context(), left)
+                    .is_some_and(|left_expression_id| {
+                        f.context().has_postfix_annotation(left_expression_id)
+                    });
 
                 if !has_left_postfix {
                     write!(f, [space()])?;
@@ -1437,42 +1512,48 @@ fn assignment_rhs_innermost_expression<'a>(
     context.tree.get(current_expression_id)
 }
 
-/// Return whether one object field is shorthand.
-fn property_field_is_shorthand(
-    context: &DestackFormatContext<'_>,
-    key: Key,
-    value: LocalNodeId<Expression>,
-) -> bool {
-    matches!(
-        (key, context.tree.get(value)),
-        (
-            Key::Name(Name::Identifier(key_name)),
-            Expression::Identifier { name: value_name },
-        ) if key_name == *value_name
-    )
-}
-
 /// Return whether one assignment target is complex enough to break the left side.
 fn assignment_target_is_complex_destructuring(
     context: &DestackFormatContext<'_>,
-    left: LocalNodeId<Expression>,
+    left: LocalNodeId<AssignPattern>,
 ) -> bool {
-    let left = transparent_inner_expression(context, left);
-    let Expression::ObjectExpression { properties, .. } = context.tree.get(left) else {
-        return false;
+    let fields = match context.tree.get(left) {
+        // default wrappers
+        AssignPattern::Assign { pattern, .. } => {
+            return assignment_target_is_complex_destructuring(context, *pattern);
+        }
+
+        // object destructuring
+        AssignPattern::Object { fields } => fields,
+
+        // non-object targets
+        AssignPattern::Expression { .. } | AssignPattern::Array { .. } => {
+            return false;
+        }
     };
 
-    if properties.len() <= 2 {
+    if fields.len() <= 2 {
         return false;
     }
 
-    properties
+    fields
         .iter()
         .copied()
-        .any(|property_id| match context.tree.get(property_id) {
-            Property::Field { key, value } => !property_field_is_shorthand(context, *key, *value),
-            Property::Method { .. } | Property::Error => true,
-            Property::Spread { .. } => false,
+        .any(|field_id| match context.tree.get(field_id) {
+            // expanded fields
+            AssignPatternField::Named {
+                is_shorthand,
+                pattern,
+                ..
+            } => !is_shorthand || pattern.is_some(),
+
+            // computed keys
+            AssignPatternField::Computed { .. } => true,
+
+            // flat fields
+            AssignPatternField::Positional { .. }
+            | AssignPatternField::Spread { .. }
+            | AssignPatternField::Elision => false,
         })
 }
 
@@ -1496,14 +1577,20 @@ fn assignment_rhs_is_compact(
 /// Return whether one assignment rhs carries leading trivia that forces break-after-operator.
 fn assignment_expression_rhs_has_forcing_leading_trivia(
     context: &DestackFormatContext<'_>,
-    left: LocalNodeId<Expression>,
+    left: LocalNodeId<AssignPattern>,
     right: LocalNodeId<Expression>,
 ) -> bool {
+    // annotations
     let has_prefix_annotation = context.has_prefix_annotation(right);
-    let has_between_comment =
-        has_own_line_or_multiline_comment_between_expressions(context, left, right);
     let has_own_line_prefix_annotation =
         assign_expression_has_own_line_prefix_annotation(context, right);
+
+    // between comments
+    let left_span = context.span(left);
+    let right_span = context.span(right);
+    let has_between_comment = left_span
+        .gap_to(right_span)
+        .is_some_and(|between_span| context.has_own_line_or_multiline_comment(between_span));
 
     has_prefix_annotation || has_between_comment || has_own_line_prefix_annotation
 }
@@ -1512,7 +1599,7 @@ fn assignment_expression_rhs_has_forcing_leading_trivia(
 pub(crate) fn format_assign_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    left: LocalNodeId<Expression>,
+    left: LocalNodeId<AssignPattern>,
     operator: &AssignOperator,
     right: LocalNodeId<Expression>,
 ) -> FormatResult<()> {

@@ -30,9 +30,6 @@ fn expression_is_type_relation_left_slot(
         | Expression::Maybe { left, .. }
         | Expression::Must { left, .. } => *left == parent_slot_expression_id,
 
-        // assignment lhs
-        Expression::Assign { left, .. } => *left == parent_slot_expression_id,
-
         _ => false,
     }
 }

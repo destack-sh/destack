@@ -6,7 +6,8 @@ mod tokens;
 mod r#type;
 
 pub(crate) use self::assign::{
-    AssignmentLikeLayout, format_declarator_assignment, is_poorly_breakable_member_or_call_chain,
+    AssignmentLikeLayout, assign_pattern_contains_expression, assign_pattern_target_expression,
+    format_declarator_assignment, is_poorly_breakable_member_or_call_chain,
     write_assignment_like_right,
 };
 pub(crate) use self::expression::{

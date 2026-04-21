@@ -1,7 +1,7 @@
 use crate::format::annotation::{block_infix_annotations, format_dangling_comments};
 use crate::format::collection::{TrailingSeparator, separated_entries};
 use crate::format::file::any_ignore_range_for_nodes;
-use crate::format::operator::expression_generic_arguments;
+use crate::format::operator::{assign_pattern_contains_expression, expression_generic_arguments};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Argument, Expression, GenericArgument, Key, LocalNodeId, Name, NodeType, Pattern, PatternField,
@@ -184,7 +184,9 @@ pub(crate) fn is_assignment_left_target(
 
         let ancestor_expression_id = LocalNodeId::<Expression>::new(ancestor_id);
         match context.tree.get(ancestor_expression_id) {
-            Expression::Assign { left, .. } => return left.id == current_expression_id.id,
+            Expression::Assign { left, .. } => {
+                return assign_pattern_contains_expression(context, *left, current_expression_id);
+            }
             Expression::Await { expression } | Expression::AwaitMaybe { expression }
                 if expression.id == current_expression_id.id =>
             {
