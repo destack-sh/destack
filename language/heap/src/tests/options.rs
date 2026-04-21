@@ -1,11 +1,11 @@
-use crate::{Heap, HeapError, HeapImage, HeapLimits, HeapOptions};
+use crate::{GcOptions, Heap, HeapError, HeapImage, HeapLimits, HeapOptions, SizeClassTable};
 
 /// Reject unsupported managed-reference widths at heap construction.
 #[test]
 fn test_heap_rejects_invalid_managed_reference_width() {
     let options = HeapOptions {
         managed_reference_bytes: 3,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     };
 
     let error = Heap::with_limits_and_options(HeapLimits::default(), options)
@@ -17,12 +17,29 @@ fn test_heap_rejects_invalid_managed_reference_width() {
     );
 }
 
+/// Reject unsupported GC trigger percentages at heap construction.
+#[test]
+fn test_heap_rejects_invalid_gc_trigger_percent() {
+    let options = HeapOptions {
+        gc: GcOptions {
+            trigger_percent: 101,
+            ..HeapOptions::local().gc
+        },
+        ..HeapOptions::local()
+    };
+
+    let error = Heap::with_limits_and_options(HeapLimits::default(), options)
+        .expect_err("invalid heap options should fail loudly");
+
+    assert_eq!(error, HeapError::InvalidGcTriggerPercent { percent: 101 });
+}
+
 /// Reject invalid remembered-card widths at heap construction.
 #[test]
 fn test_heap_rejects_invalid_card_width() {
     let options = HeapOptions {
         card_bytes: 0,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     };
 
     let error = Heap::with_limits_and_options(HeapLimits::default(), options)
@@ -36,7 +53,7 @@ fn test_heap_rejects_invalid_card_width() {
 fn test_heap_rejects_invalid_table_chunk_len() {
     let options = HeapOptions {
         table_chunk_len: 0,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     };
 
     let error = Heap::with_limits_and_options(HeapLimits::default(), options)
@@ -51,7 +68,7 @@ fn test_heap_rejects_young_threshold_above_capacity() {
     let options = HeapOptions {
         managed_young_bytes: 1024,
         max_managed_young_allocation_bytes: 2048,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     };
 
     let error = Heap::with_limits_and_options(HeapLimits::default(), options)
@@ -70,10 +87,10 @@ fn test_heap_rejects_young_threshold_above_capacity() {
 #[test]
 fn test_heap_rejects_misaligned_size_class_table() {
     let options = HeapOptions {
-        size_classes: crate::SizeClassTable::new([16, 24, 32])
+        size_classes: SizeClassTable::new([16, 24, 32])
             .expect("size classes should validate structurally"),
         small_allocation_alignment_bytes: 16,
-        ..HeapOptions::default()
+        ..HeapOptions::local()
     };
 
     let error = Heap::with_limits_and_options(HeapLimits::default(), options)
@@ -91,7 +108,7 @@ fn test_heap_rejects_misaligned_size_class_table() {
 /// Reject unsupported managed-reference widths when restoring a heap image.
 #[test]
 fn test_heap_image_rejects_invalid_managed_reference_width() {
-    let heap = Heap::new().expect("default heap should build");
+    let mut heap = Heap::new().expect("default heap should build");
     let image = heap.image().expect("heap image should capture");
     let managed = image.managed().clone().with_managed_reference_bytes(3);
     let image = HeapImage::new(
