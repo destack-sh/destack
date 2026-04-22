@@ -1,9 +1,11 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_ast::{NodeParentIndex, TokenSpan};
+use destack_ast::TokenSpan;
 use destack_fir::format as fir_format;
-use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
+use destack_formatter::{
+    DestackFormatContext, DestackFormatOptions, build_formatter_tree_and_parents, statement_list,
+};
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileType, LanguageType,
@@ -168,12 +170,12 @@ fn format_expressions(
     // build formatter context
     let side_span = parser.compute_side_span();
     let strings = parser.strings.clone().into_immutable();
-    let parents = NodeParentIndex::from_tree(&parser.tree);
+    let (tree, parents) = build_formatter_tree_and_parents(&parser.tree, expressions);
     let format_options = DestackFormatOptions::from_formatter_options(formatter, language_type);
     let context = DestackFormatContext::new(
         format_options,
         file,
-        &parser.tree,
+        &tree,
         tokens,
         side_tokens,
         &side_span,
@@ -203,6 +205,7 @@ fn normalize_output(content: &str) -> String {
     // strip trailing whitespace and normalize final newline
     let lines: Vec<&str> = content.lines().map(|line| line.trim_end()).collect();
     let mut result = lines.join("\n");
+
     if !result.is_empty() && !result.ends_with('\n') {
         result.push('\n');
     }

@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
 use crate::core::{Case, CaseResult, check_diagnostics};
-use destack_ast::{NodeParentIndex, TokenSpan};
+use destack_ast::TokenSpan;
 use destack_fir::format as fir_format;
-use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
+use destack_formatter::{
+    DestackFormatContext, DestackFormatOptions, build_formatter_tree_and_parents, statement_list,
+};
 use destack_parser::Parser;
 use destack_source::{DiffOptions, File, FileId, FileType, LanguageType, Uri, print_diff};
 use destack_workspace::FormatterOptions;
@@ -73,6 +75,7 @@ pub(super) fn run(test: &Case) -> CaseResult {
         CaseResult::Passed
     } else {
         print_diff(&original, &formatted, &DiffOptions::new());
+
         CaseResult::Failed {
             message: "formatted output differs from original".to_string(),
         }
@@ -88,16 +91,17 @@ fn format_expressions(
     language_type: LanguageType,
     formatter: FormatterOptions,
 ) -> String {
+    // build formatter context
     let side_span = parser.compute_side_span();
     let strings = parser.strings.clone().into_immutable();
-    let parents = NodeParentIndex::from_tree(&parser.tree);
+    let (tree, parents) = build_formatter_tree_and_parents(&parser.tree, expressions);
 
+    // convert options and format
     let format_options = DestackFormatOptions::from_formatter_options(formatter, language_type);
-
     let context = DestackFormatContext::new(
         format_options,
         file,
-        &parser.tree,
+        &tree,
         tokens,
         side_tokens,
         &side_span,
@@ -105,6 +109,7 @@ fn format_expressions(
         parents,
     );
 
+    // ensure a trailing newline
     let mut result = if expressions.is_empty() {
         String::new()
     } else {
