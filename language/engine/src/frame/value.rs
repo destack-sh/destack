@@ -1,4 +1,4 @@
-use destack_heap::{ManagedReference, RawPointer, SharedManagedReference, SharedRawPointer};
+use destack_heap::{HeapReference, RawPointer, SharedHeapReference, SharedRawPointer};
 use destack_mir as mir;
 
 /// One durable address into one captured frame.
@@ -64,14 +64,21 @@ pub enum MaterializedValue {
     },
     /// One character value.
     Char(char),
-    /// One managed heap reference.
-    ManagedReference(ManagedReference),
-    /// One shared managed heap reference.
-    SharedManagedReference(SharedManagedReference),
+    /// One heap reference.
+    HeapReference(HeapReference),
+    /// One shared heap reference.
+    SharedHeapReference(SharedHeapReference),
     /// One raw heap pointer.
     RawPointer(RawPointer),
     /// One shared raw-space pointer.
     SharedRawPointer(SharedRawPointer),
+    /// One durable by-value aggregate payload.
+    Aggregate {
+        /// The stored MIR type.
+        ty: mir::LocalNodeId<mir::Type>,
+        /// The owned aggregate bytes.
+        bytes: Vec<u8>,
+    },
     /// One durable address into one captured frame allocation.
     FrameAddress(FrameAddress),
     /// One durable address into one global value.
