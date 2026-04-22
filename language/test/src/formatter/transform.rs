@@ -3,9 +3,11 @@ use std::sync::Arc;
 
 use crate::core::{CaseResult, format_diagnostics};
 use crate::mdtest::MdTestCase;
-use destack_ast::{NodeParentIndex, TokenSpan};
+use destack_ast::TokenSpan;
 use destack_fir::format as fir_format;
-use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
+use destack_formatter::{
+    DestackFormatContext, DestackFormatOptions, build_formatter_tree_and_parents, statement_list,
+};
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileType, IndentStyle,
@@ -176,8 +178,10 @@ pub(super) fn run(test: &MdTestCase) -> CaseResult {
 
 /// Normalize output to remove trailing newlines.
 fn normalize_output(s: &str) -> String {
+    // trim trailing whitespace and normalize the final newline
     let lines: Vec<&str> = s.lines().map(|line| line.trim_end()).collect();
     let mut result = lines.join("\n");
+
     if !result.is_empty() && !result.ends_with('\n') {
         result.push('\n');
     }
@@ -194,9 +198,10 @@ fn format_expressions(
     language_type: LanguageType,
     formatter: FormatterOptions,
 ) -> String {
+    // build formatter context
     let side_span = parser.compute_side_span();
     let strings = parser.strings.clone().into_immutable();
-    let parents = NodeParentIndex::from_tree(&parser.tree);
+    let (tree, parents) = build_formatter_tree_and_parents(&parser.tree, expressions);
 
     // format options
     let format_options = DestackFormatOptions::from_formatter_options(formatter, language_type);
@@ -205,7 +210,7 @@ fn format_expressions(
     let context = DestackFormatContext::new(
         format_options,
         file,
-        &parser.tree,
+        &tree,
         tokens,
         side_tokens,
         &side_span,

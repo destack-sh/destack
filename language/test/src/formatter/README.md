@@ -10,7 +10,7 @@ The formatter test suite includes two types of tests:
 - `fixtures/formatter/transform/*.md` - MDTest transform tests
 - `fixtures/formatter/roundtrip/*.{ds,d.ds,js,jsx,ts,tsx,d.ts}` - Roundtrip stability tests
 
-Roundtrip fixtures using JS, JSX, TS, and TSX should be canonicalized with `oxfmt` before being added.
+Roundtrip fixtures using JS, JSX, TS, and TSX should be canonicalized with the shared formatter conformance baseline before being added.
 Use formatter-compatible options so the file content is the expected baseline for idempotence.
 
 ## Running
@@ -30,7 +30,7 @@ just test-conformance-formatter    # external suite conformance harness
 
 ## Fixture Sync
 
-Use the oxfmt sync helper to refresh transform expected blocks from the external baseline.
+Use the transform fixture sync helper to refresh expected blocks from the shared formatter baseline.
 
 ```bash
 python language/test/src/formatter/scripts/sync_transform_fixtures_with_oxfmt.py --dry-run

@@ -2,10 +2,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::core::{Case, CaseResult, format_diagnostics};
-use destack_ast::{NodeParentIndex, TokenSpan};
+use destack_ast::TokenSpan;
 use destack_fir::format as fir_format;
 use destack_formatter::{
-    DestackFormatContext, DestackFormatOptions, format_file_source, statement_list,
+    DestackFormatContext, DestackFormatOptions, build_formatter_tree_and_parents,
+    format_file_source, statement_list,
 };
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
@@ -123,6 +124,7 @@ fn discover_cases_in_dir(
 
 /// Run one formatter smoke case.
 pub(super) fn run(test: &Case, case: &FormatterSmokeCase) -> CaseResult {
+    // load formatter options
     let formatter_options = match load_smoke_formatter_options(case.options_path.as_deref()) {
         Ok(options) => options,
         Err(message) => {
@@ -131,6 +133,8 @@ pub(super) fn run(test: &Case, case: &FormatterSmokeCase) -> CaseResult {
             };
         }
     };
+
+    // load the source input
     let original = match std::fs::read_to_string(&case.input_path) {
         Ok(content) => content,
         Err(error) => {
@@ -143,6 +147,7 @@ pub(super) fn run(test: &Case, case: &FormatterSmokeCase) -> CaseResult {
         }
     };
 
+    // format the original source
     let first_pass = match format_source(&case.input_path, &original, formatter_options) {
         Ok(formatted) => formatted,
         Err(message) => {
@@ -150,6 +155,7 @@ pub(super) fn run(test: &Case, case: &FormatterSmokeCase) -> CaseResult {
         }
     };
 
+    // compare against an explicit expected output when present
     if let Some(expected_path) = &case.expected_path {
         let expected = match std::fs::read_to_string(expected_path) {
             Ok(content) => content,
@@ -175,6 +181,7 @@ pub(super) fn run(test: &Case, case: &FormatterSmokeCase) -> CaseResult {
         };
     }
 
+    // otherwise require idempotence
     let second_pass = match format_source(&case.input_path, &first_pass, formatter_options) {
         Ok(formatted) => formatted,
         Err(message) => {
@@ -196,6 +203,7 @@ pub(super) fn run(test: &Case, case: &FormatterSmokeCase) -> CaseResult {
 
 /// Format a single source file with formatter defaults.
 fn format_source(path: &Path, source: &str, formatter: FormatterOptions) -> Result<String, String> {
+    // materialize the source file
     let file_type = FileType::from_path(path)
         .ok_or_else(|| format!("unsupported file type: {}", path.display()))?;
     let name = path
@@ -223,8 +231,7 @@ fn format_source(path: &Path, source: &str, formatter: FormatterOptions) -> Resu
 
     // dispatch css and html through the shared formatter path directly
     if matches!(file_type, FileType::Css | FileType::Html) {
-        return format_file_source(&file, source, repository.formatter)
-            .map_err(|error| error.to_string());
+        return format_file_source(&file, source, formatter).map_err(|error| error.to_string());
     }
 
     // parse parser driven languages for diagnostic-rich failures
@@ -272,15 +279,17 @@ fn format_expressions(
     language_type: LanguageType,
     formatter: FormatterOptions,
 ) -> String {
+    // build formatter context
     let side_span = parser.compute_side_span();
     let strings = parser.strings.clone().into_immutable();
-    let parents = NodeParentIndex::from_tree(&parser.tree);
+    let (tree, parents) = build_formatter_tree_and_parents(&parser.tree, expressions);
 
+    // convert options and format
     let format_options = DestackFormatOptions::from_formatter_options(formatter, language_type);
     let context = DestackFormatContext::new(
         format_options,
         file,
-        &parser.tree,
+        &tree,
         tokens,
         side_tokens,
         &side_span,
@@ -288,6 +297,7 @@ fn format_expressions(
         parents,
     );
 
+    // ensure a trailing newline
     let mut result = if expressions.is_empty() {
         String::new()
     } else {
@@ -305,8 +315,10 @@ fn format_expressions(
 
 /// Normalize output for stable comparisons.
 fn normalize_output(content: &str) -> String {
+    // trim trailing whitespace and normalize the final newline
     let lines: Vec<&str> = content.lines().map(|line| line.trim_end()).collect();
     let mut result = lines.join("\n");
+
     if !result.is_empty() && !result.ends_with('\n') {
         result.push('\n');
     }

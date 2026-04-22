@@ -5,7 +5,7 @@ Formatter conformance tests measure how close Destack formatter behavior is to t
 ## Scope
 
 The formatter conformance oracle is `oxfmt`.
-This lane exists to keep the shared JS and TS surface structurally aligned with OXC.
+This lane exists to keep the shared JS and TS surface structurally aligned with the tracked external formatter.
 It is not a broader formatter ecosystem compatibility lane.
 
 ## Running
