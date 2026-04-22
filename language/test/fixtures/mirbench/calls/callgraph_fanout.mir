@@ -37,13 +37,15 @@ b0(v0: int64, v1: int64):
     return v2
 }
 
-function callgraphFanout(v0: int64, v1: int64, v2: fn(int64, int64) -> int64): int64  {
-b0(v0: int64, v1: int64, v2: fn(int64, int64) -> int64) -> v3: int64 = 0int64
+function callgraphFanout(v0: int64, v1: int64, v2: (int64, int64) -> int64): int64  {
+b0(v0: int64, v1: int64, v2: (int64, int64) -> int64):
+    v3: int64 = 0int64
     v4: int64 = int.add v1, v3
     jump b1(v3, v4, v2)
 
 // loop condition, check limit
-b1(v5: int64, v6: int64, v7: fn(int64, int64) -> int64) -> v8: boolean = int.ge.s v5, v0
+b1(v5: int64, v6: int64, v7: (int64, int64) -> int64):
+    v8: boolean = int.ge.s v5, v0
     branch v8, b5(v6), b2
 
 // select a target

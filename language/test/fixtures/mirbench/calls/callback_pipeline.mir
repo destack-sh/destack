@@ -30,13 +30,15 @@ b0(v0: int64):
     return v4
 }
 
-function callbackPipeline(v0: int64, v1: fn(int64) -> int64): int64  {
-b0(v0: int64, v1: fn(int64) -> int64) -> v2: int64 = 0int64
+function callbackPipeline(v0: int64, v1: (int64) -> int64): int64  {
+b0(v0: int64, v1: (int64) -> int64):
+    v2: int64 = 0int64
     v3: int64 = 0int64
     jump b1(v2, v3, v1)
 
 // loop condition, check limit
-b1(v4: int64, v5: int64, v6: fn(int64) -> int64) -> v7: boolean = int.ge.s v4, v0
+b1(v4: int64, v5: int64, v6: (int64) -> int64):
+    v7: boolean = int.ge.s v4, v0
     branch v7, b3(v5), b2
 
 // loop body, call pipeline
