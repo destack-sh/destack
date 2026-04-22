@@ -230,8 +230,10 @@ pub enum Type {
         /// Whether the reference can be null.
         is_nullable: bool,
     },
-    /// Slice view: `slice<T>`.
+    /// Slice into memory, a repeated element with explicit kind and mutability.
     Slice {
+        /// The reference kind of the slice base.
+        kind: ReferenceKind,
         /// The element type of the slice.
         element: TypeReference,
         /// The address space of the slice base.
@@ -292,7 +294,7 @@ pub enum Type {
         copy: Copy,
     },
     /// Reference-like view into tensor-shaped memory.
-    TensorReference {
+    TensorView {
         /// The reference kind (managed, owned, borrowed, raw).
         kind: ReferenceKind,
         /// The address space for this view.
@@ -309,16 +311,21 @@ pub enum Type {
         is_nullable: bool,
     },
 
-    /// Function pointer type.
-    FunctionPointer {
+    /// Bare function signature.
+    FunctionSignature {
         /// The parameters of the function.
         parameters: Vec<TypeReference>,
         /// The result type of the function.
         result: TypeReference,
     },
+    /// Function pointer type.
+    FunctionPointer {
+        /// The bare function signature.
+        signature: TypeReference,
+    },
     /// Callable closure value with code and environment.
     Closure {
-        /// The bare function pointer signature.
+        /// The bare function signature.
         signature: TypeReference,
     },
 }
@@ -419,7 +426,7 @@ impl Type {
                 | Type::TypeId
                 | Type::Reference { .. }
                 | Type::Vector { .. }
-                | Type::TensorReference { .. }
+                | Type::TensorView { .. }
         )
     }
 
@@ -430,7 +437,7 @@ impl Type {
             Type::Reference {
                 kind: ReferenceKind::Raw,
                 ..
-            } | Type::TensorReference {
+            } | Type::TensorView {
                 kind: ReferenceKind::Raw,
                 ..
             }
@@ -444,7 +451,7 @@ impl Type {
             Type::Reference {
                 kind: ReferenceKind::Managed,
                 ..
-            } | Type::TensorReference {
+            } | Type::TensorView {
                 kind: ReferenceKind::Managed,
                 ..
             }
@@ -453,7 +460,10 @@ impl Type {
 
     /// Whether this type is any kind of pointer or reference.
     pub fn is_pointer_like(&self) -> bool {
-        matches!(self, Type::Reference { .. } | Type::TensorReference { .. })
+        matches!(
+            self,
+            Type::Reference { .. } | Type::TensorView { .. } | Type::Slice { .. }
+        )
     }
 
     /// Whether this type is a borrowed reference.
@@ -463,7 +473,7 @@ impl Type {
             Type::Reference {
                 kind: ReferenceKind::Borrowed,
                 ..
-            } | Type::TensorReference {
+            } | Type::TensorView {
                 kind: ReferenceKind::Borrowed,
                 ..
             }
@@ -478,7 +488,7 @@ impl Type {
                 kind: ReferenceKind::Borrowed,
                 mutability: Mutability::Mutable,
                 ..
-            } | Type::TensorReference {
+            } | Type::TensorView {
                 kind: ReferenceKind::Borrowed,
                 mutability: Mutability::Mutable,
                 ..
@@ -514,8 +524,14 @@ impl Type {
                 }
             }
 
-            // slices are borrowed fat pointers
-            Type::Slice { .. } => Copy::Yes,
+            // slices depend on ownership like thin references
+            Type::Slice { kind, .. } => {
+                if kind.is_affine() {
+                    Copy::No
+                } else {
+                    Copy::Yes
+                }
+            }
 
             // aggregates have explicit copy
             Type::Array { copy, .. }
@@ -526,7 +542,7 @@ impl Type {
             | Type::Tensor { copy, .. } => *copy,
 
             // tensor references behave like references
-            Type::TensorReference { kind, .. } => {
+            Type::TensorView { kind, .. } => {
                 if kind.is_affine() {
                     Copy::No
                 } else {
@@ -534,8 +550,10 @@ impl Type {
                 }
             }
 
-            // function pointers and closure values are trivially copyable
-            Type::FunctionPointer { .. } | Type::Closure { .. } => Copy::Yes,
+            // callable metadata and values are trivially copyable
+            Type::FunctionSignature { .. }
+            | Type::FunctionPointer { .. }
+            | Type::Closure { .. } => Copy::Yes,
         }
     }
 }
@@ -555,23 +573,37 @@ impl Node for Field {
 
 /// Return the canonical hidden header types for one slice value.
 pub fn slice_header_types(
+    kind: ReferenceKind,
     element: TypeReference,
     mutability: Mutability,
     address_space: AddressSpace,
 ) -> (Type, Type) {
     let data = Type::Reference {
-        kind: ReferenceKind::Borrowed,
+        kind,
         address_space,
         mutability,
         pointee: element,
         is_nullable: false,
     };
-    let length = Type::Int {
-        width: 32,
-        is_signed: false,
-    };
+    let length = Type::Usize;
 
     (data, length)
+}
+
+/// Return the signature reference carried by one callable type.
+pub fn callable_signature(ty: &Type) -> Option<TypeReference> {
+    match ty {
+        Type::FunctionPointer { signature } | Type::Closure { signature } => Some(*signature),
+        _ => None,
+    }
+}
+
+/// Return the parameter and result types of one function signature.
+pub fn function_signature_parts(ty: &Type) -> Option<(&[TypeReference], TypeReference)> {
+    match ty {
+        Type::FunctionSignature { parameters, result } => Some((parameters.as_slice(), *result)),
+        _ => None,
+    }
 }
 
 /// A named type alias in MIR text format.

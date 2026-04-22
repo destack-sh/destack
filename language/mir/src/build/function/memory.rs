@@ -1,7 +1,7 @@
 use crate::build::FunctionBuilder;
 use crate::{
     AddressSpace, Global, Instruction, Local, LocalNodeId, Mutability, Ownership, ReferenceKind,
-    Type, TypeReference, Value,
+    Type, TypeReference, Value, callable_signature, function_signature_parts,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -171,17 +171,17 @@ impl<'a> FunctionBuilder<'a> {
         }
     }
 
-    /// Resolve the element type for a tensor reference.
-    pub(super) fn element_type_for_tensor_reference(
+    /// Resolve the element type for a tensor view.
+    pub(super) fn element_type_for_tensor_view(
         &self,
         reference_type: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
         let reference_type = self.tree.get(reference_type);
         match reference_type {
-            Type::TensorReference { element, .. } => {
-                concrete_type_reference(*element, "tensor reference element type")
+            Type::TensorView { element, .. } => {
+                concrete_type_reference(*element, "tensor view element type")
             }
-            _ => panic!("tensor access expects tensor reference type"),
+            _ => panic!("tensor access expects tensor view type"),
         }
     }
 
@@ -194,18 +194,20 @@ impl<'a> FunctionBuilder<'a> {
     pub(super) fn signature_result_type(&self, signature: LocalNodeId<Type>) -> LocalNodeId<Type> {
         let signature_type = self.tree.get(signature);
         match signature_type {
-            Type::FunctionPointer { result, .. } => {
-                concrete_type_reference(*result, "function pointer result")
+            Type::FunctionSignature { result, .. } => {
+                concrete_type_reference(*result, "function result")
             }
-            Type::Closure { signature, .. } => {
-                let signature =
-                    concrete_type_reference(*signature, "callable function pointer signature");
-                let Type::FunctionPointer { result, .. } = self.tree.get(signature) else {
-                    panic!("callable must carry a function pointer signature");
-                };
-                concrete_type_reference(*result, "callable function pointer result")
+            Type::FunctionPointer { .. } | Type::Closure { .. } => {
+                let signature = callable_signature(signature_type)
+                    .and_then(TypeReference::ty)
+                    .unwrap_or_else(|| panic!("callable must carry a function signature"));
+                let signature_type = self.tree.get(signature);
+                let (_, result) = function_signature_parts(signature_type)
+                    .unwrap_or_else(|| panic!("callable must carry a function signature"));
+
+                concrete_type_reference(result, "callable function result")
             }
-            _ => panic!("call expects function pointer signature"),
+            _ => panic!("call expects function signature"),
         }
     }
 

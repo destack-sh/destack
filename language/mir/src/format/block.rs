@@ -529,7 +529,7 @@ fn format_call_signature_suffix<'a>(
 
     match signature {
         TypeReference::Type(signature) => match f.context().tree.get(signature) {
-            crate::Type::FunctionPointer { parameters, result } => {
+            crate::Type::FunctionSignature { parameters, result } => {
                 write!(f, [token("(")])?;
                 for (index, parameter) in parameters.iter().enumerate() {
                     if index > 0 {

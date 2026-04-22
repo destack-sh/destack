@@ -4,6 +4,7 @@ use crate::{
     AddressSpace, AllocationMode, ArgumentSlice, CastOperator, Constant, Function, Instruction,
     Intrinsic, Local, LocalNodeId, Mutability, NodeType, ReferenceKind, TensorDimension,
     TensorLayout, Type, TypeReference, Value, ValueReference, compute_type_layout,
+    function_signature_parts,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
@@ -315,8 +316,8 @@ impl<'a> Validator<'a> {
         }
     }
 
-    /// Resolve one tensor reference type.
-    fn tensor_reference_type(
+    /// Resolve one tensor view type.
+    fn tensor_view_type(
         &self,
         type_id: LocalNodeId<Type>,
         anchor: ValidateAnchor,
@@ -332,7 +333,7 @@ impl<'a> Validator<'a> {
         let tensor_type = self.tree.get(type_id);
 
         match tensor_type {
-            Type::TensorReference {
+            Type::TensorView {
                 kind,
                 address_space,
                 mutability,
@@ -344,7 +345,7 @@ impl<'a> Validator<'a> {
                 let Some(element) = self.concrete_type_reference(*element) else {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: format!(
-                            "{message}, found tensor reference with non concrete element type"
+                            "{message}, found tensor view with non concrete element type"
                         ),
                         anchor,
                     });
@@ -1086,15 +1087,15 @@ impl<'a> Validator<'a> {
                 let destination_type_id =
                     self.value_type_or_error(function, *destination, anchor, "tensor.view result")?;
 
-                let source_view = self.tensor_reference_type(
+                let source_view = self.tensor_view_type(
                     source_type_id,
                     anchor,
-                    "tensor.view expects tensor reference source",
+                    "tensor.view expects tensor view source",
                 )?;
-                let destination_view = self.tensor_reference_type(
+                let destination_view = self.tensor_view_type(
                     destination_type_id,
                     anchor,
-                    "tensor.view expects tensor reference result",
+                    "tensor.view expects tensor view result",
                 )?;
 
                 if source_view.0 != destination_view.0
@@ -1203,9 +1204,19 @@ impl<'a> Validator<'a> {
                     "function.address result",
                 )?;
                 let destination_type = self.tree.get(destination_type_id);
-                let Type::FunctionPointer { parameters, result } = destination_type else {
+                let Type::FunctionPointer { signature } = destination_type else {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "function.address result must be a function pointer".to_string(),
+                        anchor,
+                    });
+                };
+                let signature =
+                    self.require_type_reference(*signature, anchor, "function address signature")?;
+                let Some((parameters, result)) = function_signature_parts(self.tree.get(signature))
+                else {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "function.address result must carry a function signature"
+                            .to_string(),
                         anchor,
                     });
                 };
@@ -1239,7 +1250,7 @@ impl<'a> Validator<'a> {
                     }
                 }
 
-                if target_function.return_type != *result {
+                if target_function.return_type != result {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "function.address result return type mismatch".to_string(),
                         anchor,
@@ -1266,9 +1277,10 @@ impl<'a> Validator<'a> {
                 };
                 let signature =
                     self.require_type_reference(*signature, anchor, "function bind signature")?;
-                let Type::FunctionPointer { parameters, result } = self.tree.get(signature) else {
+                let Some((parameters, result)) = function_signature_parts(self.tree.get(signature))
+                else {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "function.bind signature must be a function pointer".to_string(),
+                        message: "function.bind signature must be a function signature".to_string(),
                         anchor,
                     });
                 };
@@ -1319,7 +1331,7 @@ impl<'a> Validator<'a> {
                     }
                 }
 
-                if target_function.return_type != *result {
+                if target_function.return_type != result {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "function.bind result return type mismatch".to_string(),
                         anchor,
@@ -1848,7 +1860,7 @@ impl<'a> Validator<'a> {
                 let signature =
                     self.require_type_reference(call.signature, anchor, "call signature")?;
                 self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
-                if !matches!(self.tree.get(signature), Type::FunctionPointer { .. }) {
+                if !matches!(self.tree.get(signature), Type::FunctionSignature { .. }) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "call signature is not a function type".to_string(),
                         anchor,
@@ -1859,10 +1871,7 @@ impl<'a> Validator<'a> {
                 let signature =
                     self.require_type_reference(call.signature, anchor, "call signature")?;
                 self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
-                if !matches!(
-                    self.tree.get(signature),
-                    Type::FunctionPointer { .. } | Type::Closure { .. }
-                ) {
+                if !matches!(self.tree.get(signature), Type::FunctionSignature { .. }) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "call signature is not a function type".to_string(),
                         anchor,
@@ -1885,7 +1894,7 @@ impl<'a> Validator<'a> {
                     self.require_type_reference(call.signature, anchor, "call signature")?;
                 self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
                 self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
-                if !matches!(self.tree.get(signature), Type::FunctionPointer { .. }) {
+                if !matches!(self.tree.get(signature), Type::FunctionSignature { .. }) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "call signature is not a function type".to_string(),
                         anchor,
@@ -1952,12 +1961,12 @@ impl<'a> Validator<'a> {
             self.reference_type(
                 source_type,
                 anchor,
-                "space.cast requires reference or tensor reference types",
+                "space.cast requires reference or tensor view types",
             ),
             self.reference_type(
                 destination_type,
                 anchor,
-                "space.cast requires reference or tensor reference types",
+                "space.cast requires reference or tensor view types",
             ),
         ) {
             if source.0 != destination.0 || source.1 != destination.1 || source.2 != destination.2 {
@@ -1971,17 +1980,17 @@ impl<'a> Validator<'a> {
             return Ok(());
         }
 
-        // tensor reference forms
+        // tensor view forms
         if let (Ok(source), Ok(destination)) = (
-            self.tensor_reference_type(
+            self.tensor_view_type(
                 source_type,
                 anchor,
-                "space.cast requires reference or tensor reference types",
+                "space.cast requires reference or tensor view types",
             ),
-            self.tensor_reference_type(
+            self.tensor_view_type(
                 destination_type,
                 anchor,
-                "space.cast requires reference or tensor reference types",
+                "space.cast requires reference or tensor view types",
             ),
         ) {
             if source.0 != destination.0
@@ -1991,7 +2000,7 @@ impl<'a> Validator<'a> {
                 || source.5 != destination.5
             {
                 return Err(ValidateError::MetadataInvariantViolation {
-                    message: "space.cast requires matching tensor reference kind, mutability, element, shape, and layout".to_string(),
+                    message: "space.cast requires matching tensor view kind, mutability, element, shape, and layout".to_string(),
                     anchor,
                 });
             }
@@ -2000,7 +2009,7 @@ impl<'a> Validator<'a> {
         }
 
         Err(ValidateError::MetadataInvariantViolation {
-            message: "space.cast requires reference or tensor reference types".to_string(),
+            message: "space.cast requires reference or tensor view types".to_string(),
             anchor,
         })
     }
@@ -2167,7 +2176,7 @@ impl<'a> Validator<'a> {
                 },
                 None => None,
             },
-            Type::TensorReference { element, .. } => self.concrete_type_reference(*element),
+            Type::TensorView { element, .. } => self.concrete_type_reference(*element),
             _ => None,
         }
     }
@@ -2229,7 +2238,7 @@ impl<'a> Validator<'a> {
                 layout,
                 ..
             } => Some((self.concrete_type_reference(*element)?, shape, layout)),
-            Type::TensorReference {
+            Type::TensorView {
                 element,
                 shape,
                 layout,
@@ -2348,17 +2357,20 @@ impl<'a> Validator<'a> {
             }
             (
                 Type::Slice {
+                    kind: left_kind,
                     element: left_element,
                     address_space: left_address_space,
                     mutability: left_mutability,
                 },
                 Type::Slice {
+                    kind: right_kind,
                     element: right_element,
                     address_space: right_address_space,
                     mutability: right_mutability,
                 },
             ) => {
-                left_address_space == right_address_space
+                left_kind == right_kind
+                    && left_address_space == right_address_space
                     && left_mutability == right_mutability
                     && match (
                         self.concrete_type_reference(*left_element),
@@ -2501,7 +2513,7 @@ impl<'a> Validator<'a> {
                     }
             }
             (
-                Type::TensorReference {
+                Type::TensorView {
                     kind: left_kind,
                     address_space: left_space,
                     mutability: left_mutability,
@@ -2510,7 +2522,7 @@ impl<'a> Validator<'a> {
                     layout: left_layout,
                     is_nullable: left_nullable,
                 },
-                Type::TensorReference {
+                Type::TensorView {
                     kind: right_kind,
                     address_space: right_space,
                     mutability: right_mutability,
@@ -2537,11 +2549,11 @@ impl<'a> Validator<'a> {
                     }
             }
             (
-                Type::FunctionPointer {
+                Type::FunctionSignature {
                     parameters: left_parameters,
                     result: left_result,
                 },
-                Type::FunctionPointer {
+                Type::FunctionSignature {
                     parameters: right_parameters,
                     result: right_result,
                 },
@@ -2571,6 +2583,22 @@ impl<'a> Validator<'a> {
                         _ => false,
                     }
             }
+            (
+                Type::FunctionPointer {
+                    signature: left_signature,
+                },
+                Type::FunctionPointer {
+                    signature: right_signature,
+                },
+            ) => match (
+                self.concrete_type_reference(*left_signature),
+                self.concrete_type_reference(*right_signature),
+            ) {
+                (Some(left_signature), Some(right_signature)) => {
+                    self.types_equivalent_inner(left_signature, right_signature, seen_pairs)
+                }
+                _ => false,
+            },
             (
                 Type::Closure {
                     signature: left_signature,
@@ -2902,9 +2930,9 @@ impl<'a> Validator<'a> {
     /// Return pointer bit width for pointer-like MIR types.
     fn pointer_bit_width(&self, ty: &Type) -> Option<u16> {
         match ty {
-            Type::Reference { .. }
-            | Type::TensorReference { .. }
-            | Type::FunctionPointer { .. } => Some(self.tree.pointer_bits()),
+            Type::Reference { .. } | Type::TensorView { .. } | Type::FunctionPointer { .. } => {
+                Some(self.tree.pointer_bits())
+            }
             _ => None,
         }
     }
@@ -2916,7 +2944,7 @@ impl<'a> Validator<'a> {
             Type::Reference {
                 kind: ReferenceKind::Raw,
                 ..
-            } | Type::TensorReference {
+            } | Type::TensorView {
                 kind: ReferenceKind::Raw,
                 ..
             } | Type::FunctionPointer { .. }

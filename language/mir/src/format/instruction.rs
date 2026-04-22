@@ -4,7 +4,7 @@ use destack_fir::write;
 
 use crate::{
     AtomicScope, FormatMirNode, FunctionReference, GlobalReference, Instruction, LocalNodeId,
-    MemoryOrdering, EffectRegionSet, MemoryScope, MemorySemantics, MirFormatter,
+    MemoryOrdering, MemoryRegionSet, MemoryScope, MemorySemantics, MirFormatter,
     TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
     TensorGatherDimensionNumbers, TensorScatterDimensionNumbers, TypeReference, ValueReference,
 };
@@ -1566,7 +1566,7 @@ fn format_call_signature_suffix<'a>(
 
     match signature {
         TypeReference::Type(signature) => match f.context().tree.get(signature) {
-            crate::Type::FunctionPointer { parameters, result } => {
+            crate::Type::FunctionSignature { parameters, result } => {
                 write!(f, [token("(")])?;
                 for (index, parameter) in parameters.iter().enumerate() {
                     if index > 0 {
@@ -1988,26 +1988,26 @@ fn collect_memory_semantics_names(semantics: MemorySemantics) -> Vec<&'static st
 }
 
 /// Collect named memory regions in formatting order.
-fn collect_effect_region_names(regions: EffectRegionSet) -> Vec<&'static str> {
+fn collect_effect_region_names(regions: MemoryRegionSet) -> Vec<&'static str> {
     // special cases for named sets
-    if regions == EffectRegionSet::NONE {
+    if regions == MemoryRegionSet::NONE {
         return vec!["none"];
     }
-    if regions == EffectRegionSet::ANY {
+    if regions == MemoryRegionSet::ANY {
         return vec!["any"];
     }
 
     // collect named regions in canonical order
     let mut names = Vec::new();
     let ordered = [
-        ("heap", EffectRegionSet::HEAP),
-        ("rawHeap", EffectRegionSet::RAW_HEAP),
-        ("stack", EffectRegionSet::STACK),
-        ("global", EffectRegionSet::GLOBAL),
-        ("shared", EffectRegionSet::SHARED),
-        ("local", EffectRegionSet::LOCAL),
-        ("constant", EffectRegionSet::CONSTANT),
-        ("io", EffectRegionSet::IO),
+        ("heap", MemoryRegionSet::HEAP),
+        ("rawHeap", MemoryRegionSet::RAW_HEAP),
+        ("stack", MemoryRegionSet::STACK),
+        ("global", MemoryRegionSet::GLOBAL),
+        ("shared", MemoryRegionSet::SHARED),
+        ("local", MemoryRegionSet::LOCAL),
+        ("constant", MemoryRegionSet::CONSTANT),
+        ("io", MemoryRegionSet::IO),
     ];
     for (name, set) in ordered {
         if regions.contains(set) {

@@ -316,15 +316,17 @@ impl LayoutMetadataCompletion<'_> {
                 element, length, ..
             } => self.record_array_layout(type_id, *element, *length),
             Type::Slice {
+                kind,
                 element,
                 address_space,
                 mutability,
             } => {
+                let kind = *kind;
                 let element = *element;
                 let address_space = address_space.clone();
                 let mutability = *mutability;
 
-                self.record_slice_layout(type_id, element, &address_space, mutability)
+                self.record_slice_layout(type_id, kind, element, &address_space, mutability)
             }
             Type::Closure { signature } => self.record_closure_layout(type_id, *signature),
             _ => Ok(()),
@@ -469,11 +471,12 @@ impl LayoutMetadataCompletion<'_> {
     fn record_slice_layout(
         &mut self,
         type_id: LocalNodeId<Type>,
+        kind: crate::ReferenceKind,
         element: TypeReference,
         address_space: &AddressSpace,
         mutability: crate::Mutability,
     ) -> LayoutMetadataResult<()> {
-        let (data, length) = slice_header_types(element, mutability, address_space.clone());
+        let (data, length) = slice_header_types(kind, element, mutability, address_space.clone());
         let data = self.tree.insert_type(data);
         let length = self.tree.insert_type(length);
 

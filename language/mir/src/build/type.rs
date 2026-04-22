@@ -11,17 +11,12 @@ impl ModuleBuilder {
     /// Ensure the canonical hidden base type for one slice header.
     fn ensure_slice_data_type(
         &mut self,
+        kind: ReferenceKind,
         element: LocalNodeId<Type>,
         mutability: Mutability,
         address_space: AddressSpace,
     ) -> LocalNodeId<Type> {
-        self.type_reference(
-            ReferenceKind::Borrowed,
-            element,
-            mutability,
-            address_space,
-            false,
-        )
+        self.type_reference(kind, element, mutability, address_space, false)
     }
 
     /// Create a void type.
@@ -275,8 +270,8 @@ impl ModuleBuilder {
         })
     }
 
-    /// Create a tensor reference type.
-    pub fn type_tensor_reference(
+    /// Create a tensor view type.
+    pub fn type_tensor_view(
         &mut self,
         kind: ReferenceKind,
         element: LocalNodeId<Type>,
@@ -286,7 +281,7 @@ impl ModuleBuilder {
         layout: TensorLayout,
         is_nullable: bool,
     ) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::TensorReference {
+        self.tree.insert_type(Type::TensorView {
             kind,
             address_space,
             mutability,
@@ -314,13 +309,15 @@ impl ModuleBuilder {
     /// Create a slice type with explicit storage semantics.
     pub fn type_slice_with(
         &mut self,
+        kind: ReferenceKind,
         element: LocalNodeId<Type>,
         mutability: Mutability,
         address_space: AddressSpace,
     ) -> LocalNodeId<Type> {
-        self.ensure_slice_data_type(element, mutability, address_space.clone());
+        self.ensure_slice_data_type(kind, element, mutability, address_space.clone());
 
         self.tree.insert_type(Type::Slice {
+            kind,
             element: element.into(),
             address_space,
             mutability,
@@ -329,7 +326,12 @@ impl ModuleBuilder {
 
     /// Create a local mutable slice type.
     pub fn type_slice(&mut self, element: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.type_slice_with(element, Mutability::Mutable, AddressSpace::Local)
+        self.type_slice_with(
+            ReferenceKind::Managed,
+            element,
+            Mutability::Mutable,
+            AddressSpace::Local,
+        )
     }
 
     /// Create a tuple type with explicit copy.
@@ -360,22 +362,29 @@ impl ModuleBuilder {
         })
     }
 
-    /// Create a function pointer type.
-    pub fn type_function_pointer(
+    /// Create a bare function signature type.
+    pub fn type_function_signature(
         &mut self,
         parameters: Vec<LocalNodeId<Type>>,
         result: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
         let parameters = parameters.into_iter().map(TypeReference::from).collect();
 
-        self.tree.insert_type(Type::FunctionPointer {
+        self.tree.insert_type(Type::FunctionSignature {
             parameters,
             result: result.into(),
         })
     }
 
-    /// Create a callable function value type.
-    pub fn type_function_value(&mut self, signature: LocalNodeId<Type>) -> LocalNodeId<Type> {
+    /// Create a function pointer type.
+    pub fn type_function_pointer(&mut self, signature: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        self.tree.insert_type(Type::FunctionPointer {
+            signature: signature.into(),
+        })
+    }
+
+    /// Create a callable closure type.
+    pub fn type_closure(&mut self, signature: LocalNodeId<Type>) -> LocalNodeId<Type> {
         self.tree.ensure_function_value_environment_type();
         self.tree.insert_type(Type::Closure {
             signature: signature.into(),

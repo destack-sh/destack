@@ -264,10 +264,17 @@ fn format_type_inner<'a>(
             )
         }
         Type::Slice {
+            kind,
             element,
             address_space,
             mutability,
         } => {
+            let kind_token = match kind {
+                ReferenceKind::Managed => None,
+                ReferenceKind::Owned => Some("owned"),
+                ReferenceKind::Borrowed => Some("borrowed"),
+                ReferenceKind::Raw => Some("raw"),
+            };
             let address_space_token = if address_space.is_local() {
                 None
             } else {
@@ -275,6 +282,9 @@ fn format_type_inner<'a>(
             };
 
             write!(f, [token("slice"), token("<"), element])?;
+            if let Some(kind_token) = kind_token {
+                write!(f, [token(","), space(), token(kind_token)])?;
+            }
             if *mutability == Mutability::Immutable {
                 write!(f, [token(","), space(), token("readonly")])?;
             }
@@ -353,7 +363,7 @@ fn format_type_inner<'a>(
             }
             write!(f, [token(">")])
         }
-        Type::TensorReference {
+        Type::TensorView {
             kind,
             address_space,
             mutability,
@@ -363,9 +373,9 @@ fn format_type_inner<'a>(
             is_nullable,
         } => {
             let view_token = if *is_nullable {
-                "tensorRef?<"
+                "tensorView?<"
             } else {
-                "tensorRef<"
+                "tensorView<"
             };
             write!(f, [token(view_token)])?;
             format_view_header(*kind, address_space.clone(), *mutability, *element, f)?;
@@ -378,7 +388,7 @@ fn format_type_inner<'a>(
             }
             write!(f, [token(">")])
         }
-        Type::FunctionPointer { parameters, result } => {
+        Type::FunctionSignature { parameters, result } => {
             write!(f, [token("(")])?;
             for (i, param) in parameters.iter().enumerate() {
                 if i > 0 {
@@ -388,10 +398,10 @@ fn format_type_inner<'a>(
             }
             write!(f, [token(")"), space(), token("->"), space(), result])
         }
-        Type::Closure { signature, .. } => {
+        Type::FunctionPointer { signature } | Type::Closure { signature, .. } => {
             if let TypeReference::Type(signature) = *signature {
                 let signature_type = f.context().tree.get(signature);
-                if let Type::FunctionPointer { parameters, result } = signature_type {
+                if let Type::FunctionSignature { parameters, result } = signature_type {
                     write!(f, [token("(")])?;
                     for (i, param) in parameters.iter().enumerate() {
                         if i > 0 {
@@ -399,7 +409,12 @@ fn format_type_inner<'a>(
                         }
                         write!(f, [param])?;
                     }
-                    write!(f, [token(")"), space(), token("=>"), space(), result])?;
+                    let arrow = match ty {
+                        Type::FunctionPointer { .. } => "->",
+                        Type::Closure { .. } => "=>",
+                        _ => unreachable!(),
+                    };
+                    write!(f, [token(")"), space(), token(arrow), space(), result])?;
                     return Ok(());
                 }
             }

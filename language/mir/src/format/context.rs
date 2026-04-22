@@ -11,7 +11,7 @@ use crate::parse::TokenType;
 use crate::{
     Block, Function, Global, Instruction, Local, LocalNodeId, Mutability, Node, NodeTree,
     NodeTreeImpl, NodeType, ReferenceKind, TensorDimension, TensorLayout, Terminator, Type,
-    TypeAlias, TypeReference, Value,
+    TypeAlias, TypeReference, Value, function_signature_parts,
 };
 
 use super::r#type::format_type_declaration;
@@ -672,6 +672,7 @@ fn type_key_for_alias_inner(
             format!("{element_key}[{length}]")
         }
         Type::Slice {
+            kind,
             element,
             address_space,
             mutability,
@@ -679,6 +680,12 @@ fn type_key_for_alias_inner(
             // format slice keys with element type and qualifiers
             let element_key = type_key_for_alias_reference(tree, strings, *element);
             let mut result = format!("slice<{element_key}");
+            match kind {
+                ReferenceKind::Managed => {}
+                ReferenceKind::Owned => result.push_str(", owned"),
+                ReferenceKind::Borrowed => result.push_str(", borrowed"),
+                ReferenceKind::Raw => result.push_str(", raw"),
+            }
             if *mutability == Mutability::Immutable {
                 result.push_str(", readonly");
             }
@@ -736,7 +743,7 @@ fn type_key_for_alias_inner(
             let layout_key = format_tensor_layout_key(layout);
             format!("tensor<{element_key}, {shape_key}, {layout_key}>")
         }
-        Type::TensorReference {
+        Type::TensorView {
             kind,
             address_space,
             mutability,
@@ -748,9 +755,9 @@ fn type_key_for_alias_inner(
             // format tensor reference keys with reference header, shape, and layout
             let mut result = String::new();
             if *is_nullable {
-                result.push_str("tensorRef?<");
+                result.push_str("tensorView?<");
             } else {
-                result.push_str("tensorRef<");
+                result.push_str("tensorView<");
             }
             let element_key = type_key_for_alias_reference(tree, strings, *element);
             result.push_str(&element_key);
@@ -776,7 +783,7 @@ fn type_key_for_alias_inner(
             result.push('>');
             result
         }
-        Type::FunctionPointer { parameters, result } => {
+        Type::FunctionSignature { parameters, result } => {
             // join parameter and result keys
             let params = parameters
                 .iter()
@@ -784,25 +791,26 @@ fn type_key_for_alias_inner(
                 .collect::<Vec<_>>()
                 .join(", ");
             let result = type_key_for_alias_reference(tree, strings, *result);
-            format!("({params}) -> {result}")
+            format!("sig({params}) -> {result}")
         }
-        Type::Closure { signature, .. } => {
+        Type::FunctionPointer { signature } | Type::Closure { signature } => {
             let TypeReference::Type(signature) = *signature else {
-                return format!(
-                    "({}) => <?>",
-                    type_key_for_alias_reference(tree, strings, *signature)
-                );
+                return type_key_for_alias_reference(tree, strings, *signature);
             };
-            let Type::FunctionPointer { parameters, result } = tree.get(signature) else {
-                panic!("callable type key expects a function pointer signature");
+            let Some((parameters, result)) = function_signature_parts(tree.get(signature)) else {
+                panic!("callable type key expects a function signature");
             };
             let params = parameters
                 .iter()
                 .map(|param| type_key_for_alias_reference(tree, strings, *param))
                 .collect::<Vec<_>>()
                 .join(", ");
-            let result = type_key_for_alias_reference(tree, strings, *result);
-            format!("({params}) => {result}")
+            let result = type_key_for_alias_reference(tree, strings, result);
+            match tree.get(ty) {
+                Type::FunctionPointer { .. } => format!("({params}) -> {result}"),
+                Type::Closure { .. } => format!("({params}) => {result}"),
+                _ => unreachable!(),
+            }
         }
     };
 
@@ -1112,14 +1120,14 @@ fn record_type_use_inner(
             };
             record_type_use_inner(tree, element, counts, visited);
         }
-        Type::TensorReference { element, .. } => {
+        Type::TensorView { element, .. } => {
             let TypeReference::Type(element) = *element else {
                 return;
             };
             record_type_use_inner(tree, element, counts, visited);
         }
-        Type::FunctionPointer { parameters, result } => {
-            // record function pointer types
+        Type::FunctionSignature { parameters, result } => {
+            // record function signature types
             for parameter_id in parameters {
                 let TypeReference::Type(parameter_id) = *parameter_id else {
                     continue;
@@ -1131,7 +1139,7 @@ fn record_type_use_inner(
             };
             record_type_use_inner(tree, result, counts, visited);
         }
-        Type::Closure { signature } => {
+        Type::FunctionPointer { signature } | Type::Closure { signature } => {
             let TypeReference::Type(signature) = *signature else {
                 return;
             };
@@ -1573,16 +1581,16 @@ fn collect_alias_dependencies(
             Type::Tensor { element, .. } => {
                 record_dependency(*element, root, alias_types, &mut dependencies, &mut stack);
             }
-            Type::TensorReference { element, .. } => {
+            Type::TensorView { element, .. } => {
                 record_dependency(*element, root, alias_types, &mut dependencies, &mut stack);
             }
-            Type::FunctionPointer { parameters, result } => {
+            Type::FunctionSignature { parameters, result } => {
                 for parameter in parameters {
                     record_dependency(*parameter, root, alias_types, &mut dependencies, &mut stack);
                 }
                 record_dependency(*result, root, alias_types, &mut dependencies, &mut stack);
             }
-            Type::Closure { signature } => {
+            Type::FunctionPointer { signature } | Type::Closure { signature } => {
                 record_dependency(*signature, root, alias_types, &mut dependencies, &mut stack);
             }
             Type::Void

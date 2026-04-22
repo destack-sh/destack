@@ -77,10 +77,10 @@ pub enum TokenType {
     Vector,
     /// `tensor`
     Tensor,
-    /// `tensorRef`
-    TensorReference,
-    /// `tensorRef?`
-    TensorReferenceNullable,
+    /// `tensorView`
+    TensorView,
+    /// `tensorView?`
+    TensorViewNullable,
     /// `space`
     AddressSpace,
     /// `struct`
