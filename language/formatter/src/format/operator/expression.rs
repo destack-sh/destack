@@ -1,10 +1,11 @@
 use crate::format::annotation::{infix_or_postfix_annotations, postfix_annotations};
 use crate::format::call::{
-    call_should_route_to_chain, format_call_expression, format_instantiation_expression,
-    format_new_expression,
+    call_should_route_to_chain, expression_is_long_curried_call, format_call_expression,
+    format_instantiation_expression, format_new_expression,
 };
 use crate::format::chain::{
-    format_expression_chain, format_maybe_expression, transparent_inner_expression,
+    chain_has_call_like_expression, format_expression_chain, format_maybe_expression,
+    transparent_inner_expression,
 };
 use crate::format::expression::{format_index_expression, format_member_expression};
 use crate::format::operator::assign::format_assign_expression;
@@ -169,8 +170,12 @@ pub(crate) fn format_operator_expression<'ast>(
         }
 
         // index
-        Expression::Index { .. } => {
-            format_index_expression(f, node_id)?;
+        Expression::Index { left, .. } => {
+            if postfix_expression_should_route_to_chain(f.context(), *left) {
+                format_expression_chain(f, node_id)?;
+            } else {
+                format_index_expression(f, node_id)?;
+            }
         }
 
         // call
@@ -179,8 +184,12 @@ pub(crate) fn format_operator_expression<'ast>(
         }
 
         // instantiation
-        Expression::Instantiation { .. } => {
-            format_instantiation_expression(f, node_id)?;
+        Expression::Instantiation { left, .. } => {
+            if postfix_expression_should_route_to_chain(f.context(), *left) {
+                format_expression_chain(f, node_id)?;
+            } else {
+                format_instantiation_expression(f, node_id)?;
+            }
         }
 
         // new
@@ -280,6 +289,11 @@ fn format_call_or_chain_expression<'ast>(
         });
     };
 
+    // long curried calls stay under the direct call owner
+    if expression_is_long_curried_call(f.context(), node_id) {
+        return format_call_expression(f, node_id);
+    }
+
     let should_route_to_chain = call_should_route_to_chain(f.context(), node_id, *left, arguments);
     if should_route_to_chain {
         format_expression_chain(f, node_id)?;
@@ -303,4 +317,12 @@ fn format_must_expression<'ast>(
     write!(f, [token("!")])?;
 
     Ok(())
+}
+
+/// Return whether one postfix expression should route to the chain owner.
+fn postfix_expression_should_route_to_chain(
+    context: &DestackFormatContext<'_>,
+    left_id: LocalNodeId<Expression>,
+) -> bool {
+    chain_has_call_like_expression(context.tree, left_id)
 }

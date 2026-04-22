@@ -813,7 +813,7 @@ fn binary_expression_is_inside_parenthesis_context(
     }
 }
 
-/// Format a binary expression with one OXC-shaped binary-like printer.
+/// Format a binary expression with one binary-like printer.
 pub(crate) fn format_binary_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,

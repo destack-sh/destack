@@ -794,7 +794,7 @@ fn template_interpolation_has_surrounding_newline(
     context.span_has_newline_before_next_non_whitespace_token(context.span(node_id))
 }
 
-/// Format a ternary expression with OXC-shaped breaking.
+/// Format a ternary expression with the standard breaking layout.
 /// Nested ternaries get progressive indentation when they break.
 pub(crate) fn format_ternary(
     f: &mut DestackFormatter<'_, '_>,

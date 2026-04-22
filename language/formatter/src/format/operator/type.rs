@@ -1,8 +1,7 @@
 use crate::format::annotation::{FormatLeadingComments, FormatTrailingComments};
 use crate::format::chain::transparent_inner_expression;
 use crate::format::expression::{
-    write_expression_without_trailing_comments, write_type_expression_leading_comments,
-    write_type_expression_prefix_annotations, write_type_expression_without_prefix_annotations,
+    write_expression_without_trailing_comments, write_type_expression_node,
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{Expression, GenericArgument, LocalNodeId, NodeType, TypeExpression};
@@ -11,6 +10,7 @@ use destack_fir::prelude::{
     format_with, group, soft_block_indent, soft_line_break_or_space, space, token,
 };
 use destack_fir::{format_args, write};
+use destack_source::Span;
 
 /// Write one type expression with inline prefix annotations.
 pub(crate) fn write_type_expression_with_inline_prefix_annotations<'ast>(
@@ -18,10 +18,7 @@ pub(crate) fn write_type_expression_with_inline_prefix_annotations<'ast>(
     node_id: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
     let expression = f.context().tree.get(node_id);
-
-    write_type_expression_prefix_annotations(f, node_id, expression)?;
-    write_type_expression_leading_comments(f, node_id, expression)?;
-    write_type_expression_without_prefix_annotations(f, node_id)
+    write_type_expression_node(f, node_id, expression, true)
 }
 
 /// Write one type annotation prefix.
@@ -31,7 +28,7 @@ pub(crate) fn write_type_annotation_prefix<'ast>(
 ) -> FormatResult<()> {
     let separator_start = f
         .context()
-        .previous_non_trivia_token_before_span(destack_source::Span::new(
+        .previous_non_trivia_token_before_span(Span::new(
             f.context().file.id,
             annotation_start,
             annotation_start,
@@ -44,8 +41,10 @@ pub(crate) fn write_type_annotation_prefix<'ast>(
         .to_vec();
 
     if !leading_comments.is_empty() {
-        write!(f, [space()])?;
-        write!(f, [FormatLeadingComments::Comments(&leading_comments)])?;
+        write!(
+            f,
+            [space(), FormatLeadingComments::Comments(&leading_comments)]
+        )?;
     }
 
     write!(f, [token(":"), space()])

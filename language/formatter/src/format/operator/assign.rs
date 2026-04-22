@@ -10,13 +10,16 @@ use crate::format::chain::{
     transparent_inner_expression,
 };
 use crate::format::context::DestackFormatterSpeculationExt;
+use crate::format::declaration::{
+    FormatLambdaDeclarationOptions, format_lambda_declaration_with_options,
+};
 use crate::format::expression::{ExpressionLeftSide, write_expression_without_prefix_annotations};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Comment,
-    Declaration, Declarator, DecoratorPosition, Expression, FunctionKind, GenericArgument,
-    IfCondition, IfKind, LocalNodeId, NodeType, Pattern, PatternField, ScalarLiteral,
-    TemplateLiteral, TokenType, TypeExpression,
+    Declaration, Declarator, DecoratorPosition, Expression, FunctionDeclaration, FunctionKind,
+    GenericArgument, IfCondition, IfKind, LocalNodeId, NodeType, Pattern, PatternField,
+    ScalarLiteral, TemplateLiteral, TokenType, TypeExpression,
 };
 use destack_fir::format::{
     Buffer, Format, FormatNode as FirFormatNode, FormatNodes, FormatResult,
@@ -72,7 +75,7 @@ fn is_short_expression(
             context.strings.get(*content).len() <= threshold as usize
         }
         Expression::TemplateExpression { value } => {
-            // interpolated templates are not short in the OXC assignment-like rules
+            // interpolated templates are not short in the assignment-like rules
             let TemplateLiteral::String { string } = value else {
                 return false;
             };
@@ -96,7 +99,7 @@ fn is_short_expression(
     }
 }
 
-/// Return whether one single type argument is complex in the upstream sense.
+/// Return whether one single type argument is complex for assignment-like layout.
 fn type_argument_is_complex(
     context: &DestackFormatContext<'_>,
     type_id: LocalNodeId<TypeExpression>,
@@ -114,10 +117,12 @@ fn is_complex_generic_arguments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     generic_arguments: &[LocalNodeId<GenericArgument>],
 ) -> FormatResult<bool> {
+    // multiple arguments always count as complex in the assignment-like heuristic
     if generic_arguments.len() > 1 {
         return Ok(true);
     }
 
+    // inspect the single argument structurally first
     let Some(argument_id) = generic_arguments.first().copied() else {
         return Ok(false);
     };
@@ -131,7 +136,7 @@ fn is_complex_generic_arguments<'ast>(
         GenericArgument::Value { value } => {
             let value = transparent_inner_expression(f.context(), *value);
 
-            // destack-only value arguments use the same complexity threshold as type arguments
+            // destack-only value arguments use the same threshold as complex type arguments
             if matches!(
                 f.context().tree.get(value),
                 Expression::Binary {
@@ -151,7 +156,7 @@ fn is_complex_generic_arguments<'ast>(
         GenericArgument::Error => return Ok(false),
     }
 
-    // speculative formatting
+    // fall back to one speculative render for the remaining cases
     let start = generic_arguments
         .first()
         .map(|argument_id| f.context().span(*argument_id))
@@ -881,6 +886,7 @@ pub(crate) fn write_assignment_rhs_operator_comments<'ast>(
 fn write_declarator_assignment_value<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     value_id: LocalNodeId<Expression>,
+    layout: AssignmentLikeLayout,
     rhs_has_inline_operator_prefix_comment: bool,
     rhs_operator_comment_nodes: &[Comment],
 ) -> FormatResult<()> {
@@ -901,10 +907,10 @@ fn write_declarator_assignment_value<'ast>(
         // plain rhs
         if prefix_annotation_ids.is_empty() {
             if !rhs_operator_comment_nodes.is_empty() {
-                return write_expression_without_prefix_annotations(f, value_id);
+                return write_expression_with_assignment_layout(f, value_id, layout, true);
             }
 
-            write!(f, [value_id])?;
+            write_expression_with_assignment_layout(f, value_id, layout, false)?;
             return Ok(());
         }
 
@@ -912,7 +918,7 @@ fn write_declarator_assignment_value<'ast>(
         if rhs_has_inline_operator_prefix_comment {
             write_inline_prefix_annotations(f, &prefix_annotation_ids)?;
             write!(f, [space()])?;
-            return write_expression_without_prefix_annotations(f, value_id);
+            return write_expression_with_assignment_layout(f, value_id, layout, true);
         }
 
         // normal prefix annotations
@@ -925,7 +931,7 @@ fn write_declarator_assignment_value<'ast>(
             write!(f, [space()])?;
         }
 
-        write_expression_without_prefix_annotations(f, value_id)
+        write_expression_with_assignment_layout(f, value_id, layout, true)
     };
 
     if rhs_operator_comment_nodes.is_empty() {
@@ -933,6 +939,65 @@ fn write_declarator_assignment_value<'ast>(
     }
 
     write_value()
+}
+
+/// Write one expression with assignment-like layout routed into lambda declarations.
+fn write_expression_with_assignment_layout<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+    layout: AssignmentLikeLayout,
+    without_prefix_annotations: bool,
+) -> FormatResult<()> {
+    let expression = f.context().tree.get(expression_id);
+
+    let Expression::Declaration(declaration_id) = expression else {
+        if without_prefix_annotations {
+            return write_expression_without_prefix_annotations(f, expression_id);
+        }
+
+        return write!(f, [expression_id]);
+    };
+
+    let Declaration::Function(FunctionDeclaration {
+        name,
+        export,
+        ambient,
+        signature,
+        body,
+    }) = f.context().tree.get(*declaration_id)
+    else {
+        if without_prefix_annotations {
+            return write_expression_without_prefix_annotations(f, expression_id);
+        }
+
+        return write!(f, [expression_id]);
+    };
+
+    if signature.kind != FunctionKind::Lambda {
+        if without_prefix_annotations {
+            return write_expression_without_prefix_annotations(f, expression_id);
+        }
+
+        return write!(f, [expression_id]);
+    }
+
+    if !without_prefix_annotations {
+        write!(f, [prefix_annotations(f.context(), *declaration_id)])?;
+    }
+
+    format_lambda_declaration_with_options(
+        f,
+        *declaration_id,
+        *export,
+        *ambient,
+        *name,
+        signature,
+        body,
+        FormatLambdaDeclarationOptions {
+            assignment_layout: Some(layout),
+            ..FormatLambdaDeclarationOptions::default()
+        },
+    )
 }
 
 /// Format one declarator assignment shell through the shared assignment-like owner.
@@ -1035,7 +1100,7 @@ impl AssignmentLike {
         }
 
         // left side pressure
-        if self.should_break_left_hand_side(f.context(), is_left_short, left_may_break) {
+        if self.should_break_left_hand_side(f.context(), left_may_break) {
             return Ok(AssignmentLikeLayout::BreakLeftHandSide);
         }
 
@@ -1161,6 +1226,7 @@ impl AssignmentLike {
                     write_declarator_assignment_value(
                         f,
                         value,
+                        layout,
                         rhs_has_inline_operator_prefix_comment,
                         &rhs_operator_comment_nodes,
                     )
@@ -1169,7 +1235,11 @@ impl AssignmentLike {
                 write_assignment_like_right(f, layout, &formatted_right)
             }
             AssignmentLike::Expression { right, .. } => {
-                write_assignment_like_right(f, layout, &right)
+                let formatted_right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    write_expression_with_assignment_layout(f, right, layout, false)
+                });
+
+                write_assignment_like_right(f, layout, &formatted_right)
             }
         }
     }
@@ -1219,7 +1289,6 @@ impl AssignmentLike {
     fn should_break_left_hand_side(
         self,
         context: &DestackFormatContext<'_>,
-        is_left_short: bool,
         left_may_break: bool,
     ) -> bool {
         match self {
@@ -1245,8 +1314,7 @@ impl AssignmentLike {
                     return false;
                 };
 
-                (left_may_break || !is_left_short)
-                    && declarator_value_is_lambda_like(context, value)
+                left_may_break && declarator_value_is_lambda_like(context, value)
             }
 
             // assignment target shape
