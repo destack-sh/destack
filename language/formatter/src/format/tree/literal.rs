@@ -1,5 +1,6 @@
 use crate::format::annotation::block_infix_annotations;
 use crate::format::chain::transparent_inner_expression;
+use crate::format::declaration::expression_is_in_statement_position;
 use crate::format::expression::format_generic_argument_list;
 use crate::format::tree::{
     is_jsx_whitespace_char, should_force_break_tree_attributes, tree_argument_is_wrapped_in_braces,
@@ -666,12 +667,40 @@ pub(crate) fn tree_literal_should_break(
     tree_literal_layout(context, arguments, elements).2
 }
 
+/// Return whether a tree literal is the body of one lambda declaration.
+fn tree_literal_is_lambda_body(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent_by_id(node_id.id) else {
+        return false;
+    };
+    if parent_type != NodeType::Declaration {
+        return false;
+    }
+
+    let declaration_id = LocalNodeId::<Declaration>::new(parent_id);
+    matches!(
+        context.tree.get(declaration_id),
+        Declaration::Function(function)
+            if function.signature.kind == FunctionKind::Lambda
+                && function.body.is_some_and(|body_id| body_id == node_id)
+    )
+}
+
 /// Return whether a tree literal should be wrapped in parentheses when it breaks.
 pub(crate) fn tree_literal_wraps_on_break(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+    // top-level expression statements stay unwrapped
+    if expression_is_in_statement_position(context, node_id)
+        && !tree_literal_is_lambda_body(context, node_id)
+    {
+        return false;
+    }
+
+    let Some((parent_id, parent_type)) = context.parent_by_id(node_id.id) else {
         return true;
     };
 
@@ -724,10 +753,84 @@ pub(crate) fn tree_literal_wraps_on_break(
                     if function.signature.kind == FunctionKind::Lambda
                         && function.body.is_some_and(|body_id| body_id.id == node_id.id)
             );
-            !is_lambda_body
+
+            if is_lambda_body {
+                return true;
+            }
+
+            true
         }
         NodeType::Declarator => true,
         _ => true,
+    }
+}
+
+/// Return whether a tree literal should force expanded layout in one parent chain.
+fn tree_literal_should_expand_in_parent(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let mut current_id = node_id.id;
+    let mut current_type = NodeType::Expression;
+    let mut is_lambda_body = false;
+    let mut is_inside_call = false;
+
+    loop {
+        // current expression
+        if current_type == NodeType::Expression {
+            let current_expression_id = LocalNodeId::<Expression>::new(current_id);
+            match context.tree.get(current_expression_id) {
+                Expression::Call { .. } | Expression::New { .. } => {
+                    if is_lambda_body {
+                        is_inside_call = true;
+                    }
+                }
+                Expression::TreeExpression { .. } => {
+                    if current_id != node_id.id {
+                        return is_inside_call;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // parent edge
+        let Some((parent_id, parent_type)) = context.parent_by_id(current_id) else {
+            return false;
+        };
+
+        // lambda body owner
+        if parent_type == NodeType::Declaration {
+            if current_type != NodeType::Expression {
+                return false;
+            }
+
+            let declaration_id = LocalNodeId::<Declaration>::new(parent_id);
+            let Declaration::Function(function) = context.tree.get(declaration_id) else {
+                return false;
+            };
+            if function.signature.kind != FunctionKind::Lambda
+                || !function
+                    .body
+                    .is_some_and(|body_id| body_id.id == current_id)
+            {
+                return false;
+            }
+
+            is_lambda_body = true;
+            current_id = parent_id;
+            current_type = parent_type;
+            continue;
+        }
+
+        // continue through expression and argument wrappers
+        if matches!(parent_type, NodeType::Expression | NodeType::Argument) {
+            current_id = parent_id;
+            current_type = parent_type;
+            continue;
+        }
+
+        return false;
     }
 }
 
@@ -740,12 +843,22 @@ pub(crate) fn format_tree_literal_expression<'ast>(
     arguments: &Option<Vec<LocalNodeId<Argument>>>,
     elements: &Option<Vec<LocalNodeId<Argument>>>,
 ) -> FormatResult<()> {
+    let should_expand_in_parent = tree_literal_should_expand_in_parent(f.context(), node_id);
+
     if !tree_literal_wraps_on_break(f.context(), node_id) {
-        return format_tree_literal(f, node_id, left, generic_arguments, arguments, elements);
+        if !should_expand_in_parent {
+            return format_tree_literal(f, node_id, left, generic_arguments, arguments, elements);
+        }
+
+        let formatted_tree = format_with(|f| {
+            format_tree_literal(f, node_id, left, generic_arguments, arguments, elements)
+        });
+
+        return write!(f, [group(&formatted_tree).should_expand(true)]);
     }
 
     let layout = tree_literal_layout(f.context(), arguments, elements);
-    let should_expand = layout.3;
+    let should_expand = layout.3 || should_expand_in_parent;
 
     write!(
         f,
