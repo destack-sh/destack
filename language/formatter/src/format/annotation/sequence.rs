@@ -379,9 +379,11 @@ fn write_prefix_sequence_items<'ast>(
         write_prefix_sequence_item(f, item)?;
 
         let item_span = prefix_sequence_item_span(f.context(), item);
-        if f.context()
-            .span_has_newline_before_next_non_whitespace_token(item_span)
-        {
+        let lines_after = f.context().source_text().lines_after(item_span.end);
+
+        if lines_after > 1 {
+            write!(f, [empty_line()])?;
+        } else if lines_after == 1 {
             write!(f, [hard_line_break()])?;
         } else {
             write!(f, [space()])?;

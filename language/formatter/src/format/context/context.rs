@@ -13,7 +13,9 @@ use destack_ast::{
     WhereClause,
 };
 use destack_core::ImmutableStringPool;
-use destack_fir::format::{Format, FormatContext, FormatNode as FirNode, FormatResult, Formatter};
+use destack_fir::format::{
+    Buffer, Format, FormatContext, FormatNode as FirNode, FormatNodes, FormatResult, Formatter,
+};
 use destack_source::{File, MultiSpan, Span};
 
 use super::comment::Comments;
@@ -140,6 +142,104 @@ impl FormatContext for DestackFormatContext<'_> {
     #[inline]
     fn file(&self) -> &File {
         self.file
+    }
+}
+
+/// The memoized formatted content for one formatter payload.
+pub(crate) struct MemoizedFormat<T> {
+    /// The content to format.
+    content: T,
+    /// The cached formatted node.
+    cached: OnceCell<Option<FirNode>>,
+}
+
+impl<T> MemoizedFormat<T> {
+    /// Construct one memoized formatter payload.
+    pub(crate) fn new(content: T) -> Self {
+        Self {
+            content,
+            cached: OnceCell::new(),
+        }
+    }
+
+    /// Inspect the formatted content without formatting it twice.
+    pub(crate) fn inspect<'ast>(
+        &self,
+        f: &mut DestackFormatter<'ast, '_>,
+    ) -> FormatResult<Option<FirNode>>
+    where
+        T: Format<DestackFormatContext<'ast>>,
+    {
+        // cached
+        if let Some(cached) = self.cached.get() {
+            return Ok(cached.clone());
+        }
+
+        // fresh
+        let interned = f.intern(&self.content)?;
+        let _ = self.cached.set(interned.clone());
+
+        Ok(interned)
+    }
+}
+
+impl<'ast, T> Format<DestackFormatContext<'ast>> for MemoizedFormat<T>
+where
+    T: Format<DestackFormatContext<'ast>>,
+{
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+        // cached content
+        let Some(cached) = self.inspect(f)? else {
+            return Ok(());
+        };
+
+        f.write_node(cached);
+        Ok(())
+    }
+}
+
+/// Memoize one formatting payload for reuse and inspection.
+pub(crate) trait MemoizeFormatExt<'ast>: Format<DestackFormatContext<'ast>> + Sized {
+    /// Return one memoized wrapper around this payload.
+    fn memoized(self) -> MemoizedFormat<Self> {
+        MemoizedFormat::new(self)
+    }
+}
+
+impl<'ast, T> MemoizeFormatExt<'ast> for T where T: Format<DestackFormatContext<'ast>> + Sized {}
+
+/// Speculative formatting helpers for one Destack formatter.
+pub(crate) trait DestackFormatterSpeculationExt<'ast> {
+    /// Return whether formatting `content` after one source start would break.
+    fn speculate_will_break_after(
+        &mut self,
+        start: u32,
+        content: &dyn Format<DestackFormatContext<'ast>>,
+    ) -> FormatResult<bool>;
+}
+
+impl<'ast> DestackFormatterSpeculationExt<'ast> for DestackFormatter<'ast, '_> {
+    fn speculate_will_break_after(
+        &mut self,
+        start: u32,
+        content: &dyn Format<DestackFormatContext<'ast>>,
+    ) -> FormatResult<bool> {
+        // speculation snapshot
+        let snapshot = self.context().comments().snapshot();
+
+        // speculative pass
+        self.context_mut()
+            .comments_mut()
+            .skip_comments_before(start);
+
+        let will_break = self
+            .intern(content)?
+            .is_some_and(|content| content.will_break());
+
+        // restore
+        self.context_mut().comments_mut().restore(snapshot);
+
+        Ok(will_break)
     }
 }
 
