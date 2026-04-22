@@ -382,21 +382,6 @@ fn write_definite_suffix<'ast>(
     Ok(())
 }
 
-/// Return whether one object field can stay in shorthand form.
-fn property_field_is_shorthand(
-    context: &DestackFormatContext<'_>,
-    key: Key,
-    value: LocalNodeId<Expression>,
-) -> bool {
-    matches!(
-        (key, context.tree.get(value)),
-        (
-            Key::Name(Name::Identifier(key_name)),
-            Expression::Identifier { name: value_name },
-        ) if key_name == *value_name
-    )
-}
-
 /// Return whether one property container should quote all eligible keys.
 fn property_should_force_quote_keys<'ast>(
     f: &DestackFormatter<'ast, '_>,
@@ -439,10 +424,11 @@ fn format_object_property_value<'ast>(
     node_id: LocalNodeId<Property>,
     key: Key,
     value: LocalNodeId<Expression>,
+    is_shorthand: bool,
     force_quote_keys: bool,
 ) -> FormatResult<()> {
     // shorthand
-    if property_field_is_shorthand(f.context(), key, value) {
+    if is_shorthand {
         return format_key_with_quotes(f, key, force_quote_keys);
     }
 
@@ -970,8 +956,19 @@ impl<'ast> FormatNode<'ast, Property> for Property {
 
         format_node_with_directive(f, node_id, false, |f| {
             match self {
-                Property::Field { key, value } => {
-                    format_object_property_value(f, node_id, *key, *value, force_quote_keys)?;
+                Property::Field {
+                    key,
+                    value,
+                    is_shorthand,
+                } => {
+                    format_object_property_value(
+                        f,
+                        node_id,
+                        *key,
+                        *value,
+                        *is_shorthand,
+                        force_quote_keys,
+                    )?;
                 }
                 Property::Spread { value } => {
                     // keyword

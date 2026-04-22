@@ -212,7 +212,7 @@ pub(crate) fn format_scalar_literal<'ast>(
 fn format_interpolated_template_literal<'ast>(
     strings: &[StringId],
     arguments: &[LocalNodeId<Argument>],
-    template_span: Span,
+    _template_span: Span,
     f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     debug_assert_eq!(strings.len(), arguments.len().saturating_add(1));
@@ -224,18 +224,10 @@ fn format_interpolated_template_literal<'ast>(
         write!(f, [*first_segment])?;
     }
 
-    // preserve multiline template interpolation intent from source
-    let template_has_newline = f.context().has_newline(template_span);
-
     for (argument, segment) in arguments.iter().zip(string_segments) {
         let format_argument = format_with(|f| write!(f, [*argument]));
         let interned_argument = f.intern(&format_argument)?;
-        let layout = template_argument_layout(
-            f.context(),
-            *argument,
-            template_has_newline,
-            &interned_argument,
-        );
+        let layout = template_argument_layout(f.context(), *argument, &interned_argument);
         let format_inner = format_with(|f| {
             match layout {
                 // single-line layout
@@ -297,19 +289,14 @@ enum TemplateElementLayout {
 fn template_argument_layout(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
-    _template_has_newline: bool,
     interned_argument: &Option<destack_fir::format::FormatNode>,
 ) -> TemplateElementLayout {
-    if context.node_has_newline(argument_id) {
+    // preserve multiline interpolation expressions from source
+    if template_argument_has_newline_in_range(context, argument_id) {
         return TemplateElementLayout::Fit;
     }
 
-    if let Some(expression_id) = template_argument_expression_id(context, argument_id)
-        && context.node_has_newline(expression_id)
-    {
-        return TemplateElementLayout::Fit;
-    }
-
+    // keep expressions that break in fit mode expandable
     if interned_argument
         .as_ref()
         .is_some_and(FormatNodes::will_break)
@@ -318,6 +305,23 @@ fn template_argument_layout(
     }
 
     TemplateElementLayout::SingleLine
+}
+
+/// Return whether one interpolation argument spans a newline boundary in source.
+fn template_argument_has_newline_in_range(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(expression_id) = template_argument_expression_id(context, argument_id) else {
+        return false;
+    };
+
+    let expression_span = context.span(expression_id);
+    let source = context.source_text();
+
+    source.has_newline_before(expression_span.start)
+        || source.has_newline_after(expression_span.end)
+        || source.contains_newline(expression_span)
 }
 
 /// Return whether one fit-layout interpolation should indent its body.
