@@ -1,5 +1,6 @@
 mod declaration;
 mod function;
+mod lambda;
 mod semicolon;
 pub(crate) mod sequence;
 mod r#type;
@@ -12,9 +13,9 @@ pub(crate) use self::declaration::{
     format_let_else_statement_expression, format_let_statement_expression,
     format_using_statement_expression,
 };
-pub(crate) use self::function::{
-    FormatLambdaDeclarationOptions, GroupedCallArgumentLayout, format_lambda_declaration,
-    format_lambda_declaration_with_options,
+pub(crate) use self::lambda::{
+    FormatLambdaDeclarationOptions, FunctionCacheMode, GroupedCallArgumentLayout,
+    format_lambda_declaration, format_lambda_declaration_with_options,
 };
 pub(crate) use self::semicolon::{
     expression_needs_statement_terminator, statement_has_inline_terminator_comments,

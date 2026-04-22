@@ -256,6 +256,12 @@ pub(crate) fn expression_needs_statement_terminator(
             | Expression::Using { .. }
     ) || matches!(
         expression,
+        Expression::If {
+            kind: IfKind::Ternary,
+            ..
+        }
+    ) || matches!(
+        expression,
         Expression::While {
             kind: WhileKind::DoWhile,
             ..

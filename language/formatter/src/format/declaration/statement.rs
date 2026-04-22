@@ -113,6 +113,14 @@ pub(crate) fn block_has_internal_comments(
     context: &DestackFormatContext<'_>,
     block_id: LocalNodeId<Block>,
 ) -> bool {
+    let block = context.tree.get(block_id);
+    let block_span = context.span(block_id);
+
+    // empty blocks with interior comments must stay expanded
+    if block.is_empty() && context.comments().has_comment_in_span(block_span) {
+        return true;
+    }
+
     !block_leading_line_comment_nodes(context, block_id).is_empty()
         || !block_trailing_comment_nodes(context, block_id).is_empty()
 }
@@ -311,8 +319,13 @@ pub fn format_block<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
+    let block_span_end = f.context().span(node_id).end;
+
     write!(f, [prefix_annotations(f.context(), node_id)])?;
     write_block_body(f, node_id)?;
+    f.context_mut()
+        .comments_mut()
+        .skip_comments_before(block_span_end);
     write!(f, [postfix_annotations(f.context(), node_id)])?;
     Ok(())
 }
@@ -323,8 +336,13 @@ impl<'ast> FormatNode<'ast, Block> for Block {
         node_id: LocalNodeId<Block>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        let block_span_end = f.context().span(node_id).end;
+
         write!(f, [prefix_annotations(f.context(), node_id)])?;
         write!(f, [group(&format_with(|f| write_block_body(f, node_id)))])?;
+        f.context_mut()
+            .comments_mut()
+            .skip_comments_before(block_span_end);
         write!(f, [postfix_annotations(f.context(), node_id)])?;
         Ok(())
     }
