@@ -186,29 +186,38 @@ enum SignatureType {
         element: Box<SignatureType>,
         /// Array length.
         length: u64,
-        /// Copyability of the array.
-        copyability: mir::Copyability,
+        /// Copy of the array.
+        copy: mir::Copy,
+    },
+    /// Slice type signature.
+    Slice {
+        /// Element type signature.
+        element: Box<SignatureType>,
+        /// Address space for the slice base.
+        address_space: mir::AddressSpace,
+        /// Mutability exposed by the slice.
+        mutability: mir::Mutability,
     },
     /// Tuple type signature.
     Tuple {
         /// Element type signatures.
         elements: Vec<SignatureType>,
-        /// Copyability of the tuple.
-        copyability: mir::Copyability,
+        /// Copy of the tuple.
+        copy: mir::Copy,
     },
     /// Struct type signature.
     Struct {
         /// Field type signatures in declaration order.
         fields: Vec<SignatureType>,
-        /// Copyability of the struct.
-        copyability: mir::Copyability,
+        /// Copy of the struct.
+        copy: mir::Copy,
     },
     /// Nominal newtype signature.
     Newtype {
         /// Inner type signature.
         inner: Box<SignatureType>,
-        /// Copyability of the newtype.
-        copyability: mir::Copyability,
+        /// Copy of the newtype.
+        copy: mir::Copy,
     },
     /// Vector type signature.
     Vector {
@@ -216,8 +225,8 @@ enum SignatureType {
         element: Box<SignatureType>,
         /// Lane count.
         lanes: u32,
-        /// Copyability of the vector.
-        copyability: mir::Copyability,
+        /// Copy of the vector.
+        copy: mir::Copy,
     },
     /// Tensor value signature.
     Tensor {
@@ -227,8 +236,8 @@ enum SignatureType {
         shape: Vec<mir::TensorDimension>,
         /// Tensor layout.
         layout: mir::TensorLayout,
-        /// Copyability of the tensor.
-        copyability: mir::Copyability,
+        /// Copy of the tensor.
+        copy: mir::Copy,
     },
     /// Tensor view signature.
     TensorReference {
@@ -299,16 +308,22 @@ impl SignatureType {
             mir::Type::Array {
                 element,
                 length,
-                copyability,
+                copy,
             } => SignatureType::Array {
                 element: Box::new(SignatureType::from_type(tree, element.ty()?)?),
                 length: *length,
-                copyability: *copyability,
+                copy: *copy,
             },
-            mir::Type::Tuple {
-                elements,
-                copyability,
-            } => {
+            mir::Type::Slice {
+                element,
+                address_space,
+                mutability,
+            } => SignatureType::Slice {
+                element: Box::new(SignatureType::from_type(tree, element.ty()?)?),
+                address_space: address_space.clone(),
+                mutability: *mutability,
+            },
+            mir::Type::Tuple { elements, copy } => {
                 // convert tuple elements to signature types
                 let elements = elements
                     .iter()
@@ -317,13 +332,10 @@ impl SignatureType {
 
                 SignatureType::Tuple {
                     elements,
-                    copyability: *copyability,
+                    copy: *copy,
                 }
             }
-            mir::Type::Struct {
-                fields,
-                copyability,
-            } => {
+            mir::Type::Struct { fields, copy } => {
                 // convert struct fields to signature types
                 let fields = fields
                     .iter()
@@ -332,32 +344,32 @@ impl SignatureType {
 
                 SignatureType::Struct {
                     fields,
-                    copyability: *copyability,
+                    copy: *copy,
                 }
             }
-            mir::Type::Newtype { inner, copyability } => SignatureType::Newtype {
+            mir::Type::Newtype { inner, copy } => SignatureType::Newtype {
                 inner: Box::new(SignatureType::from_type(tree, inner.ty()?)?),
-                copyability: *copyability,
+                copy: *copy,
             },
             mir::Type::Vector {
                 element,
                 lanes,
-                copyability,
+                copy,
             } => SignatureType::Vector {
                 element: Box::new(SignatureType::from_type(tree, element.ty()?)?),
                 lanes: *lanes,
-                copyability: *copyability,
+                copy: *copy,
             },
             mir::Type::Tensor {
                 element,
                 shape,
                 layout,
-                copyability,
+                copy,
             } => SignatureType::Tensor {
                 element: Box::new(SignatureType::from_type(tree, element.ty()?)?),
                 shape: shape.clone(),
                 layout: layout.clone(),
-                copyability: *copyability,
+                copy: *copy,
             },
             mir::Type::TensorReference {
                 kind,

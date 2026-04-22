@@ -1459,8 +1459,8 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::NodeTree) -> u64
             INLINE_COST_CALL_INDIRECT
         }
         mir::Instruction::CallIndirect { .. } => INLINE_COST_CALL_INDIRECT,
-        mir::Instruction::ManagedAlloc { .. }
-        | mir::Instruction::ManagedAllocArray { .. }
+        mir::Instruction::New { .. }
+        | mir::Instruction::NewSlice { .. }
         | mir::Instruction::RawAlloc { .. }
         | mir::Instruction::RawFree { .. }
         | mir::Instruction::Dispose { .. }

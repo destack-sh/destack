@@ -9,7 +9,7 @@ use crate::optimize::analyses::{
 };
 use crate::optimize::common::{
     ValueTypeMap, address_spaces_may_alias, alias_scopes_may_alias, can_substitute_value,
-    location_sets_may_alias, memory_locations_compatible, type_alias_tags_may_alias,
+    memory_locations_compatible, region_sets_may_alias, type_alias_tags_may_alias,
 };
 use crate::optimize::{
     AnalysisPreservation, ExpressionKey, FunctionPass, PipelineContext, TypeContext,
@@ -195,8 +195,8 @@ struct MemoryEntry {
     location: MemoryAccessLocation,
     /// Value produced by the load.
     value: mir::Value,
-    /// The memory location set for the access.
-    location_set: mir::MemoryRegionSet,
+    /// The effect region set for the access.
+    region_set: mir::MemoryRegionSet,
     /// The address spaces for the access.
     address_spaces: Option<mir::AddressSpaceMask>,
     /// Alias scopes applied to the access.
@@ -330,7 +330,7 @@ impl ScopedValueTable {
                     continue;
                 }
 
-                if !location_sets_may_alias(entry.location_set, use_effect.location_set) {
+                if !region_sets_may_alias(entry.region_set, use_effect.region_set) {
                     continue;
                 }
 
@@ -670,7 +670,7 @@ fn process_block(
                     clobber,
                     location: use_access.effect.location.clone(),
                     value: destination,
-                    location_set: use_access.effect.location_set,
+                    region_set: use_access.effect.region_set,
                     address_spaces: use_access.effect.address_spaces.clone(),
                     alias_scopes: use_access.effect.alias_scopes.clone(),
                     noalias_scopes: use_access.effect.noalias_scopes.clone(),

@@ -10,7 +10,7 @@ use crate::optimize::analyses::{
 use crate::optimize::common::{
     ValueEquivalence, address_spaces_may_alias, alias_scopes_may_alias,
     build_instruction_block_map, build_value_definition_map, effect_is_trackable,
-    effects_match_location, instruction_has_atomic_ordering, location_sets_may_alias,
+    effects_match_location, instruction_has_atomic_ordering, region_sets_may_alias,
     type_alias_tags_may_alias,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
@@ -559,7 +559,7 @@ fn memop_alias_result(
     }
 
     // apply location sets
-    if !location_sets_may_alias(dest_effect.location_set, source_effect.location_set) {
+    if !region_sets_may_alias(dest_effect.region_set, source_effect.region_set) {
         return AliasResult::NoAlias;
     }
 

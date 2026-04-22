@@ -1059,8 +1059,8 @@ fn apply_instruction_effects(
         } => {}
 
         // allocations produce local borrows
-        Instruction::ManagedAlloc { destination, .. }
-        | Instruction::ManagedAllocArray { destination, .. }
+        Instruction::New { destination, .. }
+        | Instruction::NewSlice { destination, .. }
         | Instruction::RawAlloc { destination, .. }
         | Instruction::StackAlloc { destination, .. } => {
             assign_origin_if_borrowed(

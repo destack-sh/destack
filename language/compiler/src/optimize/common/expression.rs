@@ -621,8 +621,8 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::Store { .. }
         | mir::Instruction::LocalGet { .. }
         | mir::Instruction::LocalSet { .. }
-        | mir::Instruction::ManagedAlloc { .. }
-        | mir::Instruction::ManagedAllocArray { .. }
+        | mir::Instruction::New { .. }
+        | mir::Instruction::NewSlice { .. }
         | mir::Instruction::RawAlloc { .. }
         | mir::Instruction::RawFree { .. }
         | mir::Instruction::Dispose { .. }

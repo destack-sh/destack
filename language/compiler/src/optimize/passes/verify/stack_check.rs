@@ -1238,7 +1238,7 @@ b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
 }
 function test(): ref<int32, borrowed> {
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 42int32
     store v0, v2
@@ -1271,7 +1271,7 @@ b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
 }
 function test(): ref<int32, borrowed> {
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 42int32
     store v0, v2

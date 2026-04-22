@@ -279,8 +279,8 @@ fn value_needs_drop(
     value_types: &ValueTypeMap,
     tree: &mir::NodeTree,
 ) -> bool {
-    // managed allocations are GC owned
-    if ownership.is_managed_allocated(value) {
+    // heap allocations are GC owned
+    if ownership.is_heap_allocated(value) {
         return false;
     }
 
@@ -297,16 +297,16 @@ fn value_needs_drop(
             kind: mir::ReferenceKind::Owned,
             ..
         } | mir::Type::Struct {
-            copyability: mir::Copyability::Linear,
+            copy: mir::Copy::No,
             ..
         } | mir::Type::Newtype {
-            copyability: mir::Copyability::Linear,
+            copy: mir::Copy::No,
             ..
         } | mir::Type::Tuple {
-            copyability: mir::Copyability::Linear,
+            copy: mir::Copy::No,
             ..
         } | mir::Type::Array {
-            copyability: mir::Copyability::Linear,
+            copy: mir::Copy::No,
             ..
         }
     )
@@ -564,14 +564,14 @@ b0:
 
     /// Managed allocations are not dropped explicitly.
     #[test]
-    fn test_verify_managed_alloc_no_drop() {
+    fn test_verify_heap_alloc_no_drop() {
         let input = r#"
 type Node {
     int32;
 }
 function test(): int32 {
 b0:
-    v0: ref<Node, managed> = managed.alloc Node
+    v0: ref<Node, managed> = new Node
     v1: int32 = 1int32
     return v1
 }"#;
@@ -763,11 +763,11 @@ b3:
 
     /// Managed allocation is not dropped explicitly.
     #[test]
-    fn test_managed_alloc_no_drop() {
+    fn test_heap_alloc_no_drop() {
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = load v0
@@ -782,11 +782,11 @@ b0:
 
     /// Managed allocation returned is not dropped.
     #[test]
-    fn test_managed_alloc_returned_no_drop() {
+    fn test_heap_alloc_returned_no_drop() {
         let input = r#"
 function test(): ref<int32, managed> {
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     v1: int32 = 42int32
     store v0, v1
     return v0

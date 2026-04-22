@@ -1174,12 +1174,12 @@ function test(v0: boolean): ref<int32, managed> {
 b0(v0: boolean):
     jump b1
 b1:
-    v1: ref<int32, managed> = managed.alloc int32
+    v1: ref<int32, managed> = new int32
     branch v0, b1, b2
 b2:
     return v1
 }"#;
-        // managed.alloc should stay in loop: each iteration allocates a new object
+        // new should stay in loop: each iteration allocates a new object
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
         let before = test.format();

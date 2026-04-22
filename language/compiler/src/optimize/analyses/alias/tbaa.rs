@@ -97,11 +97,11 @@ impl TypeBasedAA {
             (
                 TypeKey::Struct {
                     fields: f1,
-                    copyability: _,
+                    copy: _,
                 },
                 TypeKey::Struct {
                     fields: f2,
-                    copyability: _,
+                    copy: _,
                 },
             ) => self.structs_cannot_alias(f1, f2),
 
@@ -109,11 +109,11 @@ impl TypeBasedAA {
             (
                 TypeKey::Tuple {
                     elements: e1,
-                    copyability: _,
+                    copy: _,
                 },
                 TypeKey::Tuple {
                     elements: e2,
-                    copyability: _,
+                    copy: _,
                 },
             ) => self.tuples_cannot_alias(e1, e2),
 
@@ -127,12 +127,12 @@ impl TypeBasedAA {
             (
                 TypeKey::Array {
                     element: e1,
-                    copyability: _,
+                    copy: _,
                     ..
                 },
                 TypeKey::Array {
                     element: e2,
-                    copyability: _,
+                    copy: _,
                     ..
                 },
             ) => self.types_cannot_alias(e1, e2),
@@ -257,7 +257,7 @@ impl Default for TypeBasedAA {
 
 #[cfg(test)]
 mod tests {
-    use destack_mir::Copyability;
+    use destack_mir::Copy;
 
     use super::*;
 
@@ -333,7 +333,7 @@ mod tests {
                     },
                 ),
             ],
-            copyability: Copyability::Trivial,
+            copy: Copy::Yes,
         };
         let tuple_ty = TypeKey::Tuple {
             elements: vec![
@@ -346,7 +346,7 @@ mod tests {
                     signed: true,
                 },
             ],
-            copyability: Copyability::Trivial,
+            copy: Copy::Yes,
         };
 
         let loc_struct = make_loc_with_type(0, struct_ty);
@@ -376,7 +376,7 @@ mod tests {
                     },
                 ),
             ],
-            copyability: Copyability::Trivial,
+            copy: Copy::Yes,
         };
         let struct_3field = TypeKey::Struct {
             fields: vec![
@@ -402,7 +402,7 @@ mod tests {
                     },
                 ),
             ],
-            copyability: Copyability::Trivial,
+            copy: Copy::Yes,
         };
 
         let loc1 = make_loc_with_type(0, struct_2field);
@@ -421,7 +421,7 @@ mod tests {
                 signed: true,
             }),
             length: 10,
-            copyability: Copyability::Trivial,
+            copy: Copy::Yes,
         };
         let struct_ty = TypeKey::Struct {
             fields: vec![(
@@ -431,7 +431,7 @@ mod tests {
                     signed: true,
                 },
             )],
-            copyability: Copyability::Trivial,
+            copy: Copy::Yes,
         };
 
         let loc_array = make_loc_with_type(0, array_ty);
@@ -493,12 +493,12 @@ mod tests {
                 signed: true,
             }),
             length: 10,
-            copyability: Copyability::Trivial,
+            copy: Copy::Yes,
         };
         let array_f64 = TypeKey::Array {
             element: Box::new(TypeKey::Float { width: 64 }),
             length: 10,
-            copyability: Copyability::Trivial,
+            copy: Copy::Yes,
         };
 
         let loc1 = make_loc_with_type(0, array_i32);
