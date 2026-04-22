@@ -3,7 +3,7 @@ export struct Array<T> {
     /// The initialized storage view.
     storage: Slice<T>;
     /// The allocated capacity in elements.
-    capacity: uint32;
+    capacity: usize;
 }
 
 /// Readonly view of a dynamic array.
@@ -34,12 +34,12 @@ extension<T> of Array<T> implements Index<number, T>, IndexSet<number, T>, Itera
     }
 
     /// Get element at index (unchecked).
-    unsafeGet(i: uint32): T {
+    unsafeGet(i: usize): T {
         this.storage.unsafeGet(i)
     }
 
     /// Set element at index (unchecked).
-    unsafeSet(i: uint32, value: T): void {
+    unsafeSet(i: usize, value: T): void {
         this.storage.indexSet(i as number, value)
     }
 
@@ -74,7 +74,7 @@ extension<T> of Array<T> implements Index<number, T>, IndexSet<number, T>, Itera
     }
 
     /// Reserve capacity for at least `additional` more elements.
-    reserve(additional: uint32): void {
+    reserve(additional: usize): void {
         // #Incomplete
     }
 
@@ -216,7 +216,7 @@ export function arrayOf<T>(...elements: T[]): Array<T> {
 }
 
 /// Create an array with the given length, filled with a value.
-export function arrayFill<T>(length: uint32, value: T): Array<T> {
+export function arrayFill<T>(length: usize, value: T): Array<T> {
     // #Incomplete
     undefined!
 }
