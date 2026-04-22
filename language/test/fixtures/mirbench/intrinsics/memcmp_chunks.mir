@@ -8,11 +8,11 @@ b1:
 b2:
     jump b3(v1)
 b3(v4: int64):
-    v5: ref<uint8, managed> = managed.allocArray uint8, v4
-    v6: ref<uint8, managed> = managed.allocArray uint8, v4
+    v5: slice<uint8> = new.slice uint8, v4
+    v6: slice<uint8> = new.slice uint8, v4
     v7: int64 = 0int64
     jump b4(v7, v4, v5, v6)
-b4(v8: int64, v9: int64, v10: ref<uint8, managed>, v11: ref<uint8, managed>):
+b4(v8: int64, v9: int64, v10: slice<uint8>, v11: slice<uint8>):
     v12: boolean = int.ge.s v8, v9
     branch v12, b9(v9, v10, v11), b5
 b5:
@@ -30,7 +30,7 @@ b5:
     v23: int64 = 0int64
     v24: boolean = int.eq v22, v23
     branch v24, b6(v18, v8, v9, v10, v11), b7(v19, v8, v9, v10, v11)
-b6(v25: int64, v26: int64, v27: int64, v28: ref<uint8, managed>, v29: ref<uint8, managed>):
+b6(v25: int64, v26: int64, v27: int64, v28: slice<uint8>, v29: slice<uint8>):
     v30: int64 = 1int64
     v31: int64 = int.add v25, v30
     v32: int64 = 255int64
@@ -39,19 +39,19 @@ b6(v25: int64, v26: int64, v27: int64, v28: ref<uint8, managed>, v29: ref<uint8,
     v35: ref<uint8, borrowed> = element.address v29, v26
     store v35, v34
     jump b8(v26, v27, v28, v29)
-b7(v36: uint8, v37: int64, v38: int64, v39: ref<uint8, managed>, v40: ref<uint8, managed>):
+b7(v36: uint8, v37: int64, v38: int64, v39: slice<uint8>, v40: slice<uint8>):
     v41: ref<uint8, borrowed> = element.address v40, v37
     store v41, v36
     jump b8(v37, v38, v39, v40)
-b8(v42: int64, v43: int64, v44: ref<uint8, managed>, v45: ref<uint8, managed>):
+b8(v42: int64, v43: int64, v44: slice<uint8>, v45: slice<uint8>):
     v46: int64 = 1int64
     v47: int64 = int.add v42, v46
     jump b4(v47, v43, v44, v45)
-b9(v48: int64, v49: ref<uint8, managed>, v50: ref<uint8, managed>):
+b9(v48: int64, v49: slice<uint8>, v50: slice<uint8>):
     v51: int64 = 0int64
     v52: int64 = 0int64
     jump b10(v51, v52, v48, v49, v50)
-b10(v53: int64, v54: int64, v55: int64, v56: ref<uint8, managed>, v57: ref<uint8, managed>):
+b10(v53: int64, v54: int64, v55: int64, v56: slice<uint8>, v57: slice<uint8>):
     v58: boolean = int.ge.s v53, v55
     branch v58, b15(v54), b11
 b11:
@@ -59,11 +59,11 @@ b11:
     v60: int64 = 16int64
     v61: boolean = int.lt.s v59, v60
     branch v61, b12(v59, v53, v54, v55, v56, v57), b13(v60, v53, v54, v55, v56, v57)
-b12(v62: int64, v63: int64, v64: int64, v65: int64, v66: ref<uint8, managed>, v67: ref<uint8, managed>):
+b12(v62: int64, v63: int64, v64: int64, v65: int64, v66: slice<uint8>, v67: slice<uint8>):
     jump b14(v62, v63, v64, v65, v66, v67)
-b13(v68: int64, v69: int64, v70: int64, v71: int64, v72: ref<uint8, managed>, v73: ref<uint8, managed>):
+b13(v68: int64, v69: int64, v70: int64, v71: int64, v72: slice<uint8>, v73: slice<uint8>):
     jump b14(v68, v69, v70, v71, v72, v73)
-b14(v74: int64, v75: int64, v76: int64, v77: int64, v78: ref<uint8, managed>, v79: ref<uint8, managed>):
+b14(v74: int64, v75: int64, v76: int64, v77: int64, v78: slice<uint8>, v79: slice<uint8>):
     v80: ref<uint8, borrowed> = element.address v78, v75
     v81: ref<uint8, borrowed> = element.address v79, v75
     v82: int32 = intrinsic.memcmp(v80, v81, v74)

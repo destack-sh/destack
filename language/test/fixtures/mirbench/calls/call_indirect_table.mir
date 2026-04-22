@@ -44,7 +44,7 @@ b0(
     v4: fn(int64, int64) -> int64
 ):
     v5: int64 = 3int64
-    v6: ref<fn(int64, int64) -> int64, managed> = managed.allocArray fn(int64, int64) -> int64, v5
+    v6: slice<(fn(int64, int64) -> int64)> = new.slice fn(int64, int64) -> int64, v5
     v7: int64 = 0int64
     v8: ref<fn(int64, int64) -> int64, borrowed> = element.address v6, v7
     store v8, v2
@@ -59,7 +59,7 @@ b0(
     jump b1(v13, v14, v6)
 
 // loop condition, check limit
-b1(v15: int64, v16: int64, v17: ref<fn(int64, int64) -> int64, managed>) -> v18: boolean = int.ge.s v15, v0
+b1(v15: int64, v16: int64, v17: slice<(fn(int64, int64) -> int64)>) -> v18: boolean = int.ge.s v15, v0
     branch v18, b3(v16), b2
 
 // loop body, update aggregates

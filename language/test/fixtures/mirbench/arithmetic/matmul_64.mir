@@ -2,9 +2,9 @@ function matmul64(v0: int64): int64 {
 b0(v0: int64):
     v1: int64 = 64int64
     v2: int64 = int.mul v1, v1
-    v3: ref<int64, managed> = managed.allocArray int64, v2
-    v4: ref<int64, managed> = managed.allocArray int64, v2
-    v5: ref<int64, managed> = managed.allocArray int64, v2
+    v3: slice<int64> = new.slice int64, v2
+    v4: slice<int64> = new.slice int64, v2
+    v5: slice<int64> = new.slice int64, v2
     v6: int64 = 0int64
     jump b1(v6)
 b1(v7: int64):

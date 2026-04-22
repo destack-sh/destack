@@ -1,13 +1,13 @@
 function rollingHash(v0: int64): int64 {
 b0(v0: int64):
     v1: int64 = 8int64
-    v2: ref<int64, managed> = managed.allocArray int64, v1
+    v2: slice<int64> = new.slice int64, v1
     v3: int64 = 0int64
     v4: int64 = 0int64
     v5: int64 = 0int64
     v6: int64 = 0int64
     jump b1(v3, v4, v5, v6, v2)
-b1(v7: int64, v8: int64, v9: int64, v10: int64, v11: ref<int64, managed>):
+b1(v7: int64, v8: int64, v9: int64, v10: int64, v11: slice<int64>):
     v12: boolean = int.ge.s v7, v0
     branch v12, b3(v9, v10), b2
 b2:

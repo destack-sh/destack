@@ -9,11 +9,11 @@ b1:
 b2:
     jump b3(v1)
 b3(v5: int64):
-    v6: ref<int64, managed> = managed.allocArray int64, v5
+    v6: slice<int64> = new.slice int64, v5
     v7: int64 = 0int64
     v8: int64 = 0int64
     jump b4(v7, v8, v6, v5)
-b4(v9: int64, v10: int64, v11: ref<int64, managed>, v12: int64):
+b4(v9: int64, v10: int64, v11: slice<int64>, v12: int64):
     v13: boolean = int.ge.s v9, v12
     branch v13, b6(v10, v11, v12), b5
 b5:
@@ -22,10 +22,10 @@ b5:
     v15: int64 = 1int64
     v16: int64 = int.add v9, v15
     jump b4(v16, v10, v11, v12)
-b6(v17: int64, v18: ref<int64, managed>, v19: int64):
+b6(v17: int64, v18: slice<int64>, v19: int64):
     v20: int64 = 0int64
     jump b7(v20, v17, v18, v19)
-b7(v21: int64, v22: int64, v23: ref<int64, managed>, v24: int64):
+b7(v21: int64, v22: int64, v23: slice<int64>, v24: int64):
     v25: boolean = int.ge.s v21, v0
     branch v25, b9(v22), b8
 b8:

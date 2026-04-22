@@ -1,11 +1,11 @@
 function symbolTable(v0: int64): int64 {
 b0(v0: int64):
     v1: int64 = 128int64
-    v2: ref<int64, managed> = managed.allocArray int64, v1
-    v3: ref<int64, managed> = managed.allocArray int64, v1
+    v2: slice<int64> = new.slice int64, v1
+    v3: slice<int64> = new.slice int64, v1
     v4: int64 = 0int64
     jump b1(v4, v2, v3)
-b1(v5: int64, v6: ref<int64, managed>, v7: ref<int64, managed>):
+b1(v5: int64, v6: slice<int64>, v7: slice<int64>):
     v8: int64 = 128int64
     v9: boolean = int.ge.s v5, v8
     branch v9, b3(v6, v7), b2
@@ -19,11 +19,11 @@ b2:
     v14: int64 = 1int64
     v15: int64 = int.add v5, v14
     jump b1(v15, v6, v7)
-b3(v16: ref<int64, managed>, v17: ref<int64, managed>):
+b3(v16: slice<int64>, v17: slice<int64>):
     v18: int64 = 0int64
     v19: int64 = 0int64
     jump b4(v18, v19, v16, v17)
-b4(v20: int64, v21: int64, v22: ref<int64, managed>, v23: ref<int64, managed>):
+b4(v20: int64, v21: int64, v22: slice<int64>, v23: slice<int64>):
     v24: boolean = int.ge.s v20, v0
     branch v24, b13(v21), b5
 b5:
@@ -35,7 +35,7 @@ b5:
     v30: int64 = int.and v28, v29
     v31: int64 = 0int64
     jump b6(v20, v21, v30, v31, v22, v23)
-b6(v32: int64, v33: int64, v34: int64, v35: int64, v36: ref<int64, managed>, v37: ref<int64, managed>):
+b6(v32: int64, v33: int64, v34: int64, v35: int64, v36: slice<int64>, v37: slice<int64>):
     v38: int64 = 128int64
     v39: boolean = int.ge.s v35, v38
     branch v39, b12(v32, v33, v36, v37), b7
@@ -48,14 +48,14 @@ b8:
     v43: int64 = -1int64
     v44: boolean = int.eq v41, v43
     branch v44, b10(v32, v33, v35, v36, v37, v34), b11(v32, v33, v34, v35, v36, v37)
-b9(v45: int64, v46: int64, v47: int64, v48: ref<int64, managed>, v49: ref<int64, managed>):
+b9(v45: int64, v46: int64, v47: int64, v48: slice<int64>, v49: slice<int64>):
     v50: ref<int64, borrowed> = element.address v49, v47
     v51: int64 = load v50
     v52: int64 = int.add v46, v51
     v53: int64 = 1int64
     v54: int64 = int.add v45, v53
     jump b4(v54, v52, v48, v49)
-b10(v55: int64, v56: int64, v57: int64, v58: ref<int64, managed>, v59: ref<int64, managed>, v60: int64):
+b10(v55: int64, v56: int64, v57: int64, v58: slice<int64>, v59: slice<int64>, v60: int64):
     v61: ref<int64, borrowed> = element.address v58, v57
     store v61, v60
     v62: ref<int64, borrowed> = element.address v59, v57
@@ -64,11 +64,11 @@ b10(v55: int64, v56: int64, v57: int64, v58: ref<int64, managed>, v59: ref<int64
     v64: int64 = 1int64
     v65: int64 = int.add v55, v64
     jump b4(v65, v63, v58, v59)
-b11(v66: int64, v67: int64, v68: int64, v69: int64, v70: ref<int64, managed>, v71: ref<int64, managed>):
+b11(v66: int64, v67: int64, v68: int64, v69: int64, v70: slice<int64>, v71: slice<int64>):
     v72: int64 = 1int64
     v73: int64 = int.add v69, v72
     jump b6(v66, v67, v68, v73, v70, v71)
-b12(v74: int64, v75: int64, v76: ref<int64, managed>, v77: ref<int64, managed>):
+b12(v74: int64, v75: int64, v76: slice<int64>, v77: slice<int64>):
     v78: int64 = 1int64
     v79: int64 = int.add v74, v78
     jump b4(v79, v75, v76, v77)

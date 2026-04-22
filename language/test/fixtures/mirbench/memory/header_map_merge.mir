@@ -2,13 +2,13 @@ function headerMapMerge(v0: int64): int64 {
 b0(v0: int64):
     v1: int64 = 32int64
     v2: int64 = 16int64
-    v3: ref<int64, managed> = managed.allocArray int64, v1
-    v4: ref<int64, managed> = managed.allocArray int64, v1
-    v5: ref<int64, managed> = managed.allocArray int64, v1
-    v6: ref<int64, managed> = managed.allocArray int64, v1
+    v3: slice<int64> = new.slice int64, v1
+    v4: slice<int64> = new.slice int64, v1
+    v5: slice<int64> = new.slice int64, v1
+    v6: slice<int64> = new.slice int64, v1
     v7: int64 = 0int64
     jump b1(v7, v2, v3, v4, v5, v6, v1)
-b1(v8: int64, v9: int64, v10: ref<int64, managed>, v11: ref<int64, managed>, v12: ref<int64, managed>, v13: ref<int64, managed>, v14: int64):
+b1(v8: int64, v9: int64, v10: slice<int64>, v11: slice<int64>, v12: slice<int64>, v13: slice<int64>, v14: int64):
     v15: boolean = int.ge.s v8, v9
     branch v15, b3(v9, v10, v11, v12, v13, v14), b2
 b2:
@@ -27,10 +27,10 @@ b2:
     v26: int64 = 1int64
     v27: int64 = int.add v8, v26
     jump b1(v27, v9, v10, v11, v12, v13, v14)
-b3(v28: int64, v29: ref<int64, managed>, v30: ref<int64, managed>, v31: ref<int64, managed>, v32: ref<int64, managed>, v33: int64):
+b3(v28: int64, v29: slice<int64>, v30: slice<int64>, v31: slice<int64>, v32: slice<int64>, v33: int64):
     v34: int64 = 0int64
     jump b4(v34, v28, v29, v30, v31, v32, v33)
-b4(v35: int64, v36: int64, v37: ref<int64, managed>, v38: ref<int64, managed>, v39: ref<int64, managed>, v40: ref<int64, managed>, v41: int64):
+b4(v35: int64, v36: int64, v37: slice<int64>, v38: slice<int64>, v39: slice<int64>, v40: slice<int64>, v41: int64):
     v42: boolean = int.ge.s v35, v41
     branch v42, b6(v36, v37, v38, v39, v40, v41), b5
 b5:
@@ -49,11 +49,11 @@ b5:
     v53: int64 = 1int64
     v54: int64 = int.add v35, v53
     jump b4(v54, v36, v37, v38, v39, v40, v41)
-b6(v55: int64, v56: ref<int64, managed>, v57: ref<int64, managed>, v58: ref<int64, managed>, v59: ref<int64, managed>, v60: int64):
+b6(v55: int64, v56: slice<int64>, v57: slice<int64>, v58: slice<int64>, v59: slice<int64>, v60: int64):
     v61: int64 = 0int64
     v62: int64 = 0int64
     jump b7(v62, v55, v61, v56, v57, v58, v59, v60)
-b7(v63: int64, v64: int64, v65: int64, v66: ref<int64, managed>, v67: ref<int64, managed>, v68: ref<int64, managed>, v69: ref<int64, managed>, v70: int64):
+b7(v63: int64, v64: int64, v65: int64, v66: slice<int64>, v67: slice<int64>, v68: slice<int64>, v69: slice<int64>, v70: int64):
     v71: boolean = int.ge.s v63, v0
     branch v71, b17(v65, v64, v63), b8
 b8:
@@ -64,7 +64,7 @@ b8:
     v76: int64 = load v75
     v77: int64 = 0int64
     jump b9(v77, v65, v63, v64, v74, v76, v66, v67, v68, v69, v70)
-b9(v78: int64, v79: int64, v80: int64, v81: int64, v82: int64, v83: int64, v84: ref<int64, managed>, v85: ref<int64, managed>, v86: ref<int64, managed>, v87: ref<int64, managed>, v88: int64):
+b9(v78: int64, v79: int64, v80: int64, v81: int64, v82: int64, v83: int64, v84: slice<int64>, v85: slice<int64>, v86: slice<int64>, v87: slice<int64>, v88: int64):
     v89: boolean = int.ge.s v78, v81
     branch v89, b12(v80, v79, v81, v82, v83, v84, v85, v86, v87, v88), b10
 b10:
@@ -72,16 +72,16 @@ b10:
     v91: int64 = load v90
     v92: boolean = int.eq v91, v82
     branch v92, b11(v80, v79, v78, v81, v82, v83, v84, v85, v86, v87, v88), b15(v78, v79, v80, v81, v82, v83, v84, v85, v86, v87, v88)
-b11(v93: int64, v94: int64, v95: int64, v96: int64, v97: int64, v98: int64, v99: ref<int64, managed>, v100: ref<int64, managed>, v101: ref<int64, managed>, v102: ref<int64, managed>, v103: int64):
+b11(v93: int64, v94: int64, v95: int64, v96: int64, v97: int64, v98: int64, v99: slice<int64>, v100: slice<int64>, v101: slice<int64>, v102: slice<int64>, v103: int64):
     v104: ref<int64, borrowed> = element.address v100, v95
     v105: int64 = load v104
     v106: int64 = int.add v94, v105
     store v104, v98
     jump b16(v93, v96, v106, v99, v100, v101, v102, v103)
-b12(v107: int64, v108: int64, v109: int64, v110: int64, v111: int64, v112: ref<int64, managed>, v113: ref<int64, managed>, v114: ref<int64, managed>, v115: ref<int64, managed>, v116: int64):
+b12(v107: int64, v108: int64, v109: int64, v110: int64, v111: int64, v112: slice<int64>, v113: slice<int64>, v114: slice<int64>, v115: slice<int64>, v116: int64):
     v117: boolean = int.lt.s v109, v116
     branch v117, b13(v107, v108, v109, v110, v111, v112, v113, v114, v115, v116), b14(v107, v108, v109, v110, v111, v112, v113, v114, v115, v116)
-b13(v118: int64, v119: int64, v120: int64, v121: int64, v122: int64, v123: ref<int64, managed>, v124: ref<int64, managed>, v125: ref<int64, managed>, v126: ref<int64, managed>, v127: int64):
+b13(v118: int64, v119: int64, v120: int64, v121: int64, v122: int64, v123: slice<int64>, v124: slice<int64>, v125: slice<int64>, v126: slice<int64>, v127: int64):
     v128: ref<int64, borrowed> = element.address v123, v120
     store v128, v121
     v129: ref<int64, borrowed> = element.address v124, v120
@@ -90,14 +90,14 @@ b13(v118: int64, v119: int64, v120: int64, v121: int64, v122: int64, v123: ref<i
     v131: int64 = 1int64
     v132: int64 = int.add v120, v131
     jump b16(v118, v132, v130, v123, v124, v125, v126, v127)
-b14(v133: int64, v134: int64, v135: int64, v136: int64, v137: int64, v138: ref<int64, managed>, v139: ref<int64, managed>, v140: ref<int64, managed>, v141: ref<int64, managed>, v142: int64):
+b14(v133: int64, v134: int64, v135: int64, v136: int64, v137: int64, v138: slice<int64>, v139: slice<int64>, v140: slice<int64>, v141: slice<int64>, v142: int64):
     v143: int64 = int.add v134, v136
     jump b16(v133, v135, v143, v138, v139, v140, v141, v142)
-b15(v144: int64, v145: int64, v146: int64, v147: int64, v148: int64, v149: int64, v150: ref<int64, managed>, v151: ref<int64, managed>, v152: ref<int64, managed>, v153: ref<int64, managed>, v154: int64):
+b15(v144: int64, v145: int64, v146: int64, v147: int64, v148: int64, v149: int64, v150: slice<int64>, v151: slice<int64>, v152: slice<int64>, v153: slice<int64>, v154: int64):
     v155: int64 = 1int64
     v156: int64 = int.add v144, v155
     jump b9(v156, v145, v146, v147, v148, v149, v150, v151, v152, v153, v154)
-b16(v157: int64, v158: int64, v159: int64, v160: ref<int64, managed>, v161: ref<int64, managed>, v162: ref<int64, managed>, v163: ref<int64, managed>, v164: int64):
+b16(v157: int64, v158: int64, v159: int64, v160: slice<int64>, v161: slice<int64>, v162: slice<int64>, v163: slice<int64>, v164: int64):
     v165: int64 = 1int64
     v166: int64 = int.add v157, v165
     jump b7(v166, v158, v159, v160, v161, v162, v163, v164)

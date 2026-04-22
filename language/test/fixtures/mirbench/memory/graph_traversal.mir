@@ -12,8 +12,8 @@ b2:
 b3:
     jump b4(v1)
 b4(v6: int64):
-    v7: ref<int64, managed> = managed.allocArray int64, v0
-    v8: ref<int64, managed> = managed.allocArray int64, v0
+    v7: slice<int64> = new.slice int64, v0
+    v8: slice<int64> = new.slice int64, v0
     v9: int64 = 0int64
     jump b5(v9)
 b5(v10: int64):

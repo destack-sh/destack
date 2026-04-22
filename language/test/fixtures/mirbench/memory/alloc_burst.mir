@@ -6,16 +6,16 @@ b1(v2: int64):
     v3: boolean = int.ge.s v2, v0
     branch v3, b3, b2
 b2:
-    v4: ref<int64, managed> = managed.alloc int64
-    v5: ref<int64, managed> = managed.alloc int64
-    v6: ref<int64, managed> = managed.alloc int64
-    v7: ref<int64, managed> = managed.alloc int64
-    v8: ref<int64, managed> = managed.alloc int64
-    v9: ref<int64, managed> = managed.alloc int64
-    v10: ref<int64, managed> = managed.alloc int64
-    v11: ref<int64, managed> = managed.alloc int64
-    v12: ref<int64, managed> = managed.alloc int64
-    v13: ref<int64, managed> = managed.alloc int64
+    v4: ref<int64, managed> = new int64
+    v5: ref<int64, managed> = new int64
+    v6: ref<int64, managed> = new int64
+    v7: ref<int64, managed> = new int64
+    v8: ref<int64, managed> = new int64
+    v9: ref<int64, managed> = new int64
+    v10: ref<int64, managed> = new int64
+    v11: ref<int64, managed> = new int64
+    v12: ref<int64, managed> = new int64
+    v13: ref<int64, managed> = new int64
     v14: int64 = 1int64
     v15: int64 = int.add v2, v14
     jump b1(v15)
