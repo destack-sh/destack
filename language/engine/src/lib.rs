@@ -29,33 +29,26 @@ pub struct RunOutput<V> {
     pub value: V,
     /// Run statistics payload.
     pub stats: RunStats,
-    /// Number of managed allocations at end of execution.
-    pub managed_allocation_count: usize,
+    /// Number of heap allocations at end of execution.
+    pub heap_allocation_count: usize,
     /// Number of raw allocations at end of execution.
     pub raw_allocation_count: usize,
 }
 
-/// Yield result from one suspended execution step.
-#[derive(Debug)]
-pub struct Yielded<C, V> {
-    /// The continuation used to resume execution.
-    pub continuation: C,
-    /// The value yielded to the caller.
-    pub value: V,
-}
-
 /// Execution outcome produced by one backend.
 #[derive(Debug)]
-pub enum RunOutcome<C, V> {
+pub enum RunOutcome<C, O, Y = O> {
     /// Execution completed with a result.
     Completed {
         /// Completed execution output.
-        output: RunOutput<V>,
+        output: RunOutput<O>,
     },
     /// Execution yielded a continuation and resume value.
     Yielded {
-        /// Yield information for the suspended execution.
-        yielded: Yielded<C, V>,
+        /// The continuation used to resume execution.
+        continuation: C,
+        /// The value yielded to the caller.
+        value: Y,
     },
 }
 
