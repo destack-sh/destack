@@ -48,14 +48,22 @@ impl<'a> Comments<'a> {
     /// Return the unprinted comments.
     #[inline]
     pub fn unprinted_comments(&self) -> &'a [Comment] {
+        let start = self.printed_count.min(self.comments.len());
+
+        // limited speculative formatting can advance the printed cursor past the
+        // temporary view limit, which should yield an empty slice instead of panicking
         let end = self.view_limit.unwrap_or(self.comments.len());
-        &self.comments[self.printed_count..end]
+        let end = end.max(start).min(self.comments.len());
+
+        &self.comments[start..end]
     }
 
     /// Return the printed comments.
     #[inline]
     pub fn printed_comments(&self) -> &'a [Comment] {
-        &self.comments[..self.printed_count]
+        let end = self.printed_count.min(self.comments.len());
+
+        &self.comments[..end]
     }
 
     /// Return an iterator over comments that end before or at one position.
@@ -212,23 +220,19 @@ impl<'a> Comments<'a> {
         preceding_span: Span,
         following_span_start: u32,
     ) -> &'a [Comment] {
-        let comments = self.unprinted_comments();
+        let comments = self.comments_after(preceding_span.end);
         if comments.is_empty() {
             return &[];
         }
 
-        debug_assert!(
-            comments
-                .first()
-                .is_none_or(|comment| comment.span.end > preceding_span.start)
-        );
-
         if following_span_start == 0 {
             let comments = self.comments_before(enclosing_span.end);
             let mut start = preceding_span.end;
+            let mut start_index = 0usize;
 
             for (index, comment) in comments.iter().enumerate() {
                 if start > comment.span.start {
+                    start_index = index + 1;
                     continue;
                 }
 
@@ -238,13 +242,13 @@ impl<'a> Comments<'a> {
                         byte.is_ascii_whitespace() || matches!(byte, b')' | b',' | b';')
                     })
                 {
-                    return &comments[..index];
+                    return &comments[start_index..index];
                 }
 
                 start = comment.span.end;
             }
 
-            return comments;
+            return &comments[start_index..];
         }
 
         let mut comment_index = 0usize;
@@ -282,11 +286,16 @@ impl<'a> Comments<'a> {
 
         &[]
     }
-
     /// Advance the printed cursor by one comment.
     #[inline]
     pub fn increment_printed_count(&mut self) {
         self.printed_count += 1;
+    }
+
+    /// Advance the printed cursor past one concrete comment span.
+    #[inline]
+    pub fn mark_comment_printed(&mut self, comment: Comment) {
+        self.skip_comments_before(comment.span.end);
     }
 
     /// Save the current comment cursor state.
