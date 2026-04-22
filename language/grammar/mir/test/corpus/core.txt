@@ -301,7 +301,7 @@ Memory qualifiers and memory ops
 
 function @memory(v0: i64) -> void {
 block0(v0: i64):
-    v1: ref<managed i64> = managed.alloc_array i64, v0
+    v1: ref<managed i64[]> = new.array i64, v0
     v2: ref<borrowed i64> = element.addr v1, v0
     v3: ref<owned i64> = raw.alloc i64
     store v2, v0
