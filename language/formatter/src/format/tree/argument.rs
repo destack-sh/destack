@@ -4,7 +4,9 @@ use super::child::{
     format_multiline_stub_comment_nodes, node_has_line_comment,
     tree_child_should_inline_braced_expression,
 };
-use crate::format::annotation::{infix_or_postfix_annotations, prefix_annotations};
+use crate::format::annotation::{
+    FormatTrailingComments, infix_or_postfix_annotations, prefix_annotations,
+};
 use crate::format::chain::transparent_inner_expression;
 use crate::format::expression::argument_value;
 use crate::{DestackFormatContext, DestackFormatter};
@@ -163,8 +165,11 @@ pub(crate) fn write_tree_expression_argument<'ast>(
         _ => None,
     };
 
-    // stub argument prefix comments and docs must stay inside `{ ... }`
-    if stub_value_id.is_none() && !argument_is_spread {
+    // non-expression argument comments can stay before the node
+    if stub_value_id.is_none()
+        && !argument_is_spread
+        && !matches!(argument, Argument::Positional { .. })
+    {
         write!(f, [prefix_annotations(f.context(), argument_id)])?;
     }
 
@@ -224,6 +229,7 @@ pub(crate) fn write_tree_expression_argument<'ast>(
         Argument::Positional { value, .. } => {
             // in tree expressions, expression children need braces too
             let value_expr = f.context().tree.get(*value);
+            let argument_span = f.context().span(argument_id);
             let argument_is_braced = tree_argument_is_wrapped_in_braces(f.context(), argument_id);
             let force_multiline_braced_expression = node_has_line_comment(f.context(), argument_id)
                 || node_has_line_comment(f.context(), *value);
@@ -234,6 +240,14 @@ pub(crate) fn write_tree_expression_argument<'ast>(
                         | Expression::TreeExpression { .. }
                 );
             if needs_braces {
+                let value_span = f.context().span(*value);
+                let trailing_comments = {
+                    let comments = f.context().comments();
+                    comments
+                        .comments_in_range(value_span.end, argument_span.end)
+                        .to_vec()
+                };
+
                 if matches!(value_expr, Expression::Stub) {
                     stub_argument_annotations_rendered_inline =
                         write_stub_tree_expression_argument(f, argument_id, *value)?;
@@ -242,7 +256,9 @@ pub(crate) fn write_tree_expression_argument<'ast>(
                         f,
                         [group(&format_args![
                             token("{"),
+                            prefix_annotations(f.context(), argument_id),
                             block_indent(&group(value).should_expand(true)),
+                            FormatTrailingComments::Comments(&trailing_comments),
                             hard_line_break(),
                             token("}")
                         ])]
@@ -250,7 +266,16 @@ pub(crate) fn write_tree_expression_argument<'ast>(
                 } else {
                     // keep tree expression containers inline for common expression forms
                     if tree_child_should_inline_braced_expression(f.context(), argument_id) {
-                        write!(f, [token("{"), value, token("}")])?;
+                        write!(
+                            f,
+                            [
+                                token("{"),
+                                prefix_annotations(f.context(), argument_id),
+                                value,
+                                FormatTrailingComments::Comments(&trailing_comments),
+                                token("}")
+                            ]
+                        )?;
                     } else if expression_chain_has_separator_comment(f.context(), *value)
                         || matches!(
                             f.context().tree.get(*value),
@@ -280,7 +305,9 @@ pub(crate) fn write_tree_expression_argument<'ast>(
                             f,
                             [group(&format_args![
                                 token("{"),
+                                prefix_annotations(f.context(), argument_id),
                                 group(value).should_expand(true),
+                                FormatTrailingComments::Comments(&trailing_comments),
                                 token("}")
                             ])]
                         )?;
@@ -289,7 +316,14 @@ pub(crate) fn write_tree_expression_argument<'ast>(
                             f,
                             [group(&format_args![
                                 token("{"),
-                                soft_block_indent(&value),
+                                soft_block_indent(&format_with(|f| {
+                                    write!(f, [prefix_annotations(f.context(), argument_id)])?;
+                                    write!(f, [value])?;
+                                    write!(
+                                        f,
+                                        [FormatTrailingComments::Comments(&trailing_comments)]
+                                    )
+                                })),
                                 token("}")
                             ])]
                         )?;
