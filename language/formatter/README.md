@@ -1,20 +1,13 @@
 # formatter
 
-Code formatter for Destack, TypeScript, JavaScript, JSX, and TSX.
-The correctness target for the shared JS and TS surface is `oxc_formatter`.
+Source formatter for Destack covering JS, JSX, TS, TSX, and TS++.
+The formatter is designed to follow "industry standard formatting", that is, to behave equivalent to Prettier / oxfmt on every _supported_ JS and TS family.
 
-Unsupported legacy or non-strict syntax belongs in conformance status files instead of formatter heuristics.
-Destack-only syntax should fit into the same structural model rather than inventing separate policy when an OXC-shaped analogue exists.
-JSDoc semantics, legacy TypeScript angle-bracket assertions like `<T>expr`, and legacy import-attribute `assert` syntax are out of scope for this formatter.
-
-## Goals
-
-The formatter should be structurally close to OXC on every supported JS and TS family.
-Parser, trivia, FIR, and formatter support layers should be reshaped when the current model blocks an exact OXC port.
-Point fixes are a last step, not the main strategy.
-
-For Destack-only syntax, the target is OXC-style discipline rather than literal OXC parity.
-The output should still feel native next to the JS and TS formatting rules it extends.
+Because Destack is designed for _modern strict TS(++)_, we do not fully support:
+- JSDoc semantics (like `@type` comments)
+- legacy TypeScript angle-bracket assertions (like `<T>expr`, we don't even parse this)
+- legacy import-attribute `assert` syntax
+- .. and any of the other legacy JS stuff like `with` (also see [language/parser](../../language/parser/README.md))
 
 ## Architecture
 
@@ -23,26 +16,6 @@ Formatting is a three-stage pipeline:
 1. Parse source into the Destack AST plus raw trivia.
 2. Walk the AST and emit FIR nodes.
 3. Print FIR to text with width-aware grouping and line breaking.
-
-The formatter uses the raw-comment cursor model instead of pre-attached semantic comment ownership.
-That keeps comment handling closer to OXC and avoids a second attachment layer in the parser.
-
-## Current Strategy
-
-The active migration strategy is literal family-by-family porting from `~/symbol/oxc` wherever Destack supports the same syntax.
-If a local helper does not have a convincing upstream peer, it should be treated as suspicious.
-If a port feels awkward because of local IR or trivia shape, the support layer should be simplified until the port becomes direct.
-
-The current audit artifacts are:
-
-- [FORMATTER_MAP.md](/Users/florian/symbol/destack-6/FORMATTER_MAP.md)
-- [FORMATTER_PLAN.md](/Users/florian/symbol/destack-6/FORMATTER_PLAN.md)
-- [HANDOFF.md](/Users/florian/symbol/destack-6/HANDOFF.md)
-
-## Configuration
-
-The formatter exposes the standard workspace formatting controls for width, indentation, commas, quote style, bracket spacing, and related layout policy.
-Those options should influence formatting in the same places OXC already allows, rather than creating new local branches.
 
 ## Testing
 
