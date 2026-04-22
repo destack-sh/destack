@@ -1,15 +1,9 @@
-/// Growable contiguous array.
-///
-/// The raw element pointer is internal storage owned by `Array<T>` itself.
-/// `Array<T>` is responsible for element lifetime and tracing over initialized
-/// slots, while heap forking and CoW stay below this type.
+/// A growable contiguous array.
 export struct Array<T> {
-    /// Number of elements in the array.
-    length: uint32;
-    /// Allocated capacity (in elements).
+    /// The initialized storage view.
+    storage: Slice<T>;
+    /// The allocated capacity in elements.
     capacity: uint32;
-    /// Raw contiguous element storage owned by this array.
-    data: *T;
 }
 
 /// Readonly view of a dynamic array.
@@ -21,33 +15,32 @@ export type FixedArray<T, comptime N: number> = T[N as comptime];
 extension<T> of Array<T> implements Index<number, T>, IndexSet<number, T>, Iterable<T> {
     /// Get the length of the array.
     get length(): number {
-        this.length as number
+        this.storage.length
     }
 
     /// Check if the array is empty.
     get isEmpty(): boolean {
-        this.length == 0
+        this.storage.isEmpty
     }
 
     /// Get the element at the index with bounds checks.
     index(i: number): T {
-        // #Incomplete
+        this.storage.index(i)
     }
 
     /// Set the element at the index with bounds checks.
     indexSet(i: number, value: T): void {
-        // #Incomplete
+        this.storage.indexSet(i, value)
     }
 
     /// Get element at index (unchecked).
     unsafeGet(i: uint32): T {
-        // #Incomplete
-        undefined!
+        this.storage.unsafeGet(i)
     }
 
     /// Set element at index (unchecked).
     unsafeSet(i: uint32, value: T): void {
-        // #Incomplete
+        this.storage.indexSet(i as number, value)
     }
 
     /// Push an element to the end.
@@ -57,33 +50,27 @@ extension<T> of Array<T> implements Index<number, T>, IndexSet<number, T>, Itera
 
     /// Pop an element from the end.
     pop(): T | undefined {
-        if (this.length == 0) {
+        if (this.storage.isEmpty) {
             return undefined;
         }
+
         // #Incomplete
         undefined
     }
 
     /// Get the first element.
     first(): T | undefined {
-        if (this.length == 0) {
-            return undefined;
-        }
-        this.index(0)
+        this.storage.first()
     }
 
     /// Get the last element.
     last(): T | undefined {
-        if (this.length == 0) {
-            return undefined;
-        }
-        this.index(this.length as number - 1)
+        this.storage.last()
     }
 
     /// Clear all elements.
     clear(): void {
-        // #Incomplete: should drop elements
-        this.length = 0;
+        // #Incomplete
     }
 
     /// Reserve capacity for at least `additional` more elements.
@@ -102,18 +89,16 @@ extension<T> of Array<T> implements Index<number, T>, IndexSet<number, T>, Itera
         undefined!
     }
 
-    // --- higher-order methods ---
-
     /// Map each element to a new value.
     map<U>(f: (value: T, index: number) => U): Array<U> {
         // #Incomplete
-        Array { length: 0, capacity: 0, data: null as *U }
+        undefined!
     }
 
     /// Filter elements by predicate.
     filter(predicate: (value: T, index: number) => boolean): Array<T> {
         // #Incomplete
-        Array { length: 0, capacity: 0, data: null as *T }
+        undefined!
     }
 
     /// Reduce array to single value.
@@ -184,31 +169,31 @@ extension<T> of Array<T> implements Index<number, T>, IndexSet<number, T>, Itera
     /// Get a slice of the array.
     slice(start?: number, end?: number): Array<T> {
         // #Incomplete
-        Array { length: 0, capacity: 0, data: null as *T }
+        undefined!
     }
 
     /// Splice elements.
     splice(start: number, deleteCount?: number, ...items: T[]): Array<T> {
         // #Incomplete
-        Array { length: 0, capacity: 0, data: null as *T }
+        undefined!
     }
 
     /// Concatenate arrays.
     concat(...items: Array<T>[]): Array<T> {
         // #Incomplete
-        this
+        undefined!
     }
 
     /// Flatten nested arrays.
     flat<D extends number = 1>(depth?: D): Array<unknown> {
         // #Incomplete
-        Array { length: 0, capacity: 0, data: null as *unknown }
+        undefined!
     }
 
     /// Map and flatten.
     flatMap<U>(f: (value: T, index: number) => Array<U>): Array<U> {
         // #Incomplete
-        Array { length: 0, capacity: 0, data: null as *U }
+        undefined!
     }
 
     /// Create an array from an iterable.
@@ -227,11 +212,11 @@ extension<T> of Array<T> implements Index<number, T>, IndexSet<number, T>, Itera
 /// Create an array with the given elements.
 export function arrayOf<T>(...elements: T[]): Array<T> {
     // #Incomplete
-    Array { length: 0, capacity: 0, data: null as *T }
+    undefined!
 }
 
 /// Create an array with the given length, filled with a value.
 export function arrayFill<T>(length: uint32, value: T): Array<T> {
     // #Incomplete
-    Array { length: 0, capacity: 0, data: null as *T }
+    undefined!
 }

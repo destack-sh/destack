@@ -1,77 +1,94 @@
+import { intrinsic } from "intrinsic/primitive/decorator.ds";
+
 /// A borrowed view into contiguous memory.
-export struct Slice<T> {
-    /// Pointer to the first element.
-    data: *T;
-    /// Number of elements in the slice.
-    length: uint32;
-}
+export newtype Slice<T> = unknown;
+
+/// Return the slice length.
+@intrinsic("slice.length")
+declare function sliceLength<T>(slice: Slice<T>): uint32;
+
+/// Load one element without bounds checks.
+@intrinsic("slice.get")
+declare function sliceUnsafeGet<T>(slice: Slice<T>, index: uint32): T;
+
+/// Store one element without bounds checks.
+@intrinsic("slice.set")
+declare function sliceUnsafeSet<T>(slice: &Slice<T>, index: uint32, value: T): void;
 
 extension<T> of Slice<T> implements Index<number, T>, IndexSet<number, T>, Iterable<T> {
     /// Get the length of the slice.
     get length(): number {
-        this.length as number
+        sliceLength(this) as number
     }
 
     /// Check if the slice is empty.
     get isEmpty(): boolean {
-        this.length == 0
+        sliceLength(this) == 0
     }
 
     /// Get the element at the index with bounds checks.
     index(i: number): T {
-        if (i < 0 || i >= this.length as number) {
+        let length = sliceLength(this) as number;
+
+        if (i < 0 || i >= length) {
             undefined!
         }
-        // #Incomplete
+
         this.unsafeGet(i as uint32)
     }
 
     /// Get element at index (unchecked).
     unsafeGet(i: uint32): T {
-        // #Incomplete
-        undefined!
+        sliceUnsafeGet(this, i)
     }
 
     /// Get a sub-slice.
     slice(start?: number, end?: number): Slice<T> {
         // #Incomplete
-        this
+        undefined!
     }
 
     /// Get the first element.
     first(): T | undefined {
-        if (this.length == 0) {
+        if (sliceLength(this) == 0) {
             return undefined;
         }
+
         this.index(0)
     }
 
     /// Get the last element.
     last(): T | undefined {
-        if (this.length == 0) {
+        let length = sliceLength(this);
+
+        if (length == 0) {
             return undefined;
         }
-        this.index(this.length as number - 1)
+
+        this.index(length as number - 1)
     }
 
     /// Split at index into two slices.
     splitAt(index: number): [Slice<T>, Slice<T>] {
         // #Incomplete
-        [this, this]
+        undefined!
     }
 
     /// Copy slice contents to an owned array.
     toArray(): Array<T> {
         // #Incomplete
-        []
+        undefined!
     }
 
     /// Set the element at the index with bounds checks.
     indexSet(this: &Slice<T>, i: number, value: T): void {
-        if (i < 0 || i >= this.length as number) {
+        let length = sliceLength(this) as number;
+
+        if (i < 0 || i >= length) {
             undefined!
         }
-        // #Incomplete
+
+        sliceUnsafeSet(this, i as uint32, value);
     }
 
     /// Fill the slice with a value.

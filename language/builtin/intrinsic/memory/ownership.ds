@@ -15,16 +15,16 @@ export newtype Form<
     R = never,
 > = unknown;
 
-/// Managed value of `T` in the ambient space.
+/// Managed heap storage or handle for `T` in the ambient space.
 export type Managed<T> = Form<BaseOf<T>, "managed", SpaceOr<T, "local">>;
 
-/// Borrowed value of `T` within region `R`.
+/// Borrowed semantic access to `T` within region `R`.
 export type Borrowed<T, R: Region> = Form<BaseOf<T>, "borrowed", SpaceOr<T, "local">, R>;
 
-/// Raw value of `T`.
+/// Unsafe raw pointer to `T`.
 export type Raw<T> = Form<BaseOf<T>, "raw", SpaceOr<T, "local">>;
 
-/// Owned value of `T`.
+/// Owned heap storage or handle for `T`.
 export type Owned<T> = Form<BaseOf<T>, "owned", SpaceOr<T, "local">>;
 
 /// Rebase `T` into the shared space.
@@ -106,14 +106,14 @@ export type WithRegion<Q, R: Region> =
         Form<BaseOf<Q>, "borrowed", SpaceOr<Q, "local">, R> :
         never;
 
-/// Convert `T` to the managed form while preserving place.
+/// Convert `T` to the managed heap form while preserving place.
 export type AsManaged<T> = Managed<T>;
 
-/// Convert `T` to the owned form while preserving place.
+/// Convert `T` to the owned heap form while preserving place.
 export type AsOwned<T> = Owned<T>;
 
 /// Convert `T` to the borrowed form within region `R` while preserving place.
 export type AsBorrowed<T, R: Region> = Borrowed<T, R>;
 
-/// Convert `T` to the raw form while preserving place.
+/// Convert `T` to the raw pointer form while preserving place.
 export type AsRaw<T> = Raw<T>;
