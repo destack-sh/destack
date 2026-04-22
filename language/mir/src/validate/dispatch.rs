@@ -1,7 +1,7 @@
 use crate::{
     Function, FunctionReference, Instruction, InterfaceDispatchEntry, InterfaceSlotId, ItabEntry,
     LocalNodeId, NodeType, Terminator, Type, TypeReference, ValueReference, VtableEntry,
-    VtableSlotId,
+    VtableSlotId, function_signature_parts,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
@@ -102,7 +102,7 @@ impl<'a> Validator<'a> {
         self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
 
         let signature = match self.tree.get(signature) {
-            Type::FunctionPointer { .. } => signature,
+            Type::FunctionSignature { .. } => signature,
             Type::Closure { signature, .. } => {
                 self.require_type_reference(*signature, anchor, "callable signature")?
             }
@@ -115,7 +115,7 @@ impl<'a> Validator<'a> {
         };
         self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
 
-        let Type::FunctionPointer { parameters, result } = self.tree.get(signature) else {
+        let Some((parameters, result)) = function_signature_parts(self.tree.get(signature)) else {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "call signature is not a function type".to_string(),
                 anchor,
@@ -123,7 +123,7 @@ impl<'a> Validator<'a> {
         };
 
         // result type
-        let result = self.require_type_reference(*result, anchor, "call result type")?;
+        let result = self.require_type_reference(result, anchor, "call result type")?;
         self.ensure_node_type(NodeType::Type, result.id, anchor)?;
 
         // argument count
@@ -156,7 +156,7 @@ impl<'a> Validator<'a> {
         self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
         self.ensure_node_type(NodeType::Function, function_id.id, anchor)?;
 
-        let Type::FunctionPointer { parameters, result } = self.tree.get(signature) else {
+        let Some((parameters, result)) = function_signature_parts(self.tree.get(signature)) else {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "call signature is not a function type".to_string(),
                 anchor,
@@ -164,7 +164,7 @@ impl<'a> Validator<'a> {
         };
 
         // function signature shape
-        let result = self.require_type_reference(*result, anchor, "call result type")?;
+        let result = self.require_type_reference(result, anchor, "call result type")?;
         self.ensure_node_type(NodeType::Type, result.id, anchor)?;
         for &parameter in parameters {
             let parameter =

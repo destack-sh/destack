@@ -773,7 +773,7 @@ fn test_reject_argument_slice_out_of_bounds() {
     let name = pool.intern("arg_slice");
 
     let void_ty = tree.insert_type(Type::Void);
-    let signature = tree.insert_type(Type::FunctionPointer {
+    let signature = tree.insert_type(Type::FunctionSignature {
         parameters: Vec::new(),
         result: type_reference(void_ty),
     });
@@ -816,7 +816,7 @@ fn test_reject_call_effect_argument_count_mismatch() {
     let name = pool.intern("bad_effects");
 
     let void_ty = tree.insert_type(Type::Void);
-    let signature = tree.insert_type(Type::FunctionPointer {
+    let signature = tree.insert_type(Type::FunctionSignature {
         parameters: Vec::new(),
         result: type_reference(void_ty),
     });
@@ -862,7 +862,7 @@ fn test_reject_pure_effect_with_suspend() {
     let name = pool.intern("pure_suspend");
 
     let void_ty = tree.insert_type(Type::Void);
-    let signature = tree.insert_type(Type::FunctionPointer {
+    let signature = tree.insert_type(Type::FunctionSignature {
         parameters: Vec::new(),
         result: type_reference(void_ty),
     });
@@ -913,7 +913,7 @@ fn test_reject_pure_effect_with_unwind() {
     let name = pool.intern("pure_unwind");
 
     let void_ty = tree.insert_type(Type::Void);
-    let signature = tree.insert_type(Type::FunctionPointer {
+    let signature = tree.insert_type(Type::FunctionSignature {
         parameters: Vec::new(),
         result: type_reference(void_ty),
     });

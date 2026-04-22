@@ -5,12 +5,12 @@ use serde::{Deserialize, Serialize};
 
 /// Set of memory regions that an operation may access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct EffectRegionSet(
+pub struct MemoryRegionSet(
     /// Bitset describing accessible memory regions.
     u16,
 );
 
-impl EffectRegionSet {
+impl MemoryRegionSet {
     /// No memory regions.
     pub const NONE: Self = Self(0);
     /// Heap allocated memory.
@@ -72,27 +72,27 @@ impl EffectRegionSet {
     }
 }
 
-impl Default for EffectRegionSet {
+impl Default for MemoryRegionSet {
     fn default() -> Self {
         Self::ANY
     }
 }
 
-impl TryFrom<&str> for EffectRegionSet {
+impl TryFrom<&str> for MemoryRegionSet {
     type Error = ();
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "None" => Ok(EffectRegionSet::NONE),
-            "Heap" => Ok(EffectRegionSet::HEAP),
-            "RawHeap" => Ok(EffectRegionSet::RAW_HEAP),
-            "Stack" => Ok(EffectRegionSet::STACK),
-            "Global" => Ok(EffectRegionSet::GLOBAL),
-            "Shared" => Ok(EffectRegionSet::SHARED),
-            "Local" => Ok(EffectRegionSet::LOCAL),
-            "Constant" => Ok(EffectRegionSet::CONSTANT),
-            "Io" => Ok(EffectRegionSet::IO),
-            "Any" => Ok(EffectRegionSet::ANY),
+            "None" => Ok(MemoryRegionSet::NONE),
+            "Heap" => Ok(MemoryRegionSet::HEAP),
+            "RawHeap" => Ok(MemoryRegionSet::RAW_HEAP),
+            "Stack" => Ok(MemoryRegionSet::STACK),
+            "Global" => Ok(MemoryRegionSet::GLOBAL),
+            "Shared" => Ok(MemoryRegionSet::SHARED),
+            "Local" => Ok(MemoryRegionSet::LOCAL),
+            "Constant" => Ok(MemoryRegionSet::CONSTANT),
+            "Io" => Ok(MemoryRegionSet::IO),
+            "Any" => Ok(MemoryRegionSet::ANY),
             _ => Err(()),
         }
     }
@@ -411,7 +411,7 @@ impl TryFrom<&str> for MemoryScope {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MemorySemantics {
     /// Effect regions participating in the synchronization.
-    pub regions: EffectRegionSet,
+    pub regions: MemoryRegionSet,
     /// Whether the access is volatile.
     pub is_volatile: bool,
     /// Whether this makes writes available to other scopes.
@@ -422,7 +422,7 @@ pub struct MemorySemantics {
 
 impl MemorySemantics {
     /// Create semantics for the provided regions.
-    pub fn new(regions: EffectRegionSet) -> Self {
+    pub fn new(regions: MemoryRegionSet) -> Self {
         Self {
             regions,
             is_volatile: false,
@@ -433,7 +433,7 @@ impl MemorySemantics {
 
     /// Create semantics with explicit flags.
     pub fn with_flags(
-        regions: EffectRegionSet,
+        regions: MemoryRegionSet,
         is_volatile: bool,
         is_make_available: bool,
         is_make_visible: bool,
@@ -450,7 +450,7 @@ impl MemorySemantics {
 impl Default for MemorySemantics {
     fn default() -> Self {
         Self {
-            regions: EffectRegionSet::ANY,
+            regions: MemoryRegionSet::ANY,
             is_volatile: false,
             is_make_available: false,
             is_make_visible: false,

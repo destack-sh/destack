@@ -86,7 +86,7 @@ impl<'a> Validator<'a> {
                     address_space,
                     ..
                 }
-                | Type::TensorReference {
+                | Type::TensorView {
                     kind,
                     address_space,
                     ..

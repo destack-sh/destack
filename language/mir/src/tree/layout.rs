@@ -77,6 +77,8 @@ pub(crate) fn compute_type_layout(
         | Type::Reference { .. }
         | Type::FunctionPointer { .. } => TypeLayout::natural(pointer_bytes as u32),
 
+        Type::FunctionSignature { .. } => TypeLayout::new(0, 1),
+
         Type::Closure { signature } => {
             let environment = tree.function_value_environment_type();
             let signature = require_type_reference(*signature, "callable signature");
@@ -97,11 +99,13 @@ pub(crate) fn compute_type_layout(
             TypeLayout::new(size, element_layout.alignment)
         }
         Type::Slice {
+            kind,
             element,
             address_space,
             mutability,
         } => {
-            let (data, length) = slice_header_types(*element, *mutability, address_space.clone());
+            let (data, length) =
+                slice_header_types(*kind, *element, *mutability, address_space.clone());
             compute_type_pair_layout(tree, [&data, &length], pointer_bytes)
         }
 
@@ -149,7 +153,7 @@ pub(crate) fn compute_type_layout(
             TypeLayout::new(size, element_layout.alignment)
         }
 
-        Type::TensorReference { .. } => TypeLayout::natural(pointer_bytes as u32),
+        Type::TensorView { .. } => TypeLayout::natural(pointer_bytes as u32),
     }
 }
 
@@ -257,6 +261,10 @@ fn compute_inline_type_layout(_tree: &NodeTree, ty: &Type, pointer_bytes: u8) ->
             TypeLayout::natural(pointer_bytes as u32)
         }
         Type::Usize => TypeLayout::scalar(pointer_bytes as u32),
+        Type::Int {
+            width: 32,
+            is_signed: false,
+        } => TypeLayout::scalar(4),
         _ => panic!("unsupported inline slice header type: {ty:?}"),
     }
 }

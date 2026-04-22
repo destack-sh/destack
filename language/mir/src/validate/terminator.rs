@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     Block, BlockTarget, Function, IntegerReference, LocalNodeId, Mutability, NodeType,
     ReferenceKind, SwitchCase, Terminator, TrapKind, Type, TypeReference, Value, ValueReference,
+    function_signature_parts,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
@@ -522,7 +523,7 @@ impl<'a> Validator<'a> {
         self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
 
         let signature = match self.tree.get(signature) {
-            Type::FunctionPointer { .. } => signature,
+            Type::FunctionSignature { .. } => signature,
             Type::Closure { signature, .. } => {
                 self.require_type_reference(*signature, anchor, label)?
             }
@@ -533,11 +534,11 @@ impl<'a> Validator<'a> {
 
         self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
 
-        let Type::FunctionPointer { parameters, result } = self.tree.get(signature) else {
+        let Some((parameters, result)) = function_signature_parts(self.tree.get(signature)) else {
             return Err(self.metadata_error(anchor, format!("{label} is not a function type")));
         };
 
-        let result = self.require_type_reference(*result, anchor, "call result type")?;
+        let result = self.require_type_reference(result, anchor, "call result type")?;
         self.ensure_node_type(NodeType::Type, result.id, anchor)?;
         for &parameter in parameters {
             let parameter =
@@ -545,7 +546,7 @@ impl<'a> Validator<'a> {
             self.ensure_node_type(NodeType::Type, parameter.id, anchor)?;
         }
 
-        Ok((parameters.as_slice(), result))
+        Ok((parameters, result))
     }
 
     /// Validate one plain function-pointer signature and return its shape.
@@ -576,7 +577,9 @@ impl<'a> Validator<'a> {
         let signature = self.require_type_reference(signature, anchor, label)?;
         let actual_type = self.value_type_or_error(function, callee.into(), anchor, label)?;
         let actual_signature = match self.tree.get(actual_type) {
-            Type::FunctionPointer { .. } => actual_type,
+            Type::FunctionPointer { signature } => {
+                self.require_type_reference(*signature, anchor, "indirect callee signature")?
+            }
             Type::Closure { signature } => {
                 self.require_type_reference(*signature, anchor, "indirect callee signature")?
             }

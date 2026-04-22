@@ -185,13 +185,13 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 visitor.visit_type(tree, element, element_ty);
             }
         }
-        Type::TensorReference { element, .. } => {
+        Type::TensorView { element, .. } => {
             if let TypeReference::Type(element) = *element {
                 let element_ty = tree.get(element);
                 visitor.visit_type(tree, element, element_ty);
             }
         }
-        Type::FunctionPointer { parameters, result } => {
+        Type::FunctionSignature { parameters, result } => {
             for parameter_id in parameters {
                 if let TypeReference::Type(parameter_id) = *parameter_id {
                     let parameter_ty = tree.get(parameter_id);
@@ -203,7 +203,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 visitor.visit_type(tree, result, result_ty);
             }
         }
-        Type::Closure { signature } => {
+        Type::FunctionPointer { signature } | Type::Closure { signature } => {
             if let TypeReference::Type(signature) = *signature {
                 let signature_ty = tree.get(signature);
                 visitor.visit_type(tree, signature, signature_ty);

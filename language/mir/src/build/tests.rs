@@ -168,7 +168,7 @@ fn test_build_function_with_exceptional_call_terminator() {
     let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let exception_type = module.type_managed_reference(i32_type);
-    let signature = module.type_function_pointer(vec![i32_type], i32_type);
+    let signature = module.type_function_signature(vec![i32_type], i32_type);
     let callee = module.extern_function("callee", &[i32_type], i32_type);
 
     // build function
@@ -625,8 +625,9 @@ fn test_type_construction() {
     let pointer_type = module.type_raw_pointer(i32_type);
     let array_type = module.type_array(i32_type, 10, Copy::Yes);
     let tuple_type = module.type_tuple(vec![i32_type, i64_type], Copy::Yes);
-    let function_pointer_type = module.type_function_pointer(vec![i32_type], i32_type);
-    let function_value_type = module.type_function_value(function_pointer_type);
+    let signature = module.type_function_signature(vec![i32_type], i32_type);
+    let function_pointer_type = module.type_function_pointer(signature);
+    let function_value_type = module.type_closure(signature);
 
     // verify types
     let (tree, _strings) = module.finish_immutable();

@@ -380,7 +380,8 @@ impl<'a> Validator<'a> {
             Type::Newtype { .. } => "newtype",
             Type::Vector { .. } => "vector",
             Type::Tensor { .. } => "tensor",
-            Type::TensorReference { .. } => "tensorRef",
+            Type::TensorView { .. } => "tensorView",
+            Type::FunctionSignature { .. } => "signature",
             Type::FunctionPointer { .. } => "fn",
             Type::Closure { .. } => "callable",
         }

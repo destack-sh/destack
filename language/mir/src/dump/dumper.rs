@@ -1,7 +1,7 @@
 use crate::{
     BinaryOperator, Block, BlockReference, BlockTarget, CastOperator, CheckConstraint, Constant,
     Function, FunctionReference, Global, GlobalInitializer, GlobalReference, Instruction, Local,
-    LocalNodeId, LocalReference, EffectRegionSet, MemorySemantics, Mutability, NodeTree,
+    LocalNodeId, LocalReference, MemoryRegionSet, MemorySemantics, Mutability, NodeTree,
     NodeVisitor, NodeVisitorOptions, Ownership, ReferenceKind, SwitchCase, Terminator, TrapKind,
     Type, TypeReference, UnaryOperator, ValueReference,
 };
@@ -260,11 +260,15 @@ impl<'a> Dumper<'a> {
             Type::Newtype { .. } => "newtype".to_string(),
             Type::Vector { lanes, .. } => format!("vector<{lanes}>"),
             Type::Tensor { shape, .. } => format!("tensor<{}>", shape.len()),
-            Type::TensorReference { shape, .. } => format!("tensorRef<{}>", shape.len()),
-            Type::FunctionPointer { parameters, result } => {
+            Type::TensorView { shape, .. } => format!("tensorView<{}>", shape.len()),
+            Type::FunctionSignature { parameters, result } => {
                 let parameter_count = parameters.len();
                 let result = self.format_type_id(*result);
-                format!("(/* {parameter_count} */) -> {result}")
+                format!("sig(/* {parameter_count} */) -> {result}")
+            }
+            Type::FunctionPointer { signature } => {
+                let signature = self.format_type_id(*signature);
+                format!("fn({signature})")
             }
             Type::Closure { signature } => {
                 let signature = self.format_type_id(*signature);
@@ -296,25 +300,25 @@ impl<'a> Dumper<'a> {
         }
     }
 
-    fn collect_effect_region_names(&self, regions: EffectRegionSet) -> Vec<&'static str> {
+    fn collect_effect_region_names(&self, regions: MemoryRegionSet) -> Vec<&'static str> {
         // handle named region sets
-        if regions == EffectRegionSet::NONE {
+        if regions == MemoryRegionSet::NONE {
             return vec!["none"];
         }
-        if regions == EffectRegionSet::ANY {
+        if regions == MemoryRegionSet::ANY {
             return vec!["any"];
         }
 
         // collect ordered regions
         let ordered = [
-            ("heap", EffectRegionSet::HEAP),
-            ("rawHeap", EffectRegionSet::RAW_HEAP),
-            ("stack", EffectRegionSet::STACK),
-            ("global", EffectRegionSet::GLOBAL),
-            ("shared", EffectRegionSet::SHARED),
-            ("local", EffectRegionSet::LOCAL),
-            ("constant", EffectRegionSet::CONSTANT),
-            ("io", EffectRegionSet::IO),
+            ("heap", MemoryRegionSet::HEAP),
+            ("rawHeap", MemoryRegionSet::RAW_HEAP),
+            ("stack", MemoryRegionSet::STACK),
+            ("global", MemoryRegionSet::GLOBAL),
+            ("shared", MemoryRegionSet::SHARED),
+            ("local", MemoryRegionSet::LOCAL),
+            ("constant", MemoryRegionSet::CONSTANT),
+            ("io", MemoryRegionSet::IO),
         ];
         let mut names = Vec::new();
         for (name, set) in ordered {

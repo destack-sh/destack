@@ -1,6 +1,6 @@
 use destack_source::Span;
 
-use crate::{Constant, Intrinsic, LocalNodeId, EffectRegionSet, Type};
+use crate::{Constant, Intrinsic, LocalNodeId, MemoryRegionSet, Type};
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
@@ -318,18 +318,18 @@ impl Parser {
         &self,
         text: &str,
         start: usize,
-    ) -> ParseResult<EffectRegionSet> {
+    ) -> ParseResult<MemoryRegionSet> {
         let location = match text {
-            "none" => EffectRegionSet::NONE,
-            "any" => EffectRegionSet::ANY,
-            "heap" => EffectRegionSet::HEAP,
-            "rawHeap" => EffectRegionSet::RAW_HEAP,
-            "stack" => EffectRegionSet::STACK,
-            "global" => EffectRegionSet::GLOBAL,
-            "shared" => EffectRegionSet::SHARED,
-            "local" => EffectRegionSet::LOCAL,
-            "constant" => EffectRegionSet::CONSTANT,
-            "io" => EffectRegionSet::IO,
+            "none" => MemoryRegionSet::NONE,
+            "any" => MemoryRegionSet::ANY,
+            "heap" => MemoryRegionSet::HEAP,
+            "rawHeap" => MemoryRegionSet::RAW_HEAP,
+            "stack" => MemoryRegionSet::STACK,
+            "global" => MemoryRegionSet::GLOBAL,
+            "shared" => MemoryRegionSet::SHARED,
+            "local" => MemoryRegionSet::LOCAL,
+            "constant" => MemoryRegionSet::CONSTANT,
+            "io" => MemoryRegionSet::IO,
             _ => {
                 return Err(ParseError::invalid(
                     &format!("memory region '{text}'"),

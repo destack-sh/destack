@@ -301,7 +301,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn tensor_load(&mut self, view: Value, indices: Vec<Value>) -> Value {
         let destination = self.allocate_value();
         let view_type = self.value_type_or_panic(view, "tensor.load view");
-        let element_type = self.element_type_for_tensor_reference(view_type);
+        let element_type = self.element_type_for_tensor_view(view_type);
         let indices = indices
             .into_iter()
             .map(ValueReference::from)

@@ -14,12 +14,13 @@ impl Parser {
     /// Ensure the canonical hidden base type for one slice header.
     fn ensure_slice_data_type(
         &mut self,
+        kind: ReferenceKind,
         element: LocalNodeId<Type>,
         mutability: Mutability,
         address_space: AddressSpace,
     ) {
         self.intern_type(Type::Reference {
-            kind: ReferenceKind::Borrowed,
+            kind,
             address_space,
             mutability,
             pointee: element.into(),
@@ -57,8 +58,8 @@ impl Parser {
                 | TokenType::Value
                 | TokenType::Ref
                 | TokenType::RefNullable
-                | TokenType::TensorReference
-                | TokenType::TensorReferenceNullable
+                | TokenType::TensorView
+                | TokenType::TensorViewNullable
                 | TokenType::Tensor
                 | TokenType::Vector
                 | TokenType::Newtype
@@ -98,10 +99,11 @@ impl Parser {
                     self.bump();
                     self.eat_token(TokenType::LessThan)?;
                     let element = self.parse_type()?;
-                    let (address_space, mutability) = self.parse_slice_qualifiers()?;
-                    self.ensure_slice_data_type(element, mutability, address_space.clone());
+                    let (kind, address_space, mutability) = self.parse_slice_qualifiers()?;
+                    self.ensure_slice_data_type(kind, element, mutability, address_space.clone());
                     self.eat_token(TokenType::GreaterThan)?;
                     Type::Slice {
+                        kind,
                         element: element.into(),
                         address_space,
                         mutability,
@@ -150,8 +152,8 @@ impl Parser {
             TokenType::Ref | TokenType::RefNullable => {
                 self.parse_reference_type(token_ty == TokenType::RefNullable)?
             }
-            TokenType::TensorReference => self.parse_tensor_reference_type(false)?,
-            TokenType::TensorReferenceNullable => self.parse_tensor_reference_type(true)?,
+            TokenType::TensorView => self.parse_tensor_view_type(false)?,
+            TokenType::TensorViewNullable => self.parse_tensor_view_type(true)?,
             TokenType::Tensor => self.parse_tensor_type()?,
             TokenType::Vector => {
                 self.bump();
@@ -193,13 +195,16 @@ impl Parser {
 
                 if self.eat_token_maybe(TokenType::Arrow) {
                     let result = self.parse_type()?;
-                    Type::FunctionPointer {
+                    let signature = self.intern_type(Type::FunctionSignature {
                         parameters,
                         result: result.into(),
+                    });
+                    Type::FunctionPointer {
+                        signature: signature.into(),
                     }
                 } else if self.eat_token_maybe(TokenType::FatArrow) {
                     let result = self.parse_type()?;
-                    let signature = self.intern_type(Type::FunctionPointer {
+                    let signature = self.intern_type(Type::FunctionSignature {
                         parameters,
                         result: result.into(),
                     });
@@ -370,8 +375,8 @@ impl Parser {
         })
     }
 
-    /// Parse a tensor reference type.
-    fn parse_tensor_reference_type(&mut self, is_nullable: bool) -> ParseResult<Type> {
+    /// Parse a tensor view type.
+    fn parse_tensor_view_type(&mut self, is_nullable: bool) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
         let (kind, address_space, mutability, element) = self.parse_reference_header()?;
@@ -380,7 +385,7 @@ impl Parser {
         let layout = self.parse_optional_tensor_layout()?;
         self.eat_token(TokenType::GreaterThan)?;
 
-        Ok(Type::TensorReference {
+        Ok(Type::TensorView {
             kind,
             address_space,
             mutability,
@@ -409,7 +414,7 @@ impl Parser {
         })
     }
 
-    /// Parse the reference header for ref and tensorRef types.
+    /// Parse the reference header for ref, slice, and tensorView types.
     fn parse_reference_header(
         &mut self,
     ) -> ParseResult<(ReferenceKind, AddressSpace, Mutability, LocalNodeId<Type>)> {
@@ -492,7 +497,8 @@ impl Parser {
     }
 
     /// Parse optional trailing qualifiers for one slice type.
-    fn parse_slice_qualifiers(&mut self) -> ParseResult<(AddressSpace, Mutability)> {
+    fn parse_slice_qualifiers(&mut self) -> ParseResult<(ReferenceKind, AddressSpace, Mutability)> {
+        let mut kind = ReferenceKind::Managed;
         let mut address_space = AddressSpace::Local;
         let mut mutability = Mutability::Mutable;
 
@@ -505,6 +511,25 @@ impl Parser {
             }
 
             self.bump();
+
+            let qualifier = self
+                .peek()
+                .ok_or_else(|| ParseError::unexpected_end("slice qualifier", self.pos()))?;
+            let qualifier_text = self.tree.source_text(qualifier.span);
+
+            if matches!(qualifier.ty, TokenType::Ownership | TokenType::Identifier) {
+                match qualifier_text {
+                    "managed" => kind = ReferenceKind::Managed,
+                    "owned" => kind = ReferenceKind::Owned,
+                    "borrowed" => kind = ReferenceKind::Borrowed,
+                    "raw" => kind = ReferenceKind::Raw,
+                    _ => {}
+                }
+                if matches!(qualifier_text, "managed" | "owned" | "borrowed" | "raw") {
+                    self.bump();
+                    continue;
+                }
+            }
 
             if self.eat_token_maybe(TokenType::Readonly) {
                 mutability = Mutability::Immutable;
@@ -538,7 +563,7 @@ impl Parser {
             return Err(ParseError::invalid("slice qualifier", self.pos()));
         }
 
-        Ok((address_space, mutability))
+        Ok((kind, address_space, mutability))
     }
 
     /// Parse an optional trailing tensor layout assignment.

@@ -64,6 +64,7 @@ pub(super) enum TypeKey {
     },
     /// Slice view.
     Slice {
+        kind: ReferenceKind,
         element: TypeReference,
         address_space: AddressSpace,
         mutability: Mutability,
@@ -94,7 +95,7 @@ pub(super) enum TypeKey {
         copy: Copy,
     },
     /// Tensor view type.
-    TensorReference {
+    TensorView {
         kind: ReferenceKind,
         address_space: AddressSpace,
         mutability: Mutability,
@@ -103,11 +104,13 @@ pub(super) enum TypeKey {
         layout: TensorLayout,
         is_nullable: bool,
     },
-    /// Function pointer signature.
-    FunctionPointer {
+    /// Bare function signature.
+    FunctionSignature {
         parameters: Vec<TypeReference>,
         result: TypeReference,
     },
+    /// Function pointer type.
+    FunctionPointer { signature: TypeReference },
     /// Callable closure value.
     Closure { signature: TypeReference },
 }
@@ -152,10 +155,12 @@ impl TypeKey {
                 copy: *copy,
             },
             Type::Slice {
+                kind,
                 element,
                 address_space,
                 mutability,
             } => TypeKey::Slice {
+                kind: *kind,
                 element: *element,
                 address_space: address_space.clone(),
                 mutability: *mutability,
@@ -194,7 +199,7 @@ impl TypeKey {
                 layout: layout.clone(),
                 copy: *copy,
             },
-            Type::TensorReference {
+            Type::TensorView {
                 kind,
                 address_space,
                 mutability,
@@ -202,7 +207,7 @@ impl TypeKey {
                 shape,
                 layout,
                 is_nullable,
-            } => TypeKey::TensorReference {
+            } => TypeKey::TensorView {
                 kind: *kind,
                 address_space: address_space.clone(),
                 mutability: *mutability,
@@ -212,9 +217,12 @@ impl TypeKey {
                 is_nullable: *is_nullable,
             },
 
-            Type::FunctionPointer { parameters, result } => TypeKey::FunctionPointer {
+            Type::FunctionSignature { parameters, result } => TypeKey::FunctionSignature {
                 parameters: parameters.clone(),
                 result: *result,
+            },
+            Type::FunctionPointer { signature } => TypeKey::FunctionPointer {
+                signature: *signature,
             },
             Type::Closure { signature } => TypeKey::Closure {
                 signature: *signature,
