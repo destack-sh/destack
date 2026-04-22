@@ -781,10 +781,19 @@ pub(crate) fn write_signature_hug_parameter_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     parameters: &[LocalNodeId<Parameter>],
 ) -> FormatResult<()> {
-    write!(
-        f,
-        [group(&format_args![token("("), parameters[0], token(")")])]
-    )
+    let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        for (index, parameter_id) in parameters.iter().copied().enumerate() {
+            if index > 0 {
+                write!(f, [token(","), space()])?;
+            }
+
+            write!(f, [parameter_id])?;
+        }
+
+        Ok(())
+    });
+
+    write!(f, [group(&format_args![token("("), content, token(")")])])
 }
 
 /// Write one empty parameter list with interior annotations.

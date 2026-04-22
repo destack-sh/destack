@@ -1,8 +1,9 @@
 use std::borrow::Cow;
 
 use crate::format::annotation::{
-    block_infix_annotations, format_comment, infix_or_postfix_annotations, prefix_annotations,
-    prefix_annotations_after_offset, prefix_comment_nodes, write_annotation_sequence,
+    FormatLeadingComments, block_infix_annotations, format_comment, infix_or_postfix_annotations,
+    prefix_annotations, prefix_annotations_after_offset, prefix_comment_nodes,
+    write_annotation_sequence,
 };
 use crate::format::declaration::statement::{
     block_leading_line_comment_nodes, block_trailing_comment_nodes,
@@ -231,9 +232,7 @@ fn write_expression_gap_comments<'ast>(
         return Ok(());
     }
 
-    write_comment_node_lines(f, &comment_nodes)?;
-
-    write!(f, [hard_line_break()])
+    write!(f, [FormatLeadingComments::Comments(&comment_nodes)])
 }
 
 /// Write one comment node sequence separated by hard line breaks.
@@ -634,6 +633,11 @@ pub(crate) fn format_block_statement_sequence<'ast>(
             None,
             following_expression_start,
         )?;
+
+        f.context_mut()
+            .comments_mut()
+            .skip_comments_before(expression_output_end);
+
         previous_output_end = Some((expression_span.file, expression_output_end));
         previous_output_was_ignored = false;
     }
@@ -785,6 +789,11 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
             prefix_after_offset,
             following_expression_start,
         )?;
+
+        f.context_mut()
+            .comments_mut()
+            .skip_comments_before(expression_output_end);
+
         previous_output_end = Some((expression_span.file, expression_output_end));
         previous_output_was_ignored = false;
         previous_expression_id = Some(expression_id);
