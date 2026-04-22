@@ -244,7 +244,7 @@ fn property_is_simple(
     depth: u8,
 ) -> bool {
     match context.tree.get(property_id) {
-        Property::Field { key, value } => {
+        Property::Field { key, value, .. } => {
             key_is_simple(key) && SimpleArgument::from(*value).is_simple_with_depth(context, depth)
         }
         Property::Method { .. } | Property::Spread { .. } | Property::Error => false,

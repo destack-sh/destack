@@ -1,4 +1,6 @@
-use super::groups::{TailChainGroups, build_tail_chain_groups, chain_head_operation_count};
+use super::groups::{
+    MemberChainGroup, TailChainGroups, build_tail_chain_groups, chain_head_member_count,
+};
 use crate::format::expression::parenthesized_expression_needs_preserved_wrapper;
 use crate::format::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
@@ -30,9 +32,9 @@ pub(crate) fn format_maybe_expression<'ast>(
     Ok(())
 }
 
-/// The head of a chain before any postfix operations.
+/// The root printed before the head group members.
 #[derive(Clone)]
-pub(crate) enum ChainExpressionBaseHead {
+pub(crate) enum ChainRoot {
     Path {
         node_id: LocalNodeId<Expression>,
         segment: StringId,
@@ -42,16 +44,9 @@ pub(crate) enum ChainExpressionBaseHead {
     Expression(LocalNodeId<Expression>),
 }
 
-/// The initial portion of the chain including direct postfix ops.
-#[derive(Clone)]
-pub(crate) struct ChainExpressionBase {
-    pub(crate) head: ChainExpressionBaseHead,
-    pub(crate) body: Vec<ChainExpression>,
-}
-
 /// One call position inside a normalized chain.
 #[derive(Clone, Copy, Eq, PartialEq)]
-pub(crate) enum CallChainPosition {
+pub(crate) enum CallExpressionPosition {
     /// The first call in a call chain.
     Start,
     /// One call between other chain operations.
@@ -60,9 +55,9 @@ pub(crate) enum CallChainPosition {
     End,
 }
 
-/// One operation in an expression chain.
+/// One member in an expression chain.
 #[derive(Clone)]
-pub(crate) enum ChainExpression {
+pub(crate) enum ChainMember {
     /// Member expression.
     Member {
         node_id: LocalNodeId<Expression>,
@@ -80,7 +75,7 @@ pub(crate) enum ChainExpression {
     /// Call expression.
     Call {
         node_id: LocalNodeId<Expression>,
-        call_position: CallChainPosition,
+        call_position: CallExpressionPosition,
         optional_position: Option<PostfixPosition>,
         position: PostfixPosition,
         generic_arguments: Vec<LocalNodeId<GenericArgument>>,
@@ -105,35 +100,33 @@ pub(crate) enum ChainExpression {
     },
 }
 
-/// Return the expression node id carried by one chain operation.
-pub(crate) fn chain_operation_node_id(operation: &ChainExpression) -> LocalNodeId<Expression> {
-    match operation {
-        ChainExpression::Member { node_id, .. }
-        | ChainExpression::Instantiation { node_id, .. }
-        | ChainExpression::Call { node_id, .. }
-        | ChainExpression::Index { node_id, .. }
-        | ChainExpression::Maybe { node_id, .. }
-        | ChainExpression::Must { node_id, .. } => *node_id,
+/// Return the expression node id carried by one chain member.
+pub(crate) fn chain_member_node_id(member: &ChainMember) -> LocalNodeId<Expression> {
+    match member {
+        ChainMember::Member { node_id, .. }
+        | ChainMember::Instantiation { node_id, .. }
+        | ChainMember::Call { node_id, .. }
+        | ChainMember::Index { node_id, .. }
+        | ChainMember::Maybe { node_id, .. }
+        | ChainMember::Must { node_id, .. } => *node_id,
     }
 }
 
 /// Return whether one chain operation is an index access.
-pub(crate) fn chain_operation_is_index(operation: &ChainExpression) -> bool {
-    matches!(operation, ChainExpression::Index { .. })
+pub(crate) fn chain_member_is_index(member: &ChainMember) -> bool {
+    matches!(member, ChainMember::Index { .. })
 }
 
 /// Return whether one chain operation behaves like a call.
-pub(crate) fn chain_operation_is_call_like(operation: &ChainExpression) -> bool {
+pub(crate) fn chain_member_is_call_like(member: &ChainMember) -> bool {
     matches!(
-        operation,
-        ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
+        member,
+        ChainMember::Call { .. } | ChainMember::Instantiation { .. }
     )
 }
 
-/// Return the first operation of the first tail group.
-pub(crate) fn first_tail_group_operation(
-    tail_groups: &TailChainGroups,
-) -> Option<&ChainExpression> {
+/// Return the first member of the first tail group.
+pub(crate) fn first_tail_group_member(tail_groups: &TailChainGroups) -> Option<&ChainMember> {
     tail_groups.first().and_then(|group| group.first())
 }
 
@@ -210,7 +203,8 @@ pub(super) fn build_member_chain_parts(
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<(
     Vec<LocalNodeId<Expression>>,
-    ChainExpressionBase,
+    ChainRoot,
+    MemberChainGroup,
     TailChainGroups,
 )> {
     let tree = context.tree;
@@ -218,19 +212,15 @@ pub(super) fn build_member_chain_parts(
     let root_id = chain[0];
     let base_root_id = root_id;
 
-    let mut base_head = ChainExpressionBaseHead::Expression(base_root_id);
-    let mut operations = Vec::new();
+    let mut root = ChainRoot::Expression(base_root_id);
+    let mut members = Vec::new();
 
-    // chain-member root decomposition
-    if let Some((path_base_head, path_operations)) = split_path_chain_root(context, base_root_id)? {
-        base_head = path_base_head;
-        operations.extend(path_operations);
+    // path root decomposition
+    if let Some((path_root, path_members)) = split_path_chain_root(context, base_root_id)? {
+        root = path_root;
+        members.extend(path_members);
     }
 
-    let mut base = ChainExpressionBase {
-        head: base_head,
-        body: Vec::new(),
-    };
     let mut chain_tail = chain.iter().skip(1).copied().peekable();
     while let Some(expression_id) = chain_tail.next() {
         if matches!(tree.get(expression_id), Expression::Maybe { .. })
@@ -247,24 +237,24 @@ pub(super) fn build_member_chain_parts(
             continue;
         }
 
-        operations.push(chain_expression_from_node(tree, expression_id)?);
+        members.push(chain_member_from_node(tree, expression_id)?);
     }
 
-    let head_operation_count = chain_head_operation_count(context, &base, &operations);
-    let tail_operations = operations.split_off(head_operation_count);
-    base.body = operations;
-    annotate_call_chain_positions(context.tree, &mut base.body, node_id);
+    let head_member_count = chain_head_member_count(context, &root, &members);
+    let tail_members = members.split_off(head_member_count);
+    annotate_call_chain_positions(context.tree, &mut members, node_id);
 
-    let tail_groups = build_tail_chain_groups(context, tail_operations);
+    let head = MemberChainGroup::from_members(members);
+    let tail_groups = build_tail_chain_groups(context, tail_members);
 
-    Ok((chain, base, tail_groups))
+    Ok((chain, root, head, tail_groups))
 }
 
 /// Try to split one path root into a chain base head plus member operations.
 fn split_path_chain_root(
     context: &DestackFormatContext<'_>,
     base_root_id: LocalNodeId<Expression>,
-) -> FormatResult<Option<(ChainExpressionBaseHead, Vec<ChainExpression>)>> {
+) -> FormatResult<Option<(ChainRoot, Vec<ChainMember>)>> {
     let Expression::QualifiedReference {
         path,
         generic_arguments,
@@ -294,7 +284,7 @@ fn split_path_chain_root(
     } else {
         Vec::new()
     };
-    let base_head = ChainExpressionBaseHead::Path {
+    let root = ChainRoot::Path {
         node_id: base_root_id,
         segment: first_segment,
         generic_arguments: base_generic_arguments,
@@ -309,7 +299,7 @@ fn split_path_chain_root(
         } else {
             Vec::new()
         };
-        operations.push(ChainExpression::Member {
+        operations.push(ChainMember::Member {
             node_id: base_root_id,
             optional_position: None,
             segment,
@@ -319,7 +309,7 @@ fn split_path_chain_root(
         });
     }
 
-    Ok(Some((base_head, operations)))
+    Ok(Some((root, operations)))
 }
 
 /// Check whether source contains a comment between two expression nodes.
@@ -492,18 +482,18 @@ fn path_last_segment_start(
 }
 
 /// Convert one chain expression node into a chain operation.
-pub(crate) fn chain_expression_from_node(
+pub(crate) fn chain_member_from_node(
     tree: &NodeTree,
     expression_id: LocalNodeId<Expression>,
-) -> FormatResult<ChainExpression> {
-    let chain_expression = match tree.get(expression_id) {
+) -> FormatResult<ChainMember> {
+    let chain_member = match tree.get(expression_id) {
         Expression::Member { left, name, .. } => {
             let Some(name) = *name else {
                 return Err(FormatError::SyntaxError {
                     message: "missing member name in chain expression",
                 });
             };
-            ChainExpression::Member {
+            ChainMember::Member {
                 node_id: expression_id,
                 optional_position: maybe_position_for_left(tree, *left),
                 segment: name,
@@ -518,7 +508,7 @@ pub(crate) fn chain_expression_from_node(
                     message: "missing private member name in chain expression",
                 });
             };
-            ChainExpression::Member {
+            ChainMember::Member {
                 node_id: expression_id,
                 optional_position: maybe_position_for_left(tree, *left),
                 segment: name,
@@ -533,9 +523,9 @@ pub(crate) fn chain_expression_from_node(
             generic_arguments,
             arguments,
             ..
-        } => ChainExpression::Call {
+        } => ChainMember::Call {
             node_id: expression_id,
-            call_position: CallChainPosition::End,
+            call_position: CallExpressionPosition::End,
             optional_position: maybe_position_for_left(tree, *left),
             position: *position,
             generic_arguments: generic_arguments.clone(),
@@ -543,7 +533,7 @@ pub(crate) fn chain_expression_from_node(
         },
         Expression::Instantiation {
             generic_arguments, ..
-        } => ChainExpression::Instantiation {
+        } => ChainMember::Instantiation {
             node_id: expression_id,
             generic_arguments: generic_arguments.clone(),
         },
@@ -552,17 +542,17 @@ pub(crate) fn chain_expression_from_node(
             position,
             index,
             ..
-        } => ChainExpression::Index {
+        } => ChainMember::Index {
             node_id: expression_id,
             optional_position: maybe_position_for_left(tree, *left),
             position: *position,
             index: *index,
         },
-        Expression::Maybe { position, .. } => ChainExpression::Maybe {
+        Expression::Maybe { position, .. } => ChainMember::Maybe {
             node_id: expression_id,
             position: *position,
         },
-        Expression::Must { position, .. } => ChainExpression::Must {
+        Expression::Must { position, .. } => ChainMember::Must {
             node_id: expression_id,
             position: *position,
         },
@@ -573,16 +563,16 @@ pub(crate) fn chain_expression_from_node(
         }
     };
 
-    Ok(chain_expression)
+    Ok(chain_member)
 }
 /// Annotate every call operation with its position inside the chain.
 fn annotate_call_chain_positions(
     tree: &NodeTree,
-    operations: &mut [ChainExpression],
+    operations: &mut [ChainMember],
     root_id: LocalNodeId<Expression>,
 ) {
     for operation in operations {
-        let ChainExpression::Call {
+        let ChainMember::Call {
             node_id,
             call_position,
             ..
@@ -597,11 +587,11 @@ fn annotate_call_chain_positions(
 
         let left_is_chain = is_chain_expression(tree.get(*left));
         *call_position = if !left_is_chain {
-            CallChainPosition::Start
+            CallExpressionPosition::Start
         } else if *node_id == root_id {
-            CallChainPosition::End
+            CallExpressionPosition::End
         } else {
-            CallChainPosition::Middle
+            CallExpressionPosition::Middle
         };
     }
 }
