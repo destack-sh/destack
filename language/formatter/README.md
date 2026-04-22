@@ -1,13 +1,13 @@
 # formatter
 
-Source formatter for Destack covering JS, JSX, TS, TSX, and TS++.
-The formatter is designed to follow "industry standard formatting", that is, to behave equivalent to Prettier / oxfmt on every _supported_ JS and TS family.
+Source formatter for Destack covering JS, JSX, TS, TSX, and TS++, designed to follow established JS and TS formatting conventions on every _supported_ family (mostly stemming from Prettier, though technically the FIR is originally from Ruff since Prettier is implemented in JS (though even more technically Ruff's FIR _is_ based on Rome)).
 
 Because Destack is designed for _modern strict TS(++)_, we do not fully support:
-- JSDoc semantics (like `@type` comments)
+- tag-aware JSDoc semantics (like `@type` or `@satisfies` comments)
 - legacy TypeScript angle-bracket assertions (like `<T>expr`, we don't even parse this)
 - legacy import-attribute `assert` syntax
 - .. and any of the other legacy JS stuff like `with` (also see [language/parser](../../language/parser/README.md))
+- .. and obviously we can't format stuff we don't even parse
 
 ## Architecture
 
