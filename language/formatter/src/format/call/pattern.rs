@@ -348,6 +348,21 @@ fn is_multi_argument_test_call_expression(
     expression_is_test_callback(context, second_expression_id, allow_any_callback_shape)
 }
 
+/// Return whether one call expression matches one test-style pattern.
+pub(crate) fn expression_is_test_call(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::Call {
+        left, arguments, ..
+    } = context.tree.get(call_node_id)
+    else {
+        return false;
+    };
+
+    is_test_call_expression(context, call_node_id, *left, arguments)
+}
+
 /// Return whether one wrapper call is nested under a test call.
 fn call_is_nested_test_call_expression(
     context: &DestackFormatContext<'_>,

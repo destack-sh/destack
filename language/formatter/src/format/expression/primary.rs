@@ -1,6 +1,5 @@
 use super::object::{format_fill_array, format_outer_comment_array, format_struct_literal};
 use super::parentheses::parenthesized_expression_needs_preserved_wrapper;
-use super::path::format_path_expression;
 use super::{
     array_elements_are_fill_candidates, array_has_only_outer_comments, is_trivial_argument,
     sequence_expression_needs_parens,
@@ -383,7 +382,13 @@ pub(crate) fn format_primary_expression<'ast>(
             path,
             generic_arguments,
         } => {
-            format_path_expression(f, node_id, path, generic_arguments)?;
+            let _ = node_id;
+
+            write!(f, [path])?;
+
+            if !generic_arguments.is_empty() {
+                format_generic_argument_list(f, generic_arguments)?;
+            }
         }
 
         // private identifier

@@ -1,7 +1,6 @@
-use super::argument::write_call_argument_node_body;
+use super::argument::write_argument_with_following_span_start;
 use crate::format::annotation::{
-    DanglingIndentMode, FormatDanglingComments, FormatLeadingComments, block_infix_annotations,
-    format_trailing_comments,
+    DanglingIndentMode, FormatDanglingComments, block_infix_annotations,
 };
 use crate::format::collection::{TrailingSeparator, separated_entries};
 use crate::format::file::any_ignore_range_for_nodes;
@@ -9,11 +8,27 @@ use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{Argument, Comment, DecoratorPosition, Expression, LocalNodeId, TokenType};
 use destack_fir::format::{Buffer, FormatNodes, FormatResult, GroupId};
 use destack_fir::prelude::{
-    block_indent, empty_line, format_with, group, if_group_breaks, soft_block_indent,
-    soft_line_break_or_space, space, token,
+    block_indent, empty_line, format_with, group, if_group_breaks, line_suffix_boundary,
+    soft_block_indent, soft_line_break_or_space, space, token,
 };
 use destack_fir::{format_args, write};
 use destack_workspace::TrailingComma;
+
+/// The separator to emit for one call argument entry.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub(crate) enum CallArgumentSeparator {
+    /// No separator follows this argument.
+    None,
+
+    /// Always emit a comma after this argument.
+    Always,
+
+    /// Emit a comma only when the enclosing argument group breaks.
+    IfGroupBreaks {
+        /// The surrounding argument group id.
+        group_id: GroupId,
+    },
+}
 
 /// Return the source line distance between two byte offsets.
 fn line_distance_between_offsets(
@@ -61,7 +76,7 @@ pub(crate) fn call_argument_lines_before(
 /// Format all call arguments in explicit broken-out layout.
 pub(crate) fn format_all_args_broken_out<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    call_span: destack_source::Span,
+    _call_span: destack_source::Span,
     arguments: &[LocalNodeId<Argument>],
     group_id: GroupId,
     disallow_trailing_separator: bool,
@@ -90,25 +105,20 @@ pub(crate) fn format_all_args_broken_out<'ast>(
                         .get(index + 1)
                         .map(|argument_id| f.context().span(*argument_id).start)
                         .unwrap_or(0);
-                    write_call_argument_in_list(
-                        f,
-                        call_span,
-                        argument_id,
-                        following_span_start,
-                        index == 0,
-                    )?;
+                    let separator = if index + 1 != arguments.len() {
+                        CallArgumentSeparator::Always
+                    } else if write_trailing_separator {
+                        CallArgumentSeparator::Always
+                    } else {
+                        CallArgumentSeparator::None
+                    };
 
-                    if index + 1 != arguments.len() {
-                        write!(f, [token(",")])?;
-                    }
-                }
-
-                if write_trailing_separator {
-                    write!(f, [token(",")])?;
+                    write_call_argument_in_list(f, argument_id, following_span_start, separator)?;
                 }
 
                 Ok(())
             })),
+            line_suffix_boundary(),
             token(")")
         ])
         .with_id(Some(group_id))
@@ -119,115 +129,77 @@ pub(crate) fn format_all_args_broken_out<'ast>(
 /// Format arguments for one long curried call.
 pub(crate) fn format_long_curried_call_arguments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    call_span: destack_source::Span,
+    _call_span: destack_source::Span,
     arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
     let write_trailing_separator = matches!(f.context().options.trailing_comma, TrailingComma::All);
 
     write!(
         f,
-        [
+        [group(&format_args![
             token("("),
             soft_block_indent(&format_with(move |f: &mut DestackFormatter<'ast, '_>| {
                 for (index, argument_id) in arguments.iter().copied().enumerate() {
                     if index > 0 {
-                        write!(f, [token(","), soft_line_break_or_space()])?;
+                        write!(f, [soft_line_break_or_space()])?;
                     }
 
                     let following_span_start = arguments
                         .get(index + 1)
                         .map(|argument_id| f.context().span(*argument_id).start)
                         .unwrap_or(0);
-                    write_call_argument_in_list(
-                        f,
-                        call_span,
-                        argument_id,
-                        following_span_start,
-                        index == 0,
-                    )?;
-                }
+                    let separator = if index + 1 != arguments.len() {
+                        CallArgumentSeparator::Always
+                    } else if write_trailing_separator {
+                        CallArgumentSeparator::Always
+                    } else {
+                        CallArgumentSeparator::None
+                    };
 
-                if write_trailing_separator {
-                    write!(f, [token(",")])?;
+                    write_call_argument_in_list(f, argument_id, following_span_start, separator)?;
                 }
 
                 Ok(())
             })),
+            line_suffix_boundary(),
             token(")")
-        ]
+        ])
+        .should_expand(true)]
     )
 }
 
-/// Write one call argument entry with list-level trailing comment handling.
+/// Write one call argument entry.
 pub(crate) fn write_call_argument_in_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    call_span: destack_source::Span,
     argument_id: LocalNodeId<Argument>,
     following_span_start: u32,
-    emit_leading_comments: bool,
+    separator: CallArgumentSeparator,
 ) -> FormatResult<()> {
-    if emit_leading_comments {
-        write_first_call_argument_leading_comments(f, call_span, argument_id)?;
-    }
+    write_argument_with_following_span_start(f, argument_id, following_span_start)?;
+    write_call_argument_separator(f, separator)?;
 
-    write_call_argument_node_body(f, argument_id)?;
-
-    write_call_argument_trailing_comments(f, call_span, argument_id, following_span_start)
+    Ok(())
 }
 
-/// Write comments that belong before the first call argument.
-pub(crate) fn write_first_call_argument_leading_comments<'ast>(
+/// Write one call-argument separator.
+fn write_call_argument_separator<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    call_span: destack_source::Span,
-    argument_id: LocalNodeId<Argument>,
+    separator: CallArgumentSeparator,
 ) -> FormatResult<()> {
-    let Some(open_parenthesis_start) =
-        f.context()
-            .nth_token_type_start_in_span(call_span, TokenType::OpenParenthesis, 1)
-    else {
-        return Ok(());
-    };
-    let open_parenthesis_span = destack_source::Span::new(
-        call_span.file,
-        open_parenthesis_start,
-        open_parenthesis_start + 1,
-    );
-    let comment_start = f
-        .context()
-        .previous_non_trivia_token_before_span(open_parenthesis_span)
-        .map_or(call_span.start, |token| token.span.end);
-
-    let argument_span = f.context().span(argument_id);
-    let leading_comments = {
-        let comments = f.context().comments();
-        comments
-            .comments_in_range(comment_start, argument_span.start)
-            .to_vec()
-    };
-
-    if leading_comments.is_empty() {
-        return Ok(());
+    match separator {
+        CallArgumentSeparator::None => {}
+        CallArgumentSeparator::Always => {
+            write!(f, [token(",")])?;
+        }
+        CallArgumentSeparator::IfGroupBreaks { group_id } => {
+            write!(
+                f,
+                [if_group_breaks(&token(",")).with_group_id(Some(group_id))]
+            )?;
+        }
     }
 
-    write!(f, [FormatLeadingComments::Comments(&leading_comments)])
-}
-
-/// Write trailing comments for one call argument.
-pub(crate) fn write_call_argument_trailing_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    call_span: destack_source::Span,
-    argument_id: LocalNodeId<Argument>,
-    following_span_start: u32,
-) -> FormatResult<()> {
-    let argument_span = f.context().span(argument_id);
-    write!(
-        f,
-        [format_trailing_comments(
-            call_span,
-            argument_span,
-            following_span_start,
-        )]
-    )
+    Ok(())
 }
 
 /// Write empty call arguments, preserving infix annotations.
@@ -296,24 +268,30 @@ fn empty_call_argument_comments(
 /// Write call arguments with the direct flat list layout.
 pub(crate) fn write_simple_call_argument_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    call_span: destack_source::Span,
+    _call_span: destack_source::Span,
     arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
     write!(f, [token("(")])?;
 
     for (index, argument_id) in arguments.iter().copied().enumerate() {
         if index > 0 {
-            write!(f, [token(","), space()])?;
+            write!(f, [space()])?;
         }
 
         let following_span_start = arguments
             .get(index + 1)
             .map(|argument_id| f.context().span(*argument_id).start)
             .unwrap_or(0);
-        write_call_argument_in_list(f, call_span, argument_id, following_span_start, index == 0)?;
+        let separator = if index + 1 != arguments.len() {
+            CallArgumentSeparator::Always
+        } else {
+            CallArgumentSeparator::None
+        };
+
+        write_call_argument_in_list(f, argument_id, following_span_start, separator)?;
     }
 
-    write!(f, [token(")")])
+    write!(f, [line_suffix_boundary(), token(")")])
 }
 
 /// Return whether one call argument list contains ignored ranges.
@@ -345,6 +323,7 @@ pub(crate) fn write_ignored_call_arguments<'ast>(
                 TrailingSeparator::Allowed,
                 Some(group_id),
             )),
+            line_suffix_boundary(),
             token(")")
         ])
         .with_id(Some(group_id))
@@ -374,7 +353,7 @@ fn empty_call_infix_requires_multiline(
 /// Format call arguments with the default list formatter.
 pub(crate) fn format_default_call_argument_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    call_span: destack_source::Span,
+    _call_span: destack_source::Span,
     group_id: GroupId,
     arguments: &[LocalNodeId<Argument>],
     force_expand: bool,
@@ -397,37 +376,34 @@ pub(crate) fn format_default_call_argument_list<'ast>(
                 soft_block_indent(&format_with(move |f: &mut DestackFormatter<'ast, '_>| {
                     for (index, argument_id) in arguments.iter().copied().enumerate() {
                         if index > 0 {
-                            write!(f, [token(","), soft_line_break_or_space()])?;
+                            write!(f, [soft_line_break_or_space()])?;
                         }
 
                         let following_span_start = arguments
                             .get(index + 1)
                             .map(|argument_id| f.context().span(*argument_id).start)
                             .unwrap_or(0);
+                        let separator = if index + 1 != arguments.len() {
+                            CallArgumentSeparator::Always
+                        } else if trailing_separator == TrailingSeparator::Allowed {
+                            CallArgumentSeparator::IfGroupBreaks { group_id }
+                        } else if trailing_separator == TrailingSeparator::Mandatory {
+                            CallArgumentSeparator::Always
+                        } else {
+                            CallArgumentSeparator::None
+                        };
+
                         write_call_argument_in_list(
                             f,
-                            call_span,
                             argument_id,
                             following_span_start,
-                            index == 0,
+                            separator,
                         )?;
-                    }
-
-                    match trailing_separator {
-                        TrailingSeparator::Allowed => {
-                            write!(
-                                f,
-                                [if_group_breaks(&token(",")).with_group_id(Some(group_id))]
-                            )?;
-                        }
-                        TrailingSeparator::Mandatory => {
-                            write!(f, [token(",")])?;
-                        }
-                        TrailingSeparator::Omit => {}
                     }
 
                     Ok(())
                 })),
+                line_suffix_boundary(),
                 token(")")
             ]
         )

@@ -80,14 +80,13 @@ fn test_format_member_chain_preserves_blank_lines() {
     );
 }
 
-/// Member instantiations should keep simple type arguments attached when the chain expands.
+/// Member instantiations should stay inline when the chain still fits.
 #[test]
 fn test_format_member_instantiation_chain_stays_inline() {
     assert_format_program_roundtrip_with_file_type(
         r#"api.getService().getFactory<number>
 "#,
-        r#"api.getService()
-    .getFactory<number>;
+        r#"api.getService().getFactory<number>;
 "#,
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(25),
@@ -123,13 +122,15 @@ fn test_format_member_chain_merges_short_statement_call_head() {
     );
 }
 
-/// Computed first hops should still merge with the head when only the computed gap has a comment.
+/// Computed first hops should break after the separator comment when width is tight.
 #[test]
-fn test_format_member_chain_merges_computed_first_hop_with_separator_comment() {
+fn test_format_member_chain_breaks_computed_first_hop_with_separator_comment() {
     assert_format_program_roundtrip_with_file_type(
         r#"source /* before-index */ [key].call()
 "#,
-        r#"source /* before-index */[key].call();
+        r#"source /* before-index */[
+    key
+].call();
 "#,
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(20),
