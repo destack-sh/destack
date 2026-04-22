@@ -22,6 +22,15 @@ struct PageRunPool {
     by_start: BTreeMap<usize, PageRun>,
 }
 
+/// One allocator segment resolved from one live address.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct SegmentAddress {
+    /// The owning segment index.
+    pub(crate) segment_index: usize,
+    /// The byte offset inside the segment.
+    pub(crate) segment_offset: usize,
+}
+
 /// One branchable allocator of fixed-width pages.
 #[derive(Debug)]
 pub struct Allocator {
@@ -33,6 +42,8 @@ pub struct Allocator {
     pages_per_segment: u32,
     /// The stable segment slots for this allocator.
     segments: Box<[AtomicPtr<Segment>]>,
+    /// The live segment starts keyed by base address.
+    segment_starts: Mutex<BTreeMap<usize, usize>>,
     /// The number of reserved segment slots.
     reserved_segment_count: AtomicUsize,
     /// The current fresh segment used for monotonic single-segment allocation.
@@ -84,6 +95,7 @@ impl Allocator {
             segments: std::iter::repeat_with(|| AtomicPtr::new(null_mut()))
                 .take(MAX_ARENA_SEGMENTS)
                 .collect(),
+            segment_starts: Mutex::new(BTreeMap::new()),
             reserved_segment_count: AtomicUsize::new(0),
             fresh_segment: AtomicUsize::new(MISSING_SEGMENT_INDEX),
             page_runs: Mutex::new(PageRunPool::default()),
@@ -103,6 +115,7 @@ impl Allocator {
             segments: std::iter::repeat_with(|| AtomicPtr::new(null_mut()))
                 .take(MAX_ARENA_SEGMENTS)
                 .collect(),
+            segment_starts: Mutex::new(BTreeMap::new()),
             reserved_segment_count: AtomicUsize::new(0),
             fresh_segment: AtomicUsize::new(MISSING_SEGMENT_INDEX),
             page_runs: Mutex::new(PageRunPool::default()),
@@ -504,6 +517,11 @@ impl Allocator {
                 }
 
                 debug_assert!(!existing_ptr.is_null());
+            } else {
+                let segment_start = unsafe { (*segment_ptr).data as usize };
+                let mut segment_starts = self.segment_starts.lock();
+
+                segment_starts.insert(segment_start, segment_index);
             }
         }
 
@@ -658,6 +676,25 @@ impl Allocator {
         let segment_page_index = page_index % pages_per_segment;
 
         (segment_index, segment_page_index)
+    }
+
+    /// Return the owning segment and segment-local offset for one raw address.
+    pub(crate) fn segment_address(&self, address: usize) -> Option<SegmentAddress> {
+        if address == 0 {
+            return None;
+        }
+
+        let segment_starts = self.segment_starts.lock();
+        let (&segment_start, &segment_index) = segment_starts.range(..=address).next_back()?;
+        let segment_end = segment_start.checked_add(self.segment_bytes())?;
+        if address >= segment_end {
+            return None;
+        }
+
+        Some(SegmentAddress {
+            segment_index,
+            segment_offset: address - segment_start,
+        })
     }
 
     /// Return the number of pages stored in each segment.
