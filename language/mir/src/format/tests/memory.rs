@@ -8,7 +8,7 @@ fn test_format_allocation_family() {
 function allocFamily(value0: int64): ref<int32, raw, space(stack)> {
 entry0(value0: int64):
     value1: ref<int32, managed> = new int32
-    value2: ref<int32[], managed> = new.array int32, value0
+    value2: slice<int32> = new.slice int32, value0
     value3: ref<int32, raw> = raw.alloc int32
     raw.free value3
     value4: ref<int32, raw, space(stack)> = stack.alloc int32

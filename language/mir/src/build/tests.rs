@@ -1,6 +1,6 @@
 use crate::build::ModuleBuilder;
 use crate::{
-    AddressSpace, AtomicScope, Copyability, MemoryOrdering, MemoryScope, MemorySemantics,
+    AddressSpace, AtomicScope, Copy, MemoryOrdering, MemoryScope, MemorySemantics,
     MirFormatOptions, Mutability, ReferenceKind, Type, format_mir,
 };
 
@@ -623,8 +623,8 @@ fn test_type_construction() {
     let f32_type = module.type_f32();
     let f64_type = module.type_f64();
     let pointer_type = module.type_raw_pointer(i32_type);
-    let array_type = module.type_array(i32_type, 10, Copyability::Trivial);
-    let tuple_type = module.type_tuple(vec![i32_type, i64_type], Copyability::Trivial);
+    let array_type = module.type_array(i32_type, 10, Copy::Yes);
+    let tuple_type = module.type_tuple(vec![i32_type, i64_type], Copy::Yes);
     let function_pointer_type = module.type_function_pointer(vec![i32_type], i32_type);
     let function_value_type = module.type_function_value(function_pointer_type);
 
@@ -836,22 +836,21 @@ entry0:
     assert_eq!(output, expected);
 }
 
-/// Allocation instruction: new.array.
+/// Allocation instruction: new.slice.
 #[test]
-fn test_build_new_array() {
+fn test_build_new_slice() {
     // setup
     let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let i64_type = module.type_i64();
-    let array_type = module.type_dynamic_array(i32_type, Copyability::Trivial);
-    let array_ref_type = module.type_managed_reference(array_type);
+    let slice_type = module.type_slice(i32_type);
 
-    // build function with new.array
-    let mut builder = module.function("allocArrayTest", &[i64_type], array_ref_type);
+    // build function with new.slice
+    let mut builder = module.function("allocArrayTest", &[i64_type], slice_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let length_value = builder.function_parameter(0);
-    let allocated_value = builder.new_array(i32_type, length_value, array_ref_type);
+    let allocated_value = builder.new_slice(i32_type, length_value, slice_type);
     builder.return_(Some(allocated_value));
     builder.seal_block(entry_block);
     builder.finish();
@@ -860,9 +859,9 @@ fn test_build_new_array() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function allocArrayTest(value0: int64): ref<int32[], managed, readonly> {
+function allocArrayTest(value0: int64): slice<int32> {
 entry0(value0: int64):
-    value1: ref<int32[], managed, readonly> = new.array int32, value0
+    value1: slice<int32> = new.slice int32, value0
     return value1
 }";
     assert_eq!(output, expected);
@@ -1023,7 +1022,7 @@ fn test_build_struct() {
     // create a struct type {i32, f64}
     let value0 = module.field(None, i32_type);
     let value1 = module.field(None, f64_type);
-    let struct_type = module.type_struct(vec![value0, value1], Copyability::Trivial);
+    let struct_type = module.type_struct(vec![value0, value1], Copy::Yes);
 
     // build function that constructs a struct
     let mut builder = module.function("makePoint", &[i32_type, f64_type], struct_type);
@@ -1056,7 +1055,7 @@ fn test_build_tuple() {
     let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let bool_type = module.type_boolean();
-    let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copyability::Trivial);
+    let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copy::Yes);
 
     // build function that constructs a tuple
     let mut builder = module.function("makePair", &[i32_type, bool_type], tuple_type);
@@ -1088,7 +1087,7 @@ fn test_build_array() {
     // setup
     let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
-    let array_type = module.type_array(i32_type, 3, Copyability::Trivial);
+    let array_type = module.type_array(i32_type, 3, Copy::Yes);
 
     // build function that constructs an array
     let mut builder = module.function("makeArray", &[], array_type);
@@ -1127,7 +1126,7 @@ fn test_build_field_get_struct() {
     let f64_type = module.type_f64();
     let value0 = module.field(None, i32_type);
     let value1 = module.field(None, f64_type);
-    let struct_type = module.type_struct(vec![value0, value1], Copyability::Trivial);
+    let struct_type = module.type_struct(vec![value0, value1], Copy::Yes);
 
     // build function that extracts the second field
     let mut builder = module.function("getY", &[struct_type], f64_type);
@@ -1159,7 +1158,7 @@ fn test_build_field_get_tuple() {
     let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let bool_type = module.type_boolean();
-    let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copyability::Trivial);
+    let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copy::Yes);
 
     // build function that extracts the first element
     let mut builder = module.function("getFirst", &[tuple_type], i32_type);
@@ -1191,7 +1190,7 @@ fn test_build_element_get_array() {
     let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let i64_type = module.type_i64();
-    let array_type = module.type_array(i32_type, 3, Copyability::Trivial);
+    let array_type = module.type_array(i32_type, 3, Copy::Yes);
 
     // build function that extracts an element at a given index
     let mut builder = module.function("getElement", &[array_type, i64_type], i32_type);

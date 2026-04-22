@@ -4,7 +4,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
     ArgumentSlice, AtomicRmwOperator, AtomicScope, BinaryOperator, Call, CastOperator, Instruction,
-    InterfaceSlotId, LocalNodeId, MemoryOrdering, MemoryRegionSet, MemoryScope, MemorySemantics,
+    InterfaceSlotId, LocalNodeId, MemoryOrdering, EffectRegionSet, MemoryScope, MemorySemantics,
     TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
     TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorReduceOperator,
     TensorScatterDimensionNumbers, TensorScatterMode, Type, UnaryOperator, ValueReference,
@@ -885,11 +885,11 @@ impl Parser {
                             result_type: destination_type.into(),
                         }
                     }
-                    "new.array" => {
+                    "new.slice" => {
                         let element = self.parse_type()?;
                         self.eat_token(TokenType::Comma)?;
                         let length = self.parse_value()?;
-                        Instruction::NewArray {
+                        Instruction::NewSlice {
                             destination,
                             element: element.into(),
                             length,
@@ -1874,7 +1874,7 @@ impl Parser {
     /// Parse memory semantics for atomic operations.
     fn parse_memory_semantics(&mut self) -> ParseResult<MemorySemantics> {
         // semantics state
-        let mut locations = MemoryRegionSet::NONE;
+        let mut locations = EffectRegionSet::NONE;
         let mut has_location = false;
         let mut is_location_locked = false;
         let mut is_volatile = false;
@@ -1915,7 +1915,7 @@ impl Parser {
                 }
                 _ => {
                     let location = self.parse_memory_location(&token_text, token_start)?;
-                    if location == MemoryRegionSet::ANY || location == MemoryRegionSet::NONE {
+                    if location == EffectRegionSet::ANY || location == EffectRegionSet::NONE {
                         if has_location && !is_location_locked {
                             return Err(ParseError::new(
                                 "memory semantics cannot mix any/none with other locations",
@@ -1935,7 +1935,7 @@ impl Parser {
                         }
 
                         if !has_location {
-                            locations = MemoryRegionSet::NONE;
+                            locations = EffectRegionSet::NONE;
                             has_location = true;
                         }
 
@@ -1962,7 +1962,7 @@ impl Parser {
 
         // default the location set when omitted
         if !has_location {
-            locations = MemoryRegionSet::ANY;
+            locations = EffectRegionSet::ANY;
         }
 
         Ok(MemorySemantics::with_flags(

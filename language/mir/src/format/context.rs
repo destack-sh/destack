@@ -514,7 +514,8 @@ fn type_alias_prefix(ty: &Type) -> &'static str {
     match ty {
         Type::Struct { .. } => "Struct",
         Type::Tuple { .. } => "Tuple",
-        Type::Array { .. } | Type::DynamicArray { .. } => "Array",
+        Type::Array { .. } => "Array",
+        Type::Slice { .. } => "Slice",
         Type::Reference { .. } => "Ref",
         Type::FunctionPointer { .. } => "Function",
         Type::Closure { .. } => "Callable",
@@ -670,10 +671,24 @@ fn type_key_for_alias_inner(
             let element_key = type_key_for_alias_reference(tree, strings, *element);
             format!("{element_key}[{length}]")
         }
-        Type::DynamicArray { element, .. } => {
-            // format dynamic array keys with element type
+        Type::Slice {
+            element,
+            address_space,
+            mutability,
+        } => {
+            // format slice keys with element type and qualifiers
             let element_key = type_key_for_alias_reference(tree, strings, *element);
-            format!("{element_key}[]")
+            let mut result = format!("slice<{element_key}");
+            if *mutability == Mutability::Immutable {
+                result.push_str(", readonly");
+            }
+            if !address_space.is_local() {
+                let address_space = format!("space({})", address_space.label());
+                result.push_str(", ");
+                result.push_str(&address_space);
+            }
+            result.push('>');
+            result
         }
         Type::Tuple { elements, .. } => {
             // join tuple element keys
@@ -962,7 +977,7 @@ fn collect_type_uses(tree: &NodeTree) -> HashMap<LocalNodeId<Type>, u32> {
                 record_type_use(tree, *layout, &mut counts);
                 record_type_use(tree, *result_type, &mut counts);
             }
-            Instruction::NewArray {
+            Instruction::NewSlice {
                 element,
                 result_type,
                 ..
@@ -1054,7 +1069,7 @@ fn record_type_use_inner(
             };
             record_type_use_inner(tree, pointee, counts, visited);
         }
-        Type::Array { element, .. } | Type::DynamicArray { element, .. } => {
+        Type::Array { element, .. } | Type::Slice { element, .. } => {
             let TypeReference::Type(element) = *element else {
                 return;
             };
@@ -1535,7 +1550,7 @@ fn collect_alias_dependencies(
             Type::Reference { pointee, .. } => {
                 record_dependency(*pointee, root, alias_types, &mut dependencies, &mut stack);
             }
-            Type::Array { element, .. } | Type::DynamicArray { element, .. } => {
+            Type::Array { element, .. } | Type::Slice { element, .. } => {
                 record_dependency(*element, root, alias_types, &mut dependencies, &mut stack);
             }
             Type::Tuple { elements, .. } => {

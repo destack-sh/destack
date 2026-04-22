@@ -134,38 +134,35 @@ impl ReferenceKind {
     }
 }
 
-/// Copyability of a type.
+/// Copy property of a type.
 ///
-/// Determines whether values of this type can be used multiple times
-/// or if each use consumes the value (linear/move semantics).
+/// Determines whether values of this type can be duplicated freely
+/// or if each use consumes the value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub enum Copyability {
-    /// Value can be used multiple times freely (like Copy in Rust).
-    /// This is the default for primitives and non-owning references.
+pub enum Copy {
+    /// Value can be copied freely.
     #[default]
-    Trivial,
-    /// Each use consumes the value (linear/move-only).
-    /// Required for affine ownership and aggregates containing affine ownership.
-    Linear,
+    Yes,
+    /// Each use consumes the value.
+    No,
 }
 
-impl Copyability {
-    /// Whether this is trivially copyable.
-    pub fn is_trivial(&self) -> bool {
-        matches!(self, Copyability::Trivial)
+impl Copy {
+    /// Report whether this type can be copied freely.
+    pub fn is_yes(self) -> bool {
+        matches!(self, Copy::Yes)
     }
 
-    /// Whether this has linear/move semantics.
-    pub fn is_linear(&self) -> bool {
-        matches!(self, Copyability::Linear)
+    /// Report whether this type is move only.
+    pub fn is_no(self) -> bool {
+        matches!(self, Copy::No)
     }
 
-    /// Combine two copyabilities (for aggregate types).
-    /// Returns Linear if either is Linear, otherwise Trivial.
-    pub fn combine(self, other: Copyability) -> Copyability {
+    /// Combine two copy properties for an aggregate type.
+    pub fn combine(self, other: Copy) -> Copy {
         match (self, other) {
-            (Copyability::Trivial, Copyability::Trivial) => Copyability::Trivial,
-            _ => Copyability::Linear,
+            (Copy::Yes, Copy::Yes) => Copy::Yes,
+            _ => Copy::No,
         }
     }
 }
@@ -233,6 +230,15 @@ pub enum Type {
         /// Whether the reference can be null.
         is_nullable: bool,
     },
+    /// Slice view: `slice<T>`.
+    Slice {
+        /// The element type of the slice.
+        element: TypeReference,
+        /// The address space of the slice base.
+        address_space: AddressSpace,
+        /// The element mutability exposed by the slice.
+        mutability: Mutability,
+    },
 
     /// Fixed-size array: `T[N]`.
     Array {
@@ -240,36 +246,29 @@ pub enum Type {
         element: TypeReference,
         /// The number of elements in the array.
         length: u64,
-        /// Copyability of this array type.
-        copyability: Copyability,
-    },
-    /// Dynamic array: `T[]`.
-    DynamicArray {
-        /// The element type of the array.
-        element: TypeReference,
-        /// Copyability of this array type.
-        copyability: Copyability,
+        /// Copy of this array type.
+        copy: Copy,
     },
     /// Tuple: `(T1, T2, ...)`.
     Tuple {
         /// The element types of the tuple.
         elements: Vec<TypeReference>,
-        /// Copyability of this tuple type.
-        copyability: Copyability,
+        /// Copy of this tuple type.
+        copy: Copy,
     },
     /// Struct (anonymous, layout-focused).
     Struct {
         /// The fields of the struct.
         fields: Vec<LocalNodeId<Field>>,
-        /// Copyability of this struct type.
-        copyability: Copyability,
+        /// Copy of this struct type.
+        copy: Copy,
     },
     /// Nominal newtype wrapping an inner type.
     Newtype {
         /// The wrapped inner type.
         inner: TypeReference,
-        /// Copyability of this newtype.
-        copyability: Copyability,
+        /// Copy of this newtype.
+        copy: Copy,
     },
 
     /// Fixed-width SIMD vector.
@@ -278,8 +277,8 @@ pub enum Type {
         element: TypeReference,
         /// The number of lanes.
         lanes: u32,
-        /// Copyability of this vector type.
-        copyability: Copyability,
+        /// Copy of this vector type.
+        copy: Copy,
     },
     /// Ranked tensor value with static or dynamic shape.
     Tensor {
@@ -289,8 +288,8 @@ pub enum Type {
         shape: Vec<TensorDimension>,
         /// The tensor layout.
         layout: TensorLayout,
-        /// Copyability of this tensor type.
-        copyability: Copyability,
+        /// Copy of this tensor type.
+        copy: Copy,
     },
     /// Reference-like view into tensor-shaped memory.
     TensorReference {
@@ -487,14 +486,14 @@ impl Type {
         )
     }
 
-    /// Get the copyability of this type.
+    /// Return the copy property of this type.
     ///
-    /// - Primitives (void, bool, int, float) are always Trivial
-    /// - Non-owning references (borrowed, raw) are Trivial
-    /// - Affine references (owned) are Linear
-    /// - Aggregates have explicit copyability stored in their variants
-    /// - Function pointers are Trivial
-    pub fn copyability(&self) -> Copyability {
+    /// - Primitives are always copyable
+    /// - Non-owning references are always copyable
+    /// - Affine references are move only
+    /// - Aggregates store their copy property explicitly
+    /// - Function pointers are always copyable
+    pub fn copy(&self) -> Copy {
         match self {
             // primitives are always trivially copyable
             Type::Void
@@ -504,37 +503,39 @@ impl Type {
             | Type::Usize
             | Type::Float { .. }
             | Type::TypeDescriptor
-            | Type::TypeId => Copyability::Trivial,
+            | Type::TypeId => Copy::Yes,
 
             // references depend on ownership
             Type::Reference { kind, .. } => {
                 if kind.is_affine() {
-                    Copyability::Linear
+                    Copy::No
                 } else {
-                    Copyability::Trivial
+                    Copy::Yes
                 }
             }
 
-            // aggregates have explicit copyability
-            Type::Array { copyability, .. }
-            | Type::DynamicArray { copyability, .. }
-            | Type::Tuple { copyability, .. }
-            | Type::Struct { copyability, .. }
-            | Type::Newtype { copyability, .. }
-            | Type::Vector { copyability, .. }
-            | Type::Tensor { copyability, .. } => *copyability,
+            // slices are borrowed fat pointers
+            Type::Slice { .. } => Copy::Yes,
+
+            // aggregates have explicit copy
+            Type::Array { copy, .. }
+            | Type::Tuple { copy, .. }
+            | Type::Struct { copy, .. }
+            | Type::Newtype { copy, .. }
+            | Type::Vector { copy, .. }
+            | Type::Tensor { copy, .. } => *copy,
 
             // tensor references behave like references
             Type::TensorReference { kind, .. } => {
                 if kind.is_affine() {
-                    Copyability::Linear
+                    Copy::No
                 } else {
-                    Copyability::Trivial
+                    Copy::Yes
                 }
             }
 
             // function pointers and closure values are trivially copyable
-            Type::FunctionPointer { .. } | Type::Closure { .. } => Copyability::Trivial,
+            Type::FunctionPointer { .. } | Type::Closure { .. } => Copy::Yes,
         }
     }
 }
@@ -550,6 +551,27 @@ pub struct Field {
 
 impl Node for Field {
     const TYPE: NodeType = NodeType::Field;
+}
+
+/// Return the canonical hidden header types for one slice value.
+pub fn slice_header_types(
+    element: TypeReference,
+    mutability: Mutability,
+    address_space: AddressSpace,
+) -> (Type, Type) {
+    let data = Type::Reference {
+        kind: ReferenceKind::Borrowed,
+        address_space,
+        mutability,
+        pointee: element,
+        is_nullable: false,
+    };
+    let length = Type::Int {
+        width: 32,
+        is_signed: false,
+    };
+
+    (data, length)
 }
 
 /// A named type alias in MIR text format.

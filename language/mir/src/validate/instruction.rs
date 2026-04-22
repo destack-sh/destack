@@ -152,7 +152,7 @@ impl<'a> Validator<'a> {
         // classify allocation instructions
         let allocation_instruction = match instruction {
             Instruction::New { .. } => Some("new"),
-            Instruction::NewArray { .. } => Some("new.array"),
+            Instruction::NewSlice { .. } => Some("new.slice"),
             Instruction::RawAlloc { .. } => Some("raw.alloc"),
             Instruction::StackAlloc { .. } => Some("stack.alloc"),
             _ => None,
@@ -166,13 +166,13 @@ impl<'a> Validator<'a> {
             AllocationMode::Any => None,
             AllocationMode::NoManaged => matches!(
                 instruction,
-                Instruction::New { .. } | Instruction::NewArray { .. }
+                Instruction::New { .. } | Instruction::NewSlice { .. }
             )
             .then_some("noManaged forbids managed allocations"),
             AllocationMode::StackOnly => matches!(
                 instruction,
                 Instruction::New { .. }
-                    | Instruction::NewArray { .. }
+                    | Instruction::NewSlice { .. }
                     | Instruction::RawAlloc { .. }
             )
             .then_some("stackOnly forbids non-stack allocations"),
@@ -475,7 +475,7 @@ impl<'a> Validator<'a> {
             | Instruction::New {
                 layout: to_type, ..
             }
-            | Instruction::NewArray {
+            | Instruction::NewSlice {
                 element: to_type, ..
             }
             | Instruction::RawAlloc {
@@ -1376,54 +1376,40 @@ impl<'a> Validator<'a> {
                     });
                 }
             }
-            Instruction::NewArray {
+            Instruction::NewSlice {
                 element,
                 length,
                 result_type,
                 ..
             } => {
                 let element =
-                    self.require_type_reference(*element, anchor, "new.array element type")?;
+                    self.require_type_reference(*element, anchor, "new.slice element type")?;
                 let length_type =
-                    self.value_type_or_error(function, *length, anchor, "new.array length")?;
+                    self.value_type_or_error(function, *length, anchor, "new.slice length")?;
                 let result_type =
-                    self.require_type_reference(*result_type, anchor, "new.array result type")?;
+                    self.require_type_reference(*result_type, anchor, "new.slice result type")?;
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
 
                 self.expect_integer_like_type(
                     length_type,
                     anchor,
-                    "new.array length must be an integer type",
+                    "new.slice length must be an integer type",
                 )?;
 
-                let reference_type = self.reference_type(
-                    result_type,
-                    anchor,
-                    "new.array result type must be a reference type",
-                )?;
-                let (kind, _mutability, pointee, _is_nullable) = reference_type;
-
-                let Type::DynamicArray {
+                let Type::Slice {
                     element: result_element,
                     ..
-                } = self.tree.get(pointee)
+                } = self.tree.get(result_type)
                 else {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "new.array result type must point to a dynamic array".to_string(),
+                        message: "new.slice result type must be a slice".to_string(),
                         anchor,
                     });
                 };
 
                 if *result_element != TypeReference::Type(element) {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "new.array result element type mismatch".to_string(),
-                        anchor,
-                    });
-                }
-
-                if !matches!(kind, ReferenceKind::Managed | ReferenceKind::Owned) {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "new.array result type has wrong reference kind".to_string(),
+                        message: "new.slice result element type mismatch".to_string(),
                         anchor,
                     });
                 }
@@ -2169,12 +2155,12 @@ impl<'a> Validator<'a> {
     /// Resolve one projected element type if the type supports indexing.
     fn array_element_type(&self, type_id: LocalNodeId<Type>) -> Option<LocalNodeId<Type>> {
         match self.tree.get(type_id) {
-            Type::Array { element, .. } | Type::DynamicArray { element, .. } => {
+            Type::Array { element, .. } | Type::Slice { element, .. } => {
                 self.concrete_type_reference(*element)
             }
             Type::Reference { pointee, .. } => match self.concrete_type_reference(*pointee) {
                 Some(pointee) => match self.tree.get(pointee) {
-                    Type::Array { element, .. } | Type::DynamicArray { element, .. } => {
+                    Type::Array { element, .. } | Type::Slice { element, .. } => {
                         self.concrete_type_reference(*element)
                     }
                     _ => Some(pointee),
@@ -2340,12 +2326,12 @@ impl<'a> Validator<'a> {
                 Type::Array {
                     element: left_element,
                     length: left_length,
-                    copyability: left_copyability,
+                    copy: left_copyability,
                 },
                 Type::Array {
                     element: right_element,
                     length: right_length,
-                    copyability: right_copyability,
+                    copy: right_copyability,
                 },
             ) => {
                 left_length == right_length
@@ -2361,16 +2347,19 @@ impl<'a> Validator<'a> {
                     }
             }
             (
-                Type::DynamicArray {
+                Type::Slice {
                     element: left_element,
-                    copyability: left_copyability,
+                    address_space: left_address_space,
+                    mutability: left_mutability,
                 },
-                Type::DynamicArray {
+                Type::Slice {
                     element: right_element,
-                    copyability: right_copyability,
+                    address_space: right_address_space,
+                    mutability: right_mutability,
                 },
             ) => {
-                left_copyability == right_copyability
+                left_address_space == right_address_space
+                    && left_mutability == right_mutability
                     && match (
                         self.concrete_type_reference(*left_element),
                         self.concrete_type_reference(*right_element),
@@ -2384,11 +2373,11 @@ impl<'a> Validator<'a> {
             (
                 Type::Tuple {
                     elements: left_elements,
-                    copyability: left_copyability,
+                    copy: left_copyability,
                 },
                 Type::Tuple {
                     elements: right_elements,
-                    copyability: right_copyability,
+                    copy: right_copyability,
                 },
             ) => {
                 left_copyability == right_copyability
@@ -2408,11 +2397,11 @@ impl<'a> Validator<'a> {
             (
                 Type::Struct {
                     fields: left_fields,
-                    copyability: left_copyability,
+                    copy: left_copyability,
                 },
                 Type::Struct {
                     fields: right_fields,
-                    copyability: right_copyability,
+                    copy: right_copyability,
                 },
             ) => {
                 left_copyability == right_copyability
@@ -2442,11 +2431,11 @@ impl<'a> Validator<'a> {
             (
                 Type::Newtype {
                     inner: left_inner,
-                    copyability: left_copyability,
+                    copy: left_copyability,
                 },
                 Type::Newtype {
                     inner: right_inner,
-                    copyability: right_copyability,
+                    copy: right_copyability,
                 },
             ) => {
                 left_copyability == right_copyability
@@ -2464,12 +2453,12 @@ impl<'a> Validator<'a> {
                 Type::Vector {
                     element: left_element,
                     lanes: left_lanes,
-                    copyability: left_copyability,
+                    copy: left_copyability,
                 },
                 Type::Vector {
                     element: right_element,
                     lanes: right_lanes,
-                    copyability: right_copyability,
+                    copy: right_copyability,
                 },
             ) => {
                 left_lanes == right_lanes
@@ -2489,13 +2478,13 @@ impl<'a> Validator<'a> {
                     element: left_element,
                     shape: left_shape,
                     layout: left_layout,
-                    copyability: left_copyability,
+                    copy: left_copyability,
                 },
                 Type::Tensor {
                     element: right_element,
                     shape: right_shape,
                     layout: right_layout,
-                    copyability: right_copyability,
+                    copy: right_copyability,
                 },
             ) => {
                 left_shape == right_shape

@@ -2,12 +2,28 @@ use destack_core::StringId;
 
 use crate::build::ModuleBuilder;
 use crate::{
-    AddressSpace, Copyability, Field, LocalNodeId, Mutability, ReferenceKind, TensorDimension,
+    AddressSpace, Copy, Field, LocalNodeId, Mutability, ReferenceKind, TensorDimension,
     TensorLayout, Type, TypeReference,
 };
 
 #[allow(clippy::too_many_arguments)]
 impl ModuleBuilder {
+    /// Ensure the canonical hidden base type for one slice header.
+    fn ensure_slice_data_type(
+        &mut self,
+        element: LocalNodeId<Type>,
+        mutability: Mutability,
+        address_space: AddressSpace,
+    ) -> LocalNodeId<Type> {
+        self.type_reference(
+            ReferenceKind::Borrowed,
+            element,
+            mutability,
+            address_space,
+            false,
+        )
+    }
+
     /// Create a void type.
     pub fn type_void(&mut self) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Void)
@@ -234,12 +250,12 @@ impl ModuleBuilder {
         &mut self,
         element: LocalNodeId<Type>,
         lanes: u32,
-        copyability: Copyability,
+        copy: Copy,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Vector {
             element: element.into(),
             lanes,
-            copyability,
+            copy,
         })
     }
 
@@ -249,13 +265,13 @@ impl ModuleBuilder {
         element: LocalNodeId<Type>,
         shape: Vec<TensorDimension>,
         layout: TensorLayout,
-        copyability: Copyability,
+        copy: Copy,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Tensor {
             element: element.into(),
             shape,
             layout,
-            copyability,
+            copy,
         })
     }
 
@@ -281,56 +297,59 @@ impl ModuleBuilder {
         })
     }
 
-    /// Create an array type with explicit copyability.
+    /// Create an array type with explicit copy.
     pub fn type_array(
         &mut self,
         element: LocalNodeId<Type>,
         length: u64,
-        copyability: Copyability,
+        copy: Copy,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Array {
             element: element.into(),
             length,
-            copyability,
+            copy,
         })
     }
 
-    /// Create a dynamic array type with explicit copyability.
-    pub fn type_dynamic_array(
+    /// Create a slice type with explicit storage semantics.
+    pub fn type_slice_with(
         &mut self,
         element: LocalNodeId<Type>,
-        copyability: Copyability,
+        mutability: Mutability,
+        address_space: AddressSpace,
     ) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::DynamicArray {
+        self.ensure_slice_data_type(element, mutability, address_space.clone());
+
+        self.tree.insert_type(Type::Slice {
             element: element.into(),
-            copyability,
+            address_space,
+            mutability,
         })
     }
 
-    /// Create a tuple type with explicit copyability.
+    /// Create a local mutable slice type.
+    pub fn type_slice(&mut self, element: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        self.type_slice_with(element, Mutability::Mutable, AddressSpace::Local)
+    }
+
+    /// Create a tuple type with explicit copy.
     pub fn type_tuple(
         &mut self,
         elements: Vec<LocalNodeId<Type>>,
-        copyability: Copyability,
+        copy: Copy,
     ) -> LocalNodeId<Type> {
         let elements = elements.into_iter().map(TypeReference::from).collect();
 
-        self.tree.insert_type(Type::Tuple {
-            elements,
-            copyability,
-        })
+        self.tree.insert_type(Type::Tuple { elements, copy })
     }
 
-    /// Create a struct type with explicit copyability.
+    /// Create a struct type with explicit copy.
     pub fn type_struct(
         &mut self,
         fields: Vec<LocalNodeId<Field>>,
-        copyability: Copyability,
+        copy: Copy,
     ) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Struct {
-            fields,
-            copyability,
-        })
+        self.tree.insert_type(Type::Struct { fields, copy })
     }
 
     /// Create a field definition for a struct type.

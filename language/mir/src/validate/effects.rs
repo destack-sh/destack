@@ -126,9 +126,9 @@ impl<'a> Validator<'a> {
             return Ok(());
         };
 
-        if !effect.reads && !effect.writes && !effect.locations.is_empty() {
+        if !effect.reads && !effect.writes && !effect.regions.is_empty() {
             return Err(ValidateError::MetadataInvariantViolation {
-                message: "memory effect has no reads/writes but non empty locations".to_string(),
+                message: "memory effect has no reads/writes but non empty regions".to_string(),
                 anchor,
             });
         }

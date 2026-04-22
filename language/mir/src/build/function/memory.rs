@@ -143,17 +143,17 @@ impl<'a> FunctionBuilder<'a> {
         }
     }
 
-    /// Resolve the element type for an array aggregate.
+    /// Resolve the element type for one indexed collection.
     pub(super) fn element_type_for_array(
         &self,
         array_type: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
         let array = self.tree.get(array_type);
         match array {
-            Type::Array { element, .. } | Type::DynamicArray { element, .. } => {
+            Type::Array { element, .. } | Type::Slice { element, .. } => {
                 concrete_type_reference(*element, "array element type")
             }
-            _ => panic!("element access expects array type"),
+            _ => panic!("element access expects one indexed collection type"),
         }
     }
 
@@ -222,16 +222,16 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Allocate a heap array.
-    /// Returns a managed or owned reference type.
-    pub fn new_array(
+    /// Allocate repeated heap storage.
+    /// Returns a slice value.
+    pub fn new_slice(
         &mut self,
         element: LocalNodeId<Type>,
         length: Value,
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::NewArray {
+        self.insert_instruction(Instruction::NewSlice {
             destination: destination.into(),
             element: element.into(),
             length: length.into(),

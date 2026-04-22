@@ -4,7 +4,7 @@ use destack_source::FileId;
 use crate::parse::{ParseError, ParseOptions, Parser};
 use crate::{
     AddressSpace, AllocationMode, ArgumentAttribute, ArgumentSlice, Attribute, AttributeArgs,
-    AttributeIdentifier, AttributeValue, Block, Call, CallBehavior, Constant, Copyability,
+    AttributeIdentifier, AttributeValue, Block, Call, CallBehavior, Constant, Copy,
     DebugBindingKind, DebugRangeStart, DebugScopeKind, DebugValueLocation, EffectClass, Field,
     Function, FunctionReference, Instruction, Layout, LayoutField, LayoutKind, LayoutTrace, Local,
     LocalNodeId, LocalReference, Mutability, NodeTree, Ownership, ProvenanceAnchor, ProvenanceKey,
@@ -988,11 +988,11 @@ b0(v0: int32[4], v1: float32):
     );
 }
 
-/// Accept element projections on dynamic array references.
+/// Accept element projections on slices.
 #[test]
-fn test_accept_element_get_with_dynamic_array_reference() {
-    let source = r#"function good(v0: ref<int32[], managed>, v1: int64): int32 {
-b0(v0: ref<int32[], managed>, v1: int64):
+fn test_accept_element_get_with_slice() {
+    let source = r#"function good(v0: slice<int32>, v1: int64): int32 {
+b0(v0: slice<int32>, v1: int64):
     v2: int32 = element.get v0, v1
     return v2
 }"#;
@@ -1112,7 +1112,7 @@ fn test_reject_struct_layout_field_type_mismatch() {
     });
     let struct_type = tree.insert_type(Type::Struct {
         fields: vec![field_id],
-        copyability: Copyability::Trivial,
+        copy: Copy::Yes,
     });
 
     let layout_id = tree.metadata.layout.layout_table.insert(Layout {
@@ -1296,17 +1296,17 @@ entry0():
 
 /// Reject heap array allocations with non integer lengths.
 #[test]
-fn test_reject_new_array_with_non_integer_length() {
+fn test_reject_new_slice_with_non_integer_length() {
     let source = r#"function bad(value0: float32): void {
 entry0(value0: float32):
-    value1: ref<int32[], managed> = new.array int32, value0
+    value1: slice<int32> = new.slice int32, value0
     return
 }"#;
 
     let error = assert_validate_error(source);
     assert_eq!(
         error.message,
-        "metadata invariant violation: new.array length must be an integer type"
+        "metadata invariant violation: new.slice length must be an integer type"
     );
 }
 

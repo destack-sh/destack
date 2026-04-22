@@ -1,7 +1,7 @@
 use crate::{
     BinaryOperator, Block, BlockReference, BlockTarget, CastOperator, CheckConstraint, Constant,
     Function, FunctionReference, Global, GlobalInitializer, GlobalReference, Instruction, Local,
-    LocalNodeId, LocalReference, MemoryRegionSet, MemorySemantics, Mutability, NodeTree,
+    LocalNodeId, LocalReference, EffectRegionSet, MemorySemantics, Mutability, NodeTree,
     NodeVisitor, NodeVisitorOptions, Ownership, ReferenceKind, SwitchCase, Terminator, TrapKind,
     Type, TypeReference, UnaryOperator, ValueReference,
 };
@@ -254,15 +254,9 @@ impl<'a> Dumper<'a> {
                 format!("{ref_prefix}<_, {kind_label}{mutability_label}{address_space_label}>")
             }
             Type::Array { length, .. } => format!("_[{length}]"),
-            Type::DynamicArray { .. } => "_[]".to_string(),
-            Type::Tuple {
-                elements,
-                copyability: _,
-            } => format!("({})", elements.len()),
-            Type::Struct {
-                fields,
-                copyability: _,
-            } => format!("struct{{{}}}", fields.len()),
+            Type::Slice { .. } => "slice<_>".to_string(),
+            Type::Tuple { elements, copy: _ } => format!("({})", elements.len()),
+            Type::Struct { fields, copy: _ } => format!("struct{{{}}}", fields.len()),
             Type::Newtype { .. } => "newtype".to_string(),
             Type::Vector { lanes, .. } => format!("vector<{lanes}>"),
             Type::Tensor { shape, .. } => format!("tensor<{}>", shape.len()),
@@ -281,7 +275,7 @@ impl<'a> Dumper<'a> {
 
     fn format_memory_semantics(&self, semantics: MemorySemantics) -> String {
         // collect location names
-        let mut names = self.collect_memory_location_names(semantics.locations);
+        let mut names = self.collect_effect_region_names(semantics.regions);
 
         // append semantics flags
         if semantics.is_volatile {
@@ -302,29 +296,29 @@ impl<'a> Dumper<'a> {
         }
     }
 
-    fn collect_memory_location_names(&self, locations: MemoryRegionSet) -> Vec<&'static str> {
-        // handle named location sets
-        if locations == MemoryRegionSet::NONE {
+    fn collect_effect_region_names(&self, regions: EffectRegionSet) -> Vec<&'static str> {
+        // handle named region sets
+        if regions == EffectRegionSet::NONE {
             return vec!["none"];
         }
-        if locations == MemoryRegionSet::ANY {
+        if regions == EffectRegionSet::ANY {
             return vec!["any"];
         }
 
         // collect ordered regions
         let ordered = [
-            ("heap", MemoryRegionSet::HEAP),
-            ("rawHeap", MemoryRegionSet::RAW_HEAP),
-            ("stack", MemoryRegionSet::STACK),
-            ("global", MemoryRegionSet::GLOBAL),
-            ("shared", MemoryRegionSet::SHARED),
-            ("local", MemoryRegionSet::LOCAL),
-            ("constant", MemoryRegionSet::CONSTANT),
-            ("io", MemoryRegionSet::IO),
+            ("heap", EffectRegionSet::HEAP),
+            ("rawHeap", EffectRegionSet::RAW_HEAP),
+            ("stack", EffectRegionSet::STACK),
+            ("global", EffectRegionSet::GLOBAL),
+            ("shared", EffectRegionSet::SHARED),
+            ("local", EffectRegionSet::LOCAL),
+            ("constant", EffectRegionSet::CONSTANT),
+            ("io", EffectRegionSet::IO),
         ];
         let mut names = Vec::new();
         for (name, set) in ordered {
-            if locations.contains(set) {
+            if regions.contains(set) {
                 names.push(name);
             }
         }
@@ -1545,14 +1539,14 @@ impl<'a> Dumper<'a> {
                 self.write_colored(&self.format_type_id(*result_type), Color::Magenta);
             }
 
-            Instruction::NewArray {
+            Instruction::NewSlice {
                 destination,
                 element,
                 length,
                 result_type,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = new.array ");
+                self.write(" = new.slice ");
                 self.write_colored(&self.format_type_id(*element), Color::Magenta);
                 self.write(", ");
                 self.write(&self.format_value(*length));

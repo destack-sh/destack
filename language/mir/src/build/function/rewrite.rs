@@ -264,7 +264,7 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(index, from, to);
                     Self::replace_value_in_slot(value, from, to);
                 }
-                Instruction::NewArray { length, .. } => {
+                Instruction::NewSlice { length, .. } => {
                     Self::replace_value_in_slot(length, from, to);
                 }
                 Instruction::AtomicStore { pointer, value, .. }

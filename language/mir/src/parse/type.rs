@@ -1,7 +1,7 @@
 use destack_source::Span;
 
 use crate::{
-    AddressSpace, Attribute, Copyability, Field, FieldSpan, LocalNodeId, Mutability, ReferenceKind,
+    AddressSpace, Attribute, Copy, Field, FieldSpan, LocalNodeId, Mutability, ReferenceKind,
     TensorDimension, TensorLayout, Type, TypeDeclarationSpans, Value,
 };
 
@@ -11,6 +11,22 @@ use super::parser::Parser;
 use super::token::TokenType;
 
 impl Parser {
+    /// Ensure the canonical hidden base type for one slice header.
+    fn ensure_slice_data_type(
+        &mut self,
+        element: LocalNodeId<Type>,
+        mutability: Mutability,
+        address_space: AddressSpace,
+    ) {
+        self.intern_type(Type::Reference {
+            kind: ReferenceKind::Borrowed,
+            address_space,
+            mutability,
+            pointee: element.into(),
+            is_nullable: false,
+        });
+    }
+
     /// Parse a type expression and return its enclosing span.
     pub(super) fn parse_type_part(&mut self) -> ParseResult<(LocalNodeId<Type>, Span)> {
         let type_start = self.pos();
@@ -78,6 +94,18 @@ impl Parser {
                 if let Some(primitive) = self.parse_primitive_type(&token_text) {
                     self.bump();
                     primitive
+                } else if token_text == "slice" {
+                    self.bump();
+                    self.eat_token(TokenType::LessThan)?;
+                    let element = self.parse_type()?;
+                    let (address_space, mutability) = self.parse_slice_qualifiers()?;
+                    self.ensure_slice_data_type(element, mutability, address_space.clone());
+                    self.eat_token(TokenType::GreaterThan)?;
+                    Type::Slice {
+                        element: element.into(),
+                        address_space,
+                        mutability,
+                    }
                 } else if let Some(alias_id) = self.type_alias_map.get(&token_text).copied() {
                     self.bump();
 
@@ -85,10 +113,7 @@ impl Parser {
                     let mut type_id = alias_id;
                     while self.eat_token_maybe(TokenType::OpenBracket) {
                         if self.eat_token_maybe(TokenType::CloseBracket) {
-                            type_id = self.intern_type(Type::DynamicArray {
-                                element: type_id.into(),
-                                copyability: Copyability::default(),
-                            });
+                            return Err(ParseError::invalid("dynamic array type", self.pos()));
                         } else {
                             let length = self.parse_int_literal()?;
                             let length = u64::try_from(length)
@@ -98,7 +123,7 @@ impl Parser {
                             type_id = self.intern_type(Type::Array {
                                 element: type_id.into(),
                                 length,
-                                copyability: Copyability::default(),
+                                copy: Copy::default(),
                             });
                         }
                     }
@@ -142,7 +167,7 @@ impl Parser {
                 Type::Vector {
                     element: element.into(),
                     lanes,
-                    copyability: Copyability::default(),
+                    copy: Copy::default(),
                 }
             }
             TokenType::Newtype => {
@@ -152,7 +177,7 @@ impl Parser {
                 self.eat_token(TokenType::GreaterThan)?;
                 Type::Newtype {
                     inner: inner.into(),
-                    copyability: Copyability::default(),
+                    copy: Copy::default(),
                 }
             }
             TokenType::OpenParen => {
@@ -185,7 +210,7 @@ impl Parser {
                 } else {
                     Type::Tuple {
                         elements: parameters,
-                        copyability: Copyability::default(),
+                        copy: Copy::default(),
                     }
                 }
             }
@@ -203,10 +228,7 @@ impl Parser {
         // parse postfix array suffixes like `int32[4]`
         while self.eat_token_maybe(TokenType::OpenBracket) {
             if self.eat_token_maybe(TokenType::CloseBracket) {
-                type_id = self.intern_type(Type::DynamicArray {
-                    element: type_id.into(),
-                    copyability: Copyability::default(),
-                });
+                return Err(ParseError::invalid("dynamic array type", self.pos()));
             } else {
                 let length = self.parse_int_literal()?;
                 let length = u64::try_from(length)
@@ -216,7 +238,7 @@ impl Parser {
                 type_id = self.intern_type(Type::Array {
                     element: type_id.into(),
                     length,
-                    copyability: Copyability::default(),
+                    copy: Copy::default(),
                 });
             }
         }
@@ -321,7 +343,7 @@ impl Parser {
 
         let struct_type = Type::Struct {
             fields,
-            copyability: Copyability::default(),
+            copy: Copy::default(),
         };
         let type_id = self.intern_type(struct_type);
 
@@ -383,7 +405,7 @@ impl Parser {
             element: element.into(),
             shape,
             layout,
-            copyability: Copyability::default(),
+            copy: Copy::default(),
         })
     }
 
@@ -467,6 +489,56 @@ impl Parser {
         }
 
         Ok((kind, address_space, mutability, pointee))
+    }
+
+    /// Parse optional trailing qualifiers for one slice type.
+    fn parse_slice_qualifiers(&mut self) -> ParseResult<(AddressSpace, Mutability)> {
+        let mut address_space = AddressSpace::Local;
+        let mut mutability = Mutability::Mutable;
+
+        while self.peek_token(TokenType::Comma) {
+            if self
+                .peek_nth_token(1)
+                .is_some_and(|token| token.ty == TokenType::OpenParen)
+            {
+                break;
+            }
+
+            self.bump();
+
+            if self.eat_token_maybe(TokenType::Readonly) {
+                mutability = Mutability::Immutable;
+                continue;
+            }
+
+            if self.eat_token_maybe(TokenType::AddressSpace) {
+                self.eat_token(TokenType::OpenParen)?;
+
+                let token = self
+                    .peek()
+                    .ok_or_else(|| ParseError::unexpected_end("address space", self.pos()))?;
+                let text = self.tree.source_text(token.span).to_string();
+                address_space = match token.ty {
+                    TokenType::Identifier | TokenType::Global | TokenType::Local => {
+                        AddressSpace::from_name(&text)
+                    }
+                    _ => {
+                        return Err(ParseError::unexpected(
+                            "address space",
+                            token.ty,
+                            token.start,
+                        ));
+                    }
+                };
+                self.bump();
+                self.eat_token(TokenType::CloseParen)?;
+                continue;
+            }
+
+            return Err(ParseError::invalid("slice qualifier", self.pos()));
+        }
+
+        Ok((address_space, mutability))
     }
 
     /// Parse an optional trailing tensor layout assignment.
