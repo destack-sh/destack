@@ -290,10 +290,7 @@ fn get_element_types(
     max_array_elements: usize,
 ) -> Option<Vec<mir::LocalNodeId<mir::Type>>> {
     match ty {
-        mir::Type::Struct {
-            fields,
-            copyability: _,
-        } => {
+        mir::Type::Struct { fields, copy: _ } => {
             // collect field types without recursive flattening
             let types: Vec<_> = fields
                 .iter()
@@ -306,10 +303,7 @@ fn get_element_types(
             Some(types)
         }
 
-        mir::Type::Tuple {
-            elements,
-            copyability: _,
-        } => {
+        mir::Type::Tuple { elements, copy: _ } => {
             // collect element types without recursive flattening
             elements
                 .iter()
@@ -321,7 +315,7 @@ fn get_element_types(
         mir::Type::Array {
             element,
             length,
-            copyability: _,
+            copy: _,
         } => {
             // only split small arrays
             if *length as usize > max_array_elements {

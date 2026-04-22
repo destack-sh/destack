@@ -6,7 +6,7 @@ use smallvec::SmallVec;
 use crate::optimize::common::{
     MemoryLocation, TypeKey, ValueTypeMap, address_spaces_may_alias, alias_scopes_may_alias,
     build_value_definition_map, collect_reachable_blocks, compute_dominance_frontiers,
-    location_sets_may_alias, resolve_pointer_address_space, resolve_pointer_kind,
+    region_sets_may_alias, resolve_pointer_address_space, resolve_pointer_kind,
     resolve_pointer_pointee_type, type_alias_tags_may_alias,
 };
 use crate::optimize::{
@@ -85,7 +85,7 @@ impl MemoryAccessLocation {
 
     /// Return a pointer location if available.
     fn as_pointer(&self) -> Option<&MemoryLocation> {
-        // unwrap pointer backed locations
+        // unwrap pointer backed regions
         match self {
             MemoryAccessLocation::Pointer(location) => Some(location),
             _ => None,
@@ -106,8 +106,8 @@ pub struct MemoryAccessEffect {
     pub is_barrier: bool,
     /// The memory location being accessed.
     pub location: MemoryAccessLocation,
-    /// The memory location set associated with this access.
-    pub location_set: mir::MemoryRegionSet,
+    /// The effect region set associated with this access.
+    pub region_set: mir::MemoryRegionSet,
     /// The address spaces associated with this access.
     pub address_spaces: Option<mir::AddressSpaceMask>,
     /// Alias scopes applied to this access.
@@ -123,8 +123,8 @@ pub struct MemoryAccessEffect {
 struct MemoryAccessQuery {
     /// The memory location being accessed.
     location: MemoryAccessLocation,
-    /// The memory location set associated with this query.
-    location_set: mir::MemoryRegionSet,
+    /// The effect region set associated with this query.
+    region_set: mir::MemoryRegionSet,
     /// The address spaces associated with this query.
     address_spaces: Option<mir::AddressSpaceMask>,
     /// Alias scopes applied to this access.
@@ -144,7 +144,7 @@ impl MemoryAccessQuery {
 
         Self {
             location: effect.location.clone(),
-            location_set: effect.location_set,
+            region_set: effect.region_set,
             address_spaces: effect.address_spaces.clone(),
             alias_scopes,
             noalias_scopes,
@@ -156,7 +156,7 @@ impl MemoryAccessQuery {
     fn from_location(location: &MemoryAccessLocation) -> Self {
         Self {
             location: location.clone(),
-            location_set: location_set_for_location(location),
+            region_set: region_set_for_location(location),
             address_spaces: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
@@ -166,7 +166,7 @@ impl MemoryAccessQuery {
 }
 
 /// Determine the location set for a memory location.
-fn location_set_for_location(location: &MemoryAccessLocation) -> mir::MemoryRegionSet {
+fn region_set_for_location(location: &MemoryAccessLocation) -> mir::MemoryRegionSet {
     match location {
         MemoryAccessLocation::Local(_) => mir::MemoryRegionSet::STACK,
         _ => mir::MemoryRegionSet::ANY,
@@ -192,7 +192,7 @@ impl MemoryAccessEffect {
             is_volatile,
             is_barrier: false,
             location,
-            location_set: mir::MemoryRegionSet::ANY,
+            region_set: mir::MemoryRegionSet::ANY,
             address_spaces: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
@@ -208,7 +208,7 @@ impl MemoryAccessEffect {
             is_volatile,
             is_barrier: false,
             location,
-            location_set: mir::MemoryRegionSet::ANY,
+            region_set: mir::MemoryRegionSet::ANY,
             address_spaces: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
@@ -224,7 +224,7 @@ impl MemoryAccessEffect {
             is_volatile,
             is_barrier: false,
             location,
-            location_set: mir::MemoryRegionSet::ANY,
+            region_set: mir::MemoryRegionSet::ANY,
             address_spaces: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
@@ -240,7 +240,7 @@ impl MemoryAccessEffect {
             is_volatile: false,
             is_barrier: true,
             location: MemoryAccessLocation::Unknown,
-            location_set: mir::MemoryRegionSet::ANY,
+            region_set: mir::MemoryRegionSet::ANY,
             address_spaces: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
@@ -592,7 +592,7 @@ impl MemorySSA {
         location: &MemoryAccessLocation,
         alias: &crate::optimize::analyses::AliasAnalysis,
     ) -> bool {
-        // only defs can clobber locations
+        // only defs can clobber regions
         let MemoryAccess::Def(def_access) = self.access(def_access) else {
             return false;
         };
@@ -1155,8 +1155,8 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. }
             | mir::Instruction::Drop { .. }
-            | mir::Instruction::ManagedAlloc { .. }
-            | mir::Instruction::ManagedAllocArray { .. }
+            | mir::Instruction::New { .. }
+            | mir::Instruction::NewSlice { .. }
             | mir::Instruction::RawAlloc { .. }
             | mir::Instruction::StackAlloc { .. } => Self::single_effect(
                 MemoryAccessEffect::read_write(MemoryAccessLocation::Unknown, false),
@@ -1244,9 +1244,8 @@ impl<'a> MemoryAccessCollector<'a> {
         }
 
         // apply location metadata
-        let (location_set, address_spaces) =
-            self.location_set_for_metadata(access, &effect.location);
-        effect.location_set = location_set;
+        let (region_set, address_spaces) = self.region_set_for_metadata(access, &effect.location);
+        effect.region_set = region_set;
         effect.address_spaces = address_spaces;
 
         effect.alias_scopes = canonicalize_alias_scopes(access.alias_scopes.clone());
@@ -1257,26 +1256,26 @@ impl<'a> MemoryAccessCollector<'a> {
 
     /// Apply pointer location metadata to an effect.
     fn apply_pointer_location(&mut self, effect: &mut MemoryAccessEffect, pointer: mir::Value) {
-        let (location_set, address_spaces) = self.location_set_for_pointer(pointer);
-        effect.location_set = location_set;
+        let (region_set, address_spaces) = self.region_set_for_pointer(pointer);
+        effect.region_set = region_set;
         effect.address_spaces = address_spaces;
     }
 
     /// Apply local location metadata to an effect.
     fn apply_local_location(&mut self, effect: &mut MemoryAccessEffect) {
-        effect.location_set = mir::MemoryRegionSet::STACK;
+        effect.region_set = mir::MemoryRegionSet::STACK;
         effect.address_spaces = self.address_space_set(mir::AddressSpace::Stack);
     }
 
     /// Resolve location metadata from an access description.
-    fn location_set_for_metadata(
+    fn region_set_for_metadata(
         &mut self,
         access: &mir::MemoryAccessMetadata,
         location: &MemoryAccessLocation,
     ) -> (mir::MemoryRegionSet, Option<mir::AddressSpaceMask>) {
         if let Some(address_space) = access.address_space.clone() {
-            let location_set = self.location_set_for_address_space(address_space.clone());
-            return (location_set, self.address_space_set(address_space));
+            let region_set = self.region_set_for_address_space(address_space.clone());
+            return (region_set, self.address_space_set(address_space));
         }
 
         match access.target {
@@ -1288,13 +1287,13 @@ impl<'a> MemoryAccessCollector<'a> {
                 mir::MemoryRegionSet::GLOBAL,
                 self.address_space_set(mir::AddressSpace::Global),
             ),
-            mir::MemoryAccessTarget::Pointer(pointer) => self.location_set_for_pointer(pointer),
-            mir::MemoryAccessTarget::Unknown => (location_set_for_location(location), None),
+            mir::MemoryAccessTarget::Pointer(pointer) => self.region_set_for_pointer(pointer),
+            mir::MemoryAccessTarget::Unknown => (region_set_for_location(location), None),
         }
     }
 
     /// Resolve the location set for a pointer value.
-    fn location_set_for_pointer(
+    fn region_set_for_pointer(
         &mut self,
         pointer: mir::Value,
     ) -> (mir::MemoryRegionSet, Option<mir::AddressSpaceMask>) {
@@ -1304,13 +1303,13 @@ impl<'a> MemoryAccessCollector<'a> {
             return (mir::MemoryRegionSet::ANY, None);
         };
 
-        let location_set = self.location_set_for_address_space(address_space.clone());
+        let region_set = self.region_set_for_address_space(address_space.clone());
         let address_spaces = self.address_space_set(address_space);
-        (location_set, address_spaces)
+        (region_set, address_spaces)
     }
 
     /// Map an address space to a location set.
-    fn location_set_for_address_space(
+    fn region_set_for_address_space(
         &self,
         address_space: mir::AddressSpace,
     ) -> mir::MemoryRegionSet {
@@ -1330,7 +1329,7 @@ impl<'a> MemoryAccessCollector<'a> {
     }
 
     /// Merge pointer and call location sets conservatively.
-    fn merge_location_sets(
+    fn merge_region_sets(
         &self,
         pointer_set: mir::MemoryRegionSet,
         call_set: mir::MemoryRegionSet,
@@ -1489,10 +1488,8 @@ impl<'a> MemoryAccessCollector<'a> {
                 };
 
                 // apply location metadata for argument accesses
-                let (pointer_location_set, pointer_spaces) =
-                    self.location_set_for_pointer(arg_value);
-                effect.location_set =
-                    self.merge_location_sets(pointer_location_set, effects.locations);
+                let (pointer_region_set, pointer_spaces) = self.region_set_for_pointer(arg_value);
+                effect.region_set = self.merge_region_sets(pointer_region_set, effects.regions);
                 effect.address_spaces =
                     self.merge_address_spaces(pointer_spaces, effects.address_spaces.as_ref());
 
@@ -1523,7 +1520,7 @@ impl<'a> MemoryAccessCollector<'a> {
             (false, false) => MemoryAccessEffect::read_write(MemoryAccessLocation::Unknown, false),
         };
 
-        effect.location_set = effects.locations;
+        effect.region_set = effects.regions;
         effect.address_spaces = effects.address_spaces.clone();
         effect
     }
@@ -2084,7 +2081,7 @@ fn access_clobbers_query(
     }
 
     // disambiguate by location sets
-    if !location_sets_may_alias(def_access.effect.location_set, query.location_set) {
+    if !region_sets_may_alias(def_access.effect.region_set, query.region_set) {
         return false;
     }
 
@@ -2107,7 +2104,7 @@ fn access_clobbers_query(
         return false;
     }
 
-    // handle unknown memory locations
+    // handle unknown memory regions
     if matches!(query.location, MemoryAccessLocation::Unknown) {
         return def_access.effect.writes;
     }
@@ -2127,7 +2124,7 @@ fn access_clobbers_query(
         return alias.alias(def_location, pointer_location).may_alias();
     }
 
-    // fall back to mod ref for unknown locations
+    // fall back to mod ref for unknown regions
     let mod_ref = alias.get_mod_ref_info_with_metadata(
         def_access.instruction,
         pointer_location,
@@ -2145,7 +2142,7 @@ fn effects_may_alias(
     tree: &mir::NodeTree,
 ) -> bool {
     // check location sets
-    if !location_sets_may_alias(def_effect.location_set, query.location_set) {
+    if !region_sets_may_alias(def_effect.region_set, query.region_set) {
         return false;
     }
 
@@ -2193,8 +2190,8 @@ fn access_clobbers_location(
     }
 
     // disambiguate by location sets
-    let query_location_set = location_set_for_location(location);
-    if !location_sets_may_alias(def_access.effect.location_set, query_location_set) {
+    let query_region_set = region_set_for_location(location);
+    if !region_sets_may_alias(def_access.effect.region_set, query_region_set) {
         return false;
     }
 
@@ -2207,7 +2204,7 @@ fn access_clobbers_location(
         return false;
     }
 
-    // handle unknown memory locations
+    // handle unknown memory regions
     if matches!(location, MemoryAccessLocation::Unknown) {
         return def_access.effect.writes;
     }
@@ -2295,7 +2292,7 @@ mod tests {
 
     /// Extract the pointer value from a location when available.
     fn pointer_from_location(location: &MemoryAccessLocation) -> Option<mir::Value> {
-        // unwrap pointer backed locations
+        // unwrap pointer backed regions
         match location {
             MemoryAccessLocation::Pointer(location) => Some(location.ptr),
             _ => None,
@@ -2304,7 +2301,7 @@ mod tests {
 
     /// Extract the byte size from a location when available.
     fn size_from_location(location: &MemoryAccessLocation) -> Option<u64> {
-        // unwrap pointer backed locations
+        // unwrap pointer backed regions
         match location {
             MemoryAccessLocation::Pointer(location) => location.size,
             _ => None,
@@ -3103,7 +3100,7 @@ type Point {
 }
 function test(): ref<Point, managed> {
 b0:
-    v0: ref<Point, managed> = managed.alloc Point
+    v0: ref<Point, managed> = new Point
     return v0
 }"#,
         );

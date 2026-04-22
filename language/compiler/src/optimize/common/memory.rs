@@ -913,7 +913,7 @@ pub fn effects_match_location(
     }
 
     // check location sets
-    if !location_sets_may_alias(current.location_set, previous.location_set) {
+    if !region_sets_may_alias(current.region_set, previous.region_set) {
         return false;
     }
 
@@ -965,7 +965,7 @@ pub fn effects_may_alias(
     }
 
     // check location sets
-    if !location_sets_may_alias(left.location_set, right.location_set) {
+    if !region_sets_may_alias(left.region_set, right.region_set) {
         return false;
     }
 
@@ -1079,7 +1079,7 @@ pub fn memory_locations_compatible(a: &MemoryLocation, b: &MemoryLocation) -> bo
 }
 
 /// Check whether two location sets may alias.
-pub fn location_sets_may_alias(a: mir::MemoryRegionSet, b: mir::MemoryRegionSet) -> bool {
+pub fn region_sets_may_alias(a: mir::MemoryRegionSet, b: mir::MemoryRegionSet) -> bool {
     !a.is_disjoint(b)
 }
 
@@ -1263,8 +1263,8 @@ pub enum PointerBase {
     StackAlloc(mir::LocalNodeId<mir::Instruction>),
     /// Local slot address.
     Local(mir::LocalNodeId<mir::Local>),
-    /// Managed heap allocation instruction.
-    ManagedAlloc(mir::LocalNodeId<mir::Instruction>),
+    /// Heap allocation instruction.
+    HeapAlloc(mir::LocalNodeId<mir::Instruction>),
     /// Raw heap allocation instruction.
     RawAlloc(mir::LocalNodeId<mir::Instruction>),
     /// Global variable address.
@@ -1289,7 +1289,7 @@ impl PointerBase {
             self,
             PointerBase::StackAlloc(_)
                 | PointerBase::Local(_)
-                | PointerBase::ManagedAlloc(_)
+                | PointerBase::HeapAlloc(_)
                 | PointerBase::RawAlloc(_)
                 | PointerBase::Global(_)
         )
@@ -1306,7 +1306,7 @@ impl PointerBase {
             self,
             PointerBase::StackAlloc(_)
                 | PointerBase::Local(_)
-                | PointerBase::ManagedAlloc(_)
+                | PointerBase::HeapAlloc(_)
                 | PointerBase::RawAlloc(_)
         )
     }
@@ -1453,15 +1453,11 @@ impl<'a> PointerDecomposer<'a> {
             {
                 DecomposedPointer::from_base(PointerBase::StackAlloc(instruction_id))
             }
-            mir::Instruction::ManagedAlloc { destination, .. }
-                if destination.value() == Some(ptr) =>
-            {
-                DecomposedPointer::from_base(PointerBase::ManagedAlloc(instruction_id))
+            mir::Instruction::New { destination, .. } if destination.value() == Some(ptr) => {
+                DecomposedPointer::from_base(PointerBase::HeapAlloc(instruction_id))
             }
-            mir::Instruction::ManagedAllocArray { destination, .. }
-                if destination.value() == Some(ptr) =>
-            {
-                DecomposedPointer::from_base(PointerBase::ManagedAlloc(instruction_id))
+            mir::Instruction::NewSlice { destination, .. } if destination.value() == Some(ptr) => {
+                DecomposedPointer::from_base(PointerBase::HeapAlloc(instruction_id))
             }
             mir::Instruction::RawAlloc { destination, .. } if destination.value() == Some(ptr) => {
                 DecomposedPointer::from_base(PointerBase::RawAlloc(instruction_id))
@@ -1768,7 +1764,7 @@ mod tests {
     #[test]
     fn test_pointer_base_is_local_alloc() {
         let stack = PointerBase::StackAlloc(mir::LocalNodeId::new(0));
-        let managed = PointerBase::ManagedAlloc(mir::LocalNodeId::new(1));
+        let heap = PointerBase::HeapAlloc(mir::LocalNodeId::new(1));
         let raw = PointerBase::RawAlloc(mir::LocalNodeId::new(2));
         let global = PointerBase::Global(mir::LocalNodeId::new(0));
         let param = PointerBase::Parameter {
@@ -1779,7 +1775,7 @@ mod tests {
         let unknown = PointerBase::Unknown;
 
         assert!(stack.is_local_alloc());
-        assert!(managed.is_local_alloc());
+        assert!(heap.is_local_alloc());
         assert!(raw.is_local_alloc());
         assert!(!global.is_local_alloc());
         assert!(!param.is_local_alloc());
@@ -1791,12 +1787,12 @@ mod tests {
     #[test]
     fn test_pointer_base_all_variants_identified() {
         let stack = PointerBase::StackAlloc(mir::LocalNodeId::new(0));
-        let managed = PointerBase::ManagedAlloc(mir::LocalNodeId::new(1));
+        let heap = PointerBase::HeapAlloc(mir::LocalNodeId::new(1));
         let raw = PointerBase::RawAlloc(mir::LocalNodeId::new(2));
         let global = PointerBase::Global(mir::LocalNodeId::new(0));
 
         assert!(stack.is_identified());
-        assert!(managed.is_identified());
+        assert!(heap.is_identified());
         assert!(raw.is_identified());
         assert!(global.is_identified());
 
@@ -1832,7 +1828,7 @@ mod tests {
     #[test]
     fn test_decomposed_pointer_multiple_var_offsets() {
         let mut ptr =
-            DecomposedPointer::from_base(PointerBase::ManagedAlloc(mir::LocalNodeId::new(0)));
+            DecomposedPointer::from_base(PointerBase::HeapAlloc(mir::LocalNodeId::new(0)));
 
         ptr.add_var_offset(mir::Value::new(1), 4);
         ptr.add_var_offset(mir::Value::new(2), 8);

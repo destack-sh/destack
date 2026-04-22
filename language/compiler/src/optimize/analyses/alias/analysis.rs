@@ -245,8 +245,8 @@ type Point {
 }
 function test(): void {
 b0:
-    v0: ref<Point, managed> = managed.alloc Point
-    v1: ref<Point, managed> = managed.alloc Point
+    v0: ref<Point, managed> = new Point
+    v1: ref<Point, managed> = new Point
     return
 }"#,
         );

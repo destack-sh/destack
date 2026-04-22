@@ -46,35 +46,41 @@ pub enum TypeKey {
     Array {
         element: Box<TypeKey>,
         length: u64,
-        copyability: mir::Copyability,
+        copy: mir::Copy,
+    },
+    /// Slice type.
+    Slice {
+        element: Box<TypeKey>,
+        address_space: mir::AddressSpace,
+        mutability: mir::Mutability,
     },
     /// Tuple type with ordered elements.
     Tuple {
         elements: Vec<TypeKey>,
-        copyability: mir::Copyability,
+        copy: mir::Copy,
     },
     /// Struct type with optionally named fields.
     Struct {
         fields: Vec<(Option<StringId>, TypeKey)>,
-        copyability: mir::Copyability,
+        copy: mir::Copy,
     },
     /// Nominal newtype wrapper.
     Newtype {
         inner: Box<TypeKey>,
-        copyability: mir::Copyability,
+        copy: mir::Copy,
     },
     /// Vector type with fixed lanes.
     Vector {
         element: Box<TypeKey>,
         lanes: u32,
-        copyability: mir::Copyability,
+        copy: mir::Copy,
     },
     /// Tensor value type with a shape.
     Tensor {
         element: Box<TypeKey>,
         shape: Vec<mir::TensorDimension>,
         layout: mir::TensorLayout,
-        copyability: mir::Copyability,
+        copy: mir::Copy,
     },
     /// Tensor view type.
     TensorReference {
@@ -158,31 +164,34 @@ impl TypeKey {
             mir::Type::Array {
                 element,
                 length,
-                copyability,
+                copy,
             } => TypeKey::Array {
                 element: Box::new(Self::from_type_reference(*element, tree)),
                 length: *length,
-                copyability: *copyability,
+                copy: *copy,
+            },
+            mir::Type::Slice {
+                element,
+                address_space,
+                mutability,
+            } => TypeKey::Slice {
+                element: Box::new(Self::from_type_reference(*element, tree)),
+                address_space: address_space.clone(),
+                mutability: *mutability,
             },
 
-            mir::Type::Tuple {
-                elements,
-                copyability,
-            } => {
+            mir::Type::Tuple { elements, copy } => {
                 let elements = elements
                     .iter()
                     .map(|element| Self::from_type_reference(*element, tree))
                     .collect();
                 TypeKey::Tuple {
                     elements,
-                    copyability: *copyability,
+                    copy: *copy,
                 }
             }
 
-            mir::Type::Struct {
-                fields,
-                copyability,
-            } => {
+            mir::Type::Struct { fields, copy } => {
                 let fields = fields
                     .iter()
                     .map(|field_id| {
@@ -193,35 +202,35 @@ impl TypeKey {
                     .collect();
                 TypeKey::Struct {
                     fields,
-                    copyability: *copyability,
+                    copy: *copy,
                 }
             }
 
-            mir::Type::Newtype { inner, copyability } => TypeKey::Newtype {
+            mir::Type::Newtype { inner, copy } => TypeKey::Newtype {
                 inner: Box::new(Self::from_type_reference(*inner, tree)),
-                copyability: *copyability,
+                copy: *copy,
             },
 
             mir::Type::Vector {
                 element,
                 lanes,
-                copyability,
+                copy,
             } => TypeKey::Vector {
                 element: Box::new(Self::from_type_reference(*element, tree)),
                 lanes: *lanes,
-                copyability: *copyability,
+                copy: *copy,
             },
 
             mir::Type::Tensor {
                 element,
                 shape,
                 layout,
-                copyability,
+                copy,
             } => TypeKey::Tensor {
                 element: Box::new(Self::from_type_reference(*element, tree)),
                 shape: shape.clone(),
                 layout: layout.clone(),
-                copyability: *copyability,
+                copy: *copy,
             },
 
             mir::Type::TensorReference {
@@ -287,11 +296,12 @@ impl TypeKey {
             TypeKey::Array {
                 element,
                 length,
-                copyability: _,
+                copy: _,
             } => {
                 let element_size = element.byte_size(pointer_width_bits)?;
                 element_size.checked_mul(*length)
             }
+            TypeKey::Slice { .. } => None,
             _ => None,
         }
     }
@@ -424,24 +434,36 @@ fn types_are_equal_inner(
             mir::Type::Array {
                 element: e1,
                 length: l1,
-                copyability: c1,
+                copy: c1,
             },
             mir::Type::Array {
                 element: e2,
                 length: l2,
-                copyability: c2,
+                copy: c2,
             },
         ) => c1 == c2 && l1 == l2 && type_references_are_equal(*e1, *e2, tree, visiting),
+        (
+            mir::Type::Slice {
+                element: e1,
+                address_space: a1,
+                mutability: m1,
+            },
+            mir::Type::Slice {
+                element: e2,
+                address_space: a2,
+                mutability: m2,
+            },
+        ) => a1 == a2 && m1 == m2 && type_references_are_equal(*e1, *e2, tree, visiting),
 
         // tuples: compare element types
         (
             mir::Type::Tuple {
                 elements: e1,
-                copyability: c1,
+                copy: c1,
             },
             mir::Type::Tuple {
                 elements: e2,
-                copyability: c2,
+                copy: c2,
             },
         ) => {
             c1 == c2
@@ -456,11 +478,11 @@ fn types_are_equal_inner(
         (
             mir::Type::Struct {
                 fields: f1,
-                copyability: c1,
+                copy: c1,
             },
             mir::Type::Struct {
                 fields: f2,
-                copyability: c2,
+                copy: c2,
             },
         ) => {
             c1 == c2
@@ -477,11 +499,11 @@ fn types_are_equal_inner(
         (
             mir::Type::Newtype {
                 inner: i1,
-                copyability: c1,
+                copy: c1,
             },
             mir::Type::Newtype {
                 inner: i2,
-                copyability: c2,
+                copy: c2,
             },
         ) => c1 == c2 && type_references_are_equal(*i1, *i2, tree, visiting),
 
@@ -607,7 +629,7 @@ mod tests {
         let array_id = tree.insert_type(mir::Type::Array {
             element: i32_id.into(),
             length: 10,
-            copyability: mir::Copyability::Trivial,
+            copy: mir::Copy::Yes,
         });
         let key = TypeKey::from_type(array_id, &tree);
         assert_eq!(
@@ -618,7 +640,7 @@ mod tests {
                     signed: true
                 }),
                 length: 10,
-                copyability: mir::Copyability::Trivial
+                copy: mir::Copy::Yes
             }
         );
         assert!(!key.is_scalar());
@@ -637,12 +659,12 @@ mod tests {
         let array_id_1 = tree.insert_type(mir::Type::Array {
             element: i32_id_1.into(),
             length: 5,
-            copyability: mir::Copyability::Trivial,
+            copy: mir::Copy::Yes,
         });
         let array_id_2 = tree.insert_type(mir::Type::Array {
             element: i32_id_2.into(),
             length: 5,
-            copyability: mir::Copyability::Trivial,
+            copy: mir::Copy::Yes,
         });
 
         let key_1 = TypeKey::from_type(array_id_1, &tree);
@@ -650,7 +672,7 @@ mod tests {
         assert_eq!(key_1, key_2);
     }
 
-    /// Copyability differences yield distinct keys.
+    /// Copy differences yield distinct keys.
     #[test]
     fn test_type_key_copyability_distinguishes() {
         let mut tree = mir::NodeTree::new();
@@ -659,12 +681,12 @@ mod tests {
         let array_trivial_id = tree.insert_type(mir::Type::Array {
             element: i32_id.into(),
             length: 4,
-            copyability: mir::Copyability::Trivial,
+            copy: mir::Copy::Yes,
         });
         let array_linear_id = tree.insert_type(mir::Type::Array {
             element: i32_id.into(),
             length: 4,
-            copyability: mir::Copyability::Linear,
+            copy: mir::Copy::No,
         });
 
         let key_trivial = TypeKey::from_type(array_trivial_id, &tree);

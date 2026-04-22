@@ -135,31 +135,31 @@ impl BasicAA {
             // different allocation instructions
             (PointerBase::StackAlloc(a), PointerBase::StackAlloc(b)) => a != b,
             (PointerBase::Local(a), PointerBase::Local(b)) => a != b,
-            (PointerBase::ManagedAlloc(a), PointerBase::ManagedAlloc(b)) => a != b,
+            (PointerBase::HeapAlloc(a), PointerBase::HeapAlloc(b)) => a != b,
             (PointerBase::RawAlloc(a), PointerBase::RawAlloc(b)) => a != b,
 
             // different globals
             (PointerBase::Global(a), PointerBase::Global(b)) => a != b,
 
             // different allocation types never alias
-            (PointerBase::StackAlloc(_), PointerBase::ManagedAlloc(_))
-            | (PointerBase::ManagedAlloc(_), PointerBase::StackAlloc(_))
+            (PointerBase::StackAlloc(_), PointerBase::HeapAlloc(_))
+            | (PointerBase::HeapAlloc(_), PointerBase::StackAlloc(_))
             | (PointerBase::StackAlloc(_), PointerBase::RawAlloc(_))
             | (PointerBase::RawAlloc(_), PointerBase::StackAlloc(_))
-            | (PointerBase::ManagedAlloc(_), PointerBase::RawAlloc(_))
-            | (PointerBase::RawAlloc(_), PointerBase::ManagedAlloc(_))
+            | (PointerBase::HeapAlloc(_), PointerBase::RawAlloc(_))
+            | (PointerBase::RawAlloc(_), PointerBase::HeapAlloc(_))
             | (PointerBase::Local(_), PointerBase::StackAlloc(_))
             | (PointerBase::StackAlloc(_), PointerBase::Local(_))
-            | (PointerBase::Local(_), PointerBase::ManagedAlloc(_))
-            | (PointerBase::ManagedAlloc(_), PointerBase::Local(_))
+            | (PointerBase::Local(_), PointerBase::HeapAlloc(_))
+            | (PointerBase::HeapAlloc(_), PointerBase::Local(_))
             | (PointerBase::Local(_), PointerBase::RawAlloc(_))
             | (PointerBase::RawAlloc(_), PointerBase::Local(_)) => true,
 
             // globals vs local allocations
             (PointerBase::Global(_), PointerBase::StackAlloc(_))
             | (PointerBase::StackAlloc(_), PointerBase::Global(_))
-            | (PointerBase::Global(_), PointerBase::ManagedAlloc(_))
-            | (PointerBase::ManagedAlloc(_), PointerBase::Global(_))
+            | (PointerBase::Global(_), PointerBase::HeapAlloc(_))
+            | (PointerBase::HeapAlloc(_), PointerBase::Global(_))
             | (PointerBase::Global(_), PointerBase::RawAlloc(_))
             | (PointerBase::RawAlloc(_), PointerBase::Global(_))
             | (PointerBase::Global(_), PointerBase::Local(_))
@@ -427,9 +427,9 @@ impl BasicAA {
                 self.get_intrinsic_mod_ref(intrinsic, loc)
             }
 
-            // allocations don't alias existing locations
-            mir::Instruction::ManagedAlloc { .. }
-            | mir::Instruction::ManagedAllocArray { .. }
+            // allocations don't alias existing regions
+            mir::Instruction::New { .. }
+            | mir::Instruction::NewSlice { .. }
             | mir::Instruction::RawAlloc { .. }
             | mir::Instruction::StackAlloc { .. } => ModRefInfo::NO_MOD_REF,
 
@@ -508,7 +508,7 @@ impl BasicAA {
         query_type_alias_tag: Option<mir::TypeAliasTagId>,
         tree: &mir::NodeTree,
     ) -> bool {
-        if !self.location_sets_overlap(access, loc, tree) {
+        if !self.region_sets_overlap(access, loc, tree) {
             return false;
         }
 
@@ -571,17 +571,17 @@ impl BasicAA {
     }
 
     /// Check location set overlap for metadata.
-    fn location_sets_overlap(
+    fn region_sets_overlap(
         &self,
         access: &mir::MemoryAccessMetadata,
         loc: &MemoryLocation,
         tree: &mir::NodeTree,
     ) -> bool {
-        let Some(loc_set) = self.location_set_for_location(loc, tree) else {
+        let Some(loc_set) = self.region_set_for_location(loc, tree) else {
             return true;
         };
 
-        let access_set = self.location_set_for_access(access, tree);
+        let access_set = self.region_set_for_access(access, tree);
         access_set.intersects(loc_set)
     }
 
@@ -604,19 +604,19 @@ impl BasicAA {
     }
 
     /// Resolve the coarse location set for a metadata access.
-    fn location_set_for_access(
+    fn region_set_for_access(
         &self,
         access: &mir::MemoryAccessMetadata,
         tree: &mir::NodeTree,
     ) -> mir::MemoryRegionSet {
         if let Some(address_space) = access.address_space.clone() {
-            return self.location_set_for_address_space(address_space);
+            return self.region_set_for_address_space(address_space);
         }
 
         match access.target {
             mir::MemoryAccessTarget::Pointer(pointer) => {
                 let access_loc = MemoryLocation::from_ptr(pointer);
-                self.location_set_for_location(&access_loc, tree)
+                self.region_set_for_location(&access_loc, tree)
                     .unwrap_or(mir::MemoryRegionSet::ANY)
             }
             mir::MemoryAccessTarget::Local(_) => mir::MemoryRegionSet::STACK,
@@ -647,7 +647,7 @@ impl BasicAA {
     }
 
     /// Map address spaces to coarse location sets.
-    fn location_set_for_address_space(
+    fn region_set_for_address_space(
         &self,
         address_space: mir::AddressSpace,
     ) -> mir::MemoryRegionSet {
@@ -686,7 +686,7 @@ impl BasicAA {
             return ModRefInfo::NO_MOD_REF;
         }
 
-        // inaccessible memory does not alias normal locations
+        // inaccessible memory does not alias normal regions
         if effects.inaccessible_mem_only {
             return ModRefInfo::NO_MOD_REF;
         }
@@ -705,8 +705,8 @@ impl BasicAA {
         }
 
         // honor coarse location set restrictions when possible
-        if let Some(location_set) = self.location_set_for_location(loc, tree)
-            && !effects.locations.contains(location_set)
+        if let Some(region_set) = self.region_set_for_location(loc, tree)
+            && !effects.regions.contains(region_set)
         {
             return ModRefInfo::NO_MOD_REF;
         }
@@ -724,9 +724,9 @@ impl BasicAA {
         effects: &mir::MemoryEffect,
     ) -> ModRefInfo {
         // honor coarse location sets when a real region restriction exists
-        if !effects.locations.is_empty()
-            && let Some(location_set) = self.location_set_for_location(loc, tree)
-            && !effects.locations.contains(location_set)
+        if !effects.regions.is_empty()
+            && let Some(region_set) = self.region_set_for_location(loc, tree)
+            && !effects.regions.contains(region_set)
         {
             return ModRefInfo::NO_MOD_REF;
         }
@@ -897,8 +897,8 @@ impl BasicAA {
         Some(callee.memory_effect.clone())
     }
 
-    /// Resolve a coarse memory location set for a pointer location.
-    fn location_set_for_location(
+    /// Resolve a coarse effect region set for a pointer location.
+    fn region_set_for_location(
         &self,
         loc: &MemoryLocation,
         tree: &mir::NodeTree,
@@ -915,10 +915,10 @@ impl BasicAA {
         );
         let decomposed = decomposer.decompose(loc.ptr);
 
-        // map known bases to memory location sets
+        // map known bases to effect region sets
         match decomposed.base {
             PointerBase::StackAlloc(_) | PointerBase::Local(_) => Some(mir::MemoryRegionSet::STACK),
-            PointerBase::ManagedAlloc(_) => Some(mir::MemoryRegionSet::MANAGED_HEAP),
+            PointerBase::HeapAlloc(_) => Some(mir::MemoryRegionSet::HEAP),
             PointerBase::RawAlloc(_) => Some(mir::MemoryRegionSet::RAW_HEAP),
             PointerBase::Global(_) => Some(mir::MemoryRegionSet::GLOBAL),
             _ => None,
@@ -946,9 +946,7 @@ impl BasicAA {
         // map known bases to address spaces
         match decomposed.base {
             PointerBase::StackAlloc(_) | PointerBase::Local(_) => Some(mir::AddressSpace::Stack),
-            PointerBase::ManagedAlloc(_) | PointerBase::RawAlloc(_) => {
-                Some(mir::AddressSpace::Local)
-            }
+            PointerBase::HeapAlloc(_) | PointerBase::RawAlloc(_) => Some(mir::AddressSpace::Local),
             PointerBase::Global(_) => Some(mir::AddressSpace::Global),
             PointerBase::Parameter { index, .. } => {
                 // extract address space from parameter type when possible
@@ -1047,8 +1045,8 @@ type Point {
 }
 function test(): void {
 b0:
-    v0: ref<Point, managed> = managed.alloc Point
-    v1: ref<Point, managed> = managed.alloc Point
+    v0: ref<Point, managed> = new Point
+    v1: ref<Point, managed> = new Point
     v2: int32 = 1int32
     store v0, v2
     store v1, v2
@@ -1280,7 +1278,7 @@ type Point {
 }
 function test(): void {
 b0:
-    v0: ref<Point, managed> = managed.alloc Point
+    v0: ref<Point, managed> = new Point
     return
 }"#,
         );
@@ -1304,7 +1302,7 @@ type Point {
 }
 function test(): void {
 b0:
-    v0: ref<Point, managed> = managed.alloc Point
+    v0: ref<Point, managed> = new Point
     v1: ref<int32, borrowed> = field.address v0, 0
     v2: ref<int32, borrowed> = field.address v0, 1
     v3: int32 = 1int32
@@ -1331,7 +1329,7 @@ b0:
 function test(): void {
 b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, managed> = managed.alloc int32
+    v1: ref<int32, managed> = new int32
     v2: int32 = 1int32
     store v0, v2
     store v1, v2
@@ -1510,14 +1508,14 @@ b0:
     }
 
     #[test]
-    fn test_raw_vs_managed_alloc_no_alias() {
+    fn test_raw_vs_heap_alloc_no_alias() {
         // different allocation types never alias
         let program = TestProgram::new(
             r#"
 function test(): void {
 b0:
     v0: ref<int64, raw> = raw.alloc int64
-    v1: ref<int64, managed> = managed.alloc int64
+    v1: ref<int64, managed> = new int64
     return
 }"#,
         );

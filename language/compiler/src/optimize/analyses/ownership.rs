@@ -328,8 +328,8 @@ pub struct OwnershipAnalysis {
     value_types: ValueTypeMap,
     /// Values allocated on the stack (from StackAlloc).
     stack_allocated: HashSet<Value>,
-    /// Values allocated with managed allocation instructions.
-    managed_allocated: HashSet<Value>,
+    /// Values allocated with heap allocation instructions.
+    heap_allocated: HashSet<Value>,
 }
 
 impl OwnershipAnalysis {
@@ -411,13 +411,14 @@ impl OwnershipAnalysis {
                 kind: ReferenceKind::Owned | ReferenceKind::Managed,
                 ..
             } => false,
-            // aggregates: check copyability field
-            Type::Array { copyability, .. }
-            | Type::Tuple { copyability, .. }
-            | Type::Struct { copyability, .. }
-            | Type::Newtype { copyability, .. }
-            | Type::Vector { copyability, .. }
-            | Type::Tensor { copyability, .. } => *copyability == mir::Copyability::Trivial,
+            // aggregates: check copy field
+            Type::Slice { .. } => true,
+            Type::Array { copy, .. }
+            | Type::Tuple { copy, .. }
+            | Type::Struct { copy, .. }
+            | Type::Newtype { copy, .. }
+            | Type::Vector { copy, .. }
+            | Type::Tensor { copy, .. } => *copy == mir::Copy::Yes,
         }
     }
 
@@ -455,9 +456,9 @@ impl OwnershipAnalysis {
         self.stack_allocated.contains(&value)
     }
 
-    /// Check if a value was allocated by a managed allocator.
-    pub fn is_managed_allocated(&self, value: Value) -> bool {
-        self.managed_allocated.contains(&value)
+    /// Check if a value was allocated by a heap allocator.
+    pub fn is_heap_allocated(&self, value: Value) -> bool {
+        self.heap_allocated.contains(&value)
     }
 
     /// Apply the effects of an instruction on ownership state.
@@ -838,10 +839,10 @@ impl OwnershipAnalysis {
             | Instruction::LocalAddr { destination, .. }
             | Instruction::GlobalConst { destination, .. }
             | Instruction::FunctionAddr { destination, .. }
-            | Instruction::ManagedAlloc { destination, .. }
+            | Instruction::New { destination, .. }
             | Instruction::RawAlloc { destination, .. }
             | Instruction::StackAlloc { destination, .. }
-            | Instruction::ManagedAllocArray { destination, .. } => {
+            | Instruction::NewSlice { destination, .. } => {
                 state.mark_owned(*destination);
                 self.set_origin_for_destination(state, *destination, None, tree);
             }
@@ -1013,7 +1014,7 @@ impl OwnershipAnalysis {
                 block_exit: HashMap::new(),
                 value_types,
                 stack_allocated: HashSet::new(),
-                managed_allocated: HashSet::new(),
+                heap_allocated: HashSet::new(),
             };
         }
 
@@ -1024,7 +1025,7 @@ impl OwnershipAnalysis {
         let value_types = ValueTypeMap::new(function, tree);
 
         // collect allocation sites for drop decisions
-        let (stack_allocated, managed_allocated) = collect_allocation_kinds(function, tree);
+        let (stack_allocated, heap_allocated) = collect_allocation_kinds(function, tree);
 
         // initial state: function parameters are owned
         let mut entry_state = OwnershipMap::new();
@@ -1173,7 +1174,7 @@ impl OwnershipAnalysis {
             block_exit: result.block_exit,
             value_types,
             stack_allocated,
-            managed_allocated,
+            heap_allocated,
         }
     }
 }
@@ -1194,14 +1195,14 @@ impl FunctionAnalysis for OwnershipAnalysis {
     }
 }
 
-/// Collect allocation sites for stack and managed values.
+/// Collect allocation sites for stack and heap values.
 fn collect_allocation_kinds(
     function: &mir::Function,
     tree: &mir::NodeTree,
 ) -> (HashSet<Value>, HashSet<Value>) {
     // seed allocation sets
     let mut stack_allocated = HashSet::new();
-    let mut managed_allocated = HashSet::new();
+    let mut heap_allocated = HashSet::new();
 
     // scan instructions for allocation results
     for &block_id in &function.blocks {
@@ -1214,10 +1215,10 @@ fn collect_allocation_kinds(
                         stack_allocated.insert(destination);
                     }
                 }
-                Instruction::ManagedAlloc { destination, .. }
-                | Instruction::ManagedAllocArray { destination, .. } => {
+                Instruction::New { destination, .. }
+                | Instruction::NewSlice { destination, .. } => {
                     if let Some(destination) = destination.value() {
-                        managed_allocated.insert(destination);
+                        heap_allocated.insert(destination);
                     }
                 }
                 _ => {}
@@ -1225,7 +1226,7 @@ fn collect_allocation_kinds(
         }
     }
 
-    (stack_allocated, managed_allocated)
+    (stack_allocated, heap_allocated)
 }
 
 /// Check if a value has copy semantics.
@@ -1262,12 +1263,13 @@ fn value_is_copy(
             kind: ReferenceKind::Owned | ReferenceKind::Managed,
             ..
         } => false,
-        Type::Array { copyability, .. }
-        | Type::Tuple { copyability, .. }
-        | Type::Struct { copyability, .. }
-        | Type::Newtype { copyability, .. }
-        | Type::Vector { copyability, .. }
-        | Type::Tensor { copyability, .. } => *copyability == mir::Copyability::Trivial,
+        Type::Slice { .. } => true,
+        Type::Array { copy, .. }
+        | Type::Tuple { copy, .. }
+        | Type::Struct { copy, .. }
+        | Type::Newtype { copy, .. }
+        | Type::Vector { copy, .. }
+        | Type::Tensor { copy, .. } => *copy == mir::Copy::Yes,
     }
 }
 
@@ -1650,10 +1652,10 @@ fn process_instruction(
         | Instruction::LocalAddr { destination, .. }
         | Instruction::GlobalConst { destination, .. }
         | Instruction::FunctionAddr { destination, .. }
-        | Instruction::ManagedAlloc { destination, .. }
+        | Instruction::New { destination, .. }
         | Instruction::RawAlloc { destination, .. }
         | Instruction::StackAlloc { destination, .. }
-        | Instruction::ManagedAllocArray { destination, .. } => {
+        | Instruction::NewSlice { destination, .. } => {
             state.mark_owned(*destination);
             set_origin_if_move_only(state, *destination, None, tree, value_types);
         }
@@ -1978,7 +1980,7 @@ b3:
 function test(): void {
     local local0: ref<int32, managed>, owned
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     local.set local0, v0
     v1: ref<int32, managed> = local.get local0
     v2: ref<int32, managed> = local.get local0

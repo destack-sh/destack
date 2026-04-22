@@ -788,7 +788,7 @@ b0:
         let input = r#"
 function test(v0: ref<ref<int32, owned>, raw>): void {
 b0(v0: ref<ref<int32, owned>, raw>):
-    v1: ref<int32, managed> = managed.alloc int32
+    v1: ref<int32, managed> = new int32
     store v0, v1
     drop v1
     return
@@ -805,7 +805,7 @@ b0(v0: ref<ref<int32, owned>, raw>):
         let input = r#"
 function test(v0: ref<ref<int32, owned>, raw>): void {
 b0(v0: ref<ref<int32, owned>, raw>):
-    v1: ref<int32, managed> = managed.alloc int32
+    v1: ref<int32, managed> = new int32
     v2: int32 = 42int32
     store v1, v2
     store v0, v1
@@ -823,7 +823,7 @@ b0(v0: ref<ref<int32, owned>, raw>):
         let input = r#"
 function test(v0: ref<ref<int32, managed>, raw>): void {
 b0(v0: ref<ref<int32, managed>, raw>):
-    v1: ref<int32, managed> = managed.alloc int32
+    v1: ref<int32, managed> = new int32
     store v0, v1
     v2: int32 = 42int32
     store v1, v2
@@ -842,7 +842,7 @@ b0(v0: ref<ref<int32, managed>, raw>):
 function test(): void {
     local local0: ref<int32, owned>, owned
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     local.set local0, v0
     drop v0
     return
@@ -861,7 +861,7 @@ extern function consume(ref<int32, managed>): void
 function test(): void {
     local local0: ref<int32, managed>, owned
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     local.set local0, v0
     v1: ref<int32, managed> = local.get local0
     v2: ref<int32, managed> = cast.bit v1 -> ref<int32, managed>
@@ -884,7 +884,7 @@ extern function consume(ref<int32, managed>): void
 function test(): void {
     local local0: ref<int32, managed>, owned
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     local.set local0, v0
     v1: ref<int32, managed> = local.get local0
     jump b1(v1)
@@ -908,7 +908,7 @@ extern function consume(ref<int32, managed>): void
 function test(): void {
     local local0: ref<int32, managed>, owned
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     local.set local0, v0
     v1: ref<int32, managed> = local.get local0
     v2: ref<int32, managed> = local.get local0
@@ -932,7 +932,7 @@ b0:
 extern function consume(ref<int32, owned>): void
 function test(): void {
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     call consume(v0): (ref<int32, owned>) -> void
     drop v0
     return
@@ -968,7 +968,7 @@ b0(v0: ref<ref<int32, borrowed>, raw>, v1: ref<int32, borrowed>):
         let input = r#"
 function test(): (ref<int32, owned>) {
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     v1: (ref<int32, owned>) = tuple (ref<int32, owned>) (v0)
     drop v0
     return v1
@@ -1002,7 +1002,7 @@ b0:
         let input = r#"
 function test(): { ref<int32, owned> } {
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     v1: { ref<int32, owned> } = struct { ref<int32, owned> } (v0)
     drop v0
     return v1
@@ -1019,7 +1019,7 @@ b0:
         let input = r#"
 function test(): ref<int32, owned>[1] {
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     v1: ref<int32, owned>[1] = array ref<int32, owned>[1] (v0)
     drop v0
     return v1
@@ -1038,7 +1038,7 @@ b0:
         let input = r#"
 function test(v0: { ref<int32, owned> }): { ref<int32, owned> } {
 b0(v0: { ref<int32, owned> }):
-    v1: ref<int32, managed> = managed.alloc int32
+    v1: ref<int32, managed> = new int32
     v2: { ref<int32, owned> } = field.set v0, 0, v1
     drop v1
     return v2
@@ -1055,7 +1055,7 @@ b0(v0: { ref<int32, owned> }):
         let input = r#"
 function test(v0: ref<int32, owned>[2]): ref<int32, owned>[2] {
 b0(v0: ref<int32, owned>[2]):
-    v1: ref<int32, managed> = managed.alloc int32
+    v1: ref<int32, managed> = new int32
     v2: uint64 = 0uint64
     v3: ref<int32, owned>[2] = element.set v0, v2, v1
     drop v1
@@ -1073,7 +1073,7 @@ b0(v0: ref<int32, owned>[2]):
         let input = r#"
 function test(v0: boolean): void {
 b0(v0: boolean):
-    v1: ref<int32, managed> = managed.alloc int32
+    v1: ref<int32, managed> = new int32
     jump b1(v1)
 b1(v2: ref<int32, owned>):
     drop v2
@@ -1095,7 +1095,7 @@ function test(v0: boolean): void {
 b0(v0: boolean):
     jump b1
 b1:
-    v1: ref<int32, managed> = managed.alloc int32
+    v1: ref<int32, managed> = new int32
     drop v1
     branch v0, b1, b2
 b2:
@@ -1114,7 +1114,7 @@ b2:
     fn test_detect_call_indirect_moves_owned() {
         let input = r#"
 function test(v0: fn(ref<int32, owned>) -> void): void  {
-b0(v0: fn(ref<int32, owned>) -> void) -> v1: ref<int32, managed> = managed.alloc int32
+b0(v0: fn(ref<int32, owned>) -> void) -> v1: ref<int32, managed> = new int32
     call.indirect v0(v1): (ref<int32, owned>) -> void
     drop v1
     return
@@ -1155,7 +1155,7 @@ b3:
         let input = r#"
 function test(): void {
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     drop v0
     jump b1(v0)
 b1(v1: ref<int32, owned>):
@@ -1174,7 +1174,7 @@ b1(v1: ref<int32, owned>):
         let input = r#"
 function test(): ref<int32, owned> {
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     drop v0
     return v0
 }"#;

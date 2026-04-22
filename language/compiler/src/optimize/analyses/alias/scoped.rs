@@ -13,7 +13,7 @@ use super::result::AliasResult;
 ///
 /// NOTE #Incomplete: could also handle:
 /// - `^T` ownership transfer: caller loses all references
-/// - `@noManaged` functions: cannot access managed heap
+/// - `@noManaged` functions: cannot access heap storage
 /// - `@stackOnly` functions: cannot access any heap
 ///
 /// This analysis is only effective when strict borrow mode is enabled.

@@ -68,7 +68,7 @@ struct MemoryEffectBuilder {
     /// Whether any write is observed.
     writes: bool,
     /// The aggregate memory region set.
-    locations: mir::MemoryRegionSet,
+    regions: mir::MemoryRegionSet,
     /// The aggregate address space set when available.
     address_spaces: Option<mir::AddressSpaceMask>,
     /// Whether effects are limited to argument memory.
@@ -88,7 +88,7 @@ impl MemoryEffectBuilder {
         Self {
             reads: false,
             writes: false,
-            locations: mir::MemoryRegionSet::NONE,
+            regions: mir::MemoryRegionSet::NONE,
             address_spaces: Some(mir::AddressSpaceMask::new(Vec::new())),
             argmemonly: true,
             inaccessible_mem_only: true,
@@ -108,7 +108,7 @@ impl MemoryEffectBuilder {
         self.has_access = true;
         self.reads |= effect.reads;
         self.writes |= effect.writes;
-        self.locations.insert(effect.locations);
+        self.regions.insert(effect.regions);
         self.argmemonly &= effect.argmemonly;
         self.inaccessible_mem_only &= effect.inaccessible_mem_only;
         self.nosync &= effect.nosync;
@@ -145,7 +145,7 @@ impl MemoryEffectBuilder {
         mir::MemoryEffect {
             reads: self.reads,
             writes: self.writes,
-            locations: self.locations,
+            regions: self.regions,
             address_spaces: self.address_spaces,
             argmemonly: self.argmemonly,
             inaccessible_mem_only: self.inaccessible_mem_only,
@@ -167,13 +167,13 @@ struct CallBehaviorBuilder {
     /// Whether any callee allocates.
     allocates: bool,
     /// The aggregate allocation region set when available.
-    alloc_locations: Option<mir::MemoryRegionSet>,
+    alloc_regions: Option<mir::MemoryRegionSet>,
     /// The aggregate allocation address space set when available.
     alloc_address_spaces: Option<mir::AddressSpaceMask>,
     /// Whether any callee frees memory.
     frees: bool,
     /// The aggregate free region set when available.
-    free_locations: Option<mir::MemoryRegionSet>,
+    free_regions: Option<mir::MemoryRegionSet>,
     /// The aggregate free address space set when available.
     free_address_spaces: Option<mir::AddressSpaceMask>,
 }
@@ -188,10 +188,10 @@ impl CallBehaviorBuilder {
             may_suspend: false,
             must_not_duplicate: false,
             allocates: false,
-            alloc_locations: Some(mir::MemoryRegionSet::NONE),
+            alloc_regions: Some(mir::MemoryRegionSet::NONE),
             alloc_address_spaces: Some(mir::AddressSpaceMask::new(Vec::new())),
             frees: false,
-            free_locations: Some(mir::MemoryRegionSet::NONE),
+            free_regions: Some(mir::MemoryRegionSet::NONE),
             free_address_spaces: Some(mir::AddressSpaceMask::new(Vec::new())),
         }
     }
@@ -213,7 +213,7 @@ impl CallBehaviorBuilder {
         // merge allocation information
         if let Some(allocate) = &behavior.allocation.allocate {
             self.allocates = true;
-            self.alloc_locations = merge_region_set(self.alloc_locations, Some(allocate.locations));
+            self.alloc_regions = merge_region_set(self.alloc_regions, Some(allocate.regions));
             let alloc_address_spaces = self.alloc_address_spaces.take();
             self.alloc_address_spaces =
                 merge_address_space_set(alloc_address_spaces, allocate.address_spaces.clone());
@@ -222,7 +222,7 @@ impl CallBehaviorBuilder {
         // merge free information
         if let Some(free) = &behavior.allocation.free {
             self.frees = true;
-            self.free_locations = merge_region_set(self.free_locations, Some(free.locations));
+            self.free_regions = merge_region_set(self.free_regions, Some(free.regions));
             let free_address_spaces = self.free_address_spaces.take();
             self.free_address_spaces =
                 merge_address_space_set(free_address_spaces, free.address_spaces.clone());
@@ -248,11 +248,11 @@ impl CallBehaviorBuilder {
             must_not_duplicate: self.must_not_duplicate,
             allocation: mir::AllocationEffect {
                 allocate: self.allocates.then_some(mir::AllocationAccess {
-                    locations: self.alloc_locations.unwrap_or(mir::MemoryRegionSet::ANY),
+                    regions: self.alloc_regions.unwrap_or(mir::MemoryRegionSet::ANY),
                     address_spaces: self.alloc_address_spaces,
                 }),
                 free: self.frees.then_some(mir::AllocationAccess {
-                    locations: self.free_locations.unwrap_or(mir::MemoryRegionSet::ANY),
+                    regions: self.free_regions.unwrap_or(mir::MemoryRegionSet::ANY),
                     address_spaces: self.free_address_spaces,
                 }),
             },
@@ -464,7 +464,7 @@ fn merge_memory_effect(
     let mut merged = existing.clone();
     merged.reads |= inferred.reads;
     merged.writes |= inferred.writes;
-    merged.locations.insert(inferred.locations);
+    merged.regions.insert(inferred.regions);
     merged.argmemonly &= inferred.argmemonly;
     merged.inaccessible_mem_only &= inferred.inaccessible_mem_only;
     merged.nosync &= inferred.nosync;
@@ -717,11 +717,9 @@ fn effects_for_instruction(
             let effect = stack_effect(mir::MemoryEffect::write_only(mir::MemoryRegionSet::STACK));
             (effect, mir::CallBehavior::none())
         }
-        mir::Instruction::ManagedAlloc { .. } | mir::Instruction::ManagedAllocArray { .. } => {
-            let effect = heap_effect(mir::MemoryEffect::write_only(
-                mir::MemoryRegionSet::MANAGED_HEAP,
-            ));
-            let behavior = alloc_behavior(mir::MemoryRegionSet::MANAGED_HEAP, None);
+        mir::Instruction::New { .. } | mir::Instruction::NewSlice { .. } => {
+            let effect = heap_effect(mir::MemoryEffect::write_only(mir::MemoryRegionSet::HEAP));
+            let behavior = alloc_behavior(mir::MemoryRegionSet::HEAP, None);
             (effect, behavior)
         }
         mir::Instruction::RawAlloc { .. } => {
@@ -801,10 +799,10 @@ fn memory_effect_for_access(access: &mir::MemoryAccessMetadata) -> mir::MemoryEf
     // refine region sets for locals and globals
     match access.target {
         mir::MemoryAccessTarget::Local(_) => {
-            effect.locations = mir::MemoryRegionSet::STACK;
+            effect.regions = mir::MemoryRegionSet::STACK;
         }
         mir::MemoryAccessTarget::Global(_) => {
-            effect.locations = mir::MemoryRegionSet::GLOBAL;
+            effect.regions = mir::MemoryRegionSet::GLOBAL;
         }
         _ => {}
     }
@@ -862,12 +860,12 @@ fn heap_effect(mut effect: mir::MemoryEffect) -> mir::MemoryEffect {
 
 /// Build a call behavior for an allocation effect.
 fn alloc_behavior(
-    locations: mir::MemoryRegionSet,
+    regions: mir::MemoryRegionSet,
     address_space: Option<mir::AddressSpace>,
 ) -> mir::CallBehavior {
     let mut behavior = mir::CallBehavior::none();
     behavior.allocation.allocate = Some(mir::AllocationAccess {
-        locations,
+        regions,
         address_spaces: address_space.map(|space| mir::AddressSpaceMask::new(vec![space])),
     });
     behavior
@@ -875,12 +873,12 @@ fn alloc_behavior(
 
 /// Build a call behavior for a free effect.
 fn free_behavior(
-    locations: mir::MemoryRegionSet,
+    regions: mir::MemoryRegionSet,
     address_space: Option<mir::AddressSpace>,
 ) -> mir::CallBehavior {
     let mut behavior = mir::CallBehavior::none();
     behavior.allocation.free = Some(mir::AllocationAccess {
-        locations,
+        regions,
         address_spaces: address_space.map(|space| mir::AddressSpaceMask::new(vec![space])),
     });
     behavior
@@ -932,7 +930,7 @@ fn merge_allocation_access(
 ) -> Option<mir::AllocationAccess> {
     match (left, right) {
         (Some(left), Some(right)) => Some(mir::AllocationAccess {
-            locations: merge_region_set(Some(left.locations), Some(right.locations))
+            regions: merge_region_set(Some(left.regions), Some(right.regions))
                 .unwrap_or(mir::MemoryRegionSet::ANY),
             address_spaces: merge_address_space_set(left.address_spaces, right.address_spaces),
         }),

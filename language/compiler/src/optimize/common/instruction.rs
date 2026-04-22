@@ -117,8 +117,8 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         | Instruction::CallIndirect { .. } => false,
 
         // allocations have side effects
-        Instruction::ManagedAlloc { .. }
-        | Instruction::ManagedAllocArray { .. }
+        Instruction::New { .. }
+        | Instruction::NewSlice { .. }
         | Instruction::RawAlloc { .. }
         | Instruction::StackAlloc { .. } => false,
 
@@ -283,8 +283,8 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         | Instruction::CallIndirect { .. } => true,
 
         // allocations have side effects (memory allocation)
-        Instruction::ManagedAlloc { .. }
-        | Instruction::ManagedAllocArray { .. }
+        Instruction::New { .. }
+        | Instruction::NewSlice { .. }
         | Instruction::RawAlloc { .. }
         | Instruction::StackAlloc { .. } => true,
 
@@ -341,8 +341,8 @@ pub fn instruction_may_affect_memory(instruction: &Instruction) -> bool {
             | Instruction::AtomicRmw { .. }
             | Instruction::AtomicFence { .. }
             | Instruction::Barrier { .. }
-            | Instruction::ManagedAlloc { .. }
-            | Instruction::ManagedAllocArray { .. }
+            | Instruction::New { .. }
+            | Instruction::NewSlice { .. }
             | Instruction::RawAlloc { .. }
             | Instruction::RawFree { .. }
             | Instruction::Dispose { .. }
@@ -1067,12 +1067,12 @@ pub fn instruction_substitute_uses(
             callee: substitute(callee),
             call: call.clone(),
         },
-        mir::Instruction::ManagedAllocArray {
+        mir::Instruction::NewSlice {
             destination,
             element,
             length,
             result_type,
-        } => mir::Instruction::ManagedAllocArray {
+        } => mir::Instruction::NewSlice {
             destination: *destination,
             element: *element,
             length: substitute(length),
@@ -1094,7 +1094,7 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::Array { .. }
         | mir::Instruction::Call { .. }
         | mir::Instruction::FunctionEnvironment { .. }
-        | mir::Instruction::ManagedAlloc { .. }
+        | mir::Instruction::New { .. }
         | mir::Instruction::RawAlloc { .. }
         | mir::Instruction::StackAlloc { .. }
         | mir::Instruction::Intrinsic { .. } => instruction.clone(),
@@ -2612,21 +2612,21 @@ pub fn instruction_map(
             callee: remap(*callee),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
         },
-        mir::Instruction::ManagedAlloc {
+        mir::Instruction::New {
             destination,
             layout,
             result_type,
-        } => mir::Instruction::ManagedAlloc {
+        } => mir::Instruction::New {
             destination: remap(*destination),
             layout: *layout,
             result_type: *result_type,
         },
-        mir::Instruction::ManagedAllocArray {
+        mir::Instruction::NewSlice {
             destination,
             element,
             length,
             result_type,
-        } => mir::Instruction::ManagedAllocArray {
+        } => mir::Instruction::NewSlice {
             destination: remap(*destination),
             element: *element,
             length: remap(*length),
@@ -3304,21 +3304,21 @@ pub fn instruction_map_with_locals(
             index: remap(*index),
             value: remap(*value),
         },
-        mir::Instruction::ManagedAlloc {
+        mir::Instruction::New {
             destination,
             layout,
             result_type,
-        } => mir::Instruction::ManagedAlloc {
+        } => mir::Instruction::New {
             destination: remap(*destination),
             layout: *layout,
             result_type: *result_type,
         },
-        mir::Instruction::ManagedAllocArray {
+        mir::Instruction::NewSlice {
             destination,
             element,
             length,
             result_type,
-        } => mir::Instruction::ManagedAllocArray {
+        } => mir::Instruction::NewSlice {
             destination: remap(*destination),
             element: *element,
             length: remap(*length),

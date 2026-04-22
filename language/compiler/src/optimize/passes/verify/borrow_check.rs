@@ -1166,10 +1166,10 @@ fn check_instruction(
         }
 
         // allocations produce references
-        Instruction::ManagedAlloc { .. }
+        Instruction::New { .. }
         | Instruction::RawAlloc { .. }
         | Instruction::StackAlloc { .. }
-        | Instruction::ManagedAllocArray { .. } => {}
+        | Instruction::NewSlice { .. } => {}
 
         _ => {}
     }
@@ -2043,7 +2043,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     v1: ref<int32, raw> = raw.alloc int32
     v2: int32 = 42int32
     store v0, v2
