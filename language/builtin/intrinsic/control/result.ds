@@ -31,32 +31,6 @@ import { type Try, type TryBranch } from "./try.ds";
 import { type Equal } from "../operator/comparison.ds";
 import { type Display, type Debug } from "../operator/format.ds";
 
-/// FUGU: remove Promise/PromiseConstructor from result.ds once we have a proper Promise type
-
-/// Minimal Promise type used by core async helpers.
-export declare interface Promise<T> {
-    /// Chain a success callback and return a new Promise.
-    then<U>(f: (T) => U): Promise<U>;
-
-    /// Chain an error callback and return a new Promise.
-    catch<F>(f: (any) => F): Promise<T | F>;
-}
-
-/// Constructor for Promise values.
-export declare interface PromiseConstructor {
-    /// Resolve a value into a Promise.
-    resolve<T>(value: T): Promise<T>;
-
-    /// Wait for all values to resolve.
-    all(values: any): Promise<any>;
-
-    /// Resolve or reject on the first completion.
-    race(values: any): Promise<any>;
-}
-
-/// Global Promise constructor.
-export declare const Promise: PromiseConstructor;
-
 /// Success variant of Result.
 export struct Ok<T> {
     kind: "ok" = "ok";
