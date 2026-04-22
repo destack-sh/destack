@@ -1049,8 +1049,8 @@ impl<'a> FunctionLowerer<'a> {
                 value_map.insert(destination, address);
             }
 
-            // managed_allocate: requires GC runtime, not supported
-            mir::Instruction::ManagedAlloc { .. } | mir::Instruction::ManagedAllocArray { .. } => {
+            // typed allocation: requires GC/runtime support, not supported
+            mir::Instruction::New { .. } | mir::Instruction::NewSlice { .. } => {
                 return Err(CodegenCraneliftError::unsupported_instruction(
                     "require runtime support",
                     instruction_id.into_any(),

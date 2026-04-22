@@ -110,7 +110,7 @@ pub(crate) fn compute_type_layout(
         mir::Type::Array {
             element,
             length,
-            copyability: _,
+            copy: _,
         } => {
             let element = element
                 .ty()
@@ -123,11 +123,39 @@ pub(crate) fn compute_type_layout(
             Ok(TypeLayout::new(size, element_layout.alignment))
         }
 
-        // tuples: laid out like a struct with sequential fields
-        mir::Type::Tuple {
-            elements,
-            copyability: _,
+        // slices: laid out like a builtin two field record
+        mir::Type::Slice {
+            element,
+            address_space,
+            mutability,
         } => {
+            let (data, _length) =
+                mir::slice_header_types(*element, *mutability, address_space.clone());
+            let data = tree
+                .iter_nodes::<mir::Type>()
+                .find_map(|(type_id, ty)| (ty == &data).then_some(type_id))
+                .ok_or_else(|| CodegenCraneliftError::Internal {
+                    message: "missing or malformed MIR type in native lowering: slice data type"
+                        .into(),
+                })?;
+            let length = tree.usize_type();
+            let fields: [mir::TypeReference; 2] = [data.into(), length.into()];
+            let fields = fields
+                .iter()
+                .map(|field| {
+                    field.ty().ok_or_else(|| CodegenCraneliftError::Internal {
+                        message:
+                            "missing or malformed MIR type in native lowering: slice field type"
+                                .into(),
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            compute_tuple_layout(tree, &fields, pointer_bytes)
+        }
+
+        // tuples: laid out like a struct with sequential fields
+        mir::Type::Tuple { elements, copy: _ } => {
             let elements = elements
                 .iter()
                 .map(|element| {
@@ -142,10 +170,7 @@ pub(crate) fn compute_type_layout(
         }
 
         // structs: read canonical layout metadata
-        mir::Type::Struct {
-            fields: _,
-            copyability: _,
-        } => {
+        mir::Type::Struct { fields: _, copy: _ } => {
             let Some(layout) = tree.metadata.layout.type_layout(type_id) else {
                 return Err(CodegenCraneliftError::unsupported_type(
                     "missing layout metadata",
@@ -179,7 +204,7 @@ pub(crate) fn compute_type_layout(
         mir::Type::Vector {
             element,
             lanes,
-            copyability: _,
+            copy: _,
         } => {
             let element = element
                 .ty()
@@ -198,7 +223,7 @@ pub(crate) fn compute_type_layout(
             element,
             shape,
             layout,
-            copyability: _,
+            copy: _,
         } => {
             let element = element
                 .ty()

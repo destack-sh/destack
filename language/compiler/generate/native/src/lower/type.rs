@@ -80,6 +80,11 @@ pub(crate) fn lower_type(
             type_id.into_any(),
         )),
 
+        mir::Type::Slice { .. } => Err(CodegenCraneliftError::unsupported_type(
+            "slice types must be lowered to storage operations",
+            type_id.into_any(),
+        )),
+
         mir::Type::Tuple { .. } => Err(CodegenCraneliftError::unsupported_type(
             "tuple types must be lowered to struct operations",
             type_id.into_any(),
