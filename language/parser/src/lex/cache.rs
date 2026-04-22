@@ -74,10 +74,10 @@ impl Lexer {
         &self.side_tokens
     }
 
-    /// Return trivia comments collected during lexing.
+    /// Take trivia comments collected during lexing.
     #[inline]
-    pub(crate) fn trivia_comments(&self) -> &[TriviaComment] {
-        self.trivia.comments()
+    pub(crate) fn take_trivia_comments(&mut self) -> Vec<TriviaComment> {
+        self.trivia.take_comments()
     }
 
     /// Return true once EOF has been reached.
@@ -460,7 +460,7 @@ impl Lexer {
 
         // newline stays trivia-only for comment attachment
         if token_span.token.ty == TokenType::Newline {
-            self.trivia.handle_newline();
+            self.trivia.handle_newline(token_span.span.start);
         } else {
             self.trivia.handle_token(token_span);
         }

@@ -4,11 +4,9 @@ use destack_ast::{
     Comment, CommentContent, CommentKind, CommentNewlines, CommentPosition, TokenSpan, TokenType,
 };
 
-/// Restore mark for lexer trivia during speculative lexing.
+/// Live lexer boundary state for comment attachment.
 #[derive(Debug, Copy, Clone)]
-pub(super) struct TriviaMark {
-    /// The number of comments already collected.
-    comments_len: usize,
+struct TriviaState {
     /// The number of comments already assigned to a following token.
     processed: usize,
     /// Whether a newline was seen since the last token.
@@ -17,6 +15,18 @@ pub(super) struct TriviaMark {
     saw_newline_for_comment: bool,
     /// The previous non-newline semantic token type.
     previous_token_type: TokenType,
+}
+
+impl TriviaState {
+    /// Create one boundary state with newline-leading initial state.
+    fn new() -> Self {
+        Self {
+            processed: 0,
+            saw_newline: true,
+            saw_newline_for_comment: true,
+            previous_token_type: TokenType::End,
+        }
+    }
 }
 
 /// Live lexer trivia state.
@@ -24,14 +34,8 @@ pub(super) struct TriviaMark {
 pub(super) struct Trivia {
     /// The collected comments in source order.
     comments: Vec<Comment>,
-    /// The number of comments already assigned to a following token.
-    processed: usize,
-    /// Whether a newline was seen since the last token.
-    saw_newline: bool,
-    /// Whether a newline was seen since the last token or comment.
-    saw_newline_for_comment: bool,
-    /// The previous non-newline semantic token type.
-    previous_token_type: TokenType,
+    /// The live boundary state for comment attachment.
+    state: TriviaState,
 }
 
 impl Trivia {
@@ -39,16 +43,13 @@ impl Trivia {
     pub(super) fn new() -> Self {
         Self {
             comments: Vec::new(),
-            processed: 0,
-            saw_newline: true,
-            saw_newline_for_comment: true,
-            previous_token_type: TokenType::End,
+            state: TriviaState::new(),
         }
     }
 
-    /// Return the collected comments.
-    pub(super) fn comments(&self) -> &[Comment] {
-        &self.comments
+    /// Take the collected comments and leave the trivia store empty.
+    pub(super) fn take_comments(&mut self) -> Vec<Comment> {
+        std::mem::take(&mut self.comments)
     }
 
     /// Return whether any comments were collected.
@@ -56,34 +57,14 @@ impl Trivia {
         !self.comments.is_empty()
     }
 
-    /// Capture one restore mark for the current trivia state.
-    pub(super) fn mark(&self) -> TriviaMark {
-        TriviaMark {
-            comments_len: self.comments.len(),
-            processed: self.processed,
-            saw_newline: self.saw_newline,
-            saw_newline_for_comment: self.saw_newline_for_comment,
-            previous_token_type: self.previous_token_type,
-        }
-    }
-
-    /// Restore trivia state from one previously captured mark.
-    pub(super) fn restore(&mut self, mark: TriviaMark) {
-        self.comments.truncate(mark.comments_len);
-        self.processed = mark.processed.min(self.comments.len());
-        self.saw_newline = mark.saw_newline;
-        self.saw_newline_for_comment = mark.saw_newline_for_comment;
-        self.previous_token_type = mark.previous_token_type;
-    }
-
     /// Truncate trivia after one byte position and reset the live boundary state.
     pub(super) fn truncate_after(&mut self, boundary_start: u32, previous_token_type: TokenType) {
         self.comments
             .retain(|comment| comment.span.start < boundary_start);
-        self.processed = self.processed.min(self.comments.len());
-        self.saw_newline = false;
-        self.saw_newline_for_comment = false;
-        self.previous_token_type = previous_token_type;
+        self.state.processed = self.state.processed.min(self.comments.len());
+        self.state.saw_newline = false;
+        self.state.saw_newline_for_comment = false;
+        self.state.previous_token_type = previous_token_type;
     }
 
     /// Record one line comment.
@@ -104,71 +85,94 @@ impl Trivia {
     }
 
     /// Record one newline boundary after pending comments.
-    pub(super) fn handle_newline(&mut self) {
-        let comments_len = self.comments.len();
+    pub(super) fn handle_newline(&mut self, boundary_start: u32) {
+        let active_comment_end = self.active_comment_end(boundary_start);
 
-        if self.processed < comments_len {
-            if let Some(last_comment) = self.comments.last_mut() {
-                last_comment.newlines.bits |= CommentNewlines::TRAILING;
-            }
+        if self.state.processed < active_comment_end {
+            let last_comment = &mut self.comments[active_comment_end - 1];
+            last_comment.newlines.bits |= CommentNewlines::TRAILING;
 
-            if !self.saw_newline {
-                self.processed = comments_len;
+            if !self.state.saw_newline {
+                self.state.processed = active_comment_end;
             }
         }
 
-        self.saw_newline = true;
-        self.saw_newline_for_comment = true;
+        self.state.saw_newline = true;
+        self.state.saw_newline_for_comment = true;
     }
 
     /// Attach pending leading comments to one semantic token boundary.
     pub(super) fn handle_token(&mut self, token_span: TokenSpan) {
-        self.previous_token_type = token_span.token.ty;
+        self.state.previous_token_type = token_span.token.ty;
 
-        if self.processed < self.comments.len() {
-            for comment in &mut self.comments[self.processed..] {
+        let active_comment_end = self.active_comment_end(token_span.span.start);
+
+        if self.state.processed < active_comment_end {
+            for comment in &mut self.comments[self.state.processed..active_comment_end] {
                 comment.position = CommentPosition::Leading;
                 comment.attached_to = token_span.span.start;
             }
 
-            self.processed = self.comments.len();
+            self.state.processed = active_comment_end;
         }
 
-        self.saw_newline = false;
-        self.saw_newline_for_comment = false;
+        self.state.saw_newline = false;
+        self.state.saw_newline_for_comment = false;
     }
 
     /// Record one comment and classify its token-local attachment.
     fn add_comment(&mut self, token_span: TokenSpan, kind: CommentKind, source_text: &str) {
         let mut comment = Comment::new(token_span.span, kind);
-        comment.newlines = CommentNewlines::from_bools(self.saw_newline_for_comment, false);
+        comment.newlines = CommentNewlines::from_bools(self.state.saw_newline_for_comment, false);
         comment.content = comment_content_from_raw(token_span.token.ty, source_text);
+
+        // speculative lexing can revisit the same raw comment span
+        let is_duplicate = self
+            .comments
+            .last()
+            .is_some_and(|last_comment| comment.span.start <= last_comment.span.start);
 
         // line comments always end the current line
         if kind == CommentKind::Line {
             comment.newlines.bits |= CommentNewlines::TRAILING;
 
             if self.should_attach_comment_to_previous_token() {
-                self.processed = self.comments.len() + 1;
+                self.state.processed = self.comments.len() + usize::from(!is_duplicate);
             }
 
-            self.saw_newline = true;
-            self.saw_newline_for_comment = true;
+            self.state.saw_newline = true;
+            self.state.saw_newline_for_comment = true;
         }
         // block comments only affect the local boundary
         else {
-            self.saw_newline_for_comment = false;
+            self.state.saw_newline_for_comment = false;
         }
 
-        self.comments.push(comment);
+        // keep comment storage monotonic across speculative rewinds
+        if !is_duplicate {
+            self.comments.push(comment);
+        }
+    }
+
+    /// Return the exclusive end of comments that are before one token boundary.
+    fn active_comment_end(&self, boundary_start: u32) -> usize {
+        let mut comment_index = self.state.processed;
+
+        while comment_index < self.comments.len()
+            && self.comments[comment_index].span.end <= boundary_start
+        {
+            comment_index += 1;
+        }
+
+        comment_index
     }
 
     /// Return whether one same-line comment should attach to the previous token.
     fn should_attach_comment_to_previous_token(&self) -> bool {
-        !self.saw_newline
+        !self.state.saw_newline
             && !matches!(
-                self.previous_token_type,
-                TokenType::Assign | TokenType::OpenParenthesis | TokenType::OpenBrace
+                self.state.previous_token_type,
+                TokenType::Assign | TokenType::OpenParenthesis
             )
     }
 }
