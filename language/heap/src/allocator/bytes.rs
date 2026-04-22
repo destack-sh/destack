@@ -5,6 +5,34 @@ use super::allocator::Allocator;
 use crate::{HeapError, HeapResult};
 
 impl Allocator {
+    /// Return the owning physical page and page-local offset for one raw address.
+    pub(crate) fn address_page_position(&self, address: usize) -> Option<(crate::PageId, usize)> {
+        let segment_address = self.segment_address(address)?;
+        let page_bytes = self.page_bytes();
+        let segment_page_index = segment_address.segment_offset / page_bytes;
+        let page_offset = segment_address.segment_offset % page_bytes;
+        let page_index = segment_address
+            .segment_index
+            .checked_mul(self.pages_per_segment())?
+            .checked_add(segment_page_index)?;
+
+        Some((crate::PageId::from_raw(page_index as u32), page_offset))
+    }
+
+    /// Return one mutable pointer into one logical page view.
+    pub fn page_view_ptr(&self, page_view: &PageView, byte_offset: usize) -> HeapResult<*mut u8> {
+        let page_bytes = self.page_bytes();
+        let page_index = byte_offset / page_bytes;
+        let page_byte_offset = byte_offset % page_bytes;
+        let Some(page_id) = page_view.page(page_index) else {
+            return Err(HeapError::MissingLogicalPage { page_index });
+        };
+        let page_ptr = self.page_slice_mut_ptr(page_id)?;
+        let page_ptr = page_ptr.cast::<u8>();
+
+        Ok(unsafe { page_ptr.add(page_byte_offset) })
+    }
+
     /// Return one byte vector for one logical byte range over one page view.
     pub fn read_bytes(&self, page_view: &PageView, byte_len: usize) -> HeapResult<Vec<u8>> {
         self.bytes_to_vec_from(page_view, 0, byte_len)
