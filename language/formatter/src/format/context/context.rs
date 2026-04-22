@@ -1,6 +1,7 @@
 use super::options::DestackFormatOptions;
 use super::source::SourceText;
 use crate::format::file::comment_text_has_ignore_directive_marker;
+use rustc_hash::FxHashMap;
 use std::cell::OnceCell;
 
 pub use destack_ast::Decorator;
@@ -12,8 +13,8 @@ use destack_ast::{
     WhereClause,
 };
 use destack_core::ImmutableStringPool;
-use destack_fir::format::{Format, FormatContext, FormatResult, Formatter};
-use destack_source::{File, MultiSpan};
+use destack_fir::format::{Format, FormatContext, FormatNode as FirNode, FormatResult, Formatter};
+use destack_source::{File, MultiSpan, Span};
 
 use super::comment::Comments;
 
@@ -45,6 +46,10 @@ pub struct DestackFormatContext<'a> {
     pub comment_tokens_sorted: OnceCell<Vec<TokenSpan>>,
     /// Cached sorted tokens across main and side streams.
     pub all_tokens_sorted: OnceCell<Vec<TokenSpan>>,
+    /// Cached formatted elements keyed by source span.
+    pub cached_elements: FxHashMap<Span, FirNode>,
+    /// The start position of the following sibling for the node currently being formatted.
+    pub current_following_span_start: u32,
     /// Whether file text contains formatter ignore directive markers.
     pub has_ignore_directive_markers: bool,
     /// The comment cursor for this formatting pass.
@@ -86,6 +91,8 @@ impl<'a> DestackFormatContext<'a> {
             newline_offsets: OnceCell::new(),
             comment_tokens_sorted: OnceCell::new(),
             all_tokens_sorted: OnceCell::new(),
+            cached_elements: FxHashMap::default(),
+            current_following_span_start: 0,
             has_ignore_directive_markers,
             comments: Comments::new(SourceText::new(file.text()), tree.comments()),
         }
@@ -99,6 +106,26 @@ impl<'a> DestackFormatContext<'a> {
     /// Borrow the comment cursor mutably.
     pub fn comments_mut(&mut self) -> &mut Comments<'a> {
         &mut self.comments
+    }
+
+    /// Return one cached formatted element for one source span.
+    pub fn get_cached_element(&self, span: &Span) -> Option<FirNode> {
+        self.cached_elements.get(span).cloned()
+    }
+
+    /// Cache one formatted element for one source span.
+    pub fn cache_element(&mut self, span: &Span, node: FirNode) {
+        self.cached_elements.insert(*span, node);
+    }
+
+    /// Return the current following sibling start used for trailing comment ownership.
+    pub fn following_span_start(&self) -> u32 {
+        self.current_following_span_start
+    }
+
+    /// Replace the current following sibling start and return the previous value.
+    pub fn replace_following_span_start(&mut self, following_span_start: u32) -> u32 {
+        std::mem::replace(&mut self.current_following_span_start, following_span_start)
     }
 }
 
