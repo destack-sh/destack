@@ -75,7 +75,7 @@ impl Parser {
     fn eat_plain_lambda_body(
         &mut self,
         body_start: &ParserMark,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParseResult<(LocalNodeId<Expression>, Span)> {
         if self.is_block_start() {
             let mut options = self
                 .options
@@ -85,14 +85,17 @@ impl Parser {
             options.set_allow_sequence_expression(true);
             let block_id =
                 self.with_options(options, |parser| parser.eat_block(BlockContext::Expression))?;
-            let body = self
-                .tree
-                .insert(Expression::Block(block_id), self.get_span_from(body_start));
-            Ok(body)
+            let body_span = self.get_span_from(body_start);
+            let body = self.tree.insert(Expression::Block(block_id), body_span);
+
+            Ok((body, body_span))
         } else {
             let mut options = self.options.in_before_block().not_in_decorator();
             options.set_allow_sequence_expression(false);
-            self.eat_expression(options)
+            let body = self.eat_expression(options)?;
+            let body_span = self.get_span_from(body_start);
+
+            Ok((body, body_span))
         }
     }
 
@@ -102,6 +105,9 @@ impl Parser {
         start: &ParserMark,
         header: &DeclarationHeader,
         parameters: Vec<LocalNodeId<Parameter>>,
+        generic_parameter_container_span: Option<Span>,
+        parameter_container_span: Option<Span>,
+        body_container_span: Option<Span>,
         return_type: Option<LocalNodeId<TypeExpression>>,
         return_type_span: Option<Span>,
         body: LocalNodeId<Expression>,
@@ -133,6 +139,21 @@ impl Parser {
         if let Some(span) = return_type_span {
             self.tree
                 .set_side_span(function_id, NodeSpanType::Type, span);
+        }
+
+        if let Some(span) = generic_parameter_container_span {
+            self.tree
+                .set_side_span(function_id, NodeSpanType::GenericParameters, span);
+        }
+
+        if let Some(span) = parameter_container_span {
+            self.tree
+                .set_side_span(function_id, NodeSpanType::Parameters, span);
+        }
+
+        if let Some(span) = body_container_span {
+            self.tree
+                .set_side_span(function_id, NodeSpanType::Body, span);
         }
 
         function_id
@@ -347,6 +368,7 @@ impl Parser {
         }
 
         // parse the parenthesized head
+        let parameter_container_start = self.mark_span();
         self.eat_token(TokenType::OpenParenthesis)?;
         self.eat_newlines_maybe()?;
         let mut parameters = Vec::with_capacity(1);
@@ -402,6 +424,7 @@ impl Parser {
             TokenType::CloseParenthesis,
             NodeType::Parameter,
         )?;
+        let parameter_container_span = Some(self.get_span_from(&parameter_container_start));
 
         // parse an explicit lambda return type when present
         let (return_type, return_type_span) = if self.has_lambda_return_type_marker() {
@@ -433,12 +456,15 @@ impl Parser {
         self.eat_arrow()?;
         self.eat_newlines_maybe()?;
         let body_start = self.mark_span();
-        let body = self.eat_plain_lambda_body(&body_start)?;
+        let (body, body_container_span) = self.eat_plain_lambda_body(&body_start)?;
 
         let function_id = self.build_plain_lambda_declaration(
             start,
             header,
             parameters,
+            None,
+            parameter_container_span,
+            Some(body_container_span),
             return_type,
             return_type_span,
             body,
@@ -473,6 +499,7 @@ impl Parser {
         }
 
         // dynamic parameters
+        let parameter_container_start = self.mark_span();
         self.eat_token(TokenType::OpenParenthesis)?;
         self.eat_newlines_maybe()?;
         let parameter_options = self.options.with_generator(false).with_forbid_yield(false);
@@ -486,6 +513,7 @@ impl Parser {
             TokenType::CloseParenthesis,
             NodeType::Parameter,
         )?;
+        let parameter_container_span = Some(self.get_span_from(&parameter_container_start));
 
         // explicit lambda return type
         let (return_type, return_type_span) = if self.has_lambda_return_type_marker() {
@@ -517,12 +545,15 @@ impl Parser {
         self.eat_arrow()?;
         self.eat_newlines_maybe()?;
         let body_start = self.mark_span();
-        let body = self.eat_plain_lambda_body(&body_start)?;
+        let (body, body_container_span) = self.eat_plain_lambda_body(&body_start)?;
 
         let function_id = self.build_plain_lambda_declaration(
             start,
             header,
             parameters,
+            None,
+            parameter_container_span,
+            Some(body_container_span),
             return_type,
             return_type_span,
             body,
@@ -541,6 +572,7 @@ impl Parser {
 
         // parse the single named parameter
         let parameter_name = self.eat_identifier()?;
+        let parameter_span = self.get_span_from(start);
         let parameter_id = self.insert_node(
             Parameter::Named {
                 name: parameter_name,
@@ -557,13 +589,16 @@ impl Parser {
         self.eat_arrow()?;
         self.eat_newlines_maybe()?;
         let body_start = self.mark_span();
-        let body = self.eat_plain_lambda_body(&body_start)?;
+        let (body, body_container_span) = self.eat_plain_lambda_body(&body_start)?;
 
         // build the declaration
         let function_id = self.build_plain_lambda_declaration(
             start,
             header,
             vec![parameter_id],
+            None,
+            Some(parameter_span),
+            Some(body_container_span),
             None,
             None,
             body,
@@ -710,7 +745,7 @@ impl Parser {
         };
 
         // function style, name, generic parameters
-        let (name, name_span, generic_parameters) = {
+        let (name, name_span, generic_parameters, generic_parameter_container_span) = {
             if kind == FunctionKind::Function {
                 // name
                 let (name, name_span) = if let Some((n, s)) = self.eat_name_maybe_with_span()? {
@@ -725,18 +760,36 @@ impl Parser {
                 }
 
                 // generic parameters
+                let generic_parameter_container_start = self.mark_span();
                 let generic_parameters = self
                     .eat_generic_parameters_maybe(false)
                     .for_node_type(NodeType::Declaration)?;
+                let generic_parameter_container_span = generic_parameters
+                    .as_ref()
+                    .map(|_| self.get_span_from(&generic_parameter_container_start));
 
-                (name, name_span, generic_parameters)
+                (
+                    name,
+                    name_span,
+                    generic_parameters,
+                    generic_parameter_container_span,
+                )
             } else {
                 // generic parameters
+                let generic_parameter_container_start = self.mark_span();
                 let generic_parameters = self
                     .eat_generic_parameters_maybe(false)
                     .for_node_type(NodeType::Declaration)?;
+                let generic_parameter_container_span = generic_parameters
+                    .as_ref()
+                    .map(|_| self.get_span_from(&generic_parameter_container_start));
 
-                (None, None, generic_parameters)
+                (
+                    None,
+                    None,
+                    generic_parameters,
+                    generic_parameter_container_span,
+                )
             }
         };
 
@@ -753,7 +806,7 @@ impl Parser {
         }
 
         // dynamic parameters
-        let parameters = {
+        let (parameters, parameter_container_span) = {
             // regular `(...) => ...` function/lambda
             let has_parenthesized_parameters = kind == FunctionKind::Function
                 || self.options.is_in_type()
@@ -762,6 +815,7 @@ impl Parser {
             if has_parenthesized_parameters {
                 // allow line breaks before the parameter list
                 self.eat_newlines_maybe()?;
+                let parameter_container_start = self.mark_span();
                 self.eat_token(TokenType::OpenParenthesis)?;
                 self.eat_newlines_maybe()?;
 
@@ -780,8 +834,9 @@ impl Parser {
                     TokenType::CloseParenthesis,
                     NodeType::Parameter,
                 )?;
+                let parameter_container_span = Some(self.get_span_from(&parameter_container_start));
 
-                parameters
+                (parameters, parameter_container_span)
             }
             // plain no-parentheses `x => y` lambda value
             else {
@@ -801,7 +856,7 @@ impl Parser {
                     self.get_span_from(start),
                 );
 
-                vec![parameter_id]
+                (vec![parameter_id], None)
             }
         };
 
@@ -889,7 +944,7 @@ impl Parser {
 
         // body
         // only for functions or lambda values
-        let body = {
+        let (body, body_container_span) = {
             // semicolon statement function bodies may start on the next line
             if kind == FunctionKind::Function && !self.options.is_in_type() {
                 self.eat_newlines_maybe()?;
@@ -916,10 +971,9 @@ impl Parser {
                 let body_start = self.mark_span();
                 let block_id = self
                     .with_options(options, |parser| parser.eat_block(BlockContext::Expression))?;
-                let body = self
-                    .tree
-                    .insert(Expression::Block(block_id), self.get_span_from(&body_start));
-                Some(body)
+                let body_span = self.get_span_from(&body_start);
+                let body = self.tree.insert(Expression::Block(block_id), body_span);
+                (Some(body), Some(body_span))
             }
             // lambda with body
             else if kind == FunctionKind::Lambda
@@ -955,11 +1009,12 @@ impl Parser {
                     options.set_forbid_await(options.is_forbid_await() && !is_async);
                     self.eat_expression(options)?
                 };
-                Some(body)
+                let body_span = self.get_span_from(&body_start);
+                (Some(body), Some(body_span))
             }
             // no body
             else {
-                None
+                (None, None)
             }
         };
 
@@ -1001,15 +1056,25 @@ impl Parser {
             self.get_span_from(start),
         );
 
-        // set main span to the name identifier
+        // set all the spans
         if let Some(span) = name_span {
             self.tree.set_main_span(function_id, span);
         }
-
-        // set type span for return type annotation
         if let Some(span) = return_type_span {
             self.tree
                 .set_side_span(function_id, NodeSpanType::Type, span);
+        }
+        if let Some(span) = generic_parameter_container_span {
+            self.tree
+                .set_side_span(function_id, NodeSpanType::GenericParameters, span);
+        }
+        if let Some(span) = parameter_container_span {
+            self.tree
+                .set_side_span(function_id, NodeSpanType::Parameters, span);
+        }
+        if let Some(span) = body_container_span {
+            self.tree
+                .set_side_span(function_id, NodeSpanType::Body, span);
         }
 
         Ok(function_id)
@@ -1045,7 +1110,7 @@ mod tests {
         TypeLiteral, VarianceModifier, WhereClause, YieldCardinality,
     };
 
-    use destack_source::LanguageType;
+    use destack_source::{LanguageType, NodeSpanType};
 
     use crate::parse::expression::common::DeclarationHeader;
     use crate::{
@@ -1281,6 +1346,58 @@ function setns(
                 assert_string!(parser, *name, "value");
             });
         });
+
+        let parameter_container_span = parser
+            .tree
+            .get_side_span(function_id, NodeSpanType::Parameters)
+            .unwrap();
+        assert_eq!(parser.get_span_str(parameter_container_span), "(\nvalue\n)");
+
+        let body_container_span = parser
+            .tree
+            .get_side_span(function_id, NodeSpanType::Body)
+            .unwrap();
+        assert_eq!(parser.get_span_str(body_container_span), "value");
+    }
+
+    #[test]
+    fn test_parse_plain_identifier_lambda_parameters_span() {
+        let mut test = TestParser::new("value => value");
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let function_id = parser
+            .eat_function(&start, DeclarationHeader::default(), false, false)
+            .unwrap();
+
+        let parameters_span = parser
+            .tree
+            .get_side_span(function_id, NodeSpanType::Parameters)
+            .unwrap();
+        assert_eq!(parser.get_span_str(parameters_span), "value");
+
+        let body_span = parser
+            .tree
+            .get_side_span(function_id, NodeSpanType::Body)
+            .unwrap();
+        assert_eq!(parser.get_span_str(body_span), "value");
+    }
+
+    #[test]
+    fn test_parse_plain_lambda_parenthesized_body_span() {
+        let mut test = TestParser::new("value => ({ key: value })");
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let function_id = parser
+            .eat_function(&start, DeclarationHeader::default(), false, false)
+            .unwrap();
+
+        let body_span = parser
+            .tree
+            .get_side_span(function_id, NodeSpanType::Body)
+            .unwrap();
+        assert_eq!(parser.get_span_str(body_span), "({ key: value })");
     }
 
     #[test]
@@ -1639,6 +1756,18 @@ function h<T>
             // declaration signature has no body
             assert!(body.is_none());
         });
+
+        let generic_parameter_container_span = parser
+            .tree
+            .get_side_span(function_id, NodeSpanType::GenericParameters)
+            .unwrap();
+        assert_eq!(parser.get_span_str(generic_parameter_container_span), "<T>");
+
+        let parameter_container_span = parser
+            .tree
+            .get_side_span(function_id, NodeSpanType::Parameters)
+            .unwrap();
+        assert_eq!(parser.get_span_str(parameter_container_span), "(tag: T)");
     }
 
     #[test]
@@ -2347,6 +2476,32 @@ function onResolve(
 
         assert_eq!(parser.tree.comments().len(), 1);
         assert_comment!(parser, 0, CommentKind::Line, "code");
+    }
+
+    #[test]
+    fn test_parse_function_body_boundary_line_comment_attaches_to_block() {
+        let mut test = TestParser::new_with_options(
+            "function f(): void // body\n{}",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let function_id = parser
+            .eat_function(&start, DeclarationHeader::default(), false, false)
+            .unwrap();
+        parser.attach_comments();
+
+        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
+            let body_span = parser.tree.get_span(*body_id);
+            let comment = parser.tree.comments()[0];
+
+            assert_eq!(comment.position, CommentPosition::Leading);
+            assert_eq!(comment.attached_to, body_span.start);
+        });
+
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentKind::Line, "body");
     }
 
     /// Reject direct calls on unparenthesized arrow functions.
