@@ -38,6 +38,12 @@ pub enum NodeSpanType {
     Leading,
     /// The trailing owned suffix span of a node.
     Trailing,
+    /// The generic parameter shell span of a function-like or declaration node.
+    GenericParameters,
+    /// The parameter shell span of a function-like node.
+    Parameters,
+    /// The body shell span of a function-like node.
+    Body,
     /// One indexed segment span of a compound node.
     Segment(u16),
     /// The type declaration span of a node.
