@@ -67,7 +67,7 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::GlobalAddr { .. }
                 | Instruction::GlobalConst { .. }
                 | Instruction::FunctionAddr { .. }
-                | Instruction::ManagedAlloc { .. }
+                | Instruction::New { .. }
                 | Instruction::RawAlloc { .. }
                 | Instruction::StackAlloc { .. } => {}
                 Instruction::FunctionBind { environment, .. } => {
@@ -264,7 +264,7 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(index, from, to);
                     Self::replace_value_in_slot(value, from, to);
                 }
-                Instruction::ManagedAllocArray { length, .. } => {
+                Instruction::NewArray { length, .. } => {
                     Self::replace_value_in_slot(length, from, to);
                 }
                 Instruction::AtomicStore { pointer, value, .. }

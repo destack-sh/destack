@@ -150,7 +150,9 @@ impl<'a> FunctionBuilder<'a> {
     ) -> LocalNodeId<Type> {
         let array = self.tree.get(array_type);
         match array {
-            Type::Array { element, .. } => concrete_type_reference(*element, "array element type"),
+            Type::Array { element, .. } | Type::DynamicArray { element, .. } => {
+                concrete_type_reference(*element, "array element type")
+            }
             _ => panic!("element access expects array type"),
         }
     }
@@ -207,15 +209,11 @@ impl<'a> FunctionBuilder<'a> {
         }
     }
 
-    /// Allocate a managed (runtime-tracked) struct.
-    /// Returns a managed reference type (`ref<T, managed, ...>`).
-    pub fn managed_alloc(
-        &mut self,
-        layout: LocalNodeId<Type>,
-        result_type: LocalNodeId<Type>,
-    ) -> Value {
+    /// Allocate heap storage.
+    /// Returns a managed or owned reference type.
+    pub fn new_(&mut self, layout: LocalNodeId<Type>, result_type: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::ManagedAlloc {
+        self.insert_instruction(Instruction::New {
             destination: destination.into(),
             layout: layout.into(),
             result_type: result_type.into(),
@@ -224,16 +222,16 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Allocate a managed array.
-    /// Returns a managed reference type (`ref<T, managed, ...>`).
-    pub fn managed_alloc_array(
+    /// Allocate a heap array.
+    /// Returns a managed or owned reference type.
+    pub fn new_array(
         &mut self,
         element: LocalNodeId<Type>,
         length: Value,
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::ManagedAllocArray {
+        self.insert_instruction(Instruction::NewArray {
             destination: destination.into(),
             element: element.into(),
             length: length.into(),
@@ -244,7 +242,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Allocate raw memory on the heap.
-    /// Returns a raw or owned reference type. Caller must free with `raw.free`.
+    /// Returns a raw reference type. Caller must free with `raw.free`.
     pub fn raw_alloc(
         &mut self,
         layout: LocalNodeId<Type>,

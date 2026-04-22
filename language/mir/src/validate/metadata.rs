@@ -33,13 +33,13 @@ impl<'a> Validator<'a> {
             })?,
         }
 
-        // managed reference storage
-        match self.tree.metadata.layout.storage.managed_reference_bytes {
+        // heap reference storage
+        match self.tree.metadata.layout.storage.heap_reference_bytes {
             4 | 8 => {}
-            managed_reference_bytes => {
+            heap_reference_bytes => {
                 return Err(ValidateError::MetadataInvariantViolation {
                     message: format!(
-                        "unsupported managed reference size {managed_reference_bytes} bytes"
+                        "unsupported heap reference size {heap_reference_bytes} bytes"
                     ),
                     anchor,
                 });
@@ -94,13 +94,12 @@ impl<'a> Validator<'a> {
                 _ => continue,
             };
 
-            // managed references
-            if kind == ReferenceKind::Managed
+            // heap references
+            if matches!(kind, ReferenceKind::Managed | ReferenceKind::Owned)
                 && !matches!(address_space, AddressSpace::Local | AddressSpace::Shared)
             {
                 return Err(ValidateError::MetadataInvariantViolation {
-                    message: "managed references must use space(local) or space(shared)"
-                        .to_string(),
+                    message: "heap references must use space(local) or space(shared)".to_string(),
                     anchor: ValidateAnchor::node(type_id),
                 });
             }

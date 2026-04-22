@@ -679,10 +679,10 @@ pub enum Instruction {
         call: Call<ArgumentSlice>,
     },
 
-    // allocation (managed - runtime tracks memory: managed.alloc, managed.allocArray)
-    /// Allocate a managed (runtime-tracked) struct (managed.alloc).
-    /// Returns a managed reference type (`ref<T, managed, ...>`).
-    ManagedAlloc {
+    // allocation (heap, runtime tracks layout and tracing: new, new.array)
+    /// Allocate heap storage (`new`).
+    /// Returns a managed or owned reference type.
+    New {
         /// The SSA value to define with the allocated reference.
         destination: ValueReference,
         /// The type of the struct to allocate.
@@ -690,9 +690,9 @@ pub enum Instruction {
         /// The result type of the allocation.
         result_type: TypeReference,
     },
-    /// Allocate a managed array (managed.allocArray).
-    /// Returns a managed reference type (`ref<T, managed, ...>`).
-    ManagedAllocArray {
+    /// Allocate a heap array (`new.array`).
+    /// Returns a managed or owned reference type.
+    NewArray {
         /// The SSA value to define with the allocated reference.
         destination: ValueReference,
         /// The element type of the array.
@@ -703,9 +703,9 @@ pub enum Instruction {
         result_type: TypeReference,
     },
 
-    // allocation (raw - manual memory management: raw.alloc, raw.free)
+    // allocation (raw, manual memory management: raw.alloc, raw.free)
     /// Allocate raw memory on the heap (raw.alloc).
-    /// Returns a raw or owned reference type. Caller must free with `raw.free`.
+    /// Returns a raw reference type. Caller must free with `raw.free`.
     RawAlloc {
         /// The SSA value to define with the allocated pointer.
         destination: ValueReference,
@@ -744,16 +744,16 @@ pub enum Instruction {
         /// The value to dispose asynchronously.
         value: ValueReference,
     },
-    /// Stabilize one local managed value against movement (`pin`).
+    /// Stabilize one local heap value against movement (`pin`).
     ///
     /// While pinned, derived borrowed addresses remain valid across safepoints.
     Pin {
-        /// The managed value to pin.
+        /// The heap value to pin.
         value: ValueReference,
     },
-    /// Release one local managed pin (`unpin`).
+    /// Release one local heap pin (`unpin`).
     Unpin {
-        /// The managed value to unpin.
+        /// The heap value to unpin.
         value: ValueReference,
     },
     /// End ownership here (`drop`).
@@ -946,8 +946,8 @@ impl Instruction {
             Instruction::CallVirtual { destination, .. } => *destination,
             Instruction::CallInterface { destination, .. } => *destination,
             Instruction::CallIndirect { destination, .. } => *destination,
-            Instruction::ManagedAlloc { destination, .. } => Some(*destination),
-            Instruction::ManagedAllocArray { destination, .. } => Some(*destination),
+            Instruction::New { destination, .. } => Some(*destination),
+            Instruction::NewArray { destination, .. } => Some(*destination),
             Instruction::RawAlloc { destination, .. } => Some(*destination),
             Instruction::RawFree { .. } => None,
             Instruction::Dispose { .. } => None,
@@ -1071,8 +1071,8 @@ impl Instruction {
             Instruction::CallVirtual { receiver, .. } => smallvec![*receiver],
             Instruction::CallInterface { receiver, .. } => smallvec![*receiver],
             Instruction::CallIndirect { callee, .. } => smallvec![*callee],
-            Instruction::ManagedAlloc { .. } => smallvec![],
-            Instruction::ManagedAllocArray { length, .. } => smallvec![*length],
+            Instruction::New { .. } => smallvec![],
+            Instruction::NewArray { length, .. } => smallvec![*length],
             Instruction::RawAlloc { .. } => smallvec![],
             Instruction::RawFree { pointer } => smallvec![*pointer],
             Instruction::Dispose { value } => smallvec![*value],

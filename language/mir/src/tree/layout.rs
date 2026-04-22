@@ -93,6 +93,7 @@ pub(crate) fn compute_type_layout(
             let size = element_layout.size * (*length as u32);
             TypeLayout::new(size, element_layout.alignment)
         }
+        Type::DynamicArray { .. } => TypeLayout::natural(pointer_bytes as u32),
 
         Type::Tuple {
             elements,

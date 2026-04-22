@@ -13,28 +13,25 @@ pub struct MemoryRegionSet(
 impl MemoryRegionSet {
     /// No memory regions.
     pub const NONE: Self = Self(0);
-    /// GC managed heap memory.
-    pub const MANAGED_HEAP: Self = Self(1 << 0);
-    /// Immortal managed heap memory.
-    pub const IMMORTAL_HEAP: Self = Self(1 << 1);
+    /// Heap allocated memory.
+    pub const HEAP: Self = Self(1 << 0);
     /// Raw manually managed heap memory.
-    pub const RAW_HEAP: Self = Self(1 << 2);
+    pub const RAW_HEAP: Self = Self(1 << 1);
     /// Stack memory.
-    pub const STACK: Self = Self(1 << 3);
+    pub const STACK: Self = Self(1 << 2);
     /// Global or static memory.
-    pub const GLOBAL: Self = Self(1 << 4);
+    pub const GLOBAL: Self = Self(1 << 3);
     /// Shared or workgroup memory.
-    pub const SHARED: Self = Self(1 << 5);
+    pub const SHARED: Self = Self(1 << 4);
     /// Target local or thread local memory.
-    pub const LOCAL: Self = Self(1 << 6);
+    pub const LOCAL: Self = Self(1 << 5);
     /// Target constant or read only memory.
-    pub const CONSTANT: Self = Self(1 << 7);
+    pub const CONSTANT: Self = Self(1 << 6);
     /// Memory mapped IO or other side channel memory.
-    pub const IO: Self = Self(1 << 8);
+    pub const IO: Self = Self(1 << 7);
     /// All memory regions.
     pub const ANY: Self = Self(
-        Self::MANAGED_HEAP.0
-            | Self::IMMORTAL_HEAP.0
+        Self::HEAP.0
             | Self::RAW_HEAP.0
             | Self::STACK.0
             | Self::GLOBAL.0
@@ -87,8 +84,7 @@ impl TryFrom<&str> for MemoryRegionSet {
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
             "None" => Ok(MemoryRegionSet::NONE),
-            "ManagedHeap" => Ok(MemoryRegionSet::MANAGED_HEAP),
-            "ImmortalHeap" => Ok(MemoryRegionSet::IMMORTAL_HEAP),
+            "Heap" => Ok(MemoryRegionSet::HEAP),
             "RawHeap" => Ok(MemoryRegionSet::RAW_HEAP),
             "Stack" => Ok(MemoryRegionSet::STACK),
             "Global" => Ok(MemoryRegionSet::GLOBAL),

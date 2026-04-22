@@ -116,9 +116,9 @@ pub enum Intrinsic {
     /// `(T, T) -> bool`
     RawEq,
 
-    // managed heap
-    /// Managed write barrier.
-    /// Called around one managed storage write so the active heap policy can track it.
+    // heap
+    /// Heap write barrier.
+    /// Called around one heap storage write so the active heap policy can track it.
     /// `(target, start, len) -> ()`
     WriteBarrier,
 
@@ -560,7 +560,7 @@ impl Intrinsic {
             Intrinsic::PointerOffsetFrom => IntrinsicSignature::PointerDiff,
             Intrinsic::RawEq => IntrinsicSignature::Comparison,
 
-            // managed heap
+            // heap
             Intrinsic::WriteBarrier => IntrinsicSignature::WriteBarrier { args: 3 },
 
             // float math (unary)

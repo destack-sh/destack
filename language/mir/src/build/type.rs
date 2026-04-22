@@ -295,6 +295,18 @@ impl ModuleBuilder {
         })
     }
 
+    /// Create a dynamic array type with explicit copyability.
+    pub fn type_dynamic_array(
+        &mut self,
+        element: LocalNodeId<Type>,
+        copyability: Copyability,
+    ) -> LocalNodeId<Type> {
+        self.tree.insert_type(Type::DynamicArray {
+            element: element.into(),
+            copyability,
+        })
+    }
+
     /// Create a tuple type with explicit copyability.
     pub fn type_tuple(
         &mut self,

@@ -254,6 +254,7 @@ impl<'a> Dumper<'a> {
                 format!("{ref_prefix}<_, {kind_label}{mutability_label}{address_space_label}>")
             }
             Type::Array { length, .. } => format!("_[{length}]"),
+            Type::DynamicArray { .. } => "_[]".to_string(),
             Type::Tuple {
                 elements,
                 copyability: _,
@@ -312,8 +313,7 @@ impl<'a> Dumper<'a> {
 
         // collect ordered regions
         let ordered = [
-            ("managedHeap", MemoryRegionSet::MANAGED_HEAP),
-            ("immortalHeap", MemoryRegionSet::IMMORTAL_HEAP),
+            ("heap", MemoryRegionSet::HEAP),
             ("rawHeap", MemoryRegionSet::RAW_HEAP),
             ("stack", MemoryRegionSet::STACK),
             ("global", MemoryRegionSet::GLOBAL),
@@ -1533,26 +1533,26 @@ impl<'a> Dumper<'a> {
                 self.write_colored(&self.format_type_id(call.signature), Color::Magenta);
             }
 
-            Instruction::ManagedAlloc {
+            Instruction::New {
                 destination,
                 layout,
                 result_type,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = managed.alloc ");
+                self.write(" = new ");
                 self.write_colored(&self.format_type_id(*layout), Color::Magenta);
                 self.write(" -> ");
                 self.write_colored(&self.format_type_id(*result_type), Color::Magenta);
             }
 
-            Instruction::ManagedAllocArray {
+            Instruction::NewArray {
                 destination,
                 element,
                 length,
                 result_type,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = managed.allocArray ");
+                self.write(" = new.array ");
                 self.write_colored(&self.format_type_id(*element), Color::Magenta);
                 self.write(", ");
                 self.write(&self.format_value(*length));

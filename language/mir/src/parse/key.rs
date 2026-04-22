@@ -62,6 +62,11 @@ pub(super) enum TypeKey {
         length: u64,
         copyability: Copyability,
     },
+    /// Dynamic array.
+    DynamicArray {
+        element: TypeReference,
+        copyability: Copyability,
+    },
     /// Tuple of heterogeneous elements.
     Tuple {
         elements: Vec<TypeReference>,
@@ -146,6 +151,13 @@ impl TypeKey {
             } => TypeKey::Array {
                 element: *element,
                 length: *length,
+                copyability: *copyability,
+            },
+            Type::DynamicArray {
+                element,
+                copyability,
+            } => TypeKey::DynamicArray {
+                element: *element,
                 copyability: *copyability,
             },
 

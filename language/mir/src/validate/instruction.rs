@@ -151,8 +151,8 @@ impl<'a> Validator<'a> {
     ) -> ValidateResult<()> {
         // classify allocation instructions
         let allocation_instruction = match instruction {
-            Instruction::ManagedAlloc { .. } => Some("managed.alloc"),
-            Instruction::ManagedAllocArray { .. } => Some("managed.allocArray"),
+            Instruction::New { .. } => Some("new"),
+            Instruction::NewArray { .. } => Some("new.array"),
             Instruction::RawAlloc { .. } => Some("raw.alloc"),
             Instruction::StackAlloc { .. } => Some("stack.alloc"),
             _ => None,
@@ -166,13 +166,13 @@ impl<'a> Validator<'a> {
             AllocationMode::Any => None,
             AllocationMode::NoManaged => matches!(
                 instruction,
-                Instruction::ManagedAlloc { .. } | Instruction::ManagedAllocArray { .. }
+                Instruction::New { .. } | Instruction::NewArray { .. }
             )
             .then_some("noManaged forbids managed allocations"),
             AllocationMode::StackOnly => matches!(
                 instruction,
-                Instruction::ManagedAlloc { .. }
-                    | Instruction::ManagedAllocArray { .. }
+                Instruction::New { .. }
+                    | Instruction::NewArray { .. }
                     | Instruction::RawAlloc { .. }
             )
             .then_some("stackOnly forbids non-stack allocations"),
@@ -472,10 +472,10 @@ impl<'a> Validator<'a> {
             | Instruction::Struct { ty: to_type, .. }
             | Instruction::Tuple { ty: to_type, .. }
             | Instruction::Array { ty: to_type, .. }
-            | Instruction::ManagedAlloc {
+            | Instruction::New {
                 layout: to_type, ..
             }
-            | Instruction::ManagedAllocArray {
+            | Instruction::NewArray {
                 element: to_type, ..
             }
             | Instruction::RawAlloc {
@@ -1352,47 +1352,81 @@ impl<'a> Validator<'a> {
                     });
                 }
             }
-            Instruction::ManagedAlloc {
+            Instruction::New {
                 layout,
                 result_type,
                 ..
             } => {
-                let layout =
-                    self.require_type_reference(*layout, anchor, "managed.alloc layout")?;
+                let layout = self.require_type_reference(*layout, anchor, "new layout")?;
                 let result_type =
-                    self.require_type_reference(*result_type, anchor, "managed.alloc result type")?;
+                    self.require_type_reference(*result_type, anchor, "new result type")?;
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
-                self.validate_reference_result_type(
+                self.validate_reference_result_type(result_type, Some(layout), None, None, anchor)?;
+
+                let (kind, _mutability, _pointee, _is_nullable) = self.reference_type(
                     result_type,
-                    Some(layout),
-                    Some(ReferenceKind::Managed),
-                    None,
                     anchor,
+                    "new result type must be a reference type",
                 )?;
+
+                if !matches!(kind, ReferenceKind::Managed | ReferenceKind::Owned) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "new result type has wrong reference kind".to_string(),
+                        anchor,
+                    });
+                }
             }
-            Instruction::ManagedAllocArray {
+            Instruction::NewArray {
                 element,
+                length,
                 result_type,
                 ..
             } => {
-                let element = self.require_type_reference(
-                    *element,
-                    anchor,
-                    "managed.allocArray element type",
-                )?;
-                let result_type = self.require_type_reference(
-                    *result_type,
-                    anchor,
-                    "managed.allocArray result type",
-                )?;
+                let element =
+                    self.require_type_reference(*element, anchor, "new.array element type")?;
+                let length_type =
+                    self.value_type_or_error(function, *length, anchor, "new.array length")?;
+                let result_type =
+                    self.require_type_reference(*result_type, anchor, "new.array result type")?;
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
-                self.validate_reference_result_type(
-                    result_type,
-                    Some(element),
-                    Some(ReferenceKind::Managed),
-                    None,
+
+                self.expect_integer_like_type(
+                    length_type,
                     anchor,
+                    "new.array length must be an integer type",
                 )?;
+
+                let reference_type = self.reference_type(
+                    result_type,
+                    anchor,
+                    "new.array result type must be a reference type",
+                )?;
+                let (kind, _mutability, pointee, _is_nullable) = reference_type;
+
+                let Type::DynamicArray {
+                    element: result_element,
+                    ..
+                } = self.tree.get(pointee)
+                else {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "new.array result type must point to a dynamic array".to_string(),
+                        anchor,
+                    });
+                };
+
+                if *result_element != TypeReference::Type(element) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "new.array result element type mismatch".to_string(),
+                        anchor,
+                    });
+                }
+
+                if !matches!(kind, ReferenceKind::Managed | ReferenceKind::Owned) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "new.array result type has wrong reference kind".to_string(),
+                        anchor,
+                    });
+                }
             }
             Instruction::RawAlloc {
                 layout,
@@ -1418,7 +1452,7 @@ impl<'a> Validator<'a> {
                     });
                 }
 
-                if !matches!(kind, ReferenceKind::Raw | ReferenceKind::Owned) {
+                if !matches!(kind, ReferenceKind::Raw) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message:
                             "pointer-producing instruction result type has wrong reference kind"
@@ -1445,15 +1479,10 @@ impl<'a> Validator<'a> {
                 )?;
             }
             Instruction::Pin { value } => {
-                self.validate_local_managed_reference_value(function, *value, anchor, "pin value")?;
+                self.validate_local_heap_reference_value(function, *value, anchor, "pin value")?;
             }
             Instruction::Unpin { value } => {
-                self.validate_local_managed_reference_value(
-                    function,
-                    *value,
-                    anchor,
-                    "unpin value",
-                )?;
+                self.validate_local_heap_reference_value(function, *value, anchor, "unpin value")?;
             }
             Instruction::AtomicLoad {
                 destination,
@@ -2140,10 +2169,14 @@ impl<'a> Validator<'a> {
     /// Resolve one projected element type if the type supports indexing.
     fn array_element_type(&self, type_id: LocalNodeId<Type>) -> Option<LocalNodeId<Type>> {
         match self.tree.get(type_id) {
-            Type::Array { element, .. } => self.concrete_type_reference(*element),
+            Type::Array { element, .. } | Type::DynamicArray { element, .. } => {
+                self.concrete_type_reference(*element)
+            }
             Type::Reference { pointee, .. } => match self.concrete_type_reference(*pointee) {
                 Some(pointee) => match self.tree.get(pointee) {
-                    Type::Array { element, .. } => self.concrete_type_reference(*element),
+                    Type::Array { element, .. } | Type::DynamicArray { element, .. } => {
+                        self.concrete_type_reference(*element)
+                    }
                     _ => Some(pointee),
                 },
                 None => None,
@@ -2317,6 +2350,27 @@ impl<'a> Validator<'a> {
             ) => {
                 left_length == right_length
                     && left_copyability == right_copyability
+                    && match (
+                        self.concrete_type_reference(*left_element),
+                        self.concrete_type_reference(*right_element),
+                    ) {
+                        (Some(left_element), Some(right_element)) => {
+                            self.types_equivalent_inner(left_element, right_element, seen_pairs)
+                        }
+                        _ => false,
+                    }
+            }
+            (
+                Type::DynamicArray {
+                    element: left_element,
+                    copyability: left_copyability,
+                },
+                Type::DynamicArray {
+                    element: right_element,
+                    copyability: right_copyability,
+                },
+            ) => {
+                left_copyability == right_copyability
                     && match (
                         self.concrete_type_reference(*left_element),
                         self.concrete_type_reference(*right_element),
@@ -2611,8 +2665,8 @@ impl<'a> Validator<'a> {
         Ok(())
     }
 
-    /// Validate one local managed reference value.
-    fn validate_local_managed_reference_value(
+    /// Validate one local heap reference value.
+    fn validate_local_heap_reference_value(
         &self,
         function: &Function,
         value: ValueReference,
@@ -2629,9 +2683,11 @@ impl<'a> Validator<'a> {
             });
         };
 
-        if kind != ReferenceKind::Managed || !matches!(address_space, AddressSpace::Local) {
+        if !matches!(kind, ReferenceKind::Managed | ReferenceKind::Owned)
+            || !matches!(address_space, AddressSpace::Local)
+        {
             return Err(ValidateError::MetadataInvariantViolation {
-                message: format!("{context} must be one local managed reference"),
+                message: format!("{context} must be one local heap reference"),
                 anchor,
             });
         }

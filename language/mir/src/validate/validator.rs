@@ -373,7 +373,7 @@ impl<'a> Validator<'a> {
             Type::TypeDescriptor => "typeDescriptor",
             Type::TypeId => "typeId",
             Type::Reference { .. } => "ref",
-            Type::Array { .. } => "array",
+            Type::Array { .. } | Type::DynamicArray { .. } => "array",
             Type::Tuple { .. } => "tuple",
             Type::Struct { .. } => "struct",
             Type::Newtype { .. } => "newtype",

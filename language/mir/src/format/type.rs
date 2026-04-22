@@ -263,6 +263,12 @@ fn format_type_inner<'a>(
                 [element, token("["), text(&length.to_string()), token("]")]
             )
         }
+        Type::DynamicArray {
+            element,
+            copyability: _,
+        } => {
+            write!(f, [element, token("["), token("]")])
+        }
         Type::Tuple {
             elements,
             copyability: _,

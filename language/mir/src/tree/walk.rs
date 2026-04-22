@@ -141,7 +141,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 visitor.visit_type(tree, pointee, pointee_ty);
             }
         }
-        Type::Array { element, .. } => {
+        Type::Array { element, .. } | Type::DynamicArray { element, .. } => {
             if let TypeReference::Type(element) = *element {
                 let element_ty = tree.get(element);
                 visitor.visit_type(tree, element, element_ty);

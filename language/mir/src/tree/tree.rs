@@ -505,9 +505,9 @@ impl NodeTree {
 
                 storage.native_pointer_bytes = pointer_bytes;
 
-                // keep the default managed-reference width in lockstep until explicitly overridden
-                if storage.managed_reference_bytes == previous_pointer_bytes {
-                    storage.managed_reference_bytes = pointer_bytes;
+                // keep the default heap-reference width in lockstep until explicitly overridden
+                if storage.heap_reference_bytes == previous_pointer_bytes {
+                    storage.heap_reference_bytes = pointer_bytes;
                 }
             }
             _ => {
