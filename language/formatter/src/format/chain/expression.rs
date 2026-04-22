@@ -542,7 +542,7 @@ fn first_call_expression_id(
         })
 }
 
-/// Format a member/call/maybe/index chain with OXC-shaped breaking.
+/// Format a member/call/maybe/index chain with the standard breaking layout.
 pub(crate) fn format_expression_chain<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
@@ -962,6 +962,7 @@ fn chain_operation_annotation_emit_flags(
     formatted_root_id: LocalNodeId<Expression>,
     operation: &ChainMember,
 ) -> (LocalNodeId<Expression>, bool, bool) {
+    // member-chain analysis already computed exact ownership for direct members
     let (node_id, emit_prefix_annotations, emit_postfix_annotations) = match operation {
         ChainMember::Member {
             node_id,
@@ -978,6 +979,8 @@ fn chain_operation_annotation_emit_flags(
         | ChainMember::Index { node_id, .. }
         | ChainMember::Maybe { node_id, .. }
         | ChainMember::Must { node_id, .. } => {
+            // call hops may inherit prefix annotations from their callee path, so the
+            // formatter must suppress duplicates when the left side already owns them
             let should_emit_prefix_annotations = match operation {
                 ChainMember::Call { node_id, .. } => match context.tree.get(*node_id) {
                     Expression::Call { left, .. } => {
@@ -1019,6 +1022,7 @@ fn chain_operation_annotation_emit_flags(
     let emit_prefix_annotations =
         emit_prefix_annotations && !chain_member_has_leading_gap_comment(context, operation);
 
+    // the formatted root is owned by the outer caller
     let emit_prefix_annotations = emit_prefix_annotations && node_id != formatted_root_id;
     let root_postfix_owned_by_outer_context = node_id == formatted_root_id;
     let emit_postfix_annotations = emit_postfix_annotations && !root_postfix_owned_by_outer_context;

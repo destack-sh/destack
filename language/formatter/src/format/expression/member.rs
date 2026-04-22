@@ -15,7 +15,6 @@ use destack_fir::prelude::{
     soft_line_break, token,
 };
 use destack_fir::{format_args, write};
-use destack_source::Span;
 
 #[derive(Clone, Copy)]
 enum TemplateInterpolationLayout {
@@ -29,11 +28,7 @@ fn type_template_interpolation_has_newline_in_range(
     expression_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     let span = context.span(expression_id);
-    let source = context.source_text();
-
-    source.has_newline_before(span.start)
-        || source.has_newline_after(span.end)
-        || source.contains_newline(span)
+    context.source_text().contains_newline(span)
 }
 
 /// Format one type-template interpolation body with separator comments.
@@ -522,7 +517,6 @@ pub(crate) fn write_index_access<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     index_id: LocalNodeId<Expression>,
     should_parenthesize: bool,
-    force_expand: bool,
 ) -> FormatResult<()> {
     let format_index_access = format_with(|f| {
         write!(f, [token("[")])?;
@@ -540,10 +534,6 @@ pub(crate) fn write_index_access<'ast>(
         }
         write!(f, [token("]")])
     });
-
-    if force_expand {
-        return write!(f, [group(&format_index_access).should_expand(true)]);
-    }
 
     write!(f, [group(&format_index_access)])
 }
@@ -576,20 +566,7 @@ pub(crate) fn format_index_expression<'ast>(
                 f.context().tree.get(inner_index_id),
                 Expression::Assign { .. }
             );
-            let left_span = f.context().span(*left);
-            let index_span = f.context().span(*index);
-            let has_break_after_open = left_span.file == index_span.file
-                && left_span.end < index_span.start
-                && f.context().has_newline(Span::new(
-                    left_span.file,
-                    left_span.end,
-                    index_span.start,
-                ));
-            if should_parenthesize && !has_break_after_open {
-                write!(f, [token("["), token("("), *index, token(")"), token("]")])?;
-            } else {
-                write_index_access(f, *index, should_parenthesize, has_break_after_open)?;
-            }
+            write_index_access(f, *index, should_parenthesize)?;
         } else {
             write!(f, [token("[]")])?;
         }

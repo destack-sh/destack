@@ -5,7 +5,6 @@ mod dispatch;
 mod member;
 mod object;
 mod parentheses;
-mod path;
 mod primary;
 mod shape;
 mod statement;
@@ -39,10 +38,7 @@ pub(crate) use self::statement::{
     format_statement_expression, write_statement_expression_trailing_annotations,
 };
 pub(crate) use self::ternary::{argument_value, format_expanded_ternary_expression};
-pub(crate) use self::r#type::{
-    format_type_member_list, write_type_expression_leading_comments,
-    write_type_expression_prefix_annotations, write_type_expression_without_prefix_annotations,
-};
+pub(crate) use self::r#type::{format_type_member_list, write_type_expression_node};
 pub(crate) use super::operator::{
     format_generic_argument_list, format_generic_argument_list_with_relational_spacing,
 };

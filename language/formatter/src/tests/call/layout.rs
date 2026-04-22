@@ -289,12 +289,12 @@ const arrayTail = call((
   return foo;
 }, value as Foo<string>);
 
-const genericStaticTail = call(
-  <T, U>(alpha: AlphaType, beta: BetaType): Result => {
-    return foo;
-  },
-  value as Foo<string>,
-);
+const genericStaticTail = call(<T, U>(
+  alpha: AlphaType,
+  beta: BetaType,
+): Result => {
+  return foo;
+}, value as Foo<string>);
 
 const arrayTail = call((alpha: AlphaType, beta: BetaType): Result => {
   return foo;
@@ -678,5 +678,47 @@ fn test_format_lambda_callback_with_short_array_tail() {
 "#,
         FileType::JavaScript,
         DestackFormatOptions::default_with_line_width(40).with_indent_width(2)
+    );
+}
+
+/// Comment-only callback blocks must stay expanded in grouped-last call layout.
+#[test]
+fn test_format_grouped_last_comment_only_callback_block() {
+    assert_format_program_reference_widths(
+        r#"target(...argument, () => {
+  // code
+});
+"#,
+        FileType::JavaScript,
+        &[(
+            80,
+            r#"target(...argument, () => {
+  // code
+});
+"#,
+        )],
+    );
+}
+
+/// Trailing line comments on the last argument must still expand the call.
+#[test]
+fn test_format_last_argument_trailing_line_comment_breaks_call() {
+    assert_format_program!(
+        r#"call(
+  () => {
+    // ...
+  },
+  "good" // trailing
+)
+"#,
+        r#"call(
+  () => {
+    // ...
+  },
+  "good", // trailing
+);
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }

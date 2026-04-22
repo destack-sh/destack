@@ -7,16 +7,23 @@ use super::list::{
     write_empty_call_arguments, write_ignored_call_arguments, write_simple_call_argument_list,
 };
 use super::pattern::{
-    argument_is_interpolated_template_literal, argument_is_template_literal,
-    call_uses_simple_list_layout, expression_is_long_curried_call,
+    argument_expression_id, argument_is_interpolated_template_literal,
+    argument_is_template_literal, call_uses_simple_list_layout, expression_is_long_curried_call,
 };
-use crate::format::annotation::{infix_or_postfix_annotations, prefix_annotations};
+use crate::format::annotation::{
+    format_leading_comments, format_trailing_comments, infix_or_postfix_annotations,
+    prefix_annotations,
+};
+use crate::format::expression::write_expression_without_trailing_comments;
 use crate::format::tree::has_multiline_jsx_argument;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_ast::{Argument, DecoratorPosition, Expression, LocalNodeId};
+use destack_ast::{
+    Argument, Declaration, DecoratorPosition, Expression, LocalNodeId, NodeType, TypeExpression,
+};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{space, token};
 use destack_fir::write;
+use destack_source::{NodeSpanType, Span};
 
 /// Return whether an argument can be emitted directly without argument-node formatting.
 pub(crate) fn argument_is_plain_call_argument(
@@ -42,25 +49,29 @@ pub(crate) fn write_plain_call_argument<'ast>(
 
     match f.context().tree.get(argument_id) {
         Argument::Named { name, value, .. } => {
-            write!(f, [*name, token(":"), space(), *value])?;
+            write!(f, [*name, token(":"), space()])?;
+            write_expression_without_trailing_comments(f, *value)?;
         }
         Argument::Labeled { label, value, .. } => {
-            write!(f, [*label, token(":"), space(), *value])?;
+            write!(f, [*label, token(":"), space()])?;
+            write_expression_without_trailing_comments(f, *value)?;
         }
         Argument::Positional { value, .. } => {
-            write!(f, [*value])?;
+            write_expression_without_trailing_comments(f, *value)?;
         }
         Argument::Spread {
             label: Some(label),
             value,
             ..
         } => {
-            write!(f, [token("..."), *label, token(":"), space(), *value])?;
+            write!(f, [token("..."), *label, token(":"), space()])?;
+            write_expression_without_trailing_comments(f, *value)?;
         }
         Argument::Spread {
             label: None, value, ..
         } => {
-            write!(f, [token("..."), *value])?;
+            write!(f, [token("...")])?;
+            write_expression_without_trailing_comments(f, *value)?;
         }
         Argument::Error => {
             write!(f, [token("/* ERROR */")])?;
@@ -97,8 +108,156 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
         node_id: LocalNodeId<Argument>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write_call_argument_node_body(f, node_id)
+        // non call-like argument nodes still use the local body-only path
+        if !argument_uses_call_node_comments(f.context(), node_id) {
+            return write_call_argument_node_body(f, node_id);
+        }
+
+        let node_span = f.context().span(node_id);
+        let trailing_span = argument_trailing_span(f.context(), node_id);
+        let enclosing_span = argument_enclosing_span(f.context(), node_id);
+        let following_span_start = f.context().following_span_start();
+
+        // leading comments
+        write!(f, [format_leading_comments(node_span)])?;
+
+        // payload
+        write_call_argument_payload(self, f)?;
+
+        // trailing comments
+        write!(
+            f,
+            [format_trailing_comments(
+                enclosing_span,
+                trailing_span,
+                following_span_start,
+            )]
+        )
     }
+}
+
+/// Return whether one argument node is in one call-like parent that uses generic node comments.
+fn argument_uses_call_node_comments(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+        return false;
+    };
+
+    match parent_type {
+        NodeType::Expression => matches!(
+            context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
+            Expression::Call { .. } | Expression::New { .. } | Expression::Import { .. }
+        ),
+        NodeType::TypeExpression => matches!(
+            context
+                .tree
+                .get(LocalNodeId::<TypeExpression>::new(parent_id)),
+            TypeExpression::Import { .. }
+        ),
+        _ => false,
+    }
+}
+
+/// Return the enclosing span used for one argument node's trailing comments.
+pub(crate) fn argument_enclosing_span(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Argument>,
+) -> Span {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+        unreachable!("argument node should have one parent");
+    };
+
+    match parent_type {
+        NodeType::Expression => context.span(LocalNodeId::<Expression>::new(parent_id)),
+        NodeType::TypeExpression => context.span(LocalNodeId::<TypeExpression>::new(parent_id)),
+        _ => unreachable!("call-like argument node parent should be one expression"),
+    }
+}
+
+/// Return the span that owns trailing comments for one argument node.
+pub(crate) fn argument_trailing_span(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Argument>,
+) -> Span {
+    let node_span = context.span(node_id);
+    let Some(value_id) = argument_expression_id(context, node_id) else {
+        return node_span;
+    };
+    let value_span = argument_value_trailing_span(context, value_id);
+
+    if value_span.end <= node_span.end {
+        return node_span;
+    }
+
+    Span::new(node_span.file, node_span.start, value_span.end)
+}
+
+/// Return the trailing-comment anchor span for one argument value.
+fn argument_value_trailing_span(
+    context: &DestackFormatContext<'_>,
+    value_id: LocalNodeId<Expression>,
+) -> Span {
+    let value_span = context.span(value_id);
+
+    let Expression::Declaration(declaration_id) = context.tree.get(value_id) else {
+        return value_span;
+    };
+    let Declaration::Function(function) = context.tree.get(*declaration_id) else {
+        return value_span;
+    };
+
+    if let Some(body_id) = function.body {
+        if let Some(body_span) = context
+            .tree
+            .get_side_span(*declaration_id, NodeSpanType::Body)
+        {
+            let start = value_span.start;
+            let end = body_span.end.max(context.span(body_id).end);
+
+            return Span::new(value_span.file, start, end);
+        }
+    }
+
+    if let Some(parameter_span) = context
+        .tree
+        .get_side_span(*declaration_id, NodeSpanType::Parameters)
+    {
+        return Span::new(value_span.file, value_span.start, parameter_span.end);
+    }
+
+    value_span
+}
+
+/// Format one node while exposing one following sibling start to trailing comment logic.
+pub(crate) fn with_argument_following_span_start<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    following_span_start: u32,
+    content: impl FnOnce(&mut DestackFormatter<'ast, '_>) -> FormatResult<()>,
+) -> FormatResult<()> {
+    // install
+    let previous_following_span_start = f
+        .context_mut()
+        .replace_following_span_start(following_span_start);
+
+    // format
+    let result = content(f);
+
+    // restore
+    f.context_mut()
+        .replace_following_span_start(previous_following_span_start);
+
+    result
+}
+
+/// Format one argument while exposing one following sibling start to trailing comment logic.
+pub(crate) fn write_argument_with_following_span_start<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    argument_id: LocalNodeId<Argument>,
+    following_span_start: u32,
+) -> FormatResult<()> {
+    with_argument_following_span_start(f, following_span_start, |f| write!(f, [argument_id]))
 }
 
 /// Write one argument node without list-level trailing comment handling.
@@ -108,24 +267,28 @@ pub(crate) fn write_call_argument_node_body<'ast>(
 ) -> FormatResult<()> {
     let argument = f.context().tree.get(node_id);
 
+    // plain fast path
     if argument_is_plain_call_argument(f.context(), node_id) {
         write_plain_call_argument(f, node_id)?;
         return Ok(());
     }
 
+    // leading prefix annotations
     if argument_has_prefix_annotation(f.context(), node_id) {
         write!(f, [prefix_annotations(f.context(), node_id)])?;
     }
 
-    write_argument_with_value(argument, f)?;
+    // payload
+    write_call_argument_payload(argument, f)?;
 
+    // trailing annotations
     write!(f, [infix_or_postfix_annotations(f.context(), node_id)])?;
 
     Ok(())
 }
 
-/// Write one argument with its value payload.
-fn write_argument_with_value<'ast>(
+/// Write one argument payload without node-local comment ownership.
+fn write_call_argument_payload<'ast>(
     argument: &Argument,
     f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {
@@ -133,25 +296,24 @@ fn write_argument_with_value<'ast>(
         Argument::Named { name, value } => {
             write!(f, [name])?;
             write!(f, [token(":"), space()])?;
-            write!(f, [*value])?;
+            write_expression_without_trailing_comments(f, *value)?;
         }
         Argument::Labeled { label, value } => {
             write!(f, [label])?;
             write!(f, [token(":"), space()])?;
-            write!(f, [*value])?;
+            write_expression_without_trailing_comments(f, *value)?;
         }
         Argument::Positional { value } => {
-            write!(f, [*value])?;
+            write_expression_without_trailing_comments(f, *value)?;
         }
         Argument::Spread { label, value } => {
             write!(f, [token("...")])?;
-
             if let Some(label) = label {
                 write!(f, [label])?;
                 write!(f, [token(":"), space()])?;
-                write!(f, [*value])?;
+                write_expression_without_trailing_comments(f, *value)?;
             } else {
-                write!(f, [*value])?;
+                write_expression_without_trailing_comments(f, *value)?;
             }
         }
         Argument::Error => {
@@ -204,62 +366,61 @@ fn format_call_arguments_impl<'ast>(
     }
 
     // ignored ranges
-    if call_arguments_have_ignored_ranges(f.context(), arguments) {
-        return write_ignored_call_arguments(f, arguments, group_id);
+    let result = if call_arguments_have_ignored_ranges(f.context(), arguments) {
+        write_ignored_call_arguments(f, arguments, group_id)
     }
-
     // direct-list special cases
-    if call_uses_simple_list_layout(f.context(), call_node_id, left, arguments) {
-        return write_simple_call_argument_list(f, call_span, arguments);
+    else if call_uses_simple_list_layout(f.context(), call_node_id, left, arguments) {
+        write_simple_call_argument_list(f, call_span, arguments)
     }
-
     // preserve intentional empty lines between arguments
-    if arguments_have_empty_line(f.context(), arguments) {
-        return format_all_args_broken_out(
+    else if arguments_have_empty_line(f.context(), arguments) {
+        format_all_args_broken_out(
             f,
             call_span,
             arguments,
             group_id,
             disallow_trailing_separator,
-        );
+        )
     }
-
     // function composition
-    if is_function_composition_args(f.context(), arguments) {
-        return format_all_args_broken_out(
+    else if is_function_composition_args(f.context(), arguments) {
+        format_all_args_broken_out(
             f,
             call_span,
             arguments,
             group_id,
             disallow_trailing_separator,
-        );
+        )
     }
-
     // grouped standard layouts
-    if let Some(layout) = arguments_grouped_layout(f.context(), call_node_id, arguments) {
-        return write_grouped_arguments(
+    else if let Some(layout) = arguments_grouped_layout(f.context(), call_node_id, arguments) {
+        write_grouped_arguments(f, arguments, layout, group_id, disallow_trailing_separator)
+    }
+    // long curried calls
+    else if allow_long_curried_layout
+        && expression_is_long_curried_call(f.context(), call_node_id)
+    {
+        format_long_curried_call_arguments(f, call_span, arguments)
+    }
+    // default layout
+    else {
+        let force_expand = has_multiline_jsx_argument(f.context(), arguments);
+        format_default_call_argument_list(
             f,
             call_span,
-            arguments,
-            layout,
             group_id,
+            arguments,
+            force_expand,
             disallow_trailing_separator,
-        );
-    }
+        )
+    };
 
-    // long curried calls
-    if allow_long_curried_layout && expression_is_long_curried_call(f.context(), call_node_id) {
-        return format_long_curried_call_arguments(f, call_span, arguments);
-    }
+    result?;
 
-    // default layout
-    let force_expand = has_multiline_jsx_argument(f.context(), arguments);
-    format_default_call_argument_list(
-        f,
-        call_span,
-        group_id,
-        arguments,
-        force_expand,
-        disallow_trailing_separator,
-    )
+    f.context_mut()
+        .comments_mut()
+        .skip_comments_before(call_span.end);
+
+    Ok(())
 }
