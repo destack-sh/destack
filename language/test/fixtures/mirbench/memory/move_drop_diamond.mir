@@ -14,12 +14,12 @@ b2:
     v9: boolean = int.eq v7, v8
     branch v9, b3, b4
 b3:
-    v10: ref<int64, managed> = managed.alloc int64
+    v10: ref<int64, managed> = new int64
     store v10, v3
     local.set local0, v10
     jump b5
 b4:
-    v11: ref<int64, managed> = managed.alloc int64
+    v11: ref<int64, managed> = new int64
     v12: int64 = 1int64
     v13: int64 = int.add v3, v12
     store v11, v13

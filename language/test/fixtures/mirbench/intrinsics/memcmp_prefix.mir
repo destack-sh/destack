@@ -8,11 +8,11 @@ b1:
 b2:
     jump b3(v0)
 b3(v3: int64):
-    v4: ref<uint8, managed> = managed.allocArray uint8, v3
-    v5: ref<uint8, managed> = managed.allocArray uint8, v3
+    v4: slice<uint8> = new.slice uint8, v3
+    v5: slice<uint8> = new.slice uint8, v3
     v6: int64 = 0int64
     jump b4(v6, v3, v4, v5)
-b4(v7: int64, v8: int64, v9: ref<uint8, managed>, v10: ref<uint8, managed>):
+b4(v7: int64, v8: int64, v9: slice<uint8>, v10: slice<uint8>):
     v11: boolean = int.ge.s v7, v8
     branch v11, b9(v8, v9, v10), b5
 b5:
@@ -30,7 +30,7 @@ b5:
     v22: int64 = 0int64
     v23: boolean = int.eq v21, v22
     branch v23, b6(v17, v7, v8, v9, v10), b7(v18, v7, v8, v9, v10)
-b6(v24: int64, v25: int64, v26: int64, v27: ref<uint8, managed>, v28: ref<uint8, managed>):
+b6(v24: int64, v25: int64, v26: int64, v27: slice<uint8>, v28: slice<uint8>):
     v29: int64 = 1int64
     v30: int64 = int.add v24, v29
     v31: int64 = 255int64
@@ -39,19 +39,19 @@ b6(v24: int64, v25: int64, v26: int64, v27: ref<uint8, managed>, v28: ref<uint8,
     v34: ref<uint8, borrowed> = element.address v28, v25
     store v34, v33
     jump b8(v25, v26, v27, v28)
-b7(v35: uint8, v36: int64, v37: int64, v38: ref<uint8, managed>, v39: ref<uint8, managed>):
+b7(v35: uint8, v36: int64, v37: int64, v38: slice<uint8>, v39: slice<uint8>):
     v40: ref<uint8, borrowed> = element.address v39, v36
     store v40, v35
     jump b8(v36, v37, v38, v39)
-b8(v41: int64, v42: int64, v43: ref<uint8, managed>, v44: ref<uint8, managed>):
+b8(v41: int64, v42: int64, v43: slice<uint8>, v44: slice<uint8>):
     v45: int64 = 1int64
     v46: int64 = int.add v41, v45
     jump b4(v46, v42, v43, v44)
-b9(v47: int64, v48: ref<uint8, managed>, v49: ref<uint8, managed>):
+b9(v47: int64, v48: slice<uint8>, v49: slice<uint8>):
     v50: int64 = 0int64
     v51: int64 = 0int64
     jump b10(v50, v51, v47, v48, v49)
-b10(v52: int64, v53: int64, v54: int64, v55: ref<uint8, managed>, v56: ref<uint8, managed>):
+b10(v52: int64, v53: int64, v54: int64, v55: slice<uint8>, v56: slice<uint8>):
     v57: boolean = int.ge.s v52, v54
     branch v57, b12(v53), b11
 b11:

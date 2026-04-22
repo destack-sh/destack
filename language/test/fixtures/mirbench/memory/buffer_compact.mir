@@ -1,10 +1,10 @@
 function bufferCompact(v0: int64): int64 {
 b0(v0: int64):
-    v1: ref<int64, managed> = managed.allocArray int64, v0
-    v2: ref<int64, managed> = managed.allocArray int64, v0
+    v1: slice<int64> = new.slice int64, v0
+    v2: slice<int64> = new.slice int64, v0
     v3: int64 = 0int64
     jump b1(v3, v1, v2)
-b1(v4: int64, v5: ref<int64, managed>, v6: ref<int64, managed>):
+b1(v4: int64, v5: slice<int64>, v6: slice<int64>):
     v7: boolean = int.ge.s v4, v0
     branch v7, b6(v5, v6), b2
 b2:
@@ -17,25 +17,25 @@ b2:
     v14: int64 = 4int64
     v15: boolean = int.lt.s v13, v14
     branch v15, b3(v4, v5, v6), b4(v4, v5, v6, v13)
-b3(v16: int64, v17: ref<int64, managed>, v18: ref<int64, managed>):
+b3(v16: int64, v17: slice<int64>, v18: slice<int64>):
     v19: int64 = 0int64
     v20: ref<int64, borrowed> = element.address v17, v16
     store v20, v19
     jump b5(v16, v17, v18)
-b4(v21: int64, v22: ref<int64, managed>, v23: ref<int64, managed>, v24: int64):
+b4(v21: int64, v22: slice<int64>, v23: slice<int64>, v24: int64):
     v25: ref<int64, borrowed> = element.address v22, v21
     store v25, v24
     jump b5(v21, v22, v23)
-b5(v26: int64, v27: ref<int64, managed>, v28: ref<int64, managed>):
+b5(v26: int64, v27: slice<int64>, v28: slice<int64>):
     v29: int64 = 1int64
     v30: int64 = int.add v26, v29
     jump b1(v30, v27, v28)
-b6(v31: ref<int64, managed>, v32: ref<int64, managed>):
+b6(v31: slice<int64>, v32: slice<int64>):
     v33: int64 = 0int64
     v34: int64 = 0int64
     v35: int64 = 0int64
     jump b7(v33, v34, v35, v31, v32)
-b7(v36: int64, v37: int64, v38: int64, v39: ref<int64, managed>, v40: ref<int64, managed>):
+b7(v36: int64, v37: int64, v38: int64, v39: slice<int64>, v40: slice<int64>):
     v41: boolean = int.ge.s v36, v0
     branch v41, b12(v37, v38), b8
 b8:
@@ -44,16 +44,16 @@ b8:
     v44: int64 = 0int64
     v45: boolean = int.eq v43, v44
     branch v45, b9(v36, v37, v38, v39, v40), b10(v36, v37, v38, v39, v40, v43)
-b9(v46: int64, v47: int64, v48: int64, v49: ref<int64, managed>, v50: ref<int64, managed>):
+b9(v46: int64, v47: int64, v48: int64, v49: slice<int64>, v50: slice<int64>):
     jump b11(v46, v47, v48, v49, v50)
-b10(v51: int64, v52: int64, v53: int64, v54: ref<int64, managed>, v55: ref<int64, managed>, v56: int64):
+b10(v51: int64, v52: int64, v53: int64, v54: slice<int64>, v55: slice<int64>, v56: int64):
     v57: ref<int64, borrowed> = element.address v55, v52
     store v57, v56
     v58: int64 = 1int64
     v59: int64 = int.add v52, v58
     v60: int64 = int.add v53, v56
     jump b11(v51, v59, v60, v54, v55)
-b11(v61: int64, v62: int64, v63: int64, v64: ref<int64, managed>, v65: ref<int64, managed>):
+b11(v61: int64, v62: int64, v63: int64, v64: slice<int64>, v65: slice<int64>):
     v66: int64 = 1int64
     v67: int64 = int.add v61, v66
     jump b7(v67, v62, v63, v64, v65)

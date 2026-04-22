@@ -8,7 +8,7 @@ function borrowReborrow(v0: int64): int64 {
 
 // entry, init state
 b0(v0: int64):
-    v1: ref<(int64, int64), managed> = managed.alloc (int64, int64)
+    v1: ref<(int64, int64), managed> = new (int64, int64)
     v2: ref<int64, borrowed> = field.address v1, 0
     store v2, v0
     v3: int64 = 0int64

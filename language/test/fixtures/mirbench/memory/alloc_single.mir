@@ -6,7 +6,7 @@ b1(v2: int64):
     v3: boolean = int.ge.s v2, v0
     branch v3, b3, b2
 b2:
-    v4: ref<int64, managed> = managed.alloc int64
+    v4: ref<int64, managed> = new int64
     v5: int64 = 1int64
     v6: int64 = int.add v2, v5
     jump b1(v6)

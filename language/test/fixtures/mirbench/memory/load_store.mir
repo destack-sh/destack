@@ -1,7 +1,7 @@
 function loadStore(v0: int64): int64 {
 b0(v0: int64):
-    v1: ref<int64, managed> = managed.alloc int64
-    v2: ref<int64, managed> = managed.alloc int64
+    v1: ref<int64, managed> = new int64
+    v2: ref<int64, managed> = new int64
     v3: int64 = 0int64
     v4: int64 = 1int64
     store v1, v3

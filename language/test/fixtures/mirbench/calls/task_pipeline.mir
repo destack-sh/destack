@@ -29,11 +29,11 @@ b0(v0: int64, v1: int64):
 function taskPipeline(v0: int64): int64 {
 b0(v0: int64):
     v1: int64 = 64int64
-    v2: ref<int64, managed> = managed.allocArray int64, v1
+    v2: slice<int64> = new.slice int64, v1
     v3: int64 = 0int64
     v4: int64 = 0int64
     jump b1(v3, v4, v2, v4)
-b1(v5: int64, v6: int64, v7: ref<int64, managed>, v8: int64):
+b1(v5: int64, v6: int64, v7: slice<int64>, v8: int64):
     v9: boolean = int.ge.s v5, v0
     branch v9, b6(v6), b2
 b2:
@@ -48,12 +48,12 @@ b2:
     v18: int64 = 0int64
     v19: boolean = int.eq v15, v18
     branch v19, b3(v17, v5, v6, v7, v15), b4(v17, v5, v6, v7, v15)
-b3(v20: int64, v21: int64, v22: int64, v23: ref<int64, managed>, v24: int64):
+b3(v20: int64, v21: int64, v22: int64, v23: slice<int64>, v24: int64):
     v25: int64 = call stageExec(v20, v21): (int64, int64) -> int64
     jump b5(v25, v21, v22, v23, v24)
-b4(v26: int64, v27: int64, v28: int64, v29: ref<int64, managed>, v30: int64):
+b4(v26: int64, v27: int64, v28: int64, v29: slice<int64>, v30: int64):
     jump b5(v26, v27, v28, v29, v30)
-b5(v31: int64, v32: int64, v33: int64, v34: ref<int64, managed>, v35: int64):
+b5(v31: int64, v32: int64, v33: int64, v34: slice<int64>, v35: int64):
     v36: int64 = call stageLog(v31, v33): (int64, int64) -> int64
     v37: int64 = 63int64
     v38: int64 = int.and v32, v37

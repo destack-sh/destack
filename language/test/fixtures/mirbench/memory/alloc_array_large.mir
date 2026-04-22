@@ -8,7 +8,7 @@ b1(v3: int64, v4: int64):
     branch v5, b3(v4), b2
 b2:
     v6: int64 = 64int64
-    v7: ref<int64, managed> = managed.allocArray int64, v6
+    v7: slice<int64> = new.slice int64, v6
     v8: int64 = 0int64
     v9: ref<int64, borrowed> = element.address v7, v8
     store v9, v3

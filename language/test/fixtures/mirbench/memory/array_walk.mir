@@ -1,9 +1,9 @@
 function arrayWalk(v0: int64): int64 {
 b0(v0: int64):
-    v1: ref<int64, managed> = managed.allocArray int64, v0
+    v1: slice<int64> = new.slice int64, v0
     v2: int64 = 0int64
     jump b1(v2, v1)
-b1(v3: int64, v4: ref<int64, managed>):
+b1(v3: int64, v4: slice<int64>):
     v5: boolean = int.ge.s v3, v0
     branch v5, b3(v4), b2
 b2:
@@ -12,11 +12,11 @@ b2:
     v7: int64 = 1int64
     v8: int64 = int.add v3, v7
     jump b1(v8, v4)
-b3(v9: ref<int64, managed>):
+b3(v9: slice<int64>):
     v10: int64 = 0int64
     v11: int64 = 0int64
     jump b4(v10, v9, v11)
-b4(v12: int64, v13: ref<int64, managed>, v14: int64):
+b4(v12: int64, v13: slice<int64>, v14: int64):
     v15: boolean = int.ge.s v12, v0
     branch v15, b6(v14), b5
 b5:
