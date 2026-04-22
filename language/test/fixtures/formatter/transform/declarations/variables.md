@@ -184,3 +184,42 @@ declare const PAGE_PATH: string;
 ```ts expected
 declare const PAGE_PATH: string;
 ```
+
+### assignment comments keep initializer attachment
+
+Assignment comments stay attached to the initializer shell.
+
+```ts:main.ts line-width=80
+var longlonglonglonglonglong = /*#__PURE__*/_interopDefaultLegacy(aaaaaaaaaaaaaaa);
+var short = /*#__PURE__*/_interopDefaultLegacy(b);
+
+const jestPackageJson =
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require(jestPath);
+
+class A {
+  #testerConfig;
+  constructor() {
+    let basePath: string | undefined =
+      this.#testerConfig.languageOptions.parserOptions?.tsconfigRootDir;
+  }
+}
+```
+
+```ts expected
+var longlonglonglonglonglong =
+    /*#__PURE__*/ _interopDefaultLegacy(aaaaaaaaaaaaaaa);
+var short = /*#__PURE__*/ _interopDefaultLegacy(b);
+
+const jestPackageJson =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require(jestPath);
+
+class A {
+    #testerConfig;
+    constructor() {
+        let basePath: string | undefined =
+            this.#testerConfig.languageOptions.parserOptions?.tsconfigRootDir;
+    }
+}
+```
