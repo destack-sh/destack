@@ -14,15 +14,15 @@ use crate::{
 
 use super::Validator;
 
-/// Parse MIR source and return the parse error.
-fn parse_error(source: &str) -> ParseError {
+/// Parse and validate MIR source, then return the validation error.
+fn assert_validate_error(source: &str) -> ParseError {
     Parser::parse(FileId::new(0), source, ParseOptions::default())
         .validate()
         .expect_err("expected parse failure")
 }
 
-/// Parse MIR source and assert success.
-fn parse_ok(source: &str) {
+/// Parse and validate MIR source, then assert success.
+fn assert_validate_ok(source: &str) {
     Parser::parse(FileId::new(0), source, ParseOptions::default())
         .validate()
         .expect("expected parse success");
@@ -153,7 +153,7 @@ b1(v0: int32):
     return v0
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(error.message, "duplicate value definition v0");
 }
 
@@ -166,7 +166,7 @@ b0(value1: int32):
     return value1
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(error.message, "duplicate MIR value name");
 }
 
@@ -181,7 +181,7 @@ b1:
     return
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(error.message, "duplicate MIR block name");
 }
 
@@ -196,7 +196,7 @@ b1(v0: int32):
     return
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(
         error.message,
         "block argument count mismatch for block1 expected 1 got 0"
@@ -215,7 +215,7 @@ b0:
     return v2
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(
         error.message,
         "call argument count mismatch expected 1 got 2"
@@ -232,7 +232,7 @@ b0:
     return
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(
         error.message,
         "call return value not allowed for void function"
@@ -256,7 +256,7 @@ b0:
     return v0
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(
         error.message,
         "metadata invariant violation: direct call cannot target a function with an environment"
@@ -279,7 +279,7 @@ b0:
     tailCall callee(): () -> int32
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(
         error.message,
         "metadata invariant violation: direct call cannot target a function with an environment"
@@ -303,7 +303,7 @@ b0(v0: ref<int32, managed>):
     return v0
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(
         error.message,
         "metadata invariant violation: function.address cannot target a function with an environment"
@@ -327,7 +327,7 @@ b0(v0: ref<int64, managed>):
     return v0
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(
         error.message,
         "metadata invariant violation: function.bind environment type mismatch"
@@ -352,7 +352,7 @@ b0(v0: ref<int32, managed>):
     return v2
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(
         error.message,
         "metadata invariant violation: field.get does not support callable"
@@ -368,7 +368,7 @@ b0(v0: int32):
     tailCall noop(): () -> void
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(error.message, "tail call return type mismatch");
 }
 
@@ -388,7 +388,7 @@ b2(v2: ref<int32, managed, readonly>):
     throw v2
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(
         error.message,
         "block argument count mismatch for block1 expected 1 got 0"
@@ -403,7 +403,7 @@ b0:
     trap.panic
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(error.message, "expected value reference, got CloseBrace");
 }
 
@@ -416,7 +416,7 @@ b0(v0: ref<PanicMessage, managed>):
     trap.panic v0
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(
         error.message,
         "metadata invariant violation: trap.panic requires a non null readonly managed reference payload"
@@ -438,7 +438,7 @@ b2(v2: int32):
     return v2
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(
         error.message,
         "metadata invariant violation: call exception continuation requires a managed exception parameter"
@@ -453,7 +453,7 @@ b0:
     return v0
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(error.message, "use of undefined value v0");
 }
 
@@ -465,7 +465,7 @@ b0:
     return
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(error.message, "return value required for non void function");
 }
 
@@ -485,7 +485,7 @@ b2:
     return v2
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(error.message, "duplicate switch case value 0");
 }
 
@@ -965,7 +965,7 @@ b0:
     return
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(
         error.message,
         "metadata invariant violation: pointer-producing instruction result type mismatches pointee"
@@ -981,11 +981,23 @@ b0(v0: int32[4], v1: float32):
     return v2
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(
         error.message,
         "metadata invariant violation: element.get index must be an integer type"
     );
+}
+
+/// Accept element projections on dynamic array references.
+#[test]
+fn test_accept_element_get_with_dynamic_array_reference() {
+    let source = r#"function good(v0: ref<int32[], managed>, v1: int64): int32 {
+b0(v0: ref<int32[], managed>, v1: int64):
+    v2: int32 = element.get v0, v1
+    return v2
+}"#;
+
+    assert_validate_ok(source);
 }
 
 /// Reject field projections with out-of-bounds static indices.
@@ -1002,7 +1014,7 @@ b0(v0: Pair):
     return v1
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(
         error.message,
         "metadata invariant violation: field.get field index 3 out of bounds for struct with 2 fields"
@@ -1018,12 +1030,12 @@ fn test_reject_ptr_to_int_for_managed_reference() {
 
 function bad(): int64 {
 b0:
-    v0: ref<Box, managed> = managed.alloc Box
+    v0: ref<Box, managed> = new Box
     v1: int64 = cast.pointerToInt v0 -> int64
     return v1
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(
         error.message,
         "metadata invariant violation: ptr_to_int requires raw pointer source and integer destination"
@@ -1039,7 +1051,7 @@ b0(v0: int32):
     return v1
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(
         error.message,
         "metadata invariant violation: cast.bit requires equal storage size, got 4 and 8 bytes"
@@ -1058,7 +1070,7 @@ b0(v0: ref<int32, raw>):
     return v1
 }"#;
 
-    parse_ok(source);
+    assert_validate_ok(source);
 }
 
 /// Reject address space casts that change pointee semantics.
@@ -1078,7 +1090,7 @@ b0:
     return
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(
         error.message,
         "metadata invariant violation: space.cast requires matching reference kind, mutability, and pointee"
@@ -1152,7 +1164,7 @@ fn test_dynamic_call_declared_target_is_inline() {
 
 /// Reject managed allocation instructions when noManaged is required.
 #[test]
-fn test_reject_managed_alloc_with_no_managed_mode() {
+fn test_reject_new_with_no_managed_mode() {
     let mut tree = NodeTree::new();
     let pool = StringPool::new();
     let name = pool.intern("noManaged");
@@ -1170,7 +1182,7 @@ fn test_reject_managed_alloc_with_no_managed_mode() {
         is_nullable: false,
     });
     let destination = Value::new(0);
-    let instruction = tree.insert(Instruction::ManagedAlloc {
+    let instruction = tree.insert(Instruction::New {
         destination: value_reference(destination),
         layout: type_reference(layout_ty),
         result_type: type_reference(result_ty),
@@ -1196,7 +1208,7 @@ fn test_reject_managed_alloc_with_no_managed_mode() {
         .expect_err("expected validation failure");
     assert_eq!(
         error.to_string(),
-        "metadata invariant violation: allocation mode violation: 'managed.alloc' is invalid because noManaged forbids managed allocations"
+        "metadata invariant violation: allocation mode violation: 'new' is invalid because noManaged forbids managed allocations"
     );
 }
 
@@ -1250,7 +1262,55 @@ fn test_reject_raw_alloc_with_stack_only_mode() {
     );
 }
 
-/// Reject pinning non-local or non-managed references.
+/// Reject raw allocations that pretend to return owned references.
+#[test]
+fn test_reject_raw_alloc_with_owned_reference() {
+    let source = r#"function bad(): void {
+entry0():
+    value0: ref<int32, owned> = raw.alloc int32
+    return
+}"#;
+
+    let error = assert_validate_error(source);
+    assert_eq!(
+        error.message,
+        "metadata invariant violation: pointer-producing instruction result type has wrong reference kind"
+    );
+}
+
+/// Reject heap allocations that pretend to return raw references.
+#[test]
+fn test_reject_new_with_raw_reference() {
+    let source = r#"function bad(): void {
+entry0():
+    value0: ref<int32, raw> = new int32
+    return
+}"#;
+
+    let error = assert_validate_error(source);
+    assert_eq!(
+        error.message,
+        "metadata invariant violation: new result type has wrong reference kind"
+    );
+}
+
+/// Reject heap array allocations with non integer lengths.
+#[test]
+fn test_reject_new_array_with_non_integer_length() {
+    let source = r#"function bad(value0: float32): void {
+entry0(value0: float32):
+    value1: ref<int32[], managed> = new.array int32, value0
+    return
+}"#;
+
+    let error = assert_validate_error(source);
+    assert_eq!(
+        error.message,
+        "metadata invariant violation: new.array length must be an integer type"
+    );
+}
+
+/// Reject pinning non-local or non-heap references.
 #[test]
 fn test_reject_pin_for_raw_reference() {
     let source = r#"function bad(value0: ref<int32, raw>): void {
@@ -1259,9 +1319,22 @@ entry0(value0: ref<int32, raw>):
     return
 }"#;
 
-    let error = parse_error(source);
+    let error = assert_validate_error(source);
     assert_eq!(
         error.message,
-        "metadata invariant violation: pin value must be one local managed reference"
+        "metadata invariant violation: pin value must be one local heap reference"
     );
+}
+
+/// Accept pinning local owned references.
+#[test]
+fn test_accept_pin_for_owned_reference() {
+    let source = r#"function good(value0: ref<int32, owned>): void {
+entry0(value0: ref<int32, owned>):
+    pin value0
+    unpin value0
+    return
+}"#;
+
+    assert_validate_ok(source);
 }

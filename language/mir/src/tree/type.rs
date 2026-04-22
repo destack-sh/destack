@@ -243,6 +243,13 @@ pub enum Type {
         /// Copyability of this array type.
         copyability: Copyability,
     },
+    /// Dynamic array: `T[]`.
+    DynamicArray {
+        /// The element type of the array.
+        element: TypeReference,
+        /// Copyability of this array type.
+        copyability: Copyability,
+    },
     /// Tuple: `(T1, T2, ...)`.
     Tuple {
         /// The element types of the tuple.
@@ -510,6 +517,7 @@ impl Type {
 
             // aggregates have explicit copyability
             Type::Array { copyability, .. }
+            | Type::DynamicArray { copyability, .. }
             | Type::Tuple { copyability, .. }
             | Type::Struct { copyability, .. }
             | Type::Newtype { copyability, .. }

@@ -212,7 +212,7 @@ type Env {
 
 function makeEnv(): ref<Env, managed> {
 b0:
-    v0: ref<Env, managed> = managed.alloc Env
+    v0: ref<Env, managed> = new Env
     return v0
 }"#;
 

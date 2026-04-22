@@ -96,7 +96,7 @@ Instructions perform "operations" and may produce SSA `Value`s.
 | Vector | `vector.*` (splat, extract, insert, shuffle, select, reduce, compare, convert) |
 | Tensor | `tensor.*` (load, store, fill, copy, reshape, broadcast, transpose, cast, view, slice, pad, concat, compare, select, reduce, dot, convolution, gather, scatter, convert) |
 | Calls | `call`, `call.virtual`, `call.interface`, `call.indirect` |
-| Allocation | `managed.alloc`, `managed.allocArray`, `raw.alloc`, `raw.free`, `stack.alloc` |
+| Allocation | `new`, `new.array`, `raw.alloc`, `raw.free`, `stack.alloc` |
 | Intrinsics | `intrinsic.*` |
 
 Canonical MIR formatting uses camelCase for multiword instruction and intrinsic names.
@@ -160,11 +160,11 @@ Borrowed `&T` is a dependent address into some other carrier.
 Borrowed values therefore require region proof.
 They do not keep the referent alive on their own.
 
-Pinning is a MIR responsibility for local moving managed storage.
-`pin` stabilizes one local managed value against movement.
+Pinning is a MIR responsibility for local moving heap storage.
+`pin` stabilizes one local heap value against movement.
 `unpin` releases that stability.
-The compiler inserts `pin` and `unpin` when a borrowed address into local managed storage must survive a safepoint or suspension.
-Shared managed, raw, stack, frame, and global storage need no such stabilization.
+When a borrowed address into local heap storage must survive a safepoint or suspension, the surrounding MIR must insert `pin` and `unpin`.
+Shared heap, raw, stack, frame, and global storage need no such stabilization.
 
 Cleanup placement is also a MIR responsibility.
 `dispose` and `dispose.async` are explicit deterministic cleanup hooks.

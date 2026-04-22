@@ -322,8 +322,7 @@ impl Parser {
         let location = match text {
             "none" => MemoryRegionSet::NONE,
             "any" => MemoryRegionSet::ANY,
-            "managedHeap" => MemoryRegionSet::MANAGED_HEAP,
-            "immortalHeap" => MemoryRegionSet::IMMORTAL_HEAP,
+            "heap" => MemoryRegionSet::HEAP,
             "rawHeap" => MemoryRegionSet::RAW_HEAP,
             "stack" => MemoryRegionSet::STACK,
             "global" => MemoryRegionSet::GLOBAL,

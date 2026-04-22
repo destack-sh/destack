@@ -877,19 +877,19 @@ impl Parser {
                     }
 
                     // allocation operations
-                    "managed.alloc" => {
+                    "new" => {
                         let layout = self.parse_type()?;
-                        Instruction::ManagedAlloc {
+                        Instruction::New {
                             destination,
                             layout: layout.into(),
                             result_type: destination_type.into(),
                         }
                     }
-                    "managed.allocArray" => {
+                    "new.array" => {
                         let element = self.parse_type()?;
                         self.eat_token(TokenType::Comma)?;
                         let length = self.parse_value()?;
-                        Instruction::ManagedAllocArray {
+                        Instruction::NewArray {
                             destination,
                             element: element.into(),
                             length,

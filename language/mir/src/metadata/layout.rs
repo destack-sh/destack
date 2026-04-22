@@ -11,27 +11,27 @@ use crate::{
     TypeLineage, TypeReference, UnionLayout, WellKnownTypes,
 };
 
-/// Managed-reference trace metadata for one runtime payload.
+/// Heap-reference trace metadata for one runtime payload.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum LayoutTrace {
-    /// Payload contains no managed references.
+    /// Payload contains no heap references.
     None,
-    /// Payload stores direct managed-reference words at fixed byte offsets.
+    /// Payload stores direct heap-reference words at fixed byte offsets.
     Reference {
-        /// Byte offsets of encoded local managed references.
+        /// Byte offsets of encoded local heap references.
         local_offsets: Box<[u32]>,
-        /// Byte offsets of encoded shared managed references.
+        /// Byte offsets of encoded shared heap references.
         shared_offsets: Box<[u32]>,
     },
-    /// Payload stores repeated elements with managed-reference words at fixed element offsets.
+    /// Payload stores repeated elements with heap-reference words at fixed element offsets.
     RepeatedReference {
         /// The number of elements in the payload.
         count: u32,
         /// The element byte stride.
         stride: u32,
-        /// Local managed-reference byte offsets within each element.
+        /// Local heap-reference byte offsets within each element.
         local_offsets: Box<[u32]>,
-        /// Shared managed-reference byte offsets within each element.
+        /// Shared heap-reference byte offsets within each element.
         shared_offsets: Box<[u32]>,
     },
 }
@@ -42,12 +42,12 @@ impl LayoutTrace {
         Self::None
     }
 
-    /// Report whether this trace can reach managed references.
+    /// Report whether this trace can reach heap references.
     pub fn has_reference(&self) -> bool {
         self.has_local_reference() || self.has_shared_reference()
     }
 
-    /// Report whether this trace can reach local managed references.
+    /// Report whether this trace can reach local heap references.
     pub fn has_local_reference(&self) -> bool {
         match self {
             Self::None => false,
@@ -60,7 +60,7 @@ impl LayoutTrace {
         }
     }
 
-    /// Report whether this trace can reach shared managed references.
+    /// Report whether this trace can reach shared heap references.
     pub fn has_shared_reference(&self) -> bool {
         match self {
             Self::None => false,
@@ -79,15 +79,15 @@ impl LayoutTrace {
 pub struct Storage {
     /// Native pointer size in bytes for this module.
     pub native_pointer_bytes: u8,
-    /// Managed reference size in bytes.
-    pub managed_reference_bytes: u8,
+    /// Heap reference size in bytes.
+    pub heap_reference_bytes: u8,
 }
 
 impl Default for Storage {
     fn default() -> Self {
         Self {
             native_pointer_bytes: 8,
-            managed_reference_bytes: 8,
+            heap_reference_bytes: 8,
         }
     }
 }
@@ -97,7 +97,7 @@ impl Storage {
     pub fn with_pointer_bytes(pointer_bytes: u8) -> Self {
         Self {
             native_pointer_bytes: pointer_bytes,
-            managed_reference_bytes: pointer_bytes,
+            heap_reference_bytes: pointer_bytes,
         }
     }
 
@@ -106,9 +106,9 @@ impl Storage {
         u16::from(self.native_pointer_bytes) * 8
     }
 
-    /// Return managed reference width in bits.
-    pub fn managed_reference_bits(self) -> u16 {
-        u16::from(self.managed_reference_bytes) * 8
+    /// Return heap reference width in bits.
+    pub fn heap_reference_bits(self) -> u16 {
+        u16::from(self.heap_reference_bytes) * 8
     }
 }
 
@@ -584,7 +584,7 @@ impl LayoutMetadataCompletion<'_> {
         }
     }
 
-    /// Append managed-reference offsets for one concrete type.
+    /// Append heap-reference offsets for one concrete type.
     fn append_layout_trace_offsets(
         &mut self,
         type_id: LocalNodeId<Type>,
@@ -594,7 +594,7 @@ impl LayoutMetadataCompletion<'_> {
     ) -> LayoutMetadataResult<()> {
         match self.tree.get(type_id) {
             Type::Reference {
-                kind: ReferenceKind::Managed,
+                kind: ReferenceKind::Managed | ReferenceKind::Owned,
                 address_space,
                 ..
             } => {
@@ -915,7 +915,7 @@ type Mixed {
         assert_eq!(raw_layout.fields[2].offset, 16);
     }
 
-    /// Canonical layout metadata should record one managed-reference trace.
+    /// Canonical layout metadata should record one heap-reference trace.
     #[test]
     fn test_complete_layout_metadata_records_struct_trace() {
         let mir_text = r#"
@@ -934,7 +934,7 @@ type Packed {
         assert_eq!(layout.fields[1].offset, 8);
         assert_eq!(layout.fields[2].offset, 16);
 
-        // managed-reference trace
+        // heap-reference trace
         assert_eq!(
             layout.trace,
             LayoutTrace::Reference {

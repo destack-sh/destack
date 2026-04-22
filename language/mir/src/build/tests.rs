@@ -807,19 +807,19 @@ fn test_managed_reference_types() {
     ));
 }
 
-/// Allocation instruction: managed.alloc.
+/// Allocation instruction: new.
 #[test]
-fn test_build_managed_alloc() {
+fn test_build_new() {
     // setup
     let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let ref_type = module.type_managed_reference(i32_type);
 
-    // build function with managed.alloc
+    // build function with new
     let mut builder = module.function("allocTest", &[], ref_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
-    let allocated_value = builder.managed_alloc(i32_type, ref_type);
+    let allocated_value = builder.new_(i32_type, ref_type);
     builder.return_(Some(allocated_value));
     builder.seal_block(entry_block);
     builder.finish();
@@ -830,27 +830,28 @@ fn test_build_managed_alloc() {
     let expected = "\
 function allocTest(): ref<int32, managed, readonly> {
 entry0:
-    value0: ref<int32, managed, readonly> = managed.alloc int32
+    value0: ref<int32, managed, readonly> = new int32
     return value0
 }";
     assert_eq!(output, expected);
 }
 
-/// Allocation instruction: managed.allocArray.
+/// Allocation instruction: new.array.
 #[test]
-fn test_build_managed_alloc_array() {
+fn test_build_new_array() {
     // setup
     let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let i64_type = module.type_i64();
-    let array_ref_type = module.type_managed_reference(i32_type);
+    let array_type = module.type_dynamic_array(i32_type, Copyability::Trivial);
+    let array_ref_type = module.type_managed_reference(array_type);
 
-    // build function with managed.allocArray
+    // build function with new.array
     let mut builder = module.function("allocArrayTest", &[i64_type], array_ref_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let length_value = builder.function_parameter(0);
-    let allocated_value = builder.managed_alloc_array(i32_type, length_value, array_ref_type);
+    let allocated_value = builder.new_array(i32_type, length_value, array_ref_type);
     builder.return_(Some(allocated_value));
     builder.seal_block(entry_block);
     builder.finish();
@@ -859,9 +860,9 @@ fn test_build_managed_alloc_array() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function allocArrayTest(value0: int64): ref<int32, managed, readonly> {
+function allocArrayTest(value0: int64): ref<int32[], managed, readonly> {
 entry0(value0: int64):
-    value1: ref<int32, managed, readonly> = managed.allocArray int32, value0
+    value1: ref<int32[], managed, readonly> = new.array int32, value0
     return value1
 }";
     assert_eq!(output, expected);

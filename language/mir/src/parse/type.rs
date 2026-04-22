@@ -84,16 +84,23 @@ impl Parser {
                     // alias postfixes
                     let mut type_id = alias_id;
                     while self.eat_token_maybe(TokenType::OpenBracket) {
-                        let length = self.parse_int_literal()?;
-                        let length = u64::try_from(length)
-                            .map_err(|_| ParseError::invalid("array length", self.pos()))?;
-                        self.eat_token(TokenType::CloseBracket)?;
+                        if self.eat_token_maybe(TokenType::CloseBracket) {
+                            type_id = self.intern_type(Type::DynamicArray {
+                                element: type_id.into(),
+                                copyability: Copyability::default(),
+                            });
+                        } else {
+                            let length = self.parse_int_literal()?;
+                            let length = u64::try_from(length)
+                                .map_err(|_| ParseError::invalid("array length", self.pos()))?;
+                            self.eat_token(TokenType::CloseBracket)?;
 
-                        type_id = self.intern_type(Type::Array {
-                            element: type_id.into(),
-                            length,
-                            copyability: Copyability::default(),
-                        });
+                            type_id = self.intern_type(Type::Array {
+                                element: type_id.into(),
+                                length,
+                                copyability: Copyability::default(),
+                            });
+                        }
                     }
 
                     return Ok(type_id);
@@ -195,16 +202,23 @@ impl Parser {
         let mut type_id = self.intern_type(ty);
         // parse postfix array suffixes like `int32[4]`
         while self.eat_token_maybe(TokenType::OpenBracket) {
-            let length = self.parse_int_literal()?;
-            let length = u64::try_from(length)
-                .map_err(|_| ParseError::invalid("array length", self.pos()))?;
-            self.eat_token(TokenType::CloseBracket)?;
+            if self.eat_token_maybe(TokenType::CloseBracket) {
+                type_id = self.intern_type(Type::DynamicArray {
+                    element: type_id.into(),
+                    copyability: Copyability::default(),
+                });
+            } else {
+                let length = self.parse_int_literal()?;
+                let length = u64::try_from(length)
+                    .map_err(|_| ParseError::invalid("array length", self.pos()))?;
+                self.eat_token(TokenType::CloseBracket)?;
 
-            type_id = self.intern_type(Type::Array {
-                element: type_id.into(),
-                length,
-                copyability: Copyability::default(),
-            });
+                type_id = self.intern_type(Type::Array {
+                    element: type_id.into(),
+                    length,
+                    copyability: Copyability::default(),
+                });
+            }
         }
 
         Ok(type_id)

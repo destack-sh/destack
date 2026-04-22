@@ -1288,7 +1288,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 format_call_signature_suffix(call.signature, f)
             }
 
-            Instruction::ManagedAlloc {
+            Instruction::New {
                 destination,
                 layout,
                 ..
@@ -1296,18 +1296,11 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("managed.alloc"),
-                        space(),
-                        layout
-                    ]
+                    [space(), token("="), space(), token("new"), space(), layout]
                 )
             }
 
-            Instruction::ManagedAllocArray {
+            Instruction::NewArray {
                 destination,
                 element,
                 length,
@@ -1320,7 +1313,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("managed.allocArray"),
+                        token("new.array"),
                         space(),
                         element,
                         token(","),
@@ -2007,8 +2000,7 @@ fn collect_memory_location_names(locations: MemoryRegionSet) -> Vec<&'static str
     // collect named regions in canonical order
     let mut names = Vec::new();
     let ordered = [
-        ("managedHeap", MemoryRegionSet::MANAGED_HEAP),
-        ("immortalHeap", MemoryRegionSet::IMMORTAL_HEAP),
+        ("heap", MemoryRegionSet::HEAP),
         ("rawHeap", MemoryRegionSet::RAW_HEAP),
         ("stack", MemoryRegionSet::STACK),
         ("global", MemoryRegionSet::GLOBAL),
