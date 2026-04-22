@@ -172,24 +172,18 @@ impl<'a> ModuleLowerer<'a> {
                 // get the element types from the type
                 let mir_type = tree.get(ty);
                 let element_types = match mir_type {
-                    mir::Type::Tuple {
-                        elements,
-                        copyability: _,
-                    } => elements
+                    mir::Type::Tuple { elements, copy: _ } => elements
                         .iter()
                         .map(|element| self.type_id(*element, "tuple element type"))
                         .collect::<CodegenCraneliftResult<Vec<_>>>()?,
-                    mir::Type::Struct {
-                        fields,
-                        copyability: _,
-                    } => fields
+                    mir::Type::Struct { fields, copy: _ } => fields
                         .iter()
                         .map(|field| self.type_id(tree.get(*field).ty, "struct field type"))
                         .collect::<CodegenCraneliftResult<Vec<_>>>()?,
                     mir::Type::Array {
                         element,
                         length,
-                        copyability: _,
+                        copy: _,
                     } => {
                         let element = self.type_id(*element, "array element type")?;
                         vec![element; *length as usize]
