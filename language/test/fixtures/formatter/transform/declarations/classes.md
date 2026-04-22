@@ -787,6 +787,33 @@ export default class Handler { }
 export default class Handler {}
 ```
 
+### export before decorator clause
+
+Exported class decorators stay after `export` when they start after the export keyword.
+
+```ts:main.ts
+export @logged class Handler {}
+```
+
+```ts expected
+export
+@logged
+class Handler {}
+```
+
+### decorator before export clause
+
+Leading decorators stay before `export` when they start before the export keyword.
+
+```ts:main.ts
+@logged export class Handler {}
+```
+
+```ts expected
+@logged
+export class Handler {}
+```
+
 ## Line Breaking
 
 ### class with many type params breaks

@@ -188,6 +188,34 @@ class Box {
 }
 ```
 
+### interleaved method decorator comments stay in order
+
+Comments between stacked method decorators stay interleaved with the same decorator group.
+
+```ts:main.ts
+class Box {
+  // comment before entity
+  @entity
+  // comment after entity
+  // comment before foo
+  @foo(1, 2, 3)
+  // comment after foo
+  method() {}
+}
+```
+
+```ts expected
+class Box {
+    // comment before entity
+    @entity
+    // comment after entity
+    // comment before foo
+    @foo(1, 2, 3)
+    // comment after foo
+    method() {}
+}
+```
+
 ## Interfaces And Method Types
 
 ### interface method parameter trailing comment
