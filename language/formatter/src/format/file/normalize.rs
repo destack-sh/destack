@@ -1,9 +1,11 @@
 use destack_ast::{
-    Declaration, Declarator, Expression, FunctionSignature, GenericArgument, GenericParameter,
-    LocalNodeId, Member, NodeTree, NodeVisitor, NodeVisitorOptions, Parameter, Pattern, Property,
-    TupleElement, TypeExpression, TypeMappedParameter, TypeMember, WhereClause, walk_declaration,
-    walk_declarator, walk_expression, walk_generic_argument, walk_generic_parameter, walk_member,
-    walk_parameter, walk_pattern, walk_property, walk_tuple_element, walk_type_expression,
+    Argument, AssignPattern, AssignPatternField, Declaration, Declarator, Expression,
+    FunctionSignature, GenericArgument, GenericParameter, LocalNodeId, Member, NodeTree,
+    NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField, Property, TupleElement,
+    TypeExpression, TypeMappedParameter, TypeMember, WhereClause, walk_argument,
+    walk_assign_pattern, walk_assign_pattern_field, walk_declaration, walk_declarator,
+    walk_expression, walk_generic_argument, walk_generic_parameter, walk_member, walk_parameter,
+    walk_pattern, walk_pattern_field, walk_property, walk_tuple_element, walk_type_expression,
     walk_type_member, walk_where_clause,
 };
 
@@ -133,6 +135,20 @@ impl NodeVisitor for FormatterTreeNormalizer<'_> {
         walk_parameter(self, snapshot, id, parameter);
     }
 
+    /// Normalize one argument and keep walking the snapshot tree.
+    fn visit_argument(
+        &mut self,
+        snapshot: &NodeTree,
+        id: LocalNodeId<Argument>,
+        argument: &Argument,
+    ) {
+        let mut normalized = argument.clone();
+        normalize_argument(snapshot, &mut normalized);
+        *self.tree.get_mut(id) = normalized;
+
+        walk_argument(self, snapshot, id, argument);
+    }
+
     /// Normalize one generic argument and keep walking the snapshot tree.
     fn visit_generic_argument(
         &mut self,
@@ -168,6 +184,48 @@ impl NodeVisitor for FormatterTreeNormalizer<'_> {
         *self.tree.get_mut(id) = normalized;
 
         walk_pattern(self, snapshot, id, pattern);
+    }
+
+    /// Normalize one pattern field and keep walking the snapshot tree.
+    fn visit_pattern_field(
+        &mut self,
+        snapshot: &NodeTree,
+        id: LocalNodeId<PatternField>,
+        pattern_field: &PatternField,
+    ) {
+        let mut normalized = pattern_field.clone();
+        normalize_pattern_field(snapshot, &mut normalized);
+        *self.tree.get_mut(id) = normalized;
+
+        walk_pattern_field(self, snapshot, id, pattern_field);
+    }
+
+    /// Normalize one assign pattern and keep walking the snapshot tree.
+    fn visit_assign_pattern(
+        &mut self,
+        snapshot: &NodeTree,
+        id: LocalNodeId<AssignPattern>,
+        assign_pattern: &AssignPattern,
+    ) {
+        let mut normalized = assign_pattern.clone();
+        normalize_assign_pattern(snapshot, &mut normalized);
+        *self.tree.get_mut(id) = normalized;
+
+        walk_assign_pattern(self, snapshot, id, assign_pattern);
+    }
+
+    /// Normalize one assign pattern field and keep walking the snapshot tree.
+    fn visit_assign_pattern_field(
+        &mut self,
+        snapshot: &NodeTree,
+        id: LocalNodeId<AssignPatternField>,
+        assign_pattern_field: &AssignPatternField,
+    ) {
+        let mut normalized = assign_pattern_field.clone();
+        normalize_assign_pattern_field(snapshot, &mut normalized);
+        *self.tree.get_mut(id) = normalized;
+
+        walk_assign_pattern_field(self, snapshot, id, assign_pattern_field);
     }
 
     /// Normalize one expression and keep walking the snapshot tree.
@@ -211,6 +269,30 @@ impl NodeVisitor for FormatterTreeNormalizer<'_> {
 
         walk_where_clause(self, snapshot, id, where_clause);
     }
+}
+
+/// Return one formatter-visible expression id without retained wrappers.
+fn normalize_expression_id(
+    tree: &NodeTree,
+    mut expression_id: LocalNodeId<Expression>,
+) -> LocalNodeId<Expression> {
+    loop {
+        match tree.get(expression_id) {
+            Expression::Parenthesized { expression } => {
+                expression_id = *expression;
+            }
+            _ => return expression_id,
+        }
+    }
+}
+
+/// Normalize one optional expression edge.
+fn normalize_optional_expression(
+    tree: &NodeTree,
+    expression_id: &mut Option<LocalNodeId<Expression>>,
+) {
+    *expression_id =
+        expression_id.map(|expression_id| normalize_expression_id(tree, expression_id));
 }
 
 /// Return one formatter-visible type expression id without retained wrappers.
@@ -272,6 +354,7 @@ fn normalize_declaration(tree: &NodeTree, declaration: &mut Declaration) {
             normalize_type_expression_list(tree, &mut declaration.embedded_types);
         }
         Declaration::Class(declaration) => {
+            normalize_optional_expression(tree, &mut declaration.extends_expression);
             normalize_type_expression_list(tree, &mut declaration.implements_types);
         }
         Declaration::Enum(declaration) => {
@@ -286,6 +369,7 @@ fn normalize_declaration(tree: &NodeTree, declaration: &mut Declaration) {
         }
         Declaration::Function(declaration) => {
             normalize_function_signature(tree, &mut declaration.signature);
+            normalize_optional_expression(tree, &mut declaration.body);
         }
     }
 }
@@ -293,16 +377,25 @@ fn normalize_declaration(tree: &NodeTree, declaration: &mut Declaration) {
 /// Normalize one declarator node.
 fn normalize_declarator(tree: &NodeTree, declarator: &mut Declarator) {
     normalize_optional_type_expression(tree, &mut declarator.ty);
+    normalize_optional_expression(tree, &mut declarator.value);
 }
 
 /// Normalize one property node.
 fn normalize_property(tree: &NodeTree, property: &mut Property) {
     match property {
-        Property::Field { .. } => {}
-        Property::Method { signature, .. } => {
-            normalize_function_signature(tree, signature);
+        Property::Field { value, .. } => {
+            *value = normalize_expression_id(tree, *value);
         }
-        Property::Spread { .. } | Property::Error => {}
+        Property::Method {
+            signature, body, ..
+        } => {
+            normalize_function_signature(tree, signature);
+            normalize_optional_expression(tree, body);
+        }
+        Property::Spread { value } => {
+            *value = normalize_expression_id(tree, *value);
+        }
+        Property::Error => {}
     }
 }
 
@@ -312,8 +405,11 @@ fn normalize_type_member(tree: &NodeTree, member: &mut TypeMember) {
         TypeMember::Field { declared_type, .. } => {
             normalize_optional_type_expression(tree, declared_type);
         }
-        TypeMember::Method { signature, .. } => {
+        TypeMember::Method {
+            signature, body, ..
+        } => {
             normalize_function_signature(tree, signature);
+            normalize_optional_expression(tree, body);
         }
         TypeMember::IndexSignature {
             key_type,
@@ -332,8 +428,13 @@ fn normalize_type_member(tree: &NodeTree, member: &mut TypeMember) {
             normalize_optional_type_expression(tree, constraint);
             normalize_optional_type_expression(tree, value);
         }
-        TypeMember::AssociatedConst { declared_type, .. } => {
+        TypeMember::AssociatedConst {
+            declared_type,
+            value,
+            ..
+        } => {
             normalize_optional_type_expression(tree, declared_type);
+            normalize_optional_expression(tree, value);
         }
         TypeMember::Error => {}
     }
@@ -348,19 +449,35 @@ fn normalize_member(tree: &NodeTree, member: &mut Member) {
             normalize_optional_type_expression(tree, constraint);
             normalize_optional_type_expression(tree, value);
         }
-        Member::AssociatedConst { declared_type, .. } => {
+        Member::AssociatedConst {
+            declared_type,
+            value,
+            ..
+        } => {
             normalize_optional_type_expression(tree, declared_type);
+            normalize_optional_expression(tree, value);
         }
-        Member::Field { declared_type, .. } => {
+        Member::Field {
+            declared_type,
+            default,
+            ..
+        } => {
             normalize_optional_type_expression(tree, declared_type);
+            normalize_optional_expression(tree, default);
         }
-        Member::Method { signature, .. } => {
+        Member::Method {
+            signature, body, ..
+        } => {
             normalize_function_signature(tree, signature);
+            normalize_optional_expression(tree, body);
         }
         Member::Embed { value, .. } => {
             *value = normalize_type_expression_id(tree, *value);
         }
-        Member::StaticBlock { .. } | Member::ComptimeBlock { .. } | Member::Error => {}
+        Member::StaticBlock { body } | Member::ComptimeBlock { body } => {
+            *body = normalize_expression_id(tree, *body);
+        }
+        Member::Error => {}
     }
 }
 
@@ -375,8 +492,13 @@ fn normalize_generic_parameter(tree: &NodeTree, parameter: &mut GenericParameter
             normalize_optional_type_expression(tree, constraint);
             normalize_optional_type_expression(tree, default);
         }
-        GenericParameter::Value { declared_type, .. } => {
+        GenericParameter::Value {
+            declared_type,
+            default,
+            ..
+        } => {
             normalize_optional_type_expression(tree, declared_type);
+            normalize_optional_expression(tree, default);
         }
         GenericParameter::Error => {}
     }
@@ -385,13 +507,37 @@ fn normalize_generic_parameter(tree: &NodeTree, parameter: &mut GenericParameter
 /// Normalize one parameter node.
 fn normalize_parameter(tree: &NodeTree, parameter: &mut Parameter) {
     match parameter {
-        Parameter::Named { declared_type, .. }
-        | Parameter::Pattern { declared_type, .. }
-        | Parameter::VariadicNamed { declared_type, .. }
+        Parameter::Named {
+            declared_type,
+            default,
+            ..
+        }
+        | Parameter::Pattern {
+            declared_type,
+            default,
+            ..
+        } => {
+            normalize_optional_type_expression(tree, declared_type);
+            normalize_optional_expression(tree, default);
+        }
+        Parameter::VariadicNamed { declared_type, .. }
         | Parameter::VariadicPattern { declared_type, .. } => {
             normalize_optional_type_expression(tree, declared_type);
         }
         Parameter::Error => {}
+    }
+}
+
+/// Normalize one argument node.
+fn normalize_argument(tree: &NodeTree, argument: &mut Argument) {
+    match argument {
+        Argument::Named { value, .. }
+        | Argument::Labeled { value, .. }
+        | Argument::Positional { value }
+        | Argument::Spread { value, .. } => {
+            *value = normalize_expression_id(tree, *value);
+        }
+        Argument::Error => {}
     }
 }
 
@@ -401,7 +547,10 @@ fn normalize_generic_argument(tree: &NodeTree, argument: &mut GenericArgument) {
         GenericArgument::Type { value } => {
             *value = normalize_type_expression_id(tree, *value);
         }
-        GenericArgument::Value { .. } | GenericArgument::Error => {}
+        GenericArgument::Value { value } => {
+            *value = normalize_expression_id(tree, *value);
+        }
+        GenericArgument::Error => {}
     }
 }
 
@@ -418,22 +567,59 @@ fn normalize_tuple_element(tree: &NodeTree, element: &mut TupleElement) {
 /// Normalize one pattern node.
 fn normalize_pattern(tree: &NodeTree, pattern: &mut Pattern) {
     match pattern {
+        Pattern::Assign { value, .. } | Pattern::Expression { value } => {
+            *value = normalize_expression_id(tree, *value);
+        }
         Pattern::TypeExpression { value }
         | Pattern::TaggedTuple { ty: value, .. }
         | Pattern::TaggedObject { ty: value, .. } => {
             *value = normalize_type_expression_id(tree, *value);
         }
-        Pattern::Assign { .. } => {}
         Pattern::Wildcard
         | Pattern::Must(_)
         | Pattern::ReferenceOf { .. }
         | Pattern::ValueOf { .. }
         | Pattern::Binding { .. }
-        | Pattern::Expression { .. }
         | Pattern::Tuple { .. }
         | Pattern::Array { .. }
         | Pattern::Object { .. }
         | Pattern::Union { .. } => {}
+    }
+}
+
+/// Normalize one pattern field node.
+fn normalize_pattern_field(tree: &NodeTree, pattern_field: &mut PatternField) {
+    match pattern_field {
+        PatternField::Computed { key, .. } => {
+            *key = normalize_expression_id(tree, *key);
+        }
+        PatternField::Named { .. }
+        | PatternField::Positional { .. }
+        | PatternField::Spread { .. }
+        | PatternField::Elision => {}
+    }
+}
+
+/// Normalize one assign pattern node.
+fn normalize_assign_pattern(tree: &NodeTree, assign_pattern: &mut AssignPattern) {
+    match assign_pattern {
+        AssignPattern::Expression { value } | AssignPattern::Assign { value, .. } => {
+            *value = normalize_expression_id(tree, *value);
+        }
+        AssignPattern::Array { .. } | AssignPattern::Object { .. } => {}
+    }
+}
+
+/// Normalize one assign pattern field node.
+fn normalize_assign_pattern_field(tree: &NodeTree, assign_pattern_field: &mut AssignPatternField) {
+    match assign_pattern_field {
+        AssignPatternField::Computed { key, .. } => {
+            *key = normalize_expression_id(tree, *key);
+        }
+        AssignPatternField::Named { .. }
+        | AssignPatternField::Positional { .. }
+        | AssignPatternField::Spread { .. }
+        | AssignPatternField::Elision => {}
     }
 }
 
@@ -445,19 +631,126 @@ fn normalize_where_clause(tree: &NodeTree, where_clause: &mut WhereClause) {
 /// Normalize one expression node.
 fn normalize_expression(tree: &NodeTree, expression: &mut Expression) {
     match expression {
-        Expression::Try { catch_ty, .. } => {
+        Expression::Labelled { body, .. } => {
+            *body = normalize_expression_id(tree, *body);
+        }
+        Expression::If {
+            condition,
+            then_expression,
+            else_expression,
+            ..
+        } => {
+            if let destack_ast::IfCondition::Expression { condition } = condition {
+                *condition = normalize_expression_id(tree, *condition);
+            }
+
+            *then_expression = normalize_expression_id(tree, *then_expression);
+            normalize_optional_expression(tree, else_expression);
+        }
+        Expression::While {
+            condition, body: _, ..
+        } => {
+            *condition = normalize_expression_id(tree, *condition);
+        }
+        Expression::ForEach { iterator, .. } => {
+            *iterator = normalize_expression_id(tree, *iterator);
+        }
+        Expression::For {
+            initialization,
+            condition,
+            increment,
+            ..
+        } => {
+            normalize_optional_expression(tree, initialization);
+            normalize_optional_expression(tree, condition);
+            normalize_optional_expression(tree, increment);
+        }
+        Expression::Await { expression }
+        | Expression::AwaitMaybe { expression }
+        | Expression::Throw { value: expression }
+        | Expression::Delete { value: expression }
+        | Expression::Comptime { body: expression } => {
+            *expression = normalize_expression_id(tree, *expression);
+        }
+        Expression::Return { value }
+        | Expression::Break { value, .. }
+        | Expression::Yield { value, .. } => {
+            normalize_optional_expression(tree, value);
+        }
+        Expression::Try {
+            try_expression,
+            catch_ty,
+            catch_expression,
+            finally_expression,
+            ..
+        } => {
+            *try_expression = normalize_expression_id(tree, *try_expression);
             normalize_optional_type_expression(tree, catch_ty);
+            normalize_optional_expression(tree, catch_expression);
+            normalize_optional_expression(tree, finally_expression);
+        }
+        Expression::Match { value, .. } => {
+            *value = normalize_expression_id(tree, *value);
+        }
+        Expression::TreeExpression { left, .. } => {
+            normalize_optional_expression(tree, left);
         }
         Expression::ObjectExpression { ty, .. } => {
             normalize_optional_type_expression(tree, ty);
         }
+        Expression::As {
+            expression,
+            target_type,
+        }
+        | Expression::Satisfies {
+            expression,
+            target_type,
+        } => {
+            *expression = normalize_expression_id(tree, *expression);
+            *target_type = normalize_type_expression_id(tree, *target_type);
+        }
         Expression::Type { value } => {
             *value = normalize_type_expression_id(tree, *value);
         }
-        Expression::As { target_type, .. }
-        | Expression::Satisfies { target_type, .. }
-        | Expression::Is { target_type, .. } => {
+        Expression::Is { value, target_type } => {
+            *value = normalize_expression_id(tree, *value);
             *target_type = normalize_type_expression_id(tree, *target_type);
+        }
+        Expression::InstanceOf { value, target } => {
+            *value = normalize_expression_id(tree, *value);
+            *target = normalize_expression_id(tree, *target);
+        }
+        Expression::Unary { right, .. }
+        | Expression::ValueOf { right, .. }
+        | Expression::ReferenceOf { right, .. }
+        | Expression::PointerOf { right, .. }
+        | Expression::Member { left: right, .. }
+        | Expression::PrivateMember { left: right, .. }
+        | Expression::Instantiation { left: right, .. }
+        | Expression::Call { left: right, .. }
+        | Expression::New { left: right, .. }
+        | Expression::Maybe { left: right, .. }
+        | Expression::Must { left: right, .. } => {
+            *right = normalize_expression_id(tree, *right);
+        }
+        Expression::Index { left, index, .. } => {
+            *left = normalize_expression_id(tree, *left);
+            normalize_optional_expression(tree, index);
+        }
+        Expression::Binary { left, right, .. } => {
+            *left = normalize_expression_id(tree, *left);
+            *right = normalize_expression_id(tree, *right);
+        }
+        Expression::Assign { right, .. } => {
+            *right = normalize_expression_id(tree, *right);
+        }
+        Expression::SequenceExpression { expressions } => {
+            for expression_id in expressions {
+                *expression_id = normalize_expression_id(tree, *expression_id);
+            }
+        }
+        Expression::Parenthesized { expression } => {
+            *expression = normalize_expression_id(tree, *expression);
         }
         _ => {}
     }

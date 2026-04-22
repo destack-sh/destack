@@ -1,5 +1,5 @@
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::Comment;
+use destack_ast::{Comment, CommentContent};
 use destack_fir::format::{Buffer, Format, FormatResult, Formatter, hard_line_break};
 use destack_fir::prelude::{
     block_indent, empty_line, expand_parent, format_with, group, line_suffix, soft_block_indent,
@@ -8,27 +8,17 @@ use destack_fir::prelude::{
 use destack_fir::write;
 use destack_source::Span;
 
-/// Format one comment or documentation token.
-fn format_comment_source_text<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    comment_source: &str,
-    is_block_comment: bool,
-) -> FormatResult<()> {
-    let is_multiline_comment = comment_source.contains('\n');
-
-    // render one-line comments with trailing whitespace normalized
-    if !is_multiline_comment {
-        write!(f, [text(comment_source.trim_end())])?;
-        return Ok(());
-    }
-
-    // preserve star-aligned block comments in conventional form
-    if is_block_comment && block_comment_is_alignable(comment_source) {
-        format_alignable_block_comment(f, comment_source)?;
-        return Ok(());
-    }
-
-    format_multiline_comment_source(f, comment_source)
+/// Return whether adjacent jsdoc comments should stay nestled together.
+fn should_nestle_adjacent_doc_comments(current: Comment, next: Comment) -> bool {
+    matches!(
+        current.content,
+        CommentContent::Jsdoc | CommentContent::JsdocLegal
+    ) && matches!(
+        next.content,
+        CommentContent::Jsdoc | CommentContent::JsdocLegal
+    ) && current.is_multiline_block()
+        && next.is_multiline_block()
+        && current.span.end == next.span.start
 }
 
 /// Format one comment.
@@ -36,11 +26,52 @@ pub(crate) fn format_comment<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     comment: Comment,
 ) -> FormatResult<()> {
-    f.context_mut().comments_mut().increment_printed_count();
+    f.context_mut().comments_mut().mark_comment_printed(comment);
 
     let comment_source = f.context().span_str(comment.span);
-    let is_block_comment = comment.is_block();
-    format_comment_source_text(f, comment_source, is_block_comment)
+
+    // multiline block comments
+    if comment.is_multiline_block() {
+        if block_comment_is_alignable(comment_source) {
+            let mut lines = comment_source.lines();
+            let Some(first_line) = lines.next() else {
+                return Ok(());
+            };
+
+            write!(f, [text(first_line.trim_end())])?;
+
+            for line in lines {
+                write!(
+                    f,
+                    [
+                        hard_line_break(),
+                        space(),
+                        text(line.trim_end_matches('\r').trim())
+                    ]
+                )?;
+            }
+
+            return Ok(());
+        }
+
+        let mut normalized_comment = String::with_capacity(comment_source.len());
+        let mut lines = comment_source.lines();
+        let Some(first_line) = lines.next() else {
+            return Ok(());
+        };
+
+        normalized_comment.push_str(first_line.trim_end());
+
+        for line in lines {
+            normalized_comment.push('\n');
+            normalized_comment.push_str(line.trim_end_matches('\r'));
+        }
+
+        write!(f, [text(&normalized_comment)])?;
+        return Ok(());
+    }
+
+    write!(f, [text(comment_source.trim_end())])
 }
 
 /// Return one leading comment formatter for one node span.
@@ -73,7 +104,13 @@ impl<'a> Format<DestackFormatContext<'a>> for FormatLeadingComments<'_> {
                 if comment.is_block() {
                     match source.lines_after(comment.span.end) {
                         0 => {
-                            write!(f, [space()])?;
+                            let should_nestle = comments.peek().is_some_and(|next_comment| {
+                                should_nestle_adjacent_doc_comments(comment, *next_comment)
+                            });
+
+                            if !should_nestle {
+                                write!(f, [space()])?;
+                            }
                         }
                         1 => {
                             let lines_before = {
@@ -127,7 +164,7 @@ impl<'a> Format<DestackFormatContext<'a>> for FormatLeadingComments<'_> {
     }
 }
 
-/// Write trailing comments with upstream-shaped line-suffix behavior.
+/// Write trailing comments with line-suffix behavior.
 fn write_trailing_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     comments: &[Comment],
@@ -146,15 +183,16 @@ fn write_trailing_comments_with_options<'ast>(
     let mut previous_comment = None;
 
     for comment in comments.iter().copied() {
-        f.context_mut().comments_mut().increment_printed_count();
+        f.context_mut().comments_mut().mark_comment_printed(comment);
 
-        let comment_source = f.context().span_str(comment.span);
-        let is_block_comment = comment.is_block();
         let lines_before = {
             let comment_cursor = f.context().comments();
             source.get_lines_before(comment.span, comment_cursor)
         };
         total_lines_before += lines_before;
+        let should_nestle = previous_comment.is_some_and(|previous_comment| {
+            should_nestle_adjacent_doc_comments(previous_comment, comment)
+        });
 
         if total_lines_before > 0 || previous_comment.is_some_and(Comment::is_line) {
             write!(
@@ -162,6 +200,7 @@ fn write_trailing_comments_with_options<'ast>(
                 [line_suffix(&format_with(
                     move |f: &mut DestackFormatter<'ast, '_>| {
                         match lines_before {
+                            _ if should_nestle => {}
                             0 => {
                                 if previous_comment.is_some_and(Comment::is_line) {
                                     write!(f, [hard_line_break()])?;
@@ -177,15 +216,17 @@ fn write_trailing_comments_with_options<'ast>(
                             }
                         }
 
-                        format_comment_source_text(f, comment_source, is_block_comment)
+                        format_comment(f, comment)
                     }
                 ))]
             )?;
         } else {
             let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                write!(f, [space()])?;
+                if !should_nestle {
+                    write!(f, [space()])?;
+                }
 
-                format_comment_source_text(f, comment_source, is_block_comment)
+                format_comment(f, comment)
             });
 
             if comment.is_line() {
@@ -214,16 +255,16 @@ pub(crate) fn write_comment_slice<'ast>(
     let mut previous_comment = None;
 
     for comment in comments.iter().copied() {
-        f.context_mut().comments_mut().increment_printed_count();
-
-        let comment_source = f.context().span_str(comment.span);
-        let is_block_comment = comment.is_block();
         let lines_before = {
             let comment_cursor = f.context().comments();
             source.get_lines_before(comment.span, comment_cursor)
         };
+        let should_nestle = previous_comment.is_some_and(|previous_comment| {
+            should_nestle_adjacent_doc_comments(previous_comment, comment)
+        });
 
         match lines_before {
+            0 if should_nestle => {}
             0 => {
                 if previous_comment.is_some_and(Comment::is_line) {
                     write!(f, [hard_line_break()])?;
@@ -239,7 +280,7 @@ pub(crate) fn write_comment_slice<'ast>(
             }
         }
 
-        format_comment_source_text(f, comment_source, is_block_comment)?;
+        format_comment(f, comment)?;
         previous_comment = Some(comment);
     }
 
@@ -321,7 +362,13 @@ impl<'a> Format<DestackFormatContext<'a>> for FormatDanglingComments<'_> {
 
                 for comment in comments.iter().copied() {
                     if previous_comment.is_some() {
-                        write!(f, [hard_line_break()])?;
+                        let should_nestle = previous_comment.is_some_and(|previous_comment| {
+                            should_nestle_adjacent_doc_comments(previous_comment, comment)
+                        });
+
+                        if !should_nestle {
+                            write!(f, [hard_line_break()])?;
+                        }
                     }
 
                     format_comment(f, comment)?;
@@ -409,96 +456,6 @@ impl<'a> Format<DestackFormatContext<'a>> for FormatTrailingComments<'_> {
             }
         }
     }
-}
-
-/// Format one multiline comment source with explicit line breaks.
-fn format_multiline_comment_source<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    comment_source: &str,
-) -> FormatResult<()> {
-    let mut lines = comment_source.lines();
-    let Some(first_line) = lines.next() else {
-        return Ok(());
-    };
-
-    write!(f, [text(first_line.trim_end_matches('\r').trim_end())])?;
-
-    let remaining_lines = lines.collect::<Vec<_>>();
-    let common_indent = common_multiline_comment_indent(&remaining_lines);
-    for line in remaining_lines {
-        let line = line.trim_end_matches('\r');
-        let line = if common_indent == 0 {
-            line
-        } else {
-            let mut end_index = 0;
-            for byte in line.as_bytes().iter().take(common_indent) {
-                if !matches!(*byte, b' ' | b'\t') {
-                    break;
-                }
-
-                end_index += 1;
-            }
-
-            &line[end_index..]
-        };
-        write!(f, [hard_line_break(), text(line)])?;
-    }
-
-    Ok(())
-}
-
-/// Return the common leading indentation width for multiline comment lines.
-fn common_multiline_comment_indent(lines: &[&str]) -> usize {
-    let mut common_indent = usize::MAX;
-
-    for line in lines {
-        let line = line.trim_end_matches('\r');
-        if line.trim().is_empty() {
-            continue;
-        }
-
-        let line_indent = line
-            .as_bytes()
-            .iter()
-            .take_while(|byte| matches!(**byte, b' ' | b'\t'))
-            .count();
-        common_indent = common_indent.min(line_indent);
-    }
-
-    if common_indent == usize::MAX {
-        return 0;
-    }
-
-    common_indent
-}
-
-/// Format one alignable multiline block comment.
-fn format_alignable_block_comment<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    comment_source: &str,
-) -> FormatResult<()> {
-    let mut lines = comment_source.lines();
-    let Some(first_line) = lines.next() else {
-        return Ok(());
-    };
-
-    write!(f, [text(first_line.trim_end_matches('\r').trim_end())])?;
-    for line in lines {
-        let trimmed_line = line.trim_end_matches('\r').trim();
-        let normalized_line = if let Some(prefix) = trimmed_line.strip_suffix("*/") {
-            let prefix = prefix.trim_end();
-            if prefix.is_empty() {
-                "*/".to_string()
-            } else {
-                format!("{prefix} */")
-            }
-        } else {
-            trimmed_line.to_string()
-        };
-        write!(f, [hard_line_break(), space(), text(&normalized_line)])?;
-    }
-
-    Ok(())
 }
 
 /// Return whether one multiline block comment is alignable on `*` prefixes.

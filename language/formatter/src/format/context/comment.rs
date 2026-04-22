@@ -1,8 +1,6 @@
 use super::source::SourceText;
 use crate::format::file::comment_text_has_suppression_directive;
-use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::Comment;
-use destack_fir::format::{Format, FormatNodes, FormatResult};
 use destack_source::Span;
 
 /// One saved comment cursor state for speculative formatting.
@@ -220,37 +218,44 @@ impl<'a> Comments<'a> {
         preceding_span: Span,
         following_span_start: u32,
     ) -> &'a [Comment] {
-        let comments = self.comments_after(preceding_span.end);
+        // empty
+        let comments = self.unprinted_comments();
         if comments.is_empty() {
             return &[];
         }
 
+        let source_text = self.source_text;
+
+        debug_assert!(
+            comments
+                .first()
+                .is_none_or(|comment| comment.span.end > preceding_span.start)
+        );
+
+        // no following sibling: everything up to the enclosing end is eligible
         if following_span_start == 0 {
             let comments = self.comments_before(enclosing_span.end);
             let mut start = preceding_span.end;
-            let mut start_index = 0usize;
 
             for (index, comment) in comments.iter().enumerate() {
                 if start > comment.span.start {
-                    start_index = index + 1;
                     continue;
                 }
 
-                if !self
-                    .source_text
-                    .all_bytes_match(start, comment.span.start, |byte| {
-                        byte.is_ascii_whitespace() || matches!(byte, b')' | b',' | b';')
-                    })
-                {
-                    return &comments[start_index..index];
+                if !source_text.all_bytes_match(start, comment.span.start, |byte| {
+                    byte.is_ascii_whitespace() || matches!(byte, b')' | b',' | b';')
+                }) {
+                    return &comments[..index];
                 }
 
                 start = comment.span.end;
             }
 
-            return &comments[start_index..];
+            return comments;
         }
 
+        // scan until the following sibling boundary
+        let comments = self.comments_after(preceding_span.end);
         let mut comment_index = 0usize;
 
         while let Some(comment) = comments.get(comment_index) {
@@ -258,8 +263,8 @@ impl<'a> Comments<'a> {
                 break;
             }
 
+            // the following node may sit outside the enclosing span
             if following_span_start > enclosing_span.end && comment.span.end <= enclosing_span.end {
-                // keep scanning
             } else if comment.preceded_by_newline() {
                 break;
             } else if comment.followed_by_newline() {
@@ -269,15 +274,13 @@ impl<'a> Comments<'a> {
             comment_index += 1;
         }
 
+        // walk back to the first comment separated only by whitespace or parens
         let mut gap_end = following_span_start;
 
         for (index, comment) in comments[..comment_index].iter().enumerate().rev() {
-            if self
-                .source_text
-                .all_bytes_match(comment.span.end, gap_end, |byte| {
-                    byte.is_ascii_whitespace() || byte == b'('
-                })
-            {
+            if source_text.all_bytes_match(comment.span.end, gap_end, |byte| {
+                byte.is_ascii_whitespace() || byte == b'('
+            }) {
                 gap_end = comment.span.start;
             } else {
                 return &comments[..=index];
@@ -286,6 +289,7 @@ impl<'a> Comments<'a> {
 
         &[]
     }
+
     /// Advance the printed cursor by one comment.
     #[inline]
     pub fn increment_printed_count(&mut self) {
@@ -338,39 +342,5 @@ impl<'a> Comments<'a> {
     /// Return the source text for one span.
     fn span_text(&self, span: Span) -> &'a str {
         self.source_text.text_for(&span)
-    }
-}
-
-/// Speculative formatting helpers for one Destack formatter.
-pub(crate) trait DestackFormatterSpeculationExt<'ast> {
-    /// Return whether formatting `content` after `start` would break.
-    fn speculate_will_break_after(
-        &mut self,
-        start: u32,
-        content: &dyn Format<DestackFormatContext<'ast>>,
-    ) -> FormatResult<bool>;
-}
-
-impl<'ast> DestackFormatterSpeculationExt<'ast> for DestackFormatter<'ast, '_> {
-    fn speculate_will_break_after(
-        &mut self,
-        start: u32,
-        content: &dyn Format<DestackFormatContext<'ast>>,
-    ) -> FormatResult<bool> {
-        let snapshot = {
-            let comments = self.context().comments();
-            comments.snapshot()
-        };
-
-        self.context_mut()
-            .comments_mut()
-            .skip_comments_before(start);
-
-        let result = self
-            .intern(content)
-            .map(|content| content.is_some_and(|content| content.will_break()));
-
-        self.context_mut().comments_mut().restore(snapshot);
-        result
     }
 }

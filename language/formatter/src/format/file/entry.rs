@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt::{self, Display};
 use std::sync::Arc;
 
-use destack_ast::{Expression, LocalNodeId, NodeParentIndex};
+use destack_ast::{Expression, LocalNodeId, NodeParentIndex, NodeTree};
 use destack_css::{CssFormatOptions, format_stylesheet, parse_css};
 use destack_fir::format as fir_format;
 use destack_html::{HtmlFormatOptions, format_document, parse_html};
@@ -27,6 +27,21 @@ impl Display for FormatFileError {
 }
 
 impl Error for FormatFileError {}
+
+/// Build the formatter tree and parents from parsed expression roots.
+pub fn build_formatter_tree_and_parents(
+    tree: &NodeTree,
+    expressions: &[LocalNodeId<Expression>],
+) -> (NodeTree, NodeParentIndex) {
+    // formatter-local normalized tree
+    let mut tree = tree.clone();
+    normalize_formatter_tree(&mut tree, expressions);
+
+    // reachable parents on normalized roots
+    let parents = NodeParentIndex::from_expression_roots(&tree, expressions);
+
+    (tree, parents)
+}
 
 /// Format one full source file from authored text.
 pub fn format_file_source(
@@ -130,9 +145,7 @@ fn format_parser_file_source(
     let (tokens, side_tokens) = parser.take_tokens();
     let side_span = parser.compute_side_span();
     let strings = parser.strings.into_immutable();
-    let mut tree = parser.tree.clone();
-    normalize_formatter_tree(&mut tree, &expressions);
-    let parents = NodeParentIndex::from_tree(&tree);
+    let (tree, parents) = build_formatter_tree_and_parents(&parser.tree, &expressions);
     let options = DestackFormatOptions::from_formatter_options(options, language_type);
     let context = DestackFormatContext::new(
         options,
