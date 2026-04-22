@@ -8,7 +8,7 @@ use destack_core::StringId;
 use crate::tree::compute_type_layout;
 use crate::{
     AddressSpace, Global, LocalNodeId, NodeTree, PrimitiveTypeIndex, ReferenceKind, Type,
-    TypeLineage, TypeReference, UnionLayout, WellKnownTypes,
+    TypeLineage, TypeReference, UnionLayout, WellKnownTypes, slice_header_types,
 };
 
 /// Heap-reference trace metadata for one runtime payload.
@@ -315,6 +315,17 @@ impl LayoutMetadataCompletion<'_> {
             Type::Array {
                 element, length, ..
             } => self.record_array_layout(type_id, *element, *length),
+            Type::Slice {
+                element,
+                address_space,
+                mutability,
+            } => {
+                let element = *element;
+                let address_space = address_space.clone();
+                let mutability = *mutability;
+
+                self.record_slice_layout(type_id, element, &address_space, mutability)
+            }
             Type::Closure { signature } => self.record_closure_layout(type_id, *signature),
             _ => Ok(()),
         }
@@ -446,6 +457,57 @@ impl LayoutMetadataCompletion<'_> {
             alignment: element_layout.alignment,
             trace: LayoutTrace::empty(),
             fields: Vec::new(),
+        };
+
+        self.insert_layout_entry(type_id, layout_entry);
+        self.record_layout_trace(type_id)?;
+
+        Ok(())
+    }
+
+    /// Record layout metadata for one slice type.
+    fn record_slice_layout(
+        &mut self,
+        type_id: LocalNodeId<Type>,
+        element: TypeReference,
+        address_space: &AddressSpace,
+        mutability: crate::Mutability,
+    ) -> LayoutMetadataResult<()> {
+        let (data, length) = slice_header_types(element, mutability, address_space.clone());
+        let data = self.tree.insert_type(data);
+        let length = self.tree.insert_type(length);
+
+        let components = [data, length];
+        let mut layout_fields = Vec::with_capacity(components.len());
+        let mut offset = 0u32;
+        let mut alignment = 1u32;
+
+        // component layouts
+        for (index, component_type) in components.into_iter().enumerate() {
+            let component_layout =
+                compute_type_layout(self.tree, component_type, self.tree.pointer_bytes());
+            offset = component_layout.align_offset(offset);
+
+            layout_fields.push(LayoutField {
+                name: None,
+                ty: component_type,
+                offset,
+                size: component_layout.size,
+                alignment: component_layout.alignment,
+                source_index: Some(index as u32),
+            });
+
+            offset += component_layout.size;
+            alignment = alignment.max(component_layout.alignment);
+        }
+
+        let layout = compute_type_layout(self.tree, type_id, self.tree.pointer_bytes());
+        let layout_entry = Layout {
+            kind: LayoutKind::Tuple,
+            size: layout.size,
+            alignment,
+            trace: LayoutTrace::empty(),
+            fields: layout_fields,
         };
 
         self.insert_layout_entry(type_id, layout_entry);
@@ -594,7 +656,7 @@ impl LayoutMetadataCompletion<'_> {
     ) -> LayoutMetadataResult<()> {
         match self.tree.get(type_id) {
             Type::Reference {
-                kind: ReferenceKind::Managed | ReferenceKind::Owned,
+                kind: ReferenceKind::Managed | ReferenceKind::Owned | ReferenceKind::Borrowed,
                 address_space,
                 ..
             } => {

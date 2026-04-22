@@ -1,4 +1,7 @@
-use crate::{Field, LocalNodeId, NodeTree, TensorDimension, TensorLayout, Type, TypeReference};
+use crate::{
+    Field, LocalNodeId, NodeTree, TensorDimension, TensorLayout, Type, TypeReference,
+    slice_header_types,
+};
 
 /// Computed layout information for a type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -83,7 +86,7 @@ pub(crate) fn compute_type_layout(
         Type::Array {
             element,
             length,
-            copyability: _,
+            copy: _,
         } => {
             let element_layout = compute_type_layout(
                 tree,
@@ -93,17 +96,22 @@ pub(crate) fn compute_type_layout(
             let size = element_layout.size * (*length as u32);
             TypeLayout::new(size, element_layout.alignment)
         }
-        Type::DynamicArray { .. } => TypeLayout::natural(pointer_bytes as u32),
+        Type::Slice {
+            element,
+            address_space,
+            mutability,
+        } => {
+            let (data, length) = slice_header_types(*element, *mutability, address_space.clone());
+            compute_type_pair_layout(tree, [&data, &length], pointer_bytes)
+        }
 
-        Type::Tuple {
-            elements,
-            copyability: _,
-        } => compute_tuple_layout_from_references(tree, elements, pointer_bytes),
+        Type::Tuple { elements, copy: _ } => {
+            compute_tuple_layout_from_references(tree, elements, pointer_bytes)
+        }
 
-        Type::Struct {
-            fields,
-            copyability: _,
-        } => compute_struct_layout_from_fields(tree, fields, pointer_bytes),
+        Type::Struct { fields, copy: _ } => {
+            compute_struct_layout_from_fields(tree, fields, pointer_bytes)
+        }
 
         Type::Newtype { inner, .. } => compute_type_layout(
             tree,
@@ -114,7 +122,7 @@ pub(crate) fn compute_type_layout(
         Type::Vector {
             element,
             lanes,
-            copyability: _,
+            copy: _,
         } => {
             let element_layout = compute_type_layout(
                 tree,
@@ -129,7 +137,7 @@ pub(crate) fn compute_type_layout(
             element,
             shape,
             layout,
-            copyability: _,
+            copy: _,
         } => {
             let element_layout = compute_type_layout(
                 tree,
@@ -222,6 +230,35 @@ fn compute_tuple_layout_from_references(
         .collect::<Vec<_>>();
 
     compute_tuple_layout(tree, &elements, pointer_bytes)
+}
+
+fn compute_type_pair_layout(
+    tree: &NodeTree,
+    elements: [&Type; 2],
+    pointer_bytes: u8,
+) -> TypeLayout {
+    let mut offset = 0u32;
+    let mut max_alignment = 1u32;
+
+    for element in elements {
+        let element_layout = compute_inline_type_layout(tree, element, pointer_bytes);
+        offset = element_layout.align_offset(offset);
+        offset += element_layout.size;
+        max_alignment = max_alignment.max(element_layout.alignment);
+    }
+
+    let final_size = TypeLayout::new(0, max_alignment).align_offset(offset);
+    TypeLayout::new(final_size, max_alignment)
+}
+
+fn compute_inline_type_layout(_tree: &NodeTree, ty: &Type, pointer_bytes: u8) -> TypeLayout {
+    match ty {
+        Type::Reference { .. } | Type::FunctionPointer { .. } => {
+            TypeLayout::natural(pointer_bytes as u32)
+        }
+        Type::Usize => TypeLayout::scalar(pointer_bytes as u32),
+        _ => panic!("unsupported inline slice header type: {ty:?}"),
+    }
 }
 
 /// Compute the layout of a struct from its field definitions.

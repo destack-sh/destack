@@ -256,23 +256,34 @@ fn format_type_inner<'a>(
         Type::Array {
             element,
             length,
-            copyability: _,
+            copy: _,
         } => {
             write!(
                 f,
                 [element, token("["), text(&length.to_string()), token("]")]
             )
         }
-        Type::DynamicArray {
+        Type::Slice {
             element,
-            copyability: _,
+            address_space,
+            mutability,
         } => {
-            write!(f, [element, token("["), token("]")])
+            let address_space_token = if address_space.is_local() {
+                None
+            } else {
+                Some(format!("space({})", address_space.label()))
+            };
+
+            write!(f, [token("slice"), token("<"), element])?;
+            if *mutability == Mutability::Immutable {
+                write!(f, [token(","), space(), token("readonly")])?;
+            }
+            if let Some(address_space) = address_space_token {
+                write!(f, [token(","), space(), text(&address_space)])?;
+            }
+            write!(f, [token(">")])
         }
-        Type::Tuple {
-            elements,
-            copyability: _,
-        } => {
+        Type::Tuple { elements, copy: _ } => {
             write!(f, [token("(")])?;
             for (i, elem) in elements.iter().enumerate() {
                 if i > 0 {
@@ -282,10 +293,7 @@ fn format_type_inner<'a>(
             }
             write!(f, [token(")")])
         }
-        Type::Struct {
-            fields,
-            copyability: _,
-        } => {
+        Type::Struct { fields, copy: _ } => {
             write!(f, [token("{"), space()])?;
             for (i, field_id) in fields.iter().enumerate() {
                 if i > 0 {
@@ -306,16 +314,13 @@ fn format_type_inner<'a>(
             }
             write!(f, [space(), token("}")])
         }
-        Type::Newtype {
-            inner,
-            copyability: _,
-        } => {
+        Type::Newtype { inner, copy: _ } => {
             write!(f, [token("newtype"), token("<"), inner, token(">")])
         }
         Type::Vector {
             element,
             lanes,
-            copyability: _,
+            copy: _,
         } => {
             write!(
                 f,
@@ -334,7 +339,7 @@ fn format_type_inner<'a>(
             element,
             shape,
             layout,
-            copyability: _,
+            copy: _,
         } => {
             write!(
                 f,

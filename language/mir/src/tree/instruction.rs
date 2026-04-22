@@ -679,7 +679,7 @@ pub enum Instruction {
         call: Call<ArgumentSlice>,
     },
 
-    // allocation (heap, runtime tracks layout and tracing: new, new.array)
+    // allocation (heap, runtime tracks layout and tracing: new, new.slice)
     /// Allocate heap storage (`new`).
     /// Returns a managed or owned reference type.
     New {
@@ -690,12 +690,12 @@ pub enum Instruction {
         /// The result type of the allocation.
         result_type: TypeReference,
     },
-    /// Allocate a heap array (`new.array`).
-    /// Returns a managed or owned reference type.
-    NewArray {
-        /// The SSA value to define with the allocated reference.
+    /// Allocate repeated heap storage (`new.slice`).
+    /// Returns a slice value.
+    NewSlice {
+        /// The SSA value to define with the allocated slice.
         destination: ValueReference,
-        /// The element type of the array.
+        /// The element type of the repeated storage.
         element: TypeReference,
         /// The number of elements (runtime value).
         length: ValueReference,
@@ -947,7 +947,7 @@ impl Instruction {
             Instruction::CallInterface { destination, .. } => *destination,
             Instruction::CallIndirect { destination, .. } => *destination,
             Instruction::New { destination, .. } => Some(*destination),
-            Instruction::NewArray { destination, .. } => Some(*destination),
+            Instruction::NewSlice { destination, .. } => Some(*destination),
             Instruction::RawAlloc { destination, .. } => Some(*destination),
             Instruction::RawFree { .. } => None,
             Instruction::Dispose { .. } => None,
@@ -1072,7 +1072,7 @@ impl Instruction {
             Instruction::CallInterface { receiver, .. } => smallvec![*receiver],
             Instruction::CallIndirect { callee, .. } => smallvec![*callee],
             Instruction::New { .. } => smallvec![],
-            Instruction::NewArray { length, .. } => smallvec![*length],
+            Instruction::NewSlice { length, .. } => smallvec![*length],
             Instruction::RawAlloc { .. } => smallvec![],
             Instruction::RawFree { pointer } => smallvec![*pointer],
             Instruction::Dispose { value } => smallvec![*value],

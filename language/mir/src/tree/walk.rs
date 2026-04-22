@@ -141,16 +141,19 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 visitor.visit_type(tree, pointee, pointee_ty);
             }
         }
-        Type::Array { element, .. } | Type::DynamicArray { element, .. } => {
+        Type::Array { element, .. } => {
             if let TypeReference::Type(element) = *element {
                 let element_ty = tree.get(element);
                 visitor.visit_type(tree, element, element_ty);
             }
         }
-        Type::Tuple {
-            elements,
-            copyability: _,
-        } => {
+        Type::Slice { element, .. } => {
+            if let TypeReference::Type(element) = *element {
+                let element_ty = tree.get(element);
+                visitor.visit_type(tree, element, element_ty);
+            }
+        }
+        Type::Tuple { elements, copy: _ } => {
             for element_id in elements {
                 if let TypeReference::Type(element_id) = *element_id {
                     let element_ty = tree.get(element_id);
@@ -158,10 +161,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 }
             }
         }
-        Type::Struct {
-            fields,
-            copyability: _,
-        } => {
+        Type::Struct { fields, copy: _ } => {
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_field(tree, *field_id, field);

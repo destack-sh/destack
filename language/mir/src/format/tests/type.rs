@@ -1,7 +1,7 @@
 use super::{assert_format, assert_format_eq, assert_output_eq, format_tree_with_options};
 use crate::{
-    Attribute, AttributeArgs, AttributeIdentifier, Copyability, Field, MirFormatOptions, NodeTree,
-    Type, TypeAlias,
+    Attribute, AttributeArgs, AttributeIdentifier, Copy, Field, MirFormatOptions, NodeTree, Type,
+    TypeAlias,
 };
 use destack_core::StringPool;
 
@@ -98,7 +98,7 @@ fn test_format_struct_fields_with_attributes_without_parsed_spans() {
 
     let struct_type = tree.insert_type(Type::Struct {
         fields: vec![field_id],
-        copyability: Copyability::Trivial,
+        copy: Copy::Yes,
     });
     tree.insert(TypeAlias {
         name: alias_name,

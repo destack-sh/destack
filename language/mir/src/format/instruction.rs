@@ -4,7 +4,7 @@ use destack_fir::write;
 
 use crate::{
     AtomicScope, FormatMirNode, FunctionReference, GlobalReference, Instruction, LocalNodeId,
-    MemoryOrdering, MemoryRegionSet, MemoryScope, MemorySemantics, MirFormatter,
+    MemoryOrdering, EffectRegionSet, MemoryScope, MemorySemantics, MirFormatter,
     TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
     TensorGatherDimensionNumbers, TensorScatterDimensionNumbers, TypeReference, ValueReference,
 };
@@ -1300,7 +1300,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::NewArray {
+            Instruction::NewSlice {
                 destination,
                 element,
                 length,
@@ -1313,7 +1313,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("new.array"),
+                        token("new.slice"),
                         space(),
                         element,
                         token(","),
@@ -1971,7 +1971,7 @@ fn format_memory_semantics<'a>(
 /// Collect memory semantics names in formatting order.
 fn collect_memory_semantics_names(semantics: MemorySemantics) -> Vec<&'static str> {
     // collect location names first
-    let mut names = collect_memory_location_names(semantics.locations);
+    let mut names = collect_effect_region_names(semantics.regions);
 
     // append semantics flags
     if semantics.is_volatile {
@@ -1988,29 +1988,29 @@ fn collect_memory_semantics_names(semantics: MemorySemantics) -> Vec<&'static st
 }
 
 /// Collect named memory regions in formatting order.
-fn collect_memory_location_names(locations: MemoryRegionSet) -> Vec<&'static str> {
+fn collect_effect_region_names(regions: EffectRegionSet) -> Vec<&'static str> {
     // special cases for named sets
-    if locations == MemoryRegionSet::NONE {
+    if regions == EffectRegionSet::NONE {
         return vec!["none"];
     }
-    if locations == MemoryRegionSet::ANY {
+    if regions == EffectRegionSet::ANY {
         return vec!["any"];
     }
 
     // collect named regions in canonical order
     let mut names = Vec::new();
     let ordered = [
-        ("heap", MemoryRegionSet::HEAP),
-        ("rawHeap", MemoryRegionSet::RAW_HEAP),
-        ("stack", MemoryRegionSet::STACK),
-        ("global", MemoryRegionSet::GLOBAL),
-        ("shared", MemoryRegionSet::SHARED),
-        ("local", MemoryRegionSet::LOCAL),
-        ("constant", MemoryRegionSet::CONSTANT),
-        ("io", MemoryRegionSet::IO),
+        ("heap", EffectRegionSet::HEAP),
+        ("rawHeap", EffectRegionSet::RAW_HEAP),
+        ("stack", EffectRegionSet::STACK),
+        ("global", EffectRegionSet::GLOBAL),
+        ("shared", EffectRegionSet::SHARED),
+        ("local", EffectRegionSet::LOCAL),
+        ("constant", EffectRegionSet::CONSTANT),
+        ("io", EffectRegionSet::IO),
     ];
     for (name, set) in ordered {
-        if locations.contains(set) {
+        if regions.contains(set) {
             names.push(name);
         }
     }

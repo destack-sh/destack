@@ -1,8 +1,8 @@
 use destack_core::StringId;
 
 use crate::{
-    AddressSpace, Attribute, Copyability, Field, LocalNodeId, Mutability, ReferenceKind,
-    TensorDimension, TensorLayout, Type, TypeReference,
+    AddressSpace, Attribute, Copy, Field, LocalNodeId, Mutability, ReferenceKind, TensorDimension,
+    TensorLayout, Type, TypeReference,
 };
 
 /// Interning key for struct fields.
@@ -60,40 +60,38 @@ pub(super) enum TypeKey {
     Array {
         element: TypeReference,
         length: u64,
-        copyability: Copyability,
+        copy: Copy,
     },
-    /// Dynamic array.
-    DynamicArray {
+    /// Slice view.
+    Slice {
         element: TypeReference,
-        copyability: Copyability,
+        address_space: AddressSpace,
+        mutability: Mutability,
     },
     /// Tuple of heterogeneous elements.
     Tuple {
         elements: Vec<TypeReference>,
-        copyability: Copyability,
+        copy: Copy,
     },
     /// Struct with named or positional fields.
     Struct {
         fields: Vec<LocalNodeId<Field>>,
-        copyability: Copyability,
+        copy: Copy,
     },
     /// Nominal newtype wrapper.
-    Newtype {
-        inner: TypeReference,
-        copyability: Copyability,
-    },
+    Newtype { inner: TypeReference, copy: Copy },
     /// Fixed-width SIMD vector.
     Vector {
         element: TypeReference,
         lanes: u32,
-        copyability: Copyability,
+        copy: Copy,
     },
     /// Tensor value type.
     Tensor {
         element: TypeReference,
         shape: Vec<TensorDimension>,
         layout: TensorLayout,
-        copyability: Copyability,
+        copy: Copy,
     },
     /// Tensor view type.
     TensorReference {
@@ -147,58 +145,54 @@ impl TypeKey {
             Type::Array {
                 element,
                 length,
-                copyability,
+                copy,
             } => TypeKey::Array {
                 element: *element,
                 length: *length,
-                copyability: *copyability,
+                copy: *copy,
             },
-            Type::DynamicArray {
+            Type::Slice {
                 element,
-                copyability,
-            } => TypeKey::DynamicArray {
+                address_space,
+                mutability,
+            } => TypeKey::Slice {
                 element: *element,
-                copyability: *copyability,
+                address_space: address_space.clone(),
+                mutability: *mutability,
             },
 
-            Type::Tuple {
-                elements,
-                copyability,
-            } => TypeKey::Tuple {
+            Type::Tuple { elements, copy } => TypeKey::Tuple {
                 elements: elements.clone(),
-                copyability: *copyability,
+                copy: *copy,
             },
 
-            Type::Struct {
-                fields,
-                copyability,
-            } => TypeKey::Struct {
+            Type::Struct { fields, copy } => TypeKey::Struct {
                 fields: fields.clone(),
-                copyability: *copyability,
+                copy: *copy,
             },
-            Type::Newtype { inner, copyability } => TypeKey::Newtype {
+            Type::Newtype { inner, copy } => TypeKey::Newtype {
                 inner: *inner,
-                copyability: *copyability,
+                copy: *copy,
             },
             Type::Vector {
                 element,
                 lanes,
-                copyability,
+                copy,
             } => TypeKey::Vector {
                 element: *element,
                 lanes: *lanes,
-                copyability: *copyability,
+                copy: *copy,
             },
             Type::Tensor {
                 element,
                 shape,
                 layout,
-                copyability,
+                copy,
             } => TypeKey::Tensor {
                 element: *element,
                 shape: shape.clone(),
                 layout: layout.clone(),
-                copyability: *copyability,
+                copy: *copy,
             },
             Type::TensorReference {
                 kind,
