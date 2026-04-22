@@ -1,4 +1,4 @@
-use crate::TestProgram;
+use crate::{TestProgram, materialized_plain_value};
 
 /// Lower string literals into MIR and preserve UTF8 contents.
 #[test]
@@ -21,8 +21,7 @@ function greet(): string {
     let output = interpreter
         .run_function_by_name_output("greet", &[])
         .expect("execution failed");
-    let actual = interpreter
-        .string_value(output.value)
-        .expect("string value");
+    let value = materialized_plain_value(&output.value);
+    let actual = interpreter.string_value(value).expect("string value");
     assert_eq!(actual, "Hello, VM");
 }

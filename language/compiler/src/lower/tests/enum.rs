@@ -1,6 +1,6 @@
 use destack_vm::Value;
 
-use crate::TestProgram;
+use crate::{TestProgram, materialized_plain_value};
 
 /// Lower integer enum member values into nominal enum constants.
 #[test]
@@ -114,9 +114,8 @@ entry0:
     let output = interpreter
         .run_function_by_name_output("flavorValue", &[])
         .expect("execution failed");
-    let actual = interpreter
-        .string_value(output.value)
-        .expect("string value");
+    let value = materialized_plain_value(&output.value);
+    let actual = interpreter.string_value(value).expect("string value");
     assert_eq!(actual, "sour");
 }
 

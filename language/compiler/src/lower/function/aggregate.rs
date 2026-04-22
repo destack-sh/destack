@@ -404,7 +404,7 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref<User, managed, readonly> = managed.alloc User
+    /// v1: ref<User, managed, readonly> = new User
     /// v2: void = call User.constructor(v1, v0)
     /// ```
     pub(crate) fn lower_new_expression(
@@ -615,10 +615,10 @@ impl FunctionLowerer<'_> {
 
         // construct the struct
         let instance_value = self.state.builder.struct_(instance_type, values);
-        // allocate when returning a managed reference
+        // allocate when returning a typed reference
         let value = match reference_kind {
-            Some(mir::ReferenceKind::Managed) => {
-                let pointer = self.state.builder.managed_alloc(instance_type, result_type);
+            Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Owned) => {
+                let pointer = self.state.builder.new_(instance_type, result_type);
                 self.state.builder.store(pointer, instance_value);
                 pointer
             }

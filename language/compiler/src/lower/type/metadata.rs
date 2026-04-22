@@ -45,10 +45,7 @@ impl ModuleLowerer<'_> {
 
         // resolve the tuple or array shape for layout
         let target = match self.builder.tree().get(ty) {
-            mir::Type::Tuple {
-                elements,
-                copyability: _,
-            } => {
+            mir::Type::Tuple { elements, copy: _ } => {
                 let Some(elements) = elements
                     .iter()
                     .map(|element| element.ty())
@@ -62,7 +59,7 @@ impl ModuleLowerer<'_> {
             mir::Type::Array {
                 element,
                 length,
-                copyability: _,
+                copy: _,
             } => {
                 let Some(element) = element.ty() else {
                     return Ok(None);

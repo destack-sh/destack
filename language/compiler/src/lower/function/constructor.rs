@@ -32,7 +32,7 @@ impl FunctionLowerer<'_> {
         let instance_mir_type = self.state.builder.tree().get(instance_type).clone();
         let this_value = match instance_mir_type {
             mir::Type::Reference { kind, pointee, .. } => match kind {
-                mir::ReferenceKind::Managed => {
+                mir::ReferenceKind::Managed | mir::ReferenceKind::Owned => {
                     let pointee = pointee
                         .ty()
                         .ok_or_else(|| LowerError::UnsupportedConstruct {
@@ -40,7 +40,7 @@ impl FunctionLowerer<'_> {
                             message: "constructor pointee type is not concrete".to_string(),
                         })?;
 
-                    let pointer = self.state.builder.managed_alloc(pointee, instance_type);
+                    let pointer = self.state.builder.new_(pointee, instance_type);
                     let default_value =
                         self.default_struct_value_for_layout(pointee, &layout, class_symbol, node)?;
                     self.state.builder.store(pointer, default_value);

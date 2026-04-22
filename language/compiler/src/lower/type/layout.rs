@@ -24,7 +24,7 @@ pub(crate) struct TypeLayoutPolicy {
     pub inline_union_budget_bytes: u32,
     /// Maximum alignment in bytes for inline union payloads.
     pub inline_union_max_alignment: u32,
-    /// Require trivial copyability for inline union payloads.
+    /// Require trivial copy for inline union payloads.
     pub inline_union_requires_trivial_copyability: bool,
 }
 
@@ -345,6 +345,26 @@ impl TypeLowerer {
                 let bytes = pointer_bytes as u32;
                 Some((bytes, bytes))
             }
+            mir::Type::Slice {
+                element,
+                address_space,
+                mutability,
+            } => {
+                let (data, length) =
+                    mir::slice_header_types(*element, *mutability, address_space.clone());
+                let fields = [&data, &length];
+                let mut max_align: u32 = 1;
+                let mut current_offset: u32 = 0;
+
+                for field_ty in fields {
+                    let (field_size, field_align) = self.size_and_align_of_type(field_ty, tree)?;
+                    max_align = max_align.max(field_align);
+                    current_offset = self.align_up(current_offset, field_align) + field_size;
+                }
+
+                let total_size = self.align_up(current_offset, max_align);
+                Some((total_size, max_align))
+            }
             mir::Type::TensorReference { .. } => {
                 let bytes = pointer_bytes as u32;
                 Some((bytes, bytes))
@@ -352,16 +372,13 @@ impl TypeLowerer {
             mir::Type::Array {
                 element,
                 length,
-                copyability: _,
+                copy: _,
             } => {
                 let element_ty = tree.get(element.ty()?);
                 let (elem_size, elem_align) = self.size_and_align_of_type(element_ty, tree)?;
                 Some((elem_size * (*length as u32), elem_align))
             }
-            mir::Type::Tuple {
-                elements,
-                copyability: _,
-            } => {
+            mir::Type::Tuple { elements, copy: _ } => {
                 let mut max_align: u32 = 1;
                 let mut current_offset: u32 = 0;
 
@@ -375,10 +392,7 @@ impl TypeLowerer {
                 let total_size = self.align_up(current_offset, max_align);
                 Some((total_size, max_align))
             }
-            mir::Type::Struct {
-                fields,
-                copyability: _,
-            } => {
+            mir::Type::Struct { fields, copy: _ } => {
                 let mut max_align: u32 = 1;
                 let mut current_offset: u32 = 0;
 
@@ -425,7 +439,7 @@ impl TypeLowerer {
             mir::Type::Vector {
                 element,
                 lanes,
-                copyability: _,
+                copy: _,
             } => {
                 let element_ty = tree.get(element.ty()?);
                 let (elem_size, elem_align) = self.size_and_align_of_type(element_ty, tree)?;
@@ -436,7 +450,7 @@ impl TypeLowerer {
                 element,
                 shape,
                 layout,
-                copyability: _,
+                copy: _,
             } => {
                 let element_ty = tree.get(element.ty()?);
                 let (elem_size, elem_align) = self.size_and_align_of_type(element_ty, tree)?;

@@ -105,6 +105,12 @@ impl FunctionLowerer<'_> {
                 }
                 self.state.builder.array(ty, elements)
             }
+            mir::Type::Slice { .. } => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node,
+                    message: "constructor cannot initialize slice values".to_string(),
+                });
+            }
             mir::Type::Tuple { elements, .. } => {
                 let mut values = Vec::with_capacity(elements.len());
                 for element in elements {

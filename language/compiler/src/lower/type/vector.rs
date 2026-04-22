@@ -42,7 +42,7 @@ impl TypeLowerer {
 
         // lower element type
         let element_type = self.lower_type(types, element_type_id, module_id, node, builder)?;
-        let element_copyability = builder.tree().get(element_type).copyability();
+        let element_copyability = builder.tree().get(element_type).copy();
 
         Ok(builder.type_vector(element_type, lanes, element_copyability))
     }

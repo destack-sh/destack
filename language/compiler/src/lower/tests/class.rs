@@ -36,7 +36,7 @@ function sumFieldsClass(a: number, b: number): number {
     );
 }
 
-/// Lower class construction to managed allocation in MIR.
+/// Lower class construction to heap allocation in MIR.
 #[test]
 fn test_lower_allocates_class_with_new() {
     // set up the test program
@@ -72,7 +72,7 @@ type Box {
 function sumBox(value0: int32): int32 {
 entry0(value0: int32):
     value1: Box = struct Box (value0)
-    value2: ref<Box, managed, readonly> = managed.alloc Box
+    value2: ref<Box, managed, readonly> = new Box
     store value2, value1
     value3: Box = load value2
     value4: int32 = field.get value3, 0
@@ -139,7 +139,7 @@ entry0(value0: int32):
     value1: ref<ref?<void, raw, readonly, space(global)>[2], raw, readonly, space(global)> = global.address PacketHeader#vtable
     value2: ref<void, raw, readonly, space(global)> = cast.bit value1 -> ref<void, raw, readonly, space(global)>
     value3: Struct0 = struct Struct0 (value2, value0)
-    value4: ref<Struct0, managed, readonly> = managed.alloc Struct0
+    value4: ref<Struct0, managed, readonly> = new Struct0
     store value4, value3
     value5: Struct0 = load value4
     value6: int32 = field.get value5, 1

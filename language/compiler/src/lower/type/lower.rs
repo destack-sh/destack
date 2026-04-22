@@ -176,10 +176,7 @@ impl TypeLowerer {
                         .and_then(|layout| layout.field_index(field_name))
                         .map(|i| i as usize);
                 }
-                mir::Type::Tuple {
-                    elements,
-                    copyability: _,
-                } => {
+                mir::Type::Tuple { elements, copy: _ } => {
                     let name_str = strings.get(field_name);
                     return name_str
                         .parse::<usize>()
@@ -220,22 +217,22 @@ impl TypeLowerer {
         layout: &StructLayout,
         builder: &mut mir::ModuleBuilder,
     ) -> mir::LocalNodeId<mir::Type> {
-        // compute copyability from field types
-        let mut copyability = mir::Copyability::Trivial;
+        // compute copy from field types
+        let mut copy = mir::Copy::Yes;
         for field in &layout.fields {
             let field_type = builder.tree().get(field.ty);
-            copyability = copyability.combine(field_type.copyability());
+            copy = copy.combine(field_type.copy());
         }
 
-        // build the struct type with computed copyability
-        self.create_struct_type_with_copyability(layout, copyability, builder)
+        // build the struct type with computed copy
+        self.create_struct_type_with_copyability(layout, copy, builder)
     }
 
-    /// Create a MIR struct type with explicit copyability.
+    /// Create a MIR struct type with explicit copy.
     pub(crate) fn create_struct_type_with_copyability(
         &mut self,
         layout: &StructLayout,
-        copyability: mir::Copyability,
+        copy: mir::Copy,
         builder: &mut mir::ModuleBuilder,
     ) -> mir::LocalNodeId<mir::Type> {
         let mut mir_fields = Vec::with_capacity(layout.fields.len());
@@ -247,7 +244,7 @@ impl TypeLowerer {
         }
 
         // return the struct type
-        builder.type_struct(mir_fields, copyability)
+        builder.type_struct(mir_fields, copy)
     }
 
     /// Build the function pointer signature type for a function type.
@@ -387,6 +384,24 @@ impl TypeLowerer {
             dir::Type::Tuple { elements, .. } => {
                 self.lower_tuple_type(types, elements, module_id, node, builder)?
             }
+            dir::Type::Array { element, .. } => {
+                let element = (*element).ok_or_else(|| LowerError::UnsupportedType {
+                    node,
+                    ty: type_id.into_global(module_id),
+                    message: "array without element type".to_string(),
+                })?;
+                let mir_element = self.lower_type(types, element, module_id, node, builder)?;
+
+                if mir_element == self.ty_void {
+                    return Err(LowerError::UnsupportedType {
+                        node,
+                        ty: element.into_global(module_id),
+                        message: "void is not allowed in arrays".to_string(),
+                    });
+                }
+
+                builder.type_slice(mir_element)
+            }
             dir::Type::ArraySized { element, count, .. } => {
                 self.lower_array_sized_type(types, *element, *count, module_id, node, builder)?
             }
@@ -455,11 +470,11 @@ impl TypeLowerer {
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         let inner_type = self.lower_enum_backing_type(types, enum_symbol, node, builder)?;
-        let copyability = builder.tree().get(inner_type).copyability();
+        let copy = builder.tree().get(inner_type).copy();
 
         Ok(builder.tree_mut().insert_type(mir::Type::Newtype {
             inner: inner_type.into(),
-            copyability,
+            copy,
         }))
     }
 
@@ -518,10 +533,10 @@ impl TypeLowerer {
                 });
             };
             let inner_type = self.lower_type(types, alias_target_id, module_id, node, builder)?;
-            let copyability = builder.tree().get(inner_type).copyability();
+            let copy = builder.tree().get(inner_type).copy();
             return Ok(builder.tree_mut().insert_type(mir::Type::Newtype {
                 inner: inner_type.into(),
-                copyability,
+                copy,
             }));
         }
 

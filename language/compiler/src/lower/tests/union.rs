@@ -522,7 +522,7 @@ type Frame {
 function makeFrame(value0: Frame): makeFrame.return#union {
 entry0(value0: Frame):
     value1: uint8 = 0uint8
-    value2: ref<Frame, managed, readonly> = managed.alloc Frame
+    value2: ref<Frame, managed, readonly> = new Frame
     store value2, value0
     value3: ref<void, managed, readonly> = cast.bit value2 -> ref<void, managed, readonly>
     value4: makeFrame.return#union = struct makeFrame.return#union (value1, value3)

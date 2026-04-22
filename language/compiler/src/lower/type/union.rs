@@ -154,9 +154,9 @@ impl TypeLowerer {
         let (ordered_elements, discriminant) =
             self.order_union_elements_by_discriminant(types, &collected, node, builder.strings())?;
 
-        // lower union element types for copyability and layout bounds
+        // lower union element types for copy and layout bounds
         let mut mir_element_types = Vec::with_capacity(ordered_elements.len());
-        let mut copyability = mir::Copyability::Trivial;
+        let mut copy = mir::Copy::Yes;
         let mut max_payload_size = 0;
         let mut max_payload_alignment = 1;
         for element_id in &ordered_elements {
@@ -168,10 +168,10 @@ impl TypeLowerer {
                 _ => self.lower_type(types, *element_id, module_id, node, builder)?,
             };
 
-            // combine layout sizing and copyability
+            // combine layout sizing and copy
             mir_element_types.push(element_type);
             let element = builder.tree().get(element_type);
-            copyability = copyability.combine(element.copyability());
+            copy = copy.combine(element.copy());
             let (size, alignment) = self
                 .size_and_align_of_type(element, builder.tree())
                 .ok_or_else(|| LowerError::UnsupportedType {
@@ -188,8 +188,7 @@ impl TypeLowerer {
         let payload_name = builder.intern(UNION_PAYLOAD_FIELD_NAME);
         let tag_width = Self::tag_width_for_discriminant_count(ordered_elements.len(), node)?;
         let tag_type = self.union_tag_type(tag_width, builder);
-        let payload_kind =
-            self.union_payload_kind(copyability, max_payload_size, max_payload_alignment);
+        let payload_kind = self.union_payload_kind(copy, max_payload_size, max_payload_alignment);
         let payload_type = match payload_kind {
             UnionPayloadKind::Inline => self.inline_union_payload_type(max_payload_size, builder),
             UnionPayloadKind::Boxed => builder.type_managed_reference(self.ty_void),
@@ -231,7 +230,7 @@ impl TypeLowerer {
 
         // compute layout and create the mir struct type
         let layout = self.compute_struct_layout(fields, LayoutPolicy::Source);
-        let mir_type = self.create_struct_type_with_copyability(&layout, copyability, builder);
+        let mir_type = self.create_struct_type_with_copyability(&layout, copy, builder);
 
         // cache layout for later field lookups
         self.layout_cache.insert(mir_type, layout.clone());
@@ -309,14 +308,12 @@ impl TypeLowerer {
     /// Select the payload storage strategy for a union layout.
     fn union_payload_kind(
         &self,
-        copyability: mir::Copyability,
+        copy: mir::Copy,
         payload_size: u32,
         payload_alignment: u32,
     ) -> UnionPayloadKind {
-        // require trivial copyability for inline payloads
-        if self.layout_policy.inline_union_requires_trivial_copyability
-            && copyability != mir::Copyability::Trivial
-        {
+        // require trivial copy for inline payloads
+        if self.layout_policy.inline_union_requires_trivial_copyability && copy != mir::Copy::Yes {
             return UnionPayloadKind::Boxed;
         }
 
@@ -344,7 +341,7 @@ impl TypeLowerer {
         } else {
             payload_size.div_ceil(pointer_size)
         };
-        builder.type_array(self.ty_usize, slot_count as u64, mir::Copyability::Trivial)
+        builder.type_array(self.ty_usize, slot_count as u64, mir::Copy::Yes)
     }
 
     /// Lower union types that can be represented as nullable references.
