@@ -1,31 +1,53 @@
 {
-  "$schema": "../../schema/status.schema.json",
-  "entries": [
-    {
-      "patterns": [
-        "js/ignore/oxfmt.js"
-      ],
-      "status": "ignore",
-      "reason": "legacy",
-      "note": "unsupported legacy `with` statement syntax"
-    },
-    {
-      "patterns": [
-        "js/comments/assignments.js",
-        "ts/comments/assignments.ts",
-        "js/comments/type-cast-arrow.js",
-        "js/comments/type-cast-node.js",
-        "js/typecast/rest_element_comments.js",
-        "js/jsdoc/inline-type-cast.js",
-        "js/jsdoc/type-no-capitalize.js",
-        "js/jsdoc/type-normalization.js",
-        "js/jsdoc/use-tabs/use-tabs.js",
-        "js/jsdoc/single-line.js",
-        "js/jsdoc/capitalization.js"
-      ],
-      "status": "ignore",
-      "reason": "scope",
-      "note": "unsupported JSDoc `@type` and `@satisfies`"
-    }
-  ]
+    "$schema": "../../schema/status.schema.json",
+    "entries": [
+        {
+            "patterns": ["js/ignore/oxfmt.js"],
+            "status": "ignore",
+            "reason": "legacy",
+            "note": "unsupported legacy `with` statement syntax"
+        },
+        {
+            "patterns": [
+                "js/comments/assignments.js",
+                "ts/comments/assignments.ts"
+            ],
+            "status": "ignore",
+            "reason": "scope",
+            "note": "mixed fixture: unsupported inline JSDoc `@type` cast"
+        },
+        {
+            "patterns": [
+                "js/comments/type-cast-arrow.js",
+                "js/comments/type-cast-node.js",
+                "js/typecast/rest_element_comments.js"
+            ],
+            "status": "ignore",
+            "reason": "scope",
+            "note": "unsupported inline JSDoc `@type` and `@satisfies` cast semantics"
+        },
+        {
+            "patterns": ["js/jsdoc/inline-type-cast.js"],
+            "status": "ignore",
+            "reason": "scope",
+            "note": "unsupported inline JSDoc `@type` cast semantics"
+        },
+        {
+            "patterns": [
+                "js/jsdoc/type-no-capitalize.js",
+                "js/jsdoc/type-normalization.js",
+                "js/jsdoc/single-line.js",
+                "js/jsdoc/capitalization.js"
+            ],
+            "status": "ignore",
+            "reason": "scope",
+            "note": "unsupported JSDoc tag normalization and capitalization semantics"
+        },
+        {
+            "patterns": ["js/jsdoc/use-tabs/use-tabs.js"],
+            "status": "ignore",
+            "reason": "scope",
+            "note": "unsupported inline JSDoc cast width behavior and JSDoc tag formatting semantics"
+        }
+    ]
 }

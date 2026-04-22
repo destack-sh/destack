@@ -52,6 +52,38 @@ const x = 1
 const x = 1;
 ```
 
+### block doc comment with fenced code block
+
+Block doc comments keep fenced code blocks intact.
+
+```ts:main.ts indent-style=tab
+/**
+ * Description text.
+ *
+ * ```ts
+ * const store = toStore(
+ *   () => count,
+ *   (v) => (count = v),
+ * );
+ * ```
+ */
+function withFencedCodeBlock() {}
+```
+
+```ts expected
+/**
+ * Description text.
+ *
+ * ```ts
+ * const store = toStore(
+ *   () => count,
+ *   (v) => (count = v),
+ * );
+ * ```
+ */
+function withFencedCodeBlock() {}
+```
+
 ## Formatter Directives
 
 ### format-ignore keeps the next statement
