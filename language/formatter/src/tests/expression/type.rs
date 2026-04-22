@@ -168,7 +168,7 @@ fn test_format_type_as_multiline_block_comment_before_type() {
     );
 }
 
-/// Inline block comments in type arguments should keep OXC separator spacing.
+/// Inline block comments in type arguments should keep separator spacing.
 #[test]
 fn test_format_type_argument_inline_block_comment_spacing() {
     assert_format_program!(

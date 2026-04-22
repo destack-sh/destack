@@ -824,10 +824,15 @@ fn write_method_body<'ast>(
     force_break_before_body: bool,
     _return_type: Option<LocalNodeId<TypeExpression>>,
 ) -> FormatResult<()> {
-    let is_block_body = matches!(f.context().node::<Expression>(body), Expression::Block(..));
+    let body_block_id = match f.context().node::<Expression>(body) {
+        Expression::Block(block_id) => Some(*block_id),
+        _ => None,
+    };
+
+    // block-leading line comments belong to the block owner
     let block_separator_comments = method_body_separator_comments(f, body)
         .into_iter()
-        .filter(|comment| !is_block_body || !comment.followed_by_newline())
+        .filter(|comment| body_block_id.is_none() || comment.is_block())
         .collect::<Vec<_>>();
 
     if force_break_before_body {
@@ -852,7 +857,7 @@ fn write_method_body<'ast>(
             }
         }
 
-        if is_block_body {
+        if body_block_id.is_some() {
             return write_expression_without_prefix_annotations(f, body);
         }
 
@@ -862,11 +867,6 @@ fn write_method_body<'ast>(
     if expression_body_requires_head_space(f.context(), body) {
         write!(f, [space()])?;
     }
-
-    let body_block_id = match f.context().node::<Expression>(body) {
-        Expression::Block(block_id) => Some(*block_id),
-        _ => None,
-    };
 
     if let Some(block_id) = body_block_id {
         write_block_body(f, block_id)?;

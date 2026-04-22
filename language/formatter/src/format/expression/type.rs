@@ -5,6 +5,7 @@ use crate::format::annotation::{
 };
 use crate::format::collection::literal::format_scalar_literal;
 use crate::format::collection::{TrailingSeparator, separated_entries};
+use crate::format::context::MemoizeFormatExt;
 use crate::format::declaration::signature::{
     default_generic_parameter_trailing_separator, format_where_clause_with_break,
     parameter_is_variadic, should_hug_function_parameters, write_function_header_prefix,
@@ -18,14 +19,14 @@ use crate::format::operator::{
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Comment, Declaration, Expression, FunctionSignature, GenericArgument, Key, Keyword,
-    LocalNodeId, Mutability, NodeType, TokenType, TupleElement, TypeExpression, TypeMember,
-    TypeModifier, TypePredicateSubject, VarianceBound,
+    Comment, Declaration, Expression, FunctionMode, FunctionSignature, GenericArgument,
+    GenericParameter, Key, Keyword, LocalNodeId, Member, Mutability, NodeType, Property, TokenType,
+    TupleElement, TypeExpression, TypeMember, TypeModifier, TypePredicateSubject, VarianceBound,
 };
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::{Buffer, FormatNodes, FormatResult};
 use destack_fir::prelude::{space, token, *};
 use destack_fir::{format_args, write};
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanType, Span};
 
 /// Return the innermost type that can own one postfix type operator.
 fn normalize_postfix_type_operand(
@@ -318,7 +319,7 @@ fn write_type_conditional_tail<'ast>(
     Ok(())
 }
 
-/// Format one conditional type with upstream-shaped nested layout.
+/// Format one conditional type with the nested layout rules.
 fn write_conditional_type<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
@@ -371,10 +372,7 @@ fn write_conditional_type<'ast>(
 }
 
 /// Return the key token start for one mapped type when it can be located.
-fn mapped_type_key_start(
-    context: &DestackFormatContext<'_>,
-    span: destack_source::Span,
-) -> Option<u32> {
+fn mapped_type_key_start(context: &DestackFormatContext<'_>, span: Span) -> Option<u32> {
     let tokens = context.non_trivia_tokens_in_span(span);
     let mut saw_open_bracket = false;
 
@@ -396,7 +394,7 @@ fn mapped_type_key_start(
 /// Return comments after one mapped opening brace.
 fn mapped_type_leading_body_comments(
     context: &DestackFormatContext<'_>,
-    span: destack_source::Span,
+    span: Span,
 ) -> Vec<Comment> {
     let comments = context.comments();
     let key_start = mapped_type_key_start(context, span);
@@ -463,7 +461,7 @@ fn intersection_type_is_object_like(expression: &TypeExpression) -> bool {
     )
 }
 
-/// Write one intersection type with OXC-like object-chain layout.
+/// Write one intersection type with object-chain layout.
 fn write_intersection_type<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
@@ -544,7 +542,7 @@ fn type_object_members_have_leading_newline(
         return false;
     }
 
-    context.has_newline(destack_source::Span::new(
+    context.has_newline(Span::new(
         object_span.file,
         object_span.start,
         first_member_span.start,
@@ -990,11 +988,22 @@ fn type_expression_body_owns_leading_comments(
 }
 
 /// Return trailing-comment bounds for one type expression.
-fn type_expression_trailing_comment_bounds(
+pub(crate) fn type_expression_trailing_comment_bounds(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
-) -> Option<(destack_source::Span, u32)> {
+) -> Option<(Span, u32)> {
     let (parent_id, parent_type) = context.parent(node_id)?;
+
+    // function-like parents own return-type trailing comments before bodies
+    if function_like_parent_owns_return_type_trailing_comments(
+        context,
+        node_id,
+        parent_id,
+        parent_type,
+    ) {
+        return None;
+    }
+
     let parent_span = context.span_by_id(parent_id);
     let node_span = context.span(node_id);
     let following_span_start = if parent_type == NodeType::TypeExpression {
@@ -1026,6 +1035,52 @@ fn type_expression_trailing_comment_bounds(
     Some((parent_span, following_span_start))
 }
 
+/// Return whether one function-like parent should own trailing return-type comments.
+fn function_like_parent_owns_return_type_trailing_comments(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<TypeExpression>,
+    parent_id: u32,
+    parent_type: NodeType,
+) -> bool {
+    // declarations
+    if parent_type == NodeType::Declaration {
+        let parent_id = LocalNodeId::<Declaration>::new(parent_id);
+        let Declaration::Function(function) = context.tree.get(parent_id) else {
+            return false;
+        };
+
+        return function.signature.return_type == Some(node_id) && function.body.is_some();
+    }
+
+    // members
+    if parent_type == NodeType::Member {
+        let parent_id = LocalNodeId::<Member>::new(parent_id);
+        let Member::Method {
+            signature, body, ..
+        } = context.tree.get(parent_id)
+        else {
+            return false;
+        };
+
+        return signature.return_type == Some(node_id) && body.is_some();
+    }
+
+    // properties
+    if parent_type == NodeType::Property {
+        let parent_id = LocalNodeId::<Property>::new(parent_id);
+        let Property::Method {
+            signature, body, ..
+        } = context.tree.get(parent_id)
+        else {
+            return false;
+        };
+
+        return signature.return_type == Some(node_id) && body.is_some();
+    }
+
+    false
+}
+
 /// Write prefix annotations for one type expression.
 pub(crate) fn write_type_expression_prefix_annotations<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -1051,7 +1106,7 @@ pub(crate) fn write_type_expression_without_prefix_annotations<'ast>(
 }
 
 /// Write one type expression node with optional derived parentheses.
-fn write_type_expression_node<'ast>(
+pub(crate) fn write_type_expression_node<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     expression: &TypeExpression,
@@ -1182,8 +1237,92 @@ fn type_parent_requires_parentheses(
     }
 }
 
+/// Return the declaration id for one function-like type expression.
+fn type_expression_function_like_declaration_id(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<TypeExpression>,
+) -> Option<LocalNodeId<Declaration>> {
+    let TypeExpression::Declaration { declaration } = context.tree.get(node_id) else {
+        return None;
+    };
+    let Declaration::Function(function) = context.tree.get(*declaration) else {
+        return None;
+    };
+
+    let _ = function;
+    Some(*declaration)
+}
+
+/// Return whether one conditional `extends` slot needs function-like type parentheses.
+fn conditional_extends_slot_needs_function_like_parentheses(
+    context: &DestackFormatContext<'_>,
+    function: &destack_ast::FunctionDeclaration,
+) -> bool {
+    let Some(return_type) = function.signature.return_type else {
+        return false;
+    };
+
+    match context.tree.get(return_type) {
+        TypeExpression::Infer { constraint, .. } => constraint.is_some(),
+        TypeExpression::Predicate { target, .. } => target.is_some(),
+        _ => false,
+    }
+}
+
+/// Return whether one function-like type needs parentheses in one type-expression parent.
+fn function_like_type_needs_parentheses_in_type_parent(
+    context: &DestackFormatContext<'_>,
+    declaration_id: LocalNodeId<Declaration>,
+    parent_id: LocalNodeId<TypeExpression>,
+    child_id: LocalNodeId<TypeExpression>,
+) -> bool {
+    let Declaration::Function(function) = context.tree.get(declaration_id) else {
+        return false;
+    };
+
+    match context.tree.get(parent_id) {
+        TypeExpression::Conditional {
+            left, extends_type, ..
+        } => {
+            if *left == child_id {
+                return true;
+            }
+
+            *extends_type == child_id
+                && conditional_extends_slot_needs_function_like_parentheses(context, function)
+        }
+
+        TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
+            elements.len() > 1
+        }
+
+        _ => type_parent_requires_parentheses(context, parent_id, child_id),
+    }
+}
+
+/// Return whether one function-like type needs parentheses in one declaration parent.
+fn function_like_type_needs_parentheses_in_declaration_parent(
+    context: &DestackFormatContext<'_>,
+    declaration_id: LocalNodeId<Declaration>,
+    parent_id: LocalNodeId<Declaration>,
+    child_id: LocalNodeId<TypeExpression>,
+) -> bool {
+    let Declaration::Function(function_like) = context.tree.get(declaration_id) else {
+        return false;
+    };
+    let Declaration::Function(parent_function) = context.tree.get(parent_id) else {
+        return false;
+    };
+
+    if parent_function.signature.return_type != Some(child_id) {
+        return false;
+    }
+
+    function_like.signature.mode != Some(FunctionMode::New)
+}
+
 /// Return whether one type expression needs derived parentheses in its effective parent.
-fn type_expression_needs_parentheses_in_parent(
+pub(crate) fn type_expression_needs_parentheses_in_parent(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
 ) -> bool {
@@ -1192,6 +1331,32 @@ fn type_expression_needs_parentheses_in_parent(
     else {
         return false;
     };
+
+    if let Some(declaration_id) = type_expression_function_like_declaration_id(context, node_id) {
+        return match parent_type {
+            NodeType::TypeExpression => {
+                let parent_id = LocalNodeId::<TypeExpression>::new(parent_id);
+
+                function_like_type_needs_parentheses_in_type_parent(
+                    context,
+                    declaration_id,
+                    parent_id,
+                    parent_slot_type_id,
+                )
+            }
+            NodeType::Declaration => {
+                let parent_id = LocalNodeId::<Declaration>::new(parent_id);
+
+                function_like_type_needs_parentheses_in_declaration_parent(
+                    context,
+                    declaration_id,
+                    parent_id,
+                    parent_slot_type_id,
+                )
+            }
+            _ => false,
+        };
+    }
 
     if parent_type != NodeType::TypeExpression {
         return false;
@@ -1283,6 +1448,115 @@ fn write_type_parameters<'ast>(
         .is_some_and(|parameter_id| parameter_is_variadic(f.context(), *parameter_id));
 
     write_signature_parameter_list(f, &parameters, disallow_trailing_parameter_separator)
+}
+
+/// Return whether one generic parameter stays plain enough for grouped function-like types.
+fn function_like_type_grouping_generic_parameter_is_plain(
+    context: &DestackFormatContext<'_>,
+    generic_parameter_id: LocalNodeId<GenericParameter>,
+) -> bool {
+    match context.tree.get(generic_parameter_id) {
+        destack_ast::GenericParameter::Type {
+            constraint,
+            default,
+            ..
+        } => constraint.is_none() && default.is_none(),
+        destack_ast::GenericParameter::Value {
+            declared_type,
+            default,
+            ..
+        } => declared_type.is_none() && default.is_none(),
+        destack_ast::GenericParameter::Error => false,
+    }
+}
+
+/// Return whether one function-like type should group parameters before its return type.
+fn should_group_function_like_type_parameters<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    signature: &FunctionSignature,
+    parameter_count: usize,
+) -> FormatResult<bool> {
+    match signature.generic_parameters.as_slice() {
+        [] => {}
+        [generic_parameter_id]
+            if function_like_type_grouping_generic_parameter_is_plain(
+                f.context(),
+                *generic_parameter_id,
+            ) => {}
+        _ => return Ok(false),
+    }
+
+    let Some(return_type) = signature.return_type else {
+        return Ok(false);
+    };
+    if parameter_count != 1 {
+        return Ok(false);
+    }
+
+    if matches!(
+        f.context().tree.get(return_type),
+        TypeExpression::Object { .. } | TypeExpression::Mapped { .. }
+    ) {
+        return Ok(true);
+    }
+
+    let format_return_type =
+        format_with(|f: &mut DestackFormatter<'ast, '_>| write!(f, [return_type])).memoized();
+    let will_break = format_return_type
+        .inspect(f)?
+        .is_some_and(|content| content.will_break());
+
+    Ok(will_break)
+}
+
+/// Write one standalone function-like type expression.
+fn write_function_like_type_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    function: &destack_ast::FunctionDeclaration,
+) -> FormatResult<()> {
+    let signature = &function.signature;
+    let parameter_count =
+        signature.parameters.len() + usize::from(signature.this_parameter.is_some());
+    let group_parameters =
+        should_group_function_like_type_parameters(f, signature, parameter_count)?;
+
+    let format_type_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if !signature.generic_parameters.is_empty() {
+            write_generic_parameter_list(
+                f,
+                &signature.generic_parameters,
+                default_generic_parameter_trailing_separator(f),
+            )?;
+        }
+
+        Ok(())
+    });
+    let format_parameters =
+        format_with(|f: &mut DestackFormatter<'ast, '_>| write_type_parameters(f, signature));
+
+    let format_signature = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write_function_header_prefix(f, signature, false, false)?;
+
+        if group_parameters {
+            write!(
+                f,
+                [group(&format_args![
+                    format_type_parameters,
+                    format_parameters
+                ])]
+            )?;
+        } else {
+            write!(f, [format_type_parameters, format_parameters])?;
+        }
+
+        if let Some(return_type) = signature.return_type {
+            write!(f, [space(), token("=>"), space(), return_type])?;
+        }
+
+        Ok(())
+    });
+
+    write!(f, [group(&format_signature)])
 }
 
 /// Write one type-space function signature.
@@ -1389,7 +1663,7 @@ pub(crate) fn format_type_member_list<'ast>(
 }
 
 /// Write one type body without prefix annotations.
-fn write_type_expression_body<'ast>(
+pub(crate) fn write_type_expression_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     expression: &TypeExpression,
@@ -1461,7 +1735,18 @@ fn write_type_expression_body<'ast>(
             )?;
         }
         TypeExpression::Declaration { declaration } => {
-            write!(f, [declaration])?;
+            let declaration_id = *declaration;
+            let declaration = f.context().tree.get(declaration_id);
+
+            if let Declaration::Function(function) = declaration {
+                if function.body.is_none() {
+                    write_function_like_type_expression(f, function)?;
+                } else {
+                    write!(f, [declaration_id])?;
+                }
+            } else {
+                write!(f, [declaration_id])?;
+            }
         }
         TypeExpression::Reference {
             path,

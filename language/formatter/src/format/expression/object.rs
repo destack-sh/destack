@@ -4,8 +4,8 @@ use crate::format::file::any_ignore_range_for_nodes;
 use crate::format::operator::{assign_pattern_contains_expression, expression_generic_arguments};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Expression, GenericArgument, Key, LocalNodeId, Name, NodeType, Pattern, PatternField,
-    Property, TypeExpression,
+    Argument, Expression, GenericArgument, LocalNodeId, NodeType, Pattern, PatternField, Property,
+    TypeExpression,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
@@ -210,13 +210,7 @@ fn object_assignment_target_has_complex_destructuring(
                 && properties.len() > COMPLEX_DESTRUCTURING_MAX_SIMPLE_PROPERTIES
                 && properties.iter().copied().any(|property_id| {
                     match context.tree.get(property_id) {
-                        Property::Field { key, value } => !matches!(
-                            (*key, context.tree.get(*value)),
-                            (
-                                Key::Name(Name::Identifier(key_name)),
-                                Expression::Identifier { name: value_name },
-                            ) if key_name == *value_name
-                        ),
+                        Property::Field { is_shorthand, .. } => !is_shorthand,
                         Property::Method { .. } | Property::Error => true,
                         Property::Spread { .. } => false,
                     }

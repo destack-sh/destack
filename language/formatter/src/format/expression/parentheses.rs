@@ -188,6 +188,29 @@ fn expression_is_class_or_function_declaration(
     }
 }
 
+/// Return whether one expression is the body of one lambda declaration.
+fn expression_is_lambda_body_position(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Declaration {
+        return false;
+    }
+
+    let declaration_id = LocalNodeId::<Declaration>::new(parent_id);
+    let Declaration::Function(function) = context.tree.get(declaration_id) else {
+        return false;
+    };
+
+    function.signature.kind == FunctionKind::Lambda
+        && function
+            .body
+            .is_some_and(|body_expression_id| body_expression_id == node_id)
+}
+
 /// Return whether one expression needs derived parentheses in its parent.
 pub(crate) fn expression_needs_parentheses_in_parent(
     context: &DestackFormatContext<'_>,
@@ -215,6 +238,7 @@ pub(crate) fn expression_needs_parentheses_in_parent(
             Expression::Assign { .. } => true,
             Expression::ObjectExpression { .. } => {
                 expression_is_in_statement_position(context, node_id)
+                    || expression_is_lambda_body_position(context, node_id)
             }
             Expression::Declaration(_)
                 if expression_is_class_or_function_declaration(context, node_id) =>

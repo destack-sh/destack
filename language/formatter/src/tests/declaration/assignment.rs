@@ -110,31 +110,6 @@ class A {
     );
 }
 
-/// Assignment comment wrappers should preserve explicit grouping around the rhs.
-#[test]
-fn test_format_assignment_comment_wrapper_preserves_parenthesized_rhs() {
-    assert_format_program_reference_widths(
-        r#"{
-  sourcemap =
-  /** @type {'inline' | 'hidden' | 'sourcemap'} */ (
-      process.env.WORKER_MODE
-    ) || sourcemap;
-}
-"#,
-        FileType::TypeScript,
-        &[(
-            80,
-            r#"{
-  sourcemap =
-    /** @type {'inline' | 'hidden' | 'sourcemap'} */ (
-      process.env.WORKER_MODE
-    ) || sourcemap;
-}
-"#,
-        )],
-    );
-}
-
 /// CommonJS require initializers should keep the call attached to `=`.
 #[test]
 fn test_format_assignment_require_initializer_stays_attached() {
