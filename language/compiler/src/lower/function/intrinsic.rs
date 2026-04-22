@@ -23,7 +23,7 @@ enum AtomicMetadataSlot {
     Scope,
     /// The memory scope.
     MemoryScope,
-    /// The memory location set.
+    /// The effect region set.
     Locations,
     /// The volatile flag.
     IsVolatile,
@@ -627,7 +627,7 @@ impl FunctionLowerer<'_> {
                     memory_scope = Some(self.parse_memory_scope(expression_id, expression)?);
                 }
                 AtomicMetadataSlot::Locations => {
-                    locations = Some(self.parse_memory_location_set(expression_id, expression)?);
+                    locations = Some(self.parse_memory_region_set(expression_id, expression)?);
                 }
                 AtomicMetadataSlot::IsVolatile => {
                     is_volatile = Some(self.parse_boolean_literal(expression_id, expression)?);
@@ -649,10 +649,7 @@ impl FunctionLowerer<'_> {
         let memory_scope = memory_scope
             .ok_or_else(|| self.error(expression_id, "atomic intrinsic missing memory scope"))?;
         let locations = locations.ok_or_else(|| {
-            self.error(
-                expression_id,
-                "atomic intrinsic missing memory location set",
-            )
+            self.error(expression_id, "atomic intrinsic missing effect region set")
         })?;
         let is_volatile = is_volatile
             .ok_or_else(|| self.error(expression_id, "atomic intrinsic missing volatile flag"))?;
@@ -726,8 +723,8 @@ impl FunctionLowerer<'_> {
         })
     }
 
-    /// Parse a MemoryRegionSet constant from an expression.
-    fn parse_memory_location_set(
+    /// Parse an MemoryRegionSet constant from an expression.
+    fn parse_memory_region_set(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         argument_id: dir::LocalNodeId<dir::Expression>,
@@ -736,7 +733,7 @@ impl FunctionLowerer<'_> {
         mir::MemoryRegionSet::try_from(name.as_ref()).map_err(|_| {
             self.error(
                 expression_id,
-                "unsupported memory location set for atomic intrinsic",
+                "unsupported effect region set for atomic intrinsic",
             )
         })
     }

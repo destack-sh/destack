@@ -99,7 +99,7 @@ type makeAdder.lambda#9#env {
 function makeAdder(): makeAdder.return#function {
 entry0:
     value0: int32 = 5int32
-    value1: ref<makeAdder.lambda#9#env, managed> = managed.alloc makeAdder.lambda#9#env
+    value1: ref<makeAdder.lambda#9#env, managed> = new makeAdder.lambda#9#env
     value2: ref<int32, managed> = field.address value1, 0
     store value2, value0
     value3: closure(int32) -> int32 = function.bind makeAdder.lambda#9, value1
@@ -173,9 +173,9 @@ type makeCounter.lambda#8#env {
 function makeCounter(): makeCounter.return#function {
 entry0:
     value0: int32 = 0int32
-    value1: ref<int32, managed> = managed.alloc int32
+    value1: ref<int32, managed> = new int32
     store value1, value0
-    value2: ref<makeCounter.lambda#8#env, managed> = managed.alloc makeCounter.lambda#8#env
+    value2: ref<makeCounter.lambda#8#env, managed> = new makeCounter.lambda#8#env
     value3: ref<ref<int32, managed>, managed> = field.address value2, 0
     value4: ref<int32, managed> = cast.bit value1 -> ref<int32, managed>
     store value3, value4

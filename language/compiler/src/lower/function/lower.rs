@@ -674,6 +674,9 @@ impl<'a> FunctionLowerer<'a> {
         // resolve the target type for the cast
         let target_type = self.lower_type_for_expression(expression_id)?;
 
+        // reject implicit heap address exposure before selecting the mir cast
+        self.reject_implicit_heap_address_cast(expression_id, operator, source_type, target_type)?;
+
         // pick the mir cast operator
         let mir_operator = self.lower_cast_operator(expression_id, operator, value_id)?;
 

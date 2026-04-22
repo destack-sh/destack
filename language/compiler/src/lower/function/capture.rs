@@ -52,10 +52,7 @@ impl FunctionLowerer<'_> {
             .get(&target_symbol)
         {
             let env_ref_type = env_layout.env_pointer_type;
-            let env_value = self
-                .state
-                .builder
-                .managed_alloc(env_layout.env_type, env_ref_type);
+            let env_value = self.state.builder.new_(env_layout.env_type, env_ref_type);
             for field in &env_layout.fields {
                 let field_addr_type = self.state.builder.type_reference(
                     mir::ReferenceKind::Managed,

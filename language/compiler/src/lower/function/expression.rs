@@ -534,11 +534,11 @@ impl FunctionLowerer<'_> {
             .builder
             .tree()
             .get(result_type)
-            .copyability()
-            .combine(mir::Copyability::Trivial);
+            .copy()
+            .combine(mir::Copy::Yes);
         let pair_type = self.state.builder.tree_mut().insert_type(mir::Type::Tuple {
             elements: vec![result_type.into(), bool_type.into()],
-            copyability: result_copyability,
+            copy: result_copyability,
         });
 
         // emit the checked intrinsic

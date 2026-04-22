@@ -7,6 +7,87 @@ use crate::lower::r#type::UnionPayloadKind;
 
 #[allow(clippy::too_many_arguments)]
 impl FunctionLowerer<'_> {
+    /// Return whether one type may carry one local or shared heap address.
+    fn is_heap_address_source_type(&self, ty: mir::LocalNodeId<mir::Type>) -> bool {
+        match self.state.builder.tree().get(ty) {
+            mir::Type::Reference {
+                kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
+                address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
+                ..
+            }
+            | mir::Type::Reference {
+                kind: mir::ReferenceKind::Borrowed,
+                address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
+                ..
+            }
+            | mir::Type::TensorReference {
+                kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
+                address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
+                ..
+            }
+            | mir::Type::TensorReference {
+                kind: mir::ReferenceKind::Borrowed,
+                address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
+                ..
+            } => true,
+            _ => false,
+        }
+    }
+
+    /// Return whether one type is a raw pointer like result.
+    fn is_raw_pointer_type(&self, ty: mir::LocalNodeId<mir::Type>) -> bool {
+        match self.state.builder.tree().get(ty) {
+            mir::Type::Reference {
+                kind: mir::ReferenceKind::Raw,
+                ..
+            }
+            | mir::Type::TensorReference {
+                kind: mir::ReferenceKind::Raw,
+                ..
+            } => true,
+            _ => false,
+        }
+    }
+
+    /// Reject one cast that would expose one heap address without explicit pinning.
+    pub(crate) fn reject_implicit_heap_address_cast(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        operator: dir::CastOperator,
+        source_type: mir::LocalNodeId<mir::Type>,
+        target_type: mir::LocalNodeId<mir::Type>,
+    ) -> LowerResult<()> {
+        // local and shared heap references need one explicit stable address path
+        if !self.is_heap_address_source_type(source_type) {
+            return Ok(());
+        }
+
+        // reject direct heap to integer casts
+        if matches!(operator, dir::CastOperator::PointerToInt) {
+            return Err(LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
+                message: "pointer to int cast from heap storage requires explicit pinning"
+                    .to_string(),
+            });
+        }
+
+        // reject direct heap to raw pointer casts
+        if matches!(operator, dir::CastOperator::PointerCast)
+            && self.is_raw_pointer_type(target_type)
+        {
+            return Err(LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
+                message: "raw pointer cast from heap storage requires explicit pinning".to_string(),
+            });
+        }
+
+        Ok(())
+    }
+
     /// Lower a cast operator into a MIR cast operator.
     ///
     /// ```ds
@@ -777,7 +858,7 @@ impl FunctionLowerer<'_> {
         }
     }
 
-    /// Allocate managed storage for a value and return a reference to it.
+    /// Allocate heap storage for a value and return a reference to it.
     pub(super) fn box_value(
         &mut self,
         value: mir::Value,
@@ -793,7 +874,7 @@ impl FunctionLowerer<'_> {
         );
 
         // allocate and store the value
-        let pointer = self.state.builder.managed_alloc(value_type, ref_type);
+        let pointer = self.state.builder.new_(value_type, ref_type);
         self.state.builder.store(pointer, value);
 
         // return the managed reference

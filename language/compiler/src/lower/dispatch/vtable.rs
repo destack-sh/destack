@@ -208,7 +208,7 @@ impl ModuleLowerer<'_> {
         );
         let vtable_type = self
             .builder
-            .type_array(slot_type, slot_count, mir::Copyability::Trivial);
+            .type_array(slot_type, slot_count, mir::Copy::Yes);
         let global_id =
             self.builder
                 .global_constant(&name, vtable_type, mir::GlobalInitializer::zero());
