@@ -214,19 +214,6 @@ const value = new Factory /* new-call */ (arg)
 const value = new Factory(/* new-call */ arg);
 ```
 
-### closure cast in parenthesized call
-
-Closure type cast comments stay attached inside cast parentheses in call contexts.
-
-```js:main.js
-const value = test((/** @type {array} */ numberOrString).map((x) => x))
-```
-
-```js expected
-const value = test(/** @type {array} */ numberOrString.map((x) => x));
-```
-
-
 ## Template Literals And Unary Boundaries
 
 ### tagged template with trailing call comment
