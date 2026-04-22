@@ -1,19 +1,19 @@
 import { intrinsic } from "intrinsic/primitive/decorator.ds";
 
-/// A borrowed view into contiguous memory.
-export newtype Slice<T> = unknown;
+/// A contiguous view into storage.
+export newtype Slice<T> = intrinsic;
 
 /// Return the slice length.
 @intrinsic("slice.length")
-declare function sliceLength<T>(slice: Slice<T>): uint32;
+declare function sliceLength<T>(slice: Slice<T>): usize;
 
 /// Load one element without bounds checks.
 @intrinsic("slice.get")
-declare function sliceUnsafeGet<T>(slice: Slice<T>, index: uint32): T;
+declare function sliceUnsafeGet<T>(slice: Slice<T>, index: usize): T;
 
 /// Store one element without bounds checks.
 @intrinsic("slice.set")
-declare function sliceUnsafeSet<T>(slice: &Slice<T>, index: uint32, value: T): void;
+declare function sliceUnsafeSet<T>(slice: &Slice<T>, index: usize, value: T): void;
 
 extension<T> of Slice<T> implements Index<number, T>, IndexSet<number, T>, Iterable<T> {
     /// Get the length of the slice.
@@ -34,11 +34,11 @@ extension<T> of Slice<T> implements Index<number, T>, IndexSet<number, T>, Itera
             undefined!
         }
 
-        this.unsafeGet(i as uint32)
+        this.unsafeGet(i as usize)
     }
 
     /// Get element at index (unchecked).
-    unsafeGet(i: uint32): T {
+    unsafeGet(i: usize): T {
         sliceUnsafeGet(this, i)
     }
 
@@ -88,7 +88,7 @@ extension<T> of Slice<T> implements Index<number, T>, IndexSet<number, T>, Itera
             undefined!
         }
 
-        sliceUnsafeSet(this, i as uint32, value);
+        sliceUnsafeSet(this, i as usize, value);
     }
 
     /// Fill the slice with a value.
