@@ -1869,9 +1869,8 @@ impl Parser {
         }
 
         // finalize raw comments in parse order
-        for comment in self.lexer.trivia_comments().iter().copied() {
-            self.tree.push_comment(comment);
-        }
+        let comments = self.lexer.take_trivia_comments();
+        self.tree.comments_mut().extend(comments);
     }
 
     /// Swap parser options and return the previous value.

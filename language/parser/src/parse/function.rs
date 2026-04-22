@@ -2479,7 +2479,7 @@ function onResolve(
     }
 
     #[test]
-    fn test_parse_function_body_boundary_line_comment_attaches_to_block() {
+    fn test_parse_function_body_boundary_line_comment_stays_trailing() {
         let mut test = TestParser::new_with_options(
             "function f(): void // body\n{}",
             LanguageType::TypeScript,
@@ -2496,8 +2496,9 @@ function onResolve(
             let body_span = parser.tree.get_span(*body_id);
             let comment = parser.tree.comments()[0];
 
-            assert_eq!(comment.position, CommentPosition::Leading);
-            assert_eq!(comment.attached_to, body_span.start);
+            assert_eq!(comment.position, CommentPosition::Trailing);
+            assert_eq!(comment.attached_to, 0);
+            assert!(comment.span.end <= body_span.start);
         });
 
         assert_eq!(parser.tree.comments().len(), 1);

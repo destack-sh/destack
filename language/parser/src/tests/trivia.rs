@@ -173,6 +173,31 @@ fn test_attach_comments_is_idempotent() {
 }
 
 #[test]
+fn test_attach_comments_keeps_one_comment_after_restore_and_reparse() {
+    let mut test = TestParser::new_with_options("a // note\nb", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+
+    // speculative lookahead across the comment
+    let mark = parser.mark();
+    let mark_node_id = parser.tree.next_id();
+    let next_span = parser.peek_next_next().expect("expected next token").span;
+    assert_eq!(parser.get_span_str(next_span), "b");
+
+    // restore and consume the same boundary again
+    parser.restore(mark, mark_node_id);
+    parser.eat().expect("expected first token");
+    parser.eat().expect("expected newline token");
+    parser.eat().expect("expected second token");
+
+    // attach one raw comment
+    parser.attach_comments();
+    assert_eq!(parser.tree.comments().len(), 1);
+    let comment = parser.tree.comments()[0];
+    assert_eq!(comment_text(&parser, comment), "note");
+    assert_eq!(comment.position, CommentPosition::Trailing);
+}
+
+#[test]
 fn test_comment_only_file_gets_stub_expression_and_trivia() {
     let (parser, expressions) = parse_source("// only", LanguageType::TypeScript);
 
@@ -906,6 +931,54 @@ fn test_comment_inside_empty_lambda_block_attaches_to_block_infix() {
         Some(TokenType::CloseBrace),
     );
     assert_comment_newline_shape(trivia, true, true);
+}
+
+#[test]
+fn test_line_comment_after_block_opener_stays_trailing() {
+    let (parser, expressions) =
+        parse_source("{ // block-note\n  value\n}", LanguageType::TypeScript);
+
+    // `{ value }`
+    assert_eq!(expressions.len(), 1);
+
+    // `// block-note`
+    assert_eq!(comments(&parser).len(), 1);
+    let trivia = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, trivia), "block-note");
+    assert_eq!(trivia.position, CommentPosition::Trailing);
+    assert_eq!(trivia.attached_to, 0);
+    assert_comment_boundary_tokens(
+        &parser,
+        trivia,
+        Some(TokenType::OpenBrace),
+        Some(TokenType::Identifier),
+    );
+    assert_comment_newline_shape(trivia, false, true);
+}
+
+#[test]
+fn test_line_comment_after_object_literal_opener_stays_trailing() {
+    let (parser, expressions) = parse_source(
+        "({ // object-note\n  value: 1\n})",
+        LanguageType::TypeScript,
+    );
+
+    // `({ value: 1 })`
+    assert_eq!(expressions.len(), 1);
+
+    // `// object-note`
+    assert_eq!(comments(&parser).len(), 1);
+    let trivia = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, trivia), "object-note");
+    assert_eq!(trivia.position, CommentPosition::Trailing);
+    assert_eq!(trivia.attached_to, 0);
+    assert_comment_boundary_tokens(
+        &parser,
+        trivia,
+        Some(TokenType::OpenBrace),
+        Some(TokenType::Identifier),
+    );
+    assert_comment_newline_shape(trivia, false, true);
 }
 
 #[test]
