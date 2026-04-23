@@ -322,6 +322,8 @@ fn type_argument_needs_parentheses(expression: &ast::TypeExpression) -> bool {
             | ast::TypeExpression::Array { .. }
             | ast::TypeExpression::Object { .. }
             | ast::TypeExpression::Declaration { .. }
+            | ast::TypeExpression::FunctionTypeDeclaration(_)
+            | ast::TypeExpression::ConstructorTypeDeclaration(_)
             | ast::TypeExpression::Reference { .. }
             | ast::TypeExpression::Member { .. }
             | ast::TypeExpression::Const

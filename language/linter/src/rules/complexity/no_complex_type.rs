@@ -357,6 +357,8 @@ fn type_expression_complexity_inner(
         | TypeExpression::Literal { .. }
         | TypeExpression::Intrinsic
         | TypeExpression::Declaration { .. }
+        | TypeExpression::FunctionTypeDeclaration(_)
+        | TypeExpression::ConstructorTypeDeclaration(_)
         | TypeExpression::Reference { .. }
         | TypeExpression::Const
         | TypeExpression::This
