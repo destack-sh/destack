@@ -500,15 +500,7 @@ impl NodeTree {
     pub fn set_pointer_bytes(&mut self, pointer_bytes: u8) {
         match pointer_bytes {
             4 | 8 => {
-                let storage = &mut self.metadata.layout.storage;
-                let previous_pointer_bytes = storage.native_pointer_bytes;
-
-                storage.native_pointer_bytes = pointer_bytes;
-
-                // keep the default heap-reference width in lockstep until explicitly overridden
-                if storage.heap_reference_bytes == previous_pointer_bytes {
-                    storage.heap_reference_bytes = pointer_bytes;
-                }
+                self.metadata.layout.storage.native_pointer_bytes = pointer_bytes;
             }
             _ => {
                 panic!("unsupported pointer size {pointer_bytes} bytes");
