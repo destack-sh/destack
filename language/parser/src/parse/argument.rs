@@ -1266,7 +1266,6 @@ impl Parser {
         )?;
 
         let container_start = self.get_span_from(&start).start;
-
         if let Some(first_parameter_id) = parameters.first().copied() {
             self.set_node_leading_span(first_parameter_id, container_start);
         }
