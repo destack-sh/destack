@@ -6,10 +6,10 @@ use crate::{
     AddressSpace, AllocationMode, ArgumentAttribute, ArgumentSlice, Attribute, AttributeArgs,
     AttributeIdentifier, AttributeValue, Block, Call, CallBehavior, Constant, Copy,
     DebugBindingKind, DebugRangeStart, DebugScopeKind, DebugValueLocation, EffectClass, Field,
-    Function, FunctionReference, Instruction, Layout, LayoutField, LayoutKind, LayoutTrace, Local,
+    Function, FunctionReference, Instruction, Layout, LayoutField, LayoutKind, Local,
     LocalNodeId, LocalReference, Mutability, NodeTree, Ownership, ProvenanceAnchor, ProvenanceKey,
-    ReferenceKind, SuspendBehavior, Terminator, Type, TypeReference, UnwindBehavior, Value,
-    ValueReference, VtableSlotId,
+    ReferenceKind, ReferenceMap, SuspendBehavior, Terminator, Type, TypeReference,
+    UnwindBehavior, Value, ValueReference, VtableSlotId,
 };
 
 use super::Validator;
@@ -1119,7 +1119,7 @@ fn test_reject_struct_layout_field_type_mismatch() {
         kind: LayoutKind::Struct,
         size: 4,
         alignment: 4,
-        trace: LayoutTrace::empty(),
+        reference_map: ReferenceMap::empty(),
         fields: vec![LayoutField {
             name: Some(field_name),
             ty: float32,

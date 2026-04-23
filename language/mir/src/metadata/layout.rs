@@ -11,9 +11,9 @@ use crate::{
     TypeLineage, TypeReference, UnionLayout, WellKnownTypes, slice_header_types,
 };
 
-/// Heap-reference trace metadata for one runtime payload.
+/// Heap-reference metadata for one runtime payload.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum LayoutTrace {
+pub enum ReferenceMap {
     /// Payload contains no heap references.
     None,
     /// Payload stores direct heap-reference words at fixed byte offsets.
@@ -36,18 +36,18 @@ pub enum LayoutTrace {
     },
 }
 
-impl LayoutTrace {
-    /// Return the empty trace.
+impl ReferenceMap {
+    /// Return the empty reference map.
     pub const fn empty() -> Self {
         Self::None
     }
 
-    /// Report whether this trace can reach heap references.
+    /// Report whether this map can reach heap references.
     pub fn has_reference(&self) -> bool {
         self.has_local_reference() || self.has_shared_reference()
     }
 
-    /// Report whether this trace can reach local heap references.
+    /// Report whether this map can reach local heap references.
     pub fn has_local_reference(&self) -> bool {
         match self {
             Self::None => false,
@@ -60,7 +60,7 @@ impl LayoutTrace {
         }
     }
 
-    /// Report whether this trace can reach shared heap references.
+    /// Report whether this map can reach shared heap references.
     pub fn has_shared_reference(&self) -> bool {
         match self {
             Self::None => false,
@@ -362,12 +362,12 @@ impl LayoutMetadataCompletion<'_> {
             kind: LayoutKind::Struct,
             size: layout.size,
             alignment: layout.alignment,
-            trace: LayoutTrace::empty(),
+            reference_map: ReferenceMap::empty(),
             fields: layout_fields,
         };
 
         self.insert_layout_entry(type_id, layout_entry);
-        self.record_layout_trace(type_id)?;
+        self.record_reference_map(type_id)?;
 
         Ok(())
     }
@@ -410,12 +410,12 @@ impl LayoutMetadataCompletion<'_> {
             kind: LayoutKind::Tuple,
             size,
             alignment,
-            trace: LayoutTrace::empty(),
+            reference_map: ReferenceMap::empty(),
             fields: layout_fields,
         };
 
         self.insert_layout_entry(type_id, layout_entry);
-        self.record_layout_trace(type_id)?;
+        self.record_reference_map(type_id)?;
 
         Ok(())
     }
@@ -448,12 +448,12 @@ impl LayoutMetadataCompletion<'_> {
             },
             size,
             alignment: element_layout.alignment,
-            trace: LayoutTrace::empty(),
+            reference_map: ReferenceMap::empty(),
             fields: Vec::new(),
         };
 
         self.insert_layout_entry(type_id, layout_entry);
-        self.record_layout_trace(type_id)?;
+        self.record_reference_map(type_id)?;
 
         Ok(())
     }
@@ -500,12 +500,12 @@ impl LayoutMetadataCompletion<'_> {
             kind: LayoutKind::Tuple,
             size: layout.size,
             alignment,
-            trace: LayoutTrace::empty(),
+            reference_map: ReferenceMap::empty(),
             fields: layout_fields,
         };
 
         self.insert_layout_entry(type_id, layout_entry);
-        self.record_layout_trace(type_id)?;
+        self.record_reference_map(type_id)?;
 
         Ok(())
     }
@@ -550,12 +550,12 @@ impl LayoutMetadataCompletion<'_> {
             kind: LayoutKind::Closure,
             size: layout.size,
             alignment,
-            trace: LayoutTrace::empty(),
+            reference_map: ReferenceMap::empty(),
             fields: layout_fields,
         };
 
         self.insert_layout_entry(type_id, layout_entry);
-        self.record_layout_trace(type_id)?;
+        self.record_reference_map(type_id)?;
 
         Ok(())
     }
@@ -566,9 +566,9 @@ impl LayoutMetadataCompletion<'_> {
         self.tree.metadata.layout.set_layout_id(type_id, layout_id);
     }
 
-    /// Compute and record the trace metadata for one aggregate layout.
-    fn record_layout_trace(&mut self, type_id: LocalNodeId<Type>) -> LayoutMetadataResult<()> {
-        let trace = self.build_layout_trace(type_id)?;
+    /// Compute and record the reference-map metadata for one aggregate layout.
+    fn record_reference_map(&mut self, type_id: LocalNodeId<Type>) -> LayoutMetadataResult<()> {
+        let reference_map = self.build_reference_map(type_id)?;
         let layout_id = self
             .tree
             .metadata
@@ -588,22 +588,22 @@ impl LayoutMetadataCompletion<'_> {
             });
         };
 
-        layout.trace = trace;
+        layout.reference_map = reference_map;
 
         Ok(())
     }
 
-    /// Build the trace metadata for one concrete type.
-    fn build_layout_trace(
+    /// Build the reference-map metadata for one concrete type.
+    fn build_reference_map(
         &mut self,
         type_id: LocalNodeId<Type>,
-    ) -> LayoutMetadataResult<LayoutTrace> {
+    ) -> LayoutMetadataResult<ReferenceMap> {
         if let Type::Array {
             element, length, ..
         } = self.tree.get(type_id)
         {
             let Some(element) = concrete_type(*element) else {
-                return Ok(LayoutTrace::empty());
+                return Ok(ReferenceMap::empty());
             };
 
             let element_layout = compute_type_layout(self.tree, element, self.tree.pointer_bytes());
@@ -612,13 +612,13 @@ impl LayoutMetadataCompletion<'_> {
                 u32::try_from(*length).map_err(|_| LayoutMetadataError::ArrayLengthOverflow)?;
             let mut local_offsets = Vec::new();
             let mut shared_offsets = Vec::new();
-            self.append_layout_trace_offsets(element, 0, &mut local_offsets, &mut shared_offsets)?;
+            self.append_reference_map_offsets(element, 0, &mut local_offsets, &mut shared_offsets)?;
 
             if local_offsets.is_empty() && shared_offsets.is_empty() {
-                return Ok(LayoutTrace::empty());
+                return Ok(ReferenceMap::empty());
             }
 
-            return Ok(LayoutTrace::RepeatedReference {
+            return Ok(ReferenceMap::RepeatedReference {
                 count,
                 stride,
                 local_offsets: local_offsets.into_boxed_slice(),
@@ -628,12 +628,12 @@ impl LayoutMetadataCompletion<'_> {
 
         let mut local_offsets = Vec::new();
         let mut shared_offsets = Vec::new();
-        self.append_layout_trace_offsets(type_id, 0, &mut local_offsets, &mut shared_offsets)?;
+        self.append_reference_map_offsets(type_id, 0, &mut local_offsets, &mut shared_offsets)?;
 
         if local_offsets.is_empty() && shared_offsets.is_empty() {
-            Ok(LayoutTrace::empty())
+            Ok(ReferenceMap::empty())
         } else {
-            Ok(LayoutTrace::Reference {
+            Ok(ReferenceMap::Reference {
                 local_offsets: local_offsets.into_boxed_slice(),
                 shared_offsets: shared_offsets.into_boxed_slice(),
             })
@@ -641,7 +641,7 @@ impl LayoutMetadataCompletion<'_> {
     }
 
     /// Append heap-reference offsets for one concrete type.
-    fn append_layout_trace_offsets(
+    fn append_reference_map_offsets(
         &mut self,
         type_id: LocalNodeId<Type>,
         base_offset: u32,
@@ -685,7 +685,7 @@ impl LayoutMetadataCompletion<'_> {
                         },
                     )?;
 
-                    self.append_layout_trace_offsets(
+                    self.append_reference_map_offsets(
                         field.ty,
                         field_offset,
                         local_offsets,
@@ -709,7 +709,7 @@ impl LayoutMetadataCompletion<'_> {
 
                 let mut element_local_offsets = Vec::new();
                 let mut element_shared_offsets = Vec::new();
-                self.append_layout_trace_offsets(
+                self.append_reference_map_offsets(
                     element,
                     0,
                     &mut element_local_offsets,
@@ -843,8 +843,8 @@ pub struct Layout {
     pub size: u32,
     /// Alignment requirement in bytes.
     pub alignment: u32,
-    /// Managed-reference trace metadata for this layout.
-    pub trace: LayoutTrace,
+    /// Managed-reference metadata for this layout.
+    pub reference_map: ReferenceMap,
     /// Field layouts in concrete memory order.
     pub fields: Vec<LayoutField>,
 }
@@ -992,8 +992,8 @@ type Packed {
 
         // heap-reference trace
         assert_eq!(
-            layout.trace,
-            LayoutTrace::Reference {
+            layout.reference_map,
+            ReferenceMap::Reference {
                 local_offsets: vec![8].into_boxed_slice(),
                 shared_offsets: Vec::new().into_boxed_slice(),
             }
