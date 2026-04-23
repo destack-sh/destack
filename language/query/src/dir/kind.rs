@@ -98,6 +98,8 @@ pub(crate) fn type_member_symbol_kind(member: &TypeMember) -> Option<SymbolKind>
         TypeMember::AssociatedConst { .. } => Some(SymbolKind::Constant),
         TypeMember::Field { .. } => Some(SymbolKind::Field),
         TypeMember::Method { .. } => Some(SymbolKind::Method),
+        TypeMember::CallSignature { .. } => Some(SymbolKind::Method),
+        TypeMember::ConstructSignature { .. } => Some(SymbolKind::Method),
         TypeMember::IndexSignature { .. } => None,
         TypeMember::Embed { .. } => None,
         TypeMember::Error { .. } => None,
