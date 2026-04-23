@@ -33,19 +33,6 @@ impl<'a> Validator<'a> {
             })?,
         }
 
-        // heap reference storage
-        match self.tree.metadata.layout.storage.heap_reference_bytes {
-            4 | 8 => {}
-            heap_reference_bytes => {
-                return Err(ValidateError::MetadataInvariantViolation {
-                    message: format!(
-                        "unsupported heap reference size {heap_reference_bytes} bytes"
-                    ),
-                    anchor,
-                });
-            }
-        }
-
         // per-instruction memory metadata
         for (&instruction_id, accesses) in
             &self.tree.metadata.memory.memory_accesses_by_instruction_id

@@ -79,15 +79,12 @@ impl LayoutTrace {
 pub struct Storage {
     /// Native pointer size in bytes for this module.
     pub native_pointer_bytes: u8,
-    /// Heap reference size in bytes.
-    pub heap_reference_bytes: u8,
 }
 
 impl Default for Storage {
     fn default() -> Self {
         Self {
             native_pointer_bytes: 8,
-            heap_reference_bytes: 8,
         }
     }
 }
@@ -97,18 +94,12 @@ impl Storage {
     pub fn with_pointer_bytes(pointer_bytes: u8) -> Self {
         Self {
             native_pointer_bytes: pointer_bytes,
-            heap_reference_bytes: pointer_bytes,
         }
     }
 
     /// Return pointer width in bits.
     pub fn pointer_bits(self) -> u16 {
         u16::from(self.native_pointer_bytes) * 8
-    }
-
-    /// Return heap reference width in bits.
-    pub fn heap_reference_bits(self) -> u16 {
-        u16::from(self.heap_reference_bytes) * 8
     }
 }
 
