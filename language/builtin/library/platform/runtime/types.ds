@@ -440,8 +440,6 @@ export struct HeapDescriptor {
     heapBytes: uint64;
     /// Total captured page count.
     pageCount: uint32;
-    /// Shared page count.
-    sharedPageCount: uint32;
     /// Completed GC cycle count.
     gcCycles: uint64;
 }
