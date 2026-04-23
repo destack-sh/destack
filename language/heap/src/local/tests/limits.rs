@@ -1,14 +1,18 @@
-use crate::{AccountingRegion, HeapError, HeapLimits, HeapOptions, HeapSpaceLimits, RawLimits};
-use destack_mir::LayoutTrace;
+use crate::{
+    AccountingRegion, HeapError, HeapLimits, HeapOptions, HeapSpaceLimits, RawLimits, test_layout,
+};
+use destack_mir::ReferenceMap;
 
 use super::TestHeap;
 
 /// Return the active local heap bytes for one allocation in the given heap options.
 fn heap_active_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 {
-    let mut test_heap = TestHeap::with_options(options);
+    let (layouts, layout_id) = test_layout(bytes.len(), ReferenceMap::empty());
+    let mut test_heap =
+        TestHeap::with_limits_and_layout_table(crate::HeapLimits::default(), options, layouts);
     let heap = &mut test_heap.heap;
 
-    heap.allocate_heap_bytes(bytes, LayoutTrace::empty(), None)
+    heap.allocate_heap_bytes(bytes, layout_id)
         .expect("heap allocation should succeed");
 
     heap.usage().heap.active_bytes
@@ -34,7 +38,9 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
         ..HeapOptions::local()
     };
     let expected_used_bytes = heap_active_bytes_after_allocate(options.clone(), &[1]);
-    let mut test_heap = TestHeap::with_options(options);
+    let (layouts, layout_id) = test_layout(1, ReferenceMap::empty());
+    let mut test_heap =
+        TestHeap::with_limits_and_layout_table(crate::HeapLimits::default(), options, layouts);
     let heap = &mut test_heap.heap;
     let baseline = heap.usage().heap.active_bytes;
     heap.set_limits(HeapLimits {
@@ -47,7 +53,7 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
     .expect("baseline heap should fit its current active-byte limit");
 
     let error = heap
-        .allocate_heap_bytes(&[1], LayoutTrace::empty(), None)
+        .allocate_heap_bytes(&[1], layout_id)
         .expect_err("heap allocation should be rejected");
 
     assert_eq!(
@@ -136,12 +142,12 @@ fn test_reject_raw_replace_when_limit_exceeded() {
         },
     })
     .expect("baseline raw heap should fit its current active-byte limit");
-    let mapped_delta = heap
+    let mapped_byte_delta = heap
         .raw
-        .replace_mapped_delta(pointer, 8193)
+        .replace_mapped_byte_delta(pointer, 8193)
         .expect("raw replacement should project");
     let expected_used_bytes = baseline
-        .checked_add(mapped_delta as u64)
+        .checked_add(mapped_byte_delta as u64)
         .expect("projected raw usage should fit");
 
     let error = heap

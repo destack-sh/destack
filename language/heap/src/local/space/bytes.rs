@@ -1,10 +1,12 @@
-use super::{HeapLocation, HeapSpace, HeapStorage, TracePlan};
+use destack_mir::ReferenceMap;
+
+use super::{HeapLocation, HeapSpace, HeapStorage};
 use crate::allocator::PageView;
-use crate::{HeapError, HeapReference, HeapResult, LayoutId, Shape, ShapeId};
+use crate::{HeapError, HeapReference, HeapResult};
 
 impl HeapSpace {
     /// Return the projected mapped-byte delta for one heap write.
-    pub fn write_mapped_delta(
+    pub fn write_mapped_byte_delta(
         &self,
         reference: HeapReference,
         start: usize,
@@ -33,186 +35,19 @@ impl HeapSpace {
         self.resolve_location(reference).is_some()
     }
 
+    #[cfg(test)]
     /// Return the live storage location for one heap reference.
     pub(crate) fn location(&self, reference: HeapReference) -> Option<HeapStorage> {
         Some(self.resolve_location(reference)?.storage)
     }
 
-    /// Return the storage layout id for one heap reference.
-    pub fn layout_id(&self, reference: HeapReference) -> HeapResult<Option<LayoutId>> {
+    /// Return the reference map for one heap reference.
+    pub fn scan(&self, reference: HeapReference) -> HeapResult<ReferenceMap> {
         let Some(location) = self.resolve_location(reference) else {
             return Err(HeapError::InvalidHeapReference { reference });
         };
 
-        self.location_layout_id(location.storage)
-    }
-
-    /// Return the storage layout id for one live heap location.
-    fn location_layout_id(&self, storage: HeapStorage) -> HeapResult<Option<LayoutId>> {
-        let shape = self.location_shape(storage)?;
-
-        Ok(shape.layout_id)
-    }
-
-    /// Return the scan metadata for one heap reference.
-    pub fn scan(&self, reference: HeapReference) -> HeapResult<&TracePlan> {
-        let Some(location) = self.resolve_location(reference) else {
-            return Err(HeapError::InvalidHeapReference { reference });
-        };
-        let shape = self.location_shape(location.storage)?;
-
-        Ok(&shape.trace)
-    }
-
-    /// Set the storage layout id for one heap reference.
-    pub fn set_layout_id(
-        &mut self,
-        reference: HeapReference,
-        layout_id: LayoutId,
-    ) -> HeapResult<()> {
-        let Some(storage) = self.location(reference) else {
-            return Err(HeapError::InvalidHeapReference { reference });
-        };
-
-        self.set_location_layout_id(storage, layout_id)
-    }
-
-    /// Set the storage layout id for one live heap location.
-    fn set_location_layout_id(
-        &mut self,
-        storage: HeapStorage,
-        layout_id: LayoutId,
-    ) -> HeapResult<()> {
-        // update the layout source for this storage partition
-        match storage {
-            HeapStorage::Young(young_id) => {
-                let shape_id = self
-                    .young_entry(young_id)
-                    .ok_or(HeapError::MissingYoungEntry {
-                        generation: young_id.generation(),
-                        entry_index: young_id.index(),
-                    })?
-                    .shape_id;
-                let shape_id = self.shape_with_layout(shape_id, Some(layout_id))?;
-                let Some(entry) = self.young_entry_mut(young_id) else {
-                    return Err(HeapError::MissingYoungEntry {
-                        generation: young_id.generation(),
-                        entry_index: young_id.index(),
-                    });
-                };
-                entry.shape_id = shape_id;
-
-                Ok(())
-            }
-            HeapStorage::Small(slot) => {
-                let shape_id = self
-                    .span(slot.span_index())
-                    .ok_or(HeapError::MissingSpan {
-                        span_index: slot.span_index(),
-                    })?
-                    .shape_ids
-                    .get(slot.slot_index())
-                    .copied()
-                    .flatten()
-                    .ok_or(HeapError::MissingSmallSlot {
-                        span_index: slot.span_index(),
-                        slot_index: slot.slot_index(),
-                    })?;
-                let shape_id = self.shape_with_layout(shape_id, Some(layout_id))?;
-                let Some(span) = self.span_mut(slot.span_index()) else {
-                    return Err(HeapError::MissingSpan {
-                        span_index: slot.span_index(),
-                    });
-                };
-                span.set_shape_id(slot.slot_index(), Some(shape_id));
-
-                Ok(())
-            }
-            HeapStorage::Large(entry_id) => {
-                let shape_id = self
-                    .large_entry(entry_id)
-                    .ok_or(HeapError::MissingLargeEntry {
-                        entry_id: entry_id.id(),
-                    })?
-                    .shape_id;
-                let shape_id = self.shape_with_layout(shape_id, Some(layout_id))?;
-                let Some(entry) = self.large_entry_mut(entry_id) else {
-                    return Err(HeapError::MissingLargeEntry {
-                        entry_id: entry_id.id(),
-                    });
-                };
-                entry.shape_id = shape_id;
-
-                Ok(())
-            }
-        }
-    }
-
-    /// Return one interned shape with one replacement layout id.
-    fn shape_with_layout(
-        &mut self,
-        shape_id: ShapeId,
-        layout_id: Option<LayoutId>,
-    ) -> HeapResult<ShapeId> {
-        let shape = self
-            .shape_table
-            .shape(shape_id)
-            .cloned()
-            .ok_or(HeapError::InvalidShapeId {
-                index: shape_id.index(),
-            })?;
-
-        self.shape_table.intern(Shape {
-            trace: shape.trace,
-            layout_id,
-        })
-    }
-
-    /// Return the entry shape for one live heap location.
-    fn location_shape(&self, storage: HeapStorage) -> HeapResult<&Shape> {
-        let shape_id = match storage {
-            HeapStorage::Young(young_id) => {
-                let Some(entry) = self.young_entry(young_id) else {
-                    return Err(HeapError::MissingYoungEntry {
-                        generation: young_id.generation(),
-                        entry_index: young_id.index(),
-                    });
-                };
-
-                entry.shape_id
-            }
-            HeapStorage::Small(slot) => {
-                let Some(span) = self.span(slot.span_index()) else {
-                    return Err(HeapError::MissingSpan {
-                        span_index: slot.span_index(),
-                    });
-                };
-                let Some(shape_id) = span.shape_ids.get(slot.slot_index()).copied().flatten()
-                else {
-                    return Err(HeapError::MissingSmallSlot {
-                        span_index: slot.span_index(),
-                        slot_index: slot.slot_index(),
-                    });
-                };
-
-                shape_id
-            }
-            HeapStorage::Large(entry_id) => {
-                let Some(entry) = self.large_entry(entry_id) else {
-                    return Err(HeapError::MissingLargeEntry {
-                        entry_id: entry_id.id(),
-                    });
-                };
-
-                entry.shape_id
-            }
-        };
-
-        self.shape_table
-            .shape(shape_id)
-            .ok_or(HeapError::InvalidShapeId {
-                index: shape_id.index(),
-            })
+        self.location_reference_map(location.storage)
     }
 
     /// Return the remaining byte length for one heap reference.
@@ -299,11 +134,9 @@ impl HeapSpace {
             return Ok(());
         }
 
-        let Some(shape_id) = self.location_shape_id(location.storage) else {
-            return Err(HeapError::InvalidHeapReference { reference });
-        };
+        let reference_map = self.location_reference_map(location.storage)?;
 
-        if !self.overlaps_shared_roots(shape_id, byte_offset, byte_len)? {
+        if !self.overlaps_shared_roots(&reference_map, byte_offset, byte_len)? {
             return Ok(());
         }
 
@@ -358,8 +191,11 @@ impl HeapSpace {
                     };
                     let previous_pages = span.pages.clone();
                     let span_byte_len = page_view_capacity(&span.pages, allocator.page_bytes())?;
-                    let slot_offset =
-                        checked_slot_offset(slot.span_index(), span.size_class, slot.slot_index())?;
+                    let slot_offset = checked_slot_offset(
+                        slot.span_index(),
+                        span.class.size_class,
+                        slot.slot_index(),
+                    )?;
                     let write_offset =
                         checked_storage_offset(slot_offset, byte_offset, span_byte_len)?;
 
@@ -462,8 +298,11 @@ impl HeapSpace {
                     });
                 };
                 let span_byte_len = page_view_capacity(&span.pages, self.allocator().page_bytes())?;
-                let slot_offset =
-                    checked_slot_offset(slot.span_index(), span.size_class, slot.slot_index())?;
+                let slot_offset = checked_slot_offset(
+                    slot.span_index(),
+                    span.class.size_class,
+                    slot.slot_index(),
+                )?;
                 let read_offset = checked_storage_offset(slot_offset, byte_offset, span_byte_len)?;
 
                 self.allocator()
@@ -514,8 +353,11 @@ impl HeapSpace {
                     });
                 };
                 let span_byte_len = page_view_capacity(&span.pages, self.allocator().page_bytes())?;
-                let slot_offset =
-                    checked_slot_offset(slot.span_index(), span.size_class, slot.slot_index())?;
+                let slot_offset = checked_slot_offset(
+                    slot.span_index(),
+                    span.class.size_class,
+                    slot.slot_index(),
+                )?;
                 let read_offset = checked_storage_offset(slot_offset, byte_offset, span_byte_len)?;
 
                 self.allocator()

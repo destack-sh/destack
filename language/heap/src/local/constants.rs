@@ -1,9 +1,3 @@
-/// The standard heap page width aligned to common OS pages.
-pub(crate) const DEFAULT_PAGE_BYTES: usize = 4 * 1024;
-
-/// The standard allocator segment width that amortizes mapping and metadata work.
-pub(crate) const DEFAULT_ALLOCATOR_SEGMENT_BYTES: usize = 1024 * 1024;
-
 /// The standard small-span width for size-classed allocation.
 pub(crate) const DEFAULT_SMALL_BYTES: usize = 16 * 1024;
 

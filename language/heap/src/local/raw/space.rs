@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use super::{LargeEntry, LargeEntryId, RawLocation, RawPageOwner, RawStorage, SmallSpan};
@@ -16,8 +17,8 @@ pub(crate) struct SmallSpace {
     pub(crate) span_bytes: usize,
     /// The live raw spans.
     pub(crate) spans: CowTable<SmallSpan>,
-    /// The reusable non-full spans per size class.
-    pub(crate) available_spans: Vec<Vec<usize>>,
+    /// The reusable non-full spans per logical byte length.
+    pub(crate) available_spans: BTreeMap<usize, Vec<usize>>,
 }
 
 /// One raw large space.
@@ -53,17 +54,6 @@ pub struct RawSpace {
 }
 
 impl RawSpace {
-    /// Create one raw space with the default options.
-    pub fn new() -> Result<Self, HeapError> {
-        let options = HeapOptions::local();
-        let allocator = Arc::new(Allocator::try_new(
-            options.page_bytes,
-            options.allocator_segment_bytes,
-        )?);
-
-        Self::with_options(allocator, &options)
-    }
-
     /// Create one raw space with explicit options.
     pub fn with_options(
         allocator: Arc<Allocator>,
@@ -71,7 +61,7 @@ impl RawSpace {
     ) -> Result<Self, HeapError> {
         options.validate_local()?;
         options.validate_allocator(&allocator)?;
-        let page_run_cache = PageRunCache::new(allocator.pages_per_segment());
+        let page_run_cache = PageRunCache::new(allocator.pages_per_arena());
 
         Ok(Self {
             allocator,
@@ -80,7 +70,7 @@ impl RawSpace {
                 size_classes: options.size_classes.clone(),
                 span_bytes: options.raw_small_bytes,
                 spans: CowTable::new(),
-                available_spans: vec![Vec::new(); options.size_classes.classes.len()],
+                available_spans: BTreeMap::new(),
             },
             large: LargeSpace {
                 page_bytes: options.page_bytes,
@@ -245,18 +235,18 @@ impl RawSpace {
                 let logical_byte_offset = logical_page_index
                     .checked_mul(self.allocator.page_bytes())?
                     .checked_add(page_offset)?;
-                let slot_index = logical_byte_offset / span.size_class;
-                let slot_offset = logical_byte_offset % span.size_class;
+                let slot_index = logical_byte_offset / span.class.size_class;
+                let slot_offset = logical_byte_offset % span.class.size_class;
                 if slot_index >= span.slot_count || !span.occupied.contains(slot_index) {
                     return None;
                 }
 
-                let byte_len = *span.lengths.get(slot_index)?;
+                let byte_len = span.class.byte_len;
                 if slot_offset >= byte_len {
                     return None;
                 }
 
-                let slot_base_offset = slot_index.checked_mul(span.size_class)?;
+                let slot_base_offset = slot_index.checked_mul(span.class.size_class)?;
                 let base_address = self
                     .allocator
                     .page_view_ptr(&span.pages, slot_base_offset)
@@ -304,7 +294,7 @@ impl RawSpace {
                         span_index: slot.span_index(),
                     });
                 };
-                let slot_offset = span.size_class.checked_mul(slot.slot_index()).ok_or(
+                let slot_offset = span.class.size_class.checked_mul(slot.slot_index()).ok_or(
                     HeapError::InvariantOverflow {
                         context: "raw slot base offset",
                     },

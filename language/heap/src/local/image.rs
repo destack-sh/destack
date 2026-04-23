@@ -7,7 +7,7 @@ use super::Heap;
 use crate::allocator::{Allocator, AllocatorImage, PageId};
 use crate::local::raw::{RawSpace, RawSpaceImage};
 use crate::local::space::{
-    GcSummary, HeapLocation, HeapPageOwner, HeapSpace, HeapSpaceImage, HeapStorage, live_page_views,
+    GcState, HeapLocation, HeapPageOwner, HeapSpace, HeapSpaceImage, HeapStorage, live_page_views,
 };
 use crate::{HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult};
 
@@ -27,7 +27,7 @@ pub struct HeapImage {
 }
 
 /// One serialized heap snapshot payload.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct HeapSnapshot {
     /// The serialized allocator pages reachable from this heap root.
     allocator: AllocatorImage,
@@ -105,7 +105,7 @@ impl HeapImage {
     }
 
     /// Return the captured collector state.
-    pub fn gc_state(&self) -> &GcSummary {
+    pub fn gc_state(&self) -> &GcState {
         self.heap.gc_state()
     }
 
@@ -202,31 +202,6 @@ impl HeapImage {
             .collect::<BTreeSet<_>>()
             .into_iter()
             .collect()
-    }
-
-    /// Return whether two heap images expose the same reachable allocator pages.
-    fn has_equal_page_bytes(&self, other: &Self) -> bool {
-        let page_ids = self.image_page_ids();
-        let other_page_ids = other.image_page_ids();
-        if page_ids != other_page_ids {
-            return false;
-        }
-
-        // compare each reachable page directly without snapshot materialization
-        for page_id in page_ids {
-            let Ok(page) = self.allocator.read_page_bytes(page_id) else {
-                return false;
-            };
-            let Ok(other_page) = other.allocator.read_page_bytes(page_id) else {
-                return false;
-            };
-
-            if page != other_page {
-                return false;
-            }
-        }
-
-        true
     }
 }
 
@@ -341,17 +316,6 @@ impl<'de> Deserialize<'de> for HeapImage {
     }
 }
 
-impl PartialEq for HeapImage {
-    fn eq(&self, other: &Self) -> bool {
-        self.options == other.options
-            && self.heap == other.heap
-            && self.raw == other.raw
-            && self.has_equal_page_bytes(other)
-    }
-}
-
-impl Eq for HeapImage {}
-
 /// Return the resolved heap page owner for one captured page.
 fn image_heap_page_owner(image: &HeapSpaceImage, page_id: PageId) -> Option<HeapPageOwner> {
     for logical_page_index in 0..image.young().pages().len() {
@@ -441,19 +405,19 @@ fn image_heap_location(
             let logical_byte_offset = logical_page_index
                 .checked_mul(image.page_bytes())?
                 .checked_add(page_offset)?;
-            let slot_index = logical_byte_offset / span.size_class;
-            let slot_offset = logical_byte_offset % span.size_class;
+            let slot_index = logical_byte_offset / span.class.size_class;
+            let slot_offset = logical_byte_offset % span.class.size_class;
 
             if slot_index >= span.slot_count || !span.occupied.contains(slot_index) {
                 return None;
             }
 
-            let byte_len = *span.lengths.get(slot_index)?;
+            let byte_len = *span.byte_lens.get(slot_index)?;
             if slot_offset >= byte_len {
                 return None;
             }
 
-            let slot_base_offset = slot_index.checked_mul(span.size_class)?;
+            let slot_base_offset = slot_index.checked_mul(span.class.size_class)?;
             let base_address = allocator
                 .page_view_ptr(&span.pages, slot_base_offset)
                 .ok()? as *mut u8 as usize;

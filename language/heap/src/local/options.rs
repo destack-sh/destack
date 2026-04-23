@@ -1,12 +1,14 @@
 use serde::{Deserialize, Serialize};
 
-use super::constants::{
-    DEFAULT_ALLOCATOR_SEGMENT_BYTES, DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES,
-    DEFAULT_PAGE_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_BYTES,
-    DEFAULT_YOUNG_BYTES,
+use crate::allocator::{
+    Allocator, DEFAULT_ALLOCATOR_ARENA_BYTES, DEFAULT_PAGE_BYTES, SizeClassPolicy, SizeClassTable,
 };
-use crate::allocator::{Allocator, SizeClassPolicy, SizeClassTable};
 use crate::{GcOptions, HeapError};
+
+use super::constants::{
+    DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
+    DEFAULT_SMALL_BYTES, DEFAULT_YOUNG_BYTES,
+};
 
 /// Constructor policy for resolving local heap options.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -15,18 +17,18 @@ pub struct LocalHeapPolicy {
     pub gc: GcOptions,
     /// The small-object allocation policy.
     pub small: SizeClassPolicy,
-    /// The byte width for heap young space.
+    /// The byte size for heap young space.
     pub heap_young_bytes: usize,
     /// The maximum payload size admitted into heap young space.
     pub max_heap_young_allocation_bytes: usize,
-    /// The byte width for heap small-allocation spans.
+    /// The byte size for heap small-allocation spans.
     pub heap_small_bytes: usize,
-    /// The byte width for raw small-allocation spans.
+    /// The byte size for raw small-allocation spans.
     pub raw_small_bytes: usize,
-    /// The byte width for local heap pages.
+    /// The byte size for allocator pages.
     pub page_bytes: usize,
-    /// The byte width for one physical allocator segment.
-    pub allocator_segment_bytes: usize,
+    /// The byte size for one physical allocator arena.
+    pub allocator_arena_bytes: usize,
 }
 
 impl Default for LocalHeapPolicy {
@@ -39,7 +41,7 @@ impl Default for LocalHeapPolicy {
             heap_small_bytes: DEFAULT_SMALL_BYTES,
             raw_small_bytes: DEFAULT_SMALL_BYTES,
             page_bytes: DEFAULT_PAGE_BYTES,
-            allocator_segment_bytes: DEFAULT_ALLOCATOR_SEGMENT_BYTES,
+            allocator_arena_bytes: DEFAULT_ALLOCATOR_ARENA_BYTES,
         }
     }
 }
@@ -55,7 +57,7 @@ impl LocalHeapPolicy {
             heap_small_bytes: self.heap_small_bytes,
             raw_small_bytes: self.raw_small_bytes,
             page_bytes: self.page_bytes,
-            allocator_segment_bytes: self.allocator_segment_bytes,
+            allocator_arena_bytes: self.allocator_arena_bytes,
             small_allocation_alignment_bytes: self.small.alignment_bytes,
         };
 
@@ -72,12 +74,12 @@ pub struct SharedHeapPolicy {
     pub gc: GcOptions,
     /// The small-object allocation policy.
     pub small: SizeClassPolicy,
-    /// The byte width for heap small-allocation spans.
+    /// The byte size for heap small-allocation spans.
     pub heap_small_bytes: usize,
-    /// The byte width for local heap pages.
+    /// The byte size for allocator pages.
     pub page_bytes: usize,
-    /// The byte width for one physical allocator segment.
-    pub allocator_segment_bytes: usize,
+    /// The byte size for one physical allocator arena.
+    pub allocator_arena_bytes: usize,
 }
 
 impl Default for SharedHeapPolicy {
@@ -87,7 +89,7 @@ impl Default for SharedHeapPolicy {
             small: SizeClassPolicy::default(),
             heap_small_bytes: DEFAULT_SMALL_BYTES,
             page_bytes: DEFAULT_PAGE_BYTES,
-            allocator_segment_bytes: DEFAULT_ALLOCATOR_SEGMENT_BYTES,
+            allocator_arena_bytes: DEFAULT_ALLOCATOR_ARENA_BYTES,
         }
     }
 }
@@ -103,7 +105,7 @@ impl SharedHeapPolicy {
             heap_small_bytes: self.heap_small_bytes,
             raw_small_bytes: DEFAULT_SMALL_BYTES,
             page_bytes: self.page_bytes,
-            allocator_segment_bytes: self.allocator_segment_bytes,
+            allocator_arena_bytes: self.allocator_arena_bytes,
             small_allocation_alignment_bytes: self.small.alignment_bytes,
         };
 
@@ -120,18 +122,18 @@ pub struct HeapOptions {
     pub gc: GcOptions,
     /// The configured small-allocation class table.
     pub size_classes: SizeClassTable,
-    /// The byte width for heap young space.
+    /// The byte size for heap young space.
     pub heap_young_bytes: usize,
     /// The maximum payload size admitted into heap young space.
     pub max_heap_young_allocation_bytes: usize,
-    /// The byte width for heap small-allocation spans.
+    /// The byte size for heap small-allocation spans.
     pub heap_small_bytes: usize,
-    /// The byte width for raw small-allocation spans.
+    /// The byte size for raw small-allocation spans.
     pub raw_small_bytes: usize,
-    /// The byte width for local heap pages.
+    /// The byte size for allocator pages.
     pub page_bytes: usize,
-    /// The byte width for one physical allocator segment.
-    pub allocator_segment_bytes: usize,
+    /// The byte size for one physical allocator arena.
+    pub allocator_arena_bytes: usize,
     /// The required alignment for configured small-allocation classes.
     pub small_allocation_alignment_bytes: usize,
 }
@@ -147,7 +149,7 @@ impl HeapOptions {
             heap_small_bytes: DEFAULT_SMALL_BYTES,
             raw_small_bytes: DEFAULT_SMALL_BYTES,
             page_bytes: DEFAULT_PAGE_BYTES,
-            allocator_segment_bytes: DEFAULT_ALLOCATOR_SEGMENT_BYTES,
+            allocator_arena_bytes: DEFAULT_ALLOCATOR_ARENA_BYTES,
             small_allocation_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
         }
     }
@@ -162,12 +164,12 @@ impl HeapOptions {
             heap_small_bytes: DEFAULT_SMALL_BYTES,
             raw_small_bytes: DEFAULT_SMALL_BYTES,
             page_bytes: DEFAULT_PAGE_BYTES,
-            allocator_segment_bytes: DEFAULT_ALLOCATOR_SEGMENT_BYTES,
+            allocator_arena_bytes: DEFAULT_ALLOCATOR_ARENA_BYTES,
             small_allocation_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
         }
     }
 
-    /// Validate one configured heap page width.
+    /// Validate one configured heap page size.
     pub(crate) fn validate_page_bytes(page_bytes: usize) -> Result<usize, HeapError> {
         if page_bytes == 0 || !page_bytes.is_power_of_two() {
             Err(HeapError::InvalidPageBytes { bytes: page_bytes })
@@ -176,25 +178,31 @@ impl HeapOptions {
         }
     }
 
-    /// Validate one configured allocator segment width.
-    pub(crate) fn validate_allocator_segment_bytes(
+    /// Validate one configured allocator arena size.
+    pub(crate) fn validate_allocator_arena_bytes(
         page_bytes: usize,
-        allocator_segment_bytes: usize,
+        allocator_arena_bytes: usize,
     ) -> Result<usize, HeapError> {
-        if allocator_segment_bytes == 0 {
-            return Err(HeapError::InvalidAllocatorSegmentBytes {
-                bytes: allocator_segment_bytes,
+        if allocator_arena_bytes == 0 {
+            return Err(HeapError::InvalidAllocatorArenaBytes {
+                bytes: allocator_arena_bytes,
             });
         }
 
-        if !allocator_segment_bytes.is_multiple_of(page_bytes) {
-            return Err(HeapError::MisalignedAllocatorSegmentBytes {
+        if !allocator_arena_bytes.is_power_of_two() {
+            return Err(HeapError::InvalidAllocatorArenaBytes {
+                bytes: allocator_arena_bytes,
+            });
+        }
+
+        if !allocator_arena_bytes.is_multiple_of(page_bytes) {
+            return Err(HeapError::MisalignedAllocatorArenaBytes {
                 page_bytes,
-                segment_bytes: allocator_segment_bytes,
+                arena_bytes: allocator_arena_bytes,
             });
         }
 
-        Ok(allocator_segment_bytes)
+        Ok(allocator_arena_bytes)
     }
 
     /// Validate one configured small-allocation alignment.
@@ -210,11 +218,11 @@ impl HeapOptions {
         }
     }
 
-    /// Validate the common heap geometry shared by local and shared heaps.
+    /// Validate the common page and arena sizes shared by local and shared heaps.
     fn validate_common(&self) -> Result<(), HeapError> {
         self.gc.validate()?;
         Self::validate_page_bytes(self.page_bytes)?;
-        Self::validate_allocator_segment_bytes(self.page_bytes, self.allocator_segment_bytes)?;
+        Self::validate_allocator_arena_bytes(self.page_bytes, self.allocator_arena_bytes)?;
         Self::validate_small_allocation_alignment_bytes(self.small_allocation_alignment_bytes)?;
 
         // keep all size classes aligned to the configured small-slot boundary
@@ -263,10 +271,10 @@ impl HeapOptions {
             });
         }
 
-        if allocator.segment_bytes() != self.allocator_segment_bytes {
-            return Err(HeapError::AllocatorSegmentBytesMismatch {
-                option_segment_bytes: self.allocator_segment_bytes,
-                allocator_segment_bytes: allocator.segment_bytes(),
+        if allocator.arena_bytes() != self.allocator_arena_bytes {
+            return Err(HeapError::AllocatorArenaBytesMismatch {
+                option_arena_bytes: self.allocator_arena_bytes,
+                allocator_arena_bytes: allocator.arena_bytes(),
             });
         }
 
@@ -276,7 +284,9 @@ impl HeapOptions {
 
 #[cfg(test)]
 mod tests {
-    use crate::{GcOptions, Heap, HeapError, HeapLimits, HeapOptions, SizeClassTable};
+    use std::sync::Arc;
+
+    use crate::{Allocator, GcOptions, Heap, HeapError, HeapLimits, HeapOptions, SizeClassTable};
 
     /// Reject unsupported GC trigger percentages at heap construction.
     #[test]
@@ -289,8 +299,17 @@ mod tests {
             ..HeapOptions::local()
         };
 
-        let error = Heap::with_limits_and_options(HeapLimits::default(), options)
-            .expect_err("invalid heap options should fail loudly");
+        let allocator = Arc::new(
+            Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+                .expect("allocator should build"),
+        );
+        let error = Heap::with_allocator_limits_layouts_and_options(
+            allocator,
+            Arc::new(destack_mir::LayoutTable::new()),
+            HeapLimits::default(),
+            options,
+        )
+        .expect_err("invalid heap options should fail loudly");
 
         assert_eq!(error, HeapError::InvalidGcTriggerPercent { percent: 101 });
     }
@@ -304,8 +323,17 @@ mod tests {
             ..HeapOptions::local()
         };
 
-        let error = Heap::with_limits_and_options(HeapLimits::default(), options)
-            .expect_err("invalid heap options should fail loudly");
+        let allocator = Arc::new(
+            Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+                .expect("allocator should build"),
+        );
+        let error = Heap::with_allocator_limits_layouts_and_options(
+            allocator,
+            Arc::new(destack_mir::LayoutTable::new()),
+            HeapLimits::default(),
+            options,
+        )
+        .expect_err("invalid heap options should fail loudly");
 
         assert_eq!(
             error,
@@ -326,8 +354,17 @@ mod tests {
             ..HeapOptions::local()
         };
 
-        let error = Heap::with_limits_and_options(HeapLimits::default(), options)
-            .expect_err("invalid heap options should fail loudly");
+        let allocator = Arc::new(
+            Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+                .expect("allocator should build"),
+        );
+        let error = Heap::with_allocator_limits_layouts_and_options(
+            allocator,
+            Arc::new(destack_mir::LayoutTable::new()),
+            HeapLimits::default(),
+            options,
+        )
+        .expect_err("invalid heap options should fail loudly");
 
         assert_eq!(
             error,

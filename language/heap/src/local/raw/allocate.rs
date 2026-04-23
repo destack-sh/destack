@@ -1,16 +1,18 @@
-use super::{LargeEntry, LargeEntryId, RawPageOwner, RawSpace, RawStorage, SmallSpan};
-use crate::allocator::{Allocator, PageView, SpanAllocationPath, SpanSlot};
+use super::{
+    LargeEntry, LargeEntryId, RawPageOwner, RawSmallSpanClass, RawSpace, RawStorage, SmallSpan,
+};
+use crate::allocator::{Allocator, PageView, SpanSlot};
 use crate::{AccountingRegion, Bitmap, HeapError, HeapResult, RawPointer};
 
 /// One raw slot initialization mode.
-enum SlotWrite<'a> {
+enum SlotInit<'a> {
     /// One caller-provided byte payload.
     Bytes(&'a [u8]),
     /// One zeroed payload.
     Zeroed,
 }
 
-impl SlotWrite<'_> {
+impl SlotInit<'_> {
     /// Initialize one raw small-slot payload.
     fn initialize_slot(
         &self,
@@ -26,18 +28,21 @@ impl SlotWrite<'_> {
 }
 
 impl RawSpace {
-    /// Return one exact raw allocation path for the requested byte length.
-    pub(crate) fn allocation_path(&self, byte_len: usize) -> SpanAllocationPath {
-        self.small.size_classes.span_allocation_path(
-            byte_len,
-            self.small.span_bytes,
-            |class_index| self.has_available_small_slot(class_index),
-            |large_bytes| self.round_up_large_entry_bytes(large_bytes),
-        )
+    /// Return the projected mapped-byte delta for one raw allocation.
+    pub(crate) fn alloc_mapped_byte_delta(&self, byte_len: usize) -> i64 {
+        if self.small_span_class(byte_len).is_some() {
+            return if self.has_available_small_slot(byte_len) {
+                0
+            } else {
+                self.small.span_bytes as i64
+            };
+        }
+
+        self.round_up_large_entry_bytes(byte_len) as i64
     }
 
     /// Return the projected mapped-byte delta for one raw replacement.
-    pub fn replace_mapped_delta(
+    pub fn replace_mapped_byte_delta(
         &self,
         pointer: RawPointer,
         next_byte_len: usize,
@@ -57,32 +62,12 @@ impl RawSpace {
 
     /// Allocate one raw byte entry.
     pub fn allocate_bytes(&mut self, bytes: &[u8]) -> HeapResult<RawPointer> {
-        let path = self.allocation_path(bytes.len());
-        self.allocate_with_bytes(bytes.len(), Some(bytes), path)
+        self.allocate_with_bytes(bytes.len(), Some(bytes))
     }
 
     /// Allocate one zeroed raw byte entry.
     pub fn allocate_zeroed(&mut self, byte_len: usize) -> HeapResult<RawPointer> {
-        let path = self.allocation_path(byte_len);
-        self.allocate_with_bytes(byte_len, None, path)
-    }
-
-    /// Allocate one raw byte entry through one precomputed allocation path.
-    pub(crate) fn place_bytes(
-        &mut self,
-        bytes: &[u8],
-        path: SpanAllocationPath,
-    ) -> HeapResult<RawPointer> {
-        self.allocate_with_bytes(bytes.len(), Some(bytes), path)
-    }
-
-    /// Allocate one zeroed raw byte entry through one precomputed allocation path.
-    pub(crate) fn place_zeroed(
-        &mut self,
-        byte_len: usize,
-        path: SpanAllocationPath,
-    ) -> HeapResult<RawPointer> {
-        self.allocate_with_bytes(byte_len, None, path)
+        self.allocate_with_bytes(byte_len, None)
     }
 
     /// Free one raw entry.
@@ -142,9 +127,8 @@ impl RawSpace {
         &mut self,
         byte_len: usize,
         bytes: Option<&[u8]>,
-        path: SpanAllocationPath,
     ) -> HeapResult<RawPointer> {
-        let storage = self.allocate_location(byte_len, bytes, path)?;
+        let storage = self.allocate_storage(byte_len, bytes)?;
         let pointer = self.base_pointer(storage)?;
 
         // charge the live raw entry counters
@@ -154,43 +138,21 @@ impl RawSpace {
     }
 
     /// Allocate one raw storage location for the given payload.
-    fn allocate_location(
+    fn allocate_storage(
         &mut self,
         byte_len: usize,
         bytes: Option<&[u8]>,
-        path: SpanAllocationPath,
     ) -> HeapResult<RawStorage> {
-        match path {
-            // execute the precomputed small path directly
-            SpanAllocationPath::Small {
-                class_index,
-                size_class,
-                ..
-            } => {
-                let span_index = self.allocate_small_span(class_index, size_class)?;
-                let Some(span) = self.small.spans.get(span_index) else {
-                    return Err(HeapError::MissingSpan { span_index });
-                };
-                let slot_index = span.next_free_slot;
-                let slot = self.initialize_small_slot(
-                    class_index,
-                    span_index,
-                    slot_index,
-                    bytes,
-                    byte_len,
-                )?;
+        if let Some((class, span_index, slot_index)) = self.reserve_small_slot(byte_len)? {
+            let slot = self.initialize_small_slot(&class, span_index, slot_index, bytes)?;
 
-                Ok(RawStorage::Small(slot))
-            }
-
-            // execute the precomputed large path directly
-            SpanAllocationPath::Large { .. } => {
-                let pages = self.allocate_large_pages(byte_len, bytes)?;
-                let entry_id = self.store_large_entry(byte_len, pages)?;
-
-                Ok(RawStorage::Large(entry_id))
-            }
+            return Ok(RawStorage::Small(slot));
         }
+
+        let pages = self.allocate_large_pages(byte_len, bytes)?;
+        let entry_id = self.store_large_entry(byte_len, pages)?;
+
+        Ok(RawStorage::Large(entry_id))
     }
 
     /// Store one raw large entry in large space and return its entry id.
@@ -249,25 +211,23 @@ impl RawSpace {
 
     /// Allocate one raw small slot from one byte slice.
     pub(super) fn allocate_small_bytes(&mut self, bytes: &[u8]) -> HeapResult<Option<SpanSlot>> {
-        let Some((class_index, span_index, slot_index)) = self.reserve_small_slot(bytes.len())?
-        else {
+        let Some((class, span_index, slot_index)) = self.reserve_small_slot(bytes.len())? else {
             return Ok(None);
         };
 
-        self.initialize_small_slot(
-            class_index,
-            span_index,
-            slot_index,
-            Some(bytes),
-            bytes.len(),
-        )
-        .map(Some)
+        self.initialize_small_slot(&class, span_index, slot_index, Some(bytes))
+            .map(Some)
     }
 
     /// Allocate or reuse one non-full raw span for the given size class.
-    fn allocate_small_span(&mut self, class_index: usize, size_class: usize) -> HeapResult<usize> {
+    fn allocate_small_span(&mut self, class: &RawSmallSpanClass) -> HeapResult<usize> {
         // reuse one non-full span when possible
-        while let Some(span_index) = self.small.available_spans[class_index].pop() {
+        while let Some(span_index) = self
+            .small
+            .available_spans
+            .get_mut(&class.byte_len)
+            .and_then(Vec::pop)
+        {
             let Some(span) = self.small.spans.get(span_index) else {
                 return Err(HeapError::MissingSpan { span_index });
             };
@@ -289,14 +249,13 @@ impl RawSpace {
         }
 
         // otherwise allocate one fresh span for the size class
-        let slot_count = (self.small.span_bytes / size_class).max(1);
+        let slot_count = (self.small.span_bytes / class.size_class).max(1);
         let pages = self.allocate_page_view_zeroed(self.small.span_bytes)?;
         let span = SmallSpan {
-            size_class,
+            class: class.clone(),
             slot_count,
             occupied_count: 0,
-            next_free_slot: 0,
-            lengths: vec![0; slot_count].into_boxed_slice(),
+            free_cursor: 0,
             occupied: Bitmap::with_capacity(slot_count),
             pages: pages.clone(),
         };
@@ -315,36 +274,37 @@ impl RawSpace {
     }
 
     /// Reserve one raw small-slot location for the given byte length.
-    fn reserve_small_slot(&mut self, byte_len: usize) -> HeapResult<Option<(usize, usize, usize)>> {
-        // resolve the matching size class first
-        let Some(class_index) = self.small.size_classes.class_index_for(byte_len) else {
+    fn reserve_small_slot(
+        &mut self,
+        byte_len: usize,
+    ) -> HeapResult<Option<(RawSmallSpanClass, usize, usize)>> {
+        let Some(class) = self.small_span_class(byte_len) else {
             return Ok(None);
         };
-        let size_class = self.small.size_classes.classes[class_index].bytes;
-        let span_index = self.allocate_small_span(class_index, size_class)?;
+        let span_index = self.allocate_small_span(&class)?;
         let Some(span) = self.small.spans.get(span_index) else {
             return Err(HeapError::MissingSpan { span_index });
         };
-        let slot_index = span.next_free_slot;
+        let slot_index = span.free_cursor;
 
-        Ok(Some((class_index, span_index, slot_index)))
+        Ok(Some((class, span_index, slot_index)))
     }
 
     /// Initialize one reserved raw small-slot location.
     fn initialize_small_slot(
         &mut self,
-        class_index: usize,
+        class: &RawSmallSpanClass,
         span_index: usize,
         slot_index: usize,
         bytes: Option<&[u8]>,
-        byte_len: usize,
     ) -> HeapResult<SpanSlot> {
         // resolve the live span first
         let Some(span) = self.small.spans.get_mut(span_index) else {
             return Err(HeapError::MissingSpan { span_index });
         };
         let slot_offset =
-            span.size_class
+            span.class
+                .size_class
                 .checked_mul(slot_index)
                 .ok_or(HeapError::InvalidSmallSlot {
                     span_index,
@@ -353,28 +313,31 @@ impl RawSpace {
 
         // initialize the reserved slot payload
         let write = match bytes {
-            Some(bytes) => SlotWrite::Bytes(bytes),
-            None => SlotWrite::Zeroed,
+            Some(bytes) => SlotInit::Bytes(bytes),
+            None => SlotInit::Zeroed,
         };
         write.initialize_slot(&self.allocator, &mut span.pages, slot_offset)?;
 
         // mark the slot as live inside its span
         span.occupied.set(slot_index);
-        span.lengths[slot_index] = byte_len;
         span.occupied_count =
             span.occupied_count
                 .checked_add(1)
                 .ok_or(HeapError::InvariantOverflow {
                     context: "raw span occupancy",
                 })?;
-        span.next_free_slot = span
+        span.free_cursor = span
             .occupied
             .first_clear_from(slot_index)
             .unwrap_or(span.slot_count);
 
         // requeue the span if it still has capacity
         if span.occupied_count < span.slot_count {
-            self.small.available_spans[class_index].push(span_index);
+            self.small
+                .available_spans
+                .entry(class.byte_len)
+                .or_default()
+                .push(span_index);
         }
 
         SpanSlot::new(span_index, slot_index)
@@ -391,7 +354,7 @@ impl RawSpace {
             };
             let slot_index = slot.slot_index();
             let was_full = span.occupied_count == span.slot_count;
-            let size_class = span.size_class;
+            let class = span.class.clone();
 
             // ignore stale releases for already-free slots
             if !span.occupied.contains(slot_index) {
@@ -409,13 +372,12 @@ impl RawSpace {
 
             // mark the slot as free inside the span
             span.occupied.clear(slot_index);
-            span.lengths[slot_index] = 0;
             span.occupied_count -= 1;
-            span.next_free_slot = span.next_free_slot.min(slot_index);
+            span.free_cursor = span.free_cursor.min(slot_index);
 
             // release fully empty span pages back into the local cache
             if span.occupied_count == 0 {
-                span.next_free_slot = 0;
+                span.free_cursor = 0;
 
                 let pages = span.pages.clone();
                 span.pages = PageView::empty();
@@ -425,10 +387,12 @@ impl RawSpace {
             // otherwise requeue the span once it transitions away from full
             else {
                 let should_requeue = was_full && span.occupied_count < span.slot_count;
-                if should_requeue
-                    && let Some(class_index) = self.small.size_classes.class_index_for(size_class)
-                {
-                    self.small.available_spans[class_index].push(slot.span_index());
+                if should_requeue {
+                    self.small
+                        .available_spans
+                        .entry(class.byte_len)
+                        .or_default()
+                        .push(slot.span_index());
                 }
 
                 None
@@ -444,8 +408,21 @@ impl RawSpace {
     }
 
     /// Return whether one size class still has one live reusable slot.
-    fn has_available_small_slot(&self, class_index: usize) -> bool {
-        !self.small.available_spans[class_index].is_empty()
+    fn has_available_small_slot(&self, byte_len: usize) -> bool {
+        self.small
+            .available_spans
+            .get(&byte_len)
+            .is_some_and(|spans| !spans.is_empty())
+    }
+
+    /// Return one homogeneous raw span class for the given byte length when it fits.
+    fn small_span_class(&self, byte_len: usize) -> Option<RawSmallSpanClass> {
+        let class_index = self.small.size_classes.class_index_for(byte_len)?;
+
+        Some(RawSmallSpanClass {
+            size_class: self.small.size_classes.classes[class_index].bytes,
+            byte_len,
+        })
     }
 
     /// Return the mapped bytes currently charged to one raw location.
@@ -466,7 +443,7 @@ impl RawSpace {
         // small entries stay in place when the next payload still fits
         if let RawStorage::Small(slot) = storage
             && let Some(span) = self.span(slot.span_index())
-            && next_byte_len <= span.size_class
+            && next_byte_len == span.class.byte_len
         {
             return 0;
         }
@@ -474,7 +451,7 @@ impl RawSpace {
         // otherwise use the same mapped-byte delta model as fresh entry
         let _ = previous_byte_len;
 
-        self.allocation_path(next_byte_len).mapped_delta() as u64
+        self.alloc_mapped_byte_delta(next_byte_len) as u64
     }
 
     /// Return the page-rounded mapped bytes for one raw large entry.

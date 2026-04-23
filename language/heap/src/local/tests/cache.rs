@@ -1,18 +1,18 @@
-use crate::{HeapOptions, HeapSpace, RawSpace, SizeClassTable, test_allocator};
-use destack_mir::LayoutTrace;
+use crate::{HeapOptions, HeapSpace, RawSpace, SizeClassTable, test_allocator, test_layout};
+use destack_mir::ReferenceMap;
 
 /// Keep empty raw spans in the local cache instead of the live image.
 #[test]
 fn test_release_empty_raw_span_into_page_run_cache() {
-    let layout = HeapOptions {
+    let options = HeapOptions {
         page_bytes: 16,
         raw_small_bytes: 32,
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
-    let allocator = test_allocator(&layout);
+    let allocator = test_allocator(&options);
     let mut raw =
-        RawSpace::with_options(allocator, &layout).expect("explicit raw layout should build");
+        RawSpace::with_options(allocator, &options).expect("explicit raw options should build");
     let pointer = raw
         .allocate_bytes(&[1, 2, 3, 4])
         .expect("raw allocation should succeed");
@@ -32,18 +32,19 @@ fn test_release_empty_raw_span_into_page_run_cache() {
 /// Keep freed heap large-entry pages in the local cache instead of the live image.
 #[test]
 fn test_release_heap_large_pages_into_page_run_cache() {
-    let layout = HeapOptions {
+    let options = HeapOptions {
         page_bytes: 16,
         heap_young_bytes: 0,
         heap_small_bytes: 32,
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
-    let allocator = test_allocator(&layout);
-    let mut heap =
-        HeapSpace::with_options(allocator, &layout).expect("explicit heap layout should build");
+    let allocator = test_allocator(&options);
+    let (layouts, layout_id) = test_layout(9, ReferenceMap::empty());
+    let mut heap = HeapSpace::with_layouts_and_options(allocator, layouts, &options)
+        .expect("explicit heap options should build");
     let reference = heap
-        .allocate_bytes(&[9; 9], LayoutTrace::empty(), None)
+        .allocate_bytes(&[9; 9], layout_id)
         .expect("heap allocation should succeed");
 
     // one live large entry should charge one page of active bytes

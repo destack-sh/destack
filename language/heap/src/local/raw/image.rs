@@ -120,12 +120,12 @@ impl RawSpace {
     ) -> Result<Self, HeapError> {
         let mut space = Self {
             allocator: allocator.clone(),
-            page_run_cache: PageRunCache::new(allocator.pages_per_segment()),
+            page_run_cache: PageRunCache::new(allocator.pages_per_arena()),
             small: super::SmallSpace {
                 size_classes: image.size_classes().clone(),
                 span_bytes: image.small_bytes(),
                 spans: CowTable::new(),
-                available_spans: vec![Vec::new(); image.size_classes().classes.len()],
+                available_spans: Default::default(),
             },
             large: super::LargeSpace {
                 page_bytes: image.page_bytes(),
@@ -193,20 +193,30 @@ impl RawSpace {
 
             // rebuild the derived per-span occupancy counters
             span.occupied_count = span.occupied.count_ones();
-            span.next_free_slot = span.occupied.first_clear_from(0).unwrap_or(span.slot_count);
+            span.free_cursor = span.occupied.first_clear_from(0).unwrap_or(span.slot_count);
 
             // requeue every non-full span under its size class
             if span.occupied_count >= span.slot_count {
                 continue;
             }
 
-            let Some(class_index) = small.size_classes.class_index_for(span.size_class) else {
+            let Some(class_index) = small.size_classes.class_index_for(span.class.byte_len) else {
                 return Err(HeapError::InvalidSizeClass {
-                    class_bytes: span.size_class,
+                    class_bytes: span.class.byte_len,
                 });
             };
+            let configured_size_class = small.size_classes.classes[class_index].bytes;
+            if configured_size_class != span.class.size_class {
+                return Err(HeapError::InvalidSizeClass {
+                    class_bytes: span.class.size_class,
+                });
+            }
 
-            small.available_spans[class_index].push(span_index);
+            small
+                .available_spans
+                .entry(span.class.byte_len)
+                .or_default()
+                .push(span_index);
         }
 
         Ok(())
@@ -217,11 +227,10 @@ impl RawSpace {
         let pages = self.allocate_page_view_bytes(&span.bytes)?;
 
         Ok(SmallSpan {
-            size_class: span.size_class,
+            class: span.class.clone(),
             slot_count: span.slot_count,
             occupied_count: 0,
-            next_free_slot: 0,
-            lengths: span.lengths.clone(),
+            free_cursor: 0,
             occupied: span.occupied.clone(),
             pages,
         })
@@ -271,9 +280,8 @@ impl RawSpace {
             .expect("raw span image bytes should resolve");
 
         SmallSpanImage {
-            size_class: span.size_class,
+            class: span.class.clone(),
             slot_count: span.slot_count,
-            lengths: span.lengths.clone(),
             occupied: span.occupied.clone(),
             bytes: bytes.into_boxed_slice(),
         }

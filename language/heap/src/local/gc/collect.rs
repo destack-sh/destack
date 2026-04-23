@@ -1,12 +1,14 @@
 use std::collections::BTreeMap;
 
+use destack_mir::ReferenceMap;
+
 use super::Promotion;
 use crate::local::space::{
     GcKind, GcStats, HeapLocation, HeapPageOwner, HeapSpace, HeapStorage, HeapYoungId, LargeEntryId,
 };
 use crate::{
-    HeapError, HeapReference, HeapResult, ScanSource, ShapeId, SharedHeapReference, TraceQueue,
-    visit_heap_references_in_reader, visit_heap_references_in_reader_range,
+    HeapError, HeapReference, HeapResult, ScanSource, SharedHeapReference, TraceQueue,
+    slot_reference_map, visit_heap_references_in_reader, visit_heap_references_in_reader_range,
     visit_shared_references_in_reader,
 };
 
@@ -38,7 +40,7 @@ impl HeapSpace {
                     continue;
                 }
 
-                let slot_offset = span.size_class.checked_mul(slot_index).ok_or(
+                let slot_offset = span.class.size_class.checked_mul(slot_index).ok_or(
                     HeapError::InvariantOverflow {
                         context: "heap slot base offset",
                     },
@@ -154,16 +156,9 @@ impl HeapSpace {
         let Some(location) = self.resolve_location(reference) else {
             return Ok(false);
         };
-        let Some(shape_id) = self.location_shape_id(location.storage) else {
-            return Ok(false);
-        };
-        let Some(shape) = self.shape_table.shape(shape_id) else {
-            return Err(HeapError::InvalidShapeId {
-                index: shape_id.index(),
-            });
-        };
+        let reference_map = self.location_reference_map(location.storage)?;
 
-        Ok(shape.trace.has_shared_reference())
+        Ok(reference_map.has_shared_reference())
     }
 
     /// Clear the queued bit for one local shared-edge rescan.
@@ -182,25 +177,20 @@ impl HeapSpace {
         let Some(location) = self.resolve_location(reference) else {
             return Ok(());
         };
-        let Some(shape_id) = self.location_shape_id(location.storage) else {
-            return Ok(());
-        };
-        let Some(shape) = self.shape_table.shape(shape_id) else {
-            return Err(HeapError::HeapScanFailed {
+        let reference_map = self
+            .location_reference_map(location.storage)
+            .map_err(|error| HeapError::HeapScanFailed {
                 source: ScanSource::Reference(reference),
-                error: Box::new(HeapError::InvalidShapeId {
-                    index: shape_id.index(),
-                }),
-            });
-        };
+                error: Box::new(error),
+            })?;
 
-        if !shape.trace.has_shared_reference() {
+        if !reference_map.has_shared_reference() {
             return Ok(());
         }
 
         let mut first_reader_error = None;
         let result = visit_shared_references_in_reader(
-            &shape.trace,
+            &reference_map,
             |start, buffer| match self.fill_location_bytes(location, start, buffer) {
                 Ok(()) => true,
                 Err(error) => {
@@ -251,27 +241,8 @@ impl HeapSpace {
         self.is_collecting = true;
 
         // trace every reachable young entry from roots and remembered mature writes
-        let result = (|| {
-            self.mark_reachable_young_references(
-                roots.iter().copied().chain(pinned.iter().copied()),
-                &mut pending,
-            )?;
-            let (freed_allocations, freed_bytes) =
-                self.promote_or_free_young_references(&mut promotions)?;
-
-            // rewrite roots and traced mature payloads before resetting young space
-            self.rewrite_promoted_references(roots, &promotions)?;
-
-            // reset the young space after promotion and sweeping
-            self.reset_young_space()?;
-
-            // finalize the completed minor-cycle statistics
-            let stats = self.stats_after_collection(freed_allocations, freed_bytes);
-
-            self.gc_state.record_cycle(GcKind::Minor, stats)?;
-
-            Ok(stats)
-        })();
+        let result =
+            self.collect_minor_cycle(roots, pinned.iter().copied(), &mut pending, &mut promotions);
 
         self.trace_queue = pending;
         self.is_collecting = false;
@@ -299,25 +270,55 @@ impl HeapSpace {
         self.is_collecting = true;
 
         // trace every reachable mature entry from the explicit roots
-        let result = (|| {
-            self.mark_reachable_references(
-                roots.iter().copied().chain(pinned.iter().copied()),
-                &mut pending,
-            )?;
-            let (freed_allocations, freed_bytes) = self.free_unreachable_references()?;
-
-            // finalize the completed full-cycle statistics
-            let stats = self.stats_after_collection(freed_allocations, freed_bytes);
-
-            self.gc_state.record_cycle(GcKind::Full, stats)?;
-
-            Ok(stats)
-        })();
+        let result = self.collect_full_cycle(roots, pinned.iter().copied(), &mut pending);
 
         self.trace_queue = pending;
         self.is_collecting = false;
 
         result
+    }
+
+    /// Perform one prepared minor collection cycle.
+    fn collect_minor_cycle(
+        &mut self,
+        roots: &mut [HeapReference],
+        pinned: impl Iterator<Item = HeapReference>,
+        pending: &mut HeapTraceQueue,
+        promotions: &mut Vec<Promotion>,
+    ) -> HeapResult<GcStats> {
+        self.mark_reachable_young_references(roots.iter().copied().chain(pinned), pending)?;
+        let (freed_allocations, freed_bytes) = self.promote_or_free_young_references(promotions)?;
+
+        // rewrite roots and traced mature payloads before resetting young space
+        self.rewrite_promoted_references(roots, promotions)?;
+
+        // reset the young space after promotion and sweeping
+        self.reset_young_space()?;
+
+        // finalize the completed minor-cycle statistics
+        let stats = self.stats_after_collection(freed_allocations, freed_bytes);
+
+        self.gc.record_cycle(GcKind::Minor, stats)?;
+
+        Ok(stats)
+    }
+
+    /// Perform one prepared full collection cycle.
+    fn collect_full_cycle(
+        &mut self,
+        roots: &mut [HeapReference],
+        pinned: impl Iterator<Item = HeapReference>,
+        pending: &mut HeapTraceQueue,
+    ) -> HeapResult<GcStats> {
+        self.mark_reachable_references(roots.iter().copied().chain(pinned), pending)?;
+        let (freed_allocations, freed_bytes) = self.free_unreachable_references()?;
+
+        // finalize the completed full-cycle statistics
+        let stats = self.stats_after_collection(freed_allocations, freed_bytes);
+
+        self.gc.record_cycle(GcKind::Full, stats)?;
+
+        Ok(stats)
     }
 
     /// Rewrite roots and traced mature payloads through one completed promotion set.
@@ -385,19 +386,13 @@ impl HeapSpace {
                 continue;
             }
 
-            let shape_id = self.shape_id(reference, location.storage)?;
-            let Some(shape) = self.shape_table.shape(shape_id) else {
-                return Err(HeapError::InvalidShapeId {
-                    index: shape_id.index(),
-                });
-            };
-            let scan = shape.trace.clone();
+            let reference_map = self.location_reference_map(location.storage)?;
 
-            if !scan.has_local_reference() {
+            if !reference_map.has_local_reference() {
                 continue;
             }
 
-            self.rewrite_location_heap_references(location, &scan, references)?;
+            self.rewrite_location_heap_references(location, &reference_map, references)?;
         }
 
         Ok(())
@@ -407,12 +402,12 @@ impl HeapSpace {
     fn rewrite_location_heap_references(
         &mut self,
         location: HeapLocation,
-        scan: &crate::TracePlan,
+        reference_map: &ReferenceMap,
         references: &BTreeMap<HeapReference, HeapReference>,
     ) -> HeapResult<()> {
-        match scan {
-            crate::TracePlan::None => {}
-            crate::TracePlan::Reference { local_offsets, .. } => {
+        match reference_map {
+            ReferenceMap::None => {}
+            ReferenceMap::Reference { local_offsets, .. } => {
                 for offset in local_offsets.iter().copied() {
                     self.rewrite_location_heap_reference_word(
                         location,
@@ -421,7 +416,7 @@ impl HeapSpace {
                     )?;
                 }
             }
-            crate::TracePlan::RepeatedReference {
+            ReferenceMap::RepeatedReference {
                 count,
                 stride,
                 local_offsets,
@@ -457,11 +452,11 @@ impl HeapSpace {
         start: usize,
         references: &BTreeMap<HeapReference, HeapReference>,
     ) -> HeapResult<()> {
-        let mut window = [0u8; 8];
+        let mut window = [0u8; HeapReference::BYTE_LEN];
 
         self.fill_location_bytes(location, start, &mut window)?;
 
-        let reference = HeapReference::from_bits(u64::from_le_bytes(window));
+        let reference = HeapReference::from_bits(usize::from_le_bytes(window));
         let Some(next_reference) = references.get(&reference).copied() else {
             return Ok(());
         };
@@ -486,7 +481,6 @@ impl HeapSpace {
         };
 
         // stage the young to mature relocation
-        let shape_id = self.shape_id(reference, location.storage)?;
         let mut promotions = Vec::with_capacity(1);
 
         self.stage_young_promotion(reference, young_id, &mut promotions)?;
@@ -526,13 +520,11 @@ impl HeapSpace {
         )?;
 
         // keep active shared-edge scans aware of the now-mature entry
-        let Some(shape) = self.shape_table.shape(shape_id) else {
-            return Err(HeapError::InvalidShapeId {
-                index: shape_id.index(),
-            });
-        };
-
-        if self.is_scanning_shared_edges && shape.trace.has_shared_reference() {
+        if self.is_scanning_shared_edges
+            && self
+                .location_reference_map(promotion.target)?
+                .has_shared_reference()
+        {
             self.queue_shared_reference(promoted_reference)?;
         }
 
@@ -558,7 +550,6 @@ impl HeapSpace {
 
         // resolve the shared source range once before relocating the entry
         let young_offset = self.young_entry_offset(&entry);
-        let shape_id = entry.shape_id;
         let young_pages = self.young.pages.clone();
 
         // prefer one mature small slot when the payload fits one size class
@@ -569,13 +560,7 @@ impl HeapSpace {
             .is_some()
         {
             let slot = self
-                .allocate_small_from_page_view(
-                    &young_pages,
-                    young_offset,
-                    entry.byte_len,
-                    shape_id,
-                    false,
-                )
+                .allocate_small_from_page_view(&young_pages, young_offset, entry.layout_id, false)
                 .map_err(|error| HeapError::HeapPromotionFailed {
                     reference,
                     error: Box::new(error),
@@ -621,7 +606,7 @@ impl HeapSpace {
             }
 
             let entry_id = self
-                .store_large_entry(entry.byte_len, pages, shape_id, false)
+                .store_large_entry(entry.byte_len, pages, entry.layout_id, false)
                 .map_err(|error| HeapError::HeapPromotionFailed {
                     reference,
                     error: Box::new(error),
@@ -880,22 +865,19 @@ impl HeapSpace {
                 continue;
             }
 
-            let shape_id = self.shape_id(reference, location.storage)?;
-            let Some(shape) = self.shape_table.shape(shape_id) else {
-                return Err(HeapError::HeapScanFailed {
+            let reference_map = self
+                .location_reference_map(location.storage)
+                .map_err(|error| HeapError::HeapScanFailed {
                     source: ScanSource::Reference(reference),
-                    error: Box::new(HeapError::InvalidShapeId {
-                        index: shape_id.index(),
-                    }),
-                });
-            };
+                    error: Box::new(error),
+                })?;
 
             let mut first_reader_error = None;
             let mut first_edge_error = None;
 
             // enqueue every non-null young edge discovered in this payload
             let trace_result = visit_heap_references_in_reader(
-                &shape.trace,
+                &reference_map,
                 |start, buffer| match self.read_bytes_into(reference, start, buffer) {
                     Ok(()) => true,
                     Err(error) => {
@@ -956,22 +938,19 @@ impl HeapSpace {
                 continue;
             }
 
-            let shape_id = self.shape_id(reference, location.storage)?;
-            let Some(shape) = self.shape_table.shape(shape_id) else {
-                return Err(HeapError::HeapScanFailed {
+            let reference_map = self
+                .location_reference_map(location.storage)
+                .map_err(|error| HeapError::HeapScanFailed {
                     source: ScanSource::Reference(reference),
-                    error: Box::new(HeapError::InvalidShapeId {
-                        index: shape_id.index(),
-                    }),
-                });
-            };
+                    error: Box::new(error),
+                })?;
 
             let mut first_reader_error = None;
             let mut first_edge_error = None;
 
             // enqueue every non-null edge discovered in this payload
             let trace_result = visit_heap_references_in_reader(
-                &shape.trace,
+                &reference_map,
                 |start, buffer| match self.read_bytes_into(reference, start, buffer) {
                     Ok(()) => true,
                     Err(error) => {
@@ -1139,32 +1118,6 @@ impl HeapSpace {
         true
     }
 
-    /// Return the shape id for one traceable heap location.
-    fn shape_id(&self, reference: HeapReference, storage: HeapStorage) -> HeapResult<ShapeId> {
-        let Some(shape_id) = self.location_shape_id(storage) else {
-            let error = match storage {
-                HeapStorage::Young(young_id) => HeapError::MissingYoungEntry {
-                    generation: young_id.generation(),
-                    entry_index: young_id.index(),
-                },
-                HeapStorage::Small(slot) => HeapError::MissingSmallSlot {
-                    span_index: slot.span_index(),
-                    slot_index: slot.slot_index(),
-                },
-                HeapStorage::Large(entry_id) => HeapError::MissingLargeEntry {
-                    entry_id: entry_id.id(),
-                },
-            };
-
-            return Err(HeapError::HeapScanFailed {
-                source: ScanSource::Reference(reference),
-                error: Box::new(error),
-            });
-        };
-
-        Ok(shape_id)
-    }
-
     /// Queue every young reference discovered from remembered mature writes.
     fn enqueue_dirty_young_references(&mut self, pending: &mut HeapTraceQueue) -> HeapResult<()> {
         let dirty_spans = self.dirty_spans.clone();
@@ -1199,9 +1152,11 @@ impl HeapSpace {
             });
         };
         let occupied = span.occupied.clone();
-        let shape_ids = span.shape_ids.clone();
         let slot_count = span.slot_count;
-        let size_class = span.size_class;
+        let size_class = span.class.size_class;
+        let byte_lens = span.byte_lens.clone();
+        let local_reference_bits = span.local_reference_bits.clone();
+        let shared_reference_bits = span.shared_reference_bits.clone();
         let pages = span.pages.clone();
         let dirty_cards = span.dirty_cards.clone();
 
@@ -1220,16 +1175,7 @@ impl HeapSpace {
                     continue;
                 }
 
-                let slot_start = size_class.saturating_mul(slot_index);
-                let slot_end = slot_start.saturating_add(size_class);
-                let overlap_start = card_start.max(slot_start);
-                let overlap_end = card_end.min(slot_end);
-
-                if overlap_start >= overlap_end {
-                    continue;
-                }
-
-                let Some(shape_id) = shape_ids.get(slot_index).copied().flatten() else {
+                let Some(&byte_len) = byte_lens.get(slot_index) else {
                     first_error = Some(HeapError::HeapScanFailed {
                         source: ScanSource::Span(span_index),
                         error: Box::new(HeapError::MissingSmallSlot {
@@ -1239,21 +1185,32 @@ impl HeapSpace {
                     });
                     return;
                 };
-                let Some(shape) = self.shape_table.shape(shape_id) else {
-                    first_error = Some(HeapError::HeapScanFailed {
-                        source: ScanSource::Span(span_index),
-                        error: Box::new(HeapError::InvalidShapeId {
-                            index: shape_id.index(),
-                        }),
-                    });
-                    return;
-                };
+
+                let reference_map = slot_reference_map(
+                    &local_reference_bits,
+                    &shared_reference_bits,
+                    slot_index,
+                    size_class,
+                    byte_len,
+                );
+                if !reference_map.has_local_reference() {
+                    continue;
+                }
+
+                let slot_start = size_class.saturating_mul(slot_index);
+                let slot_end = slot_start.saturating_add(size_class);
+                let overlap_start = card_start.max(slot_start);
+                let overlap_end = card_end.min(slot_end);
+
+                if overlap_start >= overlap_end {
+                    continue;
+                }
 
                 let local_start = overlap_start.saturating_sub(slot_start);
                 let local_len = overlap_end.saturating_sub(overlap_start);
                 let mut first_reader_error = None;
                 let result = visit_heap_references_in_reader_range(
-                    &shape.trace,
+                    &reference_map,
                     local_start,
                     local_len,
                     |start, buffer| match self.allocator().fill_bytes_from(
@@ -1323,18 +1280,9 @@ impl HeapSpace {
                 }),
             });
         };
-        let shape_id = entry.shape_id;
         let pages = entry.pages.clone();
         let dirty_cards = entry.dirty_cards.clone();
-
-        let Some(shape) = self.shape_table.shape(shape_id) else {
-            return Err(HeapError::HeapScanFailed {
-                source: ScanSource::LargeEntry(entry_id.id()),
-                error: Box::new(HeapError::InvalidShapeId {
-                    index: shape_id.index(),
-                }),
-            });
-        };
+        let reference_map = self.reference_map(entry.layout_id)?.clone();
 
         let mut first_error = None;
 
@@ -1346,7 +1294,7 @@ impl HeapSpace {
 
             let mut first_reader_error = None;
             let result = visit_heap_references_in_reader_range(
-                &shape.trace,
+                &reference_map,
                 card_start,
                 card_len,
                 |start, buffer| match self.allocator().fill_bytes_from(&pages, start, buffer) {

@@ -4,7 +4,7 @@ use crate::{AccountingRegion, HeapError, HeapResult, RawPointer};
 
 impl RawSpace {
     /// Return the projected mapped-byte delta for one raw write.
-    pub fn write_mapped_delta(
+    pub fn write_mapped_byte_delta(
         &self,
         pointer: RawPointer,
         start: usize,
@@ -59,8 +59,11 @@ impl RawSpace {
                     });
                 };
                 let span_byte_len = page_view_capacity(&span.pages, self.allocator().page_bytes())?;
-                let slot_offset =
-                    checked_slot_offset(slot.span_index(), span.size_class, slot.slot_index())?;
+                let slot_offset = checked_slot_offset(
+                    slot.span_index(),
+                    span.class.size_class,
+                    slot.slot_index(),
+                )?;
                 let read_offset = checked_storage_offset(slot_offset, byte_offset, span_byte_len)?;
 
                 self.allocator()
@@ -104,8 +107,11 @@ impl RawSpace {
                     });
                 };
                 let span_byte_len = page_view_capacity(&span.pages, self.allocator().page_bytes())?;
-                let slot_offset =
-                    checked_slot_offset(slot.span_index(), span.size_class, slot.slot_index())?;
+                let slot_offset = checked_slot_offset(
+                    slot.span_index(),
+                    span.class.size_class,
+                    slot.slot_index(),
+                )?;
                 let read_offset = checked_storage_offset(slot_offset, byte_offset, span_byte_len)?;
 
                 self.allocator()
@@ -164,8 +170,11 @@ impl RawSpace {
                     });
                 };
                 let span_byte_len = page_view_capacity(&span.pages, allocator.page_bytes())?;
-                let slot_offset =
-                    checked_slot_offset(slot.span_index(), span.size_class, slot.slot_index())?;
+                let slot_offset = checked_slot_offset(
+                    slot.span_index(),
+                    span.class.size_class,
+                    slot.slot_index(),
+                )?;
                 let write_offset = checked_storage_offset(slot_offset, byte_offset, span_byte_len)?;
 
                 allocator.set_bytes_unique(&span.pages, write_offset, bytes)?;
@@ -211,7 +220,7 @@ impl RawSpace {
         // replace the payload inside the storage partition that owns this location
         match storage {
             RawStorage::Small(slot) => {
-                let Some(size_class) = self.span(slot.span_index()).map(|span| span.size_class)
+                let Some(class) = self.span(slot.span_index()).map(|span| span.class.clone())
                 else {
                     return Err(HeapError::MissingSpan {
                         span_index: slot.span_index(),
@@ -219,7 +228,7 @@ impl RawSpace {
                 };
 
                 // rewrite in place when the payload still fits
-                if bytes.len() <= size_class {
+                if bytes.len() == class.byte_len {
                     self.replace_small_location_bytes(slot, bytes)?;
 
                     self.usage
@@ -271,12 +280,10 @@ impl RawSpace {
             };
 
             // rewrite the slot payload in place
-            let slot_offset = checked_slot_offset(slot.span_index(), span.size_class, slot_index)?;
+            let slot_offset =
+                checked_slot_offset(slot.span_index(), span.class.size_class, slot_index)?;
 
             allocator.set_bytes_unique(&span.pages, slot_offset, bytes)?;
-
-            // then update the recorded payload lengths
-            span.lengths[slot_index] = bytes.len();
         }
 
         Ok(())
@@ -335,9 +342,12 @@ impl RawSpace {
         match location.storage {
             RawStorage::Small(slot) => {
                 let span = self.span(slot.span_index())?;
-                let slot_offset =
-                    checked_slot_offset(slot.span_index(), span.size_class, slot.slot_index())
-                        .ok()?;
+                let slot_offset = checked_slot_offset(
+                    slot.span_index(),
+                    span.class.size_class,
+                    slot.slot_index(),
+                )
+                .ok()?;
                 let span_byte_len =
                     page_view_capacity(&span.pages, self.allocator().page_bytes()).ok()?;
                 let read_offset =

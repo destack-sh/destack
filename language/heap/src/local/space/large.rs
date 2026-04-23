@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
 
+use destack_mir::LayoutId;
+
 use super::CardSet;
 use crate::allocator::PageView;
-use crate::{HeapError, HeapResult, ShapeId};
+use crate::{HeapError, HeapResult};
 
 /// One frozen heap large-entry root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -13,8 +15,8 @@ pub(crate) struct LargeEntryImage {
     pub len: usize,
     /// The allocator pages for this entry.
     pub pages: PageView,
-    /// The interned entry shape for this entry.
-    pub shape_id: ShapeId,
+    /// The managed layout stored in this entry.
+    pub layout_id: LayoutId,
 }
 
 /// One heap large-entry identifier.
@@ -51,8 +53,8 @@ pub(crate) struct LargeEntry {
     pub(crate) len: usize,
     /// The allocator pages for this entry.
     pub(crate) pages: PageView,
-    /// The interned entry shape for this entry.
-    pub(crate) shape_id: ShapeId,
+    /// The managed layout stored in this entry.
+    pub(crate) layout_id: LayoutId,
     /// Whether this entry is marked in the active cycle.
     pub(crate) is_marked: bool,
     /// The dirty cards remembered for young tracing.

@@ -9,7 +9,7 @@ mod span;
 mod young;
 
 pub(crate) use crate::local::gc::*;
-pub(crate) use crate::{GcKind, GcStats, GcSummary, TracePlan};
+pub(crate) use crate::{GcKind, GcState, GcStats};
 pub(crate) use image::*;
 pub(crate) use large::*;
 pub(crate) use location::*;
