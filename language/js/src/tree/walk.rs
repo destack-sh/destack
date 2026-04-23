@@ -1582,10 +1582,43 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_type_expression(tree, *element_id, element_ty);
             }
         }
-        TypeExpression::Function { signature } => {
-            walk_function_signature(visitor, tree, signature);
-        }
+        TypeExpression::FunctionTypeDeclaration(function) => {
+            for generic_parameter_id in &function.generic_parameters {
+                let generic_parameter = tree.get(*generic_parameter_id);
+                visitor.visit_generic_parameter(tree, *generic_parameter_id, generic_parameter);
+            }
 
+            if let Some(this_parameter_id) = function.this_parameter {
+                let this_parameter = tree.get(this_parameter_id);
+                visitor.visit_parameter(tree, this_parameter_id, this_parameter);
+            }
+
+            for parameter_id in &function.parameters {
+                let parameter = tree.get(*parameter_id);
+                visitor.visit_parameter(tree, *parameter_id, parameter);
+            }
+
+            if let Some(return_type_id) = function.return_type {
+                let return_type = tree.get(return_type_id);
+                visitor.visit_type_expression(tree, return_type_id, return_type);
+            }
+        }
+        TypeExpression::ConstructorTypeDeclaration(function) => {
+            for generic_parameter_id in &function.generic_parameters {
+                let generic_parameter = tree.get(*generic_parameter_id);
+                visitor.visit_generic_parameter(tree, *generic_parameter_id, generic_parameter);
+            }
+
+            for parameter_id in &function.parameters {
+                let parameter = tree.get(*parameter_id);
+                visitor.visit_parameter(tree, *parameter_id, parameter);
+            }
+
+            if let Some(return_type_id) = function.return_type {
+                let return_type = tree.get(return_type_id);
+                visitor.visit_type_expression(tree, return_type_id, return_type);
+            }
+        }
         TypeExpression::Error => {}
     }
 }
@@ -1614,10 +1647,51 @@ pub fn walk_type_member<V: NodeVisitor + ?Sized>(
             key,
             signature,
         } => {
-            if let Some(key) = key {
-                walk_key(visitor, tree, key);
-            }
+            walk_key(visitor, tree, key);
             walk_function_signature(visitor, tree, signature);
+        }
+        TypeMember::CallSignature {
+            modifiers: _,
+            signature,
+        } => {
+            for generic_parameter_id in &signature.generic_parameters {
+                let generic_parameter = tree.get(*generic_parameter_id);
+                visitor.visit_generic_parameter(tree, *generic_parameter_id, generic_parameter);
+            }
+
+            if let Some(this_parameter_id) = signature.this_parameter {
+                let this_parameter = tree.get(this_parameter_id);
+                visitor.visit_parameter(tree, this_parameter_id, this_parameter);
+            }
+
+            for parameter_id in &signature.parameters {
+                let parameter = tree.get(*parameter_id);
+                visitor.visit_parameter(tree, *parameter_id, parameter);
+            }
+
+            if let Some(return_type_id) = signature.return_type {
+                let return_type = tree.get(return_type_id);
+                visitor.visit_type_expression(tree, return_type_id, return_type);
+            }
+        }
+        TypeMember::ConstructSignature {
+            modifiers: _,
+            signature,
+        } => {
+            for generic_parameter_id in &signature.generic_parameters {
+                let generic_parameter = tree.get(*generic_parameter_id);
+                visitor.visit_generic_parameter(tree, *generic_parameter_id, generic_parameter);
+            }
+
+            for parameter_id in &signature.parameters {
+                let parameter = tree.get(*parameter_id);
+                visitor.visit_parameter(tree, *parameter_id, parameter);
+            }
+
+            if let Some(return_type_id) = signature.return_type {
+                let return_type = tree.get(return_type_id);
+                visitor.visit_type_expression(tree, return_type_id, return_type);
+            }
         }
         TypeMember::IndexSignature {
             modifiers: _,

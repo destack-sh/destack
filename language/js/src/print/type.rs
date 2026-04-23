@@ -239,12 +239,29 @@ impl<'a> Printer<'a> {
                     self.print_type_id(*type_id)?;
                 }
             }
-            TypeExpression::Function { signature } => {
-                if let Some(mode) = signature.mode
-                    && mode == FunctionMode::New
-                {
-                    self.write_keyword(Keyword::New);
+            TypeExpression::FunctionTypeDeclaration(signature) => {
+                if !signature.generic_parameters.is_empty() {
+                    self.write_punct("<");
+                    self.print_type_parameter_list(&signature.generic_parameters)?;
+                    self.write_punct(">");
                 }
+
+                self.write_punct("(");
+                self.print_parameter_list(&signature.parameters)?;
+                self.write_punct(")");
+
+                if let Some(return_type) = signature.return_type {
+                    self.write_punct("=>");
+                    self.print_type_id(return_type)?;
+                }
+            }
+            TypeExpression::ConstructorTypeDeclaration(signature) => {
+                if signature.is_abstract {
+                    self.write_keyword(Keyword::Abstract);
+                    self.write_punct(" ");
+                }
+
+                self.write_keyword(Keyword::New);
 
                 if !signature.generic_parameters.is_empty() {
                     self.write_punct("<");
@@ -253,7 +270,7 @@ impl<'a> Printer<'a> {
                 }
 
                 self.write_punct("(");
-                self.print_function_signature_parameters(signature)?;
+                self.print_parameter_list(&signature.parameters)?;
                 self.write_punct(")");
 
                 if let Some(return_type) = signature.return_type {
@@ -330,14 +347,8 @@ impl<'a> Printer<'a> {
                 signature,
             } => {
                 self.print_binding_modifiers_prefix(*modifiers);
-                self.print_optional_key(*key)?;
+                self.print_key(*key)?;
                 self.print_binding_modifiers_postfix(*modifiers);
-
-                if let Some(mode) = signature.mode
-                    && mode == FunctionMode::New
-                {
-                    self.write_keyword(Keyword::New);
-                }
 
                 if !signature.generic_parameters.is_empty() {
                     self.write_punct("<");
@@ -347,6 +358,57 @@ impl<'a> Printer<'a> {
 
                 self.write_punct("(");
                 self.print_function_signature_parameters(signature)?;
+                self.write_punct(")");
+
+                if let Some(return_type) = signature.return_type {
+                    self.write_punct(":");
+                    self.print_type_id(return_type)?;
+                }
+            }
+            TypeMember::CallSignature {
+                modifiers,
+                signature,
+            } => {
+                self.print_binding_modifiers_prefix(*modifiers);
+                self.print_binding_modifiers_postfix(*modifiers);
+
+                if !signature.generic_parameters.is_empty() {
+                    self.write_punct("<");
+                    self.print_type_parameter_list(&signature.generic_parameters)?;
+                    self.write_punct(">");
+                }
+
+                self.write_punct("(");
+                self.print_parameter_list(&signature.parameters)?;
+                self.write_punct(")");
+
+                if let Some(return_type) = signature.return_type {
+                    self.write_punct(":");
+                    self.print_type_id(return_type)?;
+                }
+            }
+            TypeMember::ConstructSignature {
+                modifiers,
+                signature,
+            } => {
+                self.print_binding_modifiers_prefix(*modifiers);
+                self.print_binding_modifiers_postfix(*modifiers);
+
+                if signature.is_abstract {
+                    self.write_keyword(Keyword::Abstract);
+                    self.write_punct(" ");
+                }
+
+                self.write_keyword(Keyword::New);
+
+                if !signature.generic_parameters.is_empty() {
+                    self.write_punct("<");
+                    self.print_type_parameter_list(&signature.generic_parameters)?;
+                    self.write_punct(">");
+                }
+
+                self.write_punct("(");
+                self.print_parameter_list(&signature.parameters)?;
                 self.write_punct(")");
 
                 if let Some(return_type) = signature.return_type {

@@ -1,6 +1,6 @@
 use crate::{
-    BindingModifier, FunctionSignature, Key, LocalNodeId, Node, NodeType, Path, ScalarLiteral,
-    StringId,
+    BindingModifier, FunctionSignature, GenericParameter, Key, LocalNodeId, Node, NodeType,
+    Parameter, Path, ScalarLiteral, StringId,
 };
 
 /// A PrimitiveType is a primitive type node.
@@ -92,6 +92,32 @@ pub struct TypeTemplateLiteral {
     pub strings: Vec<StringId>,
     /// The interpolated type spans.
     pub spans: Vec<LocalNodeId<TypeExpression>>,
+}
+
+/// One function type declaration in type space.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionTypeDeclaration {
+    /// The generic parameters of the function type.
+    pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
+    /// The optional `this` parameter.
+    pub this_parameter: Option<LocalNodeId<Parameter>>,
+    /// The parameters of the function type.
+    pub parameters: Vec<LocalNodeId<Parameter>>,
+    /// The return type of the function type.
+    pub return_type: Option<LocalNodeId<TypeExpression>>,
+}
+
+/// One constructor type declaration in type space.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ConstructorTypeDeclaration {
+    /// Whether the constructor type is abstract.
+    pub is_abstract: bool,
+    /// The generic parameters of the constructor type.
+    pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
+    /// The parameters of the constructor type.
+    pub parameters: Vec<LocalNodeId<Parameter>>,
+    /// The return type of the constructor type.
+    pub return_type: Option<LocalNodeId<TypeExpression>>,
 }
 
 /// A TypeExpression is a TypeScript type expression.
@@ -199,8 +225,10 @@ pub enum TypeExpression {
     Intersection {
         elements: Vec<LocalNodeId<TypeExpression>>,
     },
-    /// Function type `(T1, T2, ...) -> T`.
-    Function { signature: FunctionSignature },
+    /// Function type declaration.
+    FunctionTypeDeclaration(FunctionTypeDeclaration),
+    /// Constructor type declaration.
+    ConstructorTypeDeclaration(ConstructorTypeDeclaration),
 
     /// Error type that could not be resolved.
     Error,
@@ -241,8 +269,18 @@ pub enum TypeMember {
     /// Named method (like `foo(): T`).
     Method {
         modifiers: Option<BindingModifier>,
-        key: Option<Key>,
+        key: Key,
         signature: FunctionSignature,
+    },
+    /// Call signature (like `<T>(value: T): U`).
+    CallSignature {
+        modifiers: Option<BindingModifier>,
+        signature: FunctionTypeDeclaration,
+    },
+    /// Construct signature (like `new <T>(value: T): U`).
+    ConstructSignature {
+        modifiers: Option<BindingModifier>,
+        signature: ConstructorTypeDeclaration,
     },
     /// Index signature (like `[key: string]: T`).
     IndexSignature {

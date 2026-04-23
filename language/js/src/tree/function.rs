@@ -18,10 +18,6 @@ pub enum FunctionMode {
     Setter,
     /// Constructor method.
     Constructor,
-    /// New constructor method.
-    New,
-    /// Implicit call method.
-    Call,
 }
 
 impl FunctionMode {
@@ -32,8 +28,6 @@ impl FunctionMode {
             FunctionMode::Getter => Some(Keyword::Get),
             FunctionMode::Setter => Some(Keyword::Set),
             FunctionMode::Constructor => Some(Keyword::Constructor),
-            FunctionMode::New => Some(Keyword::New),
-            FunctionMode::Call => None,
         }
     }
 }

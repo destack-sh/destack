@@ -1,6 +1,6 @@
 use crate::{
-    FunctionMode, Keyword, LocalNodeId, PrimitiveType, TupleElement, TypeExpression, TypeLiteral,
-    TypeMember, TypeModifier, TypePredicateSubject,
+    Keyword, LocalNodeId, PrimitiveType, TupleElement, TypeExpression, TypeLiteral, TypeMember,
+    TypeModifier, TypePredicateSubject,
 };
 use destack_fir::format::FormatResult;
 
@@ -72,12 +72,6 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
                 write!(f, [key])?;
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-                // mode
-                if let Some(mode) = signature.mode
-                    && mode == FunctionMode::New
-                {
-                    write!(f, [Keyword::New, space()])?;
-                }
                 // generic parameters
                 if !signature.generic_parameters.is_empty() {
                     format_type_parameter_list(&signature.generic_parameters, f)?;
@@ -85,6 +79,51 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
                 // parameters
                 format_function_signature_parameters(signature, f)?;
                 // return type
+                if let Some(return_type) = signature.return_type {
+                    write!(f, [space(), token("=>"), space(), return_type])?;
+                }
+            }
+            TypeMember::CallSignature {
+                modifiers,
+                signature,
+            } => {
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+
+                if !signature.generic_parameters.is_empty() {
+                    format_type_parameter_list(&signature.generic_parameters, f)?;
+                }
+
+                write!(f, [token("(")])?;
+
+                list_like("", "", ",", &signature.parameters)
+                    .include_space()
+                    .format(f)?;
+
+                write!(f, [token(")")])?;
+
+                if let Some(return_type) = signature.return_type {
+                    write!(f, [space(), token("=>"), space(), return_type])?;
+                }
+            }
+            TypeMember::ConstructSignature {
+                modifiers,
+                signature,
+            } => {
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                write!(f, [Keyword::New, space()])?;
+
+                if !signature.generic_parameters.is_empty() {
+                    format_type_parameter_list(&signature.generic_parameters, f)?;
+                }
+
+                write!(f, [token("(")])?;
+
+                list_like("", "", ",", &signature.parameters)
+                    .include_space()
+                    .format(f)?;
+
+                write!(f, [token(")")])?;
+
                 if let Some(return_type) = signature.return_type {
                     write!(f, [space(), token("=>"), space(), return_type])?;
                 }
@@ -339,20 +378,39 @@ impl<'ast> FormatNode<'ast, TypeExpression> for TypeExpression {
             TypeExpression::Intersection { elements } => {
                 write!(f, [list_like("&", "&", ",", elements)])?;
             }
-            TypeExpression::Function { signature } => {
-                // mode
-                if let Some(mode) = signature.mode
-                    && mode == FunctionMode::New
-                {
-                    write!(f, [Keyword::New, space()])?;
-                }
+            TypeExpression::FunctionTypeDeclaration(signature) => {
                 // generic parameters
                 if !signature.generic_parameters.is_empty() {
                     format_type_parameter_list(&signature.generic_parameters, f)?;
                 }
                 // parameters
-                format_function_signature_parameters(signature, f)?;
+                write!(f, [token("(")])?;
+                list_like("", "", ",", &signature.parameters)
+                    .include_space()
+                    .format(f)?;
+                write!(f, [token(")")])?;
                 // return type
+                if let Some(return_type) = signature.return_type {
+                    write!(f, [space(), token("=>"), space(), return_type])?;
+                }
+            }
+            TypeExpression::ConstructorTypeDeclaration(signature) => {
+                if signature.is_abstract {
+                    write!(f, [Keyword::Abstract, space()])?;
+                }
+
+                write!(f, [Keyword::New, space()])?;
+
+                if !signature.generic_parameters.is_empty() {
+                    format_type_parameter_list(&signature.generic_parameters, f)?;
+                }
+
+                write!(f, [token("(")])?;
+                list_like("", "", ",", &signature.parameters)
+                    .include_space()
+                    .format(f)?;
+                write!(f, [token(")")])?;
+
                 if let Some(return_type) = signature.return_type {
                     write!(f, [space(), token("=>"), space(), return_type])?;
                 }
