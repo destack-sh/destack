@@ -6,6 +6,7 @@ use destack_ast::{
     Declaration, Keyword, LocalNodeId, Mutability, TokenType, TypeDeclaration, TypeExpression,
     TypeKind,
 };
+use destack_source::NodeSpanType;
 
 impl Parser {
     /// Return true when the current identifier head starts a type alias.
@@ -81,7 +82,10 @@ impl Parser {
 
             // alias head
             let (name, name_span) = self.eat_name_with_span()?;
+            let generic_parameter_container_start = self.mark_span();
             let generic_parameters = self.eat_generic_parameters_maybe(true)?.unwrap_or_default();
+            let generic_parameter_container_span = (!generic_parameters.is_empty())
+                .then(|| self.get_span_from(&generic_parameter_container_start));
 
             // `=`
             self.eat_newlines_maybe()?;
@@ -109,6 +113,10 @@ impl Parser {
             });
             let declaration_id = self.insert_node(declaration, self.get_span_from(start));
             self.tree.set_main_span(declaration_id, name_span);
+            if let Some(span) = generic_parameter_container_span {
+                self.tree
+                    .set_side_span(declaration_id, NodeSpanType::GenericParameters, span);
+            }
 
             return Ok(self.insert_node(
                 TypeExpression::Declaration {

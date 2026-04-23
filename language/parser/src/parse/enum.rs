@@ -8,7 +8,7 @@ use destack_ast::{
     Declaration, EnumDeclaration, EnumField, EnumKind, Keyword, LiteralType, LocalNodeId, Member,
     Name, NodeType, TemplateLiteral, TokenType,
 };
-use destack_source::Span;
+use destack_source::{NodeSpanType, Span};
 
 impl Parser {
     /// Return parser contexts for enum members.
@@ -67,9 +67,13 @@ impl Parser {
         };
 
         // optional generic parameters: < ... >
+        let generic_parameter_container_start = self.mark_span();
         let generic_parameters = self
             .eat_generic_parameters_maybe(false)
             .for_node_type(NodeType::Declaration)?;
+        let generic_parameter_container_span = generic_parameters
+            .as_ref()
+            .map(|_| self.get_span_from(&generic_parameter_container_start));
 
         // optional extends types
         let extends_types = self
@@ -111,6 +115,10 @@ impl Parser {
         // set main span to the name identifier
         if let Some(span) = name_span {
             self.tree.set_main_span(enum_id, span);
+        }
+        if let Some(span) = generic_parameter_container_span {
+            self.tree
+                .set_side_span(enum_id, NodeSpanType::GenericParameters, span);
         }
 
         Ok(enum_id)
@@ -276,6 +284,7 @@ mod tests {
         CommentKind, Declaration, Decorator, DecoratorPosition, EnumDeclaration, EnumField,
         EnumKind, Expression, GenericParameter, ScalarLiteral, TypeExpression, WhereClause,
     };
+    use destack_source::NodeSpanType;
 
     use crate::parse::expression::common::DeclarationHeader;
     use crate::{TestParser, assert_comment, assert_node, assert_path, assert_string};
@@ -456,6 +465,15 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
 
             assert_eq!(fields.len(), 3);
         });
+
+        let generic_parameter_span = parser
+            .tree
+            .get_side_span(enum_id, NodeSpanType::GenericParameters)
+            .expect("missing enum generic parameter span");
+        assert_eq!(
+            parser.get_span_str(generic_parameter_span),
+            "<T: int32 = 3, IsSomething: boolean = true>"
+        );
     }
 
     #[test]

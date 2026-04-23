@@ -7,6 +7,7 @@ use crate::{ParseResult, Parser, ParserMark};
 use destack_ast::{
     ClassDeclaration, Declaration, Keyword, LocalNodeId, NodeType, StructDeclaration, TokenType,
 };
+use destack_source::NodeSpanType;
 
 impl Parser {
     /// Eat a struct or class declaration.
@@ -71,9 +72,13 @@ impl Parser {
         };
 
         // optional generic parameters: < ... >
+        let generic_parameter_container_start = self.mark_span();
         let generic_parameters = self
             .eat_generic_parameters_maybe(false)
             .for_node_type(NodeType::Declaration)?;
+        let generic_parameter_container_span = generic_parameters
+            .as_ref()
+            .map(|_| self.get_span_from(&generic_parameter_container_start));
 
         // optional extends clause
         let extends_clause = if is_class {
@@ -156,6 +161,10 @@ impl Parser {
         // set main span to the name identifier
         if let Some(span) = name_span {
             self.tree.set_main_span(declaration_id, span);
+        }
+        if let Some(span) = generic_parameter_container_span {
+            self.tree
+                .set_side_span(declaration_id, NodeSpanType::GenericParameters, span);
         }
 
         Ok(declaration_id)
@@ -646,6 +655,29 @@ struct Foo<T: Numeric> extends Boz implements Quux {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(4)));
             });
         });
+    }
+
+    #[test]
+    fn test_parse_class_records_generic_parameter_container_span() {
+        let mut test = TestParser::new(
+            r###"
+class Box<T> {}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let class_id = parser
+            .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+            .unwrap();
+
+        let generic_parameter_span = parser
+            .tree
+            .get_side_span(class_id, NodeSpanType::GenericParameters)
+            .expect("missing class generic parameter span");
+
+        assert_eq!(parser.get_span_str(generic_parameter_span), "<T>");
     }
 
     #[test]

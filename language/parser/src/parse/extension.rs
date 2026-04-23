@@ -39,17 +39,35 @@ impl Parser {
         self.eat_keyword(Keyword::Extension)?;
 
         // name and generic parameters
-        let (generic_parameters, name, name_span) =
+        let (generic_parameters, generic_parameter_container_span, name, name_span) =
             // named extension
             if self.peek_name_is() && !self.is_keyword(Keyword::Of) {
                 let (name, span) = self.eat_name_with_span()?;
+
+                // `<T>`, only the generic parameter container belongs to this span
+                let generic_parameter_container_start = self.mark_span();
                 let generic_parameters = self.eat_generic_parameters_maybe(false)?;
-                (generic_parameters, Some(name), Some(span))
+                let generic_parameter_container_span = generic_parameters
+                    .as_ref()
+                    .map(|_| self.get_span_from(&generic_parameter_container_start));
+
+                (
+                    generic_parameters,
+                    generic_parameter_container_span,
+                    Some(name),
+                    Some(span),
+                )
             }
             // anonymous extension
             else {
+                // `<T>`, anonymous extensions may start with generic parameters
+                let generic_parameter_container_start = self.mark_span();
                 let generic_parameters = self.eat_generic_parameters_maybe(false)?;
-                (generic_parameters, None, None)
+                let generic_parameter_container_span = generic_parameters
+                    .as_ref()
+                    .map(|_| self.get_span_from(&generic_parameter_container_start));
+
+                (generic_parameters, generic_parameter_container_span, None, None)
             };
 
         // `of` keyword
@@ -104,6 +122,10 @@ impl Parser {
         // set main span to the name identifier
         if let Some(span) = name_span {
             self.tree.set_main_span(extension_id, span);
+        }
+        if let Some(span) = generic_parameter_container_span {
+            self.tree
+                .set_side_span(extension_id, NodeSpanType::GenericParameters, span);
         }
 
         Ok(extension_id)
@@ -313,6 +335,12 @@ extension<U> of Bar<T> implements Baz<T> {
                 });
             });
         });
+
+        let generic_parameter_span = parser
+            .tree
+            .get_side_span(extension_id, NodeSpanType::GenericParameters)
+            .expect("missing extension generic parameter span");
+        assert_eq!(parser.get_span_str(generic_parameter_span), "<U>");
     }
 
     #[test]
@@ -368,6 +396,12 @@ extension MyExt<U> of Bar<T> implements Baz<T> {
                 });
             });
         });
+
+        let generic_parameter_span = parser
+            .tree
+            .get_side_span(extension_id, NodeSpanType::GenericParameters)
+            .expect("missing named extension generic parameter span");
+        assert_eq!(parser.get_span_str(generic_parameter_span), "<U>");
     }
 
     #[test]

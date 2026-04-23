@@ -1264,6 +1264,13 @@ impl Parser {
                 Ok(parameters)
             },
         )?;
+
+        let container_start = self.get_span_from(&start).start;
+
+        if let Some(first_parameter_id) = parameters.first().copied() {
+            self.set_node_leading_span(first_parameter_id, container_start);
+        }
+
         self.eat_type_angle_close_or_recover_missing(NodeType::Expression)?;
         Ok(parameters)
     }
@@ -2083,7 +2090,7 @@ mod tests {
         PatternField, ScalarLiteral, TokenType, TupleElement, TypeExpression, TypeLiteral,
         Visibility,
     };
-    use destack_source::LanguageType;
+    use destack_source::{LanguageType, NodeSpanType};
 
     use crate::{
         TestParser, assert_comment, assert_expression_path, assert_name, assert_node, assert_path,
@@ -2536,6 +2543,22 @@ mod tests {
                 });
             });
         });
+    }
+
+    #[test]
+    fn test_parse_generic_parameters_record_first_parameter_container_leading_span() {
+        let mut test = TestParser::new("<\n  T>");
+        let mut parser = test.prepare();
+        let generic_parameters = parser.eat_generic_parameters(true).unwrap();
+
+        assert_eq!(generic_parameters.len(), 1);
+
+        let leading_span = parser
+            .tree
+            .get_side_span(generic_parameters[0], NodeSpanType::Leading)
+            .expect("first generic parameter should record its container leading span");
+
+        assert_eq!(parser.file.span_str(leading_span), "<\n  ");
     }
 
     #[test]

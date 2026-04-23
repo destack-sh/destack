@@ -1,7 +1,7 @@
 use crate::tests::*;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_ast::*;
-use destack_source::LanguageType;
+use destack_source::{LanguageType, NodeSpanType};
 
 #[test]
 fn test_parse_conditional_type_alias_with_generics() {
@@ -51,6 +51,26 @@ fn test_parse_conditional_type_alias_with_generics() {
                 });
             });
         });
+    });
+}
+
+#[test]
+fn test_parse_type_alias_records_generic_parameter_container_span() {
+    let mut test =
+        TestParser::new_with_options("type Box<T> = T", LanguageType::TypeScriptDeclaration);
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+        let generic_parameter_span = parser
+            .tree
+            .get_side_span(*declaration_id, NodeSpanType::GenericParameters)
+            .expect("missing type alias generic parameter span");
+
+        assert_eq!(parser.get_span_str(generic_parameter_span), "<T>");
     });
 }
 
