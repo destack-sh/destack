@@ -453,6 +453,38 @@ impl Dump for js::FunctionSignature {
     }
 }
 
+/// Dump one JS function type declaration.
+impl Dump for js::FunctionTypeDeclaration {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper
+            .object("js::FunctionTypeDeclaration")
+            .field(
+                "generic_parameter_count",
+                &(self.generic_parameters.len() as u32),
+            )
+            .field("has_this_parameter", &self.this_parameter.is_some())
+            .field("parameter_count", &(self.parameters.len() as u32))
+            .field("has_return_type", &self.return_type.is_some())
+            .end();
+    }
+}
+
+/// Dump one JS constructor type declaration.
+impl Dump for js::ConstructorTypeDeclaration {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper
+            .object("js::ConstructorTypeDeclaration")
+            .field("is_abstract", &self.is_abstract)
+            .field(
+                "generic_parameter_count",
+                &(self.generic_parameters.len() as u32),
+            )
+            .field("parameter_count", &(self.parameters.len() as u32))
+            .field("has_return_type", &self.return_type.is_some())
+            .end();
+    }
+}
+
 impl_dump_display! {
     js::AccessorKind,
     js::AnnotationPosition,
@@ -1533,8 +1565,13 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             js::TypeExpression::Intersection { elements: _ } => {
                 self.node("js::TypeExpression::Intersection", id.id).end();
             }
-            js::TypeExpression::Function { signature } => {
-                self.node("js::TypeExpression::Function", id.id)
+            js::TypeExpression::FunctionTypeDeclaration(signature) => {
+                self.node("js::TypeExpression::FunctionTypeDeclaration", id.id)
+                    .field("signature", signature)
+                    .end();
+            }
+            js::TypeExpression::ConstructorTypeDeclaration(signature) => {
+                self.node("js::TypeExpression::ConstructorTypeDeclaration", id.id)
                     .field("signature", signature)
                     .end();
             }

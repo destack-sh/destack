@@ -573,16 +573,23 @@ impl ModuleLowerer<'_> {
         let key = self.lower_static_key(source_id, field.key)?;
         let field = match self.types.get_type(field.ty) {
             dir::Type::Function { .. } => {
-                let signature = self.lower_semantic_function_type_signature(
-                    source_id,
-                    field.ty,
-                    js::FunctionKind::Function,
-                    None,
-                )?;
+                let signature =
+                    self.lower_semantic_function_type_declaration(source_id, field.ty)?;
                 js::TypeMember::Method {
                     modifiers,
-                    key: Some(key),
-                    signature,
+                    key,
+                    signature: js::FunctionSignature {
+                        is_abstract: false,
+                        is_override: false,
+                        asynchrony: js::Asynchrony::Sync,
+                        cardinality: js::FunctionCardinality::Scalar,
+                        mode: None,
+                        kind: js::FunctionKind::Function,
+                        generic_parameters: signature.generic_parameters,
+                        this_parameter: signature.this_parameter,
+                        parameters: signature.parameters,
+                        return_type: signature.return_type,
+                    },
                 }
             }
             _ => {
@@ -638,21 +645,18 @@ impl ModuleLowerer<'_> {
             .insert_from_source_any(parameter, self.module.id, source_id))
     }
 
-    /// Lower one semantic function type signature into a JS function signature.
-    fn lower_semantic_function_type_signature(
+    /// Lower one semantic function type into one JS function type declaration.
+    fn lower_semantic_function_type_declaration(
         &mut self,
         source_id: dir::LocalNodeIdAny,
         ty_id: dir::LocalTypeId,
-        kind: js::FunctionKind,
-        mode: Option<js::FunctionMode>,
-    ) -> CodegenJsResult<js::FunctionSignature> {
+    ) -> CodegenJsResult<js::FunctionTypeDeclaration> {
         let dir::Type::Function {
-            asynchrony,
-            cardinality,
             generic_parameters,
             this_parameter,
             parameters,
             return_type,
+            ..
         } = self.types.get_type(ty_id)
         else {
             return Err(CodegenJsError::UnsupportedConstruct {
@@ -701,16 +705,7 @@ impl ModuleLowerer<'_> {
             .map(|return_type_id| self.lower_type(return_type_id))
             .transpose()?;
 
-        let asynchrony = self.lower_asynchrony(*asynchrony);
-        let cardinality = self.lower_function_cardinality(*cardinality);
-
-        Ok(js::FunctionSignature {
-            is_abstract: false,
-            is_override: false,
-            asynchrony,
-            cardinality,
-            mode,
-            kind,
+        Ok(js::FunctionTypeDeclaration {
             generic_parameters,
             this_parameter,
             parameters,
@@ -1011,15 +1006,10 @@ impl ModuleLowerer<'_> {
                 let call_signatures = call_signatures
                     .iter()
                     .map(|signature_id| {
-                        let signature = self.lower_semantic_function_type_signature(
-                            source_id,
-                            *signature_id,
-                            js::FunctionKind::Function,
-                            Some(js::FunctionMode::Call),
-                        )?;
-                        let field = js::TypeMember::Method {
+                        let signature = self
+                            .lower_semantic_function_type_declaration(source_id, *signature_id)?;
+                        let field = js::TypeMember::CallSignature {
                             modifiers: None,
-                            key: None,
                             signature,
                         };
 
@@ -1033,16 +1023,16 @@ impl ModuleLowerer<'_> {
                 let construct_signatures = construct_signatures
                     .iter()
                     .map(|signature_id| {
-                        let signature = self.lower_semantic_function_type_signature(
-                            source_id,
-                            *signature_id,
-                            js::FunctionKind::Function,
-                            Some(js::FunctionMode::New),
-                        )?;
-                        let field = js::TypeMember::Method {
+                        let signature = self
+                            .lower_semantic_function_type_declaration(source_id, *signature_id)?;
+                        let field = js::TypeMember::ConstructSignature {
                             modifiers: None,
-                            key: None,
-                            signature,
+                            signature: js::ConstructorTypeDeclaration {
+                                is_abstract: false,
+                                generic_parameters: signature.generic_parameters,
+                                parameters: signature.parameters,
+                                return_type: signature.return_type,
+                            },
                         };
 
                         Ok(self
@@ -1104,13 +1094,8 @@ impl ModuleLowerer<'_> {
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
             dir::Type::Function { .. } => {
-                let signature = self.lower_semantic_function_type_signature(
-                    source_id,
-                    ty_id,
-                    js::FunctionKind::Lambda,
-                    None,
-                )?;
-                let ty = js::TypeExpression::Function { signature };
+                let signature = self.lower_semantic_function_type_declaration(source_id, ty_id)?;
+                let ty = js::TypeExpression::FunctionTypeDeclaration(signature);
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
             }

@@ -171,13 +171,65 @@ impl ModuleLowerer<'_> {
                     None,
                     None,
                 );
-                let key = key.map(|key| self.lower_key(key)).transpose()?;
+                let key = self.lower_key(*key)?;
                 let signature = self.lower_function_signature(signature)?;
 
                 js::TypeMember::Method {
                     modifiers,
                     key,
                     signature,
+                }
+            }
+            dir::TypeMember::CallSignature { signature, .. } => {
+                let modifiers = self.build_member_modifier(None, None, None, None, None, None);
+                let generic_parameters =
+                    self.lower_generic_parameters(&signature.generic_parameters)?;
+                let this_parameter = signature
+                    .this_parameter
+                    .map(|parameter| self.lower_parameter(parameter))
+                    .transpose()?;
+                let parameters = signature
+                    .parameters
+                    .iter()
+                    .map(|parameter| self.lower_parameter(*parameter))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                let return_type = signature
+                    .return_type
+                    .map(|return_type| self.lower_type_annotation_expression(return_type))
+                    .transpose()?;
+
+                js::TypeMember::CallSignature {
+                    modifiers,
+                    signature: js::FunctionTypeDeclaration {
+                        generic_parameters,
+                        this_parameter,
+                        parameters,
+                        return_type,
+                    },
+                }
+            }
+            dir::TypeMember::ConstructSignature { signature, .. } => {
+                let modifiers = self.build_member_modifier(None, None, None, None, None, None);
+                let generic_parameters =
+                    self.lower_generic_parameters(&signature.generic_parameters)?;
+                let parameters = signature
+                    .parameters
+                    .iter()
+                    .map(|parameter| self.lower_parameter(*parameter))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                let return_type = signature
+                    .return_type
+                    .map(|return_type| self.lower_type_annotation_expression(return_type))
+                    .transpose()?;
+
+                js::TypeMember::ConstructSignature {
+                    modifiers,
+                    signature: js::ConstructorTypeDeclaration {
+                        is_abstract: signature.is_abstract,
+                        generic_parameters,
+                        parameters,
+                        return_type,
+                    },
                 }
             }
             dir::TypeMember::AssociatedType { .. } => {

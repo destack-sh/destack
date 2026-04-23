@@ -2,6 +2,7 @@ use {destack_dir as dir, destack_js as js};
 
 use crate::{CodegenJsError, CodegenJsResult, ModuleLowerer};
 
+#[allow(clippy::too_many_arguments)]
 impl ModuleLowerer<'_> {
     /// Lower asynchrony from DIR into JS AST.
     pub fn lower_asynchrony(&self, asynchrony: dir::Asynchrony) -> js::Asynchrony {
@@ -28,8 +29,9 @@ impl ModuleLowerer<'_> {
             dir::FunctionMode::Getter => js::FunctionMode::Getter,
             dir::FunctionMode::Setter => js::FunctionMode::Setter,
             dir::FunctionMode::Constructor => js::FunctionMode::Constructor,
-            dir::FunctionMode::New => js::FunctionMode::New,
-            dir::FunctionMode::Call => js::FunctionMode::Call,
+            dir::FunctionMode::New | dir::FunctionMode::Call => {
+                panic!("type-space function modes must lower through js type nodes")
+            }
         }
     }
 
@@ -67,6 +69,7 @@ impl ModuleLowerer<'_> {
             .return_type
             .map(|return_type| self.lower_type_annotation_expression(return_type))
             .transpose()?;
+
         Ok(js::FunctionSignature {
             is_abstract: function_signature.is_abstract,
             is_override: function_signature.is_override,
