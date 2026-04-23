@@ -3,11 +3,12 @@ use crate::analyze::common::{CanonicalSymbolMode, RelationMode, TypeContext};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Declaration, DependencyItem, Expression, FunctionMode, FunctionSignature, GenericArgument,
-    GenericParameterKind, GlobalSymbolId, IntrinsicType, LocalNodeId, LocalNodeIdAny, LocalTypeId,
-    MappedTypeModifier, MappedTypeModifiers, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions,
-    NormalizationMode, Parameter, Path, PredicateSubject, PrimitiveType, ScalarLiteral, StaticKey,
-    SymbolSpace, SymbolSpaceOrder, TupleElement, Type, TypeElement, TypeExpression, TypeField,
+    Asynchrony, Declaration, DependencyItem, Expression, FunctionCardinality, FunctionKind,
+    FunctionMode, FunctionSignature, GenericArgument, GenericParameterKind, GlobalSymbolId,
+    IntrinsicType, LocalNodeId, LocalNodeIdAny, LocalTypeId, MappedTypeModifier,
+    MappedTypeModifiers, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, NormalizationMode,
+    Parameter, Path, PredicateSubject, PrimitiveType, ScalarLiteral, StaticKey, SymbolSpace,
+    SymbolSpaceOrder, TupleElement, Type, TypeElement, TypeExpression, TypeField,
     TypeIndexSignature, TypeLiteral, TypeMember, TypeModifier, TypePredicateSubject,
     walk_type_expression,
 };
@@ -1331,6 +1332,50 @@ impl Compiler {
                     // #Incomplete: only function declarations are evaluable as ctx.types (?)
                     return Ok(None);
                 }
+            }
+            TypeExpression::FunctionTypeDeclaration(function) => {
+                let signature = FunctionSignature {
+                    is_abstract: false,
+                    is_override: false,
+                    asynchrony: Asynchrony::Sync,
+                    cardinality: FunctionCardinality::Scalar,
+                    mode: None,
+                    kind: FunctionKind::Lambda,
+                    generic_parameters: function.generic_parameters.clone(),
+                    where_clauses: function.where_clauses.clone(),
+                    this_parameter: function.this_parameter,
+                    parameters: function.parameters.clone(),
+                    return_type: function.return_type,
+                };
+
+                self.resolve_declared_function_signature_type(
+                    &mut ctx.reborrow(),
+                    &signature,
+                    expression_id.into_any(),
+                    false,
+                )?
+            }
+            TypeExpression::ConstructorTypeDeclaration(function) => {
+                let signature = FunctionSignature {
+                    is_abstract: function.is_abstract,
+                    is_override: false,
+                    asynchrony: Asynchrony::Sync,
+                    cardinality: FunctionCardinality::Scalar,
+                    mode: Some(FunctionMode::New),
+                    kind: FunctionKind::Lambda,
+                    generic_parameters: function.generic_parameters.clone(),
+                    where_clauses: function.where_clauses.clone(),
+                    this_parameter: None,
+                    parameters: function.parameters.clone(),
+                    return_type: function.return_type,
+                };
+
+                self.resolve_declared_function_signature_type(
+                    &mut ctx.reborrow(),
+                    &signature,
+                    expression_id.into_any(),
+                    false,
+                )?
             }
 
             TypeExpression::Readonly { target_type } => {
