@@ -81,15 +81,15 @@ impl PageRunCache {
             return Ok(());
         }
 
-        allocator.release_cached_run(run);
+        allocator.free_cached_run(run);
 
         Ok(())
     }
 
-    /// Flush this cache back into the allocator page-run pool.
+    /// Flush this cache back into the allocator free runs.
     pub(crate) fn flush(&mut self, allocator: &Allocator) {
         for run in self.drain() {
-            allocator.release_cached_run(run);
+            allocator.free_cached_run(run);
         }
     }
 
@@ -156,7 +156,6 @@ impl PageRunCache {
     /// Merge one run with any immediately adjacent cached runs.
     fn coalesce(&mut self, mut run: PageRun) -> PageRun {
         let mut run_index = 0;
-
         while run_index < self.runs.len() {
             let candidate = self.runs[run_index];
             let merged = if candidate.is_immediately_before(run) {
@@ -170,7 +169,6 @@ impl PageRunCache {
             if let Some(merged) = merged {
                 self.runs.swap_remove(run_index);
                 run = merged;
-
                 continue;
             }
 

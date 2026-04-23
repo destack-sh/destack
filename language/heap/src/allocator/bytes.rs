@@ -7,14 +7,14 @@ use crate::{HeapError, HeapResult};
 impl Allocator {
     /// Return the owning physical page and page-local offset for one raw address.
     pub(crate) fn address_page_position(&self, address: usize) -> Option<(crate::PageId, usize)> {
-        let segment_address = self.segment_address(address)?;
+        let arena_location = self.arena_location(address)?;
         let page_bytes = self.page_bytes();
-        let segment_page_index = segment_address.segment_offset / page_bytes;
-        let page_offset = segment_address.segment_offset % page_bytes;
-        let page_index = segment_address
-            .segment_index
-            .checked_mul(self.pages_per_segment())?
-            .checked_add(segment_page_index)?;
+        let arena_page_index = arena_location.arena_offset / page_bytes;
+        let page_offset = arena_location.arena_offset % page_bytes;
+        let page_index = arena_location
+            .arena_index
+            .checked_mul(self.pages_per_arena())?
+            .checked_add(arena_page_index)?;
 
         Some((crate::PageId::from_raw(page_index as u32), page_offset))
     }

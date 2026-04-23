@@ -1,5 +1,5 @@
 use super::allocator::Allocator;
-use super::{PageId, PageSlot, PageView};
+use super::{PageSlot, PageView};
 use crate::{HeapError, HeapResult};
 
 impl Allocator {
@@ -78,12 +78,6 @@ impl Allocator {
             return Ok(());
         }
 
-        // collapse back to one contiguous run when patches are exhausted
-        if !page_view.can_patch(page_index) {
-            self.rebase_page_view(page_view)?;
-            return Ok(());
-        }
-
         // clone just the touched page into one fresh single-page run
         let new_run = self.allocate_run(1)?;
         let Some(old_page_id) = slot.run.page(slot.run_page_index) else {
@@ -106,7 +100,7 @@ impl Allocator {
 
         // release any previous patched run once it is replaced
         if slot.is_patched {
-            self.release_run(slot.run)?;
+            self.decrement_run_refcount(slot.run)?;
         }
 
         page_view.set_patch(page_index, new_page_id)
@@ -119,33 +113,11 @@ impl Allocator {
         start_page: usize,
         end_page: usize,
     ) -> HeapResult<()> {
-        let mut touches_base_run = false;
-        let mut touched_base_pages = 0usize;
-
-        // preflight the write window first
-        for page_index in start_page..end_page {
-            let Some(slot) = page_view.slot(page_index) else {
-                return Err(HeapError::MissingLogicalPage { page_index });
-            };
-
-            if !slot.is_patched {
-                touches_base_run = true;
-                touched_base_pages += 1;
-            }
-        }
-
-        let base_run_is_unique = if touches_base_run {
+        let base_run_is_unique = if start_page < end_page {
             self.run_is_unique(page_view.base_run())?
         } else {
             true
         };
-
-        // rebase once when this write would outgrow inline patches anyway
-        if !base_run_is_unique && touched_base_pages > page_view.patch_room() {
-            self.rebase_page_view(page_view)?;
-
-            return Ok(());
-        }
 
         // detach only the shared runs in the write window
         for page_index in start_page..end_page {
@@ -203,61 +175,6 @@ impl Allocator {
             page[slice_start..slice_end].copy_from_slice(&source[source_offset..source_end]);
             source_offset = source_end;
         }
-
-        Ok(())
-    }
-
-    /// Rebase one logical page view into one fresh contiguous run.
-    fn rebase_page_view(&self, page_view: &mut PageView) -> HeapResult<()> {
-        if page_view.is_empty() {
-            return Ok(());
-        }
-
-        // allocate one fresh contiguous base run first
-        let old_page_view = *page_view;
-        let rebased_run = self.allocate_run(old_page_view.len())?;
-        let rebased_page_view = PageView::from_run(rebased_run);
-
-        // materialize the current logical view into that new run
-        for page_index in 0..old_page_view.len() {
-            self.copy_page_between_views(&old_page_view, &rebased_page_view, page_index)?;
-        }
-
-        // then drop the old sharing state
-        self.release_page_view(&old_page_view)?;
-        *page_view = rebased_page_view;
-
-        Ok(())
-    }
-
-    /// Copy one logical page from one page view into another.
-    fn copy_page_between_views(
-        &self,
-        source: &PageView,
-        target: &PageView,
-        page_index: usize,
-    ) -> HeapResult<()> {
-        let Some(source_page_id) = source.page(page_index) else {
-            return Err(HeapError::MissingLogicalPage { page_index });
-        };
-        let Some(target_page_id) = target.page(page_index) else {
-            return Err(HeapError::MissingLogicalPage { page_index });
-        };
-
-        self.copy_page_between_ids(source_page_id, target_page_id)
-    }
-
-    /// Copy one physical page into another physical page.
-    fn copy_page_between_ids(
-        &self,
-        source_page_id: PageId,
-        target_page_id: PageId,
-    ) -> HeapResult<()> {
-        let source_page = self.read_page_bytes(source_page_id)?;
-        let page_ptr = self.page_slice_mut_ptr(target_page_id)?;
-        let page = unsafe { &mut *page_ptr };
-
-        page.copy_from_slice(&source_page);
 
         Ok(())
     }
