@@ -249,7 +249,10 @@ impl Parser {
             TypeExpression::Parenthesized { expression } => {
                 self.can_start_tagged_object_literal_type(*expression)
             }
-            TypeExpression::Declaration { .. } | TypeExpression::Reference { .. } => true,
+            TypeExpression::Declaration { .. }
+            | TypeExpression::FunctionTypeDeclaration(_)
+            | TypeExpression::ConstructorTypeDeclaration(_)
+            | TypeExpression::Reference { .. } => true,
             TypeExpression::Member { left, .. } => self.can_start_tagged_object_literal_type(*left),
             _ => false,
         }
@@ -300,9 +303,13 @@ impl Parser {
 
     /// Return true when assignment lhs form is invalid in ts/js grammar.
     #[inline]
-    fn assignment_target_has_invalid_form(&self, expression_id: LocalNodeId<Expression>) -> bool {
+    fn assignment_target_has_invalid_form(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        is_parenthesized: bool,
+    ) -> bool {
         let inner_expression_id = self.without_parentheses_expression(expression_id);
-        let is_parenthesized = inner_expression_id != expression_id;
+        let is_parenthesized = is_parenthesized || inner_expression_id != expression_id;
 
         match self.tree.get(inner_expression_id) {
             // `satisfies` lhs is valid in parse output only when parenthesized
@@ -950,6 +957,7 @@ impl Parser {
     fn try_eat_value_call_postfix(
         &mut self,
         left_expression_id: LocalNodeId<Expression>,
+        left_is_parenthesized: bool,
         token: ContinuationToken,
         has_statement_boundary_newline: bool,
         is_in_new_receiver: bool,
@@ -969,7 +977,7 @@ impl Parser {
 
         // unparenthesized lambdas need a separator before direct calls
         let left_is_unparenthesized_lambda =
-            self.is_unparenthesized_lambda_expression(left_expression_id);
+            self.is_unparenthesized_lambda_expression(left_expression_id) && !left_is_parenthesized;
         if left_is_unparenthesized_lambda && has_statement_boundary_newline {
             return Ok(None);
         }
@@ -1040,6 +1048,7 @@ impl Parser {
         &mut self,
         start: &ParserMark,
         left_expression_id: LocalNodeId<Expression>,
+        left_is_parenthesized: bool,
         token: ContinuationToken,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         // postfix unary operators are the simplest continuation form
@@ -1093,6 +1102,7 @@ impl Parser {
             // postfix calls
             TokenType::OpenParenthesis => self.try_eat_value_call_postfix(
                 left_expression_id,
+                left_is_parenthesized,
                 token,
                 has_statement_boundary_newline,
                 is_in_new_receiver,
@@ -1236,7 +1246,8 @@ impl Parser {
         &mut self,
         start: &ParserMark,
         mut left_expression_id: LocalNodeId<Expression>,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+        mut left_is_parenthesized: bool,
+    ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
         let _timing = self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX);
         let is_in_static = self.options.is_in_static();
         let is_in_ternary_or_match =
@@ -1260,16 +1271,21 @@ impl Parser {
                 break;
             };
 
-            let Some(next_expression_id) =
-                self.try_eat_value_postfix_step(start, left_expression_id, token)?
+            let Some(next_expression_id) = self.try_eat_value_postfix_step(
+                start,
+                left_expression_id,
+                left_is_parenthesized,
+                token,
+            )?
             else {
                 break;
             };
 
             left_expression_id = next_expression_id;
+            left_is_parenthesized = false;
         }
 
-        Ok(left_expression_id)
+        Ok((left_expression_id, left_is_parenthesized))
     }
 
     /// Parse type-space postfix continuation operators after a primary expression.
@@ -1653,6 +1669,7 @@ impl Parser {
         &mut self,
         start: &ParserMark,
         mut left_expression_id: LocalNodeId<Expression>,
+        mut left_is_parenthesized: bool,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let left_is_statement = self.options.is_in_statement_position()
             && self
@@ -1771,7 +1788,8 @@ impl Parser {
 
             // reject assignment targets that are invalid in ts/js grammar
             if matches!(right_operator, ParseInfixOperator::Assign(_))
-                && self.assignment_target_has_invalid_form(left_expression_id)
+                && self
+                    .assignment_target_has_invalid_form(left_expression_id, left_is_parenthesized)
             {
                 return Err(ParseError::unexpected(
                     self.tree.get_span(left_expression_id),
@@ -1896,6 +1914,7 @@ impl Parser {
             };
 
             left_expression_id = self.insert_node(left_expression, self.get_span_from(start));
+            left_is_parenthesized = false;
 
             // set main span to the operator
             let operator_main_span = if let Some(as_const_operator_end) = as_const_operator_end {
@@ -2030,6 +2049,7 @@ impl Parser {
         &mut self,
         start: &ParserMark,
         left_expression_id: LocalNodeId<Expression>,
+        left_is_parenthesized: bool,
     ) -> ParseResult<LocalNodeId<Expression>> {
         // statement expressions do not accept continuation operators
         if self.statement_expression_stops_continuation(left_expression_id) {
@@ -2037,8 +2057,10 @@ impl Parser {
         }
 
         // value-space continuations use postfix, infix, then tail parsing
-        let left_expression_id = self.eat_value_postfix_continuation(start, left_expression_id)?;
-        let left_expression_id = self.eat_infix_continuation(start, left_expression_id)?;
+        let (left_expression_id, left_is_parenthesized) =
+            self.eat_value_postfix_continuation(start, left_expression_id, left_is_parenthesized)?;
+        let left_expression_id =
+            self.eat_infix_continuation(start, left_expression_id, left_is_parenthesized)?;
 
         self.eat_value_tail_continuation(start, left_expression_id)
     }

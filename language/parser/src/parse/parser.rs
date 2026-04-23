@@ -110,6 +110,8 @@ pub struct ParserSettings {
     pub disallow_ambiguous_tree_literal: bool,
     /// Whether token side tokens should be retained for formatter and comment output.
     pub retain_trivia_tokens: bool,
+    /// Whether transparent parenthesized wrappers should be preserved in the tree.
+    pub preserve_parenthesized_wrappers: bool,
 }
 
 impl Default for ParserSettings {
@@ -117,6 +119,7 @@ impl Default for ParserSettings {
         Self {
             disallow_ambiguous_tree_literal: false,
             retain_trivia_tokens: true,
+            preserve_parenthesized_wrappers: true,
         }
     }
 }
@@ -965,6 +968,8 @@ pub struct Parser {
     is_finished: bool,
     /// The parser options.
     pub(crate) options: ParserOptions,
+    /// Whether transparent parenthesized wrappers should be preserved in the tree.
+    preserve_parenthesized_wrappers: bool,
 
     /// The Node AST tree.
     pub tree: NodeTree,
@@ -1049,6 +1054,12 @@ impl Parser {
         self.input_has_line_terminator_before_index(self.pos_index())
     }
 
+    /// Return true when transparent parenthesized wrappers stay in the parsed tree.
+    #[inline]
+    pub(crate) fn preserves_parenthesized_wrappers(&self) -> bool {
+        self.preserve_parenthesized_wrappers
+    }
+
     /// Create one parser for a file before lexing begins.
     fn parser_for_file(file: Arc<File>, language: LanguageType) -> Self {
         // initialize the lexer for lazy lexing
@@ -1080,6 +1091,7 @@ impl Parser {
             },
             is_finished: false,
             options: ParserOptions::default(),
+            preserve_parenthesized_wrappers: true,
             language,
             tree: NodeTree::with_capacity(estimated_nodes),
             strings,
@@ -1128,6 +1140,7 @@ impl Parser {
     pub fn apply_settings(&mut self, settings: ParserSettings) {
         self.options
             .set_disallow_ambiguous_tree_literal(settings.disallow_ambiguous_tree_literal);
+        self.preserve_parenthesized_wrappers = settings.preserve_parenthesized_wrappers;
         if self.lexer.tokens().is_empty() && self.lexer.side_tokens().is_empty() {
             self.lexer
                 .set_retain_trivia_tokens(settings.retain_trivia_tokens);
