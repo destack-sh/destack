@@ -1,8 +1,8 @@
 use super::printer::Printer;
 use crate::{
-    Argument, AssignPattern, AssignPatternField, EnumField, FunctionMode, GenericParameter,
-    JsPrintResult, Keyword, LocalNodeId, Mutability, Parameter, Pattern, PatternField,
-    TupleElement, TypeExpression, TypeMember, TypeModifier, TypePredicateSubject,
+    Argument, AssignPattern, AssignPatternField, EnumField, GenericParameter, JsPrintResult,
+    Keyword, LocalNodeId, Mutability, Parameter, Pattern, PatternField, TupleElement,
+    TypeExpression, TypeMember, TypeModifier, TypePredicateSubject,
 };
 
 impl<'a> Printer<'a> {
@@ -1012,20 +1012,12 @@ mod tests {
         );
         let function_type = insert_type(
             tree,
-            TypeExpression::Function {
-                signature: FunctionSignature {
-                    is_abstract: false,
-                    is_override: false,
-                    asynchrony: Asynchrony::Sync,
-                    cardinality: FunctionCardinality::Scalar,
-                    mode: None,
-                    kind: FunctionKind::Lambda,
-                    generic_parameters: vec![generic_parameter],
-                    this_parameter: None,
-                    parameters: vec![dynamic_parameter],
-                    return_type: Some(function_return_type),
-                },
-            },
+            TypeExpression::FunctionTypeDeclaration(FunctionTypeDeclaration {
+                generic_parameters: vec![generic_parameter],
+                this_parameter: None,
+                parameters: vec![dynamic_parameter],
+                return_type: Some(function_return_type),
+            }),
         );
 
         vec![

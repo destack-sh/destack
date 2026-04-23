@@ -176,6 +176,24 @@ fn type_expression_complexity_inner(
                             ));
                         }
                     }
+                    ast::TypeMember::CallSignature { signature } => {
+                        if let Some(return_type) = signature.return_type {
+                            max_depth = max_depth.max(type_expression_complexity_inner(
+                                tree,
+                                return_type,
+                                current_depth,
+                            ));
+                        }
+                    }
+                    ast::TypeMember::ConstructSignature { signature } => {
+                        if let Some(return_type) = signature.return_type {
+                            max_depth = max_depth.max(type_expression_complexity_inner(
+                                tree,
+                                return_type,
+                                current_depth,
+                            ));
+                        }
+                    }
                     ast::TypeMember::IndexSignature {
                         key_type,
                         value_type,
