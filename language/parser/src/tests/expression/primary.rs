@@ -1,7 +1,7 @@
 use crate::tests::*;
 use crate::{
-    assert_expression_path, assert_node, assert_path, assert_qualified_reference_path,
-    assert_string, assert_value_expression_path,
+    Parser, ParserSettings, assert_expression_path, assert_node, assert_path,
+    assert_qualified_reference_path, assert_string, assert_value_expression_path,
 };
 use destack_ast::*;
 use destack_source::LanguageType;
@@ -159,6 +159,35 @@ fn test_parse_parenthesized_expression_records_semantic_head_span() {
         assert_eq!(head_span, value_head_span);
         assert_eq!(parser.get_span_str(head_span), "value");
     });
+}
+
+/// Preserve semantic head spans without parenthesized expression wrappers.
+#[test]
+fn test_parse_without_parenthesized_wrappers_preserves_expression_head_span() {
+    let test = TestParser::new_with_options("(/* keep */ value)", LanguageType::TypeScript);
+    let mut parser = Parser::lex_file_with_settings(
+        test.file.clone(),
+        test.language,
+        ParserSettings {
+            preserve_parenthesized_wrappers: false,
+            ..ParserSettings::default()
+        },
+    );
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+    parser.attach_comments();
+
+    assert_node!(parser.tree, expression_id, Expression::Identifier { .. });
+
+    let expression_span = parser.tree.get_span(expression_id);
+    let head_span = parser
+        .tree
+        .get_head_span(expression_id)
+        .expect("missing expression head span");
+    let comment = parser.tree.comments()[0];
+
+    assert_eq!(parser.get_span_str(expression_span), "(/* keep */ value)");
+    assert_eq!(parser.get_span_str(head_span), "value");
+    assert_eq!(comment.attached_to, head_span.start);
 }
 
 /// Parse a private identifier used in an in expression.

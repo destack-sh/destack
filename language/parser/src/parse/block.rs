@@ -233,7 +233,8 @@ impl Parser {
                     return Ok(Some(expression_id));
                 }
 
-                let continuation_id = self.eat_expression_continuation(start, expression_id)?;
+                let continuation_id =
+                    self.eat_expression_continuation(start, expression_id, false)?;
                 return Ok(Some(continuation_id));
             }
 
@@ -254,7 +255,8 @@ impl Parser {
                 let expression_id = self.eat_identifier_expression_path(start)?;
 
                 // ordinary continuation
-                let expression_id = self.eat_expression_continuation(start, expression_id)?;
+                let expression_id =
+                    self.eat_expression_continuation(start, expression_id, false)?;
                 return Ok(Some(expression_id));
             }
 
@@ -1090,14 +1092,14 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BlockContext, CommentKind, Declaration, Expression, FunctionDeclaration, IfKind, LetKind,
-        NodeType, ScalarLiteral, TokenType, YieldCardinality,
+        BlockContext, CommentKind, Declaration, Expression, FunctionDeclaration, FunctionKind,
+        IfKind, LetKind, NodeType, ScalarLiteral, TokenType, YieldCardinality,
     };
     use destack_source::LanguageType;
 
     use crate::{
-        TestParser, assert_comment, assert_expression_path, assert_node, assert_string,
-        block_expression_ids,
+        ParserSettings, TestParser, assert_comment, assert_expression_path, assert_node,
+        assert_string, block_expression_ids,
     };
 
     #[test]
@@ -1710,6 +1712,31 @@ const value = 1
             block.leading_expressions[0],
             Expression::Call { .. }
         );
+    }
+
+    /// Parse semicolon led parenthesized calls without parenthesized wrappers.
+    #[test]
+    fn test_parse_statement_leading_semicolon_parenthesized_arrow_call_without_wrappers() {
+        let mut test = TestParser::new_with_options("{\n;(()=>{})()\n}", LanguageType::Destack);
+        let mut parser = test.prepare();
+        parser.apply_settings(ParserSettings {
+            preserve_parenthesized_wrappers: false,
+            ..ParserSettings::default()
+        });
+        let block_id = parser.eat_block(BlockContext::Expression).unwrap();
+        let block = parser.tree.get(block_id);
+        let expressions = block_expression_ids(block);
+
+        assert_eq!(expressions.len(), 1);
+
+        assert_node!(parser.tree, expressions[0], Expression::Call { left, arguments, .. } => {
+            assert!(arguments.is_empty());
+            assert_node!(parser.tree, *left, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                });
+            });
+        });
     }
 
     /// Parse if-body block tails as value expressions.
