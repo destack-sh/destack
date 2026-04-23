@@ -17,19 +17,23 @@ impl Parser {
                 return false;
             };
 
-            // require one declaration-backed type expression
-            let TypeExpression::Declaration { declaration } = self.tree.get(*value) else {
-                return false;
-            };
+            // require one generic lambda type head
+            match self.tree.get(*value) {
+                TypeExpression::FunctionTypeDeclaration(function) => {
+                    !function.generic_parameters.is_empty()
+                }
+                TypeExpression::Declaration { declaration } => {
+                    let Declaration::Function(FunctionDeclaration { signature, .. }) =
+                        self.tree.get(*declaration)
+                    else {
+                        return false;
+                    };
 
-            // require one generic lambda declaration
-            let Declaration::Function(FunctionDeclaration { signature, .. }) =
-                self.tree.get(*declaration)
-            else {
-                return false;
-            };
-
-            signature.kind == FunctionKind::Lambda && !signature.generic_parameters.is_empty()
+                    signature.kind == FunctionKind::Lambda
+                        && !signature.generic_parameters.is_empty()
+                }
+                _ => false,
+            }
         })
     }
 

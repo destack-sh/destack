@@ -1,7 +1,7 @@
 use crate::tests::*;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_ast::*;
-use destack_source::LanguageType;
+use destack_source::{LanguageType, NodeSpanType};
 
 #[test]
 fn test_parse_type_template_literal_with_generic_arguments() {
@@ -130,9 +130,7 @@ fn test_parse_type_literal_call_signature_with_parameters() {
             assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 2);
                 // (num: number): number
-                assert_node!(parser.tree, properties[0], TypeMember::Method { key, signature, .. } => {
-                    assert!(key.is_none());
-                    assert_eq!(signature.mode, Some(FunctionMode::Call));
+                assert_node!(parser.tree, properties[0], TypeMember::CallSignature { signature } => {
                     assert_eq!(signature.parameters.len(), 1);
                     assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
                         assert_string!(parser, *name, "num");
@@ -145,9 +143,7 @@ fn test_parse_type_literal_call_signature_with_parameters() {
                     });
                 });
                 // (str: string): string
-                assert_node!(parser.tree, properties[1], TypeMember::Method { key, signature, .. } => {
-                    assert!(key.is_none());
-                    assert_eq!(signature.mode, Some(FunctionMode::Call));
+                assert_node!(parser.tree, properties[1], TypeMember::CallSignature { signature } => {
                     assert_eq!(signature.parameters.len(), 1);
                     assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
                         assert_string!(parser, *name, "str");
@@ -175,9 +171,7 @@ fn test_parse_type_literal_construct_signature() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], TypeMember::Method { key, signature, .. } => {
-                    assert!(key.is_none());
-                    assert_eq!(signature.mode, Some(FunctionMode::New));
+                assert_node!(parser.tree, properties[0], TypeMember::ConstructSignature { signature } => {
                     assert_eq!(signature.parameters.len(), 1);
                     assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
                         assert_string!(parser, *name, "x");
@@ -211,9 +205,20 @@ fn test_parse_type_literal_generic_call_overloads() {
             assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 2);
                 // <N extends number>(num: N): typeof num
-                assert_node!(parser.tree, properties[0], TypeMember::Method { key, signature, .. } => {
-                    assert!(key.is_none());
-                    assert_eq!(signature.mode, Some(FunctionMode::Call));
+                assert_node!(parser.tree, properties[0], TypeMember::CallSignature { signature } => {
+
+                    let generic_parameter_span = parser
+                        .tree
+                        .get_side_span(properties[0], NodeSpanType::GenericParameters)
+                        .expect("missing generic parameter span");
+                    assert_eq!(parser.get_span_str(generic_parameter_span), "<N extends number>");
+
+                    let parameter_span = parser
+                        .tree
+                        .get_side_span(properties[0], NodeSpanType::Parameters)
+                        .expect("missing parameter span");
+                    assert_eq!(parser.get_span_str(parameter_span), "(num: N)");
+
                     let generic_parameters = &signature.generic_parameters;
                     assert_eq!(generic_parameters.len(), 1);
                     assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint: Some(constraint), .. } => {
@@ -234,9 +239,20 @@ fn test_parse_type_literal_generic_call_overloads() {
                     });
                 });
                 // <S extends string>(str: S): typeof str
-                assert_node!(parser.tree, properties[1], TypeMember::Method { key, signature, .. } => {
-                    assert!(key.is_none());
-                    assert_eq!(signature.mode, Some(FunctionMode::Call));
+                assert_node!(parser.tree, properties[1], TypeMember::CallSignature { signature } => {
+
+                    let generic_parameter_span = parser
+                        .tree
+                        .get_side_span(properties[1], NodeSpanType::GenericParameters)
+                        .expect("missing generic parameter span");
+                    assert_eq!(parser.get_span_str(generic_parameter_span), "<S extends string>");
+
+                    let parameter_span = parser
+                        .tree
+                        .get_side_span(properties[1], NodeSpanType::Parameters)
+                        .expect("missing parameter span");
+                    assert_eq!(parser.get_span_str(parameter_span), "(str: S)");
+
                     let generic_parameters = &signature.generic_parameters;
                     assert_eq!(generic_parameters.len(), 1);
                     assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint: Some(constraint), .. } => {
@@ -279,16 +295,12 @@ fn test_parse_type_literal_generic_call_overloads_with_path_returns() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 2);
-                assert_node!(parser.tree, properties[0], TypeMember::Method { key, signature, .. } => {
-                    assert!(key.is_none());
-                    assert_eq!(signature.mode, Some(FunctionMode::Call));
+                assert_node!(parser.tree, properties[0], TypeMember::CallSignature { signature } => {
                     assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Reference { path, .. } => {
                         assert_path!(parser, *path, "MyType");
                     });
                 });
-                assert_node!(parser.tree, properties[1], TypeMember::Method { key, signature, .. } => {
-                    assert!(key.is_none());
-                    assert_eq!(signature.mode, Some(FunctionMode::Call));
+                assert_node!(parser.tree, properties[1], TypeMember::CallSignature { signature } => {
                     assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Reference { path, .. } => {
                         assert_path!(parser, *path, "MyType");
                     });
@@ -317,9 +329,7 @@ const Mapping extends (Self extends Field<infer S> ? { readonly [K in keyof S]?:
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], TypeMember::Method { key, signature, .. } => {
-                    assert!(key.is_none());
-                    assert_eq!(signature.mode, Some(FunctionMode::Call));
+                assert_node!(parser.tree, properties[0], TypeMember::CallSignature { signature } => {
 
                     let generic_parameters = &signature.generic_parameters;
                     assert_eq!(generic_parameters.len(), 2);
@@ -373,7 +383,7 @@ const Mapping
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], TypeMember::Method { signature, .. } => {
+                assert_node!(parser.tree, properties[0], TypeMember::CallSignature { signature } => {
                     let generic_parameters = &signature.generic_parameters;
                     assert_eq!(generic_parameters.len(), 1);
                     assert_node!(parser.tree, generic_parameters[0], GenericParameter::Value { name, declared_type: Some(ty), is_comptime, .. } => {
@@ -475,10 +485,8 @@ fn test_parse_type_literal_abstract_construct_signature() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], TypeMember::Method { key, signature, .. } => {
-                    assert!(key.is_none());
+                assert_node!(parser.tree, properties[0], TypeMember::ConstructSignature { signature } => {
                     assert!(signature.is_abstract);
-                    assert_eq!(signature.mode, Some(FunctionMode::New));
                 });
             });
         });
@@ -709,10 +717,8 @@ fn test_parse_type_arrow_with_conditional_return() {
     // type T = <X>() => X extends A | B ? true : false
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Declaration { declaration: fn_id } => {
-                assert_node!(parser.tree, *fn_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Conditional { .. });
-                });
+            assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+                assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Conditional { .. });
             });
         });
     });
@@ -760,10 +766,8 @@ fn test_parse_type_member_generic_arrow_complex_constraint() {
             assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
                 assert_node!(parser.tree, properties[0], TypeMember::Field { declared_type, .. } => {
-                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Declaration { declaration: fn_id } => {
-                        assert_node!(parser.tree, *fn_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                            assert!(!signature.generic_parameters.is_empty());
-                        });
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::FunctionTypeDeclaration(function) => {
+                        assert!(!function.generic_parameters.is_empty());
                     });
                 });
             });
@@ -791,10 +795,8 @@ fn test_parse_type_literal_where_field_after_function_type() {
                 // setSelectedFields: (fields: FieldOption[]) => void
                 assert_node!(parser.tree, properties[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                     assert_string!(parser, *name, "setSelectedFields");
-                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Declaration { declaration: declaration_id } => {
-                        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                            assert_eq!(signature.kind, FunctionKind::Lambda);
-                        });
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::FunctionTypeDeclaration(function) => {
+                        assert_eq!(function.parameters.len(), 1);
                     });
                 });
 
@@ -860,9 +862,7 @@ fn test_parse_type_literal_call_signature() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], TypeMember::Method { key, signature, .. } => {
-                    assert!(key.is_none());
-                    assert_eq!(signature.mode, Some(FunctionMode::Call));
+                assert_node!(parser.tree, properties[0], TypeMember::CallSignature { signature } => {
                     assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
                         assert_eq!(*value, TypeLiteral::String);
                     });

@@ -100,7 +100,7 @@ type Value =
     });
 }
 
-/// Preserve the leading separator inside one type expression span.
+/// Keep the leading separator in the container leading span, not the main span.
 #[test]
 fn test_parse_elementwise_leading_type_expression_keeps_root_span() {
     let mut test = TestParser::new(
@@ -120,9 +120,16 @@ type Value =
             // `Value`
             assert_string!(parser, name.string(), "Value");
 
-            // `| string\n  | number`
+            // `string\n  | number`
             let value_span = parser.tree.get_span(*value);
-            assert_eq!(parser.get_span_str(value_span), "| string\n  | number");
+            assert_eq!(parser.get_span_str(value_span), "string\n  | number");
+
+            // `| `
+            let leading_span = parser
+                .tree
+                .get_side_span(*value, destack_source::NodeSpanType::Leading)
+                .expect("expected leading separator span");
+            assert_eq!(parser.get_span_str(leading_span), "| ");
         });
     });
 }

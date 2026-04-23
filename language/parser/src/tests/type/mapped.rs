@@ -131,11 +131,9 @@ fn test_parse_mapped_type() {
                     assert_string!(parser, strings[0], "get");
                     assert_string!(parser, strings[1], "");
                 });
-                assert_node!(parser.tree, *value, TypeExpression::Declaration { declaration } => {
-                    assert_node!(parser.tree, *declaration, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                        assert_eq!(signature.parameters.len(), 0);
-                        assert!(signature.return_type.is_some());
-                    });
+                assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+                    assert_eq!(function.parameters.len(), 0);
+                    assert!(function.return_type.is_some());
                 });
             });
         });

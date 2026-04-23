@@ -1315,10 +1315,17 @@ impl Parser {
         start: &ParserMark,
         group: ParenthesizedGroupShape,
     ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
-        // parse the shared lambda declaration form
-        let lambda_id = self.try_eat_parenthesized_lambda_declaration_from_group(start, group)?;
+        if self
+            .parenthesized_group_lambda_follow_token_maybe(group)
+            .is_none()
+        {
+            return Ok(None);
+        }
 
-        Ok(lambda_id.map(|lambda_id| self.insert_declaration_type_expression(start, lambda_id)))
+        let type_expression_id =
+            self.eat_function_type_expression(start, DeclarationHeader::default(), false, false)?;
+
+        Ok(Some(type_expression_id))
     }
 
     /// Parse a parenthesized primary expression from one known group shape.
@@ -2089,9 +2096,7 @@ impl Parser {
             // grouped primaries and generic function signatures
             TokenType::OpenParenthesis => self.eat_type_parenthesized_primary(start),
             TokenType::LessThan if self.can_start_generic_arrow_expression() => {
-                let function_id =
-                    self.eat_function(start, DeclarationHeader::default(), false, false)?;
-                Ok(self.insert_declaration_type_expression(start, function_id))
+                self.eat_function_type_expression(start, DeclarationHeader::default(), false, false)
             }
 
             // type pointers

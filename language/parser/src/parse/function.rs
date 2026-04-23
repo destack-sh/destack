@@ -3,9 +3,10 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark, is_semantic};
 
 use destack_ast::{
-    Asynchrony, BlockContext, Declaration, ExportMode, Expression, FunctionCardinality,
-    FunctionDeclaration, FunctionKind, FunctionMode, FunctionSignature, Keyword, LocalNodeId,
-    NodeType, Parameter, TokenType, TypeExpression,
+    Asynchrony, BlockContext, ConstructorTypeDeclaration, Declaration, ExportMode, Expression,
+    FunctionCardinality, FunctionDeclaration, FunctionKind, FunctionMode, FunctionSignature,
+    FunctionTypeDeclaration, Keyword, LocalNodeId, Name, NodeType, Parameter, TokenType,
+    TypeExpression,
 };
 use destack_source::{NodeSpanType, Span};
 
@@ -35,7 +36,130 @@ enum ParenthesizedLambdaHeadShape {
     },
 }
 
+/// Parsed function signature syntax.
+struct ParsedFunctionSignature {
+    /// The declaration header.
+    header: DeclarationHeader,
+    /// The optional function name.
+    name: Option<Name>,
+    /// The optional function name span.
+    name_span: Option<Span>,
+    /// The function signature.
+    signature: FunctionSignature,
+    /// The optional function body.
+    body: Option<LocalNodeId<Expression>>,
+    /// The generic parameter container span.
+    generic_parameter_span: Option<Span>,
+    /// The parameter container span.
+    parameter_span: Option<Span>,
+    /// The return type span.
+    return_type_span: Option<Span>,
+    /// The body container span.
+    body_span: Option<Span>,
+}
+
 impl Parser {
+    /// Insert parsed function syntax as a function declaration.
+    fn insert_function_declaration(
+        &mut self,
+        start: &ParserMark,
+        function: ParsedFunctionSignature,
+    ) -> LocalNodeId<Declaration> {
+        let function_id = self.insert_node(
+            Declaration::Function(FunctionDeclaration {
+                name: function.name,
+                export: function.header.export,
+                ambient: function.header.ambient,
+                signature: function.signature,
+                body: function.body,
+            }),
+            self.get_span_from(start),
+        );
+
+        // name
+        if let Some(span) = function.name_span {
+            self.tree.set_main_span(function_id, span);
+        }
+
+        // return type
+        if let Some(span) = function.return_type_span {
+            self.tree
+                .set_side_span(function_id, NodeSpanType::Type, span);
+        }
+
+        // generic parameters
+        if let Some(span) = function.generic_parameter_span {
+            self.tree
+                .set_side_span(function_id, NodeSpanType::GenericParameters, span);
+        }
+
+        // parameters
+        if let Some(span) = function.parameter_span {
+            self.tree
+                .set_side_span(function_id, NodeSpanType::Parameters, span);
+        }
+
+        // body
+        if let Some(span) = function.body_span {
+            self.tree
+                .set_side_span(function_id, NodeSpanType::Body, span);
+        }
+
+        function_id
+    }
+
+    /// Insert parsed function syntax as a type expression.
+    fn insert_function_type_expression(
+        &mut self,
+        start: &ParserMark,
+        function: ParsedFunctionSignature,
+    ) -> LocalNodeId<TypeExpression> {
+        debug_assert_eq!(function.signature.kind, FunctionKind::Lambda);
+        debug_assert!(function.body.is_none());
+
+        // node
+        let type_expression = match function.signature.mode {
+            Some(FunctionMode::New) => {
+                TypeExpression::ConstructorTypeDeclaration(ConstructorTypeDeclaration {
+                    is_abstract: function.signature.is_abstract,
+                    generic_parameters: function.signature.generic_parameters,
+                    where_clauses: function.signature.where_clauses,
+                    parameters: function.signature.parameters,
+                    return_type: function.signature.return_type,
+                })
+            }
+            None => TypeExpression::FunctionTypeDeclaration(FunctionTypeDeclaration {
+                generic_parameters: function.signature.generic_parameters,
+                where_clauses: function.signature.where_clauses,
+                this_parameter: function.signature.this_parameter,
+                parameters: function.signature.parameters,
+                return_type: function.signature.return_type,
+            }),
+            _ => unreachable!("expected function or constructor type mode"),
+        };
+        let type_expression_id = self.insert_node(type_expression, self.get_span_from(start));
+
+        // return type
+        if let Some(span) = function.return_type_span {
+            self.tree
+                .set_side_span(type_expression_id, NodeSpanType::Type, span);
+        }
+
+        // generic parameters
+        if let Some(span) = function.generic_parameter_span {
+            self.tree
+                .set_side_span(type_expression_id, NodeSpanType::GenericParameters, span);
+        }
+
+        // parameters
+        if let Some(span) = function.parameter_span {
+            self.tree
+                .set_side_span(type_expression_id, NodeSpanType::Parameters, span);
+        }
+
+        type_expression_id
+    }
+
     /// Return true when the plain lambda path can be used.
     fn can_parse_plain_lambda(
         &self,
@@ -669,7 +793,7 @@ impl Parser {
     fn eat_function_inner(
         &mut self,
         start: &ParserMark,
-        mut header: DeclarationHeader,
+        header: DeclarationHeader,
         expect_maybe: bool,
         expect_body: bool,
     ) -> ParseResult<LocalNodeId<Declaration>> {
@@ -697,6 +821,39 @@ impl Parser {
             return Ok(function_id);
         }
 
+        let function = self.eat_function_parts(start, header, expect_maybe, expect_body)?;
+
+        Ok(self.insert_function_declaration(start, function))
+    }
+
+    /// Eat a function type expression.
+    pub(crate) fn eat_function_type_expression(
+        &mut self,
+        start: &ParserMark,
+        header: DeclarationHeader,
+        expect_maybe: bool,
+        expect_body: bool,
+    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+        let _timing = self.timing_scope(tags::PARSE_FUNCTION);
+        let function = self.eat_function_parts(start, header, expect_maybe, expect_body)?;
+
+        if function.signature.kind == FunctionKind::Lambda && function.body.is_none() {
+            return Ok(self.insert_function_type_expression(start, function));
+        }
+
+        let function_id = self.insert_function_declaration(start, function);
+
+        Ok(self.insert_declaration_type_expression(start, function_id))
+    }
+
+    /// Eat shared function syntax before inserting a grammar-specific node.
+    fn eat_function_parts(
+        &mut self,
+        start: &ParserMark,
+        mut header: DeclarationHeader,
+        expect_maybe: bool,
+        expect_body: bool,
+    ) -> ParseResult<ParsedFunctionSignature> {
         // abstraction
         if self.is_keyword(Keyword::Abstract) && !header.is_abstract {
             self.bump(); // eat abstract keyword
@@ -1021,7 +1178,7 @@ impl Parser {
         // split out explicit this parameter
         let (this_parameter, parameters) = self.split_this_parameter_maybe(parameters);
 
-        // function
+        // signature
         let asynchrony = if is_async {
             Asynchrony::Async
         } else {
@@ -1045,39 +1202,18 @@ impl Parser {
             parameters,
             return_type,
         };
-        let function_id = self.insert_node(
-            Declaration::Function(FunctionDeclaration {
-                name,
-                export: header.export,
-                ambient: header.ambient,
-                signature,
-                body,
-            }),
-            self.get_span_from(start),
-        );
 
-        // set all the spans
-        if let Some(span) = name_span {
-            self.tree.set_main_span(function_id, span);
-        }
-        if let Some(span) = return_type_span {
-            self.tree
-                .set_side_span(function_id, NodeSpanType::Type, span);
-        }
-        if let Some(span) = generic_parameter_container_span {
-            self.tree
-                .set_side_span(function_id, NodeSpanType::GenericParameters, span);
-        }
-        if let Some(span) = parameter_container_span {
-            self.tree
-                .set_side_span(function_id, NodeSpanType::Parameters, span);
-        }
-        if let Some(span) = body_container_span {
-            self.tree
-                .set_side_span(function_id, NodeSpanType::Body, span);
-        }
-
-        Ok(function_id)
+        Ok(ParsedFunctionSignature {
+            header,
+            name,
+            name_span,
+            signature,
+            body,
+            generic_parameter_span: generic_parameter_container_span,
+            parameter_span: parameter_container_span,
+            return_type_span,
+            body_span: body_container_span,
+        })
     }
 
     /// Check whether a lambda return type marker is present.
@@ -1114,8 +1250,8 @@ mod tests {
 
     use crate::parse::expression::common::DeclarationHeader;
     use crate::{
-        TestParser, assert_comment, assert_expression_path, assert_name, assert_node, assert_path,
-        assert_string,
+        ParserSettings, TestParser, assert_comment, assert_expression_path, assert_name,
+        assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -1435,15 +1571,13 @@ function setns(
         // type T = (this: Foo, value: Bar) => Baz
         assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-                assert_node!(parser.tree, *value, TypeExpression::Declaration { declaration: declaration_id } => {
-                    assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                        assert!(signature.this_parameter.is_some());
-                        assert_eq!(signature.parameters.len(), 1);
-                        // value: Bar
-                        assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
-                            assert_string!(parser, *name, "value");
-                            assert_expression_path!(parser, parser.tree.get(declared_type.unwrap()), "Bar");
-                        });
+                assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+                    assert!(function.this_parameter.is_some());
+                    assert_eq!(function.parameters.len(), 1);
+                    // value: Bar
+                    assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type, .. } => {
+                        assert_string!(parser, *name, "value");
+                        assert_expression_path!(parser, parser.tree.get(declared_type.unwrap()), "Bar");
                     });
                 });
             });
@@ -1875,21 +2009,19 @@ function invariant<in out T>(value: T): T {
             assert_string!(parser, name.expect("expected name").string(), "foo");
 
             // (str: string) => boolean
-            assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Declaration { declaration: declaration_id } => {
-                assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                    assert_eq!(signature.parameters.len(), 1);
-                    // str: string
-                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
-                        assert_string!(parser, *name, "str");
-                        assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
-                            assert_eq!(*value, TypeLiteral::String);
-                        });
+            assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::FunctionTypeDeclaration(function) => {
+                assert_eq!(function.parameters.len(), 1);
+                // str: string
+                assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type, .. } => {
+                    assert_string!(parser, *name, "str");
+                    assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
+                        assert_eq!(*value, TypeLiteral::String);
                     });
+                });
 
-                    // boolean
-                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
-                        assert_eq!(*value, TypeLiteral::Boolean);
-                    });
+                // boolean
+                assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::Boolean);
                 });
             });
         });
@@ -2319,26 +2451,24 @@ function onResolve(
             assert_eq!(signature.parameters.len(), 1);
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
                 assert_string!(parser, *name, "callback");
-                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Declaration { declaration: declaration_id } => {
-                    assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                        assert_eq!(signature.parameters.len(), 1);
-                        // args
-                        assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: None, .. } => {
-                            assert_string!(parser, *name, "args");
+                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::FunctionTypeDeclaration(function) => {
+                    assert_eq!(function.parameters.len(), 1);
+                    // args
+                    assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: None, .. } => {
+                        assert_string!(parser, *name, "args");
+                    });
+                    // { .. } | void
+                    assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Union { elements } => {
+                        assert_eq!(elements.len(), 2);
+
+                        // { .. }
+                        assert_node!(parser.tree, elements[0], TypeExpression::Object { members: properties } => {
+                            assert_eq!(properties.len(), 2);
                         });
-                        // { .. } | void
-                        assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Union { elements } => {
-                            assert_eq!(elements.len(), 2);
 
-                            // { .. }
-                            assert_node!(parser.tree, elements[0], TypeExpression::Object { members: properties } => {
-                                assert_eq!(properties.len(), 2);
-                            });
-
-                            // void
-                            assert_node!(parser.tree, elements[1], TypeExpression::Literal { value } => {
-                                assert_eq!(*value, TypeLiteral::Void);
-                            });
+                        // void
+                        assert_node!(parser.tree, elements[1], TypeExpression::Literal { value } => {
+                            assert_eq!(*value, TypeLiteral::Void);
                         });
                     });
                 });
@@ -2365,28 +2495,25 @@ function onResolve(
                 assert_eq!(signature.parameters.len(), 3);
 
                 // (fiberId?: FiberId.FiberId, options?: Runtime.RunCallbackOptions<any, any> | undefined) => void
-                assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Declaration { declaration: return_declaration_id } => {
-                    assert_node!(parser.tree, *return_declaration_id, Declaration::Function(FunctionDeclaration { signature, body: None, .. }) => {
-                        assert_eq!(signature.kind, FunctionKind::Lambda);
-                        assert_eq!(signature.parameters.len(), 2);
+                assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::FunctionTypeDeclaration(function) => {
+                    assert_eq!(function.parameters.len(), 2);
 
-                        // fiberId?: FiberId.FiberId
-                        assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
-                            assert_string!(parser, *name, "fiberId");
-                            assert_expression_path!(parser, parser.tree.get(declared_type.unwrap()), "FiberId.FiberId");
-                        });
+                    // fiberId?: FiberId.FiberId
+                    assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type, .. } => {
+                        assert_string!(parser, *name, "fiberId");
+                        assert_expression_path!(parser, parser.tree.get(declared_type.unwrap()), "FiberId.FiberId");
+                    });
 
-                        // options?: Runtime.RunCallbackOptions<any, any> | undefined
-                        assert_node!(parser.tree, signature.parameters[1], Parameter::Named { name, declared_type, .. } => {
-                            assert_string!(parser, *name, "options");
-                            assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Union { elements } => {
-                                assert_eq!(elements.len(), 2);
-                            });
+                    // options?: Runtime.RunCallbackOptions<any, any> | undefined
+                    assert_node!(parser.tree, function.parameters[1], Parameter::Named { name, declared_type, .. } => {
+                        assert_string!(parser, *name, "options");
+                        assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Union { elements } => {
+                            assert_eq!(elements.len(), 2);
                         });
+                    });
 
-                        assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
-                            assert_eq!(*value, TypeLiteral::Void);
-                        });
+                    assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Literal { value } => {
+                        assert_eq!(*value, TypeLiteral::Void);
                     });
                 });
 
@@ -2540,6 +2667,28 @@ function onResolve(
                     assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                         assert_eq!(signature.kind, FunctionKind::Lambda);
                     });
+                });
+            });
+        });
+    }
+
+    /// Parse direct calls on parenthesized arrow functions without preserved wrappers.
+    #[test]
+    fn test_parse_parenthesized_arrow_call_without_preserved_wrappers() {
+        // source: (() => {})()
+        let mut test = TestParser::new_with_options("(() => {})()", LanguageType::Destack);
+        let mut parser = test.prepare();
+        parser.apply_settings(ParserSettings {
+            preserve_parenthesized_wrappers: false,
+            ..ParserSettings::default()
+        });
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // (() => {})()
+        assert_node!(parser.tree, expression_id, Expression::Call { left, .. } => {
+            assert_node!(parser.tree, *left, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+                    assert_eq!(signature.kind, FunctionKind::Lambda);
                 });
             });
         });

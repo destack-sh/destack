@@ -338,19 +338,17 @@ fn test_parse_typed_arrow_parameter_with_generic_function_target_type_before_tre
             // addInspectorRequest: <Data>(result: FetcherResult<Data>) => void
             assert_node!(parser.tree, signature.parameters[1], Parameter::Named { name, declared_type: Some(declared_type), .. } => {
                 assert_string!(parser, *name, "addInspectorRequest");
-                assert_node!(parser.tree, *declared_type, TypeExpression::Declaration { declaration: nested_function_id } => {
-                    assert_node!(parser.tree, *nested_function_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                        let nested_generic_parameters = &signature.generic_parameters;
-                        assert_eq!(nested_generic_parameters.len(), 1);
+                assert_node!(parser.tree, *declared_type, TypeExpression::FunctionTypeDeclaration(function) => {
+                    let nested_generic_parameters = &function.generic_parameters;
+                    assert_eq!(nested_generic_parameters.len(), 1);
 
-                        assert_eq!(signature.parameters.len(), 1);
-                        assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(_), .. } => {
-                            assert_string!(parser, *name, "result");
-                        });
+                    assert_eq!(function.parameters.len(), 1);
+                    assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: Some(_), .. } => {
+                        assert_string!(parser, *name, "result");
+                    });
 
-                        assert_node!(parser.tree, signature.return_type.expect("expected nested return type"), TypeExpression::Literal { value } => {
-                            assert_eq!(*value, TypeLiteral::Void);
-                        });
+                    assert_node!(parser.tree, function.return_type.expect("expected nested return type"), TypeExpression::Literal { value } => {
+                        assert_eq!(*value, TypeLiteral::Void);
                     });
                 });
             });

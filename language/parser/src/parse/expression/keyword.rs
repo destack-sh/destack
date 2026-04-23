@@ -724,11 +724,10 @@ impl Parser {
                 }
 
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let function_id = self.eat_function(start, header, false, false)?;
+                let type_expression_id =
+                    self.eat_function_type_expression(start, header, false, false)?;
 
-                Ok(Some(
-                    self.insert_declaration_type_expression(start, function_id),
-                ))
+                Ok(Some(type_expression_id))
             }
 
             // function or method declaration
@@ -748,11 +747,10 @@ impl Parser {
                 }
 
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let function_id = self.eat_function(start, header, false, false)?;
+                let type_expression_id =
+                    self.eat_function_type_expression(start, header, false, false)?;
 
-                Ok(Some(
-                    self.insert_declaration_type_expression(start, function_id),
-                ))
+                Ok(Some(type_expression_id))
             }
 
             // new signature declaration
@@ -762,11 +760,10 @@ impl Parser {
                 }
 
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let function_id = self.eat_function(start, header, false, false)?;
+                let type_expression_id =
+                    self.eat_function_type_expression(start, header, false, false)?;
 
-                Ok(Some(
-                    self.insert_declaration_type_expression(start, function_id),
-                ))
+                Ok(Some(type_expression_id))
             }
 
             // variant method declaration
@@ -776,11 +773,10 @@ impl Parser {
                 }
 
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let function_id = self.eat_function(start, header, false, false)?;
+                let type_expression_id =
+                    self.eat_function_type_expression(start, header, false, false)?;
 
-                Ok(Some(
-                    self.insert_declaration_type_expression(start, function_id),
-                ))
+                Ok(Some(type_expression_id))
             }
 
             // this type

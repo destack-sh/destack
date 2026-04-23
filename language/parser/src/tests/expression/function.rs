@@ -1,7 +1,7 @@
 use crate::tests::*;
 use crate::{assert_expression_path, assert_name, assert_node, assert_path, assert_string};
 use destack_ast::*;
-use destack_source::LanguageType;
+use destack_source::{LanguageType, NodeSpanType};
 
 /// Parse a lambda function type with empty parameters.
 #[test]
@@ -12,13 +12,10 @@ fn test_parse_lambda_function_empty_type() {
 
     test.assert_no_errors(&parser);
 
-    assert_node!(parser.tree, type_expression_id, TypeExpression::Declaration { declaration: declaration_id } => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-            assert_eq!(signature.kind, FunctionKind::Lambda);
-            assert_eq!(signature.parameters.len(), 0);
-            assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::Void);
-            });
+    assert_node!(parser.tree, type_expression_id, TypeExpression::FunctionTypeDeclaration(function) => {
+        assert_eq!(function.parameters.len(), 0);
+        assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Literal { value } => {
+            assert_eq!(*value, TypeLiteral::Void);
         });
     });
 }
@@ -32,26 +29,11 @@ fn test_parse_lambda_function_type() {
 
     test.assert_no_errors(&parser);
 
-    assert_node!(parser.tree, type_expression_id, TypeExpression::Declaration { declaration: declaration_id } => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-            assert_eq!(signature.kind, FunctionKind::Lambda);
-
-            // a: int32
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
-                assert_string!(parser, *name, "a");
-                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
-                    assert_eq!(
-                        *value,
-                        TypeLiteral::Int(IntType::Arbitrary {
-                            width: Some(32),
-                            is_signed: true,
-                        })
-                    );
-                });
-            });
-
-            // int32
-            assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
+    assert_node!(parser.tree, type_expression_id, TypeExpression::FunctionTypeDeclaration(function) => {
+        // a: int32
+        assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type, .. } => {
+            assert_string!(parser, *name, "a");
+            assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
                 assert_eq!(
                     *value,
                     TypeLiteral::Int(IntType::Arbitrary {
@@ -61,6 +43,50 @@ fn test_parse_lambda_function_type() {
                 );
             });
         });
+
+        // int32
+        assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Literal { value } => {
+            assert_eq!(
+                *value,
+                TypeLiteral::Int(IntType::Arbitrary {
+                    width: Some(32),
+                    is_signed: true,
+                })
+            );
+        });
+    });
+}
+
+/// Parse lambda function type container spans with separator comments.
+#[test]
+fn test_parse_lambda_function_type_container_spans_with_comments() {
+    let mut test = TestParser::new_with_options(
+        "(value: /* arg */ string) /* fn-tail */ => void",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let type_expression_id = parser.eat_type_expression().unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, type_expression_id, TypeExpression::FunctionTypeDeclaration(function) => {
+        let parameter_type_span = parser
+            .tree
+            .get_side_span(function.parameters[0], NodeSpanType::Type)
+            .expect("missing lambda parameter type span");
+        assert_eq!(parser.get_span_str(parameter_type_span), ": /* arg */ string");
+
+        let parameter_span = parser
+            .tree
+            .get_side_span(type_expression_id, NodeSpanType::Parameters)
+            .expect("missing lambda parameter span");
+        assert_eq!(parser.get_span_str(parameter_span), "(value: /* arg */ string)");
+
+        let return_type_span = parser
+            .tree
+            .get_side_span(type_expression_id, NodeSpanType::Type)
+            .expect("missing lambda return type span");
+        assert_eq!(parser.get_span_str(return_type_span), "=> void");
     });
 }
 
@@ -322,16 +348,14 @@ fn test_parse_lambda_return_type_tuple_with_nested_lambda_type() {
                 });
 
                 assert_node!(parser.tree, elements[1], TupleElement::Element { value, .. } => {
-                    assert_node!(parser.tree, *value, TypeExpression::Declaration { declaration: function_id } => {
-                        assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                            assert_eq!(signature.parameters.len(), 1);
-                            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(declared_type), .. } => {
-                                assert_string!(parser, *name, "action");
-                                assert_expression_path!(parser, parser.tree.get(*declared_type), "N");
-                            });
-                            assert_node!(parser.tree, signature.return_type.expect("expected nested return type"), TypeExpression::Literal { value } => {
-                                assert_eq!(*value, TypeLiteral::Void);
-                            });
+                    assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+                        assert_eq!(function.parameters.len(), 1);
+                        assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: Some(declared_type), .. } => {
+                            assert_string!(parser, *name, "action");
+                            assert_expression_path!(parser, parser.tree.get(*declared_type), "N");
+                        });
+                        assert_node!(parser.tree, function.return_type.expect("expected nested return type"), TypeExpression::Literal { value } => {
+                            assert_eq!(*value, TypeLiteral::Void);
                         });
                     });
                 });
@@ -369,15 +393,13 @@ fn test_parse_generic_arrow_with_function_type_return_annotation() {
             });
 
             // (value: T) => T
-            assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Declaration { declaration: return_function_id } => {
-                assert_node!(parser.tree, *return_function_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                    assert_eq!(signature.parameters.len(), 1);
-                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(declared_type), .. } => {
-                        assert_string!(parser, *name, "value");
-                        assert_expression_path!(parser, parser.tree.get(*declared_type), "T");
-                    });
-                    assert_expression_path!(parser, parser.tree.get(signature.return_type.expect("expected nested return type")), "T");
+            assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::FunctionTypeDeclaration(function) => {
+                assert_eq!(function.parameters.len(), 1);
+                assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: Some(declared_type), .. } => {
+                    assert_string!(parser, *name, "value");
+                    assert_expression_path!(parser, parser.tree.get(*declared_type), "T");
                 });
+                assert_expression_path!(parser, parser.tree.get(function.return_type.expect("expected nested return type")), "T");
             });
 
             // value => value
@@ -414,17 +436,15 @@ fn test_parse_arrow_return_type_predicate_with_nested_optional_parameter_functio
                         assert_eq!(properties.len(), 1);
                         assert_node!(parser.tree, properties[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                             assert_string!(parser, *name, "focus");
-                            assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Declaration { declaration: function_id } => {
-                                assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                                    assert_eq!(signature.parameters.len(), 1);
-                                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { is_optional, name, declared_type: Some(declared_type), .. } => {
-                                        assert!(*is_optional);
-                                        assert_string!(parser, *name, "options");
-                                        assert_expression_path!(parser, parser.tree.get(*declared_type), "FocusOptions");
-                                    });
-                                    assert_node!(parser.tree, signature.return_type.expect("expected function type return"), TypeExpression::Literal { value } => {
-                                        assert_eq!(*value, TypeLiteral::Void);
-                                    });
+                            assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::FunctionTypeDeclaration(function) => {
+                                assert_eq!(function.parameters.len(), 1);
+                                assert_node!(parser.tree, function.parameters[0], Parameter::Named { is_optional, name, declared_type: Some(declared_type), .. } => {
+                                    assert!(*is_optional);
+                                    assert_string!(parser, *name, "options");
+                                    assert_expression_path!(parser, parser.tree.get(*declared_type), "FocusOptions");
+                                });
+                                assert_node!(parser.tree, function.return_type.expect("expected function type return"), TypeExpression::Literal { value } => {
+                                    assert_eq!(*value, TypeLiteral::Void);
                                 });
                             });
                         });
