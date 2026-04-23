@@ -2,10 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{HeapError, HeapResult};
 
-/// The number of inline page patches per logical page view.
-const INLINE_PAGE_PATCH_COUNT: usize = 3;
-
-/// One stable page identifier in one allocator segment.
+/// One stable page identifier in one allocator arena.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct PageId(u32);
@@ -177,12 +174,12 @@ impl PagePatch {
 }
 
 /// One logical page view for one allocation or span.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PageView {
     /// The physical base run for this view.
     base_run: PageRun,
-    /// The inline page patches that override specific indices.
-    patches: [PagePatch; INLINE_PAGE_PATCH_COUNT],
+    /// The sparse page patches that override specific indices.
+    patches: Vec<PagePatch>,
 }
 
 impl PageView {
@@ -190,7 +187,7 @@ impl PageView {
     pub const fn empty() -> Self {
         Self {
             base_run: PageRun::empty(),
-            patches: [PagePatch::empty(); INLINE_PAGE_PATCH_COUNT],
+            patches: Vec::new(),
         }
     }
 
@@ -198,7 +195,7 @@ impl PageView {
     pub const fn from_run(run: PageRun) -> Self {
         Self {
             base_run: run,
-            patches: [PagePatch::empty(); INLINE_PAGE_PATCH_COUNT],
+            patches: Vec::new(),
         }
     }
 
@@ -214,7 +211,7 @@ impl PageView {
 
     /// Report whether the base run still contributes any live pages.
     pub fn has_base_pages(&self) -> bool {
-        self.patch_count() < self.len()
+        self.patches.len() < self.len()
     }
 
     /// Return the physical base run.
@@ -224,7 +221,7 @@ impl PageView {
 
     /// Return the contiguous base run when this view has no patches.
     pub fn as_run(&self) -> Option<PageRun> {
-        if self.patch_count() == 0 {
+        if self.patches.is_empty() {
             return Some(self.base_run);
         }
 
@@ -233,30 +230,7 @@ impl PageView {
 
     /// Return the patches for this view.
     pub fn patches(&self) -> &[PagePatch] {
-        &self.patches[..self.patch_count()]
-    }
-
-    /// Return the number of active inline patches.
-    #[inline]
-    pub fn patch_count(&self) -> usize {
-        for (patch_index, patch) in self.patches.iter().enumerate() {
-            if patch.is_empty() {
-                return patch_index;
-            }
-        }
-
-        INLINE_PAGE_PATCH_COUNT
-    }
-
-    /// Return the remaining inline patch room.
-    #[inline]
-    pub fn patch_room(&self) -> usize {
-        INLINE_PAGE_PATCH_COUNT - self.patch_count()
-    }
-
-    /// Report whether this view can record one more distinct patch inline.
-    pub fn can_patch(&self, page_index: usize) -> bool {
-        self.patch_at(page_index).is_some() || self.patch_room() > 0
+        &self.patches
     }
 
     /// Return the effective page id by logical page index.
@@ -299,9 +273,9 @@ impl PageView {
         }
 
         let page_index = page_index as u32;
-        let active_count = self.patch_count();
-        let active = &self.patches[..active_count];
-        let result = active.binary_search_by_key(&page_index, |patch| patch.page_index);
+        let result = self
+            .patches
+            .binary_search_by_key(&page_index, |patch| patch.page_index);
 
         // update one existing patch in place
         if let Ok(entry_index) = result {
@@ -310,28 +284,18 @@ impl PageView {
             return Ok(());
         }
 
-        // reject new patches once the inline patch set is full
-        if active_count >= INLINE_PAGE_PATCH_COUNT {
-            return Err(HeapError::PagePatchCapacityExceeded {
-                page_count: self.len(),
-                patch_capacity: INLINE_PAGE_PATCH_COUNT,
-            });
-        }
-
         let entry_index = match result {
             Ok(entry_index) | Err(entry_index) => entry_index,
         };
 
-        // make room for the new sorted patch entry
-        for slot_index in (entry_index..active_count).rev() {
-            self.patches[slot_index + 1] = self.patches[slot_index];
-        }
-
         // install the new patch entry
-        self.patches[entry_index] = PagePatch {
-            page_index,
-            page_id,
-        };
+        self.patches.insert(
+            entry_index,
+            PagePatch {
+                page_index,
+                page_id,
+            },
+        );
 
         Ok(())
     }
@@ -340,7 +304,7 @@ impl PageView {
     fn patch_at(&self, page_index: usize) -> Option<PagePatch> {
         let page_index = page_index as u32;
         let patch_index = self
-            .patches()
+            .patches
             .binary_search_by_key(&page_index, |patch| patch.page_index);
         let patch_index = patch_index.ok()?;
 

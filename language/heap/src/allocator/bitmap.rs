@@ -104,6 +104,43 @@ impl Bitmap {
         self.words.fill(0);
     }
 
+    /// Clear every bit inside the given range.
+    pub fn clear_range(&mut self, start: usize, len: usize) {
+        if len == 0 || start >= self.capacity {
+            return;
+        }
+
+        let end = start.saturating_add(len).min(self.capacity);
+        let start_word_index = start / BITMAP_WORD_BITS;
+        let end_word_index = (end - 1) / BITMAP_WORD_BITS;
+        let start_bit_offset = start % BITMAP_WORD_BITS;
+        let end_bit_offset = end % BITMAP_WORD_BITS;
+
+        // handle the single-word case directly
+        if start_word_index == end_word_index {
+            let range_mask = !word_range_mask(start_bit_offset, end_bit_offset);
+            self.words[start_word_index] &= range_mask;
+
+            return;
+        }
+
+        // clear the partial first word
+        self.words[start_word_index] &= low_bit_mask(start_bit_offset);
+
+        // clear any fully covered middle words
+        for word_index in start_word_index + 1..end_word_index {
+            self.words[word_index] = 0;
+        }
+
+        // clear the partial last word
+        let last_word_mask = if end_bit_offset == 0 {
+            0
+        } else {
+            !low_bit_mask(end_bit_offset)
+        };
+        self.words[end_word_index] &= last_word_mask;
+    }
+
     /// Count the number of set bits.
     pub fn count_ones(&self) -> usize {
         self.words

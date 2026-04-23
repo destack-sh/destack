@@ -17,10 +17,10 @@ pub struct AllocatorPageImage {
 /// One serialized allocator image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AllocatorImage {
-    /// The fixed page width for the image.
+    /// The fixed page size for the image.
     pub page_bytes: u32,
-    /// The fixed segment width for the image.
-    pub segment_bytes: u32,
+    /// The fixed arena size for the image.
+    pub arena_bytes: u32,
 
     /// The serialized page leaves reachable from one frozen root.
     pub pages: Box<[AllocatorPageImage]>,
@@ -29,9 +29,9 @@ pub struct AllocatorImage {
 impl Allocator {
     /// Restore one allocator directly from one serialized image.
     pub fn from_image(image: &AllocatorImage) -> HeapResult<Self> {
-        let allocator = Self::try_new(image.page_bytes as usize, image.segment_bytes as usize)?;
+        let allocator = Self::try_new(image.page_bytes as usize, image.arena_bytes as usize)?;
         let page_bytes = allocator.page_bytes();
-        let mut segment_high_watermarks = BTreeMap::<usize, usize>::new();
+        let mut arena_high_watermarks = BTreeMap::<usize, usize>::new();
         let mut page_count = 0;
 
         // resolve the reachable page range up front
@@ -46,7 +46,7 @@ impl Allocator {
             page_count = page_count.max(next_page_count);
         }
 
-        // reserve enough segment capacity first
+        // admit enough arena capacity first
         allocator.ensure_page_capacity(page_count)?;
 
         // materialize every serialized page into the allocator
@@ -66,32 +66,30 @@ impl Allocator {
 
             target_page.copy_from_slice(&page.bytes);
 
-            let (segment_index, segment_page_index) = allocator.page_position(page.id);
-            let segment_high_watermark = segment_high_watermarks.entry(segment_index).or_default();
-            let next_high_watermark =
-                segment_page_index
+            let (arena_index, arena_page_index) = allocator.page_position(page.id);
+            let arena_high_watermark = arena_high_watermarks.entry(arena_index).or_default();
+            let next_unused_page =
+                arena_page_index
                     .checked_add(1)
                     .ok_or(HeapError::InvalidPageId {
                         index: page.id.index(),
                     })?;
-            *segment_high_watermark = (*segment_high_watermark).max(next_high_watermark);
+            *arena_high_watermark = (*arena_high_watermark).max(next_unused_page);
         }
 
-        // restore the per-segment fresh-allocation cursors
-        for (segment_index, high_watermark) in segment_high_watermarks {
-            if !allocator.has_segment(segment_index) {
-                let first_page_index = segment_index
-                    .checked_mul(allocator.pages_per_segment())
-                    .ok_or(HeapError::InvalidPageId {
-                        index: segment_index,
-                    })?;
+        // restore the per-arena fresh-allocation cursors
+        for (arena_index, high_watermark) in arena_high_watermarks {
+            if !allocator.has_arena(arena_index) {
+                let first_page_index = arena_index
+                    .checked_mul(allocator.pages_per_arena())
+                    .ok_or(HeapError::InvalidPageId { index: arena_index })?;
 
                 return Err(HeapError::ImageMissingPage {
                     page_id: PageId::new(first_page_index)?,
                 });
             }
 
-            allocator.raise_segment_high_watermark(segment_index, high_watermark)?;
+            allocator.raise_arena_high_watermark(arena_index, high_watermark)?;
         }
 
         Ok(allocator)
@@ -135,7 +133,7 @@ impl Allocator {
 
         Ok(AllocatorImage {
             page_bytes: self.page_bytes() as u32,
-            segment_bytes: self.segment_bytes() as u32,
+            arena_bytes: self.arena_bytes() as u32,
             pages: image_pages.into_boxed_slice(),
         })
     }
@@ -144,7 +142,7 @@ impl Allocator {
     pub fn image(&self, page_view: &PageView) -> HeapResult<AllocatorImage> {
         Ok(AllocatorImage {
             page_bytes: self.page_bytes() as u32,
-            segment_bytes: self.segment_bytes() as u32,
+            arena_bytes: self.arena_bytes() as u32,
             pages: self.capture_page_view_pages(page_view)?,
         })
     }

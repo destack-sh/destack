@@ -2,34 +2,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::HeapError;
 
-/// One span-backed allocation path.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SpanAllocationPath {
-    /// One small-space allocation.
-    Small {
-        /// The resolved size-class index.
-        class_index: usize,
-        /// The resolved slot width.
-        size_class: usize,
-        /// The mapped-byte delta for this path.
-        mapped_delta: i64,
-    },
-    /// One large-space allocation.
-    Large {
-        /// The mapped-byte delta for this path.
-        mapped_delta: i64,
-    },
-}
-
-impl SpanAllocationPath {
-    /// Return the mapped-byte delta for this allocation path.
-    pub(crate) fn mapped_delta(self) -> i64 {
-        match self {
-            Self::Small { mapped_delta, .. } | Self::Large { mapped_delta } => mapped_delta,
-        }
-    }
-}
-
 /// One policy for generating size classes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SizeClassPolicy {
@@ -193,36 +165,6 @@ impl SizeClassTable {
         }
 
         Some(class_index)
-    }
-
-    /// Return one span-backed allocation path for the requested payload size.
-    pub(crate) fn span_allocation_path(
-        &self,
-        byte_len: usize,
-        span_bytes: usize,
-        has_available_span: impl FnOnce(usize) -> bool,
-        large_bytes: impl FnOnce(usize) -> u64,
-    ) -> SpanAllocationPath {
-        // use one size-classed span when the payload still fits
-        if let Some(class_index) = self.class_index_for(byte_len) {
-            let size_class = self.classes[class_index].bytes;
-            let mapped_delta = if has_available_span(class_index) {
-                0
-            } else {
-                span_bytes as i64
-            };
-
-            return SpanAllocationPath::Small {
-                class_index,
-                size_class,
-                mapped_delta,
-            };
-        }
-
-        // otherwise fall back to the dedicated large-entry path
-        SpanAllocationPath::Large {
-            mapped_delta: large_bytes(byte_len) as i64,
-        }
     }
 
     /// Validate one raw size-class list.
