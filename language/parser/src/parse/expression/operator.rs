@@ -11,7 +11,7 @@ use destack_ast::{
     AssignOperator, AssignPattern, BinaryOperator, Expression, Keyword, LocalNodeId,
     OperatorPrecedence, TokenSpan, TokenType, TypeExpression, TypePredicateSubject, UnaryOperator,
 };
-use destack_source::Span;
+use destack_source::{NodeSpanType, Span};
 
 const AS_ASSERTION_PRECEDENCE: u16 = 1355;
 const SATISFIES_ASSERTION_PRECEDENCE: u16 = 1003;
@@ -522,7 +522,6 @@ impl Parser {
                 ) =>
             {
                 let type_expression_id = self.append_type_chain_element(
-                    source_span,
                     head_span,
                     binary_operator,
                     operator_span,
@@ -561,16 +560,24 @@ impl Parser {
     /// Append one type element to a union or intersection chain.
     fn append_type_chain_element(
         &mut self,
-        source_span: Span,
         head_span: Span,
         operator: BinaryOperator,
         operator_span: Span,
         left: LocalNodeId<TypeExpression>,
         right: LocalNodeId<TypeExpression>,
     ) -> LocalNodeId<TypeExpression> {
+        // `A | B`, source span excludes leading separators owned by side spans
+        let left_span = self.tree.get_span(left);
+        let right_span = self.tree.get_span(right);
+        let source_span = Span::new(left_span.file, left_span.start, right_span.end);
+        let leading_span = self.tree.get_side_span(left, NodeSpanType::Leading);
+        let leading_operator_span = self.tree.get_side_span(left, NodeSpanType::LeadingOperator);
+
+        // `A | B`, arms own trivia up to and after the operator
         self.set_node_trailing_span(left, operator_span.start);
         self.set_node_leading_span(right, operator_span.end);
 
+        // `A | B | C`, reuse the existing chain container
         let expression = match (operator, self.tree.get(left).clone()) {
             (BinaryOperator::ElementwiseOr, TypeExpression::Union { mut elements }) => {
                 elements.push(right);
@@ -589,8 +596,20 @@ impl Parser {
             _ => unreachable!(),
         };
 
+        // `| A | B`, keep the explicit leading separator on the chain root
         let expression_id = self.insert_node(expression, source_span);
         self.tree.set_head_span(expression_id, head_span);
+        if let Some(leading_span) = leading_span {
+            self.tree
+                .set_side_span(expression_id, NodeSpanType::Leading, leading_span);
+        }
+        if let Some(leading_operator_span) = leading_operator_span {
+            self.tree.set_side_span(
+                expression_id,
+                NodeSpanType::LeadingOperator,
+                leading_operator_span,
+            );
+        }
 
         expression_id
     }
