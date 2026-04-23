@@ -36,13 +36,15 @@ pub enum NodeSpanType {
     Head,
     /// The leading owned prefix span of a node.
     Leading,
+    /// The leading operator span of a node.
+    LeadingOperator,
     /// The trailing owned suffix span of a node.
     Trailing,
-    /// The generic parameter shell span of a function-like or declaration node.
+    /// The generic parameter container span of a function-like or declaration node.
     GenericParameters,
-    /// The parameter shell span of a function-like node.
+    /// The parameter container span of a function-like node.
     Parameters,
-    /// The body shell span of a function-like node.
+    /// The body container span of a function-like node.
     Body,
     /// One indexed segment span of a compound node.
     Segment(u16),
@@ -291,8 +293,13 @@ impl NodeSourceMap {
     /// Set the span for a node.
     #[inline]
     pub fn set(&mut self, node_id: u32, span: Span) {
-        self.enclosing_spans[node_id as usize] = span;
-        self.invalidate_position_index();
+        let index = node_id as usize;
+        let previous_span = self.enclosing_spans[index];
+        self.enclosing_spans[index] = span;
+
+        if previous_span != span {
+            self.invalidate_position_index();
+        }
     }
 
     /// Prune spans from the map (used during parse backtracking).
