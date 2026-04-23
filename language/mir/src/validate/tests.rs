@@ -6,10 +6,10 @@ use crate::{
     AddressSpace, AllocationMode, ArgumentAttribute, ArgumentSlice, Attribute, AttributeArgs,
     AttributeIdentifier, AttributeValue, Block, Call, CallBehavior, Constant, Copy,
     DebugBindingKind, DebugRangeStart, DebugScopeKind, DebugValueLocation, EffectClass, Field,
-    Function, FunctionReference, Instruction, Layout, LayoutField, LayoutKind, Local,
-    LocalNodeId, LocalReference, Mutability, NodeTree, Ownership, ProvenanceAnchor, ProvenanceKey,
-    ReferenceKind, ReferenceMap, SuspendBehavior, Terminator, Type, TypeReference,
-    UnwindBehavior, Value, ValueReference, VtableSlotId,
+    Function, FunctionReference, Instruction, Layout, LayoutField, LayoutKind, Local, LocalNodeId,
+    LocalReference, Mutability, NodeTree, Ownership, ProvenanceAnchor, ProvenanceKey,
+    ReferenceKind, ReferenceMap, SuspendBehavior, Terminator, Type, TypeReference, UnwindBehavior,
+    Value, ValueReference, VtableSlotId,
 };
 
 use super::Validator;

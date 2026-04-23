@@ -6,7 +6,6 @@ members = [
 	"language/artifact",
 	"language/artifact/macros",
 	"language/builtin",
-	"language/test/mirbench",
 	"language/compiler",
 	"language/compiler/generate/native",
 	"language/compiler/generate/native/cranelift/assembler-x64",
@@ -112,7 +111,6 @@ destack_session = { path = "language/session" }
 destack_source = { path = "language/source" }
 destack_source_macros = { path = "language/source/macros" }
 destack_test = { path = "language/test" }
-destack_test_mirbench = { path = "language/test/mirbench" }
 destack_unicode = { path = "language/unicode" }
 destack_service = { path = "language/service" }
 destack_workspace = { path = "language/workspace" }
