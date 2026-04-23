@@ -412,6 +412,36 @@ impl NodeTree {
         self.source_map.set(node_id.id, span);
     }
 
+    /// Copy all source parts from one node onto another.
+    #[inline]
+    pub fn copy_source_parts<T, U>(
+        &mut self,
+        destination_id: LocalNodeId<T>,
+        source_id: LocalNodeId<U>,
+    ) where
+        T: Node,
+        U: Node,
+    {
+        self.source_map
+            .copy_source_parts(destination_id.id, source_id.id);
+    }
+
+    /// Replace one node from another tree node and copy its source parts.
+    #[inline]
+    pub fn replace_node_from<T>(
+        &mut self,
+        source_tree: &Self,
+        destination_id: LocalNodeId<T>,
+        source_id: LocalNodeId<T>,
+    ) where
+        T: Node + Clone,
+        Self: NodeTreeImpl<T>,
+    {
+        let source_node = source_tree.get(source_id).clone();
+        *self.get_mut(destination_id) = source_node;
+        self.copy_source_parts(destination_id, source_id);
+    }
+
     /// Get the main span for a node (identifier span for declarations, etc).
     #[inline]
     pub fn get_main_span<T>(&self, node_id: LocalNodeId<T>) -> Option<Span>

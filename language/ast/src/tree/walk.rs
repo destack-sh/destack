@@ -279,6 +279,53 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
             let declaration_node = tree.get(*declaration);
             visitor.visit_declaration(tree, *declaration, declaration_node);
         }
+        TypeExpression::FunctionTypeDeclaration(function) => {
+            for generic_parameter_id in &function.generic_parameters {
+                let generic_parameter = tree.get(*generic_parameter_id);
+                visitor.visit_generic_parameter(tree, *generic_parameter_id, generic_parameter);
+            }
+
+            for where_clause_id in &function.where_clauses {
+                let where_clause = tree.get(*where_clause_id);
+                visitor.visit_where_clause(tree, *where_clause_id, where_clause);
+            }
+
+            if let Some(this_parameter) = function.this_parameter {
+                let parameter = tree.get(this_parameter);
+                visitor.visit_parameter(tree, this_parameter, parameter);
+            }
+
+            for parameter_id in &function.parameters {
+                let parameter = tree.get(*parameter_id);
+                visitor.visit_parameter(tree, *parameter_id, parameter);
+            }
+
+            if let Some(return_type) = function.return_type {
+                let return_type_node = tree.get(return_type);
+                visitor.visit_type_expression(tree, return_type, return_type_node);
+            }
+        }
+        TypeExpression::ConstructorTypeDeclaration(function) => {
+            for generic_parameter_id in &function.generic_parameters {
+                let generic_parameter = tree.get(*generic_parameter_id);
+                visitor.visit_generic_parameter(tree, *generic_parameter_id, generic_parameter);
+            }
+
+            for where_clause_id in &function.where_clauses {
+                let where_clause = tree.get(*where_clause_id);
+                visitor.visit_where_clause(tree, *where_clause_id, where_clause);
+            }
+
+            for parameter_id in &function.parameters {
+                let parameter = tree.get(*parameter_id);
+                visitor.visit_parameter(tree, *parameter_id, parameter);
+            }
+
+            if let Some(return_type) = function.return_type {
+                let return_type_node = tree.get(return_type);
+                visitor.visit_type_expression(tree, return_type, return_type_node);
+            }
+        }
         TypeExpression::Reference {
             path: _,
             generic_arguments,

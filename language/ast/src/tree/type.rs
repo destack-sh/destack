@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Argument, Declaration, Expression, FunctionSignature, GenericArgument, GenericParameter, Key,
-    LocalNodeId, Mutability, Node, NodeType, Path, ScalarLiteral, StringId, TupleElement,
-    TypeLiteral, VarianceBound, WhereClause,
+    LocalNodeId, Mutability, Node, NodeType, Parameter, Path, ScalarLiteral, StringId,
+    TupleElement, TypeLiteral, VarianceBound, WhereClause,
 };
 
 /// One type-surface member.
@@ -117,6 +117,36 @@ pub enum TypePredicateSubject {
     This,
 }
 
+/// One function type declaration in type space.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FunctionTypeDeclaration {
+    /// The generic parameters of the function type.
+    pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
+    /// The where clauses of the function type.
+    pub where_clauses: Vec<LocalNodeId<WhereClause>>,
+    /// The optional `this` parameter.
+    pub this_parameter: Option<LocalNodeId<Parameter>>,
+    /// The parameters of the function type.
+    pub parameters: Vec<LocalNodeId<Parameter>>,
+    /// The return type of the function type.
+    pub return_type: Option<LocalNodeId<TypeExpression>>,
+}
+
+/// One constructor type declaration in type space.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ConstructorTypeDeclaration {
+    /// Whether the constructor type is abstract.
+    pub is_abstract: bool,
+    /// The generic parameters of the constructor type.
+    pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
+    /// The where clauses of the constructor type.
+    pub where_clauses: Vec<LocalNodeId<WhereClause>>,
+    /// The parameters of the constructor type.
+    pub parameters: Vec<LocalNodeId<Parameter>>,
+    /// The return type of the constructor type.
+    pub return_type: Option<LocalNodeId<TypeExpression>>,
+}
+
 /// A type-space syntax node.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeExpression {
@@ -153,6 +183,12 @@ pub enum TypeExpression {
     Declaration {
         declaration: LocalNodeId<Declaration>,
     },
+
+    /// Function type declaration syntax.
+    FunctionTypeDeclaration(FunctionTypeDeclaration),
+
+    /// Constructor type declaration syntax.
+    ConstructorTypeDeclaration(ConstructorTypeDeclaration),
 
     /// Qualified type reference with optional generic arguments.
     ///
