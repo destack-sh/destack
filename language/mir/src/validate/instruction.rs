@@ -897,6 +897,26 @@ impl<'a> Validator<'a> {
                     });
                 }
             }
+            Instruction::TensorSplat { destination, value } => {
+                let tensor_type_id = self.value_type_or_error(
+                    function,
+                    *destination,
+                    anchor,
+                    "tensor.splat result",
+                )?;
+                let value_type_id =
+                    self.value_type_or_error(function, *value, anchor, "tensor.splat value")?;
+                let tensor_type =
+                    self.tensor_type(tensor_type_id, anchor, "tensor.splat expects tensor")?;
+
+                if !self.types_equivalent(value_type_id, tensor_type.0) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "tensor.splat value type mismatches tensor element type"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+            }
             Instruction::TensorExtract {
                 destination,
                 tensor,

@@ -725,6 +725,21 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
+            Instruction::TensorSplat { destination, value } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("tensor.splat"),
+                        space(),
+                        value
+                    ]
+                )
+            }
+
             Instruction::TensorLoad {
                 destination,
                 view,

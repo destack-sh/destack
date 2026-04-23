@@ -857,6 +857,12 @@ impl<'a> Dumper<'a> {
                 self.write(&self.format_value(*vector));
             }
 
+            Instruction::TensorSplat { destination, value } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.splat ");
+                self.write(&self.format_value(*value));
+            }
+
             Instruction::TensorLoad {
                 destination,
                 view,

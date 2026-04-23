@@ -586,6 +586,10 @@ impl Parser {
                     }
 
                     // tensor operations
+                    "tensor.splat" => {
+                        let value = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::TensorSplat { destination, value }
+                    }
                     "tensor.load" => {
                         let view = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;

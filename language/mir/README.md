@@ -94,7 +94,7 @@ Instructions perform "operations" and may produce SSA `Value`s.
 | Memory | `load`, `store`, `raw.free`, `dispose`, `dispose.async`, `pin`, `unpin`, `drop` |
 | Aggregates | `struct`, `tuple`, `array`, `field.get`, `field.set`, `field.address`, `element.get`, `element.set`, `element.address` |
 | Vector | `vector.*` (splat, extract, insert, shuffle, select, reduce, compare, convert) |
-| Tensor | `tensor.*` (load, store, fill, copy, reshape, broadcast, transpose, cast, view, slice, pad, concat, compare, select, reduce, dot, convolution, gather, scatter, convert) |
+| Tensor | `tensor.*` (splat, extract, load, store, fill, copy, reshape, broadcast, transpose, cast, view, slice, pad, concat, compare, select, reduce, dot, convolution, gather, scatter, convert) |
 | Calls | `call`, `call.virtual`, `call.interface`, `call.indirect` |
 | Allocation | `new`, `new.slice`, `raw.alloc`, `raw.free`, `stack.alloc` |
 | Intrinsics | `intrinsic.*` |
