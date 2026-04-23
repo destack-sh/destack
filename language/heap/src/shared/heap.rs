@@ -10,24 +10,24 @@ use super::constants::{
     SHARED_MARK_PAGES_PER_BUDGET, SHARED_SWEEP_BUDGET_PER_WORKER, SHARED_SWEEP_PAGES_PER_BUDGET,
 };
 use super::{
-    SharedGcPhase, SharedHeapLimits, SharedHeapUsage, SharedManagedSpace, SharedManagedSpaceImage,
+    SharedGcPhase, SharedHeapLimits, SharedHeapSpace, SharedHeapSpaceImage, SharedHeapUsage,
     SharedRawSpace, SharedRawSpaceImage,
 };
 use crate::{
-    Arena, GcPacer, GcStats, GcSummary, HeapError, HeapOptions, HeapResult, HeapScan, HeapSpace,
-    LayoutId, PageId, SharedManagedReference, SharedRawPointer, apply_byte_delta, sum_bytes,
+    Allocator, GcPacer, GcStats, GcSummary, HeapError, HeapOptions, HeapResult, LayoutId, PageId,
+    SharedHeapReference, SharedRawPointer, TracePlan, apply_byte_delta,
 };
 
 /// One live world-shared heap.
 #[derive(Debug)]
 pub struct SharedHeap {
-    /// The shared arena for both shared heap spaces.
-    pub(crate) arena: Arc<Arena>,
+    /// The shared allocator for both shared heap spaces.
+    pub(crate) allocator: Arc<Allocator>,
     /// The configured shared heap options.
     pub(crate) options: HeapOptions,
 
-    /// The traced shared managed space.
-    pub(crate) managed: SharedManagedSpace,
+    /// The traced shared heap space.
+    pub(crate) heap: SharedHeapSpace,
     /// The explicit shared raw space.
     pub(crate) raw: SharedRawSpace,
     /// The exact hard limits for this shared heap.
@@ -35,7 +35,7 @@ pub struct SharedHeap {
 
     /// Whether one shared collection has been requested by pressure or explicitly.
     collection_requested: AtomicBool,
-    /// Pending shared assist debt derived from recent managed allocation pressure.
+    /// Pending shared assist debt derived from recent heap allocation pressure.
     assist_debt: AtomicUsize,
 }
 
@@ -44,16 +44,16 @@ pub struct SharedHeap {
 pub struct SharedHeapImage {
     /// The captured shared heap options.
     pub options: HeapOptions,
-    /// The frozen shared managed space.
-    pub managed: SharedManagedSpaceImage,
+    /// The frozen shared heap space.
+    pub heap: SharedHeapSpaceImage,
     /// The frozen shared raw space.
     pub raw: SharedRawSpaceImage,
 }
 
 impl SharedHeapImage {
-    /// Return every arena page reachable from this shared-heap image.
+    /// Return every allocator page reachable from this shared-heap image.
     pub fn page_ids(&self) -> Vec<PageId> {
-        let mut pages = self.managed.page_ids();
+        let mut pages = self.heap.page_ids();
         pages.extend(self.raw.page_ids());
 
         pages
@@ -74,48 +74,48 @@ impl SharedHeap {
 
     /// Create a new empty shared heap with explicit options.
     pub fn with_options(options: HeapOptions) -> Self {
-        Self::with_arena_limits_and_options(
-            Arc::new(Arena::new()),
+        Self::with_allocator_limits_and_options(
+            Arc::new(Allocator::new()),
             SharedHeapLimits::default(),
             options,
         )
     }
 
-    /// Create a new empty shared heap over one shared arena.
-    pub fn with_arena(arena: Arc<Arena>) -> Self {
+    /// Create a new empty shared heap over one shared allocator.
+    pub fn with_allocator(allocator: Arc<Allocator>) -> Self {
         let options = HeapOptions {
-            page_bytes: arena.page_bytes(),
-            arena_segment_bytes: arena.segment_bytes(),
+            page_bytes: allocator.page_bytes(),
+            allocator_segment_bytes: allocator.segment_bytes(),
             ..HeapOptions::shared()
         };
 
-        Self::with_arena_and_options(arena, options)
+        Self::with_allocator_and_options(allocator, options)
     }
 
     /// Create a new empty shared heap with explicit limits and options.
     pub fn with_limits_and_options(limits: SharedHeapLimits, options: HeapOptions) -> Self {
-        Self::with_arena_limits_and_options(Arc::new(Arena::new()), limits, options)
+        Self::with_allocator_limits_and_options(Arc::new(Allocator::new()), limits, options)
     }
 
-    /// Create a new empty shared heap over one shared arena and limit set.
-    pub fn with_arena_and_limits(arena: Arc<Arena>, limits: SharedHeapLimits) -> Self {
+    /// Create a new empty shared heap over one shared allocator and limit set.
+    pub fn with_allocator_and_limits(allocator: Arc<Allocator>, limits: SharedHeapLimits) -> Self {
         let options = HeapOptions {
-            page_bytes: arena.page_bytes(),
-            arena_segment_bytes: arena.segment_bytes(),
+            page_bytes: allocator.page_bytes(),
+            allocator_segment_bytes: allocator.segment_bytes(),
             ..HeapOptions::shared()
         };
 
-        Self::with_arena_limits_and_options(arena, limits, options)
+        Self::with_allocator_limits_and_options(allocator, limits, options)
     }
 
-    /// Create a new empty shared heap over one shared arena and explicit options.
-    pub fn with_arena_and_options(arena: Arc<Arena>, options: HeapOptions) -> Self {
-        Self::with_arena_limits_and_options(arena, SharedHeapLimits::default(), options)
+    /// Create a new empty shared heap over one shared allocator and explicit options.
+    pub fn with_allocator_and_options(allocator: Arc<Allocator>, options: HeapOptions) -> Self {
+        Self::with_allocator_limits_and_options(allocator, SharedHeapLimits::default(), options)
     }
 
-    /// Create a new empty shared heap over one shared arena, limits, and options.
-    pub fn with_arena_limits_and_options(
-        arena: Arc<Arena>,
+    /// Create a new empty shared heap over one shared allocator, limits, and options.
+    pub fn with_allocator_limits_and_options(
+        allocator: Arc<Allocator>,
         limits: SharedHeapLimits,
         options: HeapOptions,
     ) -> Self {
@@ -123,13 +123,13 @@ impl SharedHeap {
             .validate_shared()
             .expect("shared heap options should validate");
         options
-            .validate_arena(&arena)
-            .expect("shared heap arena should match options");
+            .validate_allocator(&allocator)
+            .expect("shared heap allocator should match options");
 
         let shared = Self {
-            managed: SharedManagedSpace::with_options(arena.clone(), &options),
-            raw: SharedRawSpace::with_arena(arena.clone()),
-            arena,
+            heap: SharedHeapSpace::with_options(allocator.clone(), &options),
+            raw: SharedRawSpace::with_allocator(allocator.clone()),
+            allocator,
             options,
             collection_requested: AtomicBool::new(false),
             assist_debt: AtomicUsize::new(0),
@@ -143,36 +143,36 @@ impl SharedHeap {
 
     /// Return the configured shared page width.
     pub fn page_bytes(&self) -> usize {
-        self.arena.page_bytes()
+        self.allocator.page_bytes()
     }
 
     /// Return the exact live usage for this shared heap.
-    pub fn usage(&self) -> HeapResult<SharedHeapUsage> {
-        Ok(SharedHeapUsage {
-            managed: self.managed.usage()?,
-            raw: self.raw.usage()?,
-        })
+    pub fn usage(&self) -> SharedHeapUsage {
+        SharedHeapUsage {
+            heap: self.heap.usage(),
+            raw: self.raw.usage(),
+        }
     }
 
     /// Return the exact active shared heap bytes.
     pub fn active_bytes(&self) -> u64 {
-        self.managed.active_bytes() + self.raw.active_bytes()
+        self.heap.active_bytes() + self.raw.active_bytes()
     }
 
-    /// Return the current shared managed collector state.
+    /// Return the current shared heap collector state.
     pub fn gc_state(&self) -> GcSummary {
-        self.managed.gc_state()
+        self.heap.gc_state()
     }
 
     /// Return whether the active shared mark phase is currently drained.
     pub fn mark_idle(&self) -> bool {
-        self.managed.mark_idle()
+        self.heap.mark_idle()
     }
 
     /// Return the current derived collector pacing targets.
     pub fn gc_pacer(&self) -> GcPacer {
         let mut gc_pacer = GcPacer::default();
-        gc_pacer.update(self.options.gc, self.managed_allocated_bytes());
+        gc_pacer.update(self.options.gc, self.heap_allocated_bytes());
 
         gc_pacer
     }
@@ -182,7 +182,7 @@ impl SharedHeap {
         // heap pressure
         let worker_count = worker_count.max(1);
         let page_bytes = self.page_bytes().max(1);
-        let heap_pages = (self.managed_allocated_bytes() as usize).div_ceil(page_bytes);
+        let heap_pages = (self.heap_allocated_bytes() as usize).div_ceil(page_bytes);
 
         // sweep gets a larger budget because it is pure reclamation work
         if self.gc_phase() == SharedGcPhase::Sweep {
@@ -242,19 +242,22 @@ impl SharedHeap {
         edge_budget.clamp(MIN_SHARED_EDGE_SCAN_BUDGET, MAX_SHARED_EDGE_SCAN_BUDGET)
     }
 
-    /// Return the current shared managed collector phase.
+    /// Return the current shared heap collector phase.
     pub fn gc_phase(&self) -> SharedGcPhase {
-        self.managed.gc_phase()
+        self.heap.gc_phase()
     }
 
     /// Return the exact mapped shared heap bytes.
     pub fn mapped_bytes(&self) -> u64 {
-        self.managed.mapped_bytes() + self.raw.mapped_bytes()
+        self.heap.mapped_bytes() + self.raw.mapped_bytes()
     }
 
     /// Return the exact borrowed shared heap bytes.
-    pub fn borrowed_bytes(&self) -> HeapResult<u64> {
-        sum_bytes(self.managed.borrowed_bytes()?, self.raw.borrowed_bytes()?)
+    pub fn borrowed_bytes(&self) -> u64 {
+        self.heap
+            .borrowed_bytes()
+            .checked_add(self.raw.borrowed_bytes())
+            .unwrap_or_else(|| panic!("shared heap usage overflow: borrowed bytes"))
     }
 
     /// Return the exact active shared raw-space bytes.
@@ -284,7 +287,11 @@ impl SharedHeap {
     }
 
     /// Replace one shared raw allocation payload.
-    pub fn replace_raw_bytes(&self, pointer: SharedRawPointer, bytes: &[u8]) -> HeapResult<()> {
+    pub fn replace_raw_bytes(
+        &self,
+        pointer: SharedRawPointer,
+        bytes: &[u8],
+    ) -> HeapResult<SharedRawPointer> {
         self.check_raw_mapped_delta(self.raw.replace_mapped_delta(pointer, bytes.len())?)?;
 
         self.raw.replace_bytes(pointer, bytes)
@@ -295,125 +302,122 @@ impl SharedHeap {
         self.raw.read_bytes(pointer)
     }
 
-    /// Allocate one shared managed byte allocation.
-    pub fn allocate_managed_bytes(
+    /// Allocate one shared heap byte allocation.
+    pub fn allocate_heap_bytes(
         &self,
         bytes: &[u8],
-        scan: impl Into<HeapScan>,
+        scan: impl Into<TracePlan>,
         layout_id: Option<LayoutId>,
-    ) -> HeapResult<SharedManagedReference> {
+    ) -> HeapResult<SharedHeapReference> {
         // projected growth
-        let path = self.managed.allocation_path(bytes.len());
-        self.check_managed_mapped_delta(path.mapped_delta())?;
+        let path = self.heap.allocation_path(bytes.len());
+        self.check_heap_mapped_delta(path.mapped_delta())?;
 
         // allocation and pacing
-        let reference = self.managed.place_bytes(bytes, scan, layout_id, path)?;
+        let reference = self.heap.place_bytes(bytes, scan, layout_id, path)?;
         self.accrue_assist_debt(bytes.len());
         self.refresh_gc_request();
 
         Ok(reference)
     }
 
-    /// Allocate one zeroed shared managed byte allocation.
-    pub fn allocate_managed_zeroed(
+    /// Allocate one zeroed shared heap byte allocation.
+    pub fn allocate_heap_zeroed(
         &self,
         byte_len: usize,
-        scan: impl Into<HeapScan>,
+        scan: impl Into<TracePlan>,
         layout_id: Option<LayoutId>,
-    ) -> HeapResult<SharedManagedReference> {
+    ) -> HeapResult<SharedHeapReference> {
         // projected growth
-        let path = self.managed.allocation_path(byte_len);
-        self.check_managed_mapped_delta(path.mapped_delta())?;
+        let path = self.heap.allocation_path(byte_len);
+        self.check_heap_mapped_delta(path.mapped_delta())?;
 
         // allocation and pacing
-        let reference = self.managed.place_zeroed(byte_len, scan, layout_id, path)?;
+        let reference = self.heap.place_zeroed(byte_len, scan, layout_id, path)?;
         self.accrue_assist_debt(byte_len);
         self.refresh_gc_request();
 
         Ok(reference)
     }
 
-    /// Return whether one shared managed reference currently refers to one live entry.
-    pub fn is_managed_live(&self, reference: SharedManagedReference) -> bool {
-        self.managed.is_live(reference)
+    /// Return whether one shared heap reference currently refers to one live entry.
+    pub fn is_heap_live(&self, reference: SharedHeapReference) -> bool {
+        self.heap.is_live(reference)
     }
 
-    /// Return the remaining byte length for one shared managed reference.
-    pub fn managed_byte_len(&self, reference: SharedManagedReference) -> HeapResult<usize> {
-        self.managed.byte_len(reference)
+    /// Return the remaining byte length for one shared heap reference.
+    pub fn heap_byte_len(&self, reference: SharedHeapReference) -> HeapResult<usize> {
+        self.heap.byte_len(reference)
     }
 
-    /// Return the bytes for one shared managed reference.
-    pub fn read_managed_bytes(&self, reference: SharedManagedReference) -> HeapResult<Vec<u8>> {
-        self.managed.read_bytes(reference)
+    /// Return the bytes for one shared heap reference.
+    pub fn read_heap_bytes(&self, reference: SharedHeapReference) -> HeapResult<Vec<u8>> {
+        self.heap.read_bytes(reference)
     }
 
-    /// Fill one caller-provided buffer from one shared managed entry at one offset.
-    pub fn read_managed_bytes_into(
+    /// Fill one caller-provided buffer from one shared heap entry at one offset.
+    pub fn read_heap_bytes_into(
         &self,
-        reference: SharedManagedReference,
+        reference: SharedHeapReference,
         start: usize,
         target: &mut [u8],
     ) -> HeapResult<()> {
-        self.managed.read_bytes_into(reference, start, target)
+        self.heap.read_bytes_into(reference, start, target)
     }
 
-    /// Return the scan metadata for one shared managed reference.
-    pub fn scan(&self, reference: SharedManagedReference) -> HeapResult<HeapScan> {
-        self.managed.scan(reference)
+    /// Return the scan metadata for one shared heap reference.
+    pub fn scan(&self, reference: SharedHeapReference) -> HeapResult<TracePlan> {
+        self.heap.scan(reference)
     }
 
-    /// Return the storage layout id for one shared managed reference.
-    pub fn managed_layout_id(
+    /// Return the storage layout id for one shared heap reference.
+    pub fn heap_layout_id(&self, reference: SharedHeapReference) -> HeapResult<Option<LayoutId>> {
+        self.heap.layout_id(reference)
+    }
+
+    /// Set the storage layout id for one shared heap reference.
+    pub fn set_heap_layout_id(
         &self,
-        reference: SharedManagedReference,
-    ) -> HeapResult<Option<LayoutId>> {
-        self.managed.layout_id(reference)
-    }
-
-    /// Set the storage layout id for one shared managed reference.
-    pub fn set_managed_layout_id(
-        &self,
-        reference: SharedManagedReference,
+        reference: SharedHeapReference,
         layout_id: LayoutId,
     ) -> HeapResult<()> {
-        self.managed.set_layout_id(reference, layout_id)
+        self.heap.set_layout_id(reference, layout_id)
     }
 
-    /// Overwrite one shared managed byte range.
-    pub fn write_managed_bytes(
+    /// Overwrite one shared heap byte range.
+    pub fn write_heap_bytes(
         &self,
-        reference: SharedManagedReference,
+        reference: SharedHeapReference,
         start: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
-        self.managed.write_bytes(reference, start, bytes)
+        self.heap.write_bytes(reference, start, bytes)
     }
 
-    /// Record one shared managed write barrier over one byte range.
+    /// Record one shared heap write barrier over one byte range.
     pub fn write_barrier(
         &self,
-        reference: SharedManagedReference,
+        reference: SharedHeapReference,
         start: usize,
         byte_len: usize,
     ) -> HeapResult<()> {
-        self.managed.write_barrier(reference, start, byte_len)
+        self.heap.write_barrier(reference, start, byte_len)
     }
 
-    /// Record one shared managed write barrier from one caller-provided byte slice.
+    /// Record one shared heap write barrier from one caller-provided byte slice.
     pub fn write_barrier_bytes(
         &self,
-        reference: SharedManagedReference,
+        reference: SharedHeapReference,
         start: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
-        self.managed
+        self.heap
             .write_shared_barrier_bytes(reference, start, bytes)
     }
 
-    /// Publish one exact shared managed reference after one completed store.
-    pub fn publish_edge(&self, reference: SharedManagedReference) -> HeapResult<()> {
-        self.managed.publish_edge(reference)
+    /// Publish one exact shared heap reference after one completed store.
+    pub fn publish_edge(&self, reference: SharedHeapReference) -> HeapResult<()> {
+        self.heap.publish_edge(reference)
     }
 
     /// Request one shared collection cycle at the next world step.
@@ -434,18 +438,18 @@ impl SharedHeap {
         }
 
         // cycle start
-        self.managed.start_mark([])?;
+        self.heap.start_mark([])?;
         self.collection_requested.store(false, Ordering::Release);
 
         Ok(true)
     }
 
-    /// Perform one full shared managed collection over explicit roots.
+    /// Perform one full shared heap collection over explicit roots.
     pub fn collect_full(
         &self,
-        roots: impl IntoIterator<Item = SharedManagedReference>,
+        roots: impl IntoIterator<Item = SharedHeapReference>,
     ) -> HeapResult<GcStats> {
-        let stats = self.managed.collect_full(roots)?;
+        let stats = self.heap.collect_full(roots)?;
         self.record_gc_cycle(stats);
 
         Ok(stats)
@@ -454,7 +458,7 @@ impl SharedHeap {
     /// Run one shared collection step with one explicit work budget.
     pub fn gc_step(
         &self,
-        roots: &[SharedManagedReference],
+        roots: &[SharedHeapReference],
         roots_complete: bool,
         work_items: usize,
     ) -> HeapResult<Option<GcStats>> {
@@ -470,18 +474,18 @@ impl SharedHeap {
 
         // concurrent mark
         if self.gc_phase() == SharedGcPhase::Mark {
-            self.managed.mark_step(roots.iter().copied(), work_items)?;
+            self.heap.mark_step(roots.iter().copied(), work_items)?;
 
             // termination check
             if roots_complete {
-                self.managed.try_start_sweep()?;
+                self.heap.try_start_sweep()?;
             }
 
             return Ok(None);
         }
 
         // incremental sweep
-        let stats = self.managed.sweep_step(work_items)?;
+        let stats = self.heap.sweep_step(work_items)?;
         if let Some(stats) = stats {
             self.record_gc_cycle(stats);
 
@@ -491,25 +495,28 @@ impl SharedHeap {
         Ok(None)
     }
 
-    /// Fork this shared heap over the same shared arena.
+    /// Fork this shared heap over the same shared allocator.
     pub fn fork(&self) -> HeapResult<Self> {
         Ok(Self {
-            arena: self.arena.clone(),
+            allocator: self.allocator.clone(),
             options: self.options.clone(),
             collection_requested: AtomicBool::new(
                 self.collection_requested.load(Ordering::Acquire),
             ),
             assist_debt: AtomicUsize::new(0),
-            managed: self.managed.fork()?,
+            heap: self.heap.fork()?,
             raw: self.raw.fork()?,
             limits: self.limits,
         })
     }
 
     /// Create one shared heap from one frozen shared heap image.
-    pub fn from_image_with_arena(arena: Arc<Arena>, image: &SharedHeapImage) -> HeapResult<Self> {
-        Self::from_image_with_arena_limits_and_options(
-            arena,
+    pub fn from_image_with_allocator(
+        allocator: Arc<Allocator>,
+        image: &SharedHeapImage,
+    ) -> HeapResult<Self> {
+        Self::from_image_with_allocator_limits_and_options(
+            allocator,
             image,
             SharedHeapLimits::default(),
             image.options.clone(),
@@ -517,22 +524,27 @@ impl SharedHeap {
     }
 
     /// Create one shared heap from one frozen shared heap image and explicit limits.
-    pub fn from_image_with_arena_and_limits(
-        arena: Arc<Arena>,
+    pub fn from_image_with_allocator_and_limits(
+        allocator: Arc<Allocator>,
         image: &SharedHeapImage,
         limits: SharedHeapLimits,
     ) -> HeapResult<Self> {
-        Self::from_image_with_arena_limits_and_options(arena, image, limits, image.options.clone())
+        Self::from_image_with_allocator_limits_and_options(
+            allocator,
+            image,
+            limits,
+            image.options.clone(),
+        )
     }
 
     /// Create one shared heap from one frozen shared heap image and explicit options.
-    pub fn from_image_with_arena_and_options(
-        arena: Arc<Arena>,
+    pub fn from_image_with_allocator_and_options(
+        allocator: Arc<Allocator>,
         image: &SharedHeapImage,
         options: HeapOptions,
     ) -> HeapResult<Self> {
-        Self::from_image_with_arena_limits_and_options(
-            arena,
+        Self::from_image_with_allocator_limits_and_options(
+            allocator,
             image,
             SharedHeapLimits::default(),
             options,
@@ -540,19 +552,19 @@ impl SharedHeap {
     }
 
     /// Create one shared heap from one frozen shared heap image, limits, and options.
-    pub fn from_image_with_arena_limits_and_options(
-        arena: Arc<Arena>,
+    pub fn from_image_with_allocator_limits_and_options(
+        allocator: Arc<Allocator>,
         image: &SharedHeapImage,
         limits: SharedHeapLimits,
         options: HeapOptions,
     ) -> HeapResult<Self> {
         options.validate_shared()?;
-        options.validate_arena(&arena)?;
+        options.validate_allocator(&allocator)?;
 
         let shared = Self {
-            managed: SharedManagedSpace::from_image_with_arena(arena.clone(), &image.managed)?,
-            raw: SharedRawSpace::from_image_with_arena(arena.clone(), &image.raw)?,
-            arena,
+            heap: SharedHeapSpace::from_image_with_allocator(allocator.clone(), &image.heap)?,
+            raw: SharedRawSpace::from_image_with_allocator(allocator.clone(), &image.raw)?,
+            allocator,
             options,
             collection_requested: AtomicBool::new(false),
             assist_debt: AtomicUsize::new(0),
@@ -571,8 +583,7 @@ impl SharedHeap {
         if let Some(max_bytes) = self.limits.max_bytes {
             let active_bytes = self.active_bytes();
             if active_bytes > max_bytes {
-                return Err(HeapError::LimitExceeded {
-                    space: HeapSpace::Total,
+                return Err(HeapError::TotalLimitExceeded {
                     used_bytes: active_bytes,
                     max_bytes,
                 });
@@ -580,30 +591,29 @@ impl SharedHeap {
         }
 
         // per-space limits
-        self.limits.managed.check(self.managed.active_bytes())?;
+        self.limits.heap.check(self.heap.active_bytes())?;
         self.limits.raw.check(self.raw.active_bytes())?;
 
         Ok(())
     }
 
-    /// Check one projected mapped-byte delta against shared managed limits.
-    fn check_managed_mapped_delta(&self, mapped_delta: i64) -> HeapResult<()> {
+    /// Check one projected mapped-byte delta against shared heap limits.
+    fn check_heap_mapped_delta(&self, mapped_delta: i64) -> HeapResult<()> {
         // total limit
         if let Some(max_bytes) = self.limits.max_bytes {
             let active_bytes = apply_byte_delta(self.active_bytes(), mapped_delta)?;
             if active_bytes > max_bytes {
-                return Err(HeapError::LimitExceeded {
-                    space: HeapSpace::Total,
+                return Err(HeapError::TotalLimitExceeded {
                     used_bytes: active_bytes,
                     max_bytes,
                 });
             }
         }
 
-        // managed limit
+        // heap limit
         self.limits
-            .managed
-            .check_mapped_delta(self.managed.active_bytes(), mapped_delta)
+            .heap
+            .check_mapped_delta(self.heap.active_bytes(), mapped_delta)
     }
 
     /// Check one projected mapped-byte delta against shared raw limits.
@@ -612,8 +622,7 @@ impl SharedHeap {
         if let Some(max_bytes) = self.limits.max_bytes {
             let active_bytes = apply_byte_delta(self.active_bytes(), mapped_delta)?;
             if active_bytes > max_bytes {
-                return Err(HeapError::LimitExceeded {
-                    space: HeapSpace::Total,
+                return Err(HeapError::TotalLimitExceeded {
                     used_bytes: active_bytes,
                     max_bytes,
                 });
@@ -630,25 +639,25 @@ impl SharedHeap {
     pub fn image(&self) -> SharedHeapImage {
         SharedHeapImage {
             options: self.options.clone(),
-            managed: self.managed.image(),
+            heap: self.heap.image(),
             raw: self.raw.image(),
         }
     }
 
-    /// Return the number of live shared managed allocations.
-    pub fn managed_allocation_count(&self) -> usize {
-        self.managed.allocation_count()
+    /// Return the number of live shared heap allocations.
+    pub fn heap_allocation_count(&self) -> usize {
+        self.heap.allocation_count()
     }
 
-    /// Return the number of allocated shared managed bytes.
-    pub fn managed_allocated_bytes(&self) -> u64 {
-        self.managed.allocated_bytes()
+    /// Return the number of allocated shared heap bytes.
+    pub fn heap_allocated_bytes(&self) -> u64 {
+        self.heap.allocated_bytes()
     }
 
-    /// Refresh the pending shared cycle request from current managed pressure.
+    /// Refresh the pending shared cycle request from current heap pressure.
     fn refresh_gc_request(&self) {
         // trigger crossing
-        if self.gc_pacer().should_start(self.managed_allocated_bytes()) {
+        if self.gc_pacer().should_start(self.heap_allocated_bytes()) {
             self.collection_requested.store(true, Ordering::Release);
         }
     }
@@ -663,7 +672,7 @@ impl SharedHeap {
         self.refresh_gc_request();
     }
 
-    /// Accrue shared assist debt from one managed allocation.
+    /// Accrue shared assist debt from one heap allocation.
     fn accrue_assist_debt(&self, allocated_bytes: usize) {
         // empty allocation
         if allocated_bytes == 0 {

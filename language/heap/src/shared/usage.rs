@@ -1,19 +1,17 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{HeapResult, sum_bytes};
-
-/// Exact shared managed-space usage for one live shared managed space.
+/// Exact shared heap-space usage for one live shared heap space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct SharedManagedSpaceUsage {
-    /// The number of live shared managed allocations.
+pub struct SharedHeapSpaceUsage {
+    /// The number of live shared heap allocations.
     pub allocation_count: usize,
-    /// The logical live shared managed payload bytes.
+    /// The logical live shared heap payload bytes.
     pub allocated_bytes: u64,
-    /// The exact active shared managed allocator bytes.
+    /// The exact active shared heap allocator bytes.
     pub active_bytes: u64,
-    /// The exact mapped shared managed page-arena bytes.
+    /// The exact mapped shared heap allocator page bytes.
     pub mapped_bytes: u64,
-    /// The exact borrowed shared managed image bytes.
+    /// The exact borrowed shared heap image bytes.
     pub borrowed_bytes: u64,
 }
 
@@ -26,7 +24,7 @@ pub struct SharedRawSpaceUsage {
     pub allocated_bytes: u64,
     /// The exact active shared allocator bytes.
     pub active_bytes: u64,
-    /// The exact mapped shared page-arena bytes.
+    /// The exact mapped shared raw allocator page bytes.
     pub mapped_bytes: u64,
     /// The exact borrowed shared image bytes.
     pub borrowed_bytes: u64,
@@ -35,30 +33,42 @@ pub struct SharedRawSpaceUsage {
 /// Exact shared-heap usage for one live shared heap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SharedHeapUsage {
-    /// The exact shared managed-space usage.
-    pub managed: SharedManagedSpaceUsage,
+    /// The exact shared heap-space usage.
+    pub heap: SharedHeapSpaceUsage,
     /// The exact shared raw-space usage.
     pub raw: SharedRawSpaceUsage,
 }
 
 impl SharedHeapUsage {
     /// Return the exact total live allocated bytes.
-    pub fn allocated_bytes(&self) -> HeapResult<u64> {
-        sum_bytes(self.managed.allocated_bytes, self.raw.allocated_bytes)
+    pub fn allocated_bytes(&self) -> u64 {
+        self.heap
+            .allocated_bytes
+            .checked_add(self.raw.allocated_bytes)
+            .unwrap_or_else(|| panic!("shared heap usage overflow: allocated bytes"))
     }
 
     /// Return the exact total active bytes.
-    pub fn active_bytes(&self) -> HeapResult<u64> {
-        sum_bytes(self.managed.active_bytes, self.raw.active_bytes)
+    pub fn active_bytes(&self) -> u64 {
+        self.heap
+            .active_bytes
+            .checked_add(self.raw.active_bytes)
+            .unwrap_or_else(|| panic!("shared heap usage overflow: active bytes"))
     }
 
     /// Return the exact total mapped bytes.
-    pub fn mapped_bytes(&self) -> HeapResult<u64> {
-        sum_bytes(self.managed.mapped_bytes, self.raw.mapped_bytes)
+    pub fn mapped_bytes(&self) -> u64 {
+        self.heap
+            .mapped_bytes
+            .checked_add(self.raw.mapped_bytes)
+            .unwrap_or_else(|| panic!("shared heap usage overflow: mapped bytes"))
     }
 
     /// Return the exact total borrowed image bytes.
-    pub fn borrowed_bytes(&self) -> HeapResult<u64> {
-        sum_bytes(self.managed.borrowed_bytes, self.raw.borrowed_bytes)
+    pub fn borrowed_bytes(&self) -> u64 {
+        self.heap
+            .borrowed_bytes
+            .checked_add(self.raw.borrowed_bytes)
+            .unwrap_or_else(|| panic!("shared heap usage overflow: borrowed bytes"))
     }
 }

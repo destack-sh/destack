@@ -1,21 +1,22 @@
 use std::sync::atomic::Ordering;
 
 use crate::shared::gc::{SharedGcPhase, SharedTraceWork};
-use crate::shared::managed::space::{checked_slot_offset, checked_storage_offset};
-use crate::shared::managed::{SharedManagedLocation, SharedManagedSpace};
+use crate::shared::space::{
+    SharedHeapSpace, SharedHeapStorage, checked_slot_offset, checked_storage_offset,
+};
 use crate::{
-    GcKind, GcStats, HeapError, HeapResult, HeapSpace, SharedManagedReference,
+    AccountingRegion, GcKind, GcStats, HeapError, HeapResult, SharedHeapReference,
     visit_shared_references_in_reader, visit_shared_references_in_reader_range,
 };
 
 /// The maximum references to drain from the shared trace queue at once.
 const SHARED_MARK_BATCH_LEN: usize = 64;
 
-impl SharedManagedSpace {
-    /// Start one shared managed mark phase over explicit roots.
+impl SharedHeapSpace {
+    /// Start one shared heap mark phase over explicit roots.
     pub(crate) fn start_mark(
         &self,
-        roots: impl IntoIterator<Item = SharedManagedReference>,
+        roots: impl IntoIterator<Item = SharedHeapReference>,
     ) -> HeapResult<()> {
         // lifecycle
         let _lifecycle = self.gc.lock_lifecycle();
@@ -26,7 +27,9 @@ impl SharedManagedSpace {
         }
 
         // cycle state
-        self.gc.marks.start_cycle();
+        {
+            self.clear_mark_bits();
+        }
         self.gc.trace_queue.clear();
         self.gc.clear_small_span_work();
         self.gc.open_mark_publication();
@@ -43,10 +46,10 @@ impl SharedManagedSpace {
         Ok(())
     }
 
-    /// Perform one full shared managed collection over explicit roots.
+    /// Perform one full shared heap collection over explicit roots.
     pub fn collect_full(
         &self,
-        roots: impl IntoIterator<Item = SharedManagedReference>,
+        roots: impl IntoIterator<Item = SharedHeapReference>,
     ) -> HeapResult<GcStats> {
         self.start_mark(roots)?;
 
@@ -68,7 +71,7 @@ impl SharedManagedSpace {
     /// Perform bounded shared mark work.
     pub(crate) fn mark_step(
         &self,
-        roots: impl IntoIterator<Item = SharedManagedReference>,
+        roots: impl IntoIterator<Item = SharedHeapReference>,
         work_items: usize,
     ) -> HeapResult<()> {
         // phase
@@ -178,9 +181,8 @@ impl SharedManagedSpace {
 
     /// Perform bounded shared sweep work.
     pub(crate) fn sweep_step(&self, work_items: usize) -> HeapResult<Option<GcStats>> {
-        let store = self.store.read();
-        let reference_len = store.references.len();
-        drop(store);
+        let references = self.live_references()?;
+        let reference_len = references.len();
 
         let mut work_done = 0usize;
         let mut released_references = Vec::new();
@@ -194,30 +196,24 @@ impl SharedManagedSpace {
 
             work_done += 1;
 
-            let Some(record) = self.store.read().references.get(index).copied() else {
+            let Some(reference) = references.get(index).copied() else {
                 continue;
             };
 
-            let reference_id = index.checked_add(1).ok_or(HeapError::InvariantOverflow {
-                context: "shared managed reference id",
-            })?;
-            let reference_id = u32::try_from(reference_id).map_err(|_| {
-                HeapError::InvalidSharedManagedReferenceId {
-                    id: reference_id as u64,
-                }
-            })?;
-            let reference = SharedManagedReference::new(reference_id);
+            let Some(location) = self.resolve_location(reference) else {
+                continue;
+            };
 
-            if record.is_vacant() || self.gc.marks.contains(reference) {
+            if self.is_marked_storage(location.storage)? {
                 continue;
             }
 
-            released_references.push(reference_id);
+            released_references.push(reference);
         }
 
         // reclaimed references
-        for reference_id in released_references {
-            let released_bytes = self.free_reference(reference_id)?;
+        for reference in released_references {
+            let released_bytes = self.free_reference(reference)?;
 
             // freed totals
             let freed_allocations = self.gc.freed_allocations.fetch_add(1, Ordering::AcqRel);
@@ -246,19 +242,14 @@ impl SharedManagedSpace {
         Ok(None)
     }
 
-    /// Mark one shared managed reference and queue its children.
-    fn trace_reference(&self, reference: SharedManagedReference) -> HeapResult<()> {
-        let Some(record) = self.reference_entry(reference) else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
+    /// Mark one shared heap reference and queue its children.
+    fn trace_reference(&self, reference: SharedHeapReference) -> HeapResult<()> {
+        let Some(location) = self.resolve_location(reference) else {
+            return Err(HeapError::InvalidSharedHeapReference { reference });
         };
 
-        // live entry
-        if record.is_vacant() {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
-        }
-
         // mark bit
-        if !self.gc.marks.mark(reference) {
+        if !self.mark_storage(location.storage)? {
             return Ok(());
         }
 
@@ -269,7 +260,6 @@ impl SharedManagedSpace {
         // payload scan
         let trace_result = visit_shared_references_in_reader(
             &scan,
-            SharedManagedReference::BYTE_LEN,
             |start, buffer| match self.read_bytes_into(reference, start, buffer) {
                 Ok(()) => true,
                 Err(error) => {
@@ -277,7 +267,7 @@ impl SharedManagedSpace {
                     false
                 }
             },
-            |reference: SharedManagedReference| {
+            |reference: SharedHeapReference| {
                 if !reference.is_null() {
                     edge_buffer.push(reference);
                 }
@@ -324,32 +314,30 @@ impl SharedManagedSpace {
                 let Some(span) = store.small.spans.get(span_index).cloned() else {
                     return Err(HeapError::MissingSpan { span_index });
                 };
-                let span = span.read();
                 let span_bytes = store.small.span_bytes;
 
                 // shared small-span scan
                 for slot_index in pending_slots {
-                    let reference_id = span
-                        .reference_ids
-                        .get(slot_index)
-                        .copied()
-                        .flatten()
-                        .ok_or(HeapError::MissingSmallSlot {
-                            span_index,
-                            slot_index,
-                        })?;
-                    let reference = SharedManagedReference::new(reference_id);
+                    let (slot_offset, pages, shape_id) = {
+                        let mut span = span.write();
 
-                    if !self.gc.marks.mark(reference) {
-                        continue;
-                    }
+                        if span.marked.contains(slot_index) {
+                            continue;
+                        }
 
-                    let shape_id = span.shape_ids.get(slot_index).copied().flatten().ok_or(
-                        HeapError::MissingSmallSlot {
-                            span_index,
-                            slot_index,
-                        },
-                    )?;
+                        span.marked.set(slot_index);
+
+                        let slot_offset = checked_slot_offset(span.size_class, slot_index)?;
+                        let pages = span.pages.clone();
+                        let shape_id = span.shape_ids.get(slot_index).copied().flatten().ok_or(
+                            HeapError::MissingSmallSlot {
+                                span_index,
+                                slot_index,
+                            },
+                        )?;
+
+                        (slot_offset, pages, shape_id)
+                    };
                     let shape =
                         store
                             .shape_table
@@ -358,17 +346,14 @@ impl SharedManagedSpace {
                                 index: shape_id.index(),
                             })?;
 
-                    if !shape.scan.has_shared_reference() {
+                    if !shape.trace.has_shared_reference() {
                         continue;
                     }
-
-                    let slot_offset = checked_slot_offset(span.size_class, slot_index)?;
                     let mut first_reader_error = None;
 
                     // payload scan
                     let trace_result = visit_shared_references_in_reader(
-                        &shape.scan,
-                        SharedManagedReference::BYTE_LEN,
+                        &shape.trace,
                         |start, buffer| {
                             let read_offset =
                                 match checked_storage_offset(slot_offset, start, span_bytes) {
@@ -380,7 +365,7 @@ impl SharedManagedSpace {
                                     }
                                 };
 
-                            match self.arena.fill_bytes_from(&span.pages, read_offset, buffer) {
+                            match self.allocator.fill_bytes_from(&pages, read_offset, buffer) {
                                 Ok(()) => true,
                                 Err(error) => {
                                     first_reader_error.get_or_insert(error);
@@ -388,7 +373,7 @@ impl SharedManagedSpace {
                                 }
                             }
                         },
-                        |reference: SharedManagedReference| {
+                        |reference: SharedHeapReference| {
                             if !reference.is_null() {
                                 edge_buffer.push(reference);
                             }
@@ -441,14 +426,11 @@ impl SharedManagedSpace {
         match work {
             SharedTraceWork::SmallSpan(span_index) => Ok(span_index as u64),
             SharedTraceWork::Reference(reference) => {
-                let Some(record) = self.reference_entry(reference) else {
-                    return Err(HeapError::InvalidSharedManagedReference { reference });
+                let Some(location) = self.resolve_location(reference) else {
+                    return Err(HeapError::InvalidSharedHeapReference { reference });
                 };
-                let Some(location) = record.location() else {
-                    return Err(HeapError::InvalidSharedManagedReference { reference });
-                };
-                let SharedManagedLocation::Large(entry_id) = location else {
-                    return Err(HeapError::InvalidSharedManagedReference { reference });
+                let SharedHeapStorage::Large(entry_id) = location.storage else {
+                    return Err(HeapError::InvalidSharedHeapReference { reference });
                 };
                 let large_base = 1_u64 << 63;
 
@@ -457,29 +439,25 @@ impl SharedManagedSpace {
         }
     }
 
-    /// Free one shared managed reference by stable reference id.
-    fn free_reference(&self, reference_id: u32) -> HeapResult<u64> {
-        let reference = SharedManagedReference::new(reference_id);
-        let Some(record) = self.reference_entry(reference) else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
+    /// Free one shared heap reference.
+    fn free_reference(&self, reference: SharedHeapReference) -> HeapResult<u64> {
+        let Some(location) = self.resolve_location(reference) else {
+            return Err(HeapError::InvalidSharedHeapReference { reference });
         };
-        let Some(location) = record.location() else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
-        };
-        let released_bytes = record.byte_len() as u64;
+        let released_bytes = location.byte_len as u64;
         let mut store = self.store.write();
 
         // usage
         store
             .usage
-            .check_free(released_bytes, HeapSpace::SharedManaged)?;
+            .check_free(released_bytes, AccountingRegion::SharedHeap)?;
 
         // location release
-        match location {
-            SharedManagedLocation::Small(slot) => {
+        match location.storage {
+            SharedHeapStorage::Small(slot) => {
                 self.release_small_slot(&mut store, slot)?;
             }
-            SharedManagedLocation::Large(entry_id) => {
+            SharedHeapStorage::Large(entry_id) => {
                 let Some(entry) = store.large.entries.get(entry_id.index()?).cloned() else {
                     return Err(HeapError::MissingLargeEntry {
                         entry_id: entry_id.id(),
@@ -493,20 +471,24 @@ impl SharedManagedSpace {
                         });
                     }
 
-                    let pages = entry.pages;
+                    let pages = entry.pages.clone();
                     entry.retire();
 
                     pages
                 };
 
                 store.large.free_large_entry_ids.push(entry_id.id());
-                store.page_run_cache.release_page_view(&self.arena, pages)?;
+                self.unmap_page_view(&mut store, &pages)?;
+                store
+                    .page_run_cache
+                    .release_page_view(&self.allocator, pages)?;
             }
         }
 
         // reference release
-        store.usage.free(released_bytes, HeapSpace::SharedManaged)?;
-        self.retire_reference(&mut store, reference_id)?;
+        store
+            .usage
+            .free(released_bytes, AccountingRegion::SharedHeap)?;
 
         Ok(released_bytes)
     }
@@ -547,10 +529,10 @@ impl SharedManagedSpace {
         Ok(stats)
     }
 
-    /// Record one shared managed write barrier after one completed store.
+    /// Record one shared heap write barrier after one completed store.
     pub(crate) fn write_shared_barrier(
         &self,
-        reference: SharedManagedReference,
+        reference: SharedHeapReference,
         byte_offset: usize,
         byte_len: usize,
     ) -> HeapResult<()> {
@@ -568,7 +550,6 @@ impl SharedManagedSpace {
             &scan,
             byte_offset,
             byte_len,
-            SharedManagedReference::BYTE_LEN,
             |start, buffer| match self.read_bytes_into(reference, start, buffer) {
                 Ok(()) => true,
                 Err(error) => {
@@ -576,7 +557,7 @@ impl SharedManagedSpace {
                     false
                 }
             },
-            |reference: SharedManagedReference| {
+            |reference: SharedHeapReference| {
                 if !reference.is_null() {
                     edge_buffer.push(reference);
                 }
@@ -598,10 +579,10 @@ impl SharedManagedSpace {
         Ok(())
     }
 
-    /// Record one shared managed write barrier from one caller-provided byte slice.
+    /// Record one shared heap write barrier from one caller-provided byte slice.
     pub(crate) fn write_shared_barrier_bytes(
         &self,
-        reference: SharedManagedReference,
+        reference: SharedHeapReference,
         byte_offset: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
@@ -620,7 +601,6 @@ impl SharedManagedSpace {
             &scan,
             byte_offset,
             bytes.len(),
-            SharedManagedReference::BYTE_LEN,
             |start, buffer| {
                 let local_start = start.saturating_sub(byte_offset);
                 let Some(local_end) = local_start.checked_add(buffer.len()) else {
@@ -633,7 +613,7 @@ impl SharedManagedSpace {
                 buffer.copy_from_slice(window);
                 true
             },
-            |reference: SharedManagedReference| {
+            |reference: SharedHeapReference| {
                 if !reference.is_null() {
                     edge_buffer.push(reference);
                 }
@@ -651,8 +631,8 @@ impl SharedManagedSpace {
         Ok(())
     }
 
-    /// Publish one exact shared managed reference after one completed store.
-    pub(crate) fn publish_shared_edge(&self, reference: SharedManagedReference) -> HeapResult<()> {
+    /// Publish one exact shared heap reference after one completed store.
+    pub(crate) fn publish_shared_edge(&self, reference: SharedHeapReference) -> HeapResult<()> {
         // publication
         let Some(_publication) = self.gc.begin_mark_publication() else {
             return Ok(());
@@ -665,15 +645,19 @@ impl SharedManagedSpace {
         self.queue_reference(reference)
     }
 
-    /// Publish one newly allocated shared managed reference into the active cycle.
+    /// Publish one newly allocated shared heap reference into the active cycle.
     pub(crate) fn publish_shared_allocation(
         &self,
-        reference: SharedManagedReference,
+        reference: SharedHeapReference,
         has_initial_edges: bool,
     ) -> HeapResult<()> {
+        let Some(location) = self.resolve_location(reference) else {
+            return Err(HeapError::InvalidSharedHeapReference { reference });
+        };
+
         // sweeping allocations stay live in the active cycle
         if self.gc.phase() == SharedGcPhase::Sweep {
-            self.gc.marks.mark(reference);
+            self.mark_storage(location.storage)?;
 
             return Ok(());
         }
@@ -681,7 +665,7 @@ impl SharedManagedSpace {
         // publication
         let Some(_publication) = self.gc.begin_mark_publication() else {
             if self.gc.phase() == SharedGcPhase::Sweep {
-                self.gc.marks.mark(reference);
+                self.mark_storage(location.storage)?;
             }
 
             return Ok(());
@@ -689,7 +673,7 @@ impl SharedManagedSpace {
 
         // new allocations without initial shared edges can stay black
         if !has_initial_edges {
-            self.gc.marks.mark(reference);
+            self.mark_storage(location.storage)?;
 
             return Ok(());
         }
@@ -701,18 +685,18 @@ impl SharedManagedSpace {
     /// Queue explicit roots that are not already marked in this cycle.
     fn queue_unmarked_references(
         &self,
-        references: impl IntoIterator<Item = SharedManagedReference>,
+        references: impl IntoIterator<Item = SharedHeapReference>,
     ) -> HeapResult<()> {
         for reference in references {
             if reference.is_null() {
                 continue;
             }
 
-            let Some(_reference_index) = reference.id().checked_sub(1).map(|id| id as usize) else {
-                return Err(HeapError::InvalidSharedManagedReference { reference });
+            let Some(location) = self.resolve_location(reference) else {
+                return Err(HeapError::InvalidSharedHeapReference { reference });
             };
 
-            if self.gc.marks.contains(reference) {
+            if self.is_marked_storage(location.storage)? {
                 continue;
             }
 
@@ -723,14 +707,14 @@ impl SharedManagedSpace {
     }
 
     /// Queue one shared reference for later trace work.
-    fn queue_reference(&self, reference: SharedManagedReference) -> HeapResult<()> {
+    fn queue_reference(&self, reference: SharedHeapReference) -> HeapResult<()> {
         self.queue_references([reference])
     }
 
     /// Queue shared references for later trace work.
     fn queue_references(
         &self,
-        references: impl IntoIterator<Item = SharedManagedReference>,
+        references: impl IntoIterator<Item = SharedHeapReference>,
     ) -> HeapResult<()> {
         // nulls
         for reference in references {
@@ -738,10 +722,9 @@ impl SharedManagedSpace {
                 continue;
             }
 
-            // stable id
-            let Some(_reference_index) = reference.id().checked_sub(1).map(|id| id as usize) else {
-                return Err(HeapError::InvalidSharedManagedReference { reference });
-            };
+            if self.resolve_location(reference).is_none() {
+                return Err(HeapError::InvalidSharedHeapReference { reference });
+            }
 
             self.queue_reference_work(reference)?;
         }
@@ -750,16 +733,13 @@ impl SharedManagedSpace {
     }
 
     /// Queue one shared reference as span work or direct reference work.
-    fn queue_reference_work(&self, reference: SharedManagedReference) -> HeapResult<()> {
-        let Some(record) = self.reference_entry(reference) else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
-        };
-        let Some(location) = record.location() else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
+    fn queue_reference_work(&self, reference: SharedHeapReference) -> HeapResult<()> {
+        let Some(location) = self.resolve_location(reference) else {
+            return Err(HeapError::InvalidSharedHeapReference { reference });
         };
 
         // small references queue one span work item with pending slots
-        if let SharedManagedLocation::Small(slot) = location {
+        if let SharedHeapStorage::Small(slot) = location.storage {
             let slot_count = {
                 let store = self.store.read();
                 let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
@@ -790,5 +770,80 @@ impl SharedManagedSpace {
             .push(SharedTraceWork::Reference(reference));
 
         Ok(())
+    }
+
+    /// Clear every collector mark bit in the live shared heap.
+    fn clear_mark_bits(&self) {
+        let store = self.store.read();
+
+        for span in &store.small.spans {
+            span.write().clear_marks();
+        }
+
+        for entry in &store.large.entries {
+            entry.write().is_marked = false;
+        }
+    }
+
+    /// Return whether one shared heap storage location is marked in the active cycle.
+    fn is_marked_storage(&self, storage: SharedHeapStorage) -> HeapResult<bool> {
+        let store = self.store.read();
+
+        match storage {
+            SharedHeapStorage::Small(slot) => {
+                let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
+                    return Err(HeapError::MissingSpan {
+                        span_index: slot.span_index(),
+                    });
+                };
+                let span = span.read();
+
+                Ok(span.marked.contains(slot.slot_index()))
+            }
+            SharedHeapStorage::Large(entry_id) => {
+                let Some(entry) = store.large.entries.get(entry_id.index()?).cloned() else {
+                    return Err(HeapError::MissingLargeEntry {
+                        entry_id: entry_id.id(),
+                    });
+                };
+                let entry = entry.read();
+
+                Ok(entry.is_marked)
+            }
+        }
+    }
+
+    /// Mark one shared heap storage location and return whether this was the first mark.
+    fn mark_storage(&self, storage: SharedHeapStorage) -> HeapResult<bool> {
+        if self.is_marked_storage(storage)? {
+            return Ok(false);
+        }
+
+        let store = self.store.read();
+
+        match storage {
+            SharedHeapStorage::Small(slot) => {
+                let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
+                    return Err(HeapError::MissingSpan {
+                        span_index: slot.span_index(),
+                    });
+                };
+                let mut span = span.write();
+
+                span.marked.set(slot.slot_index());
+            }
+            SharedHeapStorage::Large(entry_id) => {
+                let Some(entry) = store.large.entries.get(entry_id.index()?).cloned() else {
+                    return Err(HeapError::MissingLargeEntry {
+                        entry_id: entry_id.id(),
+                    });
+                };
+                let mut entry = entry.write();
+
+                entry.is_marked = true;
+            }
+        }
+
+        Ok(true)
     }
 }

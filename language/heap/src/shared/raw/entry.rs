@@ -7,7 +7,7 @@ pub(crate) struct SharedRawEntry {
     pub(crate) is_live: bool,
     /// The logical byte length of this entry.
     pub(crate) len: usize,
-    /// The arena pages for this entry.
+    /// The allocator pages for this entry.
     pub(crate) pages: PageView,
 }
 
