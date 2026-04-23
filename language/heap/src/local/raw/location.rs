@@ -1,60 +1,45 @@
 use serde::{Deserialize, Serialize};
 
 use super::LargeEntryId;
-use crate::arena::SpanSlot;
+use crate::allocator::SpanSlot;
 
-/// One stable raw entry location.
+/// One stable raw storage partition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) enum RawLocation {
+pub(crate) enum RawStorage {
     /// One small-space entry stored in one span slot.
     Small(SpanSlot),
     /// One entry stored in raw large space.
     Large(LargeEntryId),
 }
 
-/// One live raw pointer record.
+/// One physical page owner in local raw space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct RawPointerEntry {
-    /// The storage location for this raw entry, if allocated.
-    pub(crate) location: Option<RawLocation>,
-    /// The logical byte length for this raw entry.
-    pub(crate) byte_len: usize,
+pub(crate) enum RawPageOwner {
+    /// One small-span page and its logical page index.
+    Small {
+        /// The owning span index.
+        span_index: usize,
+        /// The logical page index inside the span.
+        logical_page_index: usize,
+    },
+    /// One large-entry page and its logical page index.
+    Large {
+        /// The owning large-entry id.
+        entry_id: LargeEntryId,
+        /// The logical page index inside the large entry.
+        logical_page_index: usize,
+    },
 }
 
-impl RawPointerEntry {
-    /// Return one vacant raw pointer record.
-    pub(crate) const fn vacant() -> Self {
-        Self {
-            location: None,
-            byte_len: 0,
-        }
-    }
-
-    /// Create one live raw pointer entry.
-    pub(crate) const fn new(location: RawLocation, byte_len: usize) -> Self {
-        Self {
-            location: Some(location),
-            byte_len,
-        }
-    }
-
-    /// Report whether this raw pointer record is vacant.
-    pub(crate) const fn is_vacant(self) -> bool {
-        self.location.is_none()
-    }
-
-    /// Return the storage location for this raw entry.
-    pub(crate) const fn location(self) -> Option<RawLocation> {
-        self.location
-    }
-
-    /// Set the storage location for this raw entry.
-    pub(crate) fn set_location(&mut self, location: RawLocation) {
-        self.location = Some(location);
-    }
-
-    /// Set the logical byte length for this raw entry.
-    pub(crate) fn set_byte_len(&mut self, byte_len: usize) {
-        self.byte_len = byte_len;
-    }
+/// One resolved raw location.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct RawLocation {
+    /// The owning raw storage.
+    pub(crate) storage: RawStorage,
+    /// The base pointer for the owning allocation.
+    pub(crate) base: crate::RawPointer,
+    /// The byte offset from the base allocation.
+    pub(crate) byte_offset: usize,
+    /// The logical byte length for the owning allocation.
+    pub(crate) byte_len: usize,
 }

@@ -11,16 +11,16 @@ use crate::{HeapError, HeapResult, LayoutId};
 /// The sentinel for one empty reverse-lookup slot.
 const EMPTY_SHAPE_SLOT: u32 = u32::MAX;
 
-/// Heap scan metadata for one managed payload.
+/// Heap scan metadata for one heap payload.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum HeapScan {
-    /// Payload contains no managed references.
+    /// Payload contains no heap references.
     None,
-    /// Payload stores direct managed-reference words at fixed byte offsets.
+    /// Payload stores direct heap-reference words at fixed byte offsets.
     Reference {
-        /// Byte offsets of encoded local managed references.
+        /// Byte offsets of encoded local heap references.
         local_offsets: Box<[u32]>,
-        /// Byte offsets of encoded shared managed references.
+        /// Byte offsets of encoded shared heap references.
         shared_offsets: Box<[u32]>,
     },
     /// Payload stores full packed VM values at fixed byte offsets.
@@ -28,15 +28,15 @@ pub enum HeapScan {
         /// Byte offsets of encoded packed values.
         offsets: Box<[u32]>,
     },
-    /// Payload stores repeated elements with managed-reference words at fixed element offsets.
+    /// Payload stores repeated elements with heap-reference words at fixed element offsets.
     RepeatedReference {
         /// The number of elements in the payload.
         count: u32,
         /// The element byte stride.
         stride: u32,
-        /// Local managed-reference byte offsets within each element.
+        /// Local heap-reference byte offsets within each element.
         local_offsets: Box<[u32]>,
-        /// Shared managed-reference byte offsets within each element.
+        /// Shared heap-reference byte offsets within each element.
         shared_offsets: Box<[u32]>,
     },
 }
@@ -47,12 +47,12 @@ impl HeapScan {
         Self::None
     }
 
-    /// Report whether this payload may contain managed references.
+    /// Report whether this payload may contain heap references.
     pub fn has_reference(&self) -> bool {
         self.has_local_reference() || self.has_shared_reference()
     }
 
-    /// Report whether this payload may contain local managed references.
+    /// Report whether this payload may contain local heap references.
     pub fn has_local_reference(&self) -> bool {
         match self {
             Self::None => false,
@@ -66,7 +66,7 @@ impl HeapScan {
         }
     }
 
-    /// Report whether this payload may contain shared managed references.
+    /// Report whether this payload may contain shared heap references.
     pub fn has_shared_reference(&self) -> bool {
         match self {
             Self::None => false,
@@ -234,7 +234,7 @@ impl ShapeTable {
         Ok(table)
     }
 
-    /// Intern one shape entry and return its stable identifier.
+    /// Intern one shape entry and return its identifier.
     pub(crate) fn intern(&mut self, shape: Shape) -> HeapResult<ShapeId> {
         if self.shape_slots.is_empty() {
             self.rebuild_lookup_slots()?;

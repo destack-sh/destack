@@ -4,26 +4,24 @@ use std::sync::Arc;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::Heap;
-use crate::arena::{Arena, ArenaImage, PageId};
-use crate::local::managed::{
-    GcSummary, ManagedLocation, ManagedSpace, ManagedSpaceImage, live_page_views,
+use crate::allocator::{Allocator, AllocatorImage, PageId};
+use crate::local::raw::{RawSpace, RawSpaceImage};
+use crate::local::space::{
+    GcSummary, HeapLocation, HeapPageOwner, HeapSpace, HeapSpaceImage, HeapStorage, live_page_views,
 };
-use crate::local::raw::{RawLocation, RawSpace, RawSpaceImage};
-use crate::{
-    HeapError, HeapLimits, HeapOptions, HeapResult, ManagedReference, RawPointer, sum_bytes,
-};
+use crate::{HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult};
 
-/// One frozen heap root over one shared arena.
+/// One frozen heap root over one shared allocator.
 #[derive(Debug, Clone)]
 pub struct HeapImage {
-    /// The shared arena backing every captured page.
-    arena: Arc<Arena>,
+    /// The shared allocator backing every captured page.
+    allocator: Arc<Allocator>,
 
     /// The heap options used by this image.
     options: HeapOptions,
 
-    /// The captured managed-space root.
-    managed: ManagedSpaceImage,
+    /// The captured heap-space root.
+    heap: HeapSpaceImage,
     /// The captured raw-space root.
     raw: RawSpaceImage,
 }
@@ -31,14 +29,14 @@ pub struct HeapImage {
 /// One serialized heap snapshot payload.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct HeapSnapshot {
-    /// The serialized arena pages reachable from this heap root.
-    arena: ArenaImage,
+    /// The serialized allocator pages reachable from this heap root.
+    allocator: AllocatorImage,
 
     /// The heap options used by this image.
     options: HeapOptions,
 
-    /// The serialized managed-space root.
-    managed: ManagedSpaceImage,
+    /// The serialized heap-space root.
+    heap: HeapSpaceImage,
     /// The serialized raw-space root.
     raw: RawSpaceImage,
 }
@@ -46,49 +44,49 @@ struct HeapSnapshot {
 impl HeapImage {
     /// Create one frozen heap root.
     pub(crate) fn new(
-        arena: Arc<Arena>,
+        allocator: Arc<Allocator>,
         options: HeapOptions,
-        managed: ManagedSpaceImage,
+        heap: HeapSpaceImage,
         raw: RawSpaceImage,
     ) -> Self {
         Self {
-            arena,
+            allocator,
             options,
-            managed,
+            heap,
             raw,
         }
     }
 
     /// Build one heap image from one serialized payload.
     fn from_snapshot(snapshot: &HeapSnapshot) -> Result<Self, HeapError> {
-        let arena = Arc::new(Arena::from_image(&snapshot.arena)?);
-        let managed = snapshot.managed.clone();
+        let allocator = Arc::new(Allocator::from_image(&snapshot.allocator)?);
+        let heap = snapshot.heap.clone();
         let raw = snapshot.raw.clone();
 
         Ok(Self {
-            arena,
+            allocator,
             options: snapshot.options.clone(),
-            managed,
+            heap,
             raw,
         })
     }
 
     /// Flatten one heap image into one serialized snapshot.
     fn snapshot(&self) -> Result<HeapSnapshot, HeapError> {
-        // collect the reachable arena pages once
+        // collect the reachable allocator pages once
         let page_ids = self.image_page_ids();
 
         Ok(HeapSnapshot {
-            arena: self.arena.image_pages_from_ids(&page_ids)?,
+            allocator: self.allocator.image_pages_from_ids(&page_ids)?,
             options: self.options.clone(),
-            managed: self.managed.clone(),
+            heap: self.heap.clone(),
             raw: self.raw.clone(),
         })
     }
 
-    /// Return the shared arena for this image.
-    pub fn arena(&self) -> &Arc<Arena> {
-        &self.arena
+    /// Return the shared allocator for this image.
+    pub fn allocator(&self) -> &Arc<Allocator> {
+        &self.allocator
     }
 
     /// Return the heap options for this image.
@@ -96,9 +94,9 @@ impl HeapImage {
         &self.options
     }
 
-    /// Return the managed-space root.
-    pub(crate) fn managed(&self) -> &ManagedSpaceImage {
-        &self.managed
+    /// Return the heap-space root.
+    pub(crate) fn heap(&self) -> &HeapSpaceImage {
+        &self.heap
     }
 
     /// Return the raw-space root.
@@ -108,7 +106,7 @@ impl HeapImage {
 
     /// Return the captured collector state.
     pub fn gc_state(&self) -> &GcSummary {
-        self.managed.gc_state()
+        self.heap.gc_state()
     }
 
     /// Return the total page count reachable from this heap image.
@@ -116,75 +114,59 @@ impl HeapImage {
         self.image_page_ids().len()
     }
 
-    /// Return the raw page count reachable from this heap image.
-    pub fn raw_page_count(&self) -> usize {
-        self.raw
-            .spans()
-            .iter()
-            .flat_map(|span| span.pages.page_ids())
-            .chain(
-                self.raw
-                    .entries()
-                    .iter()
-                    .flat_map(|entry| entry.pages.page_ids()),
-            )
-            .collect::<BTreeSet<_>>()
-            .len()
-    }
-
     /// Return the total local allocated bytes captured by this image.
     pub fn local_allocated_bytes(&self) -> HeapResult<u64> {
-        sum_bytes(self.managed.allocated_bytes(), self.raw.allocated_bytes())
+        self.heap
+            .allocated_bytes()
+            .checked_add(self.raw.allocated_bytes())
+            .ok_or(HeapError::InvariantOverflow {
+                context: "heap image allocated bytes",
+            })
     }
 
-    /// Return whether one managed entry shares arena storage with another heap root.
+    /// Return whether one heap entry shares allocator storage with another heap root.
     #[doc(hidden)]
-    pub fn shares_managed_allocation_with(
-        &self,
-        other: &Self,
-        reference: ManagedReference,
-    ) -> bool {
-        // resolve the captured managed records first
-        let Some((record, other_record)) = self.managed_record_pair(other, reference) else {
+    pub fn shares_heap_allocation_with(&self, other: &Self, reference: HeapReference) -> bool {
+        // resolve the captured heap locations first
+        let Some(location) = image_heap_location(&self.allocator, &self.heap, reference) else {
             return false;
         };
-
-        // sharing only makes sense inside one shared arena
-        if !Arc::ptr_eq(&self.arena, &other.arena) {
-            return false;
-        }
-
-        // compare the location-specific page maps
-        let (Some(location), Some(other_location)) = (record.location(), other_record.location())
+        let Some(other_location) = image_heap_location(&other.allocator, &other.heap, reference)
         else {
             return false;
         };
 
-        match (location, other_location) {
-            (ManagedLocation::Young(_), ManagedLocation::Young(_)) => {
-                self.managed.young().pages() == other.managed.young().pages()
+        // sharing only makes sense inside one shared allocator
+        if !Arc::ptr_eq(&self.allocator, &other.allocator) {
+            return false;
+        }
+
+        // compare the location-specific page maps
+        match (location.storage, other_location.storage) {
+            (HeapStorage::Young(_), HeapStorage::Young(_)) => {
+                self.heap.young().pages() == other.heap.young().pages()
             }
-            (ManagedLocation::Small(slot), ManagedLocation::Small(other_slot)) => {
-                let Some(span) = self.managed.spans().get(slot.span_index()) else {
+            (HeapStorage::Small(slot), HeapStorage::Small(other_slot)) => {
+                let Some(span) = self.heap.spans().get(slot.span_index()) else {
                     return false;
                 };
-                let Some(other_span) = other.managed.spans().get(other_slot.span_index()) else {
+                let Some(other_span) = other.heap.spans().get(other_slot.span_index()) else {
                     return false;
                 };
 
                 slot == other_slot && span.pages == other_span.pages
             }
-            (ManagedLocation::Large(entry), ManagedLocation::Large(other_entry)) => {
+            (HeapStorage::Large(entry), HeapStorage::Large(other_entry)) => {
                 let Ok(entry_index) = entry.index() else {
                     return false;
                 };
                 let Ok(other_entry_index) = other_entry.index() else {
                     return false;
                 };
-                let Some(entry) = self.managed.entries().get(entry_index) else {
+                let Some(entry) = self.heap.entries().get(entry_index) else {
                     return false;
                 };
-                let Some(other_entry) = other.managed.entries().get(other_entry_index) else {
+                let Some(other_entry) = other.heap.entries().get(other_entry_index) else {
                     return false;
                 };
 
@@ -194,78 +176,19 @@ impl HeapImage {
         }
     }
 
-    /// Return whether one raw entry shares arena storage with another heap root.
-    #[doc(hidden)]
-    pub fn shares_raw_allocation_with(&self, other: &Self, pointer: RawPointer) -> bool {
-        // resolve the captured raw records first
-        let Some((record, other_record)) = self.raw_record_pair(other, pointer) else {
-            return false;
-        };
-
-        // sharing only makes sense inside one shared arena
-        if !Arc::ptr_eq(&self.arena, &other.arena) {
-            return false;
-        }
-
-        // compare the location-specific page maps
-        let (Some(location), Some(other_location)) = (record.location(), other_record.location())
-        else {
-            return false;
-        };
-
-        match (location, other_location) {
-            (RawLocation::Small(slot), RawLocation::Small(other_slot)) => {
-                let Some(span) = self.raw.spans().get(slot.span_index()) else {
-                    return false;
-                };
-                let Some(other_span) = other.raw.spans().get(other_slot.span_index()) else {
-                    return false;
-                };
-
-                slot == other_slot && span.pages == other_span.pages
-            }
-            (RawLocation::Large(entry), RawLocation::Large(other_entry)) => {
-                let Ok(entry_index) = entry.index() else {
-                    return false;
-                };
-                let Ok(other_entry_index) = other_entry.index() else {
-                    return false;
-                };
-                let Some(entry) = self.raw.entries().get(entry_index) else {
-                    return false;
-                };
-                let Some(other_entry) = other.raw.entries().get(other_entry_index) else {
-                    return false;
-                };
-
-                entry.pages == other_entry.pages
-            }
-            _ => false,
-        }
-    }
-
-    /// Return every arena page reachable from this heap image.
+    /// Return every allocator page reachable from this heap image.
     pub fn page_ids(&self) -> Vec<PageId> {
         let mut pages = Vec::new();
 
         // collect the young-space pages first
-        pages.extend(self.managed.young().pages().page_ids());
+        pages.extend(self.heap.young().pages().page_ids());
 
-        // collect every managed span and entry page
-        for span in self.managed.spans() {
+        // collect every heap span and entry page
+        for span in self.heap.spans() {
             pages.extend(span.pages.page_ids());
         }
 
-        for entry in self.managed.entries() {
-            pages.extend(entry.pages.page_ids());
-        }
-
-        // collect every raw span and entry page
-        for span in self.raw.spans() {
-            pages.extend(span.pages.page_ids());
-        }
-
-        for entry in self.raw.entries() {
+        for entry in self.heap.entries() {
             pages.extend(entry.pages.page_ids());
         }
 
@@ -281,7 +204,7 @@ impl HeapImage {
             .collect()
     }
 
-    /// Return whether two heap images expose the same reachable arena pages.
+    /// Return whether two heap images expose the same reachable allocator pages.
     fn has_equal_page_bytes(&self, other: &Self) -> bool {
         let page_ids = self.image_page_ids();
         let other_page_ids = other.image_page_ids();
@@ -291,10 +214,10 @@ impl HeapImage {
 
         // compare each reachable page directly without snapshot materialization
         for page_id in page_ids {
-            let Ok(page) = self.arena.read_page_bytes(page_id) else {
+            let Ok(page) = self.allocator.read_page_bytes(page_id) else {
                 return false;
             };
-            let Ok(other_page) = other.arena.read_page_bytes(page_id) else {
+            let Ok(other_page) = other.allocator.read_page_bytes(page_id) else {
                 return false;
             };
 
@@ -305,61 +228,17 @@ impl HeapImage {
 
         true
     }
-
-    /// Return one pair of live managed records captured by two heap images.
-    fn managed_record_pair<'a>(
-        &'a self,
-        other: &'a Self,
-        reference: ManagedReference,
-    ) -> Option<(
-        &'a crate::local::managed::ManagedReferenceEntry,
-        &'a crate::local::managed::ManagedReferenceEntry,
-    )> {
-        // resolve the stable reference slot first
-        let reference_index = reference.id().checked_sub(1)? as usize;
-        let record = self.managed.references().get(reference_index)?;
-        let other_record = other.managed.references().get(reference_index)?;
-
-        // skip vacant captured records
-        if record.is_vacant() || other_record.is_vacant() {
-            return None;
-        }
-
-        Some((record, other_record))
-    }
-
-    /// Return one pair of live raw records captured by two heap images.
-    fn raw_record_pair<'a>(
-        &'a self,
-        other: &'a Self,
-        pointer: RawPointer,
-    ) -> Option<(
-        &'a crate::local::raw::RawPointerEntry,
-        &'a crate::local::raw::RawPointerEntry,
-    )> {
-        // resolve the stable pointer slot first
-        let pointer_index = pointer.id().checked_sub(1)? as usize;
-        let record = self.raw.pointers().get(pointer_index)?;
-        let other_record = other.raw.pointers().get(pointer_index)?;
-
-        // skip vacant captured records
-        if record.is_vacant() || other_record.is_vacant() {
-            return None;
-        }
-
-        Some((record, other_record))
-    }
 }
 
 impl Heap {
-    /// Fork one live heap over the same shared arena.
+    /// Fork one live heap over the same shared allocator.
     pub fn fork(&mut self) -> Result<Self, HeapError> {
-        let managed = self.managed.fork()?;
+        let heap = self.heap.fork()?;
         let raw = match self.raw.fork() {
             Ok(raw) => raw,
             Err(error) => {
-                for page_view in live_page_views(&managed).into_iter().rev() {
-                    self.arena.release_page_view(&page_view)?;
+                for page_view in live_page_views(&heap).into_iter().rev() {
+                    self.allocator.release_page_view(&page_view)?;
                 }
 
                 return Err(error);
@@ -367,11 +246,11 @@ impl Heap {
         };
 
         Ok(Self {
-            arena: self.arena.clone(),
+            allocator: self.allocator.clone(),
             options: self.options.clone(),
             gc_pacer: self.gc_pacer,
             gc_request: self.gc_request,
-            managed,
+            heap,
             raw,
             limits: self.limits,
         })
@@ -389,12 +268,12 @@ impl Heap {
     ) -> Result<Self, HeapError> {
         image.options().validate_local()?;
 
-        let managed = ManagedSpace::from_image(image.arena().clone(), image.managed())?;
-        let raw = match RawSpace::from_image(image.arena().clone(), image.raw()) {
+        let heap = HeapSpace::from_image(image.allocator().clone(), image.heap())?;
+        let raw = match RawSpace::from_image(image.allocator().clone(), image.raw()) {
             Ok(raw) => raw,
             Err(error) => {
-                for page_view in live_page_views(&managed).into_iter().rev() {
-                    image.arena().release_page_view(&page_view)?;
+                for page_view in live_page_views(&heap).into_iter().rev() {
+                    image.allocator().release_page_view(&page_view)?;
                 }
 
                 return Err(error);
@@ -402,11 +281,11 @@ impl Heap {
         };
 
         let mut heap = Self {
-            arena: image.arena().clone(),
+            allocator: image.allocator().clone(),
             options: image.options().clone(),
             gc_pacer: Default::default(),
             gc_request: None,
-            managed,
+            heap,
             raw,
             limits,
         };
@@ -418,20 +297,20 @@ impl Heap {
 
     /// Capture one frozen heap root.
     pub fn image(&mut self) -> Result<HeapImage, HeapError> {
-        let managed = self.managed.image()?;
+        let heap = self.heap.image()?;
         let raw = self.raw.image();
 
         Ok(HeapImage::new(
-            self.arena().clone(),
+            self.allocator().clone(),
             self.options().clone(),
-            managed,
+            heap,
             raw,
         ))
     }
 
     /// Restore this heap from one frozen heap root.
     pub fn restore_image(&mut self, image: &HeapImage) -> Result<(), HeapError> {
-        self.managed.check_branch_boundary()?;
+        self.heap.check_branch_boundary()?;
 
         let limits = self.limits;
         *self = Self::from_image_with_limits(image, limits)?;
@@ -465,10 +344,149 @@ impl<'de> Deserialize<'de> for HeapImage {
 impl PartialEq for HeapImage {
     fn eq(&self, other: &Self) -> bool {
         self.options == other.options
-            && self.managed == other.managed
+            && self.heap == other.heap
             && self.raw == other.raw
             && self.has_equal_page_bytes(other)
     }
 }
 
 impl Eq for HeapImage {}
+
+/// Return the resolved heap page owner for one captured page.
+fn image_heap_page_owner(image: &HeapSpaceImage, page_id: PageId) -> Option<HeapPageOwner> {
+    for logical_page_index in 0..image.young().pages().len() {
+        let image_page_id = image.young().pages().page(logical_page_index)?;
+        if image_page_id == page_id {
+            return Some(HeapPageOwner::Young { logical_page_index });
+        }
+    }
+
+    for (span_index, span) in image.spans().iter().enumerate() {
+        for logical_page_index in 0..span.pages.len() {
+            let image_page_id = span.pages.page(logical_page_index)?;
+            if image_page_id == page_id {
+                return Some(HeapPageOwner::Small {
+                    span_index,
+                    logical_page_index,
+                });
+            }
+        }
+    }
+
+    for (entry_index, entry) in image.entries().iter().enumerate() {
+        for logical_page_index in 0..entry.pages.len() {
+            let image_page_id = entry.pages.page(logical_page_index)?;
+            if image_page_id == page_id {
+                return Some(HeapPageOwner::Large {
+                    entry_id: crate::local::space::LargeEntryId::new(entry_index as u64 + 1),
+                    logical_page_index,
+                });
+            }
+        }
+    }
+
+    None
+}
+
+/// Return the resolved heap location for one captured heap reference.
+fn image_heap_location(
+    allocator: &Allocator,
+    image: &HeapSpaceImage,
+    reference: HeapReference,
+) -> Option<HeapLocation> {
+    let (page_id, page_offset) = allocator.address_page_position(reference.address())?;
+    let owner = image_heap_page_owner(image, page_id)?;
+
+    match owner {
+        HeapPageOwner::Young { logical_page_index } => {
+            let logical_byte_offset = logical_page_index
+                .checked_mul(image.young().page_bytes())?
+                .checked_add(page_offset)?;
+
+            for (entry_index, entry) in image.young().entries().iter().enumerate() {
+                if !entry.is_live {
+                    continue;
+                }
+
+                let entry_offset = entry.first_page as usize * image.young().page_bytes()
+                    + entry.first_offset as usize;
+                let entry_end = entry_offset.checked_add(entry.byte_len)?;
+                if logical_byte_offset < entry_offset || logical_byte_offset >= entry_end {
+                    continue;
+                }
+
+                let base_address = allocator
+                    .page_view_ptr(image.young().pages(), entry_offset)
+                    .ok()? as *mut u8 as usize;
+                let byte_offset = logical_byte_offset.checked_sub(entry_offset)?;
+
+                return Some(HeapLocation {
+                    storage: HeapStorage::Young(crate::local::space::HeapYoungId::new(
+                        image.young().generation(),
+                        entry_index as u32,
+                    )),
+                    base: HeapReference::new(base_address),
+                    byte_offset,
+                    byte_len: entry.byte_len,
+                });
+            }
+
+            None
+        }
+        HeapPageOwner::Small {
+            span_index,
+            logical_page_index,
+        } => {
+            let span = image.spans().get(span_index)?;
+            let logical_byte_offset = logical_page_index
+                .checked_mul(image.page_bytes())?
+                .checked_add(page_offset)?;
+            let slot_index = logical_byte_offset / span.size_class;
+            let slot_offset = logical_byte_offset % span.size_class;
+
+            if slot_index >= span.slot_count || !span.occupied.contains(slot_index) {
+                return None;
+            }
+
+            let byte_len = *span.lengths.get(slot_index)?;
+            if slot_offset >= byte_len {
+                return None;
+            }
+
+            let slot_base_offset = slot_index.checked_mul(span.size_class)?;
+            let base_address = allocator
+                .page_view_ptr(&span.pages, slot_base_offset)
+                .ok()? as *mut u8 as usize;
+            let slot = crate::allocator::SpanSlot::new(span_index, slot_index).ok()?;
+
+            Some(HeapLocation {
+                storage: HeapStorage::Small(slot),
+                base: HeapReference::new(base_address),
+                byte_offset: slot_offset,
+                byte_len,
+            })
+        }
+        HeapPageOwner::Large {
+            entry_id,
+            logical_page_index,
+        } => {
+            let entry = image.entries().get(entry_id.index().ok()?)?;
+            let logical_byte_offset = logical_page_index
+                .checked_mul(image.page_bytes())?
+                .checked_add(page_offset)?;
+
+            if logical_byte_offset >= entry.len {
+                return None;
+            }
+
+            let base_address = allocator.page_view_ptr(&entry.pages, 0).ok()? as *mut u8 as usize;
+
+            Some(HeapLocation {
+                storage: HeapStorage::Large(entry_id),
+                base: HeapReference::new(base_address),
+                byte_offset: logical_byte_offset,
+                byte_len: entry.len,
+            })
+        }
+    }
+}

@@ -1,20 +1,19 @@
 use serde::{Deserialize, Serialize};
 
 use super::Heap;
-use crate::{HeapResult, sum_bytes};
 
-/// Exact managed-space usage for one live heap.
+/// Exact heap-space usage for one live heap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct ManagedSpaceUsage {
-    /// The number of live managed allocations.
+pub struct HeapSpaceUsage {
+    /// The number of live heap allocations.
     pub allocation_count: usize,
-    /// The logical live managed payload bytes.
+    /// The logical live heap payload bytes.
     pub allocated_bytes: u64,
-    /// The exact active managed allocator bytes.
+    /// The exact active heap allocator bytes.
     pub active_bytes: u64,
-    /// The exact mapped managed page-arena bytes.
+    /// The exact mapped heap allocator page bytes.
     pub mapped_bytes: u64,
-    /// The exact borrowed managed image bytes.
+    /// The exact borrowed heap image bytes.
     pub borrowed_bytes: u64,
 }
 
@@ -27,7 +26,7 @@ pub struct RawSpaceUsage {
     pub allocated_bytes: u64,
     /// The exact active raw allocator bytes.
     pub active_bytes: u64,
-    /// The exact mapped raw page-arena bytes.
+    /// The exact mapped raw allocator page bytes.
     pub mapped_bytes: u64,
     /// The exact borrowed raw image bytes.
     pub borrowed_bytes: u64,
@@ -36,51 +35,63 @@ pub struct RawSpaceUsage {
 /// Exact heap usage for one live heap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct HeapUsage {
-    /// The exact managed-space usage.
-    pub managed: ManagedSpaceUsage,
+    /// The exact heap-space usage.
+    pub heap: HeapSpaceUsage,
     /// The exact raw-space usage.
     pub raw: RawSpaceUsage,
 }
 
 impl HeapUsage {
     /// Return the exact total live allocated bytes.
-    pub fn allocated_bytes(&self) -> HeapResult<u64> {
-        sum_bytes(self.managed.allocated_bytes, self.raw.allocated_bytes)
+    pub fn allocated_bytes(&self) -> u64 {
+        self.heap
+            .allocated_bytes
+            .checked_add(self.raw.allocated_bytes)
+            .unwrap_or_else(|| panic!("heap usage overflow: allocated bytes"))
     }
 
     /// Return the exact total active heap bytes.
-    pub fn active_bytes(&self) -> HeapResult<u64> {
-        sum_bytes(self.managed.active_bytes, self.raw.active_bytes)
+    pub fn active_bytes(&self) -> u64 {
+        self.heap
+            .active_bytes
+            .checked_add(self.raw.active_bytes)
+            .unwrap_or_else(|| panic!("heap usage overflow: active bytes"))
     }
 
     /// Return the exact total mapped heap bytes.
-    pub fn mapped_bytes(&self) -> HeapResult<u64> {
-        sum_bytes(self.managed.mapped_bytes, self.raw.mapped_bytes)
+    pub fn mapped_bytes(&self) -> u64 {
+        self.heap
+            .mapped_bytes
+            .checked_add(self.raw.mapped_bytes)
+            .unwrap_or_else(|| panic!("heap usage overflow: mapped bytes"))
     }
 
     /// Return the exact total borrowed image bytes.
-    pub fn borrowed_bytes(&self) -> HeapResult<u64> {
-        sum_bytes(self.managed.borrowed_bytes, self.raw.borrowed_bytes)
+    pub fn borrowed_bytes(&self) -> u64 {
+        self.heap
+            .borrowed_bytes
+            .checked_add(self.raw.borrowed_bytes)
+            .unwrap_or_else(|| panic!("heap usage overflow: borrowed bytes"))
     }
 }
 
 impl Heap {
-    /// Return the number of allocated managed bytes.
-    pub fn managed_allocated_bytes(&self) -> u64 {
-        self.managed.allocated_bytes()
+    /// Return the number of allocated heap bytes.
+    pub fn heap_allocated_bytes(&self) -> u64 {
+        self.heap.allocated_bytes()
     }
 
     /// Return the exact live usage for this heap.
-    pub fn usage(&self) -> HeapResult<HeapUsage> {
-        Ok(HeapUsage {
-            managed: self.managed.usage()?,
-            raw: self.raw.usage()?,
-        })
+    pub fn usage(&self) -> HeapUsage {
+        HeapUsage {
+            heap: self.heap.usage(),
+            raw: self.raw.usage(),
+        }
     }
 
-    /// Return the number of live managed allocations.
-    pub fn managed_allocation_count(&self) -> usize {
-        self.managed.allocation_count()
+    /// Return the number of live heap allocations.
+    pub fn heap_allocation_count(&self) -> usize {
+        self.heap.allocation_count()
     }
 
     /// Return the number of live raw allocations.

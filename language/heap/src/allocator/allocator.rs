@@ -9,7 +9,7 @@ use super::{PageId, PageRun, PageView, Segment};
 use crate::{HeapError, HeapOptions, HeapResult};
 
 /// The maximum number of allocator segments in one allocator.
-const MAX_ARENA_SEGMENTS: usize = 1 << 16;
+const MAX_ALLOCATOR_SEGMENTS: usize = 1 << 16;
 /// Sentinel for one missing fresh segment.
 const MISSING_SEGMENT_INDEX: usize = usize::MAX;
 
@@ -40,7 +40,7 @@ pub struct Allocator {
     segment_bytes: u32,
     /// The number of pages stored in each allocator segment.
     pages_per_segment: u32,
-    /// The stable segment slots for this allocator.
+    /// The reserved segment slots for this allocator.
     segments: Box<[AtomicPtr<Segment>]>,
     /// The live segment starts keyed by base address.
     segment_starts: Mutex<BTreeMap<usize, usize>>,
@@ -86,14 +86,14 @@ impl Allocator {
     pub fn new() -> Self {
         let options = HeapOptions::local();
         let page_bytes = options.page_bytes;
-        let segment_bytes = options.arena_segment_bytes;
+        let segment_bytes = options.allocator_segment_bytes;
 
         Self {
             page_bytes: page_bytes as u32,
             segment_bytes: segment_bytes as u32,
             pages_per_segment: (segment_bytes / page_bytes) as u32,
             segments: std::iter::repeat_with(|| AtomicPtr::new(null_mut()))
-                .take(MAX_ARENA_SEGMENTS)
+                .take(MAX_ALLOCATOR_SEGMENTS)
                 .collect(),
             segment_starts: Mutex::new(BTreeMap::new()),
             reserved_segment_count: AtomicUsize::new(0),
@@ -105,7 +105,8 @@ impl Allocator {
     /// Create one empty allocator with the given page and segment widths.
     pub fn try_new(page_bytes: usize, segment_bytes: usize) -> HeapResult<Self> {
         let page_bytes = HeapOptions::validate_page_bytes(page_bytes)?;
-        let segment_bytes = HeapOptions::validate_arena_segment_bytes(page_bytes, segment_bytes)?;
+        let segment_bytes =
+            HeapOptions::validate_allocator_segment_bytes(page_bytes, segment_bytes)?;
         let pages_per_segment = (segment_bytes / page_bytes) as u32;
 
         Ok(Self {
@@ -113,7 +114,7 @@ impl Allocator {
             segment_bytes: segment_bytes as u32,
             pages_per_segment,
             segments: std::iter::repeat_with(|| AtomicPtr::new(null_mut()))
-                .take(MAX_ARENA_SEGMENTS)
+                .take(MAX_ALLOCATOR_SEGMENTS)
                 .collect(),
             segment_starts: Mutex::new(BTreeMap::new()),
             reserved_segment_count: AtomicUsize::new(0),
@@ -308,10 +309,10 @@ impl Allocator {
     /// Ensure this allocator can address the given number of pages.
     pub(super) fn ensure_page_capacity(&self, page_count: usize) -> HeapResult<()> {
         let required_segments = page_count.div_ceil(self.pages_per_segment());
-        if required_segments > MAX_ARENA_SEGMENTS {
-            return Err(HeapError::ArenaSegmentLimitExceeded {
+        if required_segments > MAX_ALLOCATOR_SEGMENTS {
+            return Err(HeapError::AllocatorSegmentLimitExceeded {
                 required_segments,
-                max_segments: MAX_ARENA_SEGMENTS,
+                max_segments: MAX_ALLOCATOR_SEGMENTS,
             });
         }
 
@@ -393,9 +394,9 @@ impl Allocator {
                         .ok_or(HeapError::InvariantOverflow {
                             context: "allocator segment count",
                         })?;
-                return Err(HeapError::ArenaSegmentLimitExceeded {
+                return Err(HeapError::AllocatorSegmentLimitExceeded {
                     required_segments,
-                    max_segments: MAX_ARENA_SEGMENTS,
+                    max_segments: MAX_ALLOCATOR_SEGMENTS,
                 });
             };
 
@@ -431,10 +432,10 @@ impl Allocator {
                 },
             )?;
 
-            if end_segment_index > MAX_ARENA_SEGMENTS {
-                return Err(HeapError::ArenaSegmentLimitExceeded {
+            if end_segment_index > MAX_ALLOCATOR_SEGMENTS {
+                return Err(HeapError::AllocatorSegmentLimitExceeded {
                     required_segments: end_segment_index,
-                    max_segments: MAX_ARENA_SEGMENTS,
+                    max_segments: MAX_ALLOCATOR_SEGMENTS,
                 });
             }
 
@@ -461,10 +462,10 @@ impl Allocator {
                 return Ok(());
             }
 
-            if segment_count > MAX_ARENA_SEGMENTS {
-                return Err(HeapError::ArenaSegmentLimitExceeded {
+            if segment_count > MAX_ALLOCATOR_SEGMENTS {
+                return Err(HeapError::AllocatorSegmentLimitExceeded {
                     required_segments: segment_count,
-                    max_segments: MAX_ARENA_SEGMENTS,
+                    max_segments: MAX_ALLOCATOR_SEGMENTS,
                 });
             }
 
@@ -493,9 +494,9 @@ impl Allocator {
                     .ok_or(HeapError::InvariantOverflow {
                         context: "allocator segment count",
                     })?;
-            return Err(HeapError::ArenaSegmentLimitExceeded {
+            return Err(HeapError::AllocatorSegmentLimitExceeded {
                 required_segments,
-                max_segments: MAX_ARENA_SEGMENTS,
+                max_segments: MAX_ALLOCATOR_SEGMENTS,
             });
         }
 
@@ -702,14 +703,14 @@ impl Allocator {
         self.pages_per_segment as usize
     }
 
-    /// Return one reusable run to the arena page-run pool.
+    /// Return one reusable run to the allocator page-run pool.
     fn return_page_run(&self, run: PageRun) {
         let mut page_runs = self.page_runs.lock();
 
         Self::insert_reusable_run(&mut page_runs, run);
     }
 
-    /// Release one cache-owned run back into the arena page-run pool.
+    /// Release one cache-owned run back into the allocator page-run pool.
     pub(super) fn release_cached_run(&self, run: PageRun) {
         if run.is_empty() {
             return;
@@ -743,9 +744,9 @@ impl Allocator {
                     .ok_or(HeapError::InvariantOverflow {
                         context: "allocator segment count",
                     })?;
-            return Err(HeapError::ArenaSegmentLimitExceeded {
+            return Err(HeapError::AllocatorSegmentLimitExceeded {
                 required_segments,
-                max_segments: MAX_ARENA_SEGMENTS,
+                max_segments: MAX_ALLOCATOR_SEGMENTS,
             });
         };
 
@@ -756,7 +757,7 @@ impl Allocator {
         Ok(())
     }
 
-    /// Return one existing segment through the stable segment slots.
+    /// Return one existing segment through the reserved segment slots.
     fn segment(&self, segment_index: usize) -> Option<&Segment> {
         let segment_ptr = self.segments.get(segment_index)?.load(Ordering::Acquire);
         if segment_ptr.is_null() {
@@ -878,7 +879,7 @@ impl Allocator {
     }
 }
 
-/// Allocate one zeroed page-aligned segment for arena page storage.
+/// Allocate one zeroed page-aligned segment for allocator page storage.
 pub(crate) fn allocate_page_segment_bytes(
     byte_len: usize,
     page_bytes: usize,
@@ -888,7 +889,7 @@ pub(crate) fn allocate_page_segment_bytes(
     // actually allocate
     let data = unsafe { alloc_zeroed(layout) };
     if data.is_null() {
-        return Err(HeapError::ArenaSegmentAllocationFailed {
+        return Err(HeapError::AllocatorSegmentAllocationFailed {
             byte_len,
             page_bytes,
         });
@@ -897,7 +898,7 @@ pub(crate) fn allocate_page_segment_bytes(
     Ok(data)
 }
 
-/// Free one page-aligned segment previously allocated by the arena.
+/// Free one page-aligned segment previously allocated by the allocator.
 pub(crate) fn free_page_segment_bytes(data: *mut u8, byte_len: usize, page_bytes: usize) {
     if data.is_null() {
         return;
@@ -916,7 +917,7 @@ pub(crate) fn free_page_segment_bytes(data: *mut u8, byte_len: usize, page_bytes
 fn page_segment_layout(byte_len: usize, page_bytes: usize) -> HeapResult<Layout> {
     let byte_len = byte_len.max(1);
     Layout::from_size_align(byte_len, page_bytes).map_err(|_| {
-        HeapError::InvalidArenaSegmentLayout {
+        HeapError::InvalidAllocatorSegmentLayout {
             byte_len,
             page_bytes,
         }

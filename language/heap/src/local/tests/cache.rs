@@ -1,5 +1,4 @@
-use crate::tests::test_arena;
-use crate::{HeapOptions, ManagedSpace, RawSpace, SizeClassTable};
+use crate::{HeapOptions, HeapSpace, RawSpace, SizeClassTable, test_allocator};
 use destack_mir::LayoutTrace;
 
 /// Keep empty raw spans in the local cache instead of the live image.
@@ -11,8 +10,9 @@ fn test_release_empty_raw_span_into_page_run_cache() {
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
-    let arena = test_arena(&layout);
-    let mut raw = RawSpace::with_options(arena, &layout).expect("explicit raw layout should build");
+    let allocator = test_allocator(&layout);
+    let mut raw =
+        RawSpace::with_options(allocator, &layout).expect("explicit raw layout should build");
     let pointer = raw
         .allocate_bytes(&[1, 2, 3, 4])
         .expect("raw allocation should succeed");
@@ -23,40 +23,38 @@ fn test_release_empty_raw_span_into_page_run_cache() {
     raw.free(pointer).expect("raw free should succeed");
     let image = raw.image();
 
-    // capture boundaries should flush cached runs back into the arena
+    // capture boundaries should flush cached runs back into the allocator
     assert_eq!(raw.allocation_count(), 0);
     assert_eq!(raw.active_bytes(), 0);
-    assert!(image.spans()[0].pages.is_empty());
+    assert!(image.spans()[0].bytes.is_empty());
 }
 
-/// Keep freed managed large-entry pages in the local cache instead of the live image.
+/// Keep freed heap large-entry pages in the local cache instead of the live image.
 #[test]
-fn test_release_managed_large_pages_into_page_run_cache() {
+fn test_release_heap_large_pages_into_page_run_cache() {
     let layout = HeapOptions {
         page_bytes: 16,
-        managed_young_bytes: 0,
-        managed_small_bytes: 32,
+        heap_young_bytes: 0,
+        heap_small_bytes: 32,
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
-    let arena = test_arena(&layout);
-    let mut managed =
-        ManagedSpace::with_options(arena, &layout).expect("explicit managed layout should build");
-    let reference = managed
+    let allocator = test_allocator(&layout);
+    let mut heap =
+        HeapSpace::with_options(allocator, &layout).expect("explicit heap layout should build");
+    let reference = heap
         .allocate_bytes(&[9; 9], LayoutTrace::empty(), None)
-        .expect("managed allocation should succeed");
+        .expect("heap allocation should succeed");
 
     // one live large entry should charge one page of active bytes
-    assert_eq!(managed.active_bytes(), 16);
+    assert_eq!(heap.active_bytes(), 16);
 
-    managed
-        .free(reference)
-        .expect("managed free should succeed");
-    let image = managed.image().expect("managed image should capture");
+    heap.free(reference).expect("heap free should succeed");
+    let image = heap.image().expect("heap image should capture");
 
-    // capture boundaries should flush cached runs back into the arena
-    assert_eq!(managed.allocation_count(), 0);
-    assert_eq!(managed.allocated_bytes(), 0);
-    assert_eq!(managed.active_bytes(), 0);
+    // capture boundaries should flush cached runs back into the allocator
+    assert_eq!(heap.allocation_count(), 0);
+    assert_eq!(heap.allocated_bytes(), 0);
+    assert_eq!(heap.active_bytes(), 0);
     assert!(image.entries()[0].pages.is_empty());
 }

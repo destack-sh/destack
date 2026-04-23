@@ -1,40 +1,40 @@
 use std::collections::BTreeMap;
 use std::num::NonZeroU32;
 
-use crate::{HeapError, HeapResult, ManagedReference};
+use crate::{HeapError, HeapReference, HeapResult};
 
-/// Active pin state for scoped managed borrows.
+/// Active pin state for scoped heap borrows.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct PinSet {
-    /// The active scoped pins keyed by managed reference.
-    entries: BTreeMap<ManagedReference, NonZeroU32>,
+    /// The active scoped pins keyed by heap reference.
+    entries: BTreeMap<HeapReference, NonZeroU32>,
     /// The total number of active scoped pins across all references.
     active_count: usize,
 }
 
 impl PinSet {
-    /// Pin one managed reference.
-    pub(crate) fn pin(&mut self, reference: ManagedReference) -> HeapResult<()> {
+    /// Pin one heap reference.
+    pub(crate) fn pin(&mut self, reference: HeapReference) -> HeapResult<()> {
         if let Some(count) = self.entries.get_mut(&reference) {
+            let next_count = count
+                .get()
+                .checked_add(1)
+                .ok_or(HeapError::HeapPinCountOverflow {
+                    reference,
+                    count: count.get(),
+                })?;
             let next_count =
-                count
-                    .get()
-                    .checked_add(1)
-                    .ok_or(HeapError::ManagedPinCountOverflow {
-                        reference,
-                        count: count.get(),
-                    })?;
-            let next_count =
-                NonZeroU32::new(next_count).ok_or(HeapError::ManagedPinCountOverflow {
+                NonZeroU32::new(next_count).ok_or(HeapError::HeapPinCountOverflow {
                     reference,
                     count: next_count,
                 })?;
 
-            self.active_count = self.active_count.checked_add(1).ok_or(
-                HeapError::ManagedPinActiveCountOverflow {
-                    active_count: self.active_count,
-                },
-            )?;
+            self.active_count =
+                self.active_count
+                    .checked_add(1)
+                    .ok_or(HeapError::HeapPinActiveCountOverflow {
+                        active_count: self.active_count,
+                    })?;
             *count = next_count;
 
             return Ok(());
@@ -43,7 +43,7 @@ impl PinSet {
         self.active_count =
             self.active_count
                 .checked_add(1)
-                .ok_or(HeapError::ManagedPinActiveCountOverflow {
+                .ok_or(HeapError::HeapPinActiveCountOverflow {
                     active_count: self.active_count,
                 })?;
         self.entries.insert(reference, NonZeroU32::MIN);
@@ -51,16 +51,16 @@ impl PinSet {
         Ok(())
     }
 
-    /// Unpin one managed reference.
-    pub(crate) fn unpin(&mut self, reference: ManagedReference) -> HeapResult<()> {
+    /// Unpin one heap reference.
+    pub(crate) fn unpin(&mut self, reference: HeapReference) -> HeapResult<()> {
         let Some(count) = self.entries.get(&reference).copied() else {
-            return Err(HeapError::ManagedPinMissing { reference });
+            return Err(HeapError::HeapPinMissing { reference });
         };
 
         self.active_count =
             self.active_count
                 .checked_sub(1)
-                .ok_or(HeapError::ManagedPinActiveCountUnderflow {
+                .ok_or(HeapError::HeapPinActiveCountUnderflow {
                     reference,
                     active_count: self.active_count,
                 })?;
@@ -72,9 +72,9 @@ impl PinSet {
         }
 
         let next_count =
-            NonZeroU32::new(count.get() - 1).ok_or(HeapError::ManagedPinMissing { reference })?;
+            NonZeroU32::new(count.get() - 1).ok_or(HeapError::HeapPinMissing { reference })?;
         let Some(count) = self.entries.get_mut(&reference) else {
-            return Err(HeapError::ManagedPinMissing { reference });
+            return Err(HeapError::HeapPinMissing { reference });
         };
         *count = next_count;
 
@@ -86,9 +86,50 @@ impl PinSet {
         self.active_count != 0
     }
 
-    /// Return every currently pinned managed reference.
-    pub(crate) fn references(&self) -> impl Iterator<Item = ManagedReference> + '_ {
+    /// Return every currently pinned heap reference.
+    pub(crate) fn references(&self) -> impl Iterator<Item = HeapReference> + '_ {
         self.entries.keys().copied()
+    }
+
+    /// Rewrite every pinned reference through one promotion map.
+    pub(crate) fn rewrite(
+        &mut self,
+        references: &BTreeMap<HeapReference, HeapReference>,
+    ) -> HeapResult<()> {
+        if references.is_empty() {
+            return Ok(());
+        }
+
+        let previous_entries = std::mem::take(&mut self.entries);
+        let mut next_entries: BTreeMap<HeapReference, NonZeroU32> = BTreeMap::new();
+
+        for (reference, count) in previous_entries {
+            let reference = references.get(&reference).copied().unwrap_or(reference);
+
+            if let Some(previous_count) = next_entries.get_mut(&reference) {
+                let merged_count = previous_count.get().checked_add(count.get()).ok_or(
+                    HeapError::HeapPinCountOverflow {
+                        reference,
+                        count: previous_count.get(),
+                    },
+                )?;
+                let merged_count =
+                    NonZeroU32::new(merged_count).ok_or(HeapError::HeapPinCountOverflow {
+                        reference,
+                        count: merged_count,
+                    })?;
+
+                *previous_count = merged_count;
+
+                continue;
+            }
+
+            next_entries.insert(reference, count);
+        }
+
+        self.entries = next_entries;
+
+        Ok(())
     }
 }
 
@@ -96,10 +137,10 @@ impl PinSet {
 mod tests {
     use super::*;
 
-    /// Keep exact scoped pin counts per managed reference.
+    /// Keep exact scoped pin counts per heap reference.
     #[test]
     fn test_pin_tracks_exact_counts() {
-        let reference = ManagedReference::new(7);
+        let reference = HeapReference::new(7);
         let mut pins = PinSet::default();
 
         // repeated pins should stay active until the final unpin
@@ -134,7 +175,7 @@ mod tests {
     /// Reject scoped pin increments that exceed the encoded per-reference count.
     #[test]
     fn test_pin_rejects_count_overflow() {
-        let reference = ManagedReference::new(7);
+        let reference = HeapReference::new(7);
         let mut pins = PinSet {
             entries: BTreeMap::from([(reference, NonZeroU32::MAX)]),
             active_count: 1,
@@ -145,7 +186,7 @@ mod tests {
 
         assert_eq!(
             error,
-            HeapError::ManagedPinCountOverflow {
+            HeapError::HeapPinCountOverflow {
                 reference,
                 count: u32::MAX,
             }
@@ -160,7 +201,7 @@ mod tests {
     /// Reject scoped pin increments that exceed the exact active count.
     #[test]
     fn test_pin_rejects_active_count_overflow() {
-        let reference = ManagedReference::new(7);
+        let reference = HeapReference::new(7);
         let mut pins = PinSet {
             entries: BTreeMap::new(),
             active_count: usize::MAX,
@@ -173,7 +214,7 @@ mod tests {
 
         assert_eq!(
             error,
-            HeapError::ManagedPinActiveCountOverflow {
+            HeapError::HeapPinActiveCountOverflow {
                 active_count: usize::MAX,
             }
         );
@@ -184,21 +225,21 @@ mod tests {
     /// Reject unpinning one reference with no active scoped pin.
     #[test]
     fn test_unpin_rejects_missing_reference() {
-        let reference = ManagedReference::new(7);
+        let reference = HeapReference::new(7);
         let mut pins = PinSet::default();
 
         // missing pins should fail loudly
         let error = pins
             .unpin(reference)
-            .expect_err("missing managed pin should fail");
+            .expect_err("missing heap pin should fail");
 
-        assert_eq!(error, HeapError::ManagedPinMissing { reference });
+        assert_eq!(error, HeapError::HeapPinMissing { reference });
     }
 
     /// Reject unpinning when the table lost its active-count invariant.
     #[test]
     fn test_unpin_rejects_active_count_underflow() {
-        let reference = ManagedReference::new(7);
+        let reference = HeapReference::new(7);
         let mut pins = PinSet {
             entries: BTreeMap::from([(reference, NonZeroU32::MIN)]),
             active_count: 0,
@@ -211,7 +252,7 @@ mod tests {
 
         assert_eq!(
             error,
-            HeapError::ManagedPinActiveCountUnderflow {
+            HeapError::HeapPinActiveCountUnderflow {
                 reference,
                 active_count: 0,
             }

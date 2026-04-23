@@ -5,7 +5,7 @@ use crate::{HeapError, HeapResult};
 /// The number of inline page patches per logical page view.
 const INLINE_PAGE_PATCH_COUNT: usize = 3;
 
-/// One stable page identifier in an arena (segment).
+/// One stable page identifier in one allocator segment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct PageId(u32);
@@ -34,7 +34,7 @@ impl PageId {
     }
 }
 
-/// One contiguous arena page run.
+/// One contiguous allocator page run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PageRun {
     /// The first page in the run.

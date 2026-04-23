@@ -31,34 +31,34 @@ impl PageRunCache {
     /// Allocate one zeroed page view through this cache.
     pub(crate) fn allocate_zeroed(
         &mut self,
-        arena: &Allocator,
+        allocator: &Allocator,
         byte_len: usize,
     ) -> HeapResult<PageView> {
-        let page_count = arena.page_count(byte_len);
+        let page_count = allocator.page_count(byte_len);
         if page_count == 0 {
             return Ok(PageView::empty());
         }
 
         // reuse one cached run when possible
         if let Some(run) = self.take(page_count) {
-            arena.zero_run(run)?;
+            allocator.zero_run(run)?;
 
             return Ok(PageView::from_run(run));
         }
 
-        arena.allocate_zeroed(byte_len)
+        allocator.allocate_zeroed(byte_len)
     }
 
     /// Allocate one initialized page view through this cache.
     pub(crate) fn allocate_bytes(
         &mut self,
-        arena: &Allocator,
+        allocator: &Allocator,
         bytes: &[u8],
     ) -> HeapResult<PageView> {
-        let mut page_view = self.allocate_zeroed(arena, bytes.len())?;
+        let mut page_view = self.allocate_zeroed(allocator, bytes.len())?;
 
         // initialize the new logical page range
-        arena.set_bytes(&mut page_view, 0, bytes)?;
+        allocator.set_bytes(&mut page_view, 0, bytes)?;
 
         Ok(page_view)
     }
@@ -66,30 +66,30 @@ impl PageRunCache {
     /// Release one page view through this cache.
     pub(crate) fn release_page_view(
         &mut self,
-        arena: &Allocator,
+        allocator: &Allocator,
         page_view: PageView,
     ) -> HeapResult<()> {
         let Some(run) = page_view.as_run() else {
-            return arena.release_page_view(&page_view);
+            return allocator.release_page_view(&page_view);
         };
 
-        if !arena.run_is_unique(run)? {
-            return arena.release_page_view(&page_view);
+        if !allocator.run_is_unique(run)? {
+            return allocator.release_page_view(&page_view);
         }
 
         if self.insert(run) {
             return Ok(());
         }
 
-        arena.release_cached_run(run);
+        allocator.release_cached_run(run);
 
         Ok(())
     }
 
-    /// Flush this cache back into the arena page-run pool.
-    pub(crate) fn flush(&mut self, arena: &Allocator) {
+    /// Flush this cache back into the allocator page-run pool.
+    pub(crate) fn flush(&mut self, allocator: &Allocator) {
         for run in self.drain() {
-            arena.release_cached_run(run);
+            allocator.release_cached_run(run);
         }
     }
 

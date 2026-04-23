@@ -1,4 +1,5 @@
-use crate::arena::Bitmap;
+use crate::allocator::Bitmap;
+use crate::local::constants::DEFAULT_CARD_BYTES;
 
 /// One card set for mature remembered regions.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -13,12 +14,12 @@ pub(crate) struct CardSet {
 
 impl CardSet {
     /// Create one empty card set for the given byte length.
-    pub(crate) fn with_len(byte_len: usize, card_bytes: usize) -> Self {
-        let card_count = byte_len.div_ceil(card_bytes);
+    pub(crate) fn with_len(byte_len: usize) -> Self {
+        let card_count = byte_len.div_ceil(DEFAULT_CARD_BYTES);
 
         Self {
             byte_len,
-            card_bytes,
+            card_bytes: DEFAULT_CARD_BYTES,
             dirty: Bitmap::with_capacity(card_count),
         }
     }

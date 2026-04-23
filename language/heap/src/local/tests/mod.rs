@@ -1,8 +1,8 @@
 mod cache;
 mod gc;
+mod heap;
 mod image;
 mod limits;
-mod managed;
 mod raw;
 mod tests;
 
