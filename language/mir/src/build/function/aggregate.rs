@@ -283,6 +283,17 @@ impl<'a> FunctionBuilder<'a> {
 
     // instruction builders: tensor operations
 
+    /// Broadcast a scalar to all tensor elements.
+    pub fn tensor_splat(&mut self, tensor_type: LocalNodeId<Type>, value: Value) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::TensorSplat {
+            destination: destination.into(),
+            value: value.into(),
+        });
+        self.define_value(destination, tensor_type);
+        destination
+    }
+
     /// Select tensor elements based on a boolean mask.
     pub fn tensor_select(&mut self, mask: Value, then_value: Value, else_value: Value) -> Value {
         let destination = self.allocate_value();

@@ -402,6 +402,13 @@ pub enum Instruction {
     },
 
     // tensor operations (tensor.*)
+    /// Broadcast a scalar to all tensor elements.
+    TensorSplat {
+        /// The SSA value to define with the tensor result.
+        destination: ValueReference,
+        /// The scalar value to broadcast.
+        value: ValueReference,
+    },
     /// Load a tensor element from a tensor reference.
     TensorLoad {
         /// The SSA value to define with the loaded element.
@@ -931,6 +938,7 @@ impl Instruction {
             Instruction::VectorReduce { destination, .. } => Some(*destination),
             Instruction::VectorCompare { destination, .. } => Some(*destination),
             Instruction::VectorConvert { destination, .. } => Some(*destination),
+            Instruction::TensorSplat { destination, .. } => Some(*destination),
             Instruction::TensorLoad { destination, .. } => Some(*destination),
             Instruction::TensorExtract { destination, .. } => Some(*destination),
             Instruction::TensorStore { .. } => None,
@@ -1039,6 +1047,7 @@ impl Instruction {
             Instruction::VectorReduce { vector, .. } => smallvec![*vector],
             Instruction::VectorCompare { left, right, .. } => smallvec![*left, *right],
             Instruction::VectorConvert { vector, .. } => smallvec![*vector],
+            Instruction::TensorSplat { value, .. } => smallvec![*value],
             Instruction::TensorLoad { view, .. } => smallvec![*view],
             Instruction::TensorExtract { tensor, .. } => smallvec![*tensor],
             Instruction::TensorStore { view, value, .. } => smallvec![*view, *value],
