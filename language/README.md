@@ -1,8 +1,7 @@
 # Language
 
-The Destack language toolchain, written in Rust (for now).
-See [DESIGN.md](DESIGN.md) for design philosophy and [SPECIFICATION.md](SPECIFICATION.md) for (more) detailed semantics.
-See [COMPATIBILITY.md](COMPATIBILITY.md) for the language and target compatibility matrix.
+The Destack language toolchain, written in Rust.
+See [DESIGN.md](DESIGN.md) for language design and semantics.
 
 The Destack compiler takes source files from a supported language (`.ds`, `.ts`/`.tsx`, `.js`/`.jsx`) and transforms them into final output via several intermediate representations (AST → DIR → MIR). See [compiler/README.md](compiler/README.md) for the full pipeline.
 
