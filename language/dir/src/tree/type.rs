@@ -22,9 +22,19 @@ pub enum TypeMember {
     /// Named method.
     Method {
         is_optional: bool,
-        key: Option<Key>,
+        key: Key,
         signature: FunctionSignature,
         body: Option<LocalNodeId<Expression>>,
+        symbol: LocalSymbolId,
+    },
+    /// Call signature declaration.
+    CallSignature {
+        signature: FunctionTypeDeclaration,
+        symbol: LocalSymbolId,
+    },
+    /// Construct signature declaration.
+    ConstructSignature {
+        signature: ConstructorTypeDeclaration,
         symbol: LocalSymbolId,
     },
     /// Index signature.
@@ -80,7 +90,7 @@ impl TypeMember {
     pub fn key(&self) -> Option<&Key> {
         match self {
             TypeMember::Field { key, .. } => Some(key),
-            TypeMember::Method { key, .. } => key.as_ref(),
+            TypeMember::Method { key, .. } => Some(key),
             _ => None,
         }
     }
@@ -98,6 +108,8 @@ impl TypeMember {
         match self {
             TypeMember::Field { symbol, .. }
             | TypeMember::Method { symbol, .. }
+            | TypeMember::CallSignature { symbol, .. }
+            | TypeMember::ConstructSignature { symbol, .. }
             | TypeMember::IndexSignature { symbol, .. }
             | TypeMember::Embed { symbol, .. }
             | TypeMember::AssociatedType { symbol, .. }
