@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::arena::{Bitmap, PageView};
+use crate::allocator::{Bitmap, PageView};
 
 /// One frozen raw span root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -13,8 +13,8 @@ pub(crate) struct SmallSpanImage {
     pub lengths: Box<[usize]>,
     /// The occupied slots in this span.
     pub occupied: Bitmap,
-    /// The arena pages for this span.
-    pub pages: PageView,
+    /// The full byte payload for this span.
+    pub bytes: Box<[u8]>,
 }
 
 /// One live raw span.
@@ -32,6 +32,6 @@ pub(crate) struct SmallSpan {
     pub(crate) lengths: Box<[usize]>,
     /// The occupied slots in this span.
     pub(crate) occupied: Bitmap,
-    /// The arena pages for this span.
+    /// The allocator pages for this span.
     pub(crate) pages: PageView,
 }

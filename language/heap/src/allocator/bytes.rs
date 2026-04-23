@@ -81,33 +81,32 @@ impl Allocator {
     pub fn borrowed_bytes_for_page_views<'a>(
         &self,
         page_views: impl IntoIterator<Item = &'a PageView>,
-    ) -> HeapResult<u64> {
+    ) -> u64 {
         let mut borrowed_pages = BTreeSet::new();
 
         // collect the effective shared pages across every logical view
         for page_view in page_views {
             for page_index in 0..page_view.len() {
                 let Some(slot) = page_view.slot(page_index) else {
-                    return Err(HeapError::MissingLogicalPage { page_index });
+                    panic!("invalid page view: missing logical page {page_index}")
                 };
 
-                let is_unique = self.run_is_unique(slot.run)?;
+                let is_unique = self
+                    .run_is_unique(slot.run)
+                    .unwrap_or_else(|error| panic!("invalid page view run: {error}"));
                 if is_unique {
                     continue;
                 }
 
                 let Some(page_id) = slot.run.page(slot.run_page_index) else {
-                    return Err(HeapError::InvalidPatchedRun {
-                        page_index,
-                        page_count: slot.run.len(),
-                    });
+                    panic!("invalid patched run at logical page {page_index}")
                 };
 
                 borrowed_pages.insert(page_id);
             }
         }
 
-        Ok(borrowed_pages.len() as u64 * self.page_bytes() as u64)
+        borrowed_pages.len() as u64 * self.page_bytes() as u64
     }
 
     /// Visit visible byte chunks for one logical byte range starting at one offset.

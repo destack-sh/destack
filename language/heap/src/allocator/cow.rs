@@ -3,6 +3,25 @@ use super::{PageId, PageSlot, PageView};
 use crate::{HeapError, HeapResult};
 
 impl Allocator {
+    /// Overwrite one logical byte range without detaching shared pages.
+    pub(crate) fn set_bytes_unique(
+        &self,
+        page_view: &PageView,
+        start: usize,
+        source: &[u8],
+    ) -> HeapResult<()> {
+        let end = self.byte_range_end(page_view, start, source.len())?;
+
+        let page_bytes = self.page_bytes();
+        let start_page = start / page_bytes;
+        let end_page = end.div_ceil(page_bytes);
+
+        // unique pages
+        self.validate_unique_write_range(page_view, start_page, end_page)?;
+
+        self.copy_bytes_into_pages(page_view, start_page, end_page, start, end, source)
+    }
+
     /// Overwrite one logical byte range inside one page view.
     ///
     /// Payload mutation is crate-internal so the heap surfaces can enforce
@@ -24,6 +43,28 @@ impl Allocator {
 
         // copy the source bytes into each touched page slice
         self.copy_bytes_into_pages(page_view, start_page, end_page, start, end, source)
+    }
+
+    /// Ensure every touched page already has unique ownership.
+    fn validate_unique_write_range(
+        &self,
+        page_view: &PageView,
+        start_page: usize,
+        end_page: usize,
+    ) -> HeapResult<()> {
+        for page_index in start_page..end_page {
+            let Some(slot) = page_view.slot(page_index) else {
+                return Err(HeapError::MissingLogicalPage { page_index });
+            };
+
+            if self.run_is_unique(slot.run)? {
+                continue;
+            }
+
+            return Err(HeapError::BorrowedPageWrite { page_index });
+        }
+
+        Ok(())
     }
 
     /// Ensure one logical page is unique before mutation.

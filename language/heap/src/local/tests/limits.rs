@@ -1,65 +1,77 @@
-use crate::{Heap, HeapError, HeapLimits, HeapOptions, HeapSpace, ManagedLimits, RawLimits};
+use crate::{AccountingRegion, HeapError, HeapLimits, HeapOptions, HeapSpaceLimits, RawLimits};
 use destack_mir::LayoutTrace;
 
 use super::TestHeap;
 
-/// Reject one managed allocation when the active-byte limit would be exceeded.
-#[test]
-fn test_reject_managed_allocation_when_limit_exceeded() {
-    let mut test_heap = TestHeap::with_options(HeapOptions {
-        managed_young_bytes: 0,
-        max_managed_young_allocation_bytes: 0,
-        ..HeapOptions::local()
-    });
+/// Return the active local heap bytes for one allocation in the given heap options.
+fn heap_active_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 {
+    let mut test_heap = TestHeap::with_options(options);
     let heap = &mut test_heap.heap;
-    let baseline = heap
-        .usage()
-        .expect("heap usage should resolve")
-        .managed
-        .active_bytes;
+
+    heap.allocate_heap_bytes(bytes, LayoutTrace::empty(), None)
+        .expect("heap allocation should succeed");
+
+    heap.usage().heap.active_bytes
+}
+
+/// Return the active local raw bytes after one replacement in the given heap options.
+fn raw_active_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 {
+    let mut test_heap = TestHeap::with_options(options);
+    let heap = &mut test_heap.heap;
+
+    heap.allocate_raw_bytes(bytes)
+        .expect("raw allocation should succeed");
+
+    heap.usage().raw.active_bytes
+}
+
+/// Reject one heap allocation when the active-byte limit would be exceeded.
+#[test]
+fn test_reject_heap_allocation_when_limit_exceeded() {
+    let options = HeapOptions {
+        heap_young_bytes: 0,
+        max_heap_young_allocation_bytes: 0,
+        ..HeapOptions::local()
+    };
+    let expected_used_bytes = heap_active_bytes_after_allocate(options.clone(), &[1]);
+    let mut test_heap = TestHeap::with_options(options);
+    let heap = &mut test_heap.heap;
+    let baseline = heap.usage().heap.active_bytes;
     heap.set_limits(HeapLimits {
         max_bytes: None,
-        managed: ManagedLimits {
+        heap: HeapSpaceLimits {
             max_bytes: Some(baseline),
         },
         raw: RawLimits { max_bytes: None },
     })
-    .expect("baseline managed heap should fit its current active-byte limit");
+    .expect("baseline heap should fit its current active-byte limit");
 
     let error = heap
-        .allocate_managed_bytes(&[1], LayoutTrace::empty(), None)
-        .expect_err("managed allocation should be rejected");
+        .allocate_heap_bytes(&[1], LayoutTrace::empty(), None)
+        .expect_err("heap allocation should be rejected");
 
-    assert!(matches!(
+    assert_eq!(
         error,
         HeapError::LimitExceeded {
-            space: HeapSpace::Managed,
-            ..
+            region: AccountingRegion::Heap,
+            used_bytes: expected_used_bytes,
+            max_bytes: baseline,
         }
-    ));
-    assert_eq!(heap.managed_allocation_count(), 0);
-    assert_eq!(
-        heap.usage()
-            .expect("heap usage should resolve")
-            .managed
-            .active_bytes,
-        baseline
     );
+    assert_eq!(heap.heap_allocation_count(), 0);
+    assert_eq!(heap.usage().heap.active_bytes, baseline);
 }
 
 /// Reject one raw allocation when the active-byte limit would be exceeded.
 #[test]
 fn test_reject_raw_allocation_when_limit_exceeded() {
+    let expected_used_bytes = raw_active_bytes_after_allocate(HeapOptions::local(), &[1]);
     let mut test_heap = TestHeap::new();
     let heap = &mut test_heap.heap;
-    let baseline = heap
-        .usage()
-        .expect("heap usage should resolve")
-        .raw
-        .active_bytes;
+    let baseline = heap.usage().raw.active_bytes;
     heap.set_limits(HeapLimits {
         max_bytes: None,
-        managed: ManagedLimits { max_bytes: None },
+        heap: HeapSpaceLimits { max_bytes: None },
         raw: RawLimits {
             max_bytes: Some(baseline),
         },
@@ -70,21 +82,16 @@ fn test_reject_raw_allocation_when_limit_exceeded() {
         .allocate_raw_bytes(&[1])
         .expect_err("raw allocation should be rejected");
 
-    assert!(matches!(
+    assert_eq!(
         error,
         HeapError::LimitExceeded {
-            space: HeapSpace::Raw,
-            ..
+            region: AccountingRegion::Raw,
+            used_bytes: expected_used_bytes,
+            max_bytes: baseline,
         }
-    ));
-    assert_eq!(heap.raw_allocation_count(), 0);
-    assert_eq!(
-        heap.usage()
-            .expect("heap usage should resolve")
-            .raw
-            .active_bytes,
-        baseline
     );
+    assert_eq!(heap.raw_allocation_count(), 0);
+    assert_eq!(heap.usage().raw.active_bytes, baseline);
 }
 
 /// Preserve custom heap limits across in-place heap image restore.
@@ -93,30 +100,12 @@ fn test_restore_heap_image_preserves_limits() {
     let mut test_heap = TestHeap::new();
     let heap = &mut test_heap.heap;
     let limits = HeapLimits {
-        max_bytes: Some(
-            heap.usage()
-                .expect("heap usage should resolve")
-                .active_bytes()
-                .expect("heap usage should stay exact")
-                + 4096,
-        ),
-        managed: ManagedLimits {
-            max_bytes: Some(
-                heap.usage()
-                    .expect("heap usage should resolve")
-                    .managed
-                    .active_bytes
-                    + 2048,
-            ),
+        max_bytes: Some(heap.usage().active_bytes() + 4096),
+        heap: HeapSpaceLimits {
+            max_bytes: Some(heap.usage().heap.active_bytes + 2048),
         },
         raw: RawLimits {
-            max_bytes: Some(
-                heap.usage()
-                    .expect("heap usage should resolve")
-                    .raw
-                    .active_bytes
-                    + 2048,
-            ),
+            max_bytes: Some(heap.usage().raw.active_bytes + 2048),
         },
     };
     heap.set_limits(limits)
@@ -133,44 +122,40 @@ fn test_restore_heap_image_preserves_limits() {
 /// Reject one raw replace when byte growth would exceed the active-byte limit.
 #[test]
 fn test_reject_raw_replace_when_limit_exceeded() {
-    let mut test_heap = TestHeap::new();
+    let mut test_heap = TestHeap::with_options(HeapOptions::local());
     let heap = &mut test_heap.heap;
     let pointer = heap
         .allocate_raw_bytes(&vec![0xAA; 4097])
         .expect("raw allocation should succeed");
-    let image = heap.image().expect("heap image should capture");
-    let mut heap = Heap::from_image(&image).expect("heap image layout should restore");
-    let baseline = heap
-        .usage()
-        .expect("heap usage should resolve")
-        .raw
-        .active_bytes;
+    let baseline = heap.usage().raw.active_bytes;
     heap.set_limits(HeapLimits {
         max_bytes: None,
-        managed: ManagedLimits { max_bytes: None },
+        heap: HeapSpaceLimits { max_bytes: None },
         raw: RawLimits {
             max_bytes: Some(baseline),
         },
     })
     .expect("baseline raw heap should fit its current active-byte limit");
+    let mapped_delta = heap
+        .raw
+        .replace_mapped_delta(pointer, 8193)
+        .expect("raw replacement should project");
+    let expected_used_bytes = baseline
+        .checked_add(mapped_delta as u64)
+        .expect("projected raw usage should fit");
 
     let error = heap
         .replace_raw_bytes(pointer, &vec![0xBB; 8193])
         .expect_err("raw replace should be rejected");
 
-    assert!(matches!(
+    assert_eq!(
         error,
         HeapError::LimitExceeded {
-            space: HeapSpace::Raw,
-            ..
+            region: AccountingRegion::Raw,
+            used_bytes: expected_used_bytes,
+            max_bytes: baseline,
         }
-    ));
-    assert_eq!(heap.read_raw_bytes(pointer), Ok(vec![0xAA; 4097]));
-    assert_eq!(
-        heap.usage()
-            .expect("heap usage should resolve")
-            .raw
-            .active_bytes,
-        baseline
     );
+    assert_eq!(heap.read_raw_bytes(pointer), Ok(vec![0xAA; 4097]));
+    assert_eq!(heap.usage().raw.active_bytes, baseline);
 }

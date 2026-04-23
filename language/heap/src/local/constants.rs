@@ -1,8 +1,8 @@
 /// The standard heap page width aligned to common OS pages.
 pub(crate) const DEFAULT_PAGE_BYTES: usize = 4 * 1024;
 
-/// The standard arena segment width that amortizes mapping and metadata work.
-pub(crate) const DEFAULT_ARENA_SEGMENT_BYTES: usize = 1024 * 1024;
+/// The standard allocator segment width that amortizes mapping and metadata work.
+pub(crate) const DEFAULT_ALLOCATOR_SEGMENT_BYTES: usize = 1024 * 1024;
 
 /// The standard small-span width for size-classed allocation.
 pub(crate) const DEFAULT_SMALL_BYTES: usize = 16 * 1024;
@@ -16,11 +16,5 @@ pub(crate) const DEFAULT_YOUNG_BYTES: usize = 64 * 1024;
 /// The standard nursery bypass threshold for larger payloads.
 pub(crate) const DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES: usize = 4 * 1024;
 
-/// The standard byte width for managed references inside traced payloads.
-pub(crate) const DEFAULT_MANAGED_REFERENCE_BYTES: u8 = 8;
-
 /// The standard alignment for configured small-allocation classes.
 pub(crate) const DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES: usize = 8;
-
-/// The standard entry count per copy on write metadata table chunk.
-pub(crate) const DEFAULT_TABLE_CHUNK_LEN: usize = 256;

@@ -5,7 +5,7 @@ use super::{HeapError, HeapResult};
 /// The standard entry count per copy on write metadata chunk.
 const DEFAULT_COW_TABLE_CHUNK_LEN: usize = 256;
 
-/// One dense copy on write table for stable heap metadata ids.
+/// One dense copy on write table for ordered heap metadata entries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CowTable<T> {
     /// The number of live entries stored in this table.
@@ -168,13 +168,5 @@ impl<T> CowTable<T> {
     /// Return one iterator over every stored entry.
     pub(crate) fn iter(&self) -> impl Iterator<Item = &T> {
         self.chunks.iter().flat_map(CowBuffer::as_slice)
-    }
-
-    /// Return one boxed slice copy of every stored entry.
-    pub(crate) fn to_boxed_slice(&self) -> Box<[T]>
-    where
-        T: Clone,
-    {
-        self.iter().cloned().collect::<Vec<_>>().into_boxed_slice()
     }
 }

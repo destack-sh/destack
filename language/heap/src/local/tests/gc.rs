@@ -1,8 +1,7 @@
-use crate::local::managed::ManagedLocation;
-use crate::tests::test_arena;
+use crate::local::space::HeapStorage;
 use crate::{
-    GcKind, GcOptions, Heap, HeapError, HeapOptions, ManagedReference, ManagedSpace,
-    SharedManagedReference,
+    GcKind, GcOptions, Heap, HeapError, HeapOptions, HeapReference, HeapSpace, SharedHeapReference,
+    test_allocator,
 };
 use destack_mir::LayoutTrace;
 
@@ -22,49 +21,51 @@ fn test_heap() -> Heap {
         .expect("pacing heap should build")
 }
 
+/// Report whether one heap reference is currently young.
+fn is_young(heap: &HeapSpace, reference: HeapReference) -> bool {
+    matches!(heap.location(reference), Some(HeapStorage::Young(_)))
+}
+
+/// Report whether one heap reference is currently mature.
+fn is_mature(heap: &HeapSpace, reference: HeapReference) -> bool {
+    matches!(
+        heap.location(reference),
+        Some(HeapStorage::Small(_)) | Some(HeapStorage::Large(_))
+    )
+}
+
 /// Promote reachable young entries and clear unreachable young-space state.
 #[test]
 fn test_collect_minor_promotes_reachable_entries() {
     let layout = HeapOptions {
-        managed_small_bytes: 32,
+        heap_small_bytes: 32,
         ..HeapOptions::local()
     };
-    let arena = test_arena(&layout);
-    let mut managed =
-        ManagedSpace::with_options(arena, &layout).expect("explicit managed options should build");
-
-    // allocate one reachable and one unreachable young entry
-    let reachable = managed
+    let allocator = test_allocator(&layout);
+    let mut heap =
+        HeapSpace::with_options(allocator, &layout).expect("explicit heap options should build");
+    let reachable = heap
         .allocate_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
-        .expect("managed allocation should succeed");
-    let unreachable = managed
+        .expect("heap allocation should succeed");
+    let unreachable = heap
         .allocate_bytes(&[4, 5, 6], LayoutTrace::empty(), None)
-        .expect("managed allocation should succeed");
+        .expect("heap allocation should succeed");
+    let mut roots = [reachable];
 
-    assert!(matches!(
-        managed.location(reachable),
-        Some(ManagedLocation::Young(_))
-    ));
-    assert!(matches!(
-        managed.location(unreachable),
-        Some(ManagedLocation::Young(_))
-    ));
+    assert!(is_young(&heap, reachable));
+    assert!(is_young(&heap, unreachable));
 
-    // collect against the reachable root
-    let stats = managed
-        .collect_minor([reachable])
+    let stats = heap
+        .collect_minor(&mut roots)
         .expect("young collection should succeed");
+    let reachable = roots[0];
 
     assert_eq!(stats.freed_allocations, 1);
-    assert_eq!(managed.read_bytes(reachable), Ok(vec![1, 2, 3]));
-    assert!(!managed.is_live(unreachable));
-    assert!(matches!(
-        managed.location(reachable),
-        Some(ManagedLocation::Small(_)) | Some(ManagedLocation::Large(_))
-    ));
+    assert_eq!(heap.read_bytes(reachable), Ok(vec![1, 2, 3]));
+    assert!(!heap.is_live(unreachable));
+    assert!(is_mature(&heap, reachable));
 
-    // the young space should reset to an empty cursor over a fresh page run
-    let image = managed.image().expect("managed image should capture");
+    let image = heap.image().expect("heap image should capture");
     let young = image.young();
 
     assert_eq!(young.next_offset(), 0);
@@ -78,57 +79,59 @@ fn test_collect_minor_promotes_reachable_entries() {
 #[test]
 fn test_collect_minor_promotes_reachable_child_entries() {
     let layout = HeapOptions {
-        managed_small_bytes: 32,
+        heap_small_bytes: 32,
         ..HeapOptions::local()
     };
-    let arena = test_arena(&layout);
-    let mut managed =
-        ManagedSpace::with_options(arena, &layout).expect("explicit managed options should build");
+    let allocator = test_allocator(&layout);
+    let mut heap =
+        HeapSpace::with_options(allocator, &layout).expect("explicit heap options should build");
     let trace = LayoutTrace::Reference {
         local_offsets: vec![0].into_boxed_slice(),
         shared_offsets: Vec::new().into_boxed_slice(),
     };
-
-    // build one young parent that points at one young child
-    let child = managed
+    let child = heap
         .allocate_bytes(&[0xC1, 0x1D], LayoutTrace::empty(), None)
-        .expect("managed allocation should succeed");
-    let parent = managed
+        .expect("heap allocation should succeed");
+    let parent = heap
         .allocate_bytes(&child.bits().to_le_bytes(), trace, None)
-        .expect("managed allocation should succeed");
+        .expect("heap allocation should succeed");
+    let mut roots = [parent];
 
-    let stats = managed
-        .collect_minor([parent])
+    let stats = heap
+        .collect_minor(&mut roots)
         .expect("young collection should succeed");
+    let parent = roots[0];
 
     assert_eq!(stats.freed_allocations, 0);
-    assert_eq!(managed.read_bytes(child), Ok(vec![0xC1, 0x1D]));
-    assert!(!matches!(
-        managed.location(child),
-        Some(ManagedLocation::Young(_))
+    assert!(is_mature(&heap, parent));
+
+    let child_bytes = heap.read_bytes(parent).expect("parent read should succeed");
+    let rewritten_child = HeapReference::from_bits(u64::from_le_bytes(
+        child_bytes[..8]
+            .try_into()
+            .expect("child reference should fit"),
     ));
-    assert!(!matches!(
-        managed.location(parent),
-        Some(ManagedLocation::Young(_))
-    ));
+
+    assert_eq!(heap.read_bytes(rewritten_child), Ok(vec![0xC1, 0x1D]));
 }
 
 /// Reject invalid explicit young roots loudly.
 #[test]
 fn test_collect_minor_rejects_invalid_root() {
     let layout = HeapOptions::local();
-    let arena = test_arena(&layout);
-    let mut managed =
-        ManagedSpace::with_options(arena, &layout).expect("explicit managed options should build");
-    let invalid = ManagedReference::new(7);
+    let allocator = test_allocator(&layout);
+    let mut heap =
+        HeapSpace::with_options(allocator, &layout).expect("explicit heap options should build");
+    let invalid = HeapReference::new(7);
+    let mut roots = [invalid];
 
-    let error = managed
-        .collect_minor([invalid])
+    let error = heap
+        .collect_minor(&mut roots)
         .expect_err("invalid roots should fail collection");
 
     assert_eq!(
         error,
-        HeapError::InvalidManagedReference { reference: invalid }
+        HeapError::InvalidHeapReference { reference: invalid }
     );
 }
 
@@ -136,187 +139,172 @@ fn test_collect_minor_rejects_invalid_root() {
 #[test]
 fn test_collect_minor_updates_gc_state() {
     let layout = HeapOptions::local();
-    let arena = test_arena(&layout);
-    let mut managed =
-        ManagedSpace::with_options(arena, &layout).expect("explicit managed options should build");
-    let reachable = managed
+    let allocator = test_allocator(&layout);
+    let mut heap =
+        HeapSpace::with_options(allocator, &layout).expect("explicit heap options should build");
+    let reachable = heap
         .allocate_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
-        .expect("managed allocation should succeed");
+        .expect("heap allocation should succeed");
+    let mut roots = [reachable];
 
-    let stats = managed
-        .collect_minor([reachable])
+    let stats = heap
+        .collect_minor(&mut roots)
         .expect("young collection should succeed");
 
-    assert_eq!(managed.gc_state().completed_cycles, 1);
-    assert_eq!(managed.gc_state().last_kind, Some(GcKind::Minor));
-    assert_eq!(managed.gc_state().last_stats, Some(stats));
+    assert_eq!(heap.gc_state().completed_cycles, 1);
+    assert_eq!(heap.gc_state().last_kind, Some(GcKind::Minor));
+    assert_eq!(heap.gc_state().last_stats, Some(stats));
 }
 
 /// Pinning one young reference should tenure it immediately.
 #[test]
 fn test_pin_promotes_young_reference() {
-    // build one managed space with mature slots for promoted entries
     let layout = HeapOptions {
-        managed_small_bytes: 32,
+        heap_small_bytes: 32,
         ..HeapOptions::local()
     };
-    let arena = test_arena(&layout);
-    let mut managed =
-        ManagedSpace::with_options(arena, &layout).expect("explicit managed options should build");
-    let reference = managed
+    let allocator = test_allocator(&layout);
+    let mut heap =
+        HeapSpace::with_options(allocator, &layout).expect("explicit heap options should build");
+    let reference = heap
         .allocate_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
-        .expect("managed allocation should succeed");
+        .expect("heap allocation should succeed");
 
-    // pinning should move the nursery object into stable mature storage
-    assert!(matches!(
-        managed.location(reference),
-        Some(ManagedLocation::Young(_))
-    ));
+    assert!(is_young(&heap, reference));
 
-    managed.pin(reference).expect("pin should succeed");
+    let reference = heap.pin(reference).expect("pin should succeed");
 
-    // the reference should stay live and stable after pinning
-    assert_eq!(
-        managed.pins.references().collect::<Vec<_>>(),
-        vec![reference]
-    );
-    assert_eq!(managed.read_bytes(reference), Ok(vec![1, 2, 3]));
-    assert!(matches!(
-        managed.location(reference),
-        Some(ManagedLocation::Small(_)) | Some(ManagedLocation::Large(_))
-    ));
+    assert_eq!(heap.pins.references().collect::<Vec<_>>(), vec![reference]);
+    assert_eq!(heap.read_bytes(reference), Ok(vec![1, 2, 3]));
+    assert!(is_mature(&heap, reference));
 }
 
 /// Pinned mature roots should keep young children alive during minor collection.
 #[test]
 fn test_collect_minor_traces_pinned_roots() {
-    // build one managed space with traced local edges
     let layout = HeapOptions {
-        managed_small_bytes: 32,
+        heap_small_bytes: 32,
         ..HeapOptions::local()
     };
-    let arena = test_arena(&layout);
-    let mut managed =
-        ManagedSpace::with_options(arena, &layout).expect("explicit managed options should build");
+    let allocator = test_allocator(&layout);
+    let mut heap =
+        HeapSpace::with_options(allocator, &layout).expect("explicit heap options should build");
     let trace = LayoutTrace::Reference {
         local_offsets: vec![0].into_boxed_slice(),
         shared_offsets: Vec::new().into_boxed_slice(),
     };
-    let child = managed
+    let child = heap
         .allocate_bytes(&[0xC1, 0x1D], LayoutTrace::empty(), None)
-        .expect("managed allocation should succeed");
-    let parent = managed
+        .expect("heap allocation should succeed");
+    let parent = heap
         .allocate_bytes(&child.bits().to_le_bytes(), trace, None)
-        .expect("managed allocation should succeed");
+        .expect("heap allocation should succeed");
+    let parent = heap.pin(parent).expect("pin should succeed");
+    let mut roots = [];
 
-    // pinning the parent should tenure it before collection
-    managed.pin(parent).expect("pin should succeed");
-
-    let stats = managed
-        .collect_minor([])
+    let stats = heap
+        .collect_minor(&mut roots)
         .expect("young collection should succeed");
 
-    // the pinned parent should keep the young child alive
     assert_eq!(stats.freed_allocations, 0);
-    assert_eq!(managed.read_bytes(child), Ok(vec![0xC1, 0x1D]));
-    assert!(matches!(
-        managed.location(parent),
-        Some(ManagedLocation::Small(_)) | Some(ManagedLocation::Large(_))
+    assert!(is_mature(&heap, parent));
+
+    let child_bytes = heap.read_bytes(parent).expect("parent read should succeed");
+    let rewritten_child = HeapReference::from_bits(u64::from_le_bytes(
+        child_bytes[..8]
+            .try_into()
+            .expect("child reference should fit"),
     ));
-    assert!(matches!(
-        managed.location(child),
-        Some(ManagedLocation::Small(_)) | Some(ManagedLocation::Large(_))
-    ));
+
+    assert_eq!(heap.read_bytes(rewritten_child), Ok(vec![0xC1, 0x1D]));
+    assert!(is_mature(&heap, rewritten_child));
 }
 
 /// Pinned mature references should stay live during full collection without explicit roots.
 #[test]
 fn test_collect_full_traces_pinned_roots() {
-    // allocate directly into mature space so full collection is the only live root path
     let layout = HeapOptions {
-        managed_young_bytes: 0,
+        heap_young_bytes: 0,
         ..HeapOptions::local()
     };
-    let arena = test_arena(&layout);
-    let mut managed =
-        ManagedSpace::with_options(arena, &layout).expect("explicit managed options should build");
-    let reference = managed
+    let allocator = test_allocator(&layout);
+    let mut heap =
+        HeapSpace::with_options(allocator, &layout).expect("explicit heap options should build");
+    let reference = heap
         .allocate_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
-        .expect("managed allocation should succeed");
+        .expect("heap allocation should succeed");
+    let reference = heap.pin(reference).expect("pin should succeed");
+    let mut roots = [];
 
-    // keep the mature reference pinned without passing it as one explicit root
-    managed.pin(reference).expect("pin should succeed");
-
-    let stats = managed
-        .collect_full([])
+    let stats = heap
+        .collect_full(&mut roots)
         .expect("full collection should succeed");
 
-    // the pinned reference should stay live across the full cycle
     assert_eq!(stats.freed_allocations, 0);
-    assert!(managed.is_live(reference));
-    assert_eq!(managed.read_bytes(reference), Ok(vec![1, 2, 3]));
+    assert!(heap.is_live(reference));
+    assert_eq!(heap.read_bytes(reference), Ok(vec![1, 2, 3]));
 }
 
-/// Trace shared roots correctly even when local managed references are compact.
+/// Trace shared roots through the full shared-reference width.
 #[test]
 fn test_scan_shared_roots_uses_shared_reference_width() {
-    let options = HeapOptions {
-        managed_reference_bytes: 4,
-        ..HeapOptions::local()
-    };
-    let arena = test_arena(&options);
-    let mut managed =
-        ManagedSpace::with_options(arena, &options).expect("explicit managed options should build");
+    let options = HeapOptions::local();
+    let allocator = test_allocator(&options);
+    let mut heap =
+        HeapSpace::with_options(allocator, &options).expect("explicit heap options should build");
     let trace = LayoutTrace::Reference {
         local_offsets: Vec::new().into_boxed_slice(),
         shared_offsets: vec![0].into_boxed_slice(),
     };
-    let shared = SharedManagedReference::new(7);
-    let local = managed
+    let shared = SharedHeapReference::new(7);
+    let local = heap
         .allocate_bytes(&shared.bits().to_le_bytes(), trace, None)
-        .expect("managed allocation should succeed");
+        .expect("heap allocation should succeed");
     let mut roots = Vec::new();
 
-    managed.start_shared_edge_scan();
+    heap.start_shared_edge_scan();
 
-    let work_done = managed
+    let work_done = heap
         .scan_shared_edge_step(&mut roots, 1)
         .expect("shared root scan should succeed");
 
     assert_eq!(work_done, 1);
     assert_eq!(roots, vec![shared]);
-    assert!(managed.shared_edge_scan_idle());
+    assert!(heap.shared_edge_scan_idle());
 
-    managed.finish_shared_edge_scan();
+    heap.finish_shared_edge_scan();
 
-    assert!(managed.is_live(local));
+    assert!(heap.is_live(local));
 }
 
 /// Stay idle when no local pressure or explicit request exists.
 #[test]
 fn test_heap_gc_step_stays_idle_without_request() {
     let mut heap = Heap::new().expect("heap should build");
+    let mut roots = [];
 
-    let stats = heap.gc_step([]).expect("gc step should succeed");
+    let stats = heap.gc_step(&mut roots).expect("gc step should succeed");
 
     assert_eq!(stats, None);
 }
 
-/// Run one minor cycle after local managed allocation pressure.
+/// Run one minor cycle after local heap allocation pressure.
 #[test]
 fn test_heap_gc_step_runs_minor_after_pressure() {
     let mut heap = test_heap();
     let root = heap
-        .allocate_managed_bytes(&vec![1; 64], LayoutTrace::empty(), None)
-        .expect("managed allocation should succeed");
+        .allocate_heap_bytes(&vec![1; 64], LayoutTrace::empty(), None)
+        .expect("heap allocation should succeed");
+    let mut roots = [root];
 
     let stats = heap
-        .gc_step([root])
+        .gc_step(&mut roots)
         .expect("gc step should succeed")
         .expect("pressure should request one cycle");
+    let root = roots[0];
 
     assert_eq!(stats.freed_allocations, 0);
-    assert!(heap.is_managed_live(root));
+    assert!(heap.is_heap_live(root));
     assert_eq!(heap.gc_state().last_kind, Some(GcKind::Minor));
 }
 
@@ -325,16 +313,56 @@ fn test_heap_gc_step_runs_minor_after_pressure() {
 fn test_heap_gc_step_honors_manual_full_request() {
     let mut heap = Heap::new().expect("heap should build");
     let root = heap
-        .allocate_managed_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
-        .expect("managed allocation should succeed");
+        .allocate_heap_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
+        .expect("heap allocation should succeed");
+    let mut roots = [root];
 
     heap.request_full_gc();
 
     let stats = heap
-        .gc_step([root])
+        .gc_step(&mut roots)
         .expect("gc step should succeed")
         .expect("manual request should run one cycle");
 
     assert_eq!(stats.freed_allocations, 0);
     assert_eq!(heap.gc_state().last_kind, Some(GcKind::Full));
+}
+
+/// Repeated full collection should free later unreachable allocations too.
+#[test]
+fn test_collect_full_reclaims_later_unreachable_allocations() {
+    let layout = HeapOptions::local();
+    let allocator = test_allocator(&layout);
+    let mut heap =
+        HeapSpace::with_options(allocator, &layout).expect("explicit heap options should build");
+    let root = heap
+        .allocate_bytes(&[1], LayoutTrace::empty(), None)
+        .expect("heap allocation should succeed");
+    let _garbage = heap
+        .allocate_bytes(&[2], LayoutTrace::empty(), None)
+        .expect("heap allocation should succeed");
+    let mut roots = [root];
+
+    // the first full cycle should leave only the explicit root
+    heap.collect_full(&mut roots)
+        .expect("full collection should succeed");
+
+    assert_eq!(heap.allocation_count(), 1);
+
+    let more_garbage = heap
+        .allocate_bytes(&[3], LayoutTrace::empty(), None)
+        .expect("heap allocation should succeed");
+    let even_more = heap
+        .allocate_bytes(&[4], LayoutTrace::empty(), None)
+        .expect("heap allocation should succeed");
+
+    // later allocations should still enter young space
+    assert!(is_young(&heap, more_garbage));
+    assert!(is_young(&heap, even_more));
+
+    // the next minor cycle should clear the unreachable nursery
+    heap.collect_minor(&mut roots)
+        .expect("minor collection should succeed");
+
+    assert_eq!(heap.allocation_count(), 1);
 }

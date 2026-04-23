@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::arena::PageView;
+use crate::allocator::PageView;
 use crate::{HeapError, HeapResult};
 
 /// One frozen raw large-entry root.
@@ -10,8 +10,8 @@ pub(crate) struct LargeEntryImage {
     pub is_live: bool,
     /// The logical byte length of this entry.
     pub len: usize,
-    /// The arena pages for this entry.
-    pub pages: PageView,
+    /// The full byte payload for this entry.
+    pub bytes: Box<[u8]>,
 }
 
 /// One stable raw large-entry identifier.
@@ -46,7 +46,7 @@ pub(crate) struct LargeEntry {
     pub(crate) is_live: bool,
     /// The logical byte length of this entry.
     pub(crate) len: usize,
-    /// The arena pages for this entry.
+    /// The allocator pages for this entry.
     pub(crate) pages: PageView,
 }
 

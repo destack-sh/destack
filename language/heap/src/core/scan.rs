@@ -1,7 +1,7 @@
 use std::mem::size_of;
 
 use super::{HeapScan, overlapping_repeated_index_range, ranges_overlap};
-use crate::{HeapError, HeapResult, ManagedReference, SharedManagedReference};
+use crate::{HeapError, HeapReference, HeapResult, SharedHeapReference};
 
 /// The packed byte width for one runtime value lane in heap storage.
 pub(crate) const PACKED_VALUE_BYTES: usize = size_of::<u64>() * 2;
@@ -12,22 +12,22 @@ const VALUE_TAG_OFFSET: usize = size_of::<u64>();
 /// The highest currently valid packed value tag.
 const MAX_VALUE_TAG: u8 = 14;
 
-/// The packed tag for one local managed reference value.
+/// The packed tag for one local heap reference value.
 const MANAGED_REFERENCE_TAG: u8 = 7;
 
-/// The packed tag for one shared managed reference value.
+/// The packed tag for one shared heap reference value.
 const SHARED_MANAGED_REFERENCE_TAG: u8 = 8;
 
-/// Visit each local managed reference encoded in the given payload bytes.
-pub fn trace_managed_references(
+/// Visit each local heap reference encoded in the given payload bytes.
+pub fn trace_heap_references(
     trace: &HeapScan,
     bytes: &[u8],
     reference_bytes: usize,
-    visit: impl FnMut(ManagedReference),
+    visit: impl FnMut(HeapReference),
 ) -> HeapResult<()> {
     validate_reference_bytes(reference_bytes)?;
 
-    visit_managed_references_in_reader(
+    visit_heap_references_in_reader(
         trace,
         reference_bytes,
         |start, buffer| {
@@ -45,12 +45,12 @@ pub fn trace_managed_references(
     )
 }
 
-/// Visit each local managed reference encoded by one scan through one reader.
-pub(crate) fn visit_managed_references_in_reader(
+/// Visit each local heap reference encoded by one scan through one reader.
+pub(crate) fn visit_heap_references_in_reader(
     trace: &HeapScan,
     reference_bytes: usize,
     mut fill_bytes: impl FnMut(usize, &mut [u8]) -> bool,
-    mut visit: impl FnMut(ManagedReference),
+    mut visit: impl FnMut(HeapReference),
 ) -> HeapResult<()> {
     validate_reference_bytes(reference_bytes)?;
 
@@ -60,13 +60,13 @@ pub(crate) fn visit_managed_references_in_reader(
             local_offsets,
             reference_bytes,
             &mut fill_bytes,
-            &mut decode_managed_reference_window,
+            &mut decode_heap_reference_window,
             &mut visit,
         )?,
         HeapScan::PackedValue { offsets } => visit_value_offsets_in_reader(
             offsets,
             &mut fill_bytes,
-            &mut decode_managed_reference_value_slot,
+            &mut decode_heap_reference_value_slot,
             &mut visit,
         )?,
         HeapScan::RepeatedReference {
@@ -80,7 +80,7 @@ pub(crate) fn visit_managed_references_in_reader(
             local_offsets,
             reference_bytes,
             &mut fill_bytes,
-            &mut decode_managed_reference_window,
+            &mut decode_heap_reference_window,
             &mut visit,
         )?,
     }
@@ -88,12 +88,12 @@ pub(crate) fn visit_managed_references_in_reader(
     Ok(())
 }
 
-/// Visit each shared managed reference encoded by one scan through one reader.
+/// Visit each shared heap reference encoded by one scan through one reader.
 pub(crate) fn visit_shared_references_in_reader(
     trace: &HeapScan,
     reference_bytes: usize,
     mut fill_bytes: impl FnMut(usize, &mut [u8]) -> bool,
-    mut visit: impl FnMut(SharedManagedReference),
+    mut visit: impl FnMut(SharedHeapReference),
 ) -> HeapResult<()> {
     validate_reference_bytes(reference_bytes)?;
 
@@ -109,7 +109,7 @@ pub(crate) fn visit_shared_references_in_reader(
         HeapScan::PackedValue { offsets } => visit_value_offsets_in_reader(
             offsets,
             &mut fill_bytes,
-            &mut decode_shared_managed_reference_value_slot,
+            &mut decode_shared_heap_reference_value_slot,
             &mut visit,
         )?,
         HeapScan::RepeatedReference {
@@ -131,14 +131,14 @@ pub(crate) fn visit_shared_references_in_reader(
     Ok(())
 }
 
-/// Visit each overlapping local managed reference encoded by one scan through one reader.
-pub(crate) fn visit_managed_references_in_reader_range(
+/// Visit each overlapping local heap reference encoded by one scan through one reader.
+pub(crate) fn visit_heap_references_in_reader_range(
     trace: &HeapScan,
     start: usize,
     len: usize,
     reference_bytes: usize,
     mut fill_bytes: impl FnMut(usize, &mut [u8]) -> bool,
-    mut visit: impl FnMut(ManagedReference),
+    mut visit: impl FnMut(HeapReference),
 ) -> HeapResult<()> {
     validate_reference_bytes(reference_bytes)?;
 
@@ -160,7 +160,7 @@ pub(crate) fn visit_managed_references_in_reader_range(
             end,
             reference_bytes,
             &mut fill_bytes,
-            &mut decode_managed_reference_window,
+            &mut decode_heap_reference_window,
             &mut visit,
         )?,
         HeapScan::PackedValue { offsets } => visit_value_offsets_in_reader_range(
@@ -168,7 +168,7 @@ pub(crate) fn visit_managed_references_in_reader_range(
             start,
             end,
             &mut fill_bytes,
-            &mut decode_managed_reference_value_slot,
+            &mut decode_heap_reference_value_slot,
             &mut visit,
         )?,
         HeapScan::RepeatedReference {
@@ -184,7 +184,7 @@ pub(crate) fn visit_managed_references_in_reader_range(
             end,
             reference_bytes,
             &mut fill_bytes,
-            &mut decode_managed_reference_window,
+            &mut decode_heap_reference_window,
             &mut visit,
         )?,
     }
@@ -192,14 +192,14 @@ pub(crate) fn visit_managed_references_in_reader_range(
     Ok(())
 }
 
-/// Visit each overlapping shared managed reference encoded by one scan through one reader.
+/// Visit each overlapping shared heap reference encoded by one scan through one reader.
 pub(crate) fn visit_shared_references_in_reader_range(
     trace: &HeapScan,
     start: usize,
     len: usize,
     reference_bytes: usize,
     mut fill_bytes: impl FnMut(usize, &mut [u8]) -> bool,
-    mut visit: impl FnMut(SharedManagedReference),
+    mut visit: impl FnMut(SharedHeapReference),
 ) -> HeapResult<()> {
     validate_reference_bytes(reference_bytes)?;
 
@@ -229,7 +229,7 @@ pub(crate) fn visit_shared_references_in_reader_range(
             start,
             end,
             &mut fill_bytes,
-            &mut decode_shared_managed_reference_value_slot,
+            &mut decode_shared_heap_reference_value_slot,
             &mut visit,
         )?,
         HeapScan::RepeatedReference {
@@ -256,22 +256,22 @@ pub(crate) fn visit_shared_references_in_reader_range(
 /// Validate one configured direct-reference width.
 fn validate_reference_bytes(reference_bytes: usize) -> HeapResult<()> {
     match reference_bytes {
-        4 | 8 => Ok(()),
+        8 => Ok(()),
         bytes => {
             let bytes = u8::try_from(bytes).map_err(|_| HeapError::InvariantOverflow {
                 context: "reference width",
             })?;
 
-            Err(HeapError::UnsupportedManagedReferenceWidth { bytes })
+            Err(HeapError::UnsupportedHeapReferenceWidth { bytes })
         }
     }
 }
 
-/// Decode one local managed reference stored inside one packed value lane.
-pub(crate) fn decode_managed_reference_value_slot(
+/// Decode one local heap reference stored inside one packed value lane.
+pub(crate) fn decode_heap_reference_value_slot(
     window: &[u8],
     start: usize,
-) -> HeapResult<Option<ManagedReference>> {
+) -> HeapResult<Option<HeapReference>> {
     let tag = decode_value_tag(window, start)?;
     if tag != MANAGED_REFERENCE_TAG {
         return Ok(None);
@@ -279,14 +279,14 @@ pub(crate) fn decode_managed_reference_value_slot(
 
     let bits = decode_value_data(window);
 
-    Ok(Some(ManagedReference::from_bits(bits)))
+    Ok(Some(HeapReference::from_bits(bits)))
 }
 
-/// Decode one shared managed reference stored inside one packed value lane.
-pub(crate) fn decode_shared_managed_reference_value_slot(
+/// Decode one shared heap reference stored inside one packed value lane.
+pub(crate) fn decode_shared_heap_reference_value_slot(
     window: &[u8],
     start: usize,
-) -> HeapResult<Option<SharedManagedReference>> {
+) -> HeapResult<Option<SharedHeapReference>> {
     let tag = decode_value_tag(window, start)?;
     if tag != SHARED_MANAGED_REFERENCE_TAG {
         return Ok(None);
@@ -294,38 +294,36 @@ pub(crate) fn decode_shared_managed_reference_value_slot(
 
     let bits = decode_value_data(window);
 
-    Ok(Some(SharedManagedReference::from_bits(bits)))
+    Ok(Some(SharedHeapReference::from_bits(bits)))
 }
 
-/// Decode one direct local managed reference from one traced window.
-fn decode_managed_reference_window(window: &[u8]) -> HeapResult<ManagedReference> {
+/// Decode one direct local heap reference from one traced window.
+fn decode_heap_reference_window(window: &[u8]) -> HeapResult<HeapReference> {
     match window.len() {
         4 => {
             let mut raw = [0u8; 4];
             raw.copy_from_slice(window);
 
-            Ok(ManagedReference::from_bits(u64::from(u32::from_le_bytes(
-                raw,
-            ))))
+            Ok(HeapReference::from_bits(u64::from(u32::from_le_bytes(raw))))
         }
         8 => {
             let mut raw = [0u8; 8];
             raw.copy_from_slice(window);
 
-            Ok(ManagedReference::from_bits(u64::from_le_bytes(raw)))
+            Ok(HeapReference::from_bits(u64::from_le_bytes(raw)))
         }
         bytes => Err(HeapError::InvalidReferenceWindowWidth { bytes }),
     }
 }
 
-/// Decode one direct shared managed reference from one traced window.
-fn decode_shared_reference_window(window: &[u8]) -> HeapResult<SharedManagedReference> {
+/// Decode one direct shared heap reference from one traced window.
+fn decode_shared_reference_window(window: &[u8]) -> HeapResult<SharedHeapReference> {
     match window.len() {
         4 => {
             let mut raw = [0u8; 4];
             raw.copy_from_slice(window);
 
-            Ok(SharedManagedReference::from_bits(u64::from(
+            Ok(SharedHeapReference::from_bits(u64::from(
                 u32::from_le_bytes(raw),
             )))
         }
@@ -333,7 +331,7 @@ fn decode_shared_reference_window(window: &[u8]) -> HeapResult<SharedManagedRefe
             let mut raw = [0u8; 8];
             raw.copy_from_slice(window);
 
-            Ok(SharedManagedReference::from_bits(u64::from_le_bytes(raw)))
+            Ok(SharedHeapReference::from_bits(u64::from_le_bytes(raw)))
         }
         bytes => Err(HeapError::InvalidReferenceWindowWidth { bytes }),
     }

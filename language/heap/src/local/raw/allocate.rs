@@ -1,8 +1,6 @@
-use super::{
-    LargeEntry, LargeEntryId, RawLocation, RawPointerEntry, RawSpace, SmallSpan, checked_pointer_id,
-};
-use crate::arena::{Arena, PageView, SpanAllocationPath, SpanSlot};
-use crate::{Bitmap, HeapError, HeapResult, HeapSpace, RawPointer};
+use super::{LargeEntry, LargeEntryId, RawPageOwner, RawSpace, RawStorage, SmallSpan};
+use crate::allocator::{Allocator, PageView, SpanAllocationPath, SpanSlot};
+use crate::{AccountingRegion, Bitmap, HeapError, HeapResult, RawPointer};
 
 /// One raw slot initialization mode.
 enum SlotWrite<'a> {
@@ -16,12 +14,12 @@ impl SlotWrite<'_> {
     /// Initialize one raw small-slot payload.
     fn initialize_slot(
         &self,
-        arena: &Arena,
+        allocator: &Allocator,
         pages: &mut PageView,
         slot_offset: usize,
     ) -> HeapResult<()> {
         match self {
-            Self::Bytes(bytes) => arena.set_bytes(pages, slot_offset, bytes),
+            Self::Bytes(bytes) => allocator.set_bytes(pages, slot_offset, bytes),
             Self::Zeroed => Ok(()),
         }
     }
@@ -45,17 +43,14 @@ impl RawSpace {
         next_byte_len: usize,
     ) -> HeapResult<i64> {
         // resolve the current live entry first
-        let Some(record) = self.pointer(pointer).copied() else {
-            return Err(HeapError::InvalidRawPointer { pointer });
-        };
-        let Some(location) = record.location() else {
+        let Some(location) = self.resolve_location(pointer) else {
             return Err(HeapError::InvalidRawPointer { pointer });
         };
 
         // project the mapped-byte delta for this replacement
-        let previous_mapped_bytes = self.location_mapped_bytes(location, record.byte_len);
+        let previous_mapped_bytes = self.location_mapped_bytes(location.storage, location.byte_len);
         let next_mapped_bytes =
-            self.location_replace_mapped_bytes(location, record.byte_len, next_byte_len);
+            self.location_replace_mapped_bytes(location.storage, location.byte_len, next_byte_len);
 
         Ok(next_mapped_bytes as i64 - previous_mapped_bytes as i64)
     }
@@ -93,39 +88,32 @@ impl RawSpace {
     /// Free one raw entry.
     pub fn free(&mut self, pointer: RawPointer) -> HeapResult<bool> {
         // resolve the live entry first
-        let pointer_id = pointer.id();
-        let Some(record) = self.pointer(pointer).copied() else {
+        let Some(location) = self.resolve_location(pointer) else {
             return Err(HeapError::InvalidRawPointer { pointer });
         };
-        let Some(location) = record.location() else {
-            return Err(HeapError::InvalidRawPointer { pointer });
-        };
-        let freed_bytes = record.byte_len as u64;
-        self.usage.check_free(freed_bytes, HeapSpace::Raw)?;
+        let freed_bytes = location.byte_len as u64;
+        self.usage.check_free(freed_bytes, AccountingRegion::Raw)?;
 
-        match location {
+        match location.storage {
             // release one small-span slot
-            RawLocation::Small(slot) => {
+            RawStorage::Small(slot) => {
                 self.release_small_slot(slot)?;
 
                 // update heap usage
-                self.usage.free(freed_bytes, HeapSpace::Raw)?;
-
-                // clear the stable pointer slot
-                self.retire_pointer(pointer_id)?;
+                self.usage.free(freed_bytes, AccountingRegion::Raw)?;
 
                 Ok(true)
             }
 
-            // release one entry in large space and its arena pages
-            RawLocation::Large(entry_id) => {
+            // release one entry in large space and its allocator pages
+            RawStorage::Large(entry_id) => {
                 let Some(entry) = self.large_entry(entry_id) else {
                     return Err(HeapError::MissingLargeEntry {
                         entry_id: entry_id.id(),
                     });
                 };
 
-                let pages = entry.pages;
+                let pages = entry.pages.clone();
 
                 let Some(entry) = self.large_entry_mut(entry_id) else {
                     return Err(HeapError::MissingLargeEntry {
@@ -138,12 +126,10 @@ impl RawSpace {
                 self.large.free_large_entry_ids.push(entry_id.id());
 
                 // update heap usage
-                self.usage.free(freed_bytes, HeapSpace::Raw)?;
-
-                // clear the stable pointer slot
-                self.retire_pointer(pointer_id)?;
+                self.usage.free(freed_bytes, AccountingRegion::Raw)?;
 
                 // release the old physical pages after the live slot is gone
+                self.unmap_page_view(&pages)?;
                 self.release_page_view(pages)?;
 
                 Ok(true)
@@ -158,41 +144,13 @@ impl RawSpace {
         bytes: Option<&[u8]>,
         path: SpanAllocationPath,
     ) -> HeapResult<RawPointer> {
-        // allocate the stable pointer id first
-        let pointer_id = self.allocate_pointer_id()?;
-        let pointer = RawPointer::new(pointer_id);
-        let location = self.allocate_location(byte_len, bytes, path)?;
-
-        // then install the live pointer record
-        self.pointers.set_or_push(
-            Self::pointer_index(pointer_id)?,
-            RawPointerEntry::new(location, byte_len),
-        )?;
+        let storage = self.allocate_location(byte_len, bytes, path)?;
+        let pointer = self.base_pointer(storage)?;
 
         // charge the live raw entry counters
-        self.usage.allocate(byte_len, HeapSpace::Raw)?;
+        self.usage.allocate(byte_len, AccountingRegion::Raw)?;
 
         Ok(pointer)
-    }
-
-    /// Allocate one raw pointer id from the intrusive free list or the unused tail.
-    fn allocate_pointer_id(&mut self) -> HeapResult<u32> {
-        // reuse one freed pointer id when possible
-        if let Some(pointer_id) = self.free_pointer_ids.pop() {
-            checked_pointer_id(pointer_id)
-        }
-        // otherwise allocate from the unused tail
-        else {
-            let pointer_id = self.next_unused_pointer_id;
-            let pointer_id = checked_pointer_id(pointer_id)?;
-            self.next_unused_pointer_id = self.next_unused_pointer_id.checked_add(1).ok_or(
-                HeapError::InvalidRawPointerId {
-                    id: self.next_unused_pointer_id,
-                },
-            )?;
-
-            Ok(pointer_id)
-        }
     }
 
     /// Allocate one raw storage location for the given payload.
@@ -201,7 +159,7 @@ impl RawSpace {
         byte_len: usize,
         bytes: Option<&[u8]>,
         path: SpanAllocationPath,
-    ) -> HeapResult<RawLocation> {
+    ) -> HeapResult<RawStorage> {
         match path {
             // execute the precomputed small path directly
             SpanAllocationPath::Small {
@@ -222,7 +180,7 @@ impl RawSpace {
                     byte_len,
                 )?;
 
-                Ok(RawLocation::Small(slot))
+                Ok(RawStorage::Small(slot))
             }
 
             // execute the precomputed large path directly
@@ -230,12 +188,12 @@ impl RawSpace {
                 let pages = self.allocate_large_pages(byte_len, bytes)?;
                 let entry_id = self.store_large_entry(byte_len, pages)?;
 
-                Ok(RawLocation::Large(entry_id))
+                Ok(RawStorage::Large(entry_id))
             }
         }
     }
 
-    /// Store one raw large entry in large space and return its stable id.
+    /// Store one raw large entry in large space and return its entry id.
     pub(super) fn store_large_entry(
         &mut self,
         len: usize,
@@ -268,8 +226,9 @@ impl RawSpace {
         let entry = LargeEntry {
             is_live: true,
             len,
-            pages,
+            pages: pages.clone(),
         };
+        let entry_pages = entry.pages.clone();
         let index = LargeEntryId::new(entry_id).index()?;
 
         // append at the unused tail when possible
@@ -279,7 +238,13 @@ impl RawSpace {
             return Err(error);
         }
 
-        Ok(LargeEntryId::new(entry_id))
+        let entry_id = LargeEntryId::new(entry_id);
+        self.map_page_view(&entry_pages, |logical_page_index| RawPageOwner::Large {
+            entry_id,
+            logical_page_index,
+        })?;
+
+        Ok(entry_id)
     }
 
     /// Allocate one raw small slot from one byte slice.
@@ -316,7 +281,7 @@ impl RawSpace {
                         return Err(HeapError::MissingSpan { span_index });
                     };
 
-                    span.pages = pages;
+                    span.pages = pages.clone();
                 }
 
                 return Ok(span_index);
@@ -333,9 +298,13 @@ impl RawSpace {
             next_free_slot: 0,
             lengths: vec![0; slot_count].into_boxed_slice(),
             occupied: Bitmap::with_capacity(slot_count),
-            pages,
+            pages: pages.clone(),
         };
         let span_index = self.small.spans.len();
+        self.map_page_view(&span.pages, |logical_page_index| RawPageOwner::Small {
+            span_index,
+            logical_page_index,
+        })?;
         if let Err(error) = self.small.spans.push(span) {
             self.release_page_view(pages)?;
 
@@ -387,7 +356,7 @@ impl RawSpace {
             Some(bytes) => SlotWrite::Bytes(bytes),
             None => SlotWrite::Zeroed,
         };
-        write.initialize_slot(&self.arena, &mut span.pages, slot_offset)?;
+        write.initialize_slot(&self.allocator, &mut span.pages, slot_offset)?;
 
         // mark the slot as live inside its span
         span.occupied.set(slot_index);
@@ -448,7 +417,7 @@ impl RawSpace {
             if span.occupied_count == 0 {
                 span.next_free_slot = 0;
 
-                let pages = span.pages;
+                let pages = span.pages.clone();
                 span.pages = PageView::empty();
 
                 Some(pages)
@@ -467,6 +436,7 @@ impl RawSpace {
         };
 
         if let Some(pages) = pages {
+            self.unmap_page_view(&pages)?;
             self.release_page_view(pages)?;
         }
 
@@ -479,22 +449,22 @@ impl RawSpace {
     }
 
     /// Return the mapped bytes currently charged to one raw location.
-    fn location_mapped_bytes(&self, location: RawLocation, byte_len: usize) -> u64 {
-        match location {
-            RawLocation::Small(_) => 0,
-            RawLocation::Large(_) => self.round_up_large_entry_bytes(byte_len),
+    fn location_mapped_bytes(&self, storage: RawStorage, byte_len: usize) -> u64 {
+        match storage {
+            RawStorage::Small(_) => 0,
+            RawStorage::Large(_) => self.round_up_large_entry_bytes(byte_len),
         }
     }
 
     /// Return the mapped bytes for one replacement target location.
     fn location_replace_mapped_bytes(
         &self,
-        location: RawLocation,
+        storage: RawStorage,
         previous_byte_len: usize,
         next_byte_len: usize,
     ) -> u64 {
         // small entries stay in place when the next payload still fits
-        if let RawLocation::Small(slot) = location
+        if let RawStorage::Small(slot) = storage
             && let Some(span) = self.span(slot.span_index())
             && next_byte_len <= span.size_class
         {

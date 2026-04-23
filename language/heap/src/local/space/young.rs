@@ -1,19 +1,19 @@
 use serde::{Deserialize, Serialize};
 
-use crate::arena::{Arena, PageRunCache, PageView};
-use crate::{HeapError, HeapResult, ShapeId};
+use crate::allocator::{Allocator, PageRunCache, PageView};
+use crate::{HeapResult, ShapeId};
 
-/// One stable managed young-entry identifier.
+/// One heap young-entry identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct ManagedYoungId {
+pub(crate) struct HeapYoungId {
     /// The young-space generation that owns this entry.
     generation: u32,
     /// The zero-based entry index inside that generation.
     index: u32,
 }
 
-impl ManagedYoungId {
-    /// Create one managed young-entry identifier.
+impl HeapYoungId {
+    /// Create one heap young-entry identifier.
     pub(crate) const fn new(generation: u32, index: u32) -> Self {
         Self { generation, index }
     }
@@ -42,6 +42,8 @@ pub(crate) struct YoungEntry {
     pub(crate) shape_id: ShapeId,
     /// Whether this young entry is still live.
     pub(crate) is_live: bool,
+    /// Whether this young entry is marked in the active cycle.
+    pub(crate) is_marked: bool,
 }
 
 /// One frozen young-space root.
@@ -55,13 +57,13 @@ pub(crate) struct YoungImage {
     page_bytes: usize,
     /// The bump-allocation cursor inside the logical young byte space.
     next_offset: usize,
-    /// The arena pages backing this young space.
+    /// The allocator pages backing this young space.
     pages: PageView,
     /// The captured young-entry metadata entries.
     entries: Box<[YoungEntry]>,
 }
 
-/// One live managed young space.
+/// One live heap young space.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct YoungSpace {
     /// The generation number for this young space.
@@ -72,7 +74,7 @@ pub(crate) struct YoungSpace {
     pub(crate) page_bytes: usize,
     /// The bump-allocation cursor inside the logical young byte space.
     pub(crate) next_offset: usize,
-    /// The arena pages backing this young space.
+    /// The allocator pages backing this young space.
     pub(crate) pages: PageView,
     /// The live young-entry metadata entries.
     pub(crate) entries: Vec<YoungEntry>,
@@ -81,7 +83,7 @@ pub(crate) struct YoungSpace {
 impl YoungSpace {
     /// Create one empty young space with its full page run.
     pub(crate) fn new(
-        arena: &Arena,
+        allocator: &Allocator,
         capacity_bytes: usize,
         page_bytes: usize,
         cache: &mut PageRunCache,
@@ -91,32 +93,9 @@ impl YoungSpace {
             capacity_bytes,
             page_bytes,
             next_offset: 0,
-            pages: cache.allocate_zeroed(arena, capacity_bytes)?,
+            pages: cache.allocate_zeroed(allocator, capacity_bytes)?,
             entries: Vec::new(),
         })
-    }
-
-    /// Reset this young space with a fresh page run.
-    pub(crate) fn reset(&mut self, arena: &Arena, cache: &mut PageRunCache) -> HeapResult<()> {
-        let pages = cache.allocate_zeroed(arena, self.capacity_bytes)?;
-
-        if let Err(error) = cache.release_page_view(arena, self.pages) {
-            cache.release_page_view(arena, pages)?;
-
-            return Err(error);
-        }
-
-        self.generation = self
-            .generation
-            .checked_add(1)
-            .ok_or(HeapError::InvariantOverflow {
-                context: "managed young generation",
-            })?;
-        self.next_offset = 0;
-        self.pages = pages;
-        self.entries.clear();
-
-        Ok(())
     }
 }
 
@@ -160,7 +139,7 @@ impl YoungImage {
         self.next_offset
     }
 
-    /// Return the arena pages for this young root.
+    /// Return the allocator pages for this young root.
     pub(crate) fn pages(&self) -> &PageView {
         &self.pages
     }

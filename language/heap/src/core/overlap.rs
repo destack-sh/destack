@@ -1,12 +1,12 @@
 use super::{HeapScan, PACKED_VALUE_BYTES};
 use crate::HeapResult;
 
-/// Return whether one write range may overlap any managed-edge bytes.
-pub(crate) fn overlaps_managed_range(
+/// Return whether one write range may overlap any heap-edge bytes.
+pub(crate) fn overlaps_heap_range(
     map: &HeapScan,
     start: usize,
     len: usize,
-    managed_reference_bytes: usize,
+    heap_reference_bytes: usize,
 ) -> HeapResult<bool> {
     if len == 0 {
         return Ok(false);
@@ -19,7 +19,7 @@ pub(crate) fn overlaps_managed_range(
     let is_overlapping = match map {
         HeapScan::None => false,
         HeapScan::Reference { local_offsets, .. } => {
-            overlaps_reference_offsets(local_offsets, start, end, managed_reference_bytes)
+            overlaps_reference_offsets(local_offsets, start, end, heap_reference_bytes)
         }
         HeapScan::PackedValue { offsets } => {
             overlaps_value_offsets(offsets, start, end, PACKED_VALUE_BYTES)
@@ -35,14 +35,14 @@ pub(crate) fn overlaps_managed_range(
             local_offsets,
             start,
             end,
-            managed_reference_bytes,
+            heap_reference_bytes,
         ),
     };
 
     Ok(is_overlapping)
 }
 
-/// Return whether one write range may overlap any shared managed-edge bytes.
+/// Return whether one write range may overlap any shared heap-edge bytes.
 pub(crate) fn overlaps_shared_range(
     map: &HeapScan,
     start: usize,
@@ -83,17 +83,17 @@ pub(crate) fn overlaps_shared_range(
     Ok(is_overlapping)
 }
 
-/// Report whether one direct managed-reference table overlaps the given byte range.
+/// Report whether one direct heap-reference table overlaps the given byte range.
 fn overlaps_reference_offsets(
     offsets: &[u32],
     start: usize,
     end: usize,
-    managed_reference_bytes: usize,
+    heap_reference_bytes: usize,
 ) -> bool {
     offsets
         .iter()
         .copied()
-        .any(|offset| ranges_overlap(start, end, offset as usize, managed_reference_bytes))
+        .any(|offset| ranges_overlap(start, end, offset as usize, heap_reference_bytes))
 }
 
 /// Report whether one value table overlaps the given byte range.
@@ -104,14 +104,14 @@ fn overlaps_value_offsets(offsets: &[u32], start: usize, end: usize, value_bytes
         .any(|offset| ranges_overlap(start, end, offset as usize, value_bytes))
 }
 
-/// Report whether one repeated managed-reference table overlaps the given byte range.
+/// Report whether one repeated heap-reference table overlaps the given byte range.
 fn overlaps_repeated_reference_offsets(
     count: u32,
     stride: u32,
     offsets: &[u32],
     start: usize,
     end: usize,
-    managed_reference_bytes: usize,
+    heap_reference_bytes: usize,
 ) -> bool {
     offsets.iter().copied().any(|offset| {
         overlapping_repeated_index_range(
@@ -120,7 +120,7 @@ fn overlaps_repeated_reference_offsets(
             count as usize,
             stride as usize,
             offset as usize,
-            managed_reference_bytes,
+            heap_reference_bytes,
         )
         .is_some()
     })

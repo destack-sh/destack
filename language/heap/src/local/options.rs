@@ -1,12 +1,11 @@
 use serde::{Deserialize, Serialize};
 
 use super::constants::{
-    DEFAULT_ARENA_SEGMENT_BYTES, DEFAULT_CARD_BYTES, DEFAULT_MANAGED_REFERENCE_BYTES,
-    DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES, DEFAULT_PAGE_BYTES,
-    DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_BYTES, DEFAULT_TABLE_CHUNK_LEN,
+    DEFAULT_ALLOCATOR_SEGMENT_BYTES, DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES,
+    DEFAULT_PAGE_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_BYTES,
     DEFAULT_YOUNG_BYTES,
 };
-use crate::arena::{Arena, SizeClassPolicy, SizeClassTable};
+use crate::allocator::{Allocator, SizeClassPolicy, SizeClassTable};
 use crate::{GcOptions, HeapError};
 
 /// Constructor policy for resolving local heap options.
@@ -16,24 +15,18 @@ pub struct LocalHeapPolicy {
     pub gc: GcOptions,
     /// The small-object allocation policy.
     pub small: SizeClassPolicy,
-    /// The encoded byte width for managed references inside traced payloads.
-    pub managed_reference_bytes: u8,
-    /// The byte width for managed young space.
-    pub managed_young_bytes: usize,
-    /// The maximum payload size admitted into managed young space.
-    pub max_managed_young_allocation_bytes: usize,
-    /// The byte width for managed small-allocation spans.
-    pub managed_small_bytes: usize,
+    /// The byte width for heap young space.
+    pub heap_young_bytes: usize,
+    /// The maximum payload size admitted into heap young space.
+    pub max_heap_young_allocation_bytes: usize,
+    /// The byte width for heap small-allocation spans.
+    pub heap_small_bytes: usize,
     /// The byte width for raw small-allocation spans.
     pub raw_small_bytes: usize,
     /// The byte width for local heap pages.
     pub page_bytes: usize,
-    /// The byte width for one physical arena segment.
-    pub arena_segment_bytes: usize,
-    /// The byte width for one remembered card.
-    pub card_bytes: usize,
-    /// The entry count per copy on write metadata table chunk.
-    pub table_chunk_len: usize,
+    /// The byte width for one physical allocator segment.
+    pub allocator_segment_bytes: usize,
 }
 
 impl Default for LocalHeapPolicy {
@@ -41,15 +34,12 @@ impl Default for LocalHeapPolicy {
         Self {
             gc: GcOptions::local(),
             small: SizeClassPolicy::default(),
-            managed_reference_bytes: DEFAULT_MANAGED_REFERENCE_BYTES,
-            managed_young_bytes: DEFAULT_YOUNG_BYTES,
-            max_managed_young_allocation_bytes: DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES,
-            managed_small_bytes: DEFAULT_SMALL_BYTES,
+            heap_young_bytes: DEFAULT_YOUNG_BYTES,
+            max_heap_young_allocation_bytes: DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES,
+            heap_small_bytes: DEFAULT_SMALL_BYTES,
             raw_small_bytes: DEFAULT_SMALL_BYTES,
             page_bytes: DEFAULT_PAGE_BYTES,
-            arena_segment_bytes: DEFAULT_ARENA_SEGMENT_BYTES,
-            card_bytes: DEFAULT_CARD_BYTES,
-            table_chunk_len: DEFAULT_TABLE_CHUNK_LEN,
+            allocator_segment_bytes: DEFAULT_ALLOCATOR_SEGMENT_BYTES,
         }
     }
 }
@@ -60,16 +50,13 @@ impl LocalHeapPolicy {
         let options = HeapOptions {
             gc: self.gc,
             size_classes: self.small.size_classes()?,
-            managed_reference_bytes: self.managed_reference_bytes,
-            managed_young_bytes: self.managed_young_bytes,
-            max_managed_young_allocation_bytes: self.max_managed_young_allocation_bytes,
-            managed_small_bytes: self.managed_small_bytes,
+            heap_young_bytes: self.heap_young_bytes,
+            max_heap_young_allocation_bytes: self.max_heap_young_allocation_bytes,
+            heap_small_bytes: self.heap_small_bytes,
             raw_small_bytes: self.raw_small_bytes,
             page_bytes: self.page_bytes,
-            arena_segment_bytes: self.arena_segment_bytes,
-            card_bytes: self.card_bytes,
+            allocator_segment_bytes: self.allocator_segment_bytes,
             small_allocation_alignment_bytes: self.small.alignment_bytes,
-            table_chunk_len: self.table_chunk_len,
         };
 
         options.validate_local()?;
@@ -85,14 +72,12 @@ pub struct SharedHeapPolicy {
     pub gc: GcOptions,
     /// The small-object allocation policy.
     pub small: SizeClassPolicy,
-    /// The byte width for managed small-allocation spans.
-    pub managed_small_bytes: usize,
+    /// The byte width for heap small-allocation spans.
+    pub heap_small_bytes: usize,
     /// The byte width for local heap pages.
     pub page_bytes: usize,
-    /// The byte width for one physical arena segment.
-    pub arena_segment_bytes: usize,
-    /// The entry count per copy on write metadata table chunk.
-    pub table_chunk_len: usize,
+    /// The byte width for one physical allocator segment.
+    pub allocator_segment_bytes: usize,
 }
 
 impl Default for SharedHeapPolicy {
@@ -100,10 +85,9 @@ impl Default for SharedHeapPolicy {
         Self {
             gc: GcOptions::shared(),
             small: SizeClassPolicy::default(),
-            managed_small_bytes: DEFAULT_SMALL_BYTES,
+            heap_small_bytes: DEFAULT_SMALL_BYTES,
             page_bytes: DEFAULT_PAGE_BYTES,
-            arena_segment_bytes: DEFAULT_ARENA_SEGMENT_BYTES,
-            table_chunk_len: DEFAULT_TABLE_CHUNK_LEN,
+            allocator_segment_bytes: DEFAULT_ALLOCATOR_SEGMENT_BYTES,
         }
     }
 }
@@ -114,16 +98,13 @@ impl SharedHeapPolicy {
         let options = HeapOptions {
             gc: self.gc,
             size_classes: self.small.size_classes()?,
-            managed_reference_bytes: DEFAULT_MANAGED_REFERENCE_BYTES,
-            managed_young_bytes: 0,
-            max_managed_young_allocation_bytes: 0,
-            managed_small_bytes: self.managed_small_bytes,
+            heap_young_bytes: 0,
+            max_heap_young_allocation_bytes: 0,
+            heap_small_bytes: self.heap_small_bytes,
             raw_small_bytes: DEFAULT_SMALL_BYTES,
             page_bytes: self.page_bytes,
-            arena_segment_bytes: self.arena_segment_bytes,
-            card_bytes: DEFAULT_CARD_BYTES,
+            allocator_segment_bytes: self.allocator_segment_bytes,
             small_allocation_alignment_bytes: self.small.alignment_bytes,
-            table_chunk_len: self.table_chunk_len,
         };
 
         options.validate_shared()?;
@@ -139,26 +120,20 @@ pub struct HeapOptions {
     pub gc: GcOptions,
     /// The configured small-allocation class table.
     pub size_classes: SizeClassTable,
-    /// The encoded byte width for managed references inside traced payloads.
-    pub managed_reference_bytes: u8,
-    /// The byte width for managed young space.
-    pub managed_young_bytes: usize,
-    /// The maximum payload size admitted into managed young space.
-    pub max_managed_young_allocation_bytes: usize,
-    /// The byte width for managed small-allocation spans.
-    pub managed_small_bytes: usize,
+    /// The byte width for heap young space.
+    pub heap_young_bytes: usize,
+    /// The maximum payload size admitted into heap young space.
+    pub max_heap_young_allocation_bytes: usize,
+    /// The byte width for heap small-allocation spans.
+    pub heap_small_bytes: usize,
     /// The byte width for raw small-allocation spans.
     pub raw_small_bytes: usize,
     /// The byte width for local heap pages.
     pub page_bytes: usize,
-    /// The byte width for one physical arena segment.
-    pub arena_segment_bytes: usize,
-    /// The byte width for one remembered card.
-    pub card_bytes: usize,
+    /// The byte width for one physical allocator segment.
+    pub allocator_segment_bytes: usize,
     /// The required alignment for configured small-allocation classes.
     pub small_allocation_alignment_bytes: usize,
-    /// The entry count per copy on write metadata table chunk.
-    pub table_chunk_len: usize,
 }
 
 impl HeapOptions {
@@ -167,16 +142,13 @@ impl HeapOptions {
         Self {
             gc: GcOptions::local(),
             size_classes: SizeClassTable::default(),
-            managed_reference_bytes: DEFAULT_MANAGED_REFERENCE_BYTES,
-            managed_young_bytes: DEFAULT_YOUNG_BYTES,
-            max_managed_young_allocation_bytes: DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES,
-            managed_small_bytes: DEFAULT_SMALL_BYTES,
+            heap_young_bytes: DEFAULT_YOUNG_BYTES,
+            max_heap_young_allocation_bytes: DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES,
+            heap_small_bytes: DEFAULT_SMALL_BYTES,
             raw_small_bytes: DEFAULT_SMALL_BYTES,
             page_bytes: DEFAULT_PAGE_BYTES,
-            arena_segment_bytes: DEFAULT_ARENA_SEGMENT_BYTES,
-            card_bytes: DEFAULT_CARD_BYTES,
+            allocator_segment_bytes: DEFAULT_ALLOCATOR_SEGMENT_BYTES,
             small_allocation_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
-            table_chunk_len: DEFAULT_TABLE_CHUNK_LEN,
         }
     }
 
@@ -185,22 +157,14 @@ impl HeapOptions {
         Self {
             gc: GcOptions::shared(),
             size_classes: SizeClassTable::default(),
-            managed_reference_bytes: DEFAULT_MANAGED_REFERENCE_BYTES,
-            managed_young_bytes: 0,
-            max_managed_young_allocation_bytes: 0,
-            managed_small_bytes: DEFAULT_SMALL_BYTES,
+            heap_young_bytes: 0,
+            max_heap_young_allocation_bytes: 0,
+            heap_small_bytes: DEFAULT_SMALL_BYTES,
             raw_small_bytes: DEFAULT_SMALL_BYTES,
             page_bytes: DEFAULT_PAGE_BYTES,
-            arena_segment_bytes: DEFAULT_ARENA_SEGMENT_BYTES,
-            card_bytes: DEFAULT_CARD_BYTES,
+            allocator_segment_bytes: DEFAULT_ALLOCATOR_SEGMENT_BYTES,
             small_allocation_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
-            table_chunk_len: DEFAULT_TABLE_CHUNK_LEN,
         }
-    }
-
-    /// Return the default table chunk length.
-    pub const fn default_table_chunk_len() -> usize {
-        DEFAULT_TABLE_CHUNK_LEN
     }
 
     /// Validate one configured heap page width.
@@ -212,46 +176,25 @@ impl HeapOptions {
         }
     }
 
-    /// Validate one encoded managed-reference byte width.
-    pub(crate) fn validate_managed_reference_bytes(
-        managed_reference_bytes: u8,
-    ) -> Result<usize, HeapError> {
-        match managed_reference_bytes {
-            4 | 8 => Ok(managed_reference_bytes as usize),
-            _ => Err(HeapError::UnsupportedManagedReferenceWidth {
-                bytes: managed_reference_bytes,
-            }),
-        }
-    }
-
-    /// Validate one configured remembered-card byte width.
-    pub(crate) fn validate_card_bytes(card_bytes: usize) -> Result<usize, HeapError> {
-        if card_bytes == 0 || !card_bytes.is_power_of_two() {
-            Err(HeapError::InvalidCardBytes { bytes: card_bytes })
-        } else {
-            Ok(card_bytes)
-        }
-    }
-
-    /// Validate one configured arena segment width.
-    pub(crate) fn validate_arena_segment_bytes(
+    /// Validate one configured allocator segment width.
+    pub(crate) fn validate_allocator_segment_bytes(
         page_bytes: usize,
-        arena_segment_bytes: usize,
+        allocator_segment_bytes: usize,
     ) -> Result<usize, HeapError> {
-        if arena_segment_bytes == 0 {
-            return Err(HeapError::InvalidArenaSegmentBytes {
-                bytes: arena_segment_bytes,
+        if allocator_segment_bytes == 0 {
+            return Err(HeapError::InvalidAllocatorSegmentBytes {
+                bytes: allocator_segment_bytes,
             });
         }
 
-        if !arena_segment_bytes.is_multiple_of(page_bytes) {
-            return Err(HeapError::MisalignedArenaSegmentBytes {
+        if !allocator_segment_bytes.is_multiple_of(page_bytes) {
+            return Err(HeapError::MisalignedAllocatorSegmentBytes {
                 page_bytes,
-                segment_bytes: arena_segment_bytes,
+                segment_bytes: allocator_segment_bytes,
             });
         }
 
-        Ok(arena_segment_bytes)
+        Ok(allocator_segment_bytes)
     }
 
     /// Validate one configured small-allocation alignment.
@@ -267,23 +210,11 @@ impl HeapOptions {
         }
     }
 
-    /// Validate one configured table chunk length.
-    pub(crate) fn validate_table_chunk_len(table_chunk_len: usize) -> Result<usize, HeapError> {
-        if table_chunk_len == 0 {
-            Err(HeapError::InvalidTableChunkLen {
-                len: table_chunk_len,
-            })
-        } else {
-            Ok(table_chunk_len)
-        }
-    }
-
     /// Validate the common heap geometry shared by local and shared heaps.
     fn validate_common(&self) -> Result<(), HeapError> {
         self.gc.validate()?;
         Self::validate_page_bytes(self.page_bytes)?;
-        Self::validate_arena_segment_bytes(self.page_bytes, self.arena_segment_bytes)?;
-        Self::validate_table_chunk_len(self.table_chunk_len)?;
+        Self::validate_allocator_segment_bytes(self.page_bytes, self.allocator_segment_bytes)?;
         Self::validate_small_allocation_alignment_bytes(self.small_allocation_alignment_bytes)?;
 
         // keep all size classes aligned to the configured small-slot boundary
@@ -302,16 +233,14 @@ impl HeapOptions {
     /// Validate these options for one local heap.
     pub fn validate_local(&self) -> Result<(), HeapError> {
         self.validate_common()?;
-        Self::validate_managed_reference_bytes(self.managed_reference_bytes)?;
-        Self::validate_card_bytes(self.card_bytes)?;
 
         // reject contradictory young-space policy
-        if self.managed_young_bytes != 0
-            && self.max_managed_young_allocation_bytes > self.managed_young_bytes
+        if self.heap_young_bytes != 0
+            && self.max_heap_young_allocation_bytes > self.heap_young_bytes
         {
-            return Err(HeapError::ManagedYoungThresholdExceedsCapacity {
-                threshold: self.max_managed_young_allocation_bytes,
-                capacity: self.managed_young_bytes,
+            return Err(HeapError::HeapYoungThresholdExceedsCapacity {
+                threshold: self.max_heap_young_allocation_bytes,
+                capacity: self.heap_young_bytes,
             });
         }
 
@@ -325,22 +254,87 @@ impl HeapOptions {
         Ok(())
     }
 
-    /// Validate that one explicit arena matches these heap options.
-    pub(crate) fn validate_arena(&self, arena: &Arena) -> Result<(), HeapError> {
-        if arena.page_bytes() != self.page_bytes {
-            return Err(HeapError::ArenaPageBytesMismatch {
+    /// Validate that one explicit allocator matches these heap options.
+    pub(crate) fn validate_allocator(&self, allocator: &Allocator) -> Result<(), HeapError> {
+        if allocator.page_bytes() != self.page_bytes {
+            return Err(HeapError::AllocatorPageBytesMismatch {
                 option_page_bytes: self.page_bytes,
-                arena_page_bytes: arena.page_bytes(),
+                allocator_page_bytes: allocator.page_bytes(),
             });
         }
 
-        if arena.segment_bytes() != self.arena_segment_bytes {
-            return Err(HeapError::ArenaSegmentBytesMismatch {
-                option_segment_bytes: self.arena_segment_bytes,
-                arena_segment_bytes: arena.segment_bytes(),
+        if allocator.segment_bytes() != self.allocator_segment_bytes {
+            return Err(HeapError::AllocatorSegmentBytesMismatch {
+                option_segment_bytes: self.allocator_segment_bytes,
+                allocator_segment_bytes: allocator.segment_bytes(),
             });
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{GcOptions, Heap, HeapError, HeapLimits, HeapOptions, SizeClassTable};
+
+    /// Reject unsupported GC trigger percentages at heap construction.
+    #[test]
+    fn test_heap_rejects_invalid_gc_trigger_percent() {
+        let options = HeapOptions {
+            gc: GcOptions {
+                trigger_percent: 101,
+                ..HeapOptions::local().gc
+            },
+            ..HeapOptions::local()
+        };
+
+        let error = Heap::with_limits_and_options(HeapLimits::default(), options)
+            .expect_err("invalid heap options should fail loudly");
+
+        assert_eq!(error, HeapError::InvalidGcTriggerPercent { percent: 101 });
+    }
+
+    /// Reject contradictory heap young-space admission policy.
+    #[test]
+    fn test_heap_rejects_young_threshold_above_capacity() {
+        let options = HeapOptions {
+            heap_young_bytes: 1024,
+            max_heap_young_allocation_bytes: 2048,
+            ..HeapOptions::local()
+        };
+
+        let error = Heap::with_limits_and_options(HeapLimits::default(), options)
+            .expect_err("invalid heap options should fail loudly");
+
+        assert_eq!(
+            error,
+            HeapError::HeapYoungThresholdExceedsCapacity {
+                threshold: 2048,
+                capacity: 1024,
+            }
+        );
+    }
+
+    /// Reject misaligned size classes under one explicit heap alignment.
+    #[test]
+    fn test_heap_rejects_misaligned_size_class_table() {
+        let options = HeapOptions {
+            size_classes: SizeClassTable::new([16, 24, 32])
+                .expect("size classes should validate structurally"),
+            small_allocation_alignment_bytes: 16,
+            ..HeapOptions::local()
+        };
+
+        let error = Heap::with_limits_and_options(HeapLimits::default(), options)
+            .expect_err("invalid heap options should fail loudly");
+
+        assert_eq!(
+            error,
+            HeapError::MisalignedSizeClass {
+                alignment_bytes: 16,
+                class_bytes: 24,
+            }
+        );
     }
 }

@@ -1,17 +1,17 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
-use crate::arena::PageId;
-use crate::{HeapSpace, ManagedReference, RawPointer, SharedManagedReference, SharedRawPointer};
+use crate::allocator::PageId;
+use crate::{AccountingRegion, HeapReference, RawPointer, SharedHeapReference, SharedRawPointer};
 
 /// One heap result.
 pub type HeapResult<T> = Result<T, HeapError>;
 
-/// One managed scan source.
+/// One heap scan source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScanSource {
-    /// One managed reference payload.
-    Reference(ManagedReference),
+    /// One heap reference payload.
+    Reference(HeapReference),
     /// One mature span.
     Span(usize),
     /// One mature large entry.
@@ -23,35 +23,35 @@ pub enum ScanSource {
 pub enum HeapError {
     /// The configured GC trigger percentage is unsupported.
     InvalidGcTriggerPercent { percent: u32 },
-    /// The configured managed-reference width is unsupported.
-    UnsupportedManagedReferenceWidth { bytes: u8 },
+    /// The configured heap-reference width is unsupported.
+    UnsupportedHeapReferenceWidth { bytes: u8 },
     /// The configured heap page width is unsupported.
     InvalidPageBytes { bytes: usize },
-    /// The configured arena segment width is unsupported.
-    InvalidArenaSegmentBytes { bytes: usize },
-    /// The configured arena segment width is not aligned to the page width.
-    MisalignedArenaSegmentBytes {
+    /// The configured allocator segment width is unsupported.
+    InvalidAllocatorSegmentBytes { bytes: usize },
+    /// The configured allocator segment width is not aligned to the page width.
+    MisalignedAllocatorSegmentBytes {
         /// The configured page width in bytes.
         page_bytes: usize,
-        /// The configured arena segment width in bytes.
+        /// The configured allocator segment width in bytes.
         segment_bytes: usize,
     },
-    /// The explicit arena does not match the configured heap page width.
-    ArenaPageBytesMismatch {
+    /// The explicit allocator does not match the configured heap page width.
+    AllocatorPageBytesMismatch {
         /// The page width configured through heap options.
         option_page_bytes: usize,
-        /// The actual page width of the explicit arena.
-        arena_page_bytes: usize,
+        /// The actual page width of the explicit allocator.
+        allocator_page_bytes: usize,
     },
-    /// The explicit arena does not match the configured heap segment width.
-    ArenaSegmentBytesMismatch {
+    /// The explicit allocator does not match the configured heap segment width.
+    AllocatorSegmentBytesMismatch {
         /// The segment width configured through heap options.
         option_segment_bytes: usize,
-        /// The actual segment width of the explicit arena.
-        arena_segment_bytes: usize,
+        /// The actual segment width of the explicit allocator.
+        allocator_segment_bytes: usize,
     },
-    /// The configured managed young-allocation threshold exceeds young-space capacity.
-    ManagedYoungThresholdExceedsCapacity { threshold: usize, capacity: usize },
+    /// The configured heap young-allocation threshold exceeds young-space capacity.
+    HeapYoungThresholdExceedsCapacity { threshold: usize, capacity: usize },
     /// The configured remembered-card width is unsupported.
     InvalidCardBytes { bytes: usize },
     /// The configured small-allocation alignment is unsupported.
@@ -100,22 +100,22 @@ pub enum HeapError {
         /// The invalid size class in bytes.
         class_bytes: usize,
     },
-    /// The arena segment count cannot grow far enough for one entry.
-    ArenaSegmentLimitExceeded {
+    /// The allocator segment count cannot grow far enough for one entry.
+    AllocatorSegmentLimitExceeded {
         /// The required segment count.
         required_segments: usize,
         /// The maximum configured segment count.
         max_segments: usize,
     },
-    /// One arena segment entry layout was invalid.
-    InvalidArenaSegmentLayout {
+    /// One allocator segment entry layout was invalid.
+    InvalidAllocatorSegmentLayout {
         /// The requested segment byte length.
         byte_len: usize,
         /// The requested page alignment in bytes.
         page_bytes: usize,
     },
-    /// One arena segment entry failed.
-    ArenaSegmentAllocationFailed {
+    /// One allocator segment entry failed.
+    AllocatorSegmentAllocationFailed {
         /// The requested segment byte length.
         byte_len: usize,
         /// The requested page alignment in bytes.
@@ -124,7 +124,7 @@ pub enum HeapError {
     /// One heap-space hard limit was exceeded.
     LimitExceeded {
         /// The heap space that exceeded its limit.
-        space: HeapSpace,
+        region: AccountingRegion,
         /// The exact bytes in use.
         used_bytes: u64,
         /// The configured limit.
@@ -132,35 +132,35 @@ pub enum HeapError {
     },
     /// One heap capture request found active collector work.
     CaptureGcActive,
-    /// One heap capture request found active managed pins.
+    /// One heap capture request found active heap pins.
     CapturePinsActive,
-    /// One managed collection was requested while another collection was active.
-    ManagedCollectionActive,
-    /// One shared managed collection was requested while another collection was active.
+    /// One heap collection was requested while another collection was active.
+    HeapCollectionActive,
+    /// One shared heap collection was requested while another collection was active.
     SharedCollectionActive,
-    /// One shared managed mark operation was requested while shared mark was inactive.
+    /// One shared heap mark operation was requested while shared mark was inactive.
     SharedCollectionNotMarking,
-    /// One managed pin count could not represent one additional scoped pin.
-    ManagedPinCountOverflow {
-        /// The pinned managed reference.
-        reference: ManagedReference,
+    /// One heap pin count could not represent one additional scoped pin.
+    HeapPinCountOverflow {
+        /// The pinned heap reference.
+        reference: HeapReference,
         /// The current pin count before the failed increment.
         count: u32,
     },
-    /// One managed pin set could not represent one additional active scoped pin.
-    ManagedPinActiveCountOverflow {
+    /// One heap pin set could not represent one additional active scoped pin.
+    HeapPinActiveCountOverflow {
         /// The current active pin count before the failed increment.
         active_count: usize,
     },
-    /// One managed reference was unpinned without one active scoped pin.
-    ManagedPinMissing {
-        /// The unpinned managed reference.
-        reference: ManagedReference,
+    /// One heap reference was unpinned without one active scoped pin.
+    HeapPinMissing {
+        /// The unpinned heap reference.
+        reference: HeapReference,
     },
-    /// One managed pin set lost its active-count invariant while unpinning.
-    ManagedPinActiveCountUnderflow {
-        /// The unpinned managed reference.
-        reference: ManagedReference,
+    /// One heap pin set lost its active-count invariant while unpinning.
+    HeapPinActiveCountUnderflow {
+        /// The unpinned heap reference.
+        reference: HeapReference,
         /// The current active pin count before the failed decrement.
         active_count: usize,
     },
@@ -173,53 +173,48 @@ pub enum HeapError {
         /// The logical entry capacity in bytes.
         capacity: usize,
     },
-    /// One managed reference did not resolve to one live entry.
-    InvalidManagedReference {
-        /// The invalid managed reference.
-        reference: ManagedReference,
+    /// One heap reference did not resolve to one live entry.
+    InvalidHeapReference {
+        /// The invalid heap reference.
+        reference: HeapReference,
     },
-    /// One managed collection scan failed.
-    ManagedScanFailed {
-        /// The managed scan source.
+    /// One heap collection scan failed.
+    HeapScanFailed {
+        /// The heap scan source.
         source: ScanSource,
         /// The underlying heap failure.
         error: Box<HeapError>,
     },
-    /// One managed collection promotion could not allocate a mature small slot.
-    ManagedPromotionUnavailableSmallSlot {
-        /// The managed reference being promoted.
-        reference: ManagedReference,
+    /// One heap collection promotion could not allocate a mature small slot.
+    HeapPromotionUnavailableSmallSlot {
+        /// The heap reference being promoted.
+        reference: HeapReference,
         /// The promoted payload length in bytes.
         byte_len: usize,
     },
-    /// One managed collection promotion failed.
-    ManagedPromotionFailed {
-        /// The managed reference being promoted.
-        reference: ManagedReference,
+    /// One heap collection promotion failed.
+    HeapPromotionFailed {
+        /// The heap reference being promoted.
+        reference: HeapReference,
         /// The underlying heap failure.
         error: Box<HeapError>,
     },
-    /// One managed collection young-space reset failed.
-    ManagedYoungResetFailed {
+    /// One heap collection young-space reset failed.
+    HeapYoungResetFailed {
         /// The underlying heap failure.
         error: Box<HeapError>,
     },
-    /// One managed collection free failed.
-    ManagedFreeFailed {
-        /// The managed reference being freed.
-        reference: ManagedReference,
+    /// One heap collection free failed.
+    HeapFreeFailed {
+        /// The heap reference being freed.
+        reference: HeapReference,
         /// The underlying heap failure.
         error: Box<HeapError>,
-    },
-    /// One managed reference id cannot be represented by managed references.
-    InvalidManagedReferenceId {
-        /// The invalid managed reference id.
-        id: u64,
     },
     /// The heap-space usage counters cannot service one release.
     InvalidUsage {
         /// The heap space whose counters were invalid.
-        space: HeapSpace,
+        region: AccountingRegion,
         /// The live entry count before the release.
         allocated_count: usize,
         /// The live byte count before the release.
@@ -232,30 +227,20 @@ pub enum HeapError {
         /// The invalid raw pointer.
         pointer: RawPointer,
     },
-    /// One raw pointer id cannot be represented by raw pointers.
-    InvalidRawPointerId {
-        /// The invalid raw pointer id.
-        id: u64,
+    /// One direct page-view write expected unique allocator pages.
+    BorrowedPageWrite {
+        /// The first borrowed logical page index in the write window.
+        page_index: usize,
     },
-    /// One shared managed reference did not resolve to one live entry.
-    InvalidSharedManagedReference {
-        /// The invalid shared managed reference.
-        reference: SharedManagedReference,
-    },
-    /// One shared managed reference id cannot be represented by shared managed references.
-    InvalidSharedManagedReferenceId {
-        /// The invalid shared managed reference id.
-        id: u64,
+    /// One shared heap reference did not resolve to one live entry.
+    InvalidSharedHeapReference {
+        /// The invalid shared heap reference.
+        reference: SharedHeapReference,
     },
     /// One shared raw pointer did not resolve to one live entry.
     InvalidSharedRawPointer {
         /// The invalid shared raw pointer.
         pointer: SharedRawPointer,
-    },
-    /// One shared raw pointer id cannot be represented by shared raw pointers.
-    InvalidSharedRawPointerId {
-        /// The invalid shared raw pointer id.
-        id: u64,
     },
     /// One internal heap invariant exceeded representable arithmetic range.
     InvariantOverflow {
@@ -281,7 +266,7 @@ pub enum HeapError {
         /// The missing logical page index.
         page_index: usize,
     },
-    /// One validated physical arena page could not be resolved.
+    /// One validated physical allocator page could not be resolved.
     MissingPage {
         /// The missing page identifier.
         page_id: PageId,
@@ -327,12 +312,12 @@ pub enum HeapError {
         /// The invalid refcount value.
         refcount: u32,
     },
-    /// One page identifier exceeded the encoded arena page range.
+    /// One page identifier exceeded the encoded allocator page range.
     InvalidPageId {
         /// The invalid page index.
         index: usize,
     },
-    /// One page run exceeded the encoded arena page range.
+    /// One page run exceeded the encoded allocator page range.
     InvalidPageRun {
         /// The first page of the run.
         first_page: PageId,
@@ -370,7 +355,7 @@ pub enum HeapError {
         /// The invalid shape index.
         index: usize,
     },
-    /// One decoded managed-reference window has an unsupported width.
+    /// One decoded heap-reference window has an unsupported width.
     InvalidReferenceWindowWidth {
         /// The invalid byte width.
         bytes: usize,
@@ -421,8 +406,8 @@ impl Display for HeapError {
             Self::InvalidGcTriggerPercent { percent } => {
                 write!(formatter, "invalid GC trigger percent: {percent}")
             }
-            Self::UnsupportedManagedReferenceWidth { bytes } => {
-                write!(formatter, "unsupported managed reference width: {bytes}")
+            Self::UnsupportedHeapReferenceWidth { bytes } => {
+                write!(formatter, "unsupported heap reference width: {bytes}")
             }
             Self::InvalidPageBytes { bytes } => {
                 write!(
@@ -430,46 +415,46 @@ impl Display for HeapError {
                     "invalid heap page width for heap options: {bytes}"
                 )
             }
-            Self::InvalidArenaSegmentBytes { bytes } => {
+            Self::InvalidAllocatorSegmentBytes { bytes } => {
                 write!(
                     formatter,
-                    "invalid arena segment width for heap options: {bytes}"
+                    "invalid allocator segment width for heap options: {bytes}"
                 )
             }
-            Self::MisalignedArenaSegmentBytes {
+            Self::MisalignedAllocatorSegmentBytes {
                 page_bytes,
                 segment_bytes,
             } => {
                 write!(
                     formatter,
-                    "arena segment width violates heap page alignment: {segment_bytes} is not a multiple of {page_bytes}"
+                    "allocator segment width violates heap page alignment: {segment_bytes} is not a multiple of {page_bytes}"
                 )
             }
-            Self::ArenaPageBytesMismatch {
+            Self::AllocatorPageBytesMismatch {
                 option_page_bytes,
-                arena_page_bytes,
+                allocator_page_bytes,
             } => {
                 write!(
                     formatter,
-                    "explicit arena page width does not match heap options: options {option_page_bytes}, arena {arena_page_bytes}"
+                    "explicit allocator page width does not match heap options: options {option_page_bytes}, allocator {allocator_page_bytes}"
                 )
             }
-            Self::ArenaSegmentBytesMismatch {
+            Self::AllocatorSegmentBytesMismatch {
                 option_segment_bytes,
-                arena_segment_bytes,
+                allocator_segment_bytes,
             } => {
                 write!(
                     formatter,
-                    "explicit arena segment width does not match heap options: options {option_segment_bytes}, arena {arena_segment_bytes}"
+                    "explicit allocator segment width does not match heap options: options {option_segment_bytes}, allocator {allocator_segment_bytes}"
                 )
             }
-            Self::ManagedYoungThresholdExceedsCapacity {
+            Self::HeapYoungThresholdExceedsCapacity {
                 threshold,
                 capacity,
             } => {
                 write!(
                     formatter,
-                    "managed young allocation threshold exceeds young-space capacity: {threshold} > {capacity}"
+                    "heap young allocation threshold exceeds young-space capacity: {threshold} > {capacity}"
                 )
             }
             Self::InvalidCardBytes { bytes } => {
@@ -544,39 +529,39 @@ impl Display for HeapError {
                     "size class is not present in the configured heap table: {class_bytes}"
                 )
             }
-            Self::ArenaSegmentLimitExceeded {
+            Self::AllocatorSegmentLimitExceeded {
                 required_segments,
                 max_segments,
             } => {
                 write!(
                     formatter,
-                    "arena segment limit exceeded: required {required_segments} segments with maximum {max_segments}"
+                    "allocator segment limit exceeded: required {required_segments} segments with maximum {max_segments}"
                 )
             }
-            Self::InvalidArenaSegmentLayout {
+            Self::InvalidAllocatorSegmentLayout {
                 byte_len,
                 page_bytes,
             } => {
                 write!(
                     formatter,
-                    "arena segment entry layout is invalid: {byte_len} bytes with alignment {page_bytes}"
+                    "allocator segment entry layout is invalid: {byte_len} bytes with alignment {page_bytes}"
                 )
             }
-            Self::ArenaSegmentAllocationFailed {
+            Self::AllocatorSegmentAllocationFailed {
                 byte_len,
                 page_bytes,
             } => {
                 write!(
                     formatter,
-                    "arena segment entry failed: {byte_len} bytes with alignment {page_bytes}"
+                    "allocator segment entry failed: {byte_len} bytes with alignment {page_bytes}"
                 )
             }
             Self::LimitExceeded {
-                space,
+                region,
                 used_bytes,
                 max_bytes,
             } => {
-                let subject = space.usage_subject();
+                let subject = region.subject();
 
                 write!(
                     formatter,
@@ -587,48 +572,42 @@ impl Display for HeapError {
                 write!(formatter, "heap capture requires idle gc state")
             }
             Self::CapturePinsActive => {
-                write!(formatter, "heap capture requires no active managed pins")
+                write!(formatter, "heap capture requires no active heap pins")
             }
-            Self::ManagedCollectionActive => {
-                write!(formatter, "managed heap collection is already active")
+            Self::HeapCollectionActive => {
+                write!(formatter, "heap collection is already active")
             }
             Self::SharedCollectionActive => {
-                write!(
-                    formatter,
-                    "shared managed heap collection is already active"
-                )
+                write!(formatter, "shared heap collection is already active")
             }
             Self::SharedCollectionNotMarking => {
-                write!(formatter, "shared managed heap is not currently marking")
+                write!(formatter, "shared heap is not currently marking")
             }
-            Self::ManagedPinCountOverflow { reference, count } => {
+            Self::HeapPinCountOverflow { reference, count } => {
                 write!(
                     formatter,
-                    "managed pin count overflow for reference {} at count {count}",
-                    reference.id()
+                    "heap pin count overflow for reference {reference:?} at count {count}"
                 )
             }
-            Self::ManagedPinActiveCountOverflow { active_count } => {
+            Self::HeapPinActiveCountOverflow { active_count } => {
                 write!(
                     formatter,
-                    "managed active pin count overflow at count {active_count}"
+                    "heap active pin count overflow at count {active_count}"
                 )
             }
-            Self::ManagedPinMissing { reference } => {
+            Self::HeapPinMissing { reference } => {
                 write!(
                     formatter,
-                    "managed reference {} is not currently pinned",
-                    reference.id()
+                    "heap reference {reference:?} is not currently pinned"
                 )
             }
-            Self::ManagedPinActiveCountUnderflow {
+            Self::HeapPinActiveCountUnderflow {
                 reference,
                 active_count,
             } => {
                 write!(
                     formatter,
-                    "managed active pin count underflow while unpinning reference {} at count {active_count}",
-                    reference.id()
+                    "heap active pin count underflow while unpinning reference {reference:?} at count {active_count}"
                 )
             }
             Self::InvalidByteRange {
@@ -641,68 +620,60 @@ impl Display for HeapError {
                     "invalid heap byte range: start {start}, len {len}, capacity {capacity}"
                 )
             }
-            Self::InvalidManagedReference { reference } => {
-                write!(formatter, "invalid managed reference: {reference:?}")
+            Self::InvalidHeapReference { reference } => {
+                write!(formatter, "invalid heap reference: {reference:?}")
             }
-            Self::ManagedScanFailed { source, error } => match source {
+            Self::HeapScanFailed { source, error } => match source {
                 ScanSource::Reference(reference) => {
                     write!(
                         formatter,
-                        "managed heap scan failed for reference {}: {error}",
-                        reference.id()
+                        "heap scan failed for reference {reference:?}: {error}"
                     )
                 }
                 ScanSource::Span(span_index) => {
                     write!(
                         formatter,
-                        "managed heap scan failed for dirty span {span_index}: {error}"
+                        "heap scan failed for dirty span {span_index}: {error}"
                     )
                 }
                 ScanSource::LargeEntry(entry_id) => {
                     write!(
                         formatter,
-                        "managed heap scan failed for dirty large entry {entry_id}: {error}"
+                        "heap scan failed for dirty large entry {entry_id}: {error}"
                     )
                 }
             },
-            Self::ManagedPromotionUnavailableSmallSlot {
+            Self::HeapPromotionUnavailableSmallSlot {
                 reference,
                 byte_len,
             } => {
                 write!(
                     formatter,
-                    "managed heap promotion could not allocate one mature small slot for reference {} with {} bytes",
-                    reference.id(),
-                    byte_len,
+                    "heap promotion could not allocate one mature small slot for reference {reference:?} with {byte_len} bytes"
                 )
             }
-            Self::ManagedPromotionFailed { reference, error } => {
+            Self::HeapPromotionFailed { reference, error } => {
                 write!(
                     formatter,
-                    "managed heap promotion failed for reference {}: {error}",
-                    reference.id()
+                    "heap promotion failed for reference {reference:?}: {error}"
                 )
             }
-            Self::ManagedYoungResetFailed { error } => {
-                write!(formatter, "managed heap young reset failed: {error}")
+            Self::HeapYoungResetFailed { error } => {
+                write!(formatter, "heap young reset failed: {error}")
             }
-            Self::ManagedFreeFailed { reference, error } => {
+            Self::HeapFreeFailed { reference, error } => {
                 write!(
                     formatter,
-                    "managed heap free failed for reference {}: {error}",
-                    reference.id()
+                    "heap free failed for reference {reference:?}: {error}"
                 )
-            }
-            Self::InvalidManagedReferenceId { id } => {
-                write!(formatter, "invalid managed reference id: {id}")
             }
             Self::InvalidUsage {
-                space,
+                region,
                 allocated_count,
                 allocated_bytes,
                 freed_bytes,
             } => {
-                let subject = space.usage_subject();
+                let subject = region.subject();
 
                 write!(
                     formatter,
@@ -712,25 +683,17 @@ impl Display for HeapError {
             Self::InvalidRawPointer { pointer } => {
                 write!(formatter, "invalid raw pointer: {pointer:?}")
             }
-            Self::InvalidRawPointerId { id } => {
-                write!(formatter, "invalid raw pointer id: {id}")
-            }
-            Self::InvalidSharedManagedReference { reference } => {
-                write!(formatter, "invalid shared managed reference: {reference:?}")
-            }
-            Self::InvalidSharedManagedReferenceId { id } => {
-                write!(formatter, "invalid shared managed reference id: {id}")
-            }
-            Self::InvalidSharedRawPointer { pointer } => {
+            Self::BorrowedPageWrite { page_index } => {
                 write!(
                     formatter,
-                    "invalid shared raw pointer: id={} offset={}",
-                    pointer.id(),
-                    pointer.byte_offset(),
+                    "direct page-view write requires unique pages: page {page_index} is still borrowed"
                 )
             }
-            Self::InvalidSharedRawPointerId { id } => {
-                write!(formatter, "invalid shared raw pointer id: {id}")
+            Self::InvalidSharedHeapReference { reference } => {
+                write!(formatter, "invalid shared heap reference: {reference:?}")
+            }
+            Self::InvalidSharedRawPointer { pointer } => {
+                write!(formatter, "invalid shared raw pointer: {pointer:?}")
             }
             Self::InvariantOverflow { context } => {
                 write!(formatter, "heap invariant overflow: {context}")
@@ -847,31 +810,31 @@ impl Display for HeapError {
             Self::InvalidReferenceWindowWidth { bytes } => {
                 write!(
                     formatter,
-                    "unsupported managed reference width for tracing window: {bytes}"
+                    "unsupported heap reference width for tracing window: {bytes}"
                 )
             }
             Self::TraceOffsetOverflow { start, width } => {
                 write!(
                     formatter,
-                    "managed reference offset overflow while tracing: start={start}, width={width}"
+                    "heap reference offset overflow while tracing: start={start}, width={width}"
                 )
             }
             Self::TruncatedTracePayload { start, width, len } => {
                 write!(
                     formatter,
-                    "truncated managed reference payload while tracing: start={start}, width={width}, len={len}"
+                    "truncated heap reference payload while tracing: start={start}, width={width}, len={len}"
                 )
             }
             Self::TruncatedReferenceReaderWindow { start, width } => {
                 write!(
                     formatter,
-                    "truncated managed reference payload while tracing: start={start}, width={width}"
+                    "truncated heap reference payload while tracing: start={start}, width={width}"
                 )
             }
             Self::InvalidReferenceValuePayload { start } => {
                 write!(
                     formatter,
-                    "invalid value payload while tracing managed references: start={start}"
+                    "invalid value payload while tracing heap references: start={start}"
                 )
             }
             Self::DuplicateShape { index } => {
