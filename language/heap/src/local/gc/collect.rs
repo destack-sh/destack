@@ -26,10 +26,9 @@ impl HeapSpace {
             }
 
             let entry_offset = self.young_entry_offset(entry);
-            let base_address = self
-                .allocator()
-                .page_view_ptr(&self.young.pages, entry_offset)?
-                as *mut u8 as usize;
+            let base_address =
+                self.allocator()
+                    .page_view_ptr(&self.young.pages, entry_offset)? as usize;
 
             references.push(HeapReference::new(base_address));
         }
@@ -46,7 +45,7 @@ impl HeapSpace {
                     },
                 )?;
                 let base_address =
-                    self.allocator().page_view_ptr(&span.pages, slot_offset)? as *mut u8 as usize;
+                    self.allocator().page_view_ptr(&span.pages, slot_offset)? as usize;
 
                 references.push(HeapReference::new(base_address));
             }
@@ -57,7 +56,7 @@ impl HeapSpace {
                 continue;
             }
 
-            let base_address = self.allocator().page_view_ptr(&entry.pages, 0)? as *mut u8 as usize;
+            let base_address = self.allocator().page_view_ptr(&entry.pages, 0)? as usize;
             references.push(HeapReference::new(base_address));
         }
 
@@ -141,14 +140,14 @@ impl HeapSpace {
 
     /// Return the next tracked local reference that may contain shared edges.
     fn next_shared_edge_root(&mut self) -> HeapResult<Option<HeapReference>> {
-        while self.shared_edge_cursor < self.shared_edge_roots.len() {
-            let index = self.shared_edge_cursor;
-            self.shared_edge_cursor += 1;
-
-            return Ok(self.shared_edge_roots.get(index).copied());
+        if self.shared_edge_cursor >= self.shared_edge_roots.len() {
+            return Ok(None);
         }
 
-        Ok(None)
+        let index = self.shared_edge_cursor;
+        self.shared_edge_cursor += 1;
+
+        Ok(self.shared_edge_roots.get(index).copied())
     }
 
     /// Return whether one live local reference may contain shared heap roots.
@@ -560,7 +559,13 @@ impl HeapSpace {
             .is_some()
         {
             let slot = self
-                .allocate_small_from_page_view(&young_pages, young_offset, entry.layout_id, false)
+                .allocate_small_payload_from_page_view(
+                    &young_pages,
+                    young_offset,
+                    entry.byte_len,
+                    &entry.reference_map,
+                    false,
+                )
                 .map_err(|error| HeapError::HeapPromotionFailed {
                     reference,
                     error: Box::new(error),
@@ -606,7 +611,7 @@ impl HeapSpace {
             }
 
             let entry_id = self
-                .store_large_entry(entry.byte_len, pages, entry.layout_id, false)
+                .store_large_entry(entry.byte_len, pages, entry.reference_map, false)
                 .map_err(|error| HeapError::HeapPromotionFailed {
                     reference,
                     error: Box::new(error),
@@ -1282,7 +1287,7 @@ impl HeapSpace {
         };
         let pages = entry.pages.clone();
         let dirty_cards = entry.dirty_cards.clone();
-        let reference_map = self.reference_map(entry.layout_id)?.clone();
+        let reference_map = entry.reference_map.clone();
 
         let mut first_error = None;
 

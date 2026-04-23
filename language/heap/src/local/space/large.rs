@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use destack_mir::LayoutId;
+use destack_mir::ReferenceMap;
 
 use super::CardSet;
 use crate::allocator::PageView;
@@ -15,8 +15,8 @@ pub(crate) struct LargeEntryImage {
     pub len: usize,
     /// The allocator pages for this entry.
     pub pages: PageView,
-    /// The managed layout stored in this entry.
-    pub layout_id: LayoutId,
+    /// The reference map for this entry.
+    pub reference_map: ReferenceMap,
 }
 
 /// One heap large-entry identifier.
@@ -53,8 +53,8 @@ pub(crate) struct LargeEntry {
     pub(crate) len: usize,
     /// The allocator pages for this entry.
     pub(crate) pages: PageView,
-    /// The managed layout stored in this entry.
-    pub(crate) layout_id: LayoutId,
+    /// The reference map for this entry.
+    pub(crate) reference_map: ReferenceMap,
     /// Whether this entry is marked in the active cycle.
     pub(crate) is_marked: bool,
     /// The dirty cards remembered for young tracing.

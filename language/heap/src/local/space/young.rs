@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use destack_mir::LayoutId;
+use destack_mir::ReferenceMap;
 
 use crate::HeapResult;
 use crate::allocator::{Allocator, PageRunCache, PageView};
@@ -40,8 +40,8 @@ pub(crate) struct YoungEntry {
     pub(crate) first_offset: u32,
     /// The logical byte length for this entry.
     pub(crate) byte_len: usize,
-    /// The managed layout stored in this entry.
-    pub(crate) layout_id: LayoutId,
+    /// The reference map for this entry.
+    pub(crate) reference_map: ReferenceMap,
     /// Whether this young entry is still live.
     pub(crate) is_live: bool,
     /// Whether this young entry is marked in the active cycle.
