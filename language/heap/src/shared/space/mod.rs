@@ -13,7 +13,7 @@ pub use reference::SharedHeapReference;
 pub use space::SharedHeapSpace;
 pub(crate) use space::{
     SharedHeapState, SharedLargeSpace, SharedSmallSpace, checked_slot_offset,
-    checked_storage_offset, find_next_free_slot,
+    checked_storage_offset, find_free_cursor,
 };
 pub use span::SharedHeapSmallSpanImage;
 pub(crate) use span::*;

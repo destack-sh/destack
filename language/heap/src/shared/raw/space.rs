@@ -23,7 +23,7 @@ pub(crate) struct SharedRawState {
 pub struct SharedRawSpace {
     /// The shared raw-space allocator for every entry.
     pub(crate) allocator: Arc<Allocator>,
-    /// The shared raw-space control state.
+    /// The shared raw-space state.
     pub(crate) state: Mutex<SharedRawState>,
     /// The owning entry location for each visible allocator page.
     pub(crate) page_owners: RwLock<Vec<Option<SharedRawPageOwner>>>,
@@ -31,21 +31,10 @@ pub struct SharedRawSpace {
     pub(crate) entries: RwLock<Vec<Arc<RwLock<SharedRawEntry>>>>,
 }
 
-impl Default for SharedRawSpace {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl SharedRawSpace {
-    /// Create a new empty shared raw-space store.
-    pub fn new() -> Self {
-        Self::with_allocator(Arc::new(Allocator::new()))
-    }
-
     /// Create a new empty shared raw-space store over one shared allocator.
     pub fn with_allocator(allocator: Arc<Allocator>) -> Self {
-        let page_run_cache = PageRunCache::new(allocator.pages_per_segment());
+        let page_run_cache = PageRunCache::new(allocator.pages_per_arena());
 
         Self {
             allocator,
@@ -58,7 +47,7 @@ impl SharedRawSpace {
         }
     }
 
-    /// Return the configured shared page width.
+    /// Return the configured shared page size.
     pub fn page_bytes(&self) -> usize {
         self.allocator.page_bytes()
     }
@@ -145,7 +134,7 @@ impl SharedRawSpace {
     }
 
     /// Return the projected mapped-byte delta for one shared entry.
-    pub fn alloc_mapped_delta(&self, byte_len: usize) -> i64 {
+    pub fn alloc_mapped_byte_delta(&self, byte_len: usize) -> i64 {
         self.round_up_allocation_bytes(byte_len) as i64
     }
 
@@ -245,7 +234,7 @@ impl SharedRawSpace {
     }
 
     /// Return the projected mapped-byte delta for one shared replacement.
-    pub fn replace_mapped_delta(
+    pub fn replace_mapped_byte_delta(
         &self,
         pointer: SharedRawPointer,
         next_byte_len: usize,

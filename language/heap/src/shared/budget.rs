@@ -21,9 +21,9 @@ impl SharedRawBudget {
     }
 
     /// Check one mapped-byte delta without mutating this budget.
-    pub fn check_mapped_delta(&self, mapped_delta: i64) -> HeapResult<()> {
+    pub fn check_mapped_byte_delta(&self, mapped_byte_delta: i64) -> HeapResult<()> {
         self.limits
-            .check_mapped_delta(self.active_bytes, mapped_delta)
+            .check_mapped_byte_delta(self.active_bytes, mapped_byte_delta)
     }
 }
 
@@ -51,8 +51,12 @@ impl SharedRawLimits {
     }
 
     /// Check active shared raw-space bytes after one requested mapped-byte delta.
-    pub fn check_mapped_delta(&self, active_bytes: u64, mapped_delta: i64) -> HeapResult<()> {
-        self.check(apply_byte_delta(active_bytes, mapped_delta)?)
+    pub fn check_mapped_byte_delta(
+        &self,
+        active_bytes: u64,
+        mapped_byte_delta: i64,
+    ) -> HeapResult<()> {
+        self.check(apply_byte_delta(active_bytes, mapped_byte_delta)?)
     }
 }
 
@@ -80,8 +84,12 @@ impl SharedHeapSpaceLimits {
     }
 
     /// Check active shared heap-space bytes after one requested mapped-byte delta.
-    pub fn check_mapped_delta(&self, active_bytes: u64, mapped_delta: i64) -> HeapResult<()> {
-        self.check(apply_byte_delta(active_bytes, mapped_delta)?)
+    pub fn check_mapped_byte_delta(
+        &self,
+        active_bytes: u64,
+        mapped_byte_delta: i64,
+    ) -> HeapResult<()> {
+        self.check(apply_byte_delta(active_bytes, mapped_byte_delta)?)
     }
 }
 

@@ -6,7 +6,7 @@ use crate::shared::space::{
 };
 use crate::{
     AccountingRegion, GcKind, GcStats, HeapError, HeapResult, SharedHeapReference,
-    visit_shared_references_in_reader, visit_shared_references_in_reader_range,
+    slot_reference_map, visit_shared_references_in_reader, visit_shared_references_in_reader_range,
 };
 
 /// The maximum references to drain from the shared trace queue at once.
@@ -310,7 +310,7 @@ impl SharedHeapSpace {
             let mut edge_buffer = Vec::new();
 
             {
-                let store = self.store.read();
+                let store = self.state.read();
                 let Some(span) = store.small.spans.get(span_index).cloned() else {
                     return Err(HeapError::MissingSpan { span_index });
                 };
@@ -318,7 +318,7 @@ impl SharedHeapSpace {
 
                 // shared small-span scan
                 for slot_index in pending_slots {
-                    let (slot_offset, pages, shape_id) = {
+                    let (slot_offset, pages, reference_map) = {
                         let mut span = span.write();
 
                         if span.marked.contains(slot_index) {
@@ -327,33 +327,28 @@ impl SharedHeapSpace {
 
                         span.marked.set(slot_index);
 
-                        let slot_offset = checked_slot_offset(span.size_class, slot_index)?;
+                        let slot_offset = checked_slot_offset(span.class.size_class, slot_index)?;
                         let pages = span.pages.clone();
-                        let shape_id = span.shape_ids.get(slot_index).copied().flatten().ok_or(
-                            HeapError::MissingSmallSlot {
-                                span_index,
-                                slot_index,
-                            },
-                        )?;
+                        let byte_len = span.byte_lens[slot_index];
+                        let reference_map = slot_reference_map(
+                            &span.local_reference_bits,
+                            &span.shared_reference_bits,
+                            slot_index,
+                            span.class.size_class,
+                            byte_len,
+                        );
 
-                        (slot_offset, pages, shape_id)
+                        (slot_offset, pages, reference_map)
                     };
-                    let shape =
-                        store
-                            .shape_table
-                            .shape(shape_id)
-                            .ok_or(HeapError::InvalidShapeId {
-                                index: shape_id.index(),
-                            })?;
 
-                    if !shape.trace.has_shared_reference() {
+                    if !reference_map.has_shared_reference() {
                         continue;
                     }
                     let mut first_reader_error = None;
 
                     // payload scan
                     let trace_result = visit_shared_references_in_reader(
-                        &shape.trace,
+                        &reference_map,
                         |start, buffer| {
                             let read_offset =
                                 match checked_storage_offset(slot_offset, start, span_bytes) {
@@ -445,7 +440,7 @@ impl SharedHeapSpace {
             return Err(HeapError::InvalidSharedHeapReference { reference });
         };
         let released_bytes = location.byte_len as u64;
-        let mut store = self.store.write();
+        let mut store = self.state.write();
 
         // usage
         store
@@ -497,7 +492,7 @@ impl SharedHeapSpace {
     fn finish_collection(&self) -> HeapResult<GcStats> {
         // lifecycle
         let _lifecycle = self.gc.lock_lifecycle();
-        let mut store = self.store.write();
+        let mut store = self.state.write();
         let active_bytes = self.live_mapped_bytes(&store);
 
         // cycle stats
@@ -520,7 +515,7 @@ impl SharedHeapSpace {
         self.gc.clear_small_span_work();
 
         // cycle summary
-        store.gc_state.record_cycle(GcKind::Full, stats)?;
+        store.gc.record_cycle(GcKind::Full, stats)?;
 
         // idle publication
         self.gc.set_phase(SharedGcPhase::Idle);
@@ -741,7 +736,7 @@ impl SharedHeapSpace {
         // small references queue one span work item with pending slots
         if let SharedHeapStorage::Small(slot) = location.storage {
             let slot_count = {
-                let store = self.store.read();
+                let store = self.state.read();
                 let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
                     return Err(HeapError::MissingSpan {
                         span_index: slot.span_index(),
@@ -774,7 +769,7 @@ impl SharedHeapSpace {
 
     /// Clear every collector mark bit in the live shared heap.
     fn clear_mark_bits(&self) {
-        let store = self.store.read();
+        let store = self.state.read();
 
         for span in &store.small.spans {
             span.write().clear_marks();
@@ -787,7 +782,7 @@ impl SharedHeapSpace {
 
     /// Return whether one shared heap storage location is marked in the active cycle.
     fn is_marked_storage(&self, storage: SharedHeapStorage) -> HeapResult<bool> {
-        let store = self.store.read();
+        let store = self.state.read();
 
         match storage {
             SharedHeapStorage::Small(slot) => {
@@ -819,7 +814,7 @@ impl SharedHeapSpace {
             return Ok(false);
         }
 
-        let store = self.store.read();
+        let store = self.state.read();
 
         match storage {
             SharedHeapStorage::Small(slot) => {

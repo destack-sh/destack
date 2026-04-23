@@ -81,28 +81,15 @@ impl SharedRawSpace {
     /// Fork one shared raw-space root over the same shared allocator.
     pub fn fork(&self) -> HeapResult<Self> {
         let entries = self.entries.read();
-        let mut retained = Vec::new();
-
-        // retain the shared backing before cloning metadata
-        for entry in &*entries {
-            let entry = entry.read();
-
-            if let Err(error) = self.allocator.retain_page_view(&entry.pages) {
-                for page_view in retained.into_iter().rev() {
-                    self.allocator.release_page_view(&page_view)?;
-                }
-
-                return Err(error);
-            }
-
-            retained.push(entry.pages.clone());
-        }
+        let retained_page_views = self
+            .allocator
+            .retain_page_views(entries.iter().map(|entry| entry.read().pages.clone()))?;
 
         let state = self.state.lock();
         let forked = Self {
             allocator: self.allocator.clone(),
             state: parking_lot::Mutex::new(super::space::SharedRawState {
-                page_run_cache: PageRunCache::new(self.allocator.pages_per_segment()),
+                page_run_cache: PageRunCache::new(self.allocator.pages_per_arena()),
                 usage: state.usage,
             }),
             page_owners: parking_lot::RwLock::new(Vec::new()),
@@ -119,7 +106,11 @@ impl SharedRawSpace {
         drop(state);
         drop(entries);
 
-        rebuild_page_owners(&forked)?;
+        if let Err(error) = rebuild_page_owners(&forked) {
+            self.allocator.release_page_views(&retained_page_views)?;
+
+            return Err(error);
+        }
 
         Ok(forked)
     }
@@ -129,22 +120,9 @@ impl SharedRawSpace {
         allocator: Arc<Allocator>,
         image: &SharedRawSpaceImage,
     ) -> HeapResult<Self> {
-        let mut retained = Vec::new();
+        let retained_page_views =
+            allocator.retain_page_views(image.entries().iter().map(|entry| entry.pages.clone()))?;
 
-        // retain the shared backing first
-        for entry in image.entries() {
-            if let Err(error) = allocator.retain_page_view(&entry.pages) {
-                for page_view in retained.into_iter().rev() {
-                    allocator.release_page_view(&page_view)?;
-                }
-
-                return Err(error);
-            }
-
-            retained.push(entry.pages.clone());
-        }
-
-        // rebuild the live root over the retained pages
         let entries = image
             .entries()
             .iter()
@@ -162,14 +140,18 @@ impl SharedRawSpace {
         let restored = Self {
             allocator: allocator.clone(),
             state: parking_lot::Mutex::new(super::space::SharedRawState {
-                page_run_cache: PageRunCache::new(allocator.pages_per_segment()),
+                page_run_cache: PageRunCache::new(allocator.pages_per_arena()),
                 usage: AllocationUsage::new(image.allocated_count(), image.allocated_bytes()),
             }),
             page_owners: parking_lot::RwLock::new(Vec::new()),
             entries: parking_lot::RwLock::new(entries),
         };
 
-        rebuild_page_owners(&restored)?;
+        if let Err(error) = rebuild_page_owners(&restored) {
+            allocator.release_page_views(&retained_page_views)?;
+
+            return Err(error);
+        }
 
         Ok(restored)
     }
