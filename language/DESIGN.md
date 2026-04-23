@@ -16,19 +16,18 @@ To enable truly universal progrmaming with TypeScript, even in high performance 
 Invariably, when starting with an existing language as feature rich as modern TypeScript, any _new_ additions risk becoming unpredictably combinatorial in their complexity (hello C++).
 We tried hard to keep the actual net new concepts to the minimal set required to express all the missing things we needed, while also filling some gaps we experienced in the language that TypeScript cannot address directly (mostly due to its commitment to type-free emit).
 
-See [SPECIFICATION](SPECIFICATION.md) for the (more) fine-grained language definition.
 See [COMPATIBILITY](COMPATIBILITY.md) for interoperability details.
 
 ## "TypeScript++"
 
 We're very early in software.
 We want to make correct, optimal, integrated full-stack software systems simple and fast to build.
-We cannot build the next generation of software without unifying all the disparate pieces: one language, one type system, one way of thinking about code from UI to servers to simulations.
+We cannot confidently build the next generation of software without unifying all the disparate pieces: one language, one type system, one way of thinking about code from UI to servers to simulations.
 
-TypeScript is the closest thing we have to a unified software foundation today that _could_ conceivably express all software (because in many ways, it already is!).
-Unlike Python, the TypeScript ecosystem also has a good answer to rich frontends *and* a very strong "already runs everywhere" story because browsers are the most ubiquituous execution platform.
+TypeScript is the closest thing we have to a unified software foundation today that _could_ conceivably express all software (because in many ways, it already is, albeit suboptimally).
+Unlike Python (and Rust and Go and insert your favorite language), the TypeScript ecosystem also has a good answer to rich frontends *and* a very strong "already runs everywhere" story because browsers are the most ubiquituous execution platform.
 
-So, TypeScript runs everywhere, everyone knows it, and it have a massive ecosystem.
+So, TypeScript runs everywhere, everyone knows it, and it has a massive ecosystem.
 If you can compile to JS/TS, and behave like TS, you get a "new" language that doesn't actually feel new, but more like TSX or Svelte.
 Then, because modern TypeScript is very close to a fully AOT-compilable language, we can build a new toolchain completely free of JS runtimes and "legacy" code while staying true to the behavior most developers already know well. 
 
@@ -377,7 +376,7 @@ struct Cache<K, V> {
 ```
 
 Associated types are resolved at compile time and can reference static parameters.
-See [Associated Types](SPECIFICATION.md#associated-types) for full details.
+Associated projection uses the same member lookup and substitution model as value members.
 
 ### Constraints
 
@@ -617,14 +616,20 @@ As with ownership, most of the time, developers don't need to think about placem
 
 | Form | Ownership | Region | Place | Liveness | MIR shape | Value |
 |------|-----------|--------|-------|---------------|-----------|-------|
-| `T` | managed | none | ambient | keeps the referent alive | `ref<T, managed, space(local)>` | `ManagedReference` |
-| `shared T` | managed | none | shared | keeps the referent alive | `ref<T, managed, space(shared)>` | `SharedManagedReference` |
-| `&T` | borrowed | inferred or explicit | ambient | requires liveness | `ref<T, borrowed, space(X)>` | address-like borrow |
-| `&shared T` | borrowed | inferred or explicit | shared | requires liveness | `ref<T, borrowed, space(shared)>` | address-like borrow |
-| `^T` | owned | none | ambient | owns the referent | `ref<T, owned, space(X)>` | owner handle or owner pointer |
-| `^shared T` | owned | none | shared | owns the referent | `ref<T, owned, space(shared)>` | owner handle or owner pointer |
-| `*T` | raw | none | ambient | opaque | `ref<T, raw, space(X)>` | raw address |
-| `*shared T` | raw | none | shared | opaque | `ref<T, raw, space(shared)>` | raw address |
+| `T` | managed | none | ambient | keeps the referent alive | `ref<T, managed, space(local)>` | managed heap handle |
+| `shared T` | managed | none | shared | keeps the referent alive | `ref<T, managed, space(shared)>` | managed shared handle |
+| `&T` | borrowed | inferred or explicit | ambient | requires liveness | `ref<T, borrowed, space(X)>` | semantic borrow or projection |
+| `&shared T` | borrowed | inferred or explicit | shared | requires liveness | `ref<T, borrowed, space(shared)>` | semantic shared borrow or projection |
+| `^T` | owned | none | ambient | owns the referent | `ref<T, owned, space(X)>` | owned heap handle |
+| `^shared T` | owned | none | shared | owns the referent | `ref<T, owned, space(shared)>` | owned shared heap handle |
+| `*T` | raw | none | ambient | does not keep anything alive | `ref<T, raw, space(X)>` | unsafe raw typed pointer |
+| `*shared T` | raw | none | shared | does not keep anything alive | `ref<T, raw, space(shared)>` | unsafe shared raw typed pointer |
+
+Managed and owned values both live on the heap.
+
+Heap storage is traced whenever `T` may contain references.
+
+Raw storage is never traced.
 
 ### Relations
 
@@ -654,6 +659,24 @@ For actually shared process-global globals, the binding itself can be declared a
 | `shared const world: World = new World()` | shared | shared | one shared binding cell initialized in shared space |
 | `shared const world: shared World = new World()` | shared | shared | same runtime meaning, explicit on both axes |
 
+### Allocation And Destruction
+
+The primary typed construction path is `new`.
+
+`new` allocates heap storage, initializes a `T`, and produces the ownership form required by the destination type and the base type's affinity.
+
+`new` is destination-typed.
+
+The expected type decides whether construction produces a managed or owned value, with affine base types preferring owned forms in unconstrained positions.
+
+There is no second primary typed allocation surface alongside `new`.
+
+`raw.alloc` and `raw.free` are reserved for true raw storage only.
+
+`drop` ends ownership of a `^T`, runs destruction, and releases owned heap storage.
+
+`dispose` and `dispose.async` are resource cleanup protocols rather than allocation primitives.
+
 ### Regions
 
 A region is one compiler-known lifetime relation for one borrow.
@@ -669,12 +692,23 @@ Borrowed<T, "a">
 
 Declarations that store borrowed fields are implicitly region generic.
 Owned fields make the enclosing type affine.
+Affine storage-bearing positions default to owned storage rather than implicit heap storage.
 Borrowed fields make the enclosing type region generic.
+
+Managed objects may contain owned fields.
+
+That integration is required so ownership composes with ordinary managed programming rather than creating a second disjoint language.
+
+Types containing owned fields are affine and therefore do not silently copy.
+
+Ordinary borrows should not cross `await`, suspension, or worker transfer boundaries at first.
 
 ### Typing
 
 Internally, Destack normalizes ownership and place into one type-addressable `Form<T, O, S, R>`.
 That lets ordinary TS-style type algebra talk about base type, ownership, place, and borrow region directly, which makes for some very convenient conditional and mapped type algebra.
+
+Traceability is derived from the base type and layout metadata rather than from ownership itself.
 
 | Surface spelling | Algebraic spelling |
 |------------------|--------------------|
