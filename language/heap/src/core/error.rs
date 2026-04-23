@@ -1,6 +1,8 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
+use destack_mir::LayoutId;
+
 use crate::allocator::PageId;
 use crate::{AccountingRegion, HeapReference, RawPointer, SharedHeapReference, SharedRawPointer};
 
@@ -23,18 +25,16 @@ pub enum ScanSource {
 pub enum HeapError {
     /// The configured GC trigger percentage is unsupported.
     InvalidGcTriggerPercent { percent: u32 },
-    /// The configured heap-reference width is unsupported.
-    UnsupportedHeapReferenceWidth { bytes: u8 },
     /// The configured heap page width is unsupported.
     InvalidPageBytes { bytes: usize },
-    /// The configured allocator segment width is unsupported.
-    InvalidAllocatorSegmentBytes { bytes: usize },
-    /// The configured allocator segment width is not aligned to the page width.
-    MisalignedAllocatorSegmentBytes {
+    /// The configured allocator arena width is unsupported.
+    InvalidAllocatorArenaBytes { bytes: usize },
+    /// The configured allocator arena width is not aligned to the page width.
+    MisalignedAllocatorArenaBytes {
         /// The configured page width in bytes.
         page_bytes: usize,
-        /// The configured allocator segment width in bytes.
-        segment_bytes: usize,
+        /// The configured allocator arena width in bytes.
+        arena_bytes: usize,
     },
     /// The explicit allocator does not match the configured heap page width.
     AllocatorPageBytesMismatch {
@@ -43,21 +43,17 @@ pub enum HeapError {
         /// The actual page width of the explicit allocator.
         allocator_page_bytes: usize,
     },
-    /// The explicit allocator does not match the configured heap segment width.
-    AllocatorSegmentBytesMismatch {
-        /// The segment width configured through heap options.
-        option_segment_bytes: usize,
-        /// The actual segment width of the explicit allocator.
-        allocator_segment_bytes: usize,
+    /// The explicit allocator does not match the configured heap arena width.
+    AllocatorArenaBytesMismatch {
+        /// The arena width configured through heap options.
+        option_arena_bytes: usize,
+        /// The actual arena width of the explicit allocator.
+        allocator_arena_bytes: usize,
     },
     /// The configured heap young-allocation threshold exceeds young-space capacity.
     HeapYoungThresholdExceedsCapacity { threshold: usize, capacity: usize },
-    /// The configured remembered-card width is unsupported.
-    InvalidCardBytes { bytes: usize },
     /// The configured small-allocation alignment is unsupported.
     InvalidSmallAllocationAlignmentBytes { bytes: usize },
-    /// The configured table chunk length is unsupported.
-    InvalidTableChunkLen { len: usize },
     /// One size class violated the configured small-allocation alignment.
     MisalignedSizeClass {
         /// The required alignment in bytes.
@@ -100,26 +96,22 @@ pub enum HeapError {
         /// The invalid size class in bytes.
         class_bytes: usize,
     },
-    /// The allocator segment count cannot grow far enough for one entry.
-    AllocatorSegmentLimitExceeded {
-        /// The required segment count.
-        required_segments: usize,
-        /// The maximum configured segment count.
-        max_segments: usize,
+    /// The allocator arena count cannot grow far enough for one entry.
+    AllocatorArenaLimitExceeded {
+        /// The required arena count.
+        required_arenas: usize,
+        /// The maximum configured arena count.
+        max_arenas: usize,
     },
-    /// One allocator segment entry layout was invalid.
-    InvalidAllocatorSegmentLayout {
-        /// The requested segment byte length.
+    /// One allocator arena allocation failed.
+    AllocatorArenaAllocationFailed {
+        /// The requested arena byte length.
         byte_len: usize,
-        /// The requested page alignment in bytes.
-        page_bytes: usize,
     },
-    /// One allocator segment entry failed.
-    AllocatorSegmentAllocationFailed {
-        /// The requested segment byte length.
-        byte_len: usize,
-        /// The requested page alignment in bytes.
-        page_bytes: usize,
+    /// One allocator address was outside the supported arena map.
+    AllocatorAddressUnsupported {
+        /// The mapped arena address.
+        address: usize,
     },
     /// One heap-space hard limit was exceeded.
     LimitExceeded {
@@ -128,6 +120,13 @@ pub enum HeapError {
         /// The exact bytes in use.
         used_bytes: u64,
         /// The configured limit.
+        max_bytes: u64,
+    },
+    /// One combined heap hard limit was exceeded.
+    TotalLimitExceeded {
+        /// The exact total bytes in use.
+        used_bytes: u64,
+        /// The configured total limit.
         max_bytes: u64,
     },
     /// One heap capture request found active collector work.
@@ -317,6 +316,16 @@ pub enum HeapError {
         /// The invalid page index.
         index: usize,
     },
+    /// One managed layout id did not resolve in the heap layout table.
+    InvalidLayoutId {
+        /// The invalid layout index.
+        index: usize,
+    },
+    /// One managed layout was missing from one derived heap index.
+    MissingLayout {
+        /// The missing layout identifier.
+        layout_id: LayoutId,
+    },
     /// One page run exceeded the encoded allocator page range.
     InvalidPageRun {
         /// The first page of the run.
@@ -331,13 +340,6 @@ pub enum HeapError {
         /// The invalid slot index.
         slot_index: usize,
     },
-    /// One page view exhausted its inline patch capacity unexpectedly.
-    PagePatchCapacityExceeded {
-        /// The logical page count of the view.
-        page_count: usize,
-        /// The inline patch capacity.
-        patch_capacity: usize,
-    },
     /// One patched run violated the single-page patch invariant.
     InvalidPatchedRun {
         /// The patched page index.
@@ -348,11 +350,6 @@ pub enum HeapError {
     /// One dense copy on write table entry was missing unexpectedly.
     MissingTableEntry {
         /// The missing dense entry index.
-        index: usize,
-    },
-    /// One shape id cannot be represented by the table.
-    InvalidShapeId {
-        /// The invalid shape index.
         index: usize,
     },
     /// One decoded heap-reference window has an unsupported width.
@@ -388,15 +385,14 @@ pub enum HeapError {
         /// The traced value byte offset.
         start: usize,
     },
-    /// One shape table had duplicate entries where stable ids must be unique.
-    DuplicateShape {
-        /// The duplicate shape index.
-        index: usize,
-    },
-    /// One shape table cannot be addressed by its reverse lookup.
-    InvalidShapeTableLen {
-        /// The invalid shape count.
-        len: usize,
+    /// One managed allocation did not match its declared layout width.
+    InvalidLayoutBytes {
+        /// The layout identifier used for the allocation.
+        layout_id: LayoutId,
+        /// The expected byte length from the layout table.
+        expected: usize,
+        /// The actual byte length requested by the caller.
+        actual: usize,
     },
 }
 
@@ -406,28 +402,25 @@ impl Display for HeapError {
             Self::InvalidGcTriggerPercent { percent } => {
                 write!(formatter, "invalid GC trigger percent: {percent}")
             }
-            Self::UnsupportedHeapReferenceWidth { bytes } => {
-                write!(formatter, "unsupported heap reference width: {bytes}")
-            }
             Self::InvalidPageBytes { bytes } => {
                 write!(
                     formatter,
                     "invalid heap page width for heap options: {bytes}"
                 )
             }
-            Self::InvalidAllocatorSegmentBytes { bytes } => {
+            Self::InvalidAllocatorArenaBytes { bytes } => {
                 write!(
                     formatter,
-                    "invalid allocator segment width for heap options: {bytes}"
+                    "invalid allocator arena width for heap options: {bytes}"
                 )
             }
-            Self::MisalignedAllocatorSegmentBytes {
+            Self::MisalignedAllocatorArenaBytes {
                 page_bytes,
-                segment_bytes,
+                arena_bytes,
             } => {
                 write!(
                     formatter,
-                    "allocator segment width violates heap page alignment: {segment_bytes} is not a multiple of {page_bytes}"
+                    "allocator arena width violates heap page alignment: {arena_bytes} is not a multiple of {page_bytes}"
                 )
             }
             Self::AllocatorPageBytesMismatch {
@@ -439,13 +432,13 @@ impl Display for HeapError {
                     "explicit allocator page width does not match heap options: options {option_page_bytes}, allocator {allocator_page_bytes}"
                 )
             }
-            Self::AllocatorSegmentBytesMismatch {
-                option_segment_bytes,
-                allocator_segment_bytes,
+            Self::AllocatorArenaBytesMismatch {
+                option_arena_bytes,
+                allocator_arena_bytes,
             } => {
                 write!(
                     formatter,
-                    "explicit allocator segment width does not match heap options: options {option_segment_bytes}, allocator {allocator_segment_bytes}"
+                    "explicit allocator arena width does not match heap options: options {option_arena_bytes}, allocator {allocator_arena_bytes}"
                 )
             }
             Self::HeapYoungThresholdExceedsCapacity {
@@ -457,20 +450,11 @@ impl Display for HeapError {
                     "heap young allocation threshold exceeds young-space capacity: {threshold} > {capacity}"
                 )
             }
-            Self::InvalidCardBytes { bytes } => {
-                write!(
-                    formatter,
-                    "invalid remembered card width for heap options: {bytes}"
-                )
-            }
             Self::InvalidSmallAllocationAlignmentBytes { bytes } => {
                 write!(
                     formatter,
                     "invalid small-allocation alignment for heap options: {bytes}"
                 )
-            }
-            Self::InvalidTableChunkLen { len } => {
-                write!(formatter, "invalid heap table chunk length: {len}")
             }
             Self::MisalignedSizeClass {
                 alignment_bytes,
@@ -529,31 +513,25 @@ impl Display for HeapError {
                     "size class is not present in the configured heap table: {class_bytes}"
                 )
             }
-            Self::AllocatorSegmentLimitExceeded {
-                required_segments,
-                max_segments,
+            Self::AllocatorArenaLimitExceeded {
+                required_arenas,
+                max_arenas,
             } => {
                 write!(
                     formatter,
-                    "allocator segment limit exceeded: required {required_segments} segments with maximum {max_segments}"
+                    "allocator arena limit exceeded: required {required_arenas} arenas with maximum {max_arenas}"
                 )
             }
-            Self::InvalidAllocatorSegmentLayout {
-                byte_len,
-                page_bytes,
-            } => {
+            Self::AllocatorArenaAllocationFailed { byte_len } => {
                 write!(
                     formatter,
-                    "allocator segment entry layout is invalid: {byte_len} bytes with alignment {page_bytes}"
+                    "allocator arena allocation failed: {byte_len} bytes"
                 )
             }
-            Self::AllocatorSegmentAllocationFailed {
-                byte_len,
-                page_bytes,
-            } => {
+            Self::AllocatorAddressUnsupported { address } => {
                 write!(
                     formatter,
-                    "allocator segment entry failed: {byte_len} bytes with alignment {page_bytes}"
+                    "allocator arena address is outside the supported arena map: {address:#x}"
                 )
             }
             Self::LimitExceeded {
@@ -566,6 +544,15 @@ impl Display for HeapError {
                 write!(
                     formatter,
                     "{subject} limit exceeded: using {used_bytes} bytes with limit {max_bytes}"
+                )
+            }
+            Self::TotalLimitExceeded {
+                used_bytes,
+                max_bytes,
+            } => {
+                write!(
+                    formatter,
+                    "total heap limit exceeded: using {used_bytes} bytes with limit {max_bytes}"
                 )
             }
             Self::CaptureGcActive => {
@@ -765,6 +752,12 @@ impl Display for HeapError {
                     "page identifier exceeds encoded page range: {index}"
                 )
             }
+            Self::InvalidLayoutId { index } => {
+                write!(formatter, "invalid managed layout id: {index}")
+            }
+            Self::MissingLayout { layout_id } => {
+                write!(formatter, "managed layout {layout_id:?} is missing")
+            }
             Self::InvalidPageRun {
                 first_page,
                 page_count,
@@ -783,15 +776,6 @@ impl Display for HeapError {
                     "span slot exceeds encoded slot range: span {span_index}, slot {slot_index}"
                 )
             }
-            Self::PagePatchCapacityExceeded {
-                page_count,
-                patch_capacity,
-            } => {
-                write!(
-                    formatter,
-                    "heap page view with {page_count} pages exhausted inline patch capacity {patch_capacity}"
-                )
-            }
             Self::InvalidPatchedRun {
                 page_index,
                 page_count,
@@ -803,9 +787,6 @@ impl Display for HeapError {
             }
             Self::MissingTableEntry { index } => {
                 write!(formatter, "heap lost dense table entry at index {index}")
-            }
-            Self::InvalidShapeId { index } => {
-                write!(formatter, "invalid shape id: {index}")
             }
             Self::InvalidReferenceWindowWidth { bytes } => {
                 write!(
@@ -837,11 +818,15 @@ impl Display for HeapError {
                     "invalid value payload while tracing heap references: start={start}"
                 )
             }
-            Self::DuplicateShape { index } => {
-                write!(formatter, "duplicate shape at index {index}")
-            }
-            Self::InvalidShapeTableLen { len } => {
-                write!(formatter, "invalid shape table length: {len}")
+            Self::InvalidLayoutBytes {
+                layout_id,
+                expected,
+                actual,
+            } => {
+                write!(
+                    formatter,
+                    "managed allocation bytes do not match layout {layout_id:?}: expected {expected}, got {actual}"
+                )
             }
         }
     }

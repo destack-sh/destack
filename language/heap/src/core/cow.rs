@@ -32,42 +32,25 @@ impl<T> CowTable<T> {
         }
     }
 
-    /// Create one empty copy on write table with one explicit chunk length.
-    pub(crate) fn with_chunk_len(chunk_len: usize) -> HeapResult<Self> {
-        if chunk_len == 0 {
-            return Err(HeapError::InvalidTableChunkLen { len: chunk_len });
-        }
-
-        Ok(Self {
-            len: 0,
-            chunk_len,
-            chunks: Vec::new(),
-        })
-    }
-
-    /// Build one copy on write table from one dense vector and chunk length.
-    pub(crate) fn from_vec_with_chunk_len(values: Vec<T>, chunk_len: usize) -> HeapResult<Self>
+    /// Build one copy on write table from one dense vector.
+    pub(crate) fn from_vec(values: Vec<T>) -> HeapResult<Self>
     where
         T: Clone,
     {
-        if chunk_len == 0 {
-            return Err(HeapError::InvalidTableChunkLen { len: chunk_len });
-        }
-
         // keep one empty table empty
         if values.is_empty() {
-            return Self::with_chunk_len(chunk_len);
+            return Ok(Self::new());
         }
 
         let len = values.len();
         let chunks = values
-            .chunks(chunk_len)
+            .chunks(DEFAULT_COW_TABLE_CHUNK_LEN)
             .map(|chunk| CowBuffer::from_vec(chunk.to_vec()))
             .collect();
 
         Ok(Self {
             len,
-            chunk_len,
+            chunk_len: DEFAULT_COW_TABLE_CHUNK_LEN,
             chunks,
         })
     }

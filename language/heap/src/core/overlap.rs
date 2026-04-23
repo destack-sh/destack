@@ -1,12 +1,12 @@
-use super::{HeapScan, PACKED_VALUE_BYTES};
-use crate::HeapResult;
+use destack_mir::ReferenceMap;
+
+use crate::{HeapReference, HeapResult, SharedHeapReference};
 
 /// Return whether one write range may overlap any heap-edge bytes.
 pub(crate) fn overlaps_heap_range(
-    map: &HeapScan,
+    reference_map: &ReferenceMap,
     start: usize,
     len: usize,
-    heap_reference_bytes: usize,
 ) -> HeapResult<bool> {
     if len == 0 {
         return Ok(false);
@@ -16,15 +16,12 @@ pub(crate) fn overlaps_heap_range(
         return Ok(true);
     };
 
-    let is_overlapping = match map {
-        HeapScan::None => false,
-        HeapScan::Reference { local_offsets, .. } => {
-            overlaps_reference_offsets(local_offsets, start, end, heap_reference_bytes)
+    let is_overlapping = match reference_map {
+        ReferenceMap::None => false,
+        ReferenceMap::Reference { local_offsets, .. } => {
+            overlaps_reference_offsets(local_offsets, start, end, HeapReference::BYTE_LEN)
         }
-        HeapScan::PackedValue { offsets } => {
-            overlaps_value_offsets(offsets, start, end, PACKED_VALUE_BYTES)
-        }
-        HeapScan::RepeatedReference {
+        ReferenceMap::RepeatedReference {
             count,
             stride,
             local_offsets,
@@ -35,7 +32,7 @@ pub(crate) fn overlaps_heap_range(
             local_offsets,
             start,
             end,
-            heap_reference_bytes,
+            HeapReference::BYTE_LEN,
         ),
     };
 
@@ -44,10 +41,9 @@ pub(crate) fn overlaps_heap_range(
 
 /// Return whether one write range may overlap any shared heap-edge bytes.
 pub(crate) fn overlaps_shared_range(
-    map: &HeapScan,
+    reference_map: &ReferenceMap,
     start: usize,
     len: usize,
-    shared_reference_bytes: usize,
 ) -> HeapResult<bool> {
     if len == 0 {
         return Ok(false);
@@ -57,15 +53,12 @@ pub(crate) fn overlaps_shared_range(
         return Ok(true);
     };
 
-    let is_overlapping = match map {
-        HeapScan::None => false,
-        HeapScan::Reference { shared_offsets, .. } => {
-            overlaps_reference_offsets(shared_offsets, start, end, shared_reference_bytes)
+    let is_overlapping = match reference_map {
+        ReferenceMap::None => false,
+        ReferenceMap::Reference { shared_offsets, .. } => {
+            overlaps_reference_offsets(shared_offsets, start, end, SharedHeapReference::BYTE_LEN)
         }
-        HeapScan::PackedValue { offsets } => {
-            overlaps_value_offsets(offsets, start, end, PACKED_VALUE_BYTES)
-        }
-        HeapScan::RepeatedReference {
+        ReferenceMap::RepeatedReference {
             count,
             stride,
             shared_offsets,
@@ -76,7 +69,7 @@ pub(crate) fn overlaps_shared_range(
             shared_offsets,
             start,
             end,
-            shared_reference_bytes,
+            SharedHeapReference::BYTE_LEN,
         ),
     };
 
@@ -94,14 +87,6 @@ fn overlaps_reference_offsets(
         .iter()
         .copied()
         .any(|offset| ranges_overlap(start, end, offset as usize, heap_reference_bytes))
-}
-
-/// Report whether one value table overlaps the given byte range.
-fn overlaps_value_offsets(offsets: &[u32], start: usize, end: usize, value_bytes: usize) -> bool {
-    offsets
-        .iter()
-        .copied()
-        .any(|offset| ranges_overlap(start, end, offset as usize, value_bytes))
 }
 
 /// Report whether one repeated heap-reference table overlaps the given byte range.

@@ -1,35 +1,166 @@
-use std::mem::size_of;
+use destack_mir::ReferenceMap;
 
-use super::{HeapScan, overlapping_repeated_index_range, ranges_overlap};
+use super::{overlapping_repeated_index_range, ranges_overlap};
+use crate::allocator::Bitmap;
 use crate::{HeapError, HeapReference, HeapResult, SharedHeapReference};
 
-/// The packed byte width for one runtime value lane in heap storage.
-pub(crate) const PACKED_VALUE_BYTES: usize = size_of::<u64>() * 2;
+/// One traced reference encoding.
+trait TracedReference: Copy {
+    /// The encoded byte width of one traced reference.
+    const BYTE_LEN: usize = std::mem::size_of::<usize>();
 
-/// The byte offset of the packed tag byte within one value lane.
-const VALUE_TAG_OFFSET: usize = size_of::<u64>();
+    /// Restore one reference from native-width bits.
+    fn from_bits(bits: usize) -> Self;
+}
 
-/// The highest currently valid packed value tag.
-const MAX_VALUE_TAG: u8 = 14;
+impl TracedReference for HeapReference {
+    fn from_bits(bits: usize) -> Self {
+        HeapReference::from_bits(bits)
+    }
+}
 
-/// The packed tag for one local heap reference value.
-const MANAGED_REFERENCE_TAG: u8 = 7;
+impl TracedReference for SharedHeapReference {
+    fn from_bits(bits: usize) -> Self {
+        SharedHeapReference::from_bits(bits)
+    }
+}
 
-/// The packed tag for one shared heap reference value.
-const SHARED_MANAGED_REFERENCE_TAG: u8 = 8;
+/// Return the exact reference map encoded for one small slot.
+pub(crate) fn slot_reference_map(
+    local_reference_bits: &Bitmap,
+    shared_reference_bits: &Bitmap,
+    slot_index: usize,
+    size_class: usize,
+    byte_len: usize,
+) -> ReferenceMap {
+    let word_bytes = std::mem::size_of::<usize>();
+    let word_count = size_class.div_ceil(word_bytes);
+    let bit_start = slot_index.saturating_mul(word_count);
+    let mut local_offsets = Vec::new();
+    let mut shared_offsets = Vec::new();
+
+    // decode one direct reference map from the span-local slot bits
+    for word_index in 0..word_count {
+        let bit_index = bit_start.saturating_add(word_index);
+        let byte_offset = word_index.saturating_mul(word_bytes);
+        let byte_end = byte_offset.saturating_add(word_bytes);
+        if byte_end > byte_len {
+            break;
+        }
+
+        if local_reference_bits.contains(bit_index) {
+            local_offsets.push(byte_offset as u32);
+        }
+
+        if shared_reference_bits.contains(bit_index) {
+            shared_offsets.push(byte_offset as u32);
+        }
+    }
+
+    if local_offsets.is_empty() && shared_offsets.is_empty() {
+        return ReferenceMap::None;
+    }
+
+    ReferenceMap::Reference {
+        local_offsets: local_offsets.into_boxed_slice(),
+        shared_offsets: shared_offsets.into_boxed_slice(),
+    }
+}
+
+/// Clear the exact reference bits for one small slot.
+pub(crate) fn clear_slot_reference_bits(
+    local_reference_bits: &mut Bitmap,
+    shared_reference_bits: &mut Bitmap,
+    slot_index: usize,
+    size_class: usize,
+) {
+    let bit_len = size_class.div_ceil(std::mem::size_of::<usize>());
+    let bit_start = slot_index.saturating_mul(bit_len);
+
+    local_reference_bits.clear_range(bit_start, bit_len);
+    shared_reference_bits.clear_range(bit_start, bit_len);
+}
+
+/// Encode one exact reference map into one small-slot bit range.
+pub(crate) fn write_slot_reference_bits(
+    reference_map: &ReferenceMap,
+    local_reference_bits: &mut Bitmap,
+    shared_reference_bits: &mut Bitmap,
+    slot_index: usize,
+    size_class: usize,
+) {
+    clear_slot_reference_bits(
+        local_reference_bits,
+        shared_reference_bits,
+        slot_index,
+        size_class,
+    );
+
+    match reference_map {
+        ReferenceMap::None => {}
+        ReferenceMap::Reference {
+            local_offsets,
+            shared_offsets,
+        } => {
+            set_reference_offsets(local_reference_bits, slot_index, size_class, local_offsets);
+            set_reference_offsets(
+                shared_reference_bits,
+                slot_index,
+                size_class,
+                shared_offsets,
+            );
+        }
+        ReferenceMap::RepeatedReference {
+            count,
+            stride,
+            local_offsets,
+            shared_offsets,
+        } => {
+            set_repeated_reference_offsets(
+                local_reference_bits,
+                slot_index,
+                size_class,
+                *count,
+                *stride,
+                local_offsets,
+            );
+            set_repeated_reference_offsets(
+                shared_reference_bits,
+                slot_index,
+                size_class,
+                *count,
+                *stride,
+                shared_offsets,
+            );
+        }
+    }
+}
+
+/// One trace offset table for one reference kind.
+enum ReferenceOffsets<'a> {
+    /// No references of this kind.
+    None,
+    /// One direct offset table.
+    Direct(&'a [u32]),
+    /// One repeated offset table.
+    Repeated {
+        /// The repeated element count.
+        count: u32,
+        /// The repeated element stride.
+        stride: u32,
+        /// The per-element reference offsets.
+        offsets: &'a [u32],
+    },
+}
 
 /// Visit each local heap reference encoded in the given payload bytes.
-pub fn trace_heap_references(
-    trace: &HeapScan,
+pub fn visit_heap_references(
+    reference_map: &ReferenceMap,
     bytes: &[u8],
-    reference_bytes: usize,
     visit: impl FnMut(HeapReference),
 ) -> HeapResult<()> {
-    validate_reference_bytes(reference_bytes)?;
-
     visit_heap_references_in_reader(
-        trace,
-        reference_bytes,
+        reference_map,
         |start, buffer| {
             let Some(end) = start.checked_add(buffer.len()) else {
                 return false;
@@ -47,162 +178,125 @@ pub fn trace_heap_references(
 
 /// Visit each local heap reference encoded by one scan through one reader.
 pub(crate) fn visit_heap_references_in_reader(
-    trace: &HeapScan,
-    reference_bytes: usize,
-    mut fill_bytes: impl FnMut(usize, &mut [u8]) -> bool,
-    mut visit: impl FnMut(HeapReference),
+    reference_map: &ReferenceMap,
+    fill_bytes: impl FnMut(usize, &mut [u8]) -> bool,
+    visit: impl FnMut(HeapReference),
 ) -> HeapResult<()> {
-    validate_reference_bytes(reference_bytes)?;
-
-    match trace {
-        HeapScan::None => {}
-        HeapScan::Reference { local_offsets, .. } => visit_reference_offsets_in_reader(
-            local_offsets,
-            reference_bytes,
-            &mut fill_bytes,
-            &mut decode_heap_reference_window,
-            &mut visit,
-        )?,
-        HeapScan::PackedValue { offsets } => visit_value_offsets_in_reader(
-            offsets,
-            &mut fill_bytes,
-            &mut decode_heap_reference_value_slot,
-            &mut visit,
-        )?,
-        HeapScan::RepeatedReference {
-            count,
-            stride,
-            local_offsets,
-            ..
-        } => visit_repeated_reference_offsets_in_reader(
-            *count,
-            *stride,
-            local_offsets,
-            reference_bytes,
-            &mut fill_bytes,
-            &mut decode_heap_reference_window,
-            &mut visit,
-        )?,
-    }
-
-    Ok(())
+    visit_reference_map_in_reader(local_reference_offsets(reference_map), fill_bytes, visit)
 }
 
 /// Visit each shared heap reference encoded by one scan through one reader.
 pub(crate) fn visit_shared_references_in_reader(
-    trace: &HeapScan,
-    reference_bytes: usize,
-    mut fill_bytes: impl FnMut(usize, &mut [u8]) -> bool,
-    mut visit: impl FnMut(SharedHeapReference),
+    reference_map: &ReferenceMap,
+    fill_bytes: impl FnMut(usize, &mut [u8]) -> bool,
+    visit: impl FnMut(SharedHeapReference),
 ) -> HeapResult<()> {
-    validate_reference_bytes(reference_bytes)?;
-
-    match trace {
-        HeapScan::None => {}
-        HeapScan::Reference { shared_offsets, .. } => visit_reference_offsets_in_reader(
-            shared_offsets,
-            reference_bytes,
-            &mut fill_bytes,
-            &mut decode_shared_reference_window,
-            &mut visit,
-        )?,
-        HeapScan::PackedValue { offsets } => visit_value_offsets_in_reader(
-            offsets,
-            &mut fill_bytes,
-            &mut decode_shared_heap_reference_value_slot,
-            &mut visit,
-        )?,
-        HeapScan::RepeatedReference {
-            count,
-            stride,
-            shared_offsets,
-            ..
-        } => visit_repeated_reference_offsets_in_reader(
-            *count,
-            *stride,
-            shared_offsets,
-            reference_bytes,
-            &mut fill_bytes,
-            &mut decode_shared_reference_window,
-            &mut visit,
-        )?,
-    }
-
-    Ok(())
+    visit_reference_map_in_reader(shared_reference_offsets(reference_map), fill_bytes, visit)
 }
 
 /// Visit each overlapping local heap reference encoded by one scan through one reader.
 pub(crate) fn visit_heap_references_in_reader_range(
-    trace: &HeapScan,
+    reference_map: &ReferenceMap,
     start: usize,
     len: usize,
-    reference_bytes: usize,
-    mut fill_bytes: impl FnMut(usize, &mut [u8]) -> bool,
-    mut visit: impl FnMut(HeapReference),
+    fill_bytes: impl FnMut(usize, &mut [u8]) -> bool,
+    visit: impl FnMut(HeapReference),
 ) -> HeapResult<()> {
-    validate_reference_bytes(reference_bytes)?;
-
-    // empty writes cannot overlap anything
-    if len == 0 {
-        return Ok(());
-    }
-
-    // reject invalid dirty windows
-    let Some(end) = start.checked_add(len) else {
-        return Err(HeapError::TraceOffsetOverflow { start, width: len });
-    };
-
-    match trace {
-        HeapScan::None => {}
-        HeapScan::Reference { local_offsets, .. } => visit_reference_offsets_in_reader_range(
-            local_offsets,
-            start,
-            end,
-            reference_bytes,
-            &mut fill_bytes,
-            &mut decode_heap_reference_window,
-            &mut visit,
-        )?,
-        HeapScan::PackedValue { offsets } => visit_value_offsets_in_reader_range(
-            offsets,
-            start,
-            end,
-            &mut fill_bytes,
-            &mut decode_heap_reference_value_slot,
-            &mut visit,
-        )?,
-        HeapScan::RepeatedReference {
-            count,
-            stride,
-            local_offsets,
-            ..
-        } => visit_repeated_reference_offsets_in_reader_range(
-            *count,
-            *stride,
-            local_offsets,
-            start,
-            end,
-            reference_bytes,
-            &mut fill_bytes,
-            &mut decode_heap_reference_window,
-            &mut visit,
-        )?,
-    }
-
-    Ok(())
+    visit_trace_references_in_reader_range(
+        local_reference_offsets(reference_map),
+        start,
+        len,
+        fill_bytes,
+        visit,
+    )
 }
 
 /// Visit each overlapping shared heap reference encoded by one scan through one reader.
 pub(crate) fn visit_shared_references_in_reader_range(
-    trace: &HeapScan,
+    reference_map: &ReferenceMap,
     start: usize,
     len: usize,
-    reference_bytes: usize,
-    mut fill_bytes: impl FnMut(usize, &mut [u8]) -> bool,
-    mut visit: impl FnMut(SharedHeapReference),
+    fill_bytes: impl FnMut(usize, &mut [u8]) -> bool,
+    visit: impl FnMut(SharedHeapReference),
 ) -> HeapResult<()> {
-    validate_reference_bytes(reference_bytes)?;
+    visit_trace_references_in_reader_range(
+        shared_reference_offsets(reference_map),
+        start,
+        len,
+        fill_bytes,
+        visit,
+    )
+}
 
+/// Return the local-reference offsets for one trace.
+fn local_reference_offsets(reference_map: &ReferenceMap) -> ReferenceOffsets<'_> {
+    match reference_map {
+        ReferenceMap::None => ReferenceOffsets::None,
+        ReferenceMap::Reference { local_offsets, .. } => ReferenceOffsets::Direct(local_offsets),
+        ReferenceMap::RepeatedReference {
+            count,
+            stride,
+            local_offsets,
+            ..
+        } => ReferenceOffsets::Repeated {
+            count: *count,
+            stride: *stride,
+            offsets: local_offsets,
+        },
+    }
+}
+
+/// Return the shared-reference offsets for one trace.
+fn shared_reference_offsets(reference_map: &ReferenceMap) -> ReferenceOffsets<'_> {
+    match reference_map {
+        ReferenceMap::None => ReferenceOffsets::None,
+        ReferenceMap::Reference { shared_offsets, .. } => ReferenceOffsets::Direct(shared_offsets),
+        ReferenceMap::RepeatedReference {
+            count,
+            stride,
+            shared_offsets,
+            ..
+        } => ReferenceOffsets::Repeated {
+            count: *count,
+            stride: *stride,
+            offsets: shared_offsets,
+        },
+    }
+}
+
+/// Visit each traced reference through one random-access reader.
+fn visit_reference_map_in_reader<R: TracedReference>(
+    reference_offsets: ReferenceOffsets<'_>,
+    mut fill_bytes: impl FnMut(usize, &mut [u8]) -> bool,
+    mut visit: impl FnMut(R),
+) -> HeapResult<()> {
+    match reference_offsets {
+        ReferenceOffsets::None => Ok(()),
+        ReferenceOffsets::Direct(offsets) => {
+            visit_direct_reference_offsets_in_reader(offsets, &mut fill_bytes, &mut visit)
+        }
+        ReferenceOffsets::Repeated {
+            count,
+            stride,
+            offsets,
+        } => visit_repeated_reference_offsets_in_reader(
+            count,
+            stride,
+            offsets,
+            &mut fill_bytes,
+            &mut visit,
+        ),
+    }
+}
+
+/// Visit each overlapping traced reference through one random-access reader.
+fn visit_trace_references_in_reader_range<R: TracedReference>(
+    reference_offsets: ReferenceOffsets<'_>,
+    start: usize,
+    len: usize,
+    mut fill_bytes: impl FnMut(usize, &mut [u8]) -> bool,
+    mut visit: impl FnMut(R),
+) -> HeapResult<()> {
     // empty writes cannot overlap anything
     if len == 0 {
         return Ok(());
@@ -213,220 +307,123 @@ pub(crate) fn visit_shared_references_in_reader_range(
         return Err(HeapError::TraceOffsetOverflow { start, width: len });
     };
 
-    match trace {
-        HeapScan::None => {}
-        HeapScan::Reference { shared_offsets, .. } => visit_reference_offsets_in_reader_range(
-            shared_offsets,
-            start,
-            end,
-            reference_bytes,
-            &mut fill_bytes,
-            &mut decode_shared_reference_window,
-            &mut visit,
-        )?,
-        HeapScan::PackedValue { offsets } => visit_value_offsets_in_reader_range(
+    match reference_offsets {
+        ReferenceOffsets::None => Ok(()),
+        ReferenceOffsets::Direct(offsets) => visit_direct_reference_offsets_in_reader_range(
             offsets,
             start,
             end,
             &mut fill_bytes,
-            &mut decode_shared_heap_reference_value_slot,
             &mut visit,
-        )?,
-        HeapScan::RepeatedReference {
+        ),
+        ReferenceOffsets::Repeated {
             count,
             stride,
-            shared_offsets,
-            ..
+            offsets,
         } => visit_repeated_reference_offsets_in_reader_range(
-            *count,
-            *stride,
-            shared_offsets,
+            count,
+            stride,
+            offsets,
             start,
             end,
-            reference_bytes,
             &mut fill_bytes,
-            &mut decode_shared_reference_window,
             &mut visit,
-        )?,
-    }
-
-    Ok(())
-}
-
-/// Validate one configured direct-reference width.
-fn validate_reference_bytes(reference_bytes: usize) -> HeapResult<()> {
-    match reference_bytes {
-        8 => Ok(()),
-        bytes => {
-            let bytes = u8::try_from(bytes).map_err(|_| HeapError::InvariantOverflow {
-                context: "reference width",
-            })?;
-
-            Err(HeapError::UnsupportedHeapReferenceWidth { bytes })
-        }
+        ),
     }
 }
 
-/// Decode one local heap reference stored inside one packed value lane.
-pub(crate) fn decode_heap_reference_value_slot(
-    window: &[u8],
-    start: usize,
-) -> HeapResult<Option<HeapReference>> {
-    let tag = decode_value_tag(window, start)?;
-    if tag != MANAGED_REFERENCE_TAG {
-        return Ok(None);
-    }
-
-    let bits = decode_value_data(window);
-
-    Ok(Some(HeapReference::from_bits(bits)))
-}
-
-/// Decode one shared heap reference stored inside one packed value lane.
-pub(crate) fn decode_shared_heap_reference_value_slot(
-    window: &[u8],
-    start: usize,
-) -> HeapResult<Option<SharedHeapReference>> {
-    let tag = decode_value_tag(window, start)?;
-    if tag != SHARED_MANAGED_REFERENCE_TAG {
-        return Ok(None);
-    }
-
-    let bits = decode_value_data(window);
-
-    Ok(Some(SharedHeapReference::from_bits(bits)))
-}
-
-/// Decode one direct local heap reference from one traced window.
-fn decode_heap_reference_window(window: &[u8]) -> HeapResult<HeapReference> {
-    match window.len() {
-        4 => {
-            let mut raw = [0u8; 4];
-            raw.copy_from_slice(window);
-
-            Ok(HeapReference::from_bits(u64::from(u32::from_le_bytes(raw))))
-        }
-        8 => {
-            let mut raw = [0u8; 8];
-            raw.copy_from_slice(window);
-
-            Ok(HeapReference::from_bits(u64::from_le_bytes(raw)))
-        }
-        bytes => Err(HeapError::InvalidReferenceWindowWidth { bytes }),
-    }
-}
-
-/// Decode one direct shared heap reference from one traced window.
-fn decode_shared_reference_window(window: &[u8]) -> HeapResult<SharedHeapReference> {
-    match window.len() {
-        4 => {
-            let mut raw = [0u8; 4];
-            raw.copy_from_slice(window);
-
-            Ok(SharedHeapReference::from_bits(u64::from(
-                u32::from_le_bytes(raw),
-            )))
-        }
-        8 => {
-            let mut raw = [0u8; 8];
-            raw.copy_from_slice(window);
-
-            Ok(SharedHeapReference::from_bits(u64::from_le_bytes(raw)))
-        }
-        bytes => Err(HeapError::InvalidReferenceWindowWidth { bytes }),
-    }
-}
-
-/// Decode one packed value tag from one value lane.
-fn decode_value_tag(window: &[u8], start: usize) -> HeapResult<u8> {
-    if window.len() != PACKED_VALUE_BYTES {
+/// Decode one traced reference from one native-width window.
+fn decode_reference_window<R: TracedReference>(window: &[u8]) -> HeapResult<R> {
+    if window.len() != R::BYTE_LEN {
         return Err(HeapError::InvalidReferenceWindowWidth {
             bytes: window.len(),
         });
     }
 
-    let Some(tag) = window.get(VALUE_TAG_OFFSET).copied() else {
-        return Err(HeapError::InvalidReferenceValuePayload { start });
-    };
-    if tag > MAX_VALUE_TAG {
-        return Err(HeapError::InvalidReferenceValuePayload { start });
-    }
+    let mut raw = [0u8; std::mem::size_of::<usize>()];
+    raw.copy_from_slice(window);
 
-    Ok(tag)
+    Ok(R::from_bits(usize::from_le_bytes(raw)))
 }
 
-/// Decode the payload bits from one packed value lane.
-fn decode_value_data(window: &[u8]) -> u64 {
-    let mut raw = [0u8; 8];
-    raw.copy_from_slice(&window[..8]);
+/// Encode one direct reference-offset table into one slot bitmap.
+fn set_reference_offsets(
+    reference_bits: &mut Bitmap,
+    slot_index: usize,
+    size_class: usize,
+    offsets: &[u32],
+) {
+    let word_bytes = std::mem::size_of::<usize>();
+    let word_count = size_class.div_ceil(word_bytes);
+    let bit_start = slot_index.saturating_mul(word_count);
 
-    u64::from_le_bytes(raw)
+    for offset in offsets.iter().copied() {
+        let word_index = (offset as usize) / word_bytes;
+        let bit_index = bit_start.saturating_add(word_index);
+
+        reference_bits.set(bit_index);
+    }
+}
+
+/// Encode one repeated reference-offset table into one slot bitmap.
+fn set_repeated_reference_offsets(
+    reference_bits: &mut Bitmap,
+    slot_index: usize,
+    size_class: usize,
+    count: u32,
+    stride: u32,
+    offsets: &[u32],
+) {
+    let word_bytes = std::mem::size_of::<usize>();
+    let word_count = size_class.div_ceil(word_bytes);
+    let bit_start = slot_index.saturating_mul(word_count);
+
+    for index in 0..count as usize {
+        let element_offset = index.saturating_mul(stride as usize);
+
+        for offset in offsets.iter().copied() {
+            let byte_offset = element_offset.saturating_add(offset as usize);
+            let word_index = byte_offset / word_bytes;
+            let bit_index = bit_start.saturating_add(word_index);
+
+            reference_bits.set(bit_index);
+        }
+    }
 }
 
 /// Visit each direct reference offset through one random-access reader.
-fn visit_reference_offsets_in_reader<R>(
+fn visit_direct_reference_offsets_in_reader<R: TracedReference>(
     offsets: &[u32],
-    reference_bytes: usize,
     fill_bytes: &mut impl FnMut(usize, &mut [u8]) -> bool,
-    decode: &mut impl FnMut(&[u8]) -> HeapResult<R>,
     visit: &mut impl FnMut(R),
 ) -> HeapResult<()> {
-    let mut window = vec![0u8; reference_bytes];
+    let mut window = [0u8; std::mem::size_of::<usize>()];
 
     for offset in offsets.iter().copied() {
         let start = offset as usize;
 
-        if !fill_bytes(start, &mut window) {
+        if !fill_bytes(start, &mut window[..R::BYTE_LEN]) {
             return Err(HeapError::TruncatedReferenceReaderWindow {
                 start,
-                width: reference_bytes,
+                width: R::BYTE_LEN,
             });
         }
 
-        visit(decode(&window)?);
-    }
-
-    Ok(())
-}
-
-/// Visit each packed value offset through one random-access reader.
-fn visit_value_offsets_in_reader<R>(
-    offsets: &[u32],
-    fill_bytes: &mut impl FnMut(usize, &mut [u8]) -> bool,
-    decode: &mut impl FnMut(&[u8], usize) -> HeapResult<Option<R>>,
-    visit: &mut impl FnMut(R),
-) -> HeapResult<()> {
-    let mut window = [0u8; PACKED_VALUE_BYTES];
-
-    for offset in offsets.iter().copied() {
-        let start = offset as usize;
-
-        if !fill_bytes(start, &mut window) {
-            return Err(HeapError::TruncatedReferenceReaderWindow {
-                start,
-                width: PACKED_VALUE_BYTES,
-            });
-        }
-
-        if let Some(reference) = decode(&window, start)? {
-            visit(reference);
-        }
+        visit(decode_reference_window::<R>(&window[..R::BYTE_LEN])?);
     }
 
     Ok(())
 }
 
 /// Visit each repeated reference offset through one random-access reader.
-fn visit_repeated_reference_offsets_in_reader<R>(
+fn visit_repeated_reference_offsets_in_reader<R: TracedReference>(
     count: u32,
     stride: u32,
     offsets: &[u32],
-    reference_bytes: usize,
     fill_bytes: &mut impl FnMut(usize, &mut [u8]) -> bool,
-    decode: &mut impl FnMut(&[u8]) -> HeapResult<R>,
     visit: &mut impl FnMut(R),
 ) -> HeapResult<()> {
-    let mut window = vec![0u8; reference_bytes];
+    let mut window = [0u8; std::mem::size_of::<usize>()];
 
     for index in 0..count as usize {
         let base = index
@@ -443,14 +440,14 @@ fn visit_repeated_reference_offsets_in_reader<R>(
                         width: offset as usize,
                     })?;
 
-            if !fill_bytes(start, &mut window) {
+            if !fill_bytes(start, &mut window[..R::BYTE_LEN]) {
                 return Err(HeapError::TruncatedReferenceReaderWindow {
                     start,
-                    width: reference_bytes,
+                    width: R::BYTE_LEN,
                 });
             }
 
-            visit(decode(&window)?);
+            visit(decode_reference_window::<R>(&window[..R::BYTE_LEN])?);
         }
     }
 
@@ -458,81 +455,45 @@ fn visit_repeated_reference_offsets_in_reader<R>(
 }
 
 /// Visit each overlapping direct reference offset through one random-access reader.
-fn visit_reference_offsets_in_reader_range<R>(
-    offsets: &[u32],
-    start: usize,
-    end: usize,
-    reference_bytes: usize,
-    fill_bytes: &mut impl FnMut(usize, &mut [u8]) -> bool,
-    decode: &mut impl FnMut(&[u8]) -> HeapResult<R>,
-    visit: &mut impl FnMut(R),
-) -> HeapResult<()> {
-    let mut window = vec![0u8; reference_bytes];
-
-    for offset in offsets.iter().copied() {
-        let offset = offset as usize;
-        if !ranges_overlap(start, end, offset, reference_bytes) {
-            continue;
-        }
-
-        if !fill_bytes(offset, &mut window) {
-            return Err(HeapError::TruncatedReferenceReaderWindow {
-                start: offset,
-                width: reference_bytes,
-            });
-        }
-
-        visit(decode(&window)?);
-    }
-
-    Ok(())
-}
-
-/// Visit each overlapping packed value offset through one random-access reader.
-fn visit_value_offsets_in_reader_range<R>(
+fn visit_direct_reference_offsets_in_reader_range<R: TracedReference>(
     offsets: &[u32],
     start: usize,
     end: usize,
     fill_bytes: &mut impl FnMut(usize, &mut [u8]) -> bool,
-    decode: &mut impl FnMut(&[u8], usize) -> HeapResult<Option<R>>,
     visit: &mut impl FnMut(R),
 ) -> HeapResult<()> {
-    let mut window = [0u8; PACKED_VALUE_BYTES];
+    let mut window = [0u8; std::mem::size_of::<usize>()];
 
     for offset in offsets.iter().copied() {
         let offset = offset as usize;
-        if !ranges_overlap(start, end, offset, PACKED_VALUE_BYTES) {
+        if !ranges_overlap(start, end, offset, R::BYTE_LEN) {
             continue;
         }
 
-        if !fill_bytes(offset, &mut window) {
+        if !fill_bytes(offset, &mut window[..R::BYTE_LEN]) {
             return Err(HeapError::TruncatedReferenceReaderWindow {
                 start: offset,
-                width: PACKED_VALUE_BYTES,
+                width: R::BYTE_LEN,
             });
         }
 
-        if let Some(reference) = decode(&window, offset)? {
-            visit(reference);
-        }
+        visit(decode_reference_window::<R>(&window[..R::BYTE_LEN])?);
     }
 
     Ok(())
 }
 
 /// Visit each overlapping repeated reference offset through one random-access reader.
-fn visit_repeated_reference_offsets_in_reader_range<R>(
+fn visit_repeated_reference_offsets_in_reader_range<R: TracedReference>(
     count: u32,
     stride: u32,
     offsets: &[u32],
     start: usize,
     end: usize,
-    reference_bytes: usize,
     fill_bytes: &mut impl FnMut(usize, &mut [u8]) -> bool,
-    decode: &mut impl FnMut(&[u8]) -> HeapResult<R>,
     visit: &mut impl FnMut(R),
 ) -> HeapResult<()> {
-    let mut window = vec![0u8; reference_bytes];
+    let mut window = [0u8; std::mem::size_of::<usize>()];
 
     for offset in offsets.iter().copied() {
         let Some((first, last)) = overlapping_repeated_index_range(
@@ -541,7 +502,7 @@ fn visit_repeated_reference_offsets_in_reader_range<R>(
             count as usize,
             stride as usize,
             offset as usize,
-            reference_bytes,
+            R::BYTE_LEN,
         ) else {
             continue;
         };
@@ -559,14 +520,14 @@ fn visit_repeated_reference_offsets_in_reader_range<R>(
                         width: offset as usize,
                     })?;
 
-            if !fill_bytes(offset, &mut window) {
+            if !fill_bytes(offset, &mut window[..R::BYTE_LEN]) {
                 return Err(HeapError::TruncatedReferenceReaderWindow {
                     start: offset,
-                    width: reference_bytes,
+                    width: R::BYTE_LEN,
                 });
             }
 
-            visit(decode(&window)?);
+            visit(decode_reference_window::<R>(&window[..R::BYTE_LEN])?);
         }
     }
 
