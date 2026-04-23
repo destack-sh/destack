@@ -1242,6 +1242,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("declaration_id", &declaration_id.id)
                     .end();
             }
+            TypeExpression::FunctionTypeDeclaration(_) => {
+                self.node("TypeExpression::FunctionTypeDeclaration", id.id)
+                    .end();
+            }
+            TypeExpression::ConstructorTypeDeclaration(_) => {
+                self.node("TypeExpression::ConstructorTypeDeclaration", id.id)
+                    .end();
+            }
             TypeExpression::Reference {
                 path,
                 generic_arguments: _,
