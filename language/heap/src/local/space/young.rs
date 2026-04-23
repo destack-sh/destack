@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+use destack_mir::LayoutId;
+
+use crate::HeapResult;
 use crate::allocator::{Allocator, PageRunCache, PageView};
-use crate::{HeapResult, ShapeId};
 
 /// One heap young-entry identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -38,8 +40,8 @@ pub(crate) struct YoungEntry {
     pub(crate) first_offset: u32,
     /// The logical byte length for this entry.
     pub(crate) byte_len: usize,
-    /// The interned entry shape for this entry.
-    pub(crate) shape_id: ShapeId,
+    /// The managed layout stored in this entry.
+    pub(crate) layout_id: LayoutId,
     /// Whether this young entry is still live.
     pub(crate) is_live: bool,
     /// Whether this young entry is marked in the active cycle.

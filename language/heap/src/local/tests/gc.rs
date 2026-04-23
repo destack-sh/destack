@@ -1,12 +1,14 @@
+use std::sync::Arc;
+
 use crate::local::space::HeapStorage;
 use crate::{
-    GcKind, GcOptions, Heap, HeapError, HeapOptions, HeapReference, HeapSpace, SharedHeapReference,
-    test_allocator,
+    Allocator, GcKind, GcOptions, Heap, HeapError, HeapOptions, HeapReference, HeapSpace,
+    SharedHeapReference, test_allocator, test_layout, test_layouts,
 };
-use destack_mir::LayoutTrace;
+use destack_mir::{LayoutId, ReferenceMap};
 
 /// Build one local heap whose pacer triggers immediately in step-driven tests.
-fn test_heap() -> Heap {
+fn test_heap(layouts: &[(usize, ReferenceMap)]) -> (Heap, Vec<LayoutId>) {
     let options = HeapOptions {
         gc: GcOptions {
             growth_percent: 10,
@@ -16,9 +18,20 @@ fn test_heap() -> Heap {
         },
         ..HeapOptions::local()
     };
+    let (layouts, layout_ids) = test_layouts(layouts);
+    let allocator = Arc::new(
+        Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+            .expect("allocator should build"),
+    );
+    let heap = Heap::with_allocator_limits_layouts_and_options(
+        allocator,
+        layouts,
+        crate::HeapLimits::default(),
+        options,
+    )
+    .expect("pacing heap should build");
 
-    Heap::with_limits_and_options(crate::HeapLimits::default(), options)
-        .expect("pacing heap should build")
+    (heap, layout_ids)
 }
 
 /// Report whether one heap reference is currently young.
@@ -37,18 +50,19 @@ fn is_mature(heap: &HeapSpace, reference: HeapReference) -> bool {
 /// Promote reachable young entries and clear unreachable young-space state.
 #[test]
 fn test_collect_minor_promotes_reachable_entries() {
-    let layout = HeapOptions {
+    let options = HeapOptions {
         heap_small_bytes: 32,
         ..HeapOptions::local()
     };
-    let allocator = test_allocator(&layout);
-    let mut heap =
-        HeapSpace::with_options(allocator, &layout).expect("explicit heap options should build");
+    let allocator = test_allocator(&options);
+    let (layouts, layout_id) = test_layout(3, ReferenceMap::empty());
+    let mut heap = HeapSpace::with_layouts_and_options(allocator, layouts, &options)
+        .expect("explicit heap options should build");
     let reachable = heap
-        .allocate_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
+        .allocate_bytes(&[1, 2, 3], layout_id)
         .expect("heap allocation should succeed");
     let unreachable = heap
-        .allocate_bytes(&[4, 5, 6], LayoutTrace::empty(), None)
+        .allocate_bytes(&[4, 5, 6], layout_id)
         .expect("heap allocation should succeed");
     let mut roots = [reachable];
 
@@ -78,22 +92,26 @@ fn test_collect_minor_promotes_reachable_entries() {
 /// Promote young entries reached through traced young references.
 #[test]
 fn test_collect_minor_promotes_reachable_child_entries() {
-    let layout = HeapOptions {
+    let options = HeapOptions {
         heap_small_bytes: 32,
         ..HeapOptions::local()
     };
-    let allocator = test_allocator(&layout);
-    let mut heap =
-        HeapSpace::with_options(allocator, &layout).expect("explicit heap options should build");
-    let trace = LayoutTrace::Reference {
+    let allocator = test_allocator(&options);
+    let reference_map = ReferenceMap::Reference {
         local_offsets: vec![0].into_boxed_slice(),
         shared_offsets: Vec::new().into_boxed_slice(),
     };
+    let (layouts, layout_ids) =
+        test_layouts(&[(2, ReferenceMap::empty()), (8, reference_map.clone())]);
+    let [child_layout_id, parent_layout_id]: [LayoutId; 2] =
+        layout_ids.try_into().expect("test layouts should match");
+    let mut heap = HeapSpace::with_layouts_and_options(allocator, layouts, &options)
+        .expect("explicit heap options should build");
     let child = heap
-        .allocate_bytes(&[0xC1, 0x1D], LayoutTrace::empty(), None)
+        .allocate_bytes(&[0xC1, 0x1D], child_layout_id)
         .expect("heap allocation should succeed");
     let parent = heap
-        .allocate_bytes(&child.bits().to_le_bytes(), trace, None)
+        .allocate_bytes(&child.bits().to_le_bytes(), parent_layout_id)
         .expect("heap allocation should succeed");
     let mut roots = [parent];
 
@@ -106,8 +124,8 @@ fn test_collect_minor_promotes_reachable_child_entries() {
     assert!(is_mature(&heap, parent));
 
     let child_bytes = heap.read_bytes(parent).expect("parent read should succeed");
-    let rewritten_child = HeapReference::from_bits(u64::from_le_bytes(
-        child_bytes[..8]
+    let rewritten_child = HeapReference::from_bits(usize::from_le_bytes(
+        child_bytes[..HeapReference::BYTE_LEN]
             .try_into()
             .expect("child reference should fit"),
     ));
@@ -118,10 +136,10 @@ fn test_collect_minor_promotes_reachable_child_entries() {
 /// Reject invalid explicit young roots loudly.
 #[test]
 fn test_collect_minor_rejects_invalid_root() {
-    let layout = HeapOptions::local();
-    let allocator = test_allocator(&layout);
+    let options = HeapOptions::local();
+    let allocator = test_allocator(&options);
     let mut heap =
-        HeapSpace::with_options(allocator, &layout).expect("explicit heap options should build");
+        HeapSpace::with_options(allocator, &options).expect("explicit heap options should build");
     let invalid = HeapReference::new(7);
     let mut roots = [invalid];
 
@@ -138,12 +156,13 @@ fn test_collect_minor_rejects_invalid_root() {
 /// Record the completed young GC cycle after one local young collection.
 #[test]
 fn test_collect_minor_updates_gc_state() {
-    let layout = HeapOptions::local();
-    let allocator = test_allocator(&layout);
-    let mut heap =
-        HeapSpace::with_options(allocator, &layout).expect("explicit heap options should build");
+    let options = HeapOptions::local();
+    let allocator = test_allocator(&options);
+    let (layouts, layout_id) = test_layout(3, ReferenceMap::empty());
+    let mut heap = HeapSpace::with_layouts_and_options(allocator, layouts, &options)
+        .expect("explicit heap options should build");
     let reachable = heap
-        .allocate_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
+        .allocate_bytes(&[1, 2, 3], layout_id)
         .expect("heap allocation should succeed");
     let mut roots = [reachable];
 
@@ -159,15 +178,16 @@ fn test_collect_minor_updates_gc_state() {
 /// Pinning one young reference should tenure it immediately.
 #[test]
 fn test_pin_promotes_young_reference() {
-    let layout = HeapOptions {
+    let options = HeapOptions {
         heap_small_bytes: 32,
         ..HeapOptions::local()
     };
-    let allocator = test_allocator(&layout);
-    let mut heap =
-        HeapSpace::with_options(allocator, &layout).expect("explicit heap options should build");
+    let allocator = test_allocator(&options);
+    let (layouts, layout_id) = test_layout(3, ReferenceMap::empty());
+    let mut heap = HeapSpace::with_layouts_and_options(allocator, layouts, &options)
+        .expect("explicit heap options should build");
     let reference = heap
-        .allocate_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
+        .allocate_bytes(&[1, 2, 3], layout_id)
         .expect("heap allocation should succeed");
 
     assert!(is_young(&heap, reference));
@@ -182,22 +202,26 @@ fn test_pin_promotes_young_reference() {
 /// Pinned mature roots should keep young children alive during minor collection.
 #[test]
 fn test_collect_minor_traces_pinned_roots() {
-    let layout = HeapOptions {
+    let options = HeapOptions {
         heap_small_bytes: 32,
         ..HeapOptions::local()
     };
-    let allocator = test_allocator(&layout);
-    let mut heap =
-        HeapSpace::with_options(allocator, &layout).expect("explicit heap options should build");
-    let trace = LayoutTrace::Reference {
+    let allocator = test_allocator(&options);
+    let reference_map = ReferenceMap::Reference {
         local_offsets: vec![0].into_boxed_slice(),
         shared_offsets: Vec::new().into_boxed_slice(),
     };
+    let (layouts, layout_ids) =
+        test_layouts(&[(2, ReferenceMap::empty()), (8, reference_map.clone())]);
+    let [child_layout_id, parent_layout_id]: [LayoutId; 2] =
+        layout_ids.try_into().expect("test layouts should match");
+    let mut heap = HeapSpace::with_layouts_and_options(allocator, layouts, &options)
+        .expect("explicit heap options should build");
     let child = heap
-        .allocate_bytes(&[0xC1, 0x1D], LayoutTrace::empty(), None)
+        .allocate_bytes(&[0xC1, 0x1D], child_layout_id)
         .expect("heap allocation should succeed");
     let parent = heap
-        .allocate_bytes(&child.bits().to_le_bytes(), trace, None)
+        .allocate_bytes(&child.bits().to_le_bytes(), parent_layout_id)
         .expect("heap allocation should succeed");
     let parent = heap.pin(parent).expect("pin should succeed");
     let mut roots = [];
@@ -210,8 +234,8 @@ fn test_collect_minor_traces_pinned_roots() {
     assert!(is_mature(&heap, parent));
 
     let child_bytes = heap.read_bytes(parent).expect("parent read should succeed");
-    let rewritten_child = HeapReference::from_bits(u64::from_le_bytes(
-        child_bytes[..8]
+    let rewritten_child = HeapReference::from_bits(usize::from_le_bytes(
+        child_bytes[..HeapReference::BYTE_LEN]
             .try_into()
             .expect("child reference should fit"),
     ));
@@ -223,15 +247,16 @@ fn test_collect_minor_traces_pinned_roots() {
 /// Pinned mature references should stay live during full collection without explicit roots.
 #[test]
 fn test_collect_full_traces_pinned_roots() {
-    let layout = HeapOptions {
+    let options = HeapOptions {
         heap_young_bytes: 0,
         ..HeapOptions::local()
     };
-    let allocator = test_allocator(&layout);
-    let mut heap =
-        HeapSpace::with_options(allocator, &layout).expect("explicit heap options should build");
+    let allocator = test_allocator(&options);
+    let (layouts, layout_id) = test_layout(3, ReferenceMap::empty());
+    let mut heap = HeapSpace::with_layouts_and_options(allocator, layouts, &options)
+        .expect("explicit heap options should build");
     let reference = heap
-        .allocate_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
+        .allocate_bytes(&[1, 2, 3], layout_id)
         .expect("heap allocation should succeed");
     let reference = heap.pin(reference).expect("pin should succeed");
     let mut roots = [];
@@ -250,15 +275,16 @@ fn test_collect_full_traces_pinned_roots() {
 fn test_scan_shared_roots_uses_shared_reference_width() {
     let options = HeapOptions::local();
     let allocator = test_allocator(&options);
-    let mut heap =
-        HeapSpace::with_options(allocator, &options).expect("explicit heap options should build");
-    let trace = LayoutTrace::Reference {
+    let reference_map = ReferenceMap::Reference {
         local_offsets: Vec::new().into_boxed_slice(),
         shared_offsets: vec![0].into_boxed_slice(),
     };
+    let (layouts, layout_id) = test_layout(8, reference_map);
+    let mut heap = HeapSpace::with_layouts_and_options(allocator, layouts, &options)
+        .expect("explicit heap options should build");
     let shared = SharedHeapReference::new(7);
     let local = heap
-        .allocate_bytes(&shared.bits().to_le_bytes(), trace, None)
+        .allocate_bytes(&shared.bits().to_le_bytes(), layout_id)
         .expect("heap allocation should succeed");
     let mut roots = Vec::new();
 
@@ -280,7 +306,18 @@ fn test_scan_shared_roots_uses_shared_reference_width() {
 /// Stay idle when no local pressure or explicit request exists.
 #[test]
 fn test_heap_gc_step_stays_idle_without_request() {
-    let mut heap = Heap::new().expect("heap should build");
+    let options = HeapOptions::local();
+    let allocator = Arc::new(
+        Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+            .expect("allocator should build"),
+    );
+    let mut heap = Heap::with_allocator_limits_layouts_and_options(
+        allocator,
+        Arc::new(destack_mir::LayoutTable::new()),
+        crate::HeapLimits::default(),
+        options,
+    )
+    .expect("heap should build");
     let mut roots = [];
 
     let stats = heap.gc_step(&mut roots).expect("gc step should succeed");
@@ -291,9 +328,10 @@ fn test_heap_gc_step_stays_idle_without_request() {
 /// Run one minor cycle after local heap allocation pressure.
 #[test]
 fn test_heap_gc_step_runs_minor_after_pressure() {
-    let mut heap = test_heap();
+    let (mut heap, layout_ids) = test_heap(&[(64, ReferenceMap::empty())]);
+    let layout_id = layout_ids[0];
     let root = heap
-        .allocate_heap_bytes(&vec![1; 64], LayoutTrace::empty(), None)
+        .allocate_heap_bytes(&vec![1; 64], layout_id)
         .expect("heap allocation should succeed");
     let mut roots = [root];
 
@@ -311,9 +349,21 @@ fn test_heap_gc_step_runs_minor_after_pressure() {
 /// Honor one explicit full local collection request below the pacing trigger.
 #[test]
 fn test_heap_gc_step_honors_manual_full_request() {
-    let mut heap = Heap::new().expect("heap should build");
+    let (layouts, layout_id) = test_layout(3, ReferenceMap::empty());
+    let options = HeapOptions::local();
+    let allocator = Arc::new(
+        Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+            .expect("allocator should build"),
+    );
+    let mut heap = Heap::with_allocator_limits_layouts_and_options(
+        allocator,
+        layouts,
+        crate::HeapLimits::default(),
+        options,
+    )
+    .expect("heap should build");
     let root = heap
-        .allocate_heap_bytes(&[1, 2, 3], LayoutTrace::empty(), None)
+        .allocate_heap_bytes(&[1, 2, 3], layout_id)
         .expect("heap allocation should succeed");
     let mut roots = [root];
 
@@ -331,15 +381,16 @@ fn test_heap_gc_step_honors_manual_full_request() {
 /// Repeated full collection should free later unreachable allocations too.
 #[test]
 fn test_collect_full_reclaims_later_unreachable_allocations() {
-    let layout = HeapOptions::local();
-    let allocator = test_allocator(&layout);
-    let mut heap =
-        HeapSpace::with_options(allocator, &layout).expect("explicit heap options should build");
+    let options = HeapOptions::local();
+    let allocator = test_allocator(&options);
+    let (layouts, layout_id) = test_layout(1, ReferenceMap::empty());
+    let mut heap = HeapSpace::with_layouts_and_options(allocator, layouts, &options)
+        .expect("explicit heap options should build");
     let root = heap
-        .allocate_bytes(&[1], LayoutTrace::empty(), None)
+        .allocate_bytes(&[1], layout_id)
         .expect("heap allocation should succeed");
     let _garbage = heap
-        .allocate_bytes(&[2], LayoutTrace::empty(), None)
+        .allocate_bytes(&[2], layout_id)
         .expect("heap allocation should succeed");
     let mut roots = [root];
 
@@ -350,10 +401,10 @@ fn test_collect_full_reclaims_later_unreachable_allocations() {
     assert_eq!(heap.allocation_count(), 1);
 
     let more_garbage = heap
-        .allocate_bytes(&[3], LayoutTrace::empty(), None)
+        .allocate_bytes(&[3], layout_id)
         .expect("heap allocation should succeed");
     let even_more = heap
-        .allocate_bytes(&[4], LayoutTrace::empty(), None)
+        .allocate_bytes(&[4], layout_id)
         .expect("heap allocation should succeed");
 
     // later allocations should still enter young space

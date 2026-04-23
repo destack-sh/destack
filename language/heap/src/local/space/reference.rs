@@ -1,10 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 /// Reference to one local heap allocation.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
-)]
-pub struct HeapReference(pub(crate) u64);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct HeapReference(pub(crate) usize);
 
 impl HeapReference {
     /// The null heap reference.
@@ -16,7 +14,7 @@ impl HeapReference {
     /// Create a heap reference from one raw address.
     #[inline]
     pub const fn new(address: usize) -> Self {
-        Self(address as u64)
+        Self(address)
     }
 
     /// Report whether this reference is null.
@@ -27,20 +25,20 @@ impl HeapReference {
 
     /// Return the raw packed bits.
     #[inline]
-    pub const fn bits(self) -> u64 {
+    pub const fn bits(self) -> usize {
         self.0
     }
 
     /// Restore one heap reference from raw bits.
     #[inline]
-    pub const fn from_bits(bits: u64) -> Self {
+    pub const fn from_bits(bits: usize) -> Self {
         Self(bits)
     }
 
     /// Return the raw address.
     #[inline]
     pub const fn address(self) -> usize {
-        self.0 as usize
+        self.0
     }
 
     /// Return the referenced pointer.

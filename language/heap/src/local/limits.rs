@@ -72,15 +72,15 @@ impl HeapLimits {
     }
 
     /// Check exact heap and raw active bytes after one requested mapped-byte delta.
-    pub fn check_mapped_delta(
+    pub fn check_mapped_byte_delta(
         &self,
         heap_bytes: u64,
         raw_bytes: u64,
-        heap_mapped_delta: i64,
-        raw_mapped_delta: i64,
+        heap_mapped_byte_delta: i64,
+        raw_mapped_byte_delta: i64,
     ) -> HeapResult<()> {
-        let heap_bytes = apply_byte_delta(heap_bytes, heap_mapped_delta)?;
-        let raw_bytes = apply_byte_delta(raw_bytes, raw_mapped_delta)?;
+        let heap_bytes = apply_byte_delta(heap_bytes, heap_mapped_byte_delta)?;
+        let raw_bytes = apply_byte_delta(raw_bytes, raw_mapped_byte_delta)?;
 
         self.check(heap_bytes, raw_bytes)
     }

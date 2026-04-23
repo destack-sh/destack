@@ -2,15 +2,17 @@ use serde::{Deserialize, Serialize};
 
 use std::sync::Arc;
 
+use destack_mir::LayoutTable;
+
 use super::{
-    CardSet, GcSummary, HeapPageOwner, HeapSpace, LargeEntry, LargeEntryId, LargeEntryImage,
+    CardSet, GcState, HeapPageOwner, HeapSpace, LargeEntry, LargeEntryId, LargeEntryImage,
     SmallSpan, SmallSpanImage, YoungImage, YoungSpace,
 };
 use crate::allocator::{Allocator, PageRunCache, PageView, SizeClassTable};
-use crate::{AllocationUsage, CowTable, HeapError, HeapResult, Shape, ShapeTable, TraceQueue};
+use crate::{AllocationUsage, CowTable, HeapError, HeapResult, TraceQueue};
 
 /// One frozen heap-space root.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct HeapSpaceImage {
     /// The captured branchable young-space root.
     young: YoungImage,
@@ -26,8 +28,8 @@ pub(crate) struct HeapSpaceImage {
     /// The captured heap entries in large space.
     entries: Box<[LargeEntryImage]>,
 
-    /// The captured entry shapes.
-    shapes: Box<[Shape]>,
+    /// The canonical managed layouts visible to this heap.
+    layouts: LayoutTable,
 
     /// The configured young-space byte width.
     young_bytes: usize,
@@ -41,7 +43,7 @@ pub(crate) struct HeapSpaceImage {
     allocated_bytes: u64,
 
     /// The captured GC state.
-    gc_state: GcSummary,
+    gc_state: GcState,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -54,13 +56,13 @@ impl HeapSpaceImage {
         spans: Box<[SmallSpanImage]>,
         page_bytes: usize,
         entries: Box<[LargeEntryImage]>,
-        shapes: Box<[Shape]>,
+        layouts: LayoutTable,
         young_bytes: usize,
         max_young_allocation_bytes: usize,
         next_unused_large_entry_id: u64,
         allocated_count: usize,
         allocated_bytes: u64,
-        gc_state: GcSummary,
+        gc_state: GcState,
     ) -> Self {
         Self {
             young,
@@ -69,7 +71,7 @@ impl HeapSpaceImage {
             spans,
             page_bytes,
             entries,
-            shapes,
+            layouts,
             young_bytes,
             max_young_allocation_bytes,
             next_unused_large_entry_id,
@@ -109,9 +111,9 @@ impl HeapSpaceImage {
         &self.entries
     }
 
-    /// Return the captured entry shapes.
-    pub(crate) fn shapes(&self) -> &[Shape] {
-        &self.shapes
+    /// Return the canonical managed layouts visible to this heap.
+    pub(crate) fn layouts(&self) -> &LayoutTable {
+        &self.layouts
     }
 
     #[cfg(test)]
@@ -143,7 +145,7 @@ impl HeapSpaceImage {
     }
 
     /// Return the captured collector state.
-    pub(crate) fn gc_state(&self) -> &GcSummary {
+    pub(crate) fn gc_state(&self) -> &GcState {
         &self.gc_state
     }
 }
@@ -153,66 +155,31 @@ impl HeapSpace {
     pub(crate) fn fork(&mut self) -> Result<Self, HeapError> {
         self.check_branch_boundary()?;
         self.flush_branch_boundary();
-        let page_views = live_page_views(self);
-        let mut retained = Vec::new();
 
-        // retain the shared backing before cloning metadata
-        for page_view in page_views {
-            if let Err(error) = self.allocator.retain_page_view(&page_view) {
-                for page_view in retained.into_iter().rev() {
-                    self.allocator.release_page_view(&page_view)?;
-                }
+        let page_views = live_page_views(self);
+        let retained_page_views = self.allocator.retain_page_views(page_views)?;
+
+        let mut space = match Self::fork_with_retained_pages(self) {
+            Ok(space) => space,
+            Err(error) => {
+                self.allocator.release_page_views(&retained_page_views)?;
 
                 return Err(error);
             }
+        };
 
-            retained.push(page_view);
-        }
-
-        // rebuild the live metadata over retained pages
-        let result = (|| {
-            let mut space = Self {
-                allocator: self.allocator.clone(),
-                page_run_cache: PageRunCache::new(self.allocator.pages_per_segment()),
-                max_young_allocation_bytes: self.max_young_allocation_bytes,
-                shape_table: self.shape_table.clone(),
-                young: Self::fork_young_space(self),
-                small: Self::fork_small_space(self)?,
-                large: Self::fork_large_space(self)?,
-                page_owners: Vec::new(),
-                usage: self.usage,
-                gc_state: self.gc_state.clone(),
-                trace_queue: TraceQueue::default(),
-                is_collecting: false,
-                pins: Default::default(),
-                dirty_spans: Vec::new(),
-                dirty_large_entries: Vec::new(),
-                shared_edge_roots: Vec::new(),
-                shared_edge_index: Default::default(),
-                is_scanning_shared_edges: false,
-                shared_edge_cursor: 0,
-                shared_edge_queue: TraceQueue::default(),
-                shared_edge_pending: Default::default(),
-            };
-
-            space.rebuild_page_owners()?;
-
-            // rebuild remembered-set state conservatively after fork
-            space.rebuild_remembered_set()?;
-            space.rebuild_shared_edge_roots()?;
-
-            Ok(space)
-        })();
-
-        if let Err(error) = result {
-            for page_view in retained.into_iter().rev() {
-                self.allocator.release_page_view(&page_view)?;
-            }
+        // rebuild remembered-set state conservatively after fork
+        if let Err(error) = space
+            .rebuild_page_owners()
+            .and_then(|()| space.rebuild_remembered_set())
+            .and_then(|()| space.rebuild_shared_edge_roots())
+        {
+            self.allocator.release_page_views(&retained_page_views)?;
 
             return Err(error);
         }
 
-        result
+        Ok(space)
     }
 
     /// Restore one heap space from one frozen heap-space root.
@@ -238,79 +205,29 @@ impl HeapSpace {
         allocator: Arc<Allocator>,
         image: &HeapSpaceImage,
     ) -> Result<Self, HeapError> {
-        let page_views = image_page_views(image).collect::<Vec<_>>();
-        let mut retained = Vec::new();
+        let retained_page_views = allocator.retain_page_views(image_page_views(image))?;
 
-        // retain the shared backing first
-        for page_view in page_views {
-            if let Err(error) = allocator.retain_page_view(&page_view) {
-                for page_view in retained.into_iter().rev() {
-                    allocator.release_page_view(&page_view)?;
-                }
+        let mut space = match Self::restore_with_retained_pages(allocator.clone(), image) {
+            Ok(space) => space,
+            Err(error) => {
+                allocator.release_page_views(&retained_page_views)?;
 
                 return Err(error);
             }
+        };
 
-            retained.push(page_view);
-        }
-
-        // rebuild the dense metadata tables
-        let result = (|| {
-            let shape_table = Self::restore_shape_table(image)?;
-
-            // rebuild each live heap storage partition
-            let young = Self::restore_young_space(image);
-            let small = Self::restore_small_space(image)?;
-            let large = Self::restore_large_space(image)?;
-            let max_young_allocation_bytes = if image.young().capacity_bytes() == 0 {
-                0
-            } else {
-                image.max_young_allocation_bytes()
-            };
-
-            // rebuild the live root over the shared allocator
-            let mut space = Self {
-                allocator: allocator.clone(),
-                page_run_cache: PageRunCache::new(allocator.pages_per_segment()),
-                max_young_allocation_bytes,
-                shape_table,
-                young,
-                small,
-                large,
-                page_owners: Vec::new(),
-                usage: AllocationUsage::new(image.allocated_count(), image.allocated_bytes()),
-                gc_state: image.gc_state().clone(),
-                trace_queue: TraceQueue::default(),
-                is_collecting: false,
-                pins: Default::default(),
-                dirty_spans: Vec::new(),
-                dirty_large_entries: Vec::new(),
-                shared_edge_roots: Vec::new(),
-                shared_edge_index: Default::default(),
-                is_scanning_shared_edges: false,
-                shared_edge_cursor: 0,
-                shared_edge_queue: TraceQueue::default(),
-                shared_edge_pending: Default::default(),
-            };
-
-            space.rebuild_page_owners()?;
-
-            // rebuild remembered-set state conservatively after restore
-            space.rebuild_remembered_set()?;
-            space.rebuild_shared_edge_roots()?;
-
-            Ok(space)
-        })();
-
-        if let Err(error) = result {
-            for page_view in retained.into_iter().rev() {
-                allocator.release_page_view(&page_view)?;
-            }
+        // rebuild remembered-set state conservatively after restore
+        if let Err(error) = space
+            .rebuild_page_owners()
+            .and_then(|()| space.rebuild_remembered_set())
+            .and_then(|()| space.rebuild_shared_edge_roots())
+        {
+            allocator.release_page_views(&retained_page_views)?;
 
             return Err(error);
         }
 
-        result
+        Ok(space)
     }
 
     /// Return one frozen heap-space root.
@@ -322,7 +239,7 @@ impl HeapSpace {
         let young = self.capture_young_image();
         let spans = self.capture_span_images();
         let entries = self.capture_large_entry_images();
-        let shapes = self.capture_shapes();
+        let layouts = self.capture_layouts();
 
         // freeze the current heap root
         Ok(HeapSpaceImage::new(
@@ -332,13 +249,13 @@ impl HeapSpace {
             spans,
             self.large.page_bytes,
             entries,
-            shapes,
+            layouts,
             self.young.capacity_bytes,
             self.max_young_allocation_bytes,
             self.large.next_unused_large_entry_id,
             self.usage.allocation_count(),
             self.usage.allocated_bytes(),
-            self.gc_state.clone(),
+            self.gc.clone(),
         ))
     }
 
@@ -353,11 +270,6 @@ impl HeapSpace {
         }
 
         Ok(())
-    }
-
-    /// Rebuild the interned entry shapes from one frozen image.
-    fn restore_shape_table(image: &HeapSpaceImage) -> Result<ShapeTable, HeapError> {
-        ShapeTable::from_shapes(image.shapes().to_vec())
     }
 
     /// Restore the heap young space from one frozen image.
@@ -396,6 +308,74 @@ impl HeapSpace {
         }
     }
 
+    /// Fork one heap space after retaining all live page views.
+    fn fork_with_retained_pages(space: &Self) -> Result<Self, HeapError> {
+        let small = Self::fork_small_space(space)?;
+        let large = Self::fork_large_space(space)?;
+
+        Ok(Self {
+            allocator: space.allocator.clone(),
+            page_run_cache: PageRunCache::new(space.allocator.pages_per_arena()),
+            max_young_allocation_bytes: space.max_young_allocation_bytes,
+            layouts: space.layouts.clone(),
+            young: Self::fork_young_space(space),
+            small,
+            large,
+            page_owners: Vec::new(),
+            usage: space.usage,
+            gc: space.gc.clone(),
+            trace_queue: TraceQueue::default(),
+            is_collecting: false,
+            pins: Default::default(),
+            dirty_spans: Vec::new(),
+            dirty_large_entries: Vec::new(),
+            shared_edge_roots: Vec::new(),
+            shared_edge_index: Default::default(),
+            is_scanning_shared_edges: false,
+            shared_edge_cursor: 0,
+            shared_edge_queue: TraceQueue::default(),
+            shared_edge_pending: Default::default(),
+        })
+    }
+
+    /// Restore one heap space after retaining every image page view.
+    fn restore_with_retained_pages(
+        allocator: Arc<Allocator>,
+        image: &HeapSpaceImage,
+    ) -> Result<Self, HeapError> {
+        let small = Self::restore_small_space(image)?;
+        let large = Self::restore_large_space(image)?;
+        let max_young_allocation_bytes = if image.young().capacity_bytes() == 0 {
+            0
+        } else {
+            image.max_young_allocation_bytes()
+        };
+
+        Ok(Self {
+            allocator: allocator.clone(),
+            layouts: Arc::new(image.layouts().clone()),
+            page_run_cache: PageRunCache::new(allocator.pages_per_arena()),
+            max_young_allocation_bytes,
+            young: Self::restore_young_space(image),
+            small,
+            large,
+            page_owners: Vec::new(),
+            usage: AllocationUsage::new(image.allocated_count(), image.allocated_bytes()),
+            gc: image.gc_state().clone(),
+            trace_queue: TraceQueue::default(),
+            is_collecting: false,
+            pins: Default::default(),
+            dirty_spans: Vec::new(),
+            dirty_large_entries: Vec::new(),
+            shared_edge_roots: Vec::new(),
+            shared_edge_index: Default::default(),
+            is_scanning_shared_edges: false,
+            shared_edge_cursor: 0,
+            shared_edge_queue: TraceQueue::default(),
+            shared_edge_pending: Default::default(),
+        })
+    }
+
     /// Restore the heap small space from one frozen image.
     fn restore_small_space(image: &HeapSpaceImage) -> Result<super::SmallSpace, HeapError> {
         // restore the captured span roots first
@@ -409,7 +389,10 @@ impl HeapSpace {
             size_classes: image.size_classes().clone(),
             span_bytes: image.small_bytes(),
             spans: CowTable::from_vec(spans)?,
-            available_spans: vec![Vec::new(); image.size_classes().classes.len()],
+            available_spans: vec![
+                Vec::new();
+                crate::SmallSpanClass::bucket_count(image.size_classes())
+            ],
         };
 
         // rebuild the derived span occupancy state
@@ -433,7 +416,10 @@ impl HeapSpace {
             size_classes: space.small.size_classes.clone(),
             span_bytes: space.small.span_bytes,
             spans: CowTable::from_vec(spans)?,
-            available_spans: vec![Vec::new(); space.small.size_classes.classes.len()],
+            available_spans: vec![
+                Vec::new();
+                crate::SmallSpanClass::bucket_count(&space.small.size_classes)
+            ],
         };
 
         // rebuild the derived span occupancy state
@@ -451,20 +437,15 @@ impl HeapSpace {
 
             // rebuild the derived per-span occupancy counters
             span.occupied_count = span.occupied.count_ones();
-            span.next_free_slot = span.occupied.first_clear_from(0).unwrap_or(span.slot_count);
+            span.free_cursor = span.occupied.first_clear_from(0).unwrap_or(span.slot_count);
 
             // requeue every non-full span under its size class
             if span.occupied_count >= span.slot_count {
                 continue;
             }
 
-            let Some(class_index) = small.size_classes.class_index_for(span.size_class) else {
-                return Err(HeapError::InvalidSizeClass {
-                    class_bytes: span.size_class,
-                });
-            };
-
-            small.available_spans[class_index].push(span_index);
+            let bucket_index = span.class.bucket_index(&small.size_classes)?;
+            small.available_spans[bucket_index].push(span_index);
         }
 
         Ok(())
@@ -472,26 +453,23 @@ impl HeapSpace {
 
     /// Restore one heap span from one frozen span root.
     fn restore_span(span: &SmallSpanImage) -> HeapResult<SmallSpan> {
-        // rebuild the per-slot tracing table
-        let shape_ids = span.shape_ids.clone();
-
         // rebuild the live span around the captured page view
-        let dirty_card_bytes =
-            span.slot_count
-                .checked_mul(span.size_class)
-                .ok_or(HeapError::InvariantOverflow {
-                    context: "heap span dirty-card bytes",
-                })?;
+        let dirty_card_bytes = span.slot_count.checked_mul(span.class.size_class).ok_or(
+            HeapError::InvariantOverflow {
+                context: "heap span dirty-card bytes",
+            },
+        )?;
 
         Ok(SmallSpan {
-            size_class: span.size_class,
+            class: span.class.clone(),
             slot_count: span.slot_count,
+            byte_lens: span.byte_lens.clone(),
             occupied_count: 0,
-            next_free_slot: 0,
-            lengths: span.lengths.clone(),
+            free_cursor: 0,
             occupied: span.occupied.clone(),
+            local_reference_bits: span.local_reference_bits.clone(),
+            shared_reference_bits: span.shared_reference_bits.clone(),
             marked: crate::Bitmap::with_capacity(span.slot_count),
-            shape_ids,
             pages: span.pages.clone(),
             dirty_cards: CardSet::with_len(dirty_card_bytes),
             is_dirty_queued: false,
@@ -542,7 +520,7 @@ impl HeapSpace {
             is_live: entry.is_live,
             len: entry.len,
             pages: entry.pages.clone(),
-            shape_id: entry.shape_id,
+            layout_id: entry.layout_id,
             is_marked: false,
             dirty_cards: CardSet::with_len(entry.len),
             is_dirty_queued: false,
@@ -577,9 +555,9 @@ impl HeapSpace {
         )
     }
 
-    /// Capture the interned heap entry shapes.
-    fn capture_shapes(&self) -> Box<[Shape]> {
-        self.shape_table.shapes().to_vec().into_boxed_slice()
+    /// Capture the canonical managed layouts visible to this heap.
+    fn capture_layouts(&self) -> LayoutTable {
+        (*self.layouts).clone()
     }
 
     /// Capture every live heap span image.
@@ -595,16 +573,12 @@ impl HeapSpace {
     /// Capture one live heap span image.
     fn capture_span_image(span: &SmallSpan) -> SmallSpanImage {
         SmallSpanImage {
-            size_class: span.size_class,
+            class: span.class.clone(),
             slot_count: span.slot_count,
-            lengths: span.lengths.clone(),
+            byte_lens: span.byte_lens.clone(),
             occupied: span.occupied.clone(),
-            shape_ids: span
-                .shape_ids
-                .iter()
-                .copied()
-                .collect::<Vec<_>>()
-                .into_boxed_slice(),
+            local_reference_bits: span.local_reference_bits.clone(),
+            shared_reference_bits: span.shared_reference_bits.clone(),
             pages: span.pages.clone(),
         }
     }
@@ -625,7 +599,7 @@ impl HeapSpace {
             is_live: entry.is_live,
             len: entry.len,
             pages: entry.pages.clone(),
-            shape_id: entry.shape_id,
+            layout_id: entry.layout_id,
         }
     }
 }

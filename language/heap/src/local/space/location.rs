@@ -1,4 +1,5 @@
 use super::{HeapYoungId, LargeEntryId};
+use crate::HeapReference;
 use crate::allocator::SpanSlot;
 
 /// One resolved heap entry location.
@@ -42,7 +43,7 @@ pub(crate) struct HeapLocation {
     /// The owning heap location.
     pub(crate) storage: HeapStorage,
     /// The base reference for the owning allocation.
-    pub(crate) base: crate::HeapReference,
+    pub(crate) base: HeapReference,
     /// The byte offset from the base allocation.
     pub(crate) byte_offset: usize,
     /// The logical byte length for the owning allocation.

@@ -1,63 +1,17 @@
+use destack_mir::{LayoutId, ReferenceMap};
+
 use super::{
     CardSet, HeapPageOwner, HeapSpace, HeapStorage, HeapYoungId, LargeEntry, LargeEntryId,
-    SmallSpan, TracePlan, YoungEntry,
+    SmallSpan, YoungEntry,
 };
-use crate::allocator::{Allocator, PageView, SpanAllocationPath, SpanSlot};
+use crate::allocator::{Allocator, PageView, SpanSlot};
 use crate::{
-    AccountingRegion, Bitmap, HeapError, HeapReference, HeapResult, LayoutId, Shape, ShapeId,
+    AccountingRegion, Bitmap, HeapError, HeapReference, HeapResult, SmallSpanClass,
+    clear_slot_reference_bits, write_slot_reference_bits,
 };
-
-/// One exact heap allocation path.
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum HeapAllocationPath {
-    /// One young-space allocation.
-    Young,
-    /// One small-space allocation.
-    Small {
-        /// The resolved size-class index.
-        class_index: usize,
-        /// The resolved slot width.
-        size_class: usize,
-        /// The mapped-byte delta for this path.
-        mapped_delta: i64,
-    },
-    /// One large-space allocation.
-    Large {
-        /// The mapped-byte delta for this path.
-        mapped_delta: i64,
-    },
-}
-
-impl HeapAllocationPath {
-    /// Return the mapped-byte delta for this allocation path.
-    pub(crate) fn mapped_delta(self) -> i64 {
-        match self {
-            Self::Young => 0,
-            Self::Small { mapped_delta, .. } | Self::Large { mapped_delta } => mapped_delta,
-        }
-    }
-}
-
-impl HeapAllocationPath {
-    /// Build one mature heap allocation path from one shared span path.
-    fn mature(path: SpanAllocationPath) -> Self {
-        match path {
-            SpanAllocationPath::Small {
-                class_index,
-                size_class,
-                mapped_delta,
-            } => Self::Small {
-                class_index,
-                size_class,
-                mapped_delta,
-            },
-            SpanAllocationPath::Large { mapped_delta } => Self::Large { mapped_delta },
-        }
-    }
-}
 
 /// One heap slot initialization mode.
-enum SlotWrite<'a> {
+enum SlotInit<'a> {
     /// One caller-provided byte payload.
     Bytes(&'a [u8]),
     /// One zeroed payload.
@@ -73,7 +27,7 @@ enum SlotWrite<'a> {
     },
 }
 
-impl SlotWrite<'_> {
+impl SlotInit<'_> {
     /// Initialize one heap small-slot payload.
     fn initialize_slot(
         &self,
@@ -100,74 +54,41 @@ impl SlotWrite<'_> {
 }
 
 impl HeapSpace {
-    /// Return one exact heap allocation path for the requested byte length.
-    pub(crate) fn allocation_path(&self, byte_len: usize) -> HeapAllocationPath {
-        // keep young allocations on the nursery tail when they still fit
-        if byte_len <= self.max_young_allocation_bytes
-            && self
-                .young
-                .next_offset
-                .checked_add(byte_len)
-                .is_some_and(|next_offset| next_offset <= self.young.capacity_bytes)
-        {
-            return HeapAllocationPath::Young;
+    /// Return the projected mapped-byte delta for one typed heap allocation.
+    pub(crate) fn mapped_byte_delta(&self, layout_id: LayoutId) -> HeapResult<i64> {
+        let byte_len = self.layout_byte_len(layout_id)?;
+        let reference_map = self.reference_map(layout_id)?;
+
+        // stay in young space when the payload still fits
+        if self.young_fits(byte_len) {
+            return Ok(0);
         }
 
-        // otherwise resolve one mature span path
-        let path = self.small.size_classes.span_allocation_path(
-            byte_len,
-            self.small.span_bytes,
-            |class_index| self.has_available_small_slot(class_index),
-            |large_bytes| self.round_up_large_entry_bytes(large_bytes),
-        );
+        // use one traced small span when the payload still fits
+        if let Some(class) = self.small_span_class(byte_len, reference_map) {
+            if self.has_available_small_slot(&class)? {
+                return Ok(0);
+            }
 
-        HeapAllocationPath::mature(path)
+            return Ok(self.small.span_bytes as i64);
+        }
+
+        // otherwise fall back to one dedicated large entry
+        Ok(self.round_up_large_entry_bytes(byte_len) as i64)
     }
 
     /// Allocate one heap byte entry.
     pub fn allocate_bytes(
         &mut self,
         bytes: &[u8],
-        scan: impl Into<TracePlan>,
-        layout_id: Option<LayoutId>,
+        layout_id: LayoutId,
     ) -> HeapResult<HeapReference> {
-        let path = self.allocation_path(bytes.len());
-
-        self.allocate_with_bytes(bytes.len(), Some(bytes), scan, layout_id, path)
+        self.allocate_with_bytes(layout_id, Some(bytes))
     }
 
     /// Allocate one zeroed heap byte entry.
-    pub fn allocate_zeroed(
-        &mut self,
-        byte_len: usize,
-        scan: impl Into<TracePlan>,
-        layout_id: Option<LayoutId>,
-    ) -> HeapResult<HeapReference> {
-        let path = self.allocation_path(byte_len);
-
-        self.allocate_with_bytes(byte_len, None, scan, layout_id, path)
-    }
-
-    /// Allocate one heap byte entry through one precomputed allocation path.
-    pub(crate) fn place_bytes(
-        &mut self,
-        bytes: &[u8],
-        scan: impl Into<TracePlan>,
-        layout_id: Option<LayoutId>,
-        path: HeapAllocationPath,
-    ) -> HeapResult<HeapReference> {
-        self.allocate_with_bytes(bytes.len(), Some(bytes), scan, layout_id, path)
-    }
-
-    /// Allocate one zeroed heap byte entry through one precomputed allocation path.
-    pub(crate) fn place_zeroed(
-        &mut self,
-        byte_len: usize,
-        scan: impl Into<TracePlan>,
-        layout_id: Option<LayoutId>,
-        path: HeapAllocationPath,
-    ) -> HeapResult<HeapReference> {
-        self.allocate_with_bytes(byte_len, None, scan, layout_id, path)
+    pub fn allocate_zeroed(&mut self, layout_id: LayoutId) -> HeapResult<HeapReference> {
+        self.allocate_with_bytes(layout_id, None)
     }
 
     /// Free one heap entry.
@@ -240,28 +161,18 @@ impl HeapSpace {
     /// Allocate one heap payload from explicit bytes or one zeroed length.
     fn allocate_with_bytes(
         &mut self,
-        byte_len: usize,
+        layout_id: LayoutId,
         bytes: Option<&[u8]>,
-        scan: impl Into<TracePlan>,
-        layout_id: Option<LayoutId>,
-        path: HeapAllocationPath,
     ) -> HeapResult<HeapReference> {
-        let shape_id = self.shape_table.intern(Shape {
-            trace: scan.into(),
-            layout_id,
-        })?;
-        let storage = self.allocate_location(byte_len, bytes, shape_id, path)?;
+        let byte_len = self.layout_byte_len(layout_id)?;
+        let has_shared_reference = self.reference_map(layout_id)?.has_shared_reference();
+        let storage = self.allocate_storage(layout_id, byte_len, bytes)?;
         let reference = self.base_reference(storage)?;
 
         self.usage.allocate(byte_len, AccountingRegion::Heap)?;
-        let Some(shape) = self.shape_table.shape(shape_id) else {
-            return Err(HeapError::InvalidShapeId {
-                index: shape_id.index(),
-            });
-        };
 
         // track every live reference whose shape may contain shared edges
-        if shape.trace.has_shared_reference() {
+        if has_shared_reference {
             self.track_shared_edge_root(reference)?;
         }
 
@@ -273,67 +184,72 @@ impl HeapSpace {
         Ok(reference)
     }
 
-    /// Allocate one heap storage location for the given payload.
-    fn allocate_location(
+    /// Allocate one heap storage partition for the given payload.
+    fn allocate_storage(
         &mut self,
+        layout_id: LayoutId,
         byte_len: usize,
         bytes: Option<&[u8]>,
-        shape_id: ShapeId,
-        path: HeapAllocationPath,
     ) -> HeapResult<HeapStorage> {
-        match path {
-            // execute the precomputed young path directly
-            HeapAllocationPath::Young => {
-                let Some(young_id) = self.allocate_young(byte_len, bytes, shape_id)? else {
-                    return Err(HeapError::MissingYoungEntry {
-                        generation: self.young.generation,
-                        entry_index: self.young.entries.len() as u32,
-                    });
-                };
+        let reference_map = self.reference_map(layout_id)?.clone();
 
-                Ok(HeapStorage::Young(young_id))
-            }
+        // reject inconsistent allocation
+        if let Some(bytes) = bytes
+            && bytes.len() != byte_len
+        {
+            return Err(HeapError::InvalidLayoutBytes {
+                layout_id,
+                expected: byte_len,
+                actual: bytes.len(),
+            });
+        }
 
-            // execute the precomputed small path directly
-            HeapAllocationPath::Small {
-                class_index,
-                size_class,
-                ..
-            } => {
-                let init = match bytes {
-                    Some(bytes) => SlotWrite::Bytes(bytes),
-                    None => SlotWrite::Zeroed,
-                };
-                let span_index = self.allocate_small_span(class_index, size_class)?;
-                let Some(span) = self.small.spans.get(span_index) else {
-                    return Err(HeapError::MissingSpan { span_index });
-                };
-                let slot_index = span.next_free_slot;
-                let slot = self.initialize_small_slot(
-                    class_index,
-                    span_index,
-                    slot_index,
-                    init,
-                    byte_len,
-                    shape_id,
-                    true,
-                )?;
+        // allocate into young space when the payload still fits there
+        if self.young_fits(byte_len) {
+            let Some(young_id) = self.allocate_young(byte_len, bytes, layout_id)? else {
+                return Err(HeapError::MissingYoungEntry {
+                    generation: self.young.generation,
+                    entry_index: self.young.entries.len() as u32,
+                });
+            };
 
-                Ok(HeapStorage::Small(slot))
-            }
+            Ok(HeapStorage::Young(young_id))
+        }
+        // otherwise allocate from one homogeneous small span when the payload still fits
+        else if let Some(class) = self.small_span_class(byte_len, &reference_map) {
+            let init = match bytes {
+                Some(bytes) => SlotInit::Bytes(bytes),
+                None => SlotInit::Zeroed,
+            };
+            let span_index = self.allocate_small_span(&class)?;
+            let Some(span) = self.small.spans.get(span_index) else {
+                return Err(HeapError::MissingSpan { span_index });
+            };
+            let slot_index = span.free_cursor;
+            let slot = self.initialize_small_slot(
+                &class,
+                span_index,
+                slot_index,
+                byte_len,
+                &reference_map,
+                init,
+                true,
+            )?;
 
-            // execute the precomputed large path directly
-            HeapAllocationPath::Large { .. } => {
-                let pages = self.allocate_large_pages(byte_len, bytes)?;
-                let entry_id = self.store_large_entry(byte_len, pages, shape_id, true)?;
+            Ok(HeapStorage::Small(slot))
+        }
+        // otherwise allocate one dedicated large entry
+        else {
+            let pages = self.allocate_large_pages(byte_len, bytes)?;
+            let entry_id = self.store_large_entry(byte_len, pages, layout_id, true)?;
 
-                Ok(HeapStorage::Large(entry_id))
-            }
+            Ok(HeapStorage::Large(entry_id))
         }
     }
 
     /// Release one heap small slot.
     pub(crate) fn release_small_slot(&mut self, slot: SpanSlot) -> HeapResult<()> {
+        let mut requeue_class = None;
         let pages = {
             let Some(span) = self.span_mut(slot.span_index()) else {
                 return Err(HeapError::MissingSpan {
@@ -343,7 +259,6 @@ impl HeapSpace {
 
             let slot_index = slot.slot_index();
             let was_full = span.occupied_count == span.slot_count;
-            let size_class = span.size_class;
 
             if !span.occupied.contains(slot_index) {
                 return Err(HeapError::MissingSmallSlot {
@@ -360,14 +275,22 @@ impl HeapSpace {
 
             span.occupied.clear(slot_index);
             span.marked.clear(slot_index);
+            span.byte_lens[slot_index] = 0;
+            let size_class = span.class.size_class;
+            let local_reference_bits = &mut span.local_reference_bits;
+            let shared_reference_bits = &mut span.shared_reference_bits;
+            clear_slot_reference_bits(
+                local_reference_bits,
+                shared_reference_bits,
+                slot_index,
+                size_class,
+            );
             span.occupied_count -= 1;
-            span.next_free_slot = span.next_free_slot.min(slot_index);
-            span.set_length(slot_index, 0);
-            span.set_shape_id(slot_index, None);
+            span.free_cursor = span.free_cursor.min(slot_index);
 
             // release fully empty span pages back into the local cache
             if span.occupied_count == 0 {
-                span.next_free_slot = 0;
+                span.free_cursor = 0;
                 span.dirty_cards.clear();
                 span.is_dirty_queued = false;
 
@@ -379,15 +302,18 @@ impl HeapSpace {
             // otherwise requeue the span if it was full before the free
             else {
                 let should_requeue = was_full && span.occupied_count < span.slot_count;
-                if should_requeue
-                    && let Some(class_index) = self.small.size_classes.class_index_for(size_class)
-                {
-                    self.small.available_spans[class_index].push(slot.span_index());
+                if should_requeue {
+                    requeue_class = Some(span.class.clone());
                 }
 
                 None
             }
         };
+
+        if let Some(class) = requeue_class {
+            let bucket_index = self.small_span_bucket(&class)?;
+            self.small.available_spans[bucket_index].push(slot.span_index());
+        }
 
         if let Some(pages) = pages {
             self.unmap_page_view(&pages)?;
@@ -398,8 +324,38 @@ impl HeapSpace {
     }
 
     /// Return whether one size class still has one live reusable slot.
-    fn has_available_small_slot(&self, class_index: usize) -> bool {
-        !self.small.available_spans[class_index].is_empty()
+    fn has_available_small_slot(&self, class: &SmallSpanClass) -> HeapResult<bool> {
+        let bucket_index = self.small_span_bucket(class)?;
+
+        Ok(self
+            .small
+            .available_spans
+            .get(bucket_index)
+            .is_some_and(|spans| !spans.is_empty()))
+    }
+
+    /// Report whether one byte length still fits the young-space tail.
+    fn young_fits(&self, byte_len: usize) -> bool {
+        byte_len <= self.max_young_allocation_bytes
+            && self
+                .young
+                .next_offset
+                .checked_add(byte_len)
+                .is_some_and(|next_offset| next_offset <= self.young.capacity_bytes)
+    }
+
+    /// Return one homogeneous small-span class for the given layout when it fits.
+    fn small_span_class(
+        &self,
+        byte_len: usize,
+        reference_map: &ReferenceMap,
+    ) -> Option<SmallSpanClass> {
+        let class_index = self.small.size_classes.class_index_for(byte_len)?;
+
+        Some(SmallSpanClass {
+            size_class: self.small.size_classes.classes[class_index].bytes,
+            is_noscan: !reference_map.has_reference(),
+        })
     }
 
     /// Return the page-rounded mapped bytes for one heap large entry.
@@ -415,7 +371,7 @@ impl HeapSpace {
         &mut self,
         len: usize,
         pages: PageView,
-        shape_id: ShapeId,
+        layout_id: LayoutId,
         remember: bool,
     ) -> HeapResult<LargeEntryId> {
         // reuse one freed large entry id when possible
@@ -452,7 +408,7 @@ impl HeapSpace {
             is_live: true,
             len,
             pages: pages.clone(),
-            shape_id,
+            layout_id,
             is_marked: false,
             dirty_cards: CardSet::with_len(len),
             is_dirty_queued: false,
@@ -489,9 +445,9 @@ impl HeapSpace {
         &mut self,
         byte_len: usize,
         bytes: Option<&[u8]>,
-        shape_id: ShapeId,
+        layout_id: LayoutId,
     ) -> HeapResult<Option<HeapYoungId>> {
-        let Some((young_id, write_offset)) = self.reserve_young_entry(byte_len, shape_id) else {
+        let Some((young_id, write_offset)) = self.reserve_young_entry(byte_len, layout_id) else {
             return Ok(None);
         };
 
@@ -508,7 +464,7 @@ impl HeapSpace {
     fn reserve_young_entry(
         &mut self,
         byte_len: usize,
-        shape_id: ShapeId,
+        layout_id: LayoutId,
     ) -> Option<(HeapYoungId, usize)> {
         // zero-byte entries still need one distinct address
         let storage_byte_len = byte_len.max(1);
@@ -528,7 +484,7 @@ impl HeapSpace {
             first_page: (write_offset / self.young.page_bytes) as u32,
             first_offset: (write_offset % self.young.page_bytes) as u32,
             byte_len,
-            shape_id,
+            layout_id,
             is_live: true,
             is_marked: false,
         };
@@ -550,25 +506,26 @@ impl HeapSpace {
         &mut self,
         source_page_view: &PageView,
         source_start: usize,
-        byte_len: usize,
-        shape_id: ShapeId,
+        layout_id: LayoutId,
         remember: bool,
     ) -> HeapResult<Option<SpanSlot>> {
-        let Some((class_index, span_index, slot_index)) = self.reserve_small_slot(byte_len)? else {
+        let Some((class, span_index, slot_index)) = self.reserve_small_slot(layout_id)? else {
             return Ok(None);
         };
+        let byte_len = self.layout_byte_len(layout_id)?;
+        let reference_map = self.reference_map(layout_id)?.clone();
 
         self.initialize_small_slot(
-            class_index,
+            &class,
             span_index,
             slot_index,
-            SlotWrite::PageView {
+            byte_len,
+            &reference_map,
+            SlotInit::PageView {
                 page_view: source_page_view,
                 start: source_start,
                 byte_len,
             },
-            byte_len,
-            shape_id,
             remember,
         )
         .map(Some)
@@ -587,25 +544,32 @@ impl HeapSpace {
     }
 
     /// Reserve one heap small-slot location for the given byte length.
-    fn reserve_small_slot(&mut self, byte_len: usize) -> HeapResult<Option<(usize, usize, usize)>> {
+    fn reserve_small_slot(
+        &mut self,
+        layout_id: LayoutId,
+    ) -> HeapResult<Option<(SmallSpanClass, usize, usize)>> {
+        let byte_len = self.layout_byte_len(layout_id)?;
+        let reference_map = self.reference_map(layout_id)?.clone();
+
         // resolve the matching size class first
-        let Some(class_index) = self.small.size_classes.class_index_for(byte_len) else {
+        let Some(class) = self.small_span_class(byte_len, &reference_map) else {
             return Ok(None);
         };
-        let size_class = self.small.size_classes.classes[class_index].bytes;
-        let span_index = self.allocate_small_span(class_index, size_class)?;
+        let span_index = self.allocate_small_span(&class)?;
         let Some(span) = self.small.spans.get(span_index) else {
             return Err(HeapError::MissingSpan { span_index });
         };
-        let slot_index = span.next_free_slot;
+        let slot_index = span.free_cursor;
 
-        Ok(Some((class_index, span_index, slot_index)))
+        Ok(Some((class, span_index, slot_index)))
     }
 
     /// Allocate or reuse one non-full heap span for the given size class.
-    fn allocate_small_span(&mut self, class_index: usize, size_class: usize) -> HeapResult<usize> {
+    fn allocate_small_span(&mut self, class: &SmallSpanClass) -> HeapResult<usize> {
+        let bucket_index = self.small_span_bucket(class)?;
+
         // reuse one non-full span when possible
-        while let Some(span_index) = self.small.available_spans[class_index].pop() {
+        while let Some(span_index) = self.small.available_spans[bucket_index].pop() {
             let Some(span) = self.small.spans.get(span_index) else {
                 return Err(HeapError::MissingSpan { span_index });
             };
@@ -633,23 +597,25 @@ impl HeapSpace {
         }
 
         // otherwise allocate one fresh span for the size class
-        let slot_count = (self.small.span_bytes / size_class).max(1);
+        let slot_count = (self.small.span_bytes / class.size_class).max(1);
+        let scan_word_count = class.size_class.div_ceil(std::mem::size_of::<usize>());
         let dirty_card_bytes =
             slot_count
-                .checked_mul(size_class)
+                .checked_mul(class.size_class)
                 .ok_or(HeapError::InvariantOverflow {
                     context: "heap span dirty-card bytes",
                 })?;
         let pages = self.allocate_page_view_zeroed(self.small.span_bytes)?;
         let span = SmallSpan {
-            size_class,
+            class: class.clone(),
             slot_count,
+            byte_lens: vec![0; slot_count].into_boxed_slice(),
             occupied_count: 0,
-            next_free_slot: 0,
-            lengths: vec![0; slot_count].into_boxed_slice(),
+            free_cursor: 0,
             occupied: Bitmap::with_capacity(slot_count),
+            local_reference_bits: Bitmap::with_capacity(slot_count * scan_word_count),
+            shared_reference_bits: Bitmap::with_capacity(slot_count * scan_word_count),
             marked: Bitmap::with_capacity(slot_count),
-            shape_ids: vec![None; slot_count].into_boxed_slice(),
             pages: pages.clone(),
             dirty_cards: CardSet::with_len(dirty_card_bytes),
             is_dirty_queued: false,
@@ -672,12 +638,12 @@ impl HeapSpace {
     /// Initialize one reserved heap small-slot location.
     fn initialize_small_slot(
         &mut self,
-        class_index: usize,
+        class: &SmallSpanClass,
         span_index: usize,
         slot_index: usize,
-        init: SlotWrite<'_>,
         byte_len: usize,
-        shape_id: ShapeId,
+        reference_map: &ReferenceMap,
+        init: SlotInit<'_>,
         remember: bool,
     ) -> HeapResult<SpanSlot> {
         let should_requeue;
@@ -685,13 +651,12 @@ impl HeapSpace {
 
         // initialize and install the reserved slot while the span is borrowed
         if let Some(span) = self.small.spans.get_mut(span_index) {
-            let slot_offset =
-                span.size_class
-                    .checked_mul(slot_index)
-                    .ok_or(HeapError::InvalidSmallSlot {
-                        span_index,
-                        slot_index,
-                    })?;
+            let slot_offset = span.class.size_class.checked_mul(slot_index).ok_or(
+                HeapError::InvalidSmallSlot {
+                    span_index,
+                    slot_index,
+                },
+            )?;
 
             if let Err(error) = init.initialize_slot(&self.allocator, &mut span.pages, slot_offset)
             {
@@ -700,18 +665,27 @@ impl HeapSpace {
             } else {
                 span.occupied.set(slot_index);
                 span.marked.clear(slot_index);
+                span.byte_lens[slot_index] = byte_len;
+                let size_class = span.class.size_class;
+                let local_reference_bits = &mut span.local_reference_bits;
+                let shared_reference_bits = &mut span.shared_reference_bits;
+                write_slot_reference_bits(
+                    reference_map,
+                    local_reference_bits,
+                    shared_reference_bits,
+                    slot_index,
+                    size_class,
+                );
                 span.occupied_count =
                     span.occupied_count
                         .checked_add(1)
                         .ok_or(HeapError::InvariantOverflow {
                             context: "heap span occupancy",
                         })?;
-                span.next_free_slot = span
+                span.free_cursor = span
                     .occupied
                     .first_clear_from(slot_index)
                     .unwrap_or(span.slot_count);
-                span.set_length(slot_index, byte_len);
-                span.set_shape_id(slot_index, Some(shape_id));
                 should_requeue = span.occupied_count < span.slot_count;
                 init_error = None;
             }
@@ -721,7 +695,8 @@ impl HeapSpace {
 
         // requeue the reserved span when it still has capacity
         if should_requeue {
-            self.small.available_spans[class_index].push(span_index);
+            let bucket_index = self.small_span_bucket(class)?;
+            self.small.available_spans[bucket_index].push(span_index);
         }
 
         if let Some(error) = init_error {

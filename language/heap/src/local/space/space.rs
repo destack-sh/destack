@@ -1,14 +1,16 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use destack_mir::{Layout, LayoutId, LayoutTable, ReferenceMap};
+
 use super::{
-    GcSummary, HeapLocation, HeapPageOwner, HeapStorage, HeapYoungId, LargeEntry, LargeEntryId,
+    GcState, HeapLocation, HeapPageOwner, HeapStorage, HeapYoungId, LargeEntry, LargeEntryId,
     PinSet, SmallSpan, YoungEntry, YoungSpace,
 };
 use crate::allocator::{Allocator, PageId, PageRunCache, PageView, SizeClassTable, SpanSlot};
 use crate::{
     AllocationUsage, CowTable, HeapError, HeapOptions, HeapReference, HeapResult, HeapSpaceUsage,
-    ShapeId, ShapeTable, TraceQueue, overlaps_heap_range, overlaps_shared_range,
+    SmallSpanClass, TraceQueue, overlaps_heap_range, overlaps_shared_range, slot_reference_map,
 };
 
 /// Collector queue for local heap references.
@@ -26,7 +28,7 @@ pub(crate) struct SmallSpace {
     pub(crate) span_bytes: usize,
     /// The live heap spans.
     pub(crate) spans: CowTable<SmallSpan>,
-    /// The reusable non-full spans per size class.
+    /// The reusable non-full spans per layout id.
     pub(crate) available_spans: Vec<Vec<usize>>,
 }
 
@@ -48,6 +50,8 @@ pub(crate) struct LargeSpace {
 pub struct HeapSpace {
     /// The shared page allocator for every heap payload.
     pub(super) allocator: Arc<Allocator>,
+    /// The managed layout table visible to this heap space.
+    pub(super) layouts: Arc<LayoutTable>,
     /// The local front-end cache of reusable page runs.
     pub(crate) page_run_cache: PageRunCache,
 
@@ -59,8 +63,6 @@ pub struct HeapSpace {
     pub(crate) large: LargeSpace,
     /// The owning heap metadata for each visible allocator page.
     pub(crate) page_owners: Vec<Option<HeapPageOwner>>,
-    /// The interned heap entry shapes.
-    pub(crate) shape_table: ShapeTable,
 
     /// The maximum payload size admitted into young space.
     pub(crate) max_young_allocation_bytes: usize,
@@ -68,7 +70,7 @@ pub struct HeapSpace {
     pub(crate) usage: AllocationUsage,
 
     /// The live GC state.
-    pub(crate) gc_state: GcSummary,
+    pub(crate) gc: GcState,
     /// The reusable collector trace queue.
     pub(crate) trace_queue: HeapTraceQueue,
     /// Whether a heap collection is currently running.
@@ -94,15 +96,9 @@ pub struct HeapSpace {
 }
 
 impl HeapSpace {
-    /// Create one heap space with the default options.
-    pub fn new() -> Result<Self, HeapError> {
-        let options = HeapOptions::local();
-        let allocator = Arc::new(Allocator::try_new(
-            options.page_bytes,
-            options.allocator_segment_bytes,
-        )?);
-
-        Self::with_options(allocator, &options)
+    /// Register one managed layout in this heap space and return its stable id.
+    pub(crate) fn register_layout(&mut self, layout: Layout) -> LayoutId {
+        Arc::make_mut(&mut self.layouts).insert(layout)
     }
 
     /// Create one heap space with explicit options.
@@ -110,18 +106,28 @@ impl HeapSpace {
         allocator: Arc<Allocator>,
         options: &HeapOptions,
     ) -> Result<Self, HeapError> {
+        Self::with_layouts_and_options(allocator, Arc::new(LayoutTable::new()), options)
+    }
+
+    /// Create one heap space with explicit layouts and options.
+    pub fn with_layouts_and_options(
+        allocator: Arc<Allocator>,
+        layouts: Arc<LayoutTable>,
+        options: &HeapOptions,
+    ) -> Result<Self, HeapError> {
         options.validate_local()?;
         options.validate_allocator(&allocator)?;
 
-        Self::build_with_options(allocator, options)
+        Self::build_with_options(allocator, layouts, options)
     }
 
     /// Create one heap space from one checked options set.
     pub(crate) fn build_with_options(
         allocator: Arc<Allocator>,
+        layouts: Arc<LayoutTable>,
         options: &HeapOptions,
     ) -> Result<Self, HeapError> {
-        let mut page_run_cache = PageRunCache::new(allocator.pages_per_segment());
+        let mut page_run_cache = PageRunCache::new(allocator.pages_per_arena());
 
         // reserve one fixed young-space page run up front
         let young = YoungSpace::new(
@@ -140,15 +146,18 @@ impl HeapSpace {
         let young_pages = young.pages.clone();
         let mut space = Self {
             allocator,
+            layouts,
             page_run_cache,
             max_young_allocation_bytes,
-            shape_table: ShapeTable::new(),
             young,
             small: SmallSpace {
                 size_classes: options.size_classes.clone(),
                 span_bytes: options.heap_small_bytes,
                 spans: CowTable::new(),
-                available_spans: vec![Vec::new(); options.size_classes.classes.len()],
+                available_spans: vec![
+                    Vec::new();
+                    SmallSpanClass::bucket_count(&options.size_classes)
+                ],
             },
             large: LargeSpace {
                 page_bytes: options.page_bytes,
@@ -158,7 +167,7 @@ impl HeapSpace {
             },
             page_owners: Vec::new(),
             usage: AllocationUsage::default(),
-            gc_state: GcSummary::default(),
+            gc: GcState::default(),
             trace_queue: TraceQueue::default(),
             is_collecting: false,
             pins: PinSet::default(),
@@ -210,8 +219,8 @@ impl HeapSpace {
     }
 
     /// Return the current GC state.
-    pub fn gc_state(&self) -> &GcSummary {
-        &self.gc_state
+    pub fn gc_state(&self) -> &GcState {
+        &self.gc
     }
 
     /// Stabilize one local heap reference in mature storage.
@@ -331,7 +340,7 @@ impl HeapSpace {
 
         match owner {
             HeapPageOwner::Young { logical_page_index } => {
-                self.resolve_young_location(reference, logical_page_index, page_offset)
+                self.resolve_young_location(logical_page_index, page_offset)
             }
             HeapPageOwner::Small {
                 span_index,
@@ -349,7 +358,6 @@ impl HeapSpace {
     /// Return the resolved young-space location for one live heap reference.
     fn resolve_young_location(
         &self,
-        _reference: HeapReference,
         logical_page_index: usize,
         page_offset: usize,
     ) -> Option<HeapLocation> {
@@ -421,13 +429,13 @@ impl HeapSpace {
         let logical_byte_offset = logical_page_index
             .checked_mul(self.allocator.page_bytes())?
             .checked_add(page_offset)?;
-        let slot_index = logical_byte_offset / span.size_class;
-        let slot_offset = logical_byte_offset % span.size_class;
+        let slot_index = logical_byte_offset / span.class.size_class;
+        let slot_offset = logical_byte_offset % span.class.size_class;
         if slot_index >= span.slot_count || !span.occupied.contains(slot_index) {
             return None;
         }
 
-        let byte_len = *span.lengths.get(slot_index)?;
+        let byte_len = *span.byte_lens.get(slot_index)?;
         if byte_len == 0 {
             if slot_offset != 0 {
                 return None;
@@ -436,7 +444,7 @@ impl HeapSpace {
             return None;
         }
 
-        let slot_base_offset = slot_index.checked_mul(span.size_class)?;
+        let slot_base_offset = slot_index.checked_mul(span.class.size_class)?;
         let base_address = self
             .allocator
             .page_view_ptr(&span.pages, slot_base_offset)
@@ -597,22 +605,58 @@ impl HeapSpace {
         entry.first_page as usize * self.young.page_bytes + entry.first_offset as usize
     }
 
+    /// Return one managed layout by id.
+    pub(crate) fn layout(&self, layout_id: LayoutId) -> HeapResult<&Layout> {
+        self.layouts
+            .layouts
+            .get(layout_id.index())
+            .ok_or(HeapError::InvalidLayoutId {
+                index: layout_id.index(),
+            })
+    }
+
+    /// Return the byte length for one managed layout.
+    pub(crate) fn layout_byte_len(&self, layout_id: LayoutId) -> HeapResult<usize> {
+        Ok(self.layout(layout_id)?.size as usize)
+    }
+
+    /// Return the reference map for one managed layout.
+    pub(crate) fn reference_map(&self, layout_id: LayoutId) -> HeapResult<&ReferenceMap> {
+        Ok(&self.layout(layout_id)?.reference_map)
+    }
+
     /// Check that one young id belongs to the current young-space generation.
     fn check_young_generation(&self, young_id: HeapYoungId) -> Option<()> {
         (young_id.generation() == self.young.generation).then_some(())
     }
 
-    /// Return the shape id for one heap storage partition.
-    pub(crate) fn location_shape_id(&self, storage: HeapStorage) -> Option<ShapeId> {
+    /// Return the reference map for one heap storage partition.
+    pub(crate) fn location_reference_map(&self, storage: HeapStorage) -> HeapResult<ReferenceMap> {
         match storage {
-            HeapStorage::Young(young_id) => Some(self.young_entry(young_id)?.shape_id),
-            HeapStorage::Small(slot) => {
-                let span = self.span(slot.span_index())?;
-                let slot_index = slot.slot_index();
+            HeapStorage::Young(young_id) => {
+                let layout_id = self
+                    .young_entry(young_id)
+                    .ok_or(HeapError::MissingYoungEntry {
+                        generation: young_id.generation(),
+                        entry_index: young_id.index(),
+                    })?
+                    .layout_id;
 
-                span.shape_ids.get(slot_index).copied().flatten()
+                self.reference_map(layout_id).cloned()
             }
-            HeapStorage::Large(entry_id) => Some(self.large_entry(entry_id)?.shape_id),
+            HeapStorage::Small(slot) => {
+                self.small_slot_reference_map(slot.span_index(), slot.slot_index())
+            }
+            HeapStorage::Large(entry_id) => {
+                let layout_id = self
+                    .large_entry(entry_id)
+                    .ok_or(HeapError::MissingLargeEntry {
+                        entry_id: entry_id.id(),
+                    })?
+                    .layout_id;
+
+                self.reference_map(layout_id).cloned()
+            }
         }
     }
 
@@ -638,7 +682,7 @@ impl HeapSpace {
                         span_index: slot.span_index(),
                     });
                 };
-                let slot_offset = span.size_class.checked_mul(slot.slot_index()).ok_or(
+                let slot_offset = span.class.size_class.checked_mul(slot.slot_index()).ok_or(
                     HeapError::InvariantOverflow {
                         context: "heap slot base offset",
                     },
@@ -671,28 +715,15 @@ impl HeapSpace {
                 continue;
             };
             let occupied = span.occupied.clone();
-            let shape_ids = span.shape_ids.clone();
-            let size_class = span.size_class;
+            let size_class = span.class.size_class;
 
             for slot_index in 0..span.slot_count {
                 if !occupied.contains(slot_index) {
                     continue;
                 }
 
-                let Some(shape_id) = shape_ids.get(slot_index).copied().flatten() else {
-                    return Err(HeapError::MissingSmallSlot {
-                        span_index,
-                        slot_index,
-                    });
-                };
-                let Some(shape) = self.shape_table.shape(shape_id) else {
-                    return Err(HeapError::MissingSmallSlot {
-                        span_index,
-                        slot_index,
-                    });
-                };
-
-                if !shape.trace.has_reference() {
+                let reference_map = self.small_slot_reference_map(span_index, slot_index)?;
+                if !reference_map.has_reference() {
                     continue;
                 }
 
@@ -706,13 +737,7 @@ impl HeapSpace {
             let Some(entry) = self.large_entry(entry_id) else {
                 continue;
             };
-            let Some(shape) = self.shape_table.shape(entry.shape_id) else {
-                return Err(HeapError::MissingLargeEntry {
-                    entry_id: entry_id.id(),
-                });
-            };
-
-            if !shape.trace.has_reference() {
+            if !self.reference_map(entry.layout_id)?.has_reference() {
                 continue;
             }
 
@@ -733,26 +758,22 @@ impl HeapSpace {
         let Some(span) = self.span(span_index) else {
             return Err(HeapError::MissingSpan { span_index });
         };
-        let Some(shape_id) = span.shape_ids.get(slot_index).copied().flatten() else {
+        if !span.occupied.contains(slot_index) {
             return Err(HeapError::MissingSmallSlot {
                 span_index,
                 slot_index,
             });
-        };
-        let Some(shape) = self.shape_table.shape(shape_id) else {
-            return Err(HeapError::MissingSmallSlot {
-                span_index,
-                slot_index,
-            });
-        };
+        }
 
-        let is_overlapping = overlaps_heap_range(&shape.trace, byte_offset, byte_len)?;
+        let reference_map = self.small_slot_reference_map(span_index, slot_index)?;
+        let is_overlapping = overlaps_heap_range(&reference_map, byte_offset, byte_len)?;
         if !is_overlapping {
             return Ok(());
         }
 
         let slot_offset =
-            span.size_class
+            span.class
+                .size_class
                 .checked_mul(slot_index)
                 .ok_or(HeapError::InvariantOverflow {
                     context: "heap dirty slot offset",
@@ -794,13 +815,8 @@ impl HeapSpace {
                 entry_id: entry_id.id(),
             });
         };
-        let Some(shape) = self.shape_table.shape(entry.shape_id) else {
-            return Err(HeapError::MissingLargeEntry {
-                entry_id: entry_id.id(),
-            });
-        };
-
-        let is_overlapping = overlaps_heap_range(&shape.trace, byte_offset, byte_len)?;
+        let is_overlapping =
+            overlaps_heap_range(self.reference_map(entry.layout_id)?, byte_offset, byte_len)?;
         if !is_overlapping {
             return Ok(());
         }
@@ -827,17 +843,41 @@ impl HeapSpace {
     /// Return whether one local write range may overlap shared heap roots.
     pub(crate) fn overlaps_shared_roots(
         &self,
-        shape_id: ShapeId,
+        reference_map: &ReferenceMap,
         byte_offset: usize,
         byte_len: usize,
     ) -> HeapResult<bool> {
-        let Some(shape) = self.shape_table.shape(shape_id) else {
-            return Err(HeapError::InvalidShapeId {
-                index: shape_id.index(),
+        overlaps_shared_range(reference_map, byte_offset, byte_len)
+    }
+
+    /// Return the exact reference map stored for one small slot.
+    pub(crate) fn small_slot_reference_map(
+        &self,
+        span_index: usize,
+        slot_index: usize,
+    ) -> HeapResult<ReferenceMap> {
+        let Some(span) = self.span(span_index) else {
+            return Err(HeapError::MissingSpan { span_index });
+        };
+        let Some(&byte_len) = span.byte_lens.get(slot_index) else {
+            return Err(HeapError::MissingSmallSlot {
+                span_index,
+                slot_index,
             });
         };
 
-        overlaps_shared_range(&shape.trace, byte_offset, byte_len)
+        Ok(slot_reference_map(
+            &span.local_reference_bits,
+            &span.shared_reference_bits,
+            slot_index,
+            span.class.size_class,
+            byte_len,
+        ))
+    }
+
+    /// Return the reusable-span bucket index for one small-span class.
+    pub(crate) fn small_span_bucket(&self, class: &SmallSpanClass) -> HeapResult<usize> {
+        class.bucket_index(&self.small.size_classes)
     }
 }
 

@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
+use destack_mir::{LayoutId, LayoutTable, ReferenceMap};
+
 use crate::allocator::Allocator;
 use crate::local::raw::RawSpace;
 use crate::local::space::HeapSpace;
 use crate::{
-    GcPacer, GcStats, GcSummary, HeapLimits, HeapOptions, HeapReference, HeapResult, LayoutId,
-    RawPointer, SharedHeapReference, TracePlan,
+    GcPacer, GcState, GcStats, HeapLimits, HeapOptions, HeapReference, HeapResult, RawPointer,
+    SharedHeapReference,
 };
 
 /// One pending local GC request.
@@ -37,32 +39,28 @@ pub struct Heap {
 }
 
 impl Heap {
-    /// Create one heap with the default limits and options.
-    pub fn new() -> HeapResult<Self> {
-        Self::with_limits_and_options(HeapLimits::default(), HeapOptions::local())
-    }
-
-    /// Create one heap with explicit limits and options.
-    pub fn with_limits_and_options(limits: HeapLimits, options: HeapOptions) -> HeapResult<Self> {
-        let allocator = Arc::new(Allocator::try_new(
-            options.page_bytes,
-            options.allocator_segment_bytes,
-        )?);
-
+    /// Create one heap over one explicit allocator, layout table, limits, and options.
+    pub fn with_allocator_limits_layouts_and_options(
+        allocator: Arc<Allocator>,
+        layouts: Arc<LayoutTable>,
+        limits: HeapLimits,
+        options: HeapOptions,
+    ) -> HeapResult<Self> {
         options.validate_local()?;
         options.validate_allocator(&allocator)?;
 
-        Self::build_with_options(allocator, limits, options)
+        Self::build_with_options(allocator, layouts, limits, options)
     }
 
     /// Create one heap from one checked shared allocator, limits, and options.
     fn build_with_options(
         allocator: Arc<Allocator>,
+        layouts: Arc<LayoutTable>,
         limits: HeapLimits,
         options: HeapOptions,
     ) -> HeapResult<Self> {
         let mut heap = Self {
-            heap: HeapSpace::build_with_options(allocator.clone(), &options)?,
+            heap: HeapSpace::build_with_options(allocator.clone(), layouts, &options)?,
             raw: RawSpace::with_options(allocator.clone(), &options)?,
             allocator,
             options,
@@ -99,7 +97,7 @@ impl Heap {
 
     /// Check the configured heap hard limits against current usage.
     pub fn check_limits(&self) -> HeapResult<()> {
-        self.check_mapped_delta(0, 0)
+        self.check_mapped_byte_delta(0, 0)
     }
 
     /// Return the currently live heap references.
@@ -108,7 +106,7 @@ impl Heap {
     }
 
     /// Return the current collector state.
-    pub fn gc_state(&self) -> &GcSummary {
+    pub fn gc_state(&self) -> &GcState {
         self.heap.gc_state()
     }
 
@@ -162,7 +160,7 @@ impl Heap {
     /// Perform one minor heap collection over explicit roots.
     pub fn collect_minor(&mut self, roots: &mut [HeapReference]) -> HeapResult<GcStats> {
         let stats = self.heap.collect_minor(roots)?;
-        self.note_gc_cycle(stats);
+        self.on_after_gc_cycle(stats);
 
         Ok(stats)
     }
@@ -170,7 +168,7 @@ impl Heap {
     /// Perform one full heap collection over explicit roots.
     pub fn collect_full(&mut self, roots: &mut [HeapReference]) -> HeapResult<GcStats> {
         let stats = self.heap.collect_full(roots)?;
-        self.note_gc_cycle(stats);
+        self.on_after_gc_cycle(stats);
 
         Ok(stats)
     }
@@ -208,17 +206,15 @@ impl Heap {
     pub fn allocate_heap_bytes(
         &mut self,
         bytes: &[u8],
-        scan: impl Into<TracePlan>,
-        layout_id: Option<LayoutId>,
+        layout_id: LayoutId,
     ) -> HeapResult<HeapReference> {
-        let scan = scan.into();
-        let path = self.heap.allocation_path(bytes.len());
+        let mapped_byte_delta = self.heap.mapped_byte_delta(layout_id)?;
 
         // check the projected heap mapped-byte delta first
-        self.check_mapped_delta(path.mapped_delta(), 0)?;
+        self.check_mapped_byte_delta(mapped_byte_delta, 0)?;
 
         // then allocate through heap space
-        let reference = self.heap.place_bytes(bytes, scan, layout_id, path)?;
+        let reference = self.heap.allocate_bytes(bytes, layout_id)?;
         self.refresh_gc_request();
 
         Ok(reference)
@@ -226,30 +222,29 @@ impl Heap {
 
     /// Allocate one raw byte allocation.
     pub fn allocate_raw_bytes(&mut self, bytes: &[u8]) -> HeapResult<RawPointer> {
-        let path = self.raw.allocation_path(bytes.len());
+        let mapped_byte_delta = self.raw.alloc_mapped_byte_delta(bytes.len());
 
         // check the projected raw mapped-byte delta first
-        self.check_mapped_delta(0, path.mapped_delta())?;
+        self.check_mapped_byte_delta(0, mapped_byte_delta)?;
 
         // then allocate through raw space
-        self.raw.place_bytes(bytes, path)
+        self.raw.allocate_bytes(bytes)
+    }
+
+    /// Register one managed layout and return its stable id.
+    pub fn register_layout(&mut self, layout: destack_mir::Layout) -> LayoutId {
+        self.heap.register_layout(layout)
     }
 
     /// Allocate one zeroed heap byte allocation.
-    pub fn allocate_heap_zeroed(
-        &mut self,
-        byte_len: usize,
-        scan: impl Into<TracePlan>,
-        layout_id: Option<LayoutId>,
-    ) -> HeapResult<HeapReference> {
-        let scan = scan.into();
-        let path = self.heap.allocation_path(byte_len);
+    pub fn allocate_heap_zeroed(&mut self, layout_id: LayoutId) -> HeapResult<HeapReference> {
+        let mapped_byte_delta = self.heap.mapped_byte_delta(layout_id)?;
 
         // check the projected heap mapped-byte delta first
-        self.check_mapped_delta(path.mapped_delta(), 0)?;
+        self.check_mapped_byte_delta(mapped_byte_delta, 0)?;
 
         // then allocate through heap space
-        let reference = self.heap.place_zeroed(byte_len, scan, layout_id, path)?;
+        let reference = self.heap.allocate_zeroed(layout_id)?;
         self.refresh_gc_request();
 
         Ok(reference)
@@ -280,13 +275,8 @@ impl Heap {
         self.heap.read_bytes_into(reference, start, target)
     }
 
-    /// Return the storage layout id for one heap allocation.
-    pub fn heap_layout_id(&self, reference: HeapReference) -> HeapResult<Option<LayoutId>> {
-        self.heap.layout_id(reference)
-    }
-
     /// Return the heap scan metadata for one heap allocation.
-    pub fn scan(&self, reference: HeapReference) -> HeapResult<&TracePlan> {
+    pub fn scan(&self, reference: HeapReference) -> HeapResult<ReferenceMap> {
         self.heap.scan(reference)
     }
 
@@ -297,11 +287,11 @@ impl Heap {
         start: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
-        let mapped_delta = self
+        let mapped_byte_delta = self
             .heap
-            .write_mapped_delta(reference, start, bytes.len())?;
+            .write_mapped_byte_delta(reference, start, bytes.len())?;
 
-        self.check_mapped_delta(mapped_delta, 0)?;
+        self.check_mapped_byte_delta(mapped_byte_delta, 0)?;
 
         self.heap.write_bytes(reference, start, bytes)
     }
@@ -318,13 +308,13 @@ impl Heap {
 
     /// Allocate one zeroed raw byte allocation.
     pub fn allocate_raw_zeroed(&mut self, byte_len: usize) -> HeapResult<RawPointer> {
-        let path = self.raw.allocation_path(byte_len);
+        let mapped_byte_delta = self.raw.alloc_mapped_byte_delta(byte_len);
 
         // check the projected raw mapped-byte delta first
-        self.check_mapped_delta(0, path.mapped_delta())?;
+        self.check_mapped_byte_delta(0, mapped_byte_delta)?;
 
         // then allocate through raw space
-        self.raw.place_zeroed(byte_len, path)
+        self.raw.allocate_zeroed(byte_len)
     }
 
     /// Return the bytes for one raw allocation as one owned vector.
@@ -359,7 +349,7 @@ impl Heap {
         bytes: &[u8],
     ) -> HeapResult<RawPointer> {
         // check the projected replacement mapped-byte delta next
-        self.check_raw_replace_mapped_delta(pointer, bytes.len())?;
+        self.check_raw_replace_mapped_byte_delta(pointer, bytes.len())?;
 
         // then replace the raw payload
         self.raw.replace_bytes(pointer, bytes)
@@ -372,8 +362,10 @@ impl Heap {
         start: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
-        let mapped_delta = self.raw.write_mapped_delta(pointer, start, bytes.len())?;
-        self.check_mapped_delta(0, mapped_delta)?;
+        let mapped_byte_delta = self
+            .raw
+            .write_mapped_byte_delta(pointer, start, bytes.len())?;
+        self.check_mapped_byte_delta(0, mapped_byte_delta)?;
         self.raw.set_bytes(pointer, start, bytes)
     }
 
@@ -388,23 +380,27 @@ impl Heap {
     }
 
     /// Check the projected mapped-byte delta for one raw replacement.
-    fn check_raw_replace_mapped_delta(
+    fn check_raw_replace_mapped_byte_delta(
         &self,
         pointer: RawPointer,
         next_len: usize,
     ) -> HeapResult<()> {
-        let mapped_delta = self.raw.replace_mapped_delta(pointer, next_len)?;
+        let mapped_byte_delta = self.raw.replace_mapped_byte_delta(pointer, next_len)?;
 
-        self.check_mapped_delta(0, mapped_delta)
+        self.check_mapped_byte_delta(0, mapped_byte_delta)
     }
 
     /// Check heap limits after one requested mapped-byte delta.
-    fn check_mapped_delta(&self, heap_mapped_delta: i64, raw_mapped_delta: i64) -> HeapResult<()> {
-        self.limits.check_mapped_delta(
+    fn check_mapped_byte_delta(
+        &self,
+        heap_mapped_byte_delta: i64,
+        raw_mapped_byte_delta: i64,
+    ) -> HeapResult<()> {
+        self.limits.check_mapped_byte_delta(
             self.heap.active_bytes(),
             self.raw.active_bytes(),
-            heap_mapped_delta,
-            raw_mapped_delta,
+            heap_mapped_byte_delta,
+            raw_mapped_byte_delta,
         )
     }
 
@@ -444,7 +440,7 @@ impl Heap {
     }
 
     /// Record one completed local collection cycle in the pacer.
-    fn note_gc_cycle(&mut self, stats: GcStats) {
+    fn on_after_gc_cycle(&mut self, stats: GcStats) {
         self.gc_pacer.update(self.options.gc, stats.allocated_bytes);
         self.gc_request = None;
         self.refresh_gc_request();
