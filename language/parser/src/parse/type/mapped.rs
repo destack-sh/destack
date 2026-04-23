@@ -3,6 +3,7 @@ use crate::{ParseResult, Parser};
 use destack_ast::{
     Keyword, LocalNodeId, NodeType, TokenType, TypeExpression, TypeMappedParameter, TypeModifier,
 };
+use destack_source::NodeSpanType;
 
 impl Parser {
     /// Return true when the current token starts a mapped type head.
@@ -66,6 +67,7 @@ impl Parser {
         let readonly = self.eat_type_mapped_readonly_modifier()?;
 
         self.eat_newlines_maybe()?;
+        let mapped_head_start = self.mark_span();
         self.eat_token(TokenType::OpenBracket)?;
         self.eat_newlines_maybe()?;
 
@@ -105,6 +107,7 @@ impl Parser {
 
         self.eat_newlines_maybe()?;
         self.eat_type_token_or_recover_missing(TokenType::CloseBracket, NodeType::TypeExpression)?;
+        let mapped_head_span = self.get_span_from(&mapped_head_start);
 
         // optional modifier: `?`, `+?`, `-?`
         let optional = self.eat_type_mapped_optional_modifier()?;
@@ -154,6 +157,8 @@ impl Parser {
             },
             self.get_span_from(&start),
         );
+        self.tree
+            .set_side_span(mapped_id, NodeSpanType::Head, mapped_head_span);
 
         Ok(mapped_id)
     }
