@@ -1879,6 +1879,54 @@ impl Compiler {
                                 is_readonly,
                             }
                         }
+                        TypeMember::CallSignature { signature, .. } => {
+                            let signature = FunctionSignature {
+                                is_abstract: false,
+                                is_override: false,
+                                asynchrony: Asynchrony::Sync,
+                                cardinality: FunctionCardinality::Scalar,
+                                mode: None,
+                                kind: FunctionKind::Lambda,
+                                generic_parameters: signature.generic_parameters.clone(),
+                                where_clauses: signature.where_clauses.clone(),
+                                this_parameter: signature.this_parameter,
+                                parameters: signature.parameters.clone(),
+                                return_type: signature.return_type,
+                            };
+                            let ty = self.resolve_declared_function_signature_type(
+                                &mut ctx.reborrow(),
+                                &signature,
+                                member_id.into_any(),
+                                false,
+                            )?;
+                            let ty_id = ctx.types.insert_type_from(ty, member_id);
+                            call_signatures.push(ty_id);
+                            continue;
+                        }
+                        TypeMember::ConstructSignature { signature, .. } => {
+                            let signature = FunctionSignature {
+                                is_abstract: signature.is_abstract,
+                                is_override: false,
+                                asynchrony: Asynchrony::Sync,
+                                cardinality: FunctionCardinality::Scalar,
+                                mode: Some(FunctionMode::New),
+                                kind: FunctionKind::Lambda,
+                                generic_parameters: signature.generic_parameters.clone(),
+                                where_clauses: signature.where_clauses.clone(),
+                                this_parameter: None,
+                                parameters: signature.parameters.clone(),
+                                return_type: signature.return_type,
+                            };
+                            let ty = self.resolve_declared_function_signature_type(
+                                &mut ctx.reborrow(),
+                                &signature,
+                                member_id.into_any(),
+                                false,
+                            )?;
+                            let ty_id = ctx.types.insert_type_from(ty, member_id);
+                            construct_signatures.push(ty_id);
+                            continue;
+                        }
                         TypeMember::Method {
                             is_optional,
                             key,
@@ -1886,43 +1934,14 @@ impl Compiler {
                             body: _,
                             symbol: _,
                         } => {
-                            // call or construct signature
-                            if key.is_none()
-                                && matches!(
-                                    signature.mode,
-                                    Some(FunctionMode::Call)
-                                        | Some(FunctionMode::New)
-                                        | Some(FunctionMode::Constructor)
-                                )
-                            {
-                                let ty = self.resolve_declared_function_signature_type(
-                                    &mut ctx.reborrow(),
-                                    &signature,
-                                    member_id.into_any(),
-                                    false,
-                                )?;
-                                let ty_id = ctx.types.insert_type_from(ty, member_id);
-                                match signature.mode {
-                                    Some(FunctionMode::New) | Some(FunctionMode::Constructor) => {
-                                        construct_signatures.push(ty_id);
-                                    }
-                                    _ => {
-                                        call_signatures.push(ty_id);
-                                    }
-                                }
-                                continue;
-                            }
-
-                            let Some(key) = key.as_ref().and_then(|key| {
-                                self.static_key_from_key(
-                                    ctx.compiler_context.revision(),
-                                    ctx.profile,
-                                    ctx.tree,
-                                    ctx.symbols,
-                                    ctx.types,
-                                    *key,
-                                )
-                            }) else {
+                            let Some(key) = self.static_key_from_key(
+                                ctx.compiler_context.revision(),
+                                ctx.profile,
+                                ctx.tree,
+                                ctx.symbols,
+                                ctx.types,
+                                key,
+                            ) else {
                                 if ctx.module.language_type.is_declaration() {
                                     continue;
                                 }

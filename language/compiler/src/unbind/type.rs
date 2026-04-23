@@ -135,18 +135,16 @@ impl Compiler {
                 body,
                 ..
             } => {
-                let key = key.map(|key| {
-                    self.unbind_key(
-                        module,
-                        &key,
-                        tree,
-                        symbols,
-                        types,
-                        ast_tree,
-                        ast_strings,
-                        context,
-                    )
-                });
+                let key = self.unbind_key(
+                    module,
+                    key,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 let signature = self.unbind_function_signature(
                     module,
                     signature,
@@ -175,6 +173,162 @@ impl Compiler {
                     key,
                     signature,
                     body,
+                }
+            }
+            dir::TypeMember::CallSignature { signature, .. } => {
+                let generic_parameters = signature
+                    .generic_parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.unbind_generic_parameter(
+                            module,
+                            *parameter,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let where_clauses = signature
+                    .where_clauses
+                    .iter()
+                    .map(|where_clause| {
+                        self.unbind_where_clause(
+                            module,
+                            *where_clause,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let this_parameter = signature.this_parameter.map(|parameter| {
+                    self.unbind_parameter(
+                        module,
+                        parameter,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+                let parameters = signature
+                    .parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.unbind_parameter(
+                            module,
+                            *parameter,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let return_type = signature.return_type.map(|return_type| {
+                    self.unbind_type_expression(
+                        module,
+                        return_type,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+
+                ast::TypeMember::CallSignature {
+                    signature: ast::FunctionTypeDeclaration {
+                        generic_parameters,
+                        where_clauses,
+                        this_parameter,
+                        parameters,
+                        return_type,
+                    },
+                }
+            }
+            dir::TypeMember::ConstructSignature { signature, .. } => {
+                let generic_parameters = signature
+                    .generic_parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.unbind_generic_parameter(
+                            module,
+                            *parameter,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let where_clauses = signature
+                    .where_clauses
+                    .iter()
+                    .map(|where_clause| {
+                        self.unbind_where_clause(
+                            module,
+                            *where_clause,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let parameters = signature
+                    .parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.unbind_parameter(
+                            module,
+                            *parameter,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let return_type = signature.return_type.map(|return_type| {
+                    self.unbind_type_expression(
+                        module,
+                        return_type,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+
+                ast::TypeMember::ConstructSignature {
+                    signature: ast::ConstructorTypeDeclaration {
+                        is_abstract: signature.is_abstract,
+                        generic_parameters,
+                        where_clauses,
+                        parameters,
+                        return_type,
+                    },
                 }
             }
             dir::TypeMember::IndexSignature {

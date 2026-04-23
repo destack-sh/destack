@@ -2530,6 +2530,12 @@ impl Compiler {
                 Ok(())
             }
 
+            // call signatures
+            TypeMember::CallSignature { .. } => Ok(()),
+
+            // construct signatures
+            TypeMember::ConstructSignature { .. } => Ok(()),
+
             // method
             TypeMember::Method {
                 signature,

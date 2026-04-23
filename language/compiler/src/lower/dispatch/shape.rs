@@ -212,7 +212,7 @@ impl ModuleLowerer<'_> {
             } => {
                 // resolve the method name
                 let method_name = self.member_dispatch_name_or_error(
-                    key.as_ref(),
+                    Some(key),
                     signature.mode,
                     member_id.into_any(),
                 )?;
@@ -239,7 +239,7 @@ impl ModuleLowerer<'_> {
                     interface_symbol,
                     interface_type,
                     member_id,
-                    key.as_ref(),
+                    Some(key),
                     signature,
                     method_symbol,
                 )?;
@@ -250,6 +250,7 @@ impl ModuleLowerer<'_> {
                     member_id,
                 });
             }
+            dir::TypeMember::CallSignature { .. } | dir::TypeMember::ConstructSignature { .. } => {}
             dir::TypeMember::IndexSignature { .. } => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: member_id

@@ -1,10 +1,10 @@
 use destack_dir::{
     Asynchrony, Block, Declaration, Expression, Extension, ExtensionKind, FunctionCardinality,
-    FunctionMode, FunctionSignature, GenericParameter, GlobalSymbolId, Lineage, LocalNodeId,
-    LocalNodeIdAny, LocalSymbolId, LocalTypeId, Member, NodeTree, NodeVisitor, NodeVisitorOptions,
-    Parameter, StaticArgument, StaticExpression, StaticKey, SymbolType, TupleElement, Type,
-    TypeExpression, TypeField, TypeIndexSignature, TypeLiteral, TypeMember, TypeTable, walk_block,
-    walk_declaration, walk_expression,
+    FunctionKind, FunctionMode, FunctionSignature, GenericParameter, GlobalSymbolId, Lineage,
+    LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, Member, NodeTree, NodeVisitor,
+    NodeVisitorOptions, Parameter, StaticArgument, StaticExpression, StaticKey, SymbolType,
+    TupleElement, Type, TypeExpression, TypeField, TypeIndexSignature, TypeLiteral, TypeMember,
+    TypeTable, walk_block, walk_declaration, walk_expression,
 };
 use destack_workspace::{Module, ProfileId};
 use std::collections::{HashMap, HashSet};
@@ -1941,7 +1941,87 @@ impl Compiler {
                 Ok(shape)
             }
 
-            // methods contribute signatures or callable members
+            // call signatures contribute callable members
+            TypeMember::CallSignature { signature, symbol } => {
+                self.collect_generics(&mut ctx.reborrow(), &signature.generic_parameters)?;
+
+                let signature = FunctionSignature {
+                    is_abstract: false,
+                    is_override: false,
+                    asynchrony: Asynchrony::Sync,
+                    cardinality: FunctionCardinality::Scalar,
+                    mode: None,
+                    kind: FunctionKind::Lambda,
+                    generic_parameters: signature.generic_parameters.clone(),
+                    where_clauses: signature.where_clauses.clone(),
+                    this_parameter: signature.this_parameter,
+                    parameters: signature.parameters.clone(),
+                    return_type: signature.return_type,
+                };
+                let ty = self.resolve_declared_function_signature_type(
+                    &mut ctx.reborrow(),
+                    &signature,
+                    member_id.into_any(),
+                    defer_type_evaluation,
+                )?;
+                let ty = self.extend_signature_static_parameters(
+                    &mut ctx.reborrow(),
+                    owner_generic_parameters,
+                    ty,
+                );
+                let signature_ty_id = ctx.types.insert_type_from_any(ty, member_id.into_any());
+                let member_symbol = symbol.into_global(ctx.module.id);
+                ctx.types.set_value_type(member_symbol, signature_ty_id);
+                ctx.types.set_signature_type_for_node(
+                    member_id.into_global_any(ctx.module.id),
+                    signature_ty_id,
+                );
+                shape.call_signatures.push(signature_ty_id);
+
+                Ok(shape)
+            }
+
+            // construct signatures contribute callable members
+            TypeMember::ConstructSignature { signature, symbol } => {
+                self.collect_generics(&mut ctx.reborrow(), &signature.generic_parameters)?;
+
+                let signature = FunctionSignature {
+                    is_abstract: signature.is_abstract,
+                    is_override: false,
+                    asynchrony: Asynchrony::Sync,
+                    cardinality: FunctionCardinality::Scalar,
+                    mode: Some(FunctionMode::New),
+                    kind: FunctionKind::Lambda,
+                    generic_parameters: signature.generic_parameters.clone(),
+                    where_clauses: signature.where_clauses.clone(),
+                    this_parameter: None,
+                    parameters: signature.parameters.clone(),
+                    return_type: signature.return_type,
+                };
+                let ty = self.resolve_declared_function_signature_type(
+                    &mut ctx.reborrow(),
+                    &signature,
+                    member_id.into_any(),
+                    defer_type_evaluation,
+                )?;
+                let ty = self.extend_signature_static_parameters(
+                    &mut ctx.reborrow(),
+                    owner_generic_parameters,
+                    ty,
+                );
+                let signature_ty_id = ctx.types.insert_type_from_any(ty, member_id.into_any());
+                let member_symbol = symbol.into_global(ctx.module.id);
+                ctx.types.set_value_type(member_symbol, signature_ty_id);
+                ctx.types.set_signature_type_for_node(
+                    member_id.into_global_any(ctx.module.id),
+                    signature_ty_id,
+                );
+                shape.construct_signatures.push(signature_ty_id);
+
+                Ok(shape)
+            }
+
+            // methods contribute named callable members
             TypeMember::Method {
                 key,
                 signature,
@@ -1952,58 +2032,15 @@ impl Compiler {
                 // declare signature generic parameters
                 self.collect_generics(&mut ctx.reborrow(), &signature.generic_parameters)?;
 
-                // handle call or construct signatures
-                if key.is_none()
-                    && matches!(
-                        signature.mode,
-                        Some(FunctionMode::Call)
-                            | Some(FunctionMode::New)
-                            | Some(FunctionMode::Constructor)
-                    )
-                {
-                    let ty = self.resolve_declared_function_signature_type(
-                        &mut ctx.reborrow(),
-                        signature,
-                        member_id.into_any(),
-                        defer_type_evaluation,
-                    )?;
-                    let ty = self.extend_signature_static_parameters(
-                        &mut ctx.reborrow(),
-                        owner_generic_parameters,
-                        ty,
-                    );
-                    let signature_ty_id = ctx.types.insert_type_from_any(ty, member_id.into_any());
-                    let member_symbol = symbol.into_global(ctx.module.id);
-                    ctx.types.set_value_type(member_symbol, signature_ty_id);
-                    ctx.types.set_signature_type_for_node(
-                        member_id.into_global_any(ctx.module.id),
-                        signature_ty_id,
-                    );
-
-                    // route the signature to the correct shape
-                    match signature.mode {
-                        Some(FunctionMode::New) | Some(FunctionMode::Constructor) => {
-                            shape.construct_signatures.push(signature_ty_id);
-                        }
-                        _ => {
-                            shape.call_signatures.push(signature_ty_id);
-                        }
-                    }
-
-                    return Ok(shape);
-                }
-
                 // resolve the method key
-                let Some(key) = key.as_ref().and_then(|key| {
-                    self.static_key_from_key(
-                        ctx.compiler_context.revision(),
-                        ctx.profile,
-                        ctx.tree,
-                        ctx.symbols,
-                        ctx.types,
-                        *key,
-                    )
-                }) else {
+                let Some(key) = self.static_key_from_key(
+                    ctx.compiler_context.revision(),
+                    ctx.profile,
+                    ctx.tree,
+                    ctx.symbols,
+                    ctx.types,
+                    *key,
+                ) else {
                     return Ok(shape);
                 };
 
