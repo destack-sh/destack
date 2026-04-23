@@ -2331,28 +2331,24 @@ mod tests {
 
         // verify the generic arrow argument shape
         assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                assert_node!(parser.tree, *value, TypeExpression::Declaration { declaration: declaration_id } => {
-                    assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-                        assert_eq!(signature.kind, FunctionKind::Lambda);
-                        assert!(body.is_none());
-                        assert_eq!(signature.generic_parameters.len(), 1);
-                        assert_node!(parser.tree, signature.generic_parameters[0], GenericParameter::Type { name, constraint, default, .. } => {
-                            assert_string!(parser, *name, "T");
-                            assert!(constraint.is_none());
-                            assert!(default.is_none());
-                        });
-                        assert_eq!(signature.parameters.len(), 1);
-                        assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
-                            assert_string!(parser, *name, "v");
-                            assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Reference { path, .. } => {
-                                assert_path!(parser, *path, "T");
-                            });
-                        });
-                        assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
-                            assert_eq!(*value, TypeLiteral::Void);
-                        });
+            assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+                assert_eq!(function.generic_parameters.len(), 1);
+                assert_node!(parser.tree, function.generic_parameters[0], GenericParameter::Type { name, constraint, default, .. } => {
+                    assert_string!(parser, *name, "T");
+                    assert!(constraint.is_none());
+                    assert!(default.is_none());
+                });
+                assert_eq!(function.parameters.len(), 1);
+                assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type, .. } => {
+                    assert_string!(parser, *name, "v");
+                    assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Reference { path, .. } => {
+                        assert_path!(parser, *path, "T");
                     });
                 });
+                assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::Void);
+                });
+            });
         });
     }
 
@@ -2373,11 +2369,8 @@ mod tests {
                 assert!(left_generic_arguments.is_empty());
                 assert_eq!(generic_arguments.len(), 1);
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                        assert_node!(parser.tree, *value, TypeExpression::Declaration { declaration: declaration_id } => {
-                            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-                                assert_eq!(signature.kind, FunctionKind::Lambda);
-                                assert!(body.is_none());
-                            });
+                        assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+                            assert_eq!(function.parameters.len(), 1);
                         });
                 });
             });
