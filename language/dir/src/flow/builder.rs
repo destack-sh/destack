@@ -2411,13 +2411,16 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 }
             }
             TypeMember::Method { key, body, .. } => {
-                let key_block_id = self.build_optional_key(key.as_ref(), current_block_id)?;
+                let key_block_id = self.build_key(key, current_block_id)?;
 
                 if let Some(body) = body {
                     return self.build_expression(*body, key_block_id);
                 }
 
                 Some(key_block_id)
+            }
+            TypeMember::CallSignature { .. } | TypeMember::ConstructSignature { .. } => {
+                Some(current_block_id)
             }
             TypeMember::IndexSignature {
                 name: _,
@@ -2512,19 +2515,6 @@ impl<'tree> FlowGraphBuilder<'tree> {
             }
             TypeMember::Error { .. } => Some(current_block_id),
         }
-    }
-
-    /// Build an optional key.
-    fn build_optional_key(
-        &mut self,
-        key: Option<&Key>,
-        current_block_id: FlowBlockId,
-    ) -> Option<FlowBlockId> {
-        let Some(key) = key else {
-            return Some(current_block_id);
-        };
-
-        self.build_key(key, current_block_id)
     }
 
     /// Build a key payload.

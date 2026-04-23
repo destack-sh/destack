@@ -497,15 +497,66 @@ pub fn walk_type_member<V: NodeVisitor + ?Sized>(
             body,
             symbol: _,
         } => {
-            if let Some(key) = key {
-                walk_key(visitor, tree, key);
-            }
+            walk_key(visitor, tree, key);
 
             walk_function_signature(visitor, tree, signature);
 
             if let Some(body) = body {
                 let body_node = tree.get(*body);
                 visitor.visit_expression(tree, *body, body_node);
+            }
+        }
+        TypeMember::CallSignature {
+            signature,
+            symbol: _,
+        } => {
+            for parameter_id in &signature.generic_parameters {
+                let parameter = tree.get(*parameter_id);
+                visitor.visit_generic_parameter(tree, *parameter_id, parameter);
+            }
+
+            if let Some(this_parameter_id) = signature.this_parameter {
+                let parameter = tree.get(this_parameter_id);
+                visitor.visit_parameter(tree, this_parameter_id, parameter);
+            }
+
+            for parameter_id in &signature.parameters {
+                let parameter = tree.get(*parameter_id);
+                visitor.visit_parameter(tree, *parameter_id, parameter);
+            }
+
+            if let Some(return_type_id) = signature.return_type {
+                let return_type = tree.get(return_type_id);
+                visitor.visit_type_expression(tree, return_type_id, return_type);
+            }
+
+            for where_clause_id in &signature.where_clauses {
+                let where_clause = tree.get(*where_clause_id);
+                visitor.visit_where_clause(tree, *where_clause_id, where_clause);
+            }
+        }
+        TypeMember::ConstructSignature {
+            signature,
+            symbol: _,
+        } => {
+            for parameter_id in &signature.generic_parameters {
+                let parameter = tree.get(*parameter_id);
+                visitor.visit_generic_parameter(tree, *parameter_id, parameter);
+            }
+
+            for parameter_id in &signature.parameters {
+                let parameter = tree.get(*parameter_id);
+                visitor.visit_parameter(tree, *parameter_id, parameter);
+            }
+
+            if let Some(return_type_id) = signature.return_type {
+                let return_type = tree.get(return_type_id);
+                visitor.visit_type_expression(tree, return_type_id, return_type);
+            }
+
+            for where_clause_id in &signature.where_clauses {
+                let where_clause = tree.get(*where_clause_id);
+                visitor.visit_where_clause(tree, *where_clause_id, where_clause);
             }
         }
         TypeMember::IndexSignature {
