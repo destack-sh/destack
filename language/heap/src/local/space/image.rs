@@ -520,7 +520,7 @@ impl HeapSpace {
             is_live: entry.is_live,
             len: entry.len,
             pages: entry.pages.clone(),
-            layout_id: entry.layout_id,
+            reference_map: entry.reference_map.clone(),
             is_marked: false,
             dirty_cards: CardSet::with_len(entry.len),
             is_dirty_queued: false,
@@ -599,7 +599,7 @@ impl HeapSpace {
             is_live: entry.is_live,
             len: entry.len,
             pages: entry.pages.clone(),
-            layout_id: entry.layout_id,
+            reference_map: entry.reference_map.clone(),
         }
     }
 }

@@ -365,43 +365,31 @@ impl HeapSpace {
             .checked_mul(self.young.page_bytes)?
             .checked_add(page_offset)?;
 
-        for (entry_index, entry) in self.young.entries.iter().enumerate() {
-            if !entry.is_live {
-                continue;
-            }
+        // young entries are bump ordered, so address resolution is predecessor lookup
+        let entry_end = self
+            .young
+            .entries
+            .partition_point(|entry| self.young_entry_offset(entry) <= logical_byte_offset);
+        if entry_end == 0 {
+            return None;
+        }
 
-            let entry_offset = self.young_entry_offset(entry);
-            if entry.byte_len == 0 {
-                if logical_byte_offset != entry_offset {
-                    continue;
-                }
+        let entry_index = entry_end - 1;
+        let entry = self.young.entries.get(entry_index)?;
+        if !entry.is_live {
+            return None;
+        }
 
-                let base_address = self
-                    .allocator
-                    .page_view_ptr(&self.young.pages, entry_offset)
-                    .ok()? as *mut u8 as usize;
-
-                return Some(HeapLocation {
-                    storage: HeapStorage::Young(HeapYoungId::new(
-                        self.young.generation,
-                        entry_index as u32,
-                    )),
-                    base: HeapReference::new(base_address),
-                    byte_offset: 0,
-                    byte_len: 0,
-                });
-            }
-
-            let entry_end = entry_offset.checked_add(entry.byte_len)?;
-            if logical_byte_offset < entry_offset || logical_byte_offset >= entry_end {
-                continue;
+        let entry_offset = self.young_entry_offset(entry);
+        if entry.byte_len == 0 {
+            if logical_byte_offset != entry_offset {
+                return None;
             }
 
             let base_address = self
                 .allocator
                 .page_view_ptr(&self.young.pages, entry_offset)
-                .ok()? as *mut u8 as usize;
-            let byte_offset = logical_byte_offset.checked_sub(entry_offset)?;
+                .ok()? as usize;
 
             return Some(HeapLocation {
                 storage: HeapStorage::Young(HeapYoungId::new(
@@ -409,12 +397,31 @@ impl HeapSpace {
                     entry_index as u32,
                 )),
                 base: HeapReference::new(base_address),
-                byte_offset,
-                byte_len: entry.byte_len,
+                byte_offset: 0,
+                byte_len: 0,
             });
         }
 
-        None
+        let entry_limit = entry_offset.checked_add(entry.byte_len)?;
+        if logical_byte_offset >= entry_limit {
+            return None;
+        }
+
+        let base_address = self
+            .allocator
+            .page_view_ptr(&self.young.pages, entry_offset)
+            .ok()? as usize;
+        let byte_offset = logical_byte_offset.checked_sub(entry_offset)?;
+
+        Some(HeapLocation {
+            storage: HeapStorage::Young(HeapYoungId::new(
+                self.young.generation,
+                entry_index as u32,
+            )),
+            base: HeapReference::new(base_address),
+            byte_offset,
+            byte_len: entry.byte_len,
+        })
     }
 
     /// Return the resolved small-span location for one live heap reference.
@@ -448,7 +455,7 @@ impl HeapSpace {
         let base_address = self
             .allocator
             .page_view_ptr(&span.pages, slot_base_offset)
-            .ok()? as *mut u8 as usize;
+            .ok()? as usize;
         let slot = SpanSlot::new(span_index, slot_index).ok()?;
 
         debug_assert_eq!(reference.address(), base_address.checked_add(slot_offset)?);
@@ -481,7 +488,7 @@ impl HeapSpace {
             return None;
         }
 
-        let base_address = self.allocator.page_view_ptr(&entry.pages, 0).ok()? as *mut u8 as usize;
+        let base_address = self.allocator.page_view_ptr(&entry.pages, 0).ok()? as usize;
 
         debug_assert_eq!(
             reference.address(),
@@ -634,28 +641,30 @@ impl HeapSpace {
     pub(crate) fn location_reference_map(&self, storage: HeapStorage) -> HeapResult<ReferenceMap> {
         match storage {
             HeapStorage::Young(young_id) => {
-                let layout_id = self
+                let reference_map = self
                     .young_entry(young_id)
                     .ok_or(HeapError::MissingYoungEntry {
                         generation: young_id.generation(),
                         entry_index: young_id.index(),
                     })?
-                    .layout_id;
+                    .reference_map
+                    .clone();
 
-                self.reference_map(layout_id).cloned()
+                Ok(reference_map)
             }
             HeapStorage::Small(slot) => {
                 self.small_slot_reference_map(slot.span_index(), slot.slot_index())
             }
             HeapStorage::Large(entry_id) => {
-                let layout_id = self
+                let reference_map = self
                     .large_entry(entry_id)
                     .ok_or(HeapError::MissingLargeEntry {
                         entry_id: entry_id.id(),
                     })?
-                    .layout_id;
+                    .reference_map
+                    .clone();
 
-                self.reference_map(layout_id).cloned()
+                Ok(reference_map)
             }
         }
     }
@@ -673,8 +682,7 @@ impl HeapSpace {
                 let entry_offset = self.young_entry_offset(entry);
 
                 self.allocator
-                    .page_view_ptr(&self.young.pages, entry_offset)? as *mut u8
-                    as usize
+                    .page_view_ptr(&self.young.pages, entry_offset)? as usize
             }
             HeapStorage::Small(slot) => {
                 let Some(span) = self.span(slot.span_index()) else {
@@ -688,7 +696,7 @@ impl HeapSpace {
                     },
                 )?;
 
-                self.allocator.page_view_ptr(&span.pages, slot_offset)? as *mut u8 as usize
+                self.allocator.page_view_ptr(&span.pages, slot_offset)? as usize
             }
             HeapStorage::Large(entry_id) => {
                 let Some(entry) = self.large_entry(entry_id) else {
@@ -697,7 +705,7 @@ impl HeapSpace {
                     });
                 };
 
-                self.allocator.page_view_ptr(&entry.pages, 0)? as *mut u8 as usize
+                self.allocator.page_view_ptr(&entry.pages, 0)? as usize
             }
         };
 
@@ -737,7 +745,7 @@ impl HeapSpace {
             let Some(entry) = self.large_entry(entry_id) else {
                 continue;
             };
-            if !self.reference_map(entry.layout_id)?.has_reference() {
+            if !entry.reference_map.has_reference() {
                 continue;
             }
 
@@ -815,8 +823,7 @@ impl HeapSpace {
                 entry_id: entry_id.id(),
             });
         };
-        let is_overlapping =
-            overlaps_heap_range(self.reference_map(entry.layout_id)?, byte_offset, byte_len)?;
+        let is_overlapping = overlaps_heap_range(&entry.reference_map, byte_offset, byte_len)?;
         if !is_overlapping {
             return Ok(());
         }

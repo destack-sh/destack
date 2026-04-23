@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use crate::local::space::HeapStorage;
 use crate::{
-    Allocation, Allocator, GcKind, GcOptions, Heap, HeapError, HeapOptions, HeapReference,
-    HeapSpace, SharedHeapReference, test_allocator, test_layout, test_layouts,
+    Allocator, GcKind, GcOptions, Heap, HeapError, HeapOptions, HeapReference, HeapSpace, Payload,
+    SharedHeapReference, test_allocator, test_layout, test_layouts,
 };
 use destack_mir::{LayoutId, ReferenceMap};
 
@@ -59,10 +59,10 @@ fn test_collect_minor_promotes_reachable_entries() {
     let mut heap = HeapSpace::with_layouts_and_options(allocator, layouts, &options)
         .expect("explicit heap options should build");
     let reachable = heap
-        .allocate(layout_id, Allocation::Bytes(&[1, 2, 3]))
+        .allocate(layout_id, Payload::Bytes(&[1, 2, 3]))
         .expect("heap allocation should succeed");
     let unreachable = heap
-        .allocate(layout_id, Allocation::Bytes(&[4, 5, 6]))
+        .allocate(layout_id, Payload::Bytes(&[4, 5, 6]))
         .expect("heap allocation should succeed");
     let mut roots = [reachable];
 
@@ -108,12 +108,12 @@ fn test_collect_minor_promotes_reachable_child_entries() {
     let mut heap = HeapSpace::with_layouts_and_options(allocator, layouts, &options)
         .expect("explicit heap options should build");
     let child = heap
-        .allocate(child_layout_id, Allocation::Bytes(&[0xC1, 0x1D]))
+        .allocate(child_layout_id, Payload::Bytes(&[0xC1, 0x1D]))
         .expect("heap allocation should succeed");
     let parent = heap
         .allocate(
             parent_layout_id,
-            Allocation::Bytes(&child.bits().to_le_bytes()),
+            Payload::Bytes(&child.bits().to_le_bytes()),
         )
         .expect("heap allocation should succeed");
     let mut roots = [parent];
@@ -165,7 +165,7 @@ fn test_collect_minor_updates_gc_state() {
     let mut heap = HeapSpace::with_layouts_and_options(allocator, layouts, &options)
         .expect("explicit heap options should build");
     let reachable = heap
-        .allocate(layout_id, Allocation::Bytes(&[1, 2, 3]))
+        .allocate(layout_id, Payload::Bytes(&[1, 2, 3]))
         .expect("heap allocation should succeed");
     let mut roots = [reachable];
 
@@ -190,7 +190,7 @@ fn test_pin_promotes_young_reference() {
     let mut heap = HeapSpace::with_layouts_and_options(allocator, layouts, &options)
         .expect("explicit heap options should build");
     let reference = heap
-        .allocate(layout_id, Allocation::Bytes(&[1, 2, 3]))
+        .allocate(layout_id, Payload::Bytes(&[1, 2, 3]))
         .expect("heap allocation should succeed");
 
     assert!(is_young(&heap, reference));
@@ -221,12 +221,12 @@ fn test_collect_minor_traces_pinned_roots() {
     let mut heap = HeapSpace::with_layouts_and_options(allocator, layouts, &options)
         .expect("explicit heap options should build");
     let child = heap
-        .allocate(child_layout_id, Allocation::Bytes(&[0xC1, 0x1D]))
+        .allocate(child_layout_id, Payload::Bytes(&[0xC1, 0x1D]))
         .expect("heap allocation should succeed");
     let parent = heap
         .allocate(
             parent_layout_id,
-            Allocation::Bytes(&child.bits().to_le_bytes()),
+            Payload::Bytes(&child.bits().to_le_bytes()),
         )
         .expect("heap allocation should succeed");
     let parent = heap.pin(parent).expect("pin should succeed");
@@ -262,7 +262,7 @@ fn test_collect_full_traces_pinned_roots() {
     let mut heap = HeapSpace::with_layouts_and_options(allocator, layouts, &options)
         .expect("explicit heap options should build");
     let reference = heap
-        .allocate(layout_id, Allocation::Bytes(&[1, 2, 3]))
+        .allocate(layout_id, Payload::Bytes(&[1, 2, 3]))
         .expect("heap allocation should succeed");
     let reference = heap.pin(reference).expect("pin should succeed");
     let mut roots = [];
@@ -290,7 +290,7 @@ fn test_scan_shared_roots_uses_shared_reference_width() {
         .expect("explicit heap options should build");
     let shared = SharedHeapReference::new(7);
     let local = heap
-        .allocate(layout_id, Allocation::Bytes(&shared.bits().to_le_bytes()))
+        .allocate(layout_id, Payload::Bytes(&shared.bits().to_le_bytes()))
         .expect("heap allocation should succeed");
     let mut roots = Vec::new();
 
@@ -337,7 +337,7 @@ fn test_heap_gc_step_runs_minor_after_pressure() {
     let (mut heap, layout_ids) = test_heap(&[(64, ReferenceMap::empty())]);
     let layout_id = layout_ids[0];
     let root = heap
-        .allocate(layout_id, Allocation::Bytes(&vec![1; 64]))
+        .allocate(layout_id, Payload::Bytes(&vec![1; 64]))
         .expect("heap allocation should succeed");
     let mut roots = [root];
 
@@ -369,7 +369,7 @@ fn test_heap_gc_step_honors_manual_full_request() {
     )
     .expect("heap should build");
     let root = heap
-        .allocate(layout_id, Allocation::Bytes(&[1, 2, 3]))
+        .allocate(layout_id, Payload::Bytes(&[1, 2, 3]))
         .expect("heap allocation should succeed");
     let mut roots = [root];
 
@@ -393,10 +393,10 @@ fn test_collect_full_reclaims_later_unreachable_allocations() {
     let mut heap = HeapSpace::with_layouts_and_options(allocator, layouts, &options)
         .expect("explicit heap options should build");
     let root = heap
-        .allocate(layout_id, Allocation::Bytes(&[1]))
+        .allocate(layout_id, Payload::Bytes(&[1]))
         .expect("heap allocation should succeed");
     let _garbage = heap
-        .allocate(layout_id, Allocation::Bytes(&[2]))
+        .allocate(layout_id, Payload::Bytes(&[2]))
         .expect("heap allocation should succeed");
     let mut roots = [root];
 
@@ -407,10 +407,10 @@ fn test_collect_full_reclaims_later_unreachable_allocations() {
     assert_eq!(heap.allocation_count(), 1);
 
     let more_garbage = heap
-        .allocate(layout_id, Allocation::Bytes(&[3]))
+        .allocate(layout_id, Payload::Bytes(&[3]))
         .expect("heap allocation should succeed");
     let even_more = heap
-        .allocate(layout_id, Allocation::Bytes(&[4]))
+        .allocate(layout_id, Payload::Bytes(&[4]))
         .expect("heap allocation should succeed");
 
     // later allocations should still enter young space

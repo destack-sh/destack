@@ -1,5 +1,5 @@
 use crate::{
-    AccountingRegion, Allocation, HeapError, HeapLimits, HeapOptions, HeapSpaceLimits, RawLimits,
+    AccountingRegion, HeapError, HeapLimits, HeapOptions, HeapSpaceLimits, Payload, RawLimits,
     test_layout,
 };
 use destack_mir::ReferenceMap;
@@ -13,7 +13,7 @@ fn heap_active_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 {
         TestHeap::with_limits_and_layout_table(crate::HeapLimits::default(), options, layouts);
     let heap = &mut test_heap.heap;
 
-    heap.allocate(layout_id, Allocation::Bytes(bytes))
+    heap.allocate(layout_id, Payload::Bytes(bytes))
         .expect("heap allocation should succeed");
 
     heap.usage().heap.active_bytes
@@ -24,7 +24,7 @@ fn raw_active_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 {
     let mut test_heap = TestHeap::with_options(options);
     let heap = &mut test_heap.heap;
 
-    heap.allocate_raw(bytes.len(), Allocation::Bytes(bytes))
+    heap.allocate_raw(bytes.len(), Payload::Bytes(bytes))
         .expect("raw allocation should succeed");
 
     heap.usage().raw.active_bytes
@@ -54,7 +54,7 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
     .expect("baseline heap should fit its current active-byte limit");
 
     let error = heap
-        .allocate(layout_id, Allocation::Bytes(&[1]))
+        .allocate(layout_id, Payload::Bytes(&[1]))
         .expect_err("heap allocation should be rejected");
 
     assert_eq!(
@@ -86,7 +86,7 @@ fn test_reject_raw_allocation_when_limit_exceeded() {
     .expect("baseline raw heap should fit its current active-byte limit");
 
     let error = heap
-        .allocate_raw(1, Allocation::Bytes(&[1]))
+        .allocate_raw(1, Payload::Bytes(&[1]))
         .expect_err("raw allocation should be rejected");
 
     assert_eq!(
@@ -132,7 +132,7 @@ fn test_reject_raw_replace_when_limit_exceeded() {
     let mut test_heap = TestHeap::with_options(HeapOptions::local());
     let heap = &mut test_heap.heap;
     let pointer = heap
-        .allocate_raw(4097, Allocation::Bytes(&vec![0xAA; 4097]))
+        .allocate_raw(4097, Payload::Bytes(&vec![0xAA; 4097]))
         .expect("raw allocation should succeed");
     let baseline = heap.usage().raw.active_bytes;
     heap.set_limits(HeapLimits {

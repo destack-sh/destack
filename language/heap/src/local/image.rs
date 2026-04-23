@@ -367,22 +367,33 @@ fn image_heap_location(
                 .checked_mul(image.young().page_bytes())?
                 .checked_add(page_offset)?;
 
-            for (entry_index, entry) in image.young().entries().iter().enumerate() {
-                if !entry.is_live {
-                    continue;
-                }
-
+            // young entries are bump ordered, so address resolution is predecessor lookup
+            let entry_end = image.young().entries().partition_point(|entry| {
                 let entry_offset = entry.first_page as usize * image.young().page_bytes()
                     + entry.first_offset as usize;
-                let entry_end = entry_offset.checked_add(entry.byte_len)?;
-                if logical_byte_offset < entry_offset || logical_byte_offset >= entry_end {
-                    continue;
+
+                entry_offset <= logical_byte_offset
+            });
+            if entry_end == 0 {
+                return None;
+            }
+
+            let entry_index = entry_end - 1;
+            let entry = image.young().entries().get(entry_index)?;
+            if !entry.is_live {
+                return None;
+            }
+
+            let entry_offset = entry.first_page as usize * image.young().page_bytes()
+                + entry.first_offset as usize;
+            if entry.byte_len == 0 {
+                if logical_byte_offset != entry_offset {
+                    return None;
                 }
 
                 let base_address = allocator
                     .page_view_ptr(image.young().pages(), entry_offset)
-                    .ok()? as *mut u8 as usize;
-                let byte_offset = logical_byte_offset.checked_sub(entry_offset)?;
+                    .ok()? as usize;
 
                 return Some(HeapLocation {
                     storage: HeapStorage::Young(crate::local::space::HeapYoungId::new(
@@ -390,12 +401,30 @@ fn image_heap_location(
                         entry_index as u32,
                     )),
                     base: HeapReference::new(base_address),
-                    byte_offset,
-                    byte_len: entry.byte_len,
+                    byte_offset: 0,
+                    byte_len: 0,
                 });
             }
 
-            None
+            let entry_limit = entry_offset.checked_add(entry.byte_len)?;
+            if logical_byte_offset >= entry_limit {
+                return None;
+            }
+
+            let base_address = allocator
+                .page_view_ptr(image.young().pages(), entry_offset)
+                .ok()? as usize;
+            let byte_offset = logical_byte_offset.checked_sub(entry_offset)?;
+
+            Some(HeapLocation {
+                storage: HeapStorage::Young(crate::local::space::HeapYoungId::new(
+                    image.young().generation(),
+                    entry_index as u32,
+                )),
+                base: HeapReference::new(base_address),
+                byte_offset,
+                byte_len: entry.byte_len,
+            })
         }
         HeapPageOwner::Small {
             span_index,
@@ -413,14 +442,18 @@ fn image_heap_location(
             }
 
             let byte_len = *span.byte_lens.get(slot_index)?;
-            if slot_offset >= byte_len {
+            if byte_len == 0 {
+                if slot_offset != 0 {
+                    return None;
+                }
+            } else if slot_offset >= byte_len {
                 return None;
             }
 
             let slot_base_offset = slot_index.checked_mul(span.class.size_class)?;
             let base_address = allocator
                 .page_view_ptr(&span.pages, slot_base_offset)
-                .ok()? as *mut u8 as usize;
+                .ok()? as usize;
             let slot = crate::allocator::SpanSlot::new(span_index, slot_index).ok()?;
 
             Some(HeapLocation {
@@ -439,11 +472,15 @@ fn image_heap_location(
                 .checked_mul(image.page_bytes())?
                 .checked_add(page_offset)?;
 
-            if logical_byte_offset >= entry.len {
+            if entry.len == 0 {
+                if logical_byte_offset != 0 {
+                    return None;
+                }
+            } else if logical_byte_offset >= entry.len {
                 return None;
             }
 
-            let base_address = allocator.page_view_ptr(&entry.pages, 0).ok()? as *mut u8 as usize;
+            let base_address = allocator.page_view_ptr(&entry.pages, 0).ok()? as usize;
 
             Some(HeapLocation {
                 storage: HeapStorage::Large(entry_id),

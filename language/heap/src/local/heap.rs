@@ -6,7 +6,7 @@ use crate::allocator::Allocator;
 use crate::local::raw::RawSpace;
 use crate::local::space::HeapSpace;
 use crate::{
-    Allocation, GcPacer, GcState, GcStats, HeapLimits, HeapOptions, HeapReference, HeapResult,
+    GcPacer, GcState, GcStats, HeapLimits, HeapOptions, HeapReference, HeapResult, Payload,
     RawPointer, SharedHeapReference,
 };
 
@@ -206,7 +206,7 @@ impl Heap {
     pub fn allocate(
         &mut self,
         layout_id: LayoutId,
-        allocation: Allocation<'_>,
+        allocation: Payload<'_>,
     ) -> HeapResult<HeapReference> {
         let mapped_byte_delta = self.heap.mapped_byte_delta(layout_id)?;
 
@@ -220,11 +220,34 @@ impl Heap {
         Ok(reference)
     }
 
+    /// Allocate one managed slice backing entry.
+    pub fn allocate_slice(
+        &mut self,
+        element_layout_id: LayoutId,
+        length: usize,
+        allocation: Payload<'_>,
+    ) -> HeapResult<HeapReference> {
+        let mapped_byte_delta = self
+            .heap
+            .slice_mapped_byte_delta(element_layout_id, length)?;
+
+        // check the projected heap mapped-byte delta first
+        self.check_mapped_byte_delta(mapped_byte_delta, 0)?;
+
+        // then allocate through heap space
+        let reference = self
+            .heap
+            .allocate_slice(element_layout_id, length, allocation)?;
+        self.refresh_gc_request();
+
+        Ok(reference)
+    }
+
     /// Allocate one raw entry.
     pub fn allocate_raw(
         &mut self,
         byte_len: usize,
-        allocation: Allocation<'_>,
+        allocation: Payload<'_>,
     ) -> HeapResult<RawPointer> {
         let mapped_byte_delta = self.raw.alloc_mapped_byte_delta(byte_len);
 
