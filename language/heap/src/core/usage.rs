@@ -13,8 +13,6 @@ pub enum AccountingRegion {
     SharedHeap,
     /// One shared raw space.
     SharedRaw,
-    /// Combined heap memory.
-    Total,
 }
 
 impl AccountingRegion {
@@ -25,7 +23,6 @@ impl AccountingRegion {
             Self::Raw => "local raw heap",
             Self::SharedHeap => "shared heap",
             Self::SharedRaw => "shared raw heap",
-            Self::Total => "total heap",
         }
     }
 }
@@ -37,7 +34,6 @@ impl Display for AccountingRegion {
             Self::Raw => "raw",
             Self::SharedHeap => "shared heap",
             Self::SharedRaw => "shared raw",
-            Self::Total => "total",
         };
 
         write!(formatter, "{label}")
@@ -142,7 +138,6 @@ impl AccountingRegion {
                     freed_bytes,
                 }
             }
-            Self::Total => unreachable!("allocation accounting does not track the total space"),
         }
     }
 
@@ -150,18 +145,17 @@ impl AccountingRegion {
     fn overflow_error(self, _usage: AllocationUsage, _added_bytes: u64) -> HeapError {
         match self {
             Self::Heap => HeapError::InvariantOverflow {
-                context: "heap allocation accounting",
+                context: "heap allocation",
             },
             Self::Raw => HeapError::InvariantOverflow {
-                context: "raw allocation accounting",
+                context: "raw allocation",
             },
             Self::SharedHeap => HeapError::InvariantOverflow {
-                context: "shared heap allocation accounting",
+                context: "shared heap allocation",
             },
             Self::SharedRaw => HeapError::InvariantOverflow {
-                context: "shared raw allocation accounting",
+                context: "shared raw allocation",
             },
-            Self::Total => unreachable!("allocation accounting does not track the total space"),
         }
     }
 }

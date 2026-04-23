@@ -123,7 +123,7 @@ pub struct GcStats {
 
 /// GC summary tracked across collection cycles.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct GcSummary {
+pub struct GcState {
     /// Number of completed GC cycles.
     pub completed_cycles: u64,
     /// The scope of the last completed cycle.
@@ -132,7 +132,7 @@ pub struct GcSummary {
     pub last_stats: Option<GcStats>,
 }
 
-impl GcSummary {
+impl GcState {
     /// Record one completed GC cycle.
     pub fn record_cycle(&mut self, kind: GcKind, stats: GcStats) -> HeapResult<()> {
         self.completed_cycles =
