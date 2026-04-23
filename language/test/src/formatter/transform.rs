@@ -3,12 +3,10 @@ use std::sync::Arc;
 
 use crate::core::{CaseResult, format_diagnostics};
 use crate::mdtest::MdTestCase;
-use destack_ast::TokenSpan;
+use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
-use destack_formatter::{
-    DestackFormatContext, DestackFormatOptions, build_formatter_tree_and_parents, statement_list,
-};
-use destack_parser::{Parser, source_colorizer};
+use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
+use destack_parser::{Parser, ParserSettings, source_colorizer};
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileType, IndentStyle,
     LanguageType, PrintOptions, Uri, print_diff,
@@ -125,7 +123,14 @@ pub(super) fn run(test: &MdTestCase) -> CaseResult {
 
     // parse
     let language_type = LanguageType::from(file.ty);
-    let mut parser = Parser::lex_file(file.clone(), language_type);
+    let mut parser = Parser::lex_file_with_settings(
+        file.clone(),
+        language_type,
+        ParserSettings {
+            preserve_parenthesized_wrappers: false,
+            ..ParserSettings::default()
+        },
+    );
     let expressions = parser.parse();
 
     // bail on parse errors
@@ -201,7 +206,7 @@ fn format_expressions(
     // build formatter context
     let side_span = parser.compute_side_span();
     let strings = parser.strings.clone().into_immutable();
-    let (tree, parents) = build_formatter_tree_and_parents(&parser.tree, expressions);
+    let parents = NodeParentIndex::from_expression_roots(&parser.tree, expressions);
 
     // format options
     let format_options = DestackFormatOptions::from_formatter_options(formatter, language_type);
@@ -210,7 +215,7 @@ fn format_expressions(
     let context = DestackFormatContext::new(
         format_options,
         file,
-        &tree,
+        &parser.tree,
         tokens,
         side_tokens,
         &side_span,
