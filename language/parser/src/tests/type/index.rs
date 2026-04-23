@@ -14,32 +14,30 @@ fn test_parse_function_type_return_conditional() {
     // type Getter<T, P> = (target: T, propertyKey: P) => P extends keyof T ? T[P] : any
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Declaration { declaration: function_id } => {
-                assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
+            assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+                assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
+                    assert_node!(parser.tree, *left, TypeExpression::Reference { path, generic_arguments } => {
+                        assert!(generic_arguments.is_empty());
+                        assert_path!(parser, *path, "P");
+                    });
+                    assert_node!(parser.tree, *extends_type, TypeExpression::KeyOf { target_type } => {
+                        assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
+                            assert!(generic_arguments.is_empty());
+                            assert_path!(parser, *path, "T");
+                        });
+                    });
+                    assert_node!(parser.tree, *then_type, TypeExpression::Index { left, index } => {
                         assert_node!(parser.tree, *left, TypeExpression::Reference { path, generic_arguments } => {
+                            assert!(generic_arguments.is_empty());
+                            assert_path!(parser, *path, "T");
+                        });
+                        assert_node!(parser.tree, *index, TypeExpression::Reference { path, generic_arguments } => {
                             assert!(generic_arguments.is_empty());
                             assert_path!(parser, *path, "P");
                         });
-                        assert_node!(parser.tree, *extends_type, TypeExpression::KeyOf { target_type } => {
-                            assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
-                                assert!(generic_arguments.is_empty());
-                                assert_path!(parser, *path, "T");
-                            });
-                        });
-                        assert_node!(parser.tree, *then_type, TypeExpression::Index { left, index } => {
-                            assert_node!(parser.tree, *left, TypeExpression::Reference { path, generic_arguments } => {
-                                assert!(generic_arguments.is_empty());
-                                assert_path!(parser, *path, "T");
-                            });
-                            assert_node!(parser.tree, *index, TypeExpression::Reference { path, generic_arguments } => {
-                                assert!(generic_arguments.is_empty());
-                                assert_path!(parser, *path, "P");
-                            });
-                        });
-                        assert_node!(parser.tree, *else_type, TypeExpression::Literal { value } => {
-                            assert_eq!(*value, TypeLiteral::Any);
-                        });
+                    });
+                    assert_node!(parser.tree, *else_type, TypeExpression::Literal { value } => {
+                        assert_eq!(*value, TypeLiteral::Any);
                     });
                 });
             });

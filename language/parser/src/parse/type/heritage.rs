@@ -208,6 +208,8 @@ impl Parser {
             if !matches!(
                 self.tree.get(inner_expression_id),
                 TypeExpression::Declaration { .. }
+                    | TypeExpression::FunctionTypeDeclaration(_)
+                    | TypeExpression::ConstructorTypeDeclaration(_)
             ) {
                 break;
             }

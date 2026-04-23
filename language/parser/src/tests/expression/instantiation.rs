@@ -375,11 +375,8 @@ fn test_parse_call_with_shift_left_generic_arguments() {
         let generic_arguments = generic_arguments.as_slice();
         assert_eq!(generic_arguments.len(), 1);
         assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value, .. } => {
-                assert_node!(parser.tree, *value, TypeExpression::Declaration { declaration: declaration_id } => {
-                    assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-                        assert_eq!(signature.kind, FunctionKind::Lambda);
-                        assert!(body.is_none());
-                    });
+                assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+                    assert_eq!(function.parameters.len(), 1);
                 });
         });
     });

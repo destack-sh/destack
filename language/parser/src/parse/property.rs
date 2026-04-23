@@ -1,9 +1,10 @@
 #![allow(clippy::type_complexity)]
 
 use destack_ast::{
-    Ambientness, AssignOperator, Asynchrony, BlockContext, Expression, FunctionCardinality,
-    FunctionKind, FunctionMode, FunctionSignature, Key, Keyword, LocalNodeId, Member, Name,
-    NodeType, Parameter, Property, StringId, TokenType, TypeExpression, TypeMember, Visibility,
+    Ambientness, AssignOperator, Asynchrony, BlockContext, ConstructorTypeDeclaration, Expression,
+    FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature, FunctionTypeDeclaration,
+    Key, Keyword, LocalNodeId, Member, Name, NodeType, Parameter, Property, StringId, TokenType,
+    TypeExpression, TypeMember, Visibility,
 };
 use destack_source::{NodeSpanType, Span};
 
@@ -50,10 +51,47 @@ struct ParsedPropertyMemberHead {
 struct ParsedMethodTail {
     /// The parsed signature.
     signature: FunctionSignature,
+    /// The generic parameter container span.
+    generic_parameter_span: Option<Span>,
+    /// The parameter container span.
+    parameter_span: Span,
     /// The optional body.
     body: Option<LocalNodeId<Expression>>,
     /// The return type span.
     return_type_span: Option<Span>,
+}
+
+/// Build one call signature declaration from a parsed function signature.
+fn function_type_declaration_from_signature(
+    signature: FunctionSignature,
+) -> FunctionTypeDeclaration {
+    debug_assert!(signature.mode.is_none() || signature.mode == Some(FunctionMode::Call));
+
+    FunctionTypeDeclaration {
+        generic_parameters: signature.generic_parameters,
+        where_clauses: signature.where_clauses,
+        this_parameter: signature.this_parameter,
+        parameters: signature.parameters,
+        return_type: signature.return_type,
+    }
+}
+
+/// Build one construct signature declaration from a parsed function signature.
+fn constructor_type_declaration_from_signature(
+    signature: FunctionSignature,
+) -> ConstructorTypeDeclaration {
+    debug_assert!(matches!(
+        signature.mode,
+        Some(FunctionMode::Constructor | FunctionMode::New)
+    ));
+
+    ConstructorTypeDeclaration {
+        is_abstract: signature.is_abstract,
+        generic_parameters: signature.generic_parameters,
+        where_clauses: signature.where_clauses,
+        parameters: signature.parameters,
+        return_type: signature.return_type,
+    }
 }
 
 impl Parser {
@@ -466,12 +504,18 @@ impl Parser {
         allows_body: bool,
     ) -> ParseResult<ParsedMethodTail> {
         // generic parameters and parameters
+        let generic_parameter_start = self.mark_span();
         let generic_parameters = self
             .eat_generic_parameters_maybe(false)?
             .unwrap_or_default();
+        let generic_parameter_span =
+            (!generic_parameters.is_empty()).then(|| self.get_span_from(&generic_parameter_start));
+
         self.eat_newlines_maybe()?;
+        let parameter_start = self.mark_span();
         let parameters =
             self.eat_method_parameters(cardinality == FunctionCardinality::Generator)?;
+        let parameter_span = self.get_span_from(&parameter_start);
 
         // return type
         let has_return_type_marker = self.peek_colon_is()
@@ -545,6 +589,8 @@ impl Parser {
 
         Ok(ParsedMethodTail {
             signature,
+            generic_parameter_span,
+            parameter_span,
             body,
             return_type_span,
         })
@@ -753,6 +799,8 @@ impl Parser {
             let ParsedMethodTail {
                 signature,
                 body,
+                generic_parameter_span: _,
+                parameter_span: _,
                 return_type_span,
             } = self.eat_method_tail(
                 NodeType::Property,
@@ -1083,7 +1131,9 @@ impl Parser {
             )?;
 
             // optional index signatures
+            let optional_start = self.mark_span();
             let is_optional = self.eat_token_maybe(TokenType::Maybe)?;
+            let optional_span = is_optional.then(|| self.get_span_from(&optional_start));
 
             let type_start = self.mark_span();
             self.eat_newlines_maybe()?;
@@ -1114,14 +1164,17 @@ impl Parser {
                 self.get_span_from(&type_start),
             );
 
+            if let Some(span) = optional_span {
+                self.tree
+                    .set_side_span(member_id, NodeSpanType::Trailing, span);
+            }
+
             return Ok(member_id);
         }
 
         // key
-        let (key, key_span) = if matches!(
-            mode,
-            Some(FunctionMode::Constructor | FunctionMode::New | FunctionMode::Call)
-        ) {
+        let (key, key_span) = if matches!(mode, Some(FunctionMode::Constructor | FunctionMode::New))
+        {
             (None, None)
         } else if let Some((key, span)) = self.eat_property_key_with_span()? {
             (Some(key), Some(span))
@@ -1130,7 +1183,9 @@ impl Parser {
         };
 
         // optional
+        let optional_start = self.mark_span();
         let is_optional = self.eat_token_maybe(TokenType::Maybe)?;
+        let optional_span = is_optional.then(|| self.get_span_from(&optional_start));
 
         // method
         let is_method = self.type_member_head_starts_method(mode);
@@ -1151,6 +1206,8 @@ impl Parser {
 
             let ParsedMethodTail {
                 signature,
+                generic_parameter_span,
+                parameter_span,
                 body: _,
                 return_type_span,
             } = self.eat_method_tail(
@@ -1163,11 +1220,24 @@ impl Parser {
                 false,
             )?;
 
-            let member = TypeMember::Method {
-                is_optional,
-                key,
-                signature,
-                body: None,
+            let member = match (key, mode) {
+                (Some(key), _) => TypeMember::Method {
+                    is_optional,
+                    key,
+                    signature,
+                    body: None,
+                },
+                (None, Some(FunctionMode::New | FunctionMode::Constructor)) => {
+                    TypeMember::ConstructSignature {
+                        signature: constructor_type_declaration_from_signature(signature),
+                    }
+                }
+                (None, None | Some(FunctionMode::Call)) => TypeMember::CallSignature {
+                    signature: function_type_declaration_from_signature(signature),
+                },
+                (None, Some(FunctionMode::Getter | FunctionMode::Setter)) => {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
             };
             let member_id = self.insert_node(member, self.get_span_from(&start));
 
@@ -1177,6 +1247,19 @@ impl Parser {
 
             if let Some(span) = return_type_span {
                 self.tree.set_side_span(member_id, NodeSpanType::Type, span);
+            }
+
+            if let Some(span) = generic_parameter_span {
+                self.tree
+                    .set_side_span(member_id, NodeSpanType::GenericParameters, span);
+            }
+
+            self.tree
+                .set_side_span(member_id, NodeSpanType::Parameters, parameter_span);
+
+            if let Some(span) = optional_span {
+                self.tree
+                    .set_side_span(member_id, NodeSpanType::Trailing, span);
             }
 
             return Ok(member_id);
@@ -1226,6 +1309,11 @@ impl Parser {
                 NodeSpanType::Type,
                 self.get_span_from(&type_start),
             );
+        }
+
+        if let Some(span) = optional_span {
+            self.tree
+                .set_side_span(member_id, NodeSpanType::Trailing, span);
         }
 
         Ok(member_id)
@@ -1433,6 +1521,8 @@ impl Parser {
             let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
             let ParsedMethodTail {
                 signature,
+                generic_parameter_span,
+                parameter_span,
                 body,
                 return_type_span,
             } = self.eat_method_tail(
@@ -1477,6 +1567,14 @@ impl Parser {
             if let Some(span) = return_type_span {
                 self.tree.set_side_span(member_id, NodeSpanType::Type, span);
             }
+
+            if let Some(span) = generic_parameter_span {
+                self.tree
+                    .set_side_span(member_id, NodeSpanType::GenericParameters, span);
+            }
+
+            self.tree
+                .set_side_span(member_id, NodeSpanType::Parameters, parameter_span);
 
             Ok(member_id)
         }
@@ -2140,8 +2238,8 @@ port2 = {
                 for member_id in members {
                     if let TypeMember::Method { signature, key, .. } = parser.tree.get(*member_id) {
                         match signature.mode {
-                            Some(FunctionMode::Getter) => getter = *key,
-                            Some(FunctionMode::Setter) => setter = *key,
+                            Some(FunctionMode::Getter) => getter = Some(*key),
+                            Some(FunctionMode::Setter) => setter = Some(*key),
                             _ => {}
                         }
                     }
