@@ -453,6 +453,158 @@ impl Compiler {
 
                 ast::TypeExpression::Declaration { declaration }
             }
+            dir::TypeExpression::FunctionTypeDeclaration(function) => {
+                let generic_parameters = function
+                    .generic_parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.unbind_generic_parameter(
+                            module,
+                            *parameter,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let where_clauses = function
+                    .where_clauses
+                    .iter()
+                    .map(|where_clause| {
+                        self.unbind_where_clause(
+                            module,
+                            *where_clause,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let this_parameter = function.this_parameter.map(|parameter| {
+                    self.unbind_parameter(
+                        module,
+                        parameter,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+                let parameters = function
+                    .parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.unbind_parameter(
+                            module,
+                            *parameter,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let return_type = function.return_type.map(|return_type| {
+                    self.unbind_type_expression(
+                        module,
+                        return_type,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+
+                ast::TypeExpression::FunctionTypeDeclaration(ast::FunctionTypeDeclaration {
+                    generic_parameters,
+                    where_clauses,
+                    this_parameter,
+                    parameters,
+                    return_type,
+                })
+            }
+            dir::TypeExpression::ConstructorTypeDeclaration(function) => {
+                let generic_parameters = function
+                    .generic_parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.unbind_generic_parameter(
+                            module,
+                            *parameter,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let where_clauses = function
+                    .where_clauses
+                    .iter()
+                    .map(|where_clause| {
+                        self.unbind_where_clause(
+                            module,
+                            *where_clause,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let parameters = function
+                    .parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.unbind_parameter(
+                            module,
+                            *parameter,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                let return_type = function.return_type.map(|return_type| {
+                    self.unbind_type_expression(
+                        module,
+                        return_type,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+
+                ast::TypeExpression::ConstructorTypeDeclaration(ast::ConstructorTypeDeclaration {
+                    is_abstract: function.is_abstract,
+                    generic_parameters,
+                    where_clauses,
+                    parameters,
+                    return_type,
+                })
+            }
             dir::TypeExpression::Reference {
                 path,
                 generic_arguments,

@@ -1,10 +1,11 @@
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    GenericArgument, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding,
-    Mutability, NodeTree, NodeType, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable, SymbolType, TupleElement, TypeExpression, TypeMappedParameter,
-    TypeMember, TypeModifier, TypePredicateSubject, TypeTable, VarianceBound,
+    ConstructorTypeDeclaration, FunctionTypeDeclaration, GenericArgument, LocalNodeId,
+    LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, Mutability, NodeTree, NodeType,
+    ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    SymbolType, TupleElement, TypeExpression, TypeMappedParameter, TypeMember, TypeModifier,
+    TypePredicateSubject, TypeTable, VarianceBound,
 };
 use destack_workspace::Module;
 
@@ -735,6 +736,196 @@ impl Compiler {
                 tree.insert(
                     type_expression_id,
                     TypeExpression::Declaration { declaration },
+                )
+            }
+            ast::TypeExpression::FunctionTypeDeclaration(function) => {
+                let generic_parameters = function
+                    .generic_parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.bind_generic_parameter(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            *parameter,
+                            Some(type_expression_id.into()),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect();
+                let where_clauses = function
+                    .where_clauses
+                    .iter()
+                    .map(|where_clause| {
+                        self.bind_where_clause(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            *where_clause,
+                            Some(type_expression_id.into()),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect();
+                let this_parameter = function.this_parameter.map(|parameter| {
+                    self.bind_parameter(
+                        module,
+                        ast,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
+                        scope,
+                        SymbolSpace::Type,
+                        parameter,
+                        Some(type_expression_id.into()),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
+                let parameters = function
+                    .parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.bind_parameter(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            SymbolSpace::Type,
+                            *parameter,
+                            Some(type_expression_id.into()),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect();
+                let return_type = function.return_type.map(|return_type| {
+                    self.bind_type_expression(
+                        module,
+                        ast,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
+                        scope,
+                        return_type,
+                        Some(type_expression_id.into()),
+                        tree,
+                        symbols,
+                        types,
+                        space_order,
+                    )
+                });
+
+                tree.insert(
+                    type_expression_id,
+                    TypeExpression::FunctionTypeDeclaration(FunctionTypeDeclaration {
+                        generic_parameters,
+                        where_clauses,
+                        this_parameter,
+                        parameters,
+                        return_type,
+                    }),
+                )
+            }
+            ast::TypeExpression::ConstructorTypeDeclaration(function) => {
+                let generic_parameters = function
+                    .generic_parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.bind_generic_parameter(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            *parameter,
+                            Some(type_expression_id.into()),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect();
+                let where_clauses = function
+                    .where_clauses
+                    .iter()
+                    .map(|where_clause| {
+                        self.bind_where_clause(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            *where_clause,
+                            Some(type_expression_id.into()),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect();
+                let parameters = function
+                    .parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.bind_parameter(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            SymbolSpace::Type,
+                            *parameter,
+                            Some(type_expression_id.into()),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect();
+                let return_type = function.return_type.map(|return_type| {
+                    self.bind_type_expression(
+                        module,
+                        ast,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
+                        scope,
+                        return_type,
+                        Some(type_expression_id.into()),
+                        tree,
+                        symbols,
+                        types,
+                        space_order,
+                    )
+                });
+
+                tree.insert(
+                    type_expression_id,
+                    TypeExpression::ConstructorTypeDeclaration(ConstructorTypeDeclaration {
+                        is_abstract: function.is_abstract,
+                        generic_parameters,
+                        where_clauses,
+                        parameters,
+                        return_type,
+                    }),
                 )
             }
             ast::TypeExpression::Reference {
