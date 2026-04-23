@@ -269,21 +269,19 @@ impl Compiler {
                 );
 
                 // member syntax
-                let key = key.map(|key| {
-                    self.bind_key(
-                        module,
-                        ast,
-                        namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
-                        method_scope,
-                        key,
-                        Some(member_id.into()),
-                        tree,
-                        symbols,
-                        types,
-                    )
-                });
+                let key = self.bind_key(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
+                    method_scope,
+                    *key,
+                    Some(member_id.into()),
+                    tree,
+                    symbols,
+                    types,
+                );
                 let signature = self.bind_function_signature(
                     module,
                     ast,
@@ -321,6 +319,205 @@ impl Compiler {
                         key,
                         signature,
                         body,
+                        symbol: symbol_id,
+                    },
+                );
+                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                member_id
+            }
+            ast::TypeMember::CallSignature { signature } => {
+                let (symbol_id, _) =
+                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
+
+                let signature = FunctionTypeDeclaration {
+                    generic_parameters: signature
+                        .generic_parameters
+                        .iter()
+                        .map(|parameter| {
+                            self.bind_generic_parameter(
+                                module,
+                                ast,
+                                namespace_scope,
+                                global_augmentation_scope,
+                                module_bindings,
+                                scope,
+                                *parameter,
+                                Some(member_id.into()),
+                                tree,
+                                symbols,
+                                types,
+                            )
+                        })
+                        .collect(),
+                    where_clauses: signature
+                        .where_clauses
+                        .iter()
+                        .map(|where_clause| {
+                            self.bind_where_clause(
+                                module,
+                                ast,
+                                namespace_scope,
+                                global_augmentation_scope,
+                                module_bindings,
+                                scope,
+                                *where_clause,
+                                Some(member_id.into()),
+                                tree,
+                                symbols,
+                                types,
+                            )
+                        })
+                        .collect(),
+                    this_parameter: signature.this_parameter.map(|parameter| {
+                        self.bind_parameter(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            SymbolSpace::Type,
+                            parameter,
+                            Some(member_id.into()),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    }),
+                    parameters: signature
+                        .parameters
+                        .iter()
+                        .map(|parameter| {
+                            self.bind_parameter(
+                                module,
+                                ast,
+                                namespace_scope,
+                                global_augmentation_scope,
+                                module_bindings,
+                                scope,
+                                SymbolSpace::Type,
+                                *parameter,
+                                Some(member_id.into()),
+                                tree,
+                                symbols,
+                                types,
+                            )
+                        })
+                        .collect(),
+                    return_type: signature.return_type.map(|return_type| {
+                        self.bind_type_expression(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            return_type,
+                            Some(member_id.into()),
+                            tree,
+                            symbols,
+                            types,
+                            space_order,
+                        )
+                    }),
+                };
+
+                let member_id = tree.insert(
+                    member_id,
+                    TypeMember::CallSignature {
+                        signature,
+                        symbol: symbol_id,
+                    },
+                );
+                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+                member_id
+            }
+            ast::TypeMember::ConstructSignature { signature } => {
+                let (symbol_id, _) =
+                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
+
+                let signature = ConstructorTypeDeclaration {
+                    is_abstract: signature.is_abstract,
+                    generic_parameters: signature
+                        .generic_parameters
+                        .iter()
+                        .map(|parameter| {
+                            self.bind_generic_parameter(
+                                module,
+                                ast,
+                                namespace_scope,
+                                global_augmentation_scope,
+                                module_bindings,
+                                scope,
+                                *parameter,
+                                Some(member_id.into()),
+                                tree,
+                                symbols,
+                                types,
+                            )
+                        })
+                        .collect(),
+                    where_clauses: signature
+                        .where_clauses
+                        .iter()
+                        .map(|where_clause| {
+                            self.bind_where_clause(
+                                module,
+                                ast,
+                                namespace_scope,
+                                global_augmentation_scope,
+                                module_bindings,
+                                scope,
+                                *where_clause,
+                                Some(member_id.into()),
+                                tree,
+                                symbols,
+                                types,
+                            )
+                        })
+                        .collect(),
+                    parameters: signature
+                        .parameters
+                        .iter()
+                        .map(|parameter| {
+                            self.bind_parameter(
+                                module,
+                                ast,
+                                namespace_scope,
+                                global_augmentation_scope,
+                                module_bindings,
+                                scope,
+                                SymbolSpace::Type,
+                                *parameter,
+                                Some(member_id.into()),
+                                tree,
+                                symbols,
+                                types,
+                            )
+                        })
+                        .collect(),
+                    return_type: signature.return_type.map(|return_type| {
+                        self.bind_type_expression(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            return_type,
+                            Some(member_id.into()),
+                            tree,
+                            symbols,
+                            types,
+                            space_order,
+                        )
+                    }),
+                };
+
+                let member_id = tree.insert(
+                    member_id,
+                    TypeMember::ConstructSignature {
+                        signature,
                         symbol: symbol_id,
                     },
                 );
