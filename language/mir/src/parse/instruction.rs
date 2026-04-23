@@ -597,6 +597,17 @@ impl Parser {
                             indices,
                         }
                     }
+                    "tensor.extract" => {
+                        let tensor = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let indices = self.parse_value_bracket_list()?;
+                        let indices = self.tree.add_arguments(&indices);
+                        Instruction::TensorExtract {
+                            destination,
+                            tensor,
+                            indices,
+                        }
+                    }
                     "tensor.reshape" => {
                         let tensor = self.parse_value()?;
                         let shape = if self.eat_token_maybe(TokenType::Comma) {

@@ -747,6 +747,28 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 let args = f.context().tree.get_arguments(*indices);
                 format_value_bracket_list(args, f)
             }
+            Instruction::TensorExtract {
+                destination,
+                tensor,
+                indices,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("tensor.extract"),
+                        space(),
+                        tensor,
+                        token(","),
+                        space()
+                    ]
+                )?;
+                let args = f.context().tree.get_arguments(*indices);
+                format_value_bracket_list(args, f)
+            }
 
             Instruction::TensorReshape {
                 destination,
