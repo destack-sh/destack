@@ -242,7 +242,11 @@ impl RawSpace {
                 }
 
                 let byte_len = span.class.byte_len;
-                if slot_offset >= byte_len {
+                if byte_len == 0 {
+                    if slot_offset != 0 {
+                        return None;
+                    }
+                } else if slot_offset >= byte_len {
                     return None;
                 }
 
@@ -250,7 +254,7 @@ impl RawSpace {
                 let base_address = self
                     .allocator
                     .page_view_ptr(&span.pages, slot_base_offset)
-                    .ok()? as *mut u8 as usize;
+                    .ok()? as usize;
                 let slot = crate::allocator::SpanSlot::new(span_index, slot_index).ok()?;
 
                 Some(RawLocation {
@@ -268,12 +272,15 @@ impl RawSpace {
                 let logical_byte_offset = logical_page_index
                     .checked_mul(self.allocator.page_bytes())?
                     .checked_add(page_offset)?;
-                if logical_byte_offset >= entry.len {
+                if entry.len == 0 {
+                    if logical_byte_offset != 0 {
+                        return None;
+                    }
+                } else if logical_byte_offset >= entry.len {
                     return None;
                 }
 
-                let base_address =
-                    self.allocator.page_view_ptr(&entry.pages, 0).ok()? as *mut u8 as usize;
+                let base_address = self.allocator.page_view_ptr(&entry.pages, 0).ok()? as usize;
 
                 Some(RawLocation {
                     storage: RawStorage::Large(entry_id),
@@ -300,7 +307,7 @@ impl RawSpace {
                     },
                 )?;
 
-                self.allocator.page_view_ptr(&span.pages, slot_offset)? as *mut u8 as usize
+                self.allocator.page_view_ptr(&span.pages, slot_offset)? as usize
             }
             RawStorage::Large(entry_id) => {
                 let Some(entry) = self.large_entry(entry_id) else {
@@ -309,7 +316,7 @@ impl RawSpace {
                     });
                 };
 
-                self.allocator.page_view_ptr(&entry.pages, 0)? as *mut u8 as usize
+                self.allocator.page_view_ptr(&entry.pages, 0)? as usize
             }
         };
 

@@ -5,8 +5,8 @@ use parking_lot::{Mutex, RwLock};
 use super::{SharedRawEntry, SharedRawLocation, SharedRawPageOwner};
 use crate::allocator::{PageRunCache, PageView};
 use crate::{
-    AccountingRegion, Allocation, AllocationUsage, Allocator, HeapError, HeapResult,
-    SharedRawPointer, SharedRawSpaceUsage,
+    AccountingRegion, AllocationUsage, Allocator, HeapError, HeapResult, Payload, SharedRawPointer,
+    SharedRawSpaceUsage,
 };
 
 /// Control state for one shared raw space.
@@ -115,28 +115,31 @@ impl SharedRawSpace {
     pub fn allocate(
         &self,
         byte_len: usize,
-        allocation: Allocation<'_>,
+        allocation: Payload<'_>,
     ) -> HeapResult<SharedRawPointer> {
-        if let Some(bytes) = allocation.bytes()
-            && bytes.len() != byte_len
+        if let Some(actual) = allocation.byte_len()
+            && actual != byte_len
         {
             return Err(HeapError::InvalidAllocationBytes {
                 expected: byte_len,
-                actual: bytes.len(),
+                actual,
             });
         }
 
         let mut state = self.state.lock();
-        let pages = match allocation.bytes() {
-            Some(bytes) => state
+        let mut pages = match allocation {
+            Payload::Bytes(bytes) => state
                 .page_run_cache
                 .allocate_bytes(&self.allocator, bytes)?,
-            None => state
+            Payload::Zeroed | Payload::PageView { .. } => state
                 .page_run_cache
                 .allocate_zeroed(&self.allocator, byte_len)?,
         };
+        if matches!(allocation, Payload::PageView { .. }) {
+            allocation.initialize(&self.allocator, &mut pages, 0)?;
+        }
         let entry = Arc::new(RwLock::new(SharedRawEntry::new(byte_len, pages.clone())));
-        let base_address = self.allocator.page_view_ptr(&pages, 0)? as *mut u8 as usize;
+        let base_address = self.allocator.page_view_ptr(&pages, 0)? as usize;
 
         let mut entries = self.entries.write();
         let entry_index = entries.len();
@@ -202,7 +205,7 @@ impl SharedRawSpace {
 
         entry.pages = next_pages.clone();
         entry.len = bytes.len();
-        let base_address = self.allocator.page_view_ptr(&entry.pages, 0)? as *mut u8 as usize;
+        let base_address = self.allocator.page_view_ptr(&entry.pages, 0)? as usize;
 
         drop(entry);
 
@@ -346,11 +349,10 @@ impl SharedRawSpace {
             return Err(HeapError::InvalidSharedRawPointer { pointer });
         }
 
-        let base_address = self
-            .allocator
-            .page_view_ptr(&entry.pages, 0)
-            .map_err(|_| HeapError::InvalidSharedRawPointer { pointer })?
-            as *mut u8 as usize;
+        let base_address =
+            self.allocator
+                .page_view_ptr(&entry.pages, 0)
+                .map_err(|_| HeapError::InvalidSharedRawPointer { pointer })? as usize;
 
         Ok(SharedRawLocation {
             entry_index: owner.entry_index,

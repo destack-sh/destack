@@ -1,14 +1,13 @@
-mod allocation;
 mod cow;
 mod error;
 mod gc;
 mod mark;
 mod overlap;
+mod payload;
 mod scan;
 mod shape;
 mod usage;
 
-pub use allocation::*;
 pub(crate) use cow::*;
 pub use error::*;
 pub use gc::*;
@@ -16,6 +15,8 @@ pub(crate) use mark::*;
 pub(crate) use overlap::{
     overlapping_repeated_index_range, overlaps_heap_range, overlaps_shared_range, ranges_overlap,
 };
+pub use payload::Payload;
+pub(crate) use payload::repeated_payload;
 pub use scan::visit_heap_references;
 pub(crate) use scan::{
     clear_slot_reference_bits, slot_reference_map, visit_heap_references_in_reader,

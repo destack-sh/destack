@@ -1,31 +1,8 @@
 use super::{
     LargeEntry, LargeEntryId, RawPageOwner, RawSmallSpanClass, RawSpace, RawStorage, SmallSpan,
 };
-use crate::allocator::{Allocator, PageView, SpanSlot};
-use crate::{AccountingRegion, Allocation, Bitmap, HeapError, HeapResult, RawPointer};
-
-/// One raw slot initialization mode.
-enum SlotInit<'a> {
-    /// One caller-provided byte payload.
-    Bytes(&'a [u8]),
-    /// One zeroed payload.
-    Zeroed,
-}
-
-impl SlotInit<'_> {
-    /// Initialize one raw small-slot payload.
-    fn initialize_slot(
-        &self,
-        allocator: &Allocator,
-        pages: &mut PageView,
-        slot_offset: usize,
-    ) -> HeapResult<()> {
-        match self {
-            Self::Bytes(bytes) => allocator.set_bytes(pages, slot_offset, bytes),
-            Self::Zeroed => Ok(()),
-        }
-    }
-}
+use crate::allocator::{PageView, SpanSlot};
+use crate::{AccountingRegion, Bitmap, HeapError, HeapResult, Payload, RawPointer};
 
 impl RawSpace {
     /// Return the projected mapped-byte delta for one raw allocation.
@@ -61,17 +38,13 @@ impl RawSpace {
     }
 
     /// Allocate one raw entry.
-    pub fn allocate(
-        &mut self,
-        byte_len: usize,
-        allocation: Allocation<'_>,
-    ) -> HeapResult<RawPointer> {
-        if let Some(bytes) = allocation.bytes()
-            && bytes.len() != byte_len
+    pub fn allocate(&mut self, byte_len: usize, allocation: Payload<'_>) -> HeapResult<RawPointer> {
+        if let Some(actual) = allocation.byte_len()
+            && actual != byte_len
         {
             return Err(HeapError::InvalidAllocationBytes {
                 expected: byte_len,
-                actual: bytes.len(),
+                actual,
             });
         }
 
@@ -140,7 +113,7 @@ impl RawSpace {
     fn allocate_storage(
         &mut self,
         byte_len: usize,
-        allocation: Allocation<'_>,
+        allocation: Payload<'_>,
     ) -> HeapResult<RawStorage> {
         if let Some((class, span_index, slot_index)) = self.reserve_small_slot(byte_len)? {
             let slot = self.initialize_small_slot(&class, span_index, slot_index, allocation)?;
@@ -214,7 +187,7 @@ impl RawSpace {
             return Ok(None);
         };
 
-        self.initialize_small_slot(&class, span_index, slot_index, Allocation::Bytes(bytes))
+        self.initialize_small_slot(&class, span_index, slot_index, Payload::Bytes(bytes))
             .map(Some)
     }
 
@@ -272,7 +245,7 @@ impl RawSpace {
         Ok(span_index)
     }
 
-    /// Reserve one raw small-slot location for the given byte length.
+    /// Reserve one raw small-span payload for the given byte length.
     fn reserve_small_slot(
         &mut self,
         byte_len: usize,
@@ -289,13 +262,13 @@ impl RawSpace {
         Ok(Some((class, span_index, slot_index)))
     }
 
-    /// Initialize one reserved raw small-slot location.
+    /// Initialize one reserved raw small-span payload.
     fn initialize_small_slot(
         &mut self,
         class: &RawSmallSpanClass,
         span_index: usize,
         slot_index: usize,
-        allocation: Allocation<'_>,
+        allocation: Payload<'_>,
     ) -> HeapResult<SpanSlot> {
         // resolve the live span first
         let Some(span) = self.small.spans.get_mut(span_index) else {
@@ -311,11 +284,7 @@ impl RawSpace {
                 })?;
 
         // initialize the reserved slot payload
-        let write = match allocation {
-            Allocation::Bytes(bytes) => SlotInit::Bytes(bytes),
-            Allocation::Zeroed => SlotInit::Zeroed,
-        };
-        write.initialize_slot(&self.allocator, &mut span.pages, slot_offset)?;
+        allocation.initialize(&self.allocator, &mut span.pages, slot_offset)?;
 
         // mark the slot as live inside its span
         span.occupied.set(slot_index);
@@ -465,11 +434,17 @@ impl RawSpace {
     fn allocate_large_pages(
         &mut self,
         byte_len: usize,
-        allocation: Allocation<'_>,
+        allocation: Payload<'_>,
     ) -> HeapResult<PageView> {
         match allocation {
-            Allocation::Bytes(bytes) => self.allocate_page_view_bytes(bytes),
-            Allocation::Zeroed => self.allocate_page_view_zeroed(byte_len),
+            Payload::Bytes(bytes) => self.allocate_page_view_bytes(bytes),
+            Payload::Zeroed => self.allocate_page_view_zeroed(byte_len),
+            Payload::PageView { .. } => {
+                let mut pages = self.allocate_page_view_zeroed(byte_len)?;
+                allocation.initialize(&self.allocator, &mut pages, 0)?;
+
+                Ok(pages)
+            }
         }
     }
 }

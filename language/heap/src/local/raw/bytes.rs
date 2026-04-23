@@ -325,7 +325,7 @@ impl RawSpace {
         })?;
         self.release_page_view(previous_pages)?;
 
-        let base_address = self.allocator().page_view_ptr(&next_pages, 0)? as *mut u8 as usize;
+        let base_address = self.allocator().page_view_ptr(&next_pages, 0)? as usize;
 
         Ok(RawPointer::new(base_address))
     }
