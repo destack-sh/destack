@@ -437,6 +437,8 @@ fn symbol_index_kind_for_type_member(member: &dir::TypeMember) -> Option<SymbolI
         dir::TypeMember::AssociatedConst { .. } => Some(SymbolIndexKind::Constant),
         dir::TypeMember::Field { .. } => Some(SymbolIndexKind::Field),
         dir::TypeMember::Method { .. } => Some(SymbolIndexKind::Method),
+        dir::TypeMember::CallSignature { .. } => Some(SymbolIndexKind::Method),
+        dir::TypeMember::ConstructSignature { .. } => Some(SymbolIndexKind::Method),
         dir::TypeMember::IndexSignature { .. } => None,
         dir::TypeMember::Embed { .. } => None,
         dir::TypeMember::Error { .. } => None,

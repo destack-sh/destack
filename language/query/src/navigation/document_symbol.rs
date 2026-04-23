@@ -449,6 +449,8 @@ fn type_member_symbol_kind_ast(member: &ast::TypeMember) -> Option<SymbolKind> {
         ast::TypeMember::AssociatedConst { .. } => Some(SymbolKind::Constant),
         ast::TypeMember::Field { .. } => Some(SymbolKind::Field),
         ast::TypeMember::Method { .. } => Some(SymbolKind::Method),
+        ast::TypeMember::CallSignature { .. } => Some(SymbolKind::Method),
+        ast::TypeMember::ConstructSignature { .. } => Some(SymbolKind::Method),
         ast::TypeMember::IndexSignature { .. } => None,
         ast::TypeMember::Embed { .. } => None,
         ast::TypeMember::Error => None,
