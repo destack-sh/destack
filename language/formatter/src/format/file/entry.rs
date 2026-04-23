@@ -6,11 +6,10 @@ use destack_ast::{Expression, LocalNodeId, NodeParentIndex, NodeTree};
 use destack_css::{CssFormatOptions, format_stylesheet, parse_css};
 use destack_fir::format as fir_format;
 use destack_html::{HtmlFormatOptions, format_document, parse_html};
-use destack_parser::Parser;
+use destack_parser::{Parser, ParserSettings};
 use destack_source::{DiagnosticSeverity, File, FileType, LanguageType};
 use destack_workspace::FormatterOptions;
 
-use crate::format::file::normalize::normalize_formatter_tree;
 use crate::{DestackFormatContext, DestackFormatOptions, statement_list};
 
 /// One formatter failure over one whole source file.
@@ -33,11 +32,8 @@ pub fn build_formatter_tree_and_parents(
     tree: &NodeTree,
     expressions: &[LocalNodeId<Expression>],
 ) -> (NodeTree, NodeParentIndex) {
-    // formatter-local normalized tree
-    let mut tree = tree.clone();
-    normalize_formatter_tree(&mut tree, expressions);
-
-    // reachable parents on normalized roots
+    // reachable parents on formatter roots
+    let tree = tree.clone();
     let parents = NodeParentIndex::from_expression_roots(&tree, expressions);
 
     (tree, parents)
@@ -119,7 +115,14 @@ fn format_parser_file_source(
         source.to_owned(),
     );
     let parser_file = Arc::new(parser_file);
-    let mut parser = Parser::lex_file(parser_file.clone(), language_type);
+    let mut parser = Parser::lex_file_with_settings(
+        parser_file.clone(),
+        language_type,
+        ParserSettings {
+            preserve_parenthesized_wrappers: false,
+            ..ParserSettings::default()
+        },
+    );
     let expressions = parser.parse();
 
     // finalize retained comments before formatting
