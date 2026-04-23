@@ -2,8 +2,8 @@ set shell := ["bash", "-cu"]
 set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 
 # all language crates
-packages := "-p destack_ast -p destack_builtin -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_compiler_macros -p destack_core -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_json -p destack_linter -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_mir -p destack_parser -p destack_query -p destack_resolver -p destack_runtime -p destack_service -p destack_source -p destack_test -p destack_test_mirbench -p destack_unicode -p destack_vm -p destack_workspace"
-packages-no-linter := "-p destack_ast -p destack_builtin -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_compiler_macros -p destack_core -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_json -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_mir -p destack_parser -p destack_query -p destack_resolver -p destack_runtime -p destack_service -p destack_source -p destack_test -p destack_test_mirbench -p destack_unicode -p destack_vm -p destack_workspace"
+packages := "-p destack_ast -p destack_builtin -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_compiler_macros -p destack_core -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_json -p destack_linter -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_mir -p destack_parser -p destack_query -p destack_resolver -p destack_runtime -p destack_service -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_workspace"
+packages-no-linter := "-p destack_ast -p destack_builtin -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_compiler_macros -p destack_core -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_json -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_mir -p destack_parser -p destack_query -p destack_resolver -p destack_runtime -p destack_service -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_workspace"
 
 _default:
     @just --list --unsorted
@@ -277,8 +277,7 @@ test:
     just install-resolver
     just test-unit
     just test-smoke
-    # FUGU #Broken: emit currently stalls in the compiler dependency chain before artifact generation
-    # just test-emit
+    just test-emit
     just test-specification
     just test-query
     just test-lsp

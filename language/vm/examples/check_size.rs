@@ -1,6 +1,6 @@
 use destack_vm::{
-    Continuation, Executable, Frame, Interpreter, Isolate, ManagedReference, RawPointer,
-    StackPointer, Value,
+    Continuation, Executable, Frame, HeapReference, Interpreter, Isolate, RawPointer, StackPointer,
+    Value,
 };
 
 fn main() {
@@ -15,8 +15,8 @@ fn main() {
 
     println!("Value: {} bytes", std::mem::size_of::<Value>());
     println!(
-        "ManagedReference: {} bytes",
-        std::mem::size_of::<ManagedReference>()
+        "HeapReference: {} bytes",
+        std::mem::size_of::<HeapReference>()
     );
     println!("RawPointer: {} bytes", std::mem::size_of::<RawPointer>());
     println!(
