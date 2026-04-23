@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// One live phase of the shared managed collector.
+/// One live phase of the shared heap collector.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum SharedGcPhase {

@@ -1,51 +1,45 @@
 use crate::{HeapError, SharedRawPointer, SharedRawSpace};
 
-/// Shared-memory free reports invalid pointers loudly.
+/// Reject one invalid shared raw pointer loudly.
 #[test]
 fn test_free_shared_rejects_invalid_pointer() {
     let shared = SharedRawSpace::new();
 
-    // reject an unknown stable id
+    // reject one unknown address
     let pointer = SharedRawPointer::new(7);
     let error = shared.free(pointer).expect_err("shared free should fail");
 
     assert_eq!(error, HeapError::InvalidSharedRawPointer { pointer });
 }
 
-/// Preserve stable shared ids across allocation growth and id reuse.
+/// Reclaim one freed shared raw allocation and allow another allocation.
 #[test]
-fn test_allocate_shared_ids_reuse_after_free() {
+fn test_free_shared_reclaims_live_allocation() {
     let shared = SharedRawSpace::new();
-    let mut last = SharedRawPointer::NULL;
-
-    // grow the shared entry table beyond one short run
-    for index in 0..12 {
-        last = shared
-            .allocate_bytes(&[index as u8])
-            .expect("shared allocation should succeed");
-    }
-
-    assert_eq!(last.id(), 12);
-
-    // freed ids should be reused directly
-    let reused = SharedRawPointer::new(7);
-    assert!(shared.free(reused).expect("shared free should succeed"));
-
     let pointer = shared
+        .allocate_bytes(&[0xAB, 0xCD])
+        .expect("shared allocation should succeed");
+
+    // freeing one live allocation should retire it immediately
+    assert!(shared.is_live(pointer));
+    assert!(shared.free(pointer).expect("shared free should succeed"));
+    assert!(!shared.is_live(pointer));
+
+    let next_pointer = shared
         .allocate_bytes(&[0xEF])
         .expect("shared allocation should succeed");
 
-    assert_eq!(pointer.id(), reused.id());
+    assert!(shared.is_live(next_pointer));
 }
 
-/// Shared-memory reads reject out-of-bounds pointer offsets loudly.
+/// Reject one out of bounds shared pointer offset loudly.
 #[test]
 fn test_shared_reads_reject_invalid_pointer_offset() {
     let shared = SharedRawSpace::new();
     let pointer = shared
         .allocate_bytes(&[0xAA, 0xBB, 0xCC])
         .expect("shared allocation should succeed");
-    let pointer = SharedRawPointer::with_byte_offset(pointer.id(), 4);
+    let pointer = pointer.add_bytes(4).expect("pointer offset should fit");
 
     let error = shared
         .byte_len(pointer)

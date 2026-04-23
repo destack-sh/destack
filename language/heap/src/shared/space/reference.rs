@@ -1,20 +1,25 @@
 use serde::{Deserialize, Serialize};
 
-/// Pointer to one shared raw allocation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct SharedRawPointer(pub(crate) u64);
+/// Reference to one shared heap allocation.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+)]
+pub struct SharedHeapReference(pub(crate) u64);
 
-impl SharedRawPointer {
-    /// The null shared raw pointer.
+impl SharedHeapReference {
+    /// The null shared heap reference.
     pub const NULL: Self = Self(0);
 
-    /// Create a shared raw pointer from one raw address.
+    /// The packed byte width of one shared heap reference.
+    pub const BYTE_LEN: usize = std::mem::size_of::<Self>();
+
+    /// Create a shared heap reference from one raw address.
     #[inline]
     pub const fn new(address: usize) -> Self {
         Self(address as u64)
     }
 
-    /// Report whether this pointer is null.
+    /// Report whether this reference is null.
     #[inline]
     pub fn is_null(&self) -> bool {
         self.0 == 0
@@ -26,7 +31,7 @@ impl SharedRawPointer {
         self.0
     }
 
-    /// Restore one shared raw pointer from raw bits.
+    /// Restore one shared heap reference from raw bits.
     #[inline]
     pub const fn from_bits(bits: u64) -> Self {
         Self(bits)
@@ -44,7 +49,7 @@ impl SharedRawPointer {
         self.address() as *mut u8
     }
 
-    /// Return one pointer advanced by the given byte offset.
+    /// Return one reference advanced by the given byte offset.
     #[inline]
     pub fn add_bytes(self, byte_len: usize) -> Option<Self> {
         let address = self.address().checked_add(byte_len)?;

@@ -3,8 +3,8 @@ use std::sync::atomic::{AtomicU8, Ordering};
 
 use parking_lot::Mutex;
 
-use crate::SharedManagedReference;
-use crate::arena::Bitmap;
+use crate::SharedHeapReference;
+use crate::allocator::Bitmap;
 
 /// One queued unit of shared mark work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -12,7 +12,7 @@ pub(crate) enum SharedTraceWork {
     /// One shared small span with pending slots to trace.
     SmallSpan(usize),
     /// One shared large reference to trace directly.
-    Reference(SharedManagedReference),
+    Reference(SharedHeapReference),
 }
 
 /// One pending shared small-span mark state.
@@ -79,15 +79,6 @@ impl SharedSmallSpanWork {
         }
 
         true
-    }
-
-    /// Clear this span for one new cycle.
-    pub(crate) fn clear(&self) {
-        let mut pending_slots = self.pending_slots.lock();
-        pending_slots.clear_all();
-        drop(pending_slots);
-
-        self.is_queued.store(0, Ordering::Release);
     }
 }
 

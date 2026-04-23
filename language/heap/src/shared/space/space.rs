@@ -3,147 +3,131 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 
 use super::{
-    SharedLargeEntry, SharedLargeEntryId, SharedManagedLocation, SharedManagedReferenceEntry,
-    SharedSmallSpan,
+    SharedHeapLocation, SharedHeapPageOwner, SharedHeapStorage, SharedLargeEntry,
+    SharedLargeEntryId, SharedSmallSpan,
 };
-use crate::arena::{Arena, PageRunCache, PageView, SizeClassTable, SpanAllocationPath, SpanSlot};
+use crate::allocator::{
+    Allocator, PageId, PageRunCache, PageView, SizeClassTable, SpanAllocationPath, SpanSlot,
+};
 use crate::shared::gc::{SharedGcPhase, SharedGcState};
 use crate::{
-    AllocationUsage, GcSummary, HeapError, HeapOptions, HeapResult, HeapScan, HeapSpace, LayoutId,
-    Shape, ShapeId, ShapeTable, SharedManagedReference, SharedManagedSpaceUsage,
+    AccountingRegion, AllocationUsage, GcSummary, HeapError, HeapOptions, HeapResult, LayoutId,
+    Shape, ShapeId, ShapeTable, SharedHeapReference, SharedHeapSpaceUsage, TracePlan,
 };
 
-/// The first allocated shared managed reference id.
-const FIRST_SHARED_MANAGED_REFERENCE_ID: u64 = 1;
-
-/// The first allocated shared managed large-entry id.
+/// The first allocated shared heap large-entry id.
 const FIRST_SHARED_MANAGED_LARGE_ENTRY_ID: u64 = 1;
 
-/// One shared managed small space.
+/// One shared heap small space.
 #[derive(Debug)]
 pub(crate) struct SharedSmallSpace {
     /// The configured size-class table.
     pub(crate) size_classes: SizeClassTable,
     /// The configured span width.
     pub(crate) span_bytes: usize,
-    /// The live shared managed spans.
+    /// The live shared heap spans.
     pub(crate) spans: Vec<Arc<RwLock<SharedSmallSpan>>>,
     /// The reusable non-full spans per size class.
     pub(crate) available_spans: Vec<Vec<usize>>,
 }
 
-/// One shared managed large space.
+/// One shared heap large space.
 #[derive(Debug)]
 pub(crate) struct SharedLargeSpace {
     /// The configured page width for entries in large space.
     pub(crate) page_bytes: usize,
-    /// The live shared managed entries.
+    /// The live shared heap entries.
     pub(crate) entries: Vec<Arc<RwLock<SharedLargeEntry>>>,
-    /// The free shared managed entry ids available for reuse.
+    /// The free shared heap entry ids available for reuse.
     pub(crate) free_large_entry_ids: Vec<u64>,
-    /// The next shared managed entry id to allocate.
+    /// The next shared heap entry id to allocate.
     pub(crate) next_unused_large_entry_id: u64,
 }
 
-/// Shared managed allocator metadata.
+/// Shared heap allocator metadata.
 #[derive(Debug)]
-pub(crate) struct SharedManagedState {
+pub(crate) struct SharedHeapState {
     /// The shared front-end cache of reusable page runs.
     pub(crate) page_run_cache: PageRunCache,
-    /// The shared managed small space.
+    /// The shared heap small space.
     pub(crate) small: SharedSmallSpace,
-    /// The shared managed large space.
+    /// The shared heap large space.
     pub(crate) large: SharedLargeSpace,
-    /// Stable shared managed reference metadata keyed by reference id minus one.
-    pub(crate) references: Vec<SharedManagedReferenceEntry>,
-    /// The interned shared managed entry shapes.
+    /// The owning shared heap metadata for each visible allocator page.
+    pub(crate) page_owners: Vec<Option<SharedHeapPageOwner>>,
+    /// The interned shared heap entry shapes.
     pub(crate) shape_table: ShapeTable,
-    /// Free shared managed reference ids available for reuse.
-    pub(crate) free_reference_ids: Vec<u64>,
-    /// The next shared managed reference id to allocate.
-    pub(crate) next_unused_reference_id: u64,
-    /// The exact live shared managed-space usage.
+    /// The exact live shared heap-space usage.
     pub(crate) usage: AllocationUsage,
-    /// The live shared managed collector state.
+    /// The live shared heap collector state.
     pub(crate) gc_state: GcSummary,
 }
 
-/// Convert a stable shared managed reference id into its packed representation.
-fn checked_packed_reference_id(reference_id: u64) -> HeapResult<u32> {
-    if reference_id == 0 || reference_id > u32::MAX as u64 {
-        return Err(HeapError::InvalidSharedManagedReferenceId { id: reference_id });
-    }
-
-    Ok(reference_id as u32)
-}
-
-/// One shared managed space store over a shared arena.
+/// One shared heap space store over a shared allocator.
 #[derive(Debug)]
-pub struct SharedManagedSpace {
-    /// The shared managed-space arena for every entry.
-    pub(crate) arena: Arc<Arena>,
-    /// The shared managed allocator control plane.
-    pub(crate) store: RwLock<SharedManagedState>,
+pub struct SharedHeapSpace {
+    /// The shared heap-space allocator for every entry.
+    pub(crate) allocator: Arc<Allocator>,
+    /// The shared heap allocator control plane.
+    pub(crate) store: RwLock<SharedHeapState>,
     /// The active shared collection state.
     pub(crate) gc: SharedGcState,
 }
 
-impl Default for SharedManagedSpace {
+impl Default for SharedHeapSpace {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl SharedManagedSpace {
-    /// Create a new empty shared managed-space store.
+impl SharedHeapSpace {
+    /// Create a new empty shared heap-space store.
     pub fn new() -> Self {
-        Self::with_options(Arc::new(Arena::new()), &HeapOptions::shared())
+        Self::with_options(Arc::new(Allocator::new()), &HeapOptions::shared())
     }
 
-    /// Create a new empty shared managed-space store over one shared arena.
-    pub fn with_arena(arena: Arc<Arena>) -> Self {
+    /// Create a new empty shared heap-space store over one shared allocator.
+    pub fn with_allocator(allocator: Arc<Allocator>) -> Self {
         let options = HeapOptions {
-            page_bytes: arena.page_bytes(),
-            arena_segment_bytes: arena.segment_bytes(),
+            page_bytes: allocator.page_bytes(),
+            allocator_segment_bytes: allocator.segment_bytes(),
             ..HeapOptions::shared()
         };
 
-        Self::with_options(arena, &options)
+        Self::with_options(allocator, &options)
     }
 
-    /// Create a new empty shared managed-space store over one shared arena and options.
-    pub fn with_options(arena: Arc<Arena>, options: &HeapOptions) -> Self {
+    /// Create a new empty shared heap-space store over one shared allocator and options.
+    pub fn with_options(allocator: Arc<Allocator>, options: &HeapOptions) -> Self {
         options
             .validate_shared()
-            .expect("shared managed options should validate");
+            .expect("shared heap options should validate");
         options
-            .validate_arena(&arena)
-            .expect("shared managed arena should match options");
+            .validate_allocator(&allocator)
+            .expect("shared heap allocator should match options");
 
-        let store = SharedManagedState {
-            page_run_cache: PageRunCache::new(arena.pages_per_segment()),
+        let store = SharedHeapState {
+            page_run_cache: PageRunCache::new(allocator.pages_per_segment()),
             small: SharedSmallSpace {
                 size_classes: options.size_classes.clone(),
-                span_bytes: options.managed_small_bytes,
+                span_bytes: options.heap_small_bytes,
                 spans: Vec::new(),
                 available_spans: vec![Vec::new(); options.size_classes.classes.len()],
             },
             large: SharedLargeSpace {
-                page_bytes: arena.page_bytes(),
+                page_bytes: allocator.page_bytes(),
                 entries: Vec::new(),
                 free_large_entry_ids: Vec::new(),
                 next_unused_large_entry_id: FIRST_SHARED_MANAGED_LARGE_ENTRY_ID,
             },
-            references: Vec::new(),
+            page_owners: Vec::new(),
             shape_table: ShapeTable::new(),
-            free_reference_ids: Vec::new(),
-            next_unused_reference_id: FIRST_SHARED_MANAGED_REFERENCE_ID,
             usage: AllocationUsage::default(),
             gc_state: GcSummary::default(),
         };
 
         Self {
-            arena,
+            allocator,
             store: RwLock::new(store),
             gc: SharedGcState::default(),
         }
@@ -151,10 +135,10 @@ impl SharedManagedSpace {
 
     /// Return the configured shared page width.
     pub fn page_bytes(&self) -> usize {
-        self.arena.page_bytes()
+        self.allocator.page_bytes()
     }
 
-    /// Return the exact active shared managed-space bytes.
+    /// Return the exact active shared heap-space bytes.
     pub fn active_bytes(&self) -> u64 {
         self.mapped_bytes()
     }
@@ -167,15 +151,15 @@ impl SharedManagedSpace {
     }
 
     /// Return the exact borrowed shared image bytes.
-    pub fn borrowed_bytes(&self) -> HeapResult<u64> {
+    pub fn borrowed_bytes(&self) -> u64 {
         let store = self.store.read();
         let pages = self.live_pages(&store);
 
-        self.arena.borrowed_bytes_for_page_views(pages.iter())
+        self.allocator.borrowed_bytes_for_page_views(pages.iter())
     }
 
-    /// Return the exact usage for this live shared managed-space store.
-    pub fn usage(&self) -> HeapResult<SharedManagedSpaceUsage> {
+    /// Return the exact usage for this live shared heap-space store.
+    pub fn usage(&self) -> SharedHeapSpaceUsage {
         // allocator summary
         let store = self.store.read();
         let allocation_count = store.usage.allocation_count();
@@ -186,112 +170,98 @@ impl SharedManagedSpace {
         drop(store);
 
         // borrowed bytes
-        let borrowed_bytes = self.borrowed_bytes()?;
+        let borrowed_bytes = self.borrowed_bytes();
 
-        Ok(SharedManagedSpaceUsage {
+        SharedHeapSpaceUsage {
             allocation_count,
             allocated_bytes,
             active_bytes,
             mapped_bytes,
             borrowed_bytes,
-        })
+        }
     }
 
-    /// Return the number of live shared managed allocations.
+    /// Return the number of live shared heap allocations.
     pub fn allocation_count(&self) -> usize {
         let store = self.store.read();
 
         store.usage.allocation_count()
     }
 
-    /// Return the number of live shared managed bytes.
+    /// Return the number of live shared heap bytes.
     pub fn allocated_bytes(&self) -> u64 {
         let store = self.store.read();
 
         store.usage.allocated_bytes()
     }
 
-    /// Return the current shared managed collector state.
+    /// Return the current shared heap collector state.
     pub fn gc_state(&self) -> GcSummary {
         let store = self.store.read();
 
         store.gc_state.clone()
     }
 
-    /// Return the current shared managed collector phase.
+    /// Return the current shared heap collector phase.
     pub fn gc_phase(&self) -> SharedGcPhase {
         self.gc.phase()
     }
 
-    /// Return whether one shared managed reference currently refers to one live entry.
-    pub fn is_live(&self, reference: SharedManagedReference) -> bool {
-        self.reference_entry(reference).is_some()
+    /// Return whether one shared heap reference currently refers to one live entry.
+    pub fn is_live(&self, reference: SharedHeapReference) -> bool {
+        self.resolve_location(reference).is_some()
     }
 
-    /// Allocate one shared managed byte entry.
+    /// Allocate one shared heap byte entry.
     pub fn allocate_bytes(
         &self,
         bytes: &[u8],
-        scan: impl Into<HeapScan>,
+        scan: impl Into<TracePlan>,
         layout_id: Option<LayoutId>,
-    ) -> HeapResult<SharedManagedReference> {
+    ) -> HeapResult<SharedHeapReference> {
         let path = self.allocation_path(bytes.len());
 
         self.place_bytes(bytes, scan, layout_id, path)
     }
 
-    /// Allocate one zeroed shared managed-space entry.
+    /// Allocate one zeroed shared heap-space entry.
     pub fn allocate_zeroed(
         &self,
         byte_len: usize,
-        scan: impl Into<HeapScan>,
+        scan: impl Into<TracePlan>,
         layout_id: Option<LayoutId>,
-    ) -> HeapResult<SharedManagedReference> {
+    ) -> HeapResult<SharedHeapReference> {
         let path = self.allocation_path(byte_len);
 
         self.place_zeroed(byte_len, scan, layout_id, path)
     }
 
-    /// Allocate one shared managed byte entry through one precomputed allocation path.
+    /// Allocate one shared heap byte entry through one precomputed allocation path.
     pub(crate) fn place_bytes(
         &self,
         bytes: &[u8],
-        scan: impl Into<HeapScan>,
+        scan: impl Into<TracePlan>,
         layout_id: Option<LayoutId>,
         path: SpanAllocationPath,
-    ) -> HeapResult<SharedManagedReference> {
+    ) -> HeapResult<SharedHeapReference> {
         let byte_len = bytes.len();
         let scan = scan.into();
         let mut store = self.store.write();
-        let reference_id = self.allocate_reference_id(&mut store)?;
-        let reference = SharedManagedReference::new(reference_id);
 
-        // allocate the backing location before installing the live reference
-        let location = self.allocate_location(
+        // allocate the backing location before publishing the live reference
+        let storage = self.allocate_location(
             &mut store,
-            reference_id,
             byte_len,
             scan.clone(),
             layout_id,
             Some(bytes),
             path,
         )?;
+        let reference = self.base_reference(&store, storage)?;
 
-        let index = shared_reference_index(reference_id)?;
-        let record = SharedManagedReferenceEntry::new(location, byte_len);
-        if index > store.references.len() {
-            return Err(HeapError::InvalidSharedManagedReferenceId {
-                id: reference_id.into(),
-            });
-        }
-
-        if index == store.references.len() {
-            store.references.push(record);
-        } else {
-            store.references[index] = record;
-        }
-
-        store.usage.allocate(byte_len, HeapSpace::SharedManaged)?;
+        store
+            .usage
+            .allocate(byte_len, AccountingRegion::SharedHeap)?;
         drop(store);
 
         self.publish_shared_allocation(reference, scan.has_shared_reference())?;
@@ -299,46 +269,24 @@ impl SharedManagedSpace {
         Ok(reference)
     }
 
-    /// Allocate one zeroed shared managed entry through one precomputed allocation path.
+    /// Allocate one zeroed shared heap entry through one precomputed allocation path.
     pub(crate) fn place_zeroed(
         &self,
         byte_len: usize,
-        scan: impl Into<HeapScan>,
+        scan: impl Into<TracePlan>,
         layout_id: Option<LayoutId>,
         path: SpanAllocationPath,
-    ) -> HeapResult<SharedManagedReference> {
+    ) -> HeapResult<SharedHeapReference> {
         let scan = scan.into();
         let mut store = self.store.write();
-        let reference_id = self.allocate_reference_id(&mut store)?;
-        let reference = SharedManagedReference::new(reference_id);
 
-        // allocate the zeroed backing location before installing the live reference
-        let location = self.allocate_location(
-            &mut store,
-            reference_id,
-            byte_len,
-            scan,
-            layout_id,
-            None,
-            path,
-        )?;
+        // allocate the zeroed backing location before publishing the live reference
+        let storage = self.allocate_location(&mut store, byte_len, scan, layout_id, None, path)?;
+        let reference = self.base_reference(&store, storage)?;
 
-        let index = shared_reference_index(reference_id)?;
-        let record = SharedManagedReferenceEntry::new(location, byte_len);
-
-        if index > store.references.len() {
-            return Err(HeapError::InvalidSharedManagedReferenceId {
-                id: reference_id.into(),
-            });
-        }
-
-        if index == store.references.len() {
-            store.references.push(record);
-        } else {
-            store.references[index] = record;
-        }
-
-        store.usage.allocate(byte_len, HeapSpace::SharedManaged)?;
+        store
+            .usage
+            .allocate(byte_len, AccountingRegion::SharedHeap)?;
         drop(store);
 
         self.publish_shared_allocation(reference, false)?;
@@ -346,7 +294,7 @@ impl SharedManagedSpace {
         Ok(reference)
     }
 
-    /// Return one exact shared managed allocation path for the requested byte length.
+    /// Return one exact shared heap allocation path for the requested byte length.
     pub(crate) fn allocation_path(&self, byte_len: usize) -> SpanAllocationPath {
         let store = self.store.read();
 
@@ -358,34 +306,30 @@ impl SharedManagedSpace {
         )
     }
 
-    /// Return the remaining byte length for one shared managed reference.
-    pub fn byte_len(&self, reference: SharedManagedReference) -> HeapResult<usize> {
-        let Some(record) = self.reference_entry(reference) else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
+    /// Return the remaining byte length for one shared heap reference.
+    pub fn byte_len(&self, reference: SharedHeapReference) -> HeapResult<usize> {
+        let Some(location) = self.resolve_location(reference) else {
+            return Err(HeapError::InvalidSharedHeapReference { reference });
         };
 
-        checked_remaining_byte_len(reference, record.byte_len())
+        checked_remaining_byte_len(location.byte_offset, location.byte_len)
     }
 
-    /// Return the bytes for one shared managed reference.
-    pub fn read_bytes(&self, reference: SharedManagedReference) -> HeapResult<Vec<u8>> {
-        let Some(record) = self.reference_entry(reference) else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
-        };
-        let Some(location) = record.location() else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
+    /// Return the bytes for one shared heap reference.
+    pub fn read_bytes(&self, reference: SharedHeapReference) -> HeapResult<Vec<u8>> {
+        let Some(location) = self.resolve_location(reference) else {
+            return Err(HeapError::InvalidSharedHeapReference { reference });
         };
 
-        let byte_offset = reference.byte_offset();
-        let byte_len = checked_remaining_byte_len(reference, record.byte_len())?;
+        let byte_len = checked_remaining_byte_len(location.byte_offset, location.byte_len)?;
 
-        self.location_bytes(location, byte_offset, byte_len)
+        self.location_bytes(location, location.byte_offset, byte_len)
     }
 
-    /// Fill one caller-provided buffer from one shared managed entry at one offset.
+    /// Fill one caller-provided buffer from one shared heap entry at one offset.
     pub fn read_bytes_into(
         &self,
-        reference: SharedManagedReference,
+        reference: SharedHeapReference,
         start: usize,
         target: &mut [u8],
     ) -> HeapResult<()> {
@@ -395,45 +339,39 @@ impl SharedManagedSpace {
         self.fill_location_bytes(location, byte_offset, target)
     }
 
-    /// Return the scan metadata for one shared managed reference.
-    pub fn scan(&self, reference: SharedManagedReference) -> HeapResult<HeapScan> {
+    /// Return the scan metadata for one shared heap reference.
+    pub fn scan(&self, reference: SharedHeapReference) -> HeapResult<TracePlan> {
         let (location, _) = self.checked_location_range(reference, 0, 0)?;
 
-        self.location_scan(location)
+        self.location_scan(location.storage)
     }
 
-    /// Return the storage layout id for one shared managed reference.
-    pub fn layout_id(&self, reference: SharedManagedReference) -> HeapResult<Option<LayoutId>> {
-        let Some(record) = self.reference_entry(reference) else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
-        };
-        let Some(location) = record.location() else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
+    /// Return the storage layout id for one shared heap reference.
+    pub fn layout_id(&self, reference: SharedHeapReference) -> HeapResult<Option<LayoutId>> {
+        let Some(location) = self.resolve_location(reference) else {
+            return Err(HeapError::InvalidSharedHeapReference { reference });
         };
 
-        self.location_layout_id(location)
+        self.location_layout_id(location.storage)
     }
 
-    /// Set the storage layout id for one shared managed reference.
+    /// Set the storage layout id for one shared heap reference.
     pub fn set_layout_id(
         &self,
-        reference: SharedManagedReference,
+        reference: SharedHeapReference,
         layout_id: LayoutId,
     ) -> HeapResult<()> {
-        let Some(record) = self.reference_entry(reference) else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
-        };
-        let Some(location) = record.location() else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
+        let Some(location) = self.resolve_location(reference) else {
+            return Err(HeapError::InvalidSharedHeapReference { reference });
         };
 
-        self.set_location_layout_id(location, layout_id)
+        self.set_location_layout_id(location.storage, layout_id)
     }
 
-    /// Overwrite one shared managed byte range.
+    /// Overwrite one shared heap byte range.
     pub fn write_bytes(
         &self,
-        reference: SharedManagedReference,
+        reference: SharedHeapReference,
         start: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
@@ -441,10 +379,10 @@ impl SharedManagedSpace {
         self.write_location_bytes(location, byte_offset, bytes)
     }
 
-    /// Record one shared managed write barrier.
+    /// Record one shared heap write barrier.
     pub fn write_barrier(
         &self,
-        reference: SharedManagedReference,
+        reference: SharedHeapReference,
         start: usize,
         byte_len: usize,
     ) -> HeapResult<()> {
@@ -452,44 +390,28 @@ impl SharedManagedSpace {
         self.write_shared_barrier(reference, byte_offset, byte_len)
     }
 
-    /// Publish one exact shared managed edge after one completed store.
-    pub fn publish_edge(&self, reference: SharedManagedReference) -> HeapResult<()> {
+    /// Publish one exact shared heap edge after one completed store.
+    pub fn publish_edge(&self, reference: SharedHeapReference) -> HeapResult<()> {
         self.publish_shared_edge(reference)
     }
 
-    /// Return one checked live location and byte offset for one shared managed range.
+    /// Return one checked live location and byte offset for one shared heap range.
     fn checked_location_range(
         &self,
-        reference: SharedManagedReference,
+        reference: SharedHeapReference,
         start: usize,
         byte_len: usize,
-    ) -> HeapResult<(SharedManagedLocation, usize)> {
-        let Some(record) = self.reference_entry(reference) else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
+    ) -> HeapResult<(SharedHeapLocation, usize)> {
+        let Some(location) = self.resolve_location(reference) else {
+            return Err(HeapError::InvalidSharedHeapReference { reference });
         };
-        let Some(location) = record.location() else {
-            return Err(HeapError::InvalidSharedManagedReference { reference });
-        };
-
         let byte_offset =
-            checked_byte_range(reference.byte_offset(), start, byte_len, record.byte_len())?;
+            checked_byte_range(location.byte_offset, start, byte_len, location.byte_len)?;
 
         Ok((location, byte_offset))
     }
 
-    /// Return one allocated shared managed entry by reference.
-    pub(crate) fn reference_entry(
-        &self,
-        reference: SharedManagedReference,
-    ) -> Option<SharedManagedReferenceEntry> {
-        let index = reference.id().checked_sub(1)? as usize;
-        let store = self.store.read();
-        let record = store.references.get(index).copied()?;
-
-        (!record.is_vacant()).then_some(record)
-    }
-
-    /// Return one shared managed large entry by stable id.
+    /// Return one shared heap large entry by entry id.
     pub(crate) fn large_entry_ref(
         &self,
         entry_id: SharedLargeEntryId,
@@ -500,17 +422,16 @@ impl SharedManagedSpace {
         store.large.entries.get(index).cloned()
     }
 
-    /// Allocate one shared managed location for the given payload.
+    /// Allocate one shared heap location for the given payload.
     fn allocate_location(
         &self,
-        store: &mut SharedManagedState,
-        reference_id: u32,
+        store: &mut SharedHeapState,
         byte_len: usize,
-        scan: impl Into<HeapScan>,
+        scan: impl Into<TracePlan>,
         layout_id: Option<LayoutId>,
         bytes: Option<&[u8]>,
         path: SpanAllocationPath,
-    ) -> HeapResult<SharedManagedLocation> {
+    ) -> HeapResult<SharedHeapStorage> {
         let scan = scan.into();
 
         match path {
@@ -522,7 +443,7 @@ impl SharedManagedSpace {
             } => {
                 let slot = self.allocate_small(
                     store,
-                    reference_id,
+                    byte_len,
                     class_index,
                     size_class,
                     scan,
@@ -530,69 +451,35 @@ impl SharedManagedSpace {
                     bytes,
                 )?;
 
-                Ok(SharedManagedLocation::Small(slot))
+                Ok(SharedHeapStorage::Small(slot))
             }
 
             // execute the precomputed large path directly
             SpanAllocationPath::Large { .. } => {
                 let pages = match bytes {
-                    Some(bytes) => store.page_run_cache.allocate_bytes(&self.arena, bytes)?,
+                    Some(bytes) => store
+                        .page_run_cache
+                        .allocate_bytes(&self.allocator, bytes)?,
                     None => store
                         .page_run_cache
-                        .allocate_zeroed(&self.arena, byte_len)?,
+                        .allocate_zeroed(&self.allocator, byte_len)?,
                 };
                 let entry_id = self.store_large_entry(store, byte_len, pages, scan, layout_id)?;
 
-                Ok(SharedManagedLocation::Large(entry_id))
+                Ok(SharedHeapStorage::Large(entry_id))
             }
         }
     }
 
-    /// Allocate one shared managed reference id from the intrusive free list or the unused tail.
-    fn allocate_reference_id(&self, store: &mut SharedManagedState) -> HeapResult<u32> {
-        if let Some(reference_id) = store.free_reference_ids.pop() {
-            checked_packed_reference_id(reference_id)
-        } else {
-            let reference_id = store.next_unused_reference_id;
-            let reference_id = checked_packed_reference_id(reference_id)?;
-            store.next_unused_reference_id = store.next_unused_reference_id.checked_add(1).ok_or(
-                HeapError::InvalidSharedManagedReferenceId {
-                    id: store.next_unused_reference_id,
-                },
-            )?;
-
-            Ok(reference_id)
-        }
-    }
-
-    /// Retire one shared managed reference record and queue its id for reuse.
-    pub(crate) fn retire_reference(
-        &self,
-        store: &mut SharedManagedState,
-        reference_id: u32,
-    ) -> HeapResult<()> {
-        let index = shared_reference_index(reference_id)?;
-        let Some(record) = store.references.get_mut(index) else {
-            return Err(HeapError::InvalidSharedManagedReferenceId {
-                id: reference_id.into(),
-            });
-        };
-
-        *record = SharedManagedReferenceEntry::vacant();
-        store.free_reference_ids.push(reference_id.into());
-
-        Ok(())
-    }
-
     /// Return whether one size class still has one live reusable slot.
-    fn has_available_small_slot(&self, store: &SharedManagedState, class_index: usize) -> bool {
+    fn has_available_small_slot(&self, store: &SharedHeapState, class_index: usize) -> bool {
         !store.small.available_spans[class_index].is_empty()
     }
 
-    /// Allocate or reuse one non-full shared managed span for the given size class.
+    /// Allocate or reuse one non-full shared heap span for the given size class.
     fn allocate_small_span(
         &self,
-        store: &mut SharedManagedState,
+        store: &mut SharedHeapState,
         class_index: usize,
         size_class: usize,
     ) -> HeapResult<usize> {
@@ -606,8 +493,14 @@ impl SharedManagedSpace {
                 if span.occupied_count == 0 && span.pages.is_empty() {
                     let pages = store
                         .page_run_cache
-                        .allocate_zeroed(&self.arena, store.small.span_bytes)?;
-                    span.pages = pages;
+                        .allocate_zeroed(&self.allocator, store.small.span_bytes)?;
+                    self.map_page_view(store, &pages, |logical_page_index| {
+                        SharedHeapPageOwner::Small {
+                            span_index,
+                            logical_page_index,
+                        }
+                    })?;
+                    span.pages = pages.clone();
                 }
 
                 return Ok(span_index);
@@ -617,36 +510,43 @@ impl SharedManagedSpace {
         let slot_count = (store.small.span_bytes / size_class).max(1);
         let pages = store
             .page_run_cache
-            .allocate_zeroed(&self.arena, store.small.span_bytes)?;
+            .allocate_zeroed(&self.allocator, store.small.span_bytes)?;
         let span = SharedSmallSpan {
             size_class,
             slot_count,
             occupied_count: 0,
             next_free_slot: 0,
             occupied: crate::Bitmap::with_capacity(slot_count),
-            reference_ids: vec![None; slot_count].into_boxed_slice(),
+            marked: crate::Bitmap::with_capacity(slot_count),
+            lengths: vec![0; slot_count].into_boxed_slice(),
             shape_ids: vec![None; slot_count].into_boxed_slice(),
-            pages,
+            pages: pages.clone(),
         };
         let span_index = store.small.spans.len();
+        self.map_page_view(store, &span.pages, |logical_page_index| {
+            SharedHeapPageOwner::Small {
+                span_index,
+                logical_page_index,
+            }
+        })?;
 
         store.small.spans.push(Arc::new(RwLock::new(span)));
 
         Ok(span_index)
     }
 
-    /// Allocate one shared managed small slot from one explicit initialization source.
+    /// Allocate one shared heap small slot from one explicit initialization source.
     fn allocate_small(
         &self,
-        store: &mut SharedManagedState,
-        reference_id: u32,
+        store: &mut SharedHeapState,
+        byte_len: usize,
         class_index: usize,
         size_class: usize,
-        scan: HeapScan,
+        trace: TracePlan,
         layout_id: Option<LayoutId>,
         bytes: Option<&[u8]>,
     ) -> HeapResult<SpanSlot> {
-        let shape_id = store.shape_table.intern(Shape { scan, layout_id })?;
+        let shape_id = store.shape_table.intern(Shape { trace, layout_id })?;
         let span_index = self.allocate_small_span(store, class_index, size_class)?;
         let Some(span) = store.small.spans.get(span_index).cloned() else {
             return Err(HeapError::MissingSpan { span_index });
@@ -661,14 +561,16 @@ impl SharedManagedSpace {
         if let Some(bytes) = bytes {
             let write_offset = checked_storage_offset(slot_offset, 0, store.small.span_bytes)?;
 
-            self.arena.set_bytes(&mut span.pages, write_offset, bytes)?;
+            self.allocator
+                .set_bytes(&mut span.pages, write_offset, bytes)?;
         }
 
         // slot metadata
         span.occupied.set(slot_index);
+        span.marked.clear(slot_index);
         span.occupied_count += 1;
         span.next_free_slot = find_next_free_slot(&span.occupied, slot_index + 1, span.slot_count);
-        span.set_reference_id(slot_index, Some(reference_id));
+        span.set_length(slot_index, byte_len);
         span.set_shape_id(slot_index, Some(shape_id));
 
         if span.occupied_count < span.slot_count {
@@ -678,16 +580,16 @@ impl SharedManagedSpace {
         Ok(slot)
     }
 
-    /// Store one large entry in shared managed large space and return its stable id.
+    /// Store one large entry in shared heap large space and return its entry id.
     fn store_large_entry(
         &self,
-        store: &mut SharedManagedState,
+        store: &mut SharedHeapState,
         len: usize,
         pages: PageView,
-        scan: HeapScan,
+        trace: TracePlan,
         layout_id: Option<LayoutId>,
     ) -> HeapResult<SharedLargeEntryId> {
-        let shape_id = store.shape_table.intern(Shape { scan, layout_id })?;
+        let shape_id = store.shape_table.intern(Shape { trace, layout_id })?;
         let (entry_id, reused_entry_id) = if let Some(entry_id) =
             store.large.free_large_entry_ids.pop()
         {
@@ -695,7 +597,9 @@ impl SharedManagedSpace {
         } else {
             let entry_id = store.large.next_unused_large_entry_id;
             let Some(next_entry_id) = store.large.next_unused_large_entry_id.checked_add(1) else {
-                store.page_run_cache.release_page_view(&self.arena, pages)?;
+                store
+                    .page_run_cache
+                    .release_page_view(&self.allocator, pages)?;
 
                 return Err(HeapError::InvalidLargeEntryId { id: entry_id });
             };
@@ -709,16 +613,20 @@ impl SharedManagedSpace {
                 store.large.free_large_entry_ids.push(entry_id);
             }
 
-            store.page_run_cache.release_page_view(&self.arena, pages)?;
+            store
+                .page_run_cache
+                .release_page_view(&self.allocator, pages)?;
 
             return Err(HeapError::InvalidLargeEntryId { id: entry_id });
         }
 
+        let entry_pages = pages.clone();
         let entry = SharedLargeEntry {
             is_live: true,
             len,
-            pages,
+            pages: pages.clone(),
             shape_id,
+            is_marked: false,
         };
         let index = SharedLargeEntryId::new(entry_id).index()?;
 
@@ -727,7 +635,9 @@ impl SharedManagedSpace {
                 store.large.free_large_entry_ids.push(entry_id);
             }
 
-            store.page_run_cache.release_page_view(&self.arena, pages)?;
+            store
+                .page_run_cache
+                .release_page_view(&self.allocator, pages)?;
 
             return Err(HeapError::InvalidLargeEntryId { id: entry_id });
         }
@@ -740,13 +650,21 @@ impl SharedManagedSpace {
             store.large.entries[index] = entry;
         }
 
-        Ok(SharedLargeEntryId::new(entry_id))
+        let entry_id = SharedLargeEntryId::new(entry_id);
+        self.map_page_view(store, &entry_pages, |logical_page_index| {
+            SharedHeapPageOwner::Large {
+                entry_id,
+                logical_page_index,
+            }
+        })?;
+
+        Ok(entry_id)
     }
 
-    /// Release one shared managed small slot without retiring its stable reference id.
+    /// Release one shared heap small slot.
     pub(crate) fn release_small_slot(
         &self,
-        store: &mut SharedManagedState,
+        store: &mut SharedHeapState,
         slot: SpanSlot,
     ) -> HeapResult<()> {
         let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
@@ -769,15 +687,16 @@ impl SharedManagedSpace {
             }
 
             span.occupied.clear(slot_index);
+            span.marked.clear(slot_index);
             span.occupied_count -= 1;
             span.next_free_slot = span.next_free_slot.min(slot_index);
-            span.set_reference_id(slot_index, None);
+            span.set_length(slot_index, 0);
             span.set_shape_id(slot_index, None);
 
             if span.occupied_count == 0 {
                 span.next_free_slot = 0;
 
-                let pages = span.pages;
+                let pages = span.pages.clone();
                 span.pages = PageView::empty();
 
                 Some(pages)
@@ -795,36 +714,39 @@ impl SharedManagedSpace {
         };
 
         if let Some(pages) = pages {
-            store.page_run_cache.release_page_view(&self.arena, pages)?;
+            self.unmap_page_view(store, &pages)?;
+            store
+                .page_run_cache
+                .release_page_view(&self.allocator, pages)?;
         }
 
         Ok(())
     }
 
-    /// Return the scan metadata for one shared managed location.
-    fn location_scan(&self, location: SharedManagedLocation) -> HeapResult<HeapScan> {
-        let shape = self.location_shape(location)?;
+    /// Return the scan metadata for one shared heap location.
+    fn location_scan(&self, storage: SharedHeapStorage) -> HeapResult<TracePlan> {
+        let shape = self.location_shape(storage)?;
 
-        Ok(shape.scan)
+        Ok(shape.trace)
     }
 
-    /// Return the storage layout id for one shared managed location.
-    fn location_layout_id(&self, location: SharedManagedLocation) -> HeapResult<Option<LayoutId>> {
-        let shape = self.location_shape(location)?;
+    /// Return the storage layout id for one shared heap location.
+    fn location_layout_id(&self, storage: SharedHeapStorage) -> HeapResult<Option<LayoutId>> {
+        let shape = self.location_shape(storage)?;
 
         Ok(shape.layout_id)
     }
 
-    /// Set the storage layout id for one shared managed location.
+    /// Set the storage layout id for one shared heap location.
     fn set_location_layout_id(
         &self,
-        location: SharedManagedLocation,
+        storage: SharedHeapStorage,
         layout_id: LayoutId,
     ) -> HeapResult<()> {
         let mut store = self.store.write();
 
-        match location {
-            SharedManagedLocation::Small(slot) => {
+        match storage {
+            SharedHeapStorage::Small(slot) => {
                 let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
                     return Err(HeapError::MissingSpan {
                         span_index: slot.span_index(),
@@ -847,7 +769,7 @@ impl SharedManagedSpace {
 
                 Ok(())
             }
-            SharedManagedLocation::Large(entry_id) => {
+            SharedHeapStorage::Large(entry_id) => {
                 let Some(entry) = store.large.entries.get(entry_id.index()?).cloned() else {
                     return Err(HeapError::MissingLargeEntry {
                         entry_id: entry_id.id(),
@@ -873,7 +795,7 @@ impl SharedManagedSpace {
     /// Return one interned shape with one replacement layout id.
     fn shape_with_layout(
         &self,
-        store: &mut SharedManagedState,
+        store: &mut SharedHeapState,
         shape_id: ShapeId,
         layout_id: Option<LayoutId>,
     ) -> HeapResult<ShapeId> {
@@ -887,16 +809,16 @@ impl SharedManagedSpace {
                 })?;
 
         store.shape_table.intern(Shape {
-            scan: shape.scan,
+            trace: shape.trace,
             layout_id,
         })
     }
 
-    /// Return the entry shape for one live shared managed location.
-    fn location_shape(&self, location: SharedManagedLocation) -> HeapResult<Shape> {
+    /// Return the entry shape for one live shared heap location.
+    fn location_shape(&self, storage: SharedHeapStorage) -> HeapResult<Shape> {
         let store = self.store.read();
-        let shape_id = match location {
-            SharedManagedLocation::Small(slot) => {
+        let shape_id = match storage {
+            SharedHeapStorage::Small(slot) => {
                 let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
                     return Err(HeapError::MissingSpan {
                         span_index: slot.span_index(),
@@ -913,7 +835,7 @@ impl SharedManagedSpace {
 
                 shape_id
             }
-            SharedManagedLocation::Large(entry_id) => {
+            SharedHeapStorage::Large(entry_id) => {
                 let Some(entry) = store.large.entries.get(entry_id.index()?).cloned() else {
                     return Err(HeapError::MissingLargeEntry {
                         entry_id: entry_id.id(),
@@ -940,15 +862,15 @@ impl SharedManagedSpace {
             })
     }
 
-    /// Return the bytes for one shared managed location as one owned vector.
+    /// Return the bytes for one shared heap location as one owned vector.
     fn location_bytes(
         &self,
-        location: SharedManagedLocation,
+        location: SharedHeapLocation,
         byte_offset: usize,
         byte_len: usize,
     ) -> HeapResult<Vec<u8>> {
-        match location {
-            SharedManagedLocation::Small(slot) => {
+        match location.storage {
+            SharedHeapStorage::Small(slot) => {
                 let store = self.store.read();
                 let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
                     return Err(HeapError::MissingSpan {
@@ -961,10 +883,10 @@ impl SharedManagedSpace {
                 let read_offset =
                     checked_storage_offset(slot_offset, byte_offset, store.small.span_bytes)?;
 
-                self.arena
+                self.allocator
                     .bytes_to_vec_from(&span.pages, read_offset, byte_len)
             }
-            SharedManagedLocation::Large(entry_id) => {
+            SharedHeapStorage::Large(entry_id) => {
                 let Some(entry) = self.large_entry_ref(entry_id) else {
                     return Err(HeapError::MissingLargeEntry {
                         entry_id: entry_id.id(),
@@ -978,21 +900,21 @@ impl SharedManagedSpace {
                     });
                 }
 
-                self.arena
+                self.allocator
                     .bytes_to_vec_from(&entry.pages, byte_offset, byte_len)
             }
         }
     }
 
-    /// Fill one caller-provided buffer from one shared managed location.
+    /// Fill one caller-provided buffer from one shared heap location.
     fn fill_location_bytes(
         &self,
-        location: SharedManagedLocation,
+        location: SharedHeapLocation,
         byte_offset: usize,
         target: &mut [u8],
     ) -> HeapResult<()> {
-        match location {
-            SharedManagedLocation::Small(slot) => {
+        match location.storage {
+            SharedHeapStorage::Small(slot) => {
                 let store = self.store.read();
                 let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
                     return Err(HeapError::MissingSpan {
@@ -1005,9 +927,10 @@ impl SharedManagedSpace {
                 let read_offset =
                     checked_storage_offset(slot_offset, byte_offset, store.small.span_bytes)?;
 
-                self.arena.fill_bytes_from(&span.pages, read_offset, target)
+                self.allocator
+                    .fill_bytes_from(&span.pages, read_offset, target)
             }
-            SharedManagedLocation::Large(entry_id) => {
+            SharedHeapStorage::Large(entry_id) => {
                 let Some(entry) = self.large_entry_ref(entry_id) else {
                     return Err(HeapError::MissingLargeEntry {
                         entry_id: entry_id.id(),
@@ -1021,21 +944,21 @@ impl SharedManagedSpace {
                     });
                 }
 
-                self.arena
+                self.allocator
                     .fill_bytes_from(&entry.pages, byte_offset, target)
             }
         }
     }
 
-    /// Overwrite one byte range for one shared managed location.
+    /// Overwrite one byte range for one shared heap location.
     fn write_location_bytes(
         &self,
-        location: SharedManagedLocation,
+        location: SharedHeapLocation,
         byte_offset: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
-        match location {
-            SharedManagedLocation::Small(slot) => {
+        match location.storage {
+            SharedHeapStorage::Small(slot) => {
                 let store = self.store.read();
                 let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
                     return Err(HeapError::MissingSpan {
@@ -1045,13 +968,34 @@ impl SharedManagedSpace {
                 let span_bytes = store.small.span_bytes;
                 drop(store);
 
-                let mut span = span.write();
-                let slot_offset = checked_slot_offset(span.size_class, slot.slot_index())?;
-                let write_offset = checked_storage_offset(slot_offset, byte_offset, span_bytes)?;
+                let (previous_pages, next_pages) = {
+                    let mut span = span.write();
+                    let previous_pages = span.pages.clone();
+                    let slot_offset = checked_slot_offset(span.size_class, slot.slot_index())?;
+                    let write_offset =
+                        checked_storage_offset(slot_offset, byte_offset, span_bytes)?;
 
-                self.arena.set_bytes(&mut span.pages, write_offset, bytes)
+                    self.allocator
+                        .set_bytes(&mut span.pages, write_offset, bytes)?;
+
+                    (previous_pages, span.pages.clone())
+                };
+
+                if next_pages != previous_pages {
+                    let mut store = self.store.write();
+
+                    self.unmap_page_view(&mut store, &previous_pages)?;
+                    self.map_page_view(&mut store, &next_pages, |logical_page_index| {
+                        SharedHeapPageOwner::Small {
+                            span_index: slot.span_index(),
+                            logical_page_index,
+                        }
+                    })?;
+                }
+
+                Ok(())
             }
-            SharedManagedLocation::Large(entry_id) => {
+            SharedHeapStorage::Large(entry_id) => {
                 let Some(entry) = self.large_entry_ref(entry_id) else {
                     return Err(HeapError::MissingLargeEntry {
                         entry_id: entry_id.id(),
@@ -1065,13 +1009,35 @@ impl SharedManagedSpace {
                     });
                 }
 
-                self.arena.set_bytes(&mut entry.pages, byte_offset, bytes)
+                let previous_pages = entry.pages.clone();
+
+                self.allocator
+                    .set_bytes(&mut entry.pages, byte_offset, bytes)?;
+
+                if entry.pages != previous_pages {
+                    let next_pages = entry.pages.clone();
+                    drop(entry);
+
+                    let mut store = self.store.write();
+
+                    self.unmap_page_view(&mut store, &previous_pages)?;
+                    self.map_page_view(&mut store, &next_pages, |logical_page_index| {
+                        SharedHeapPageOwner::Large {
+                            entry_id,
+                            logical_page_index,
+                        }
+                    })?;
+
+                    return Ok(());
+                }
+
+                Ok(())
             }
         }
     }
 
-    /// Return the current live managed page views.
-    fn live_pages(&self, store: &SharedManagedState) -> Vec<PageView> {
+    /// Return the current live heap page views.
+    fn live_pages(&self, store: &SharedHeapState) -> Vec<PageView> {
         let mut pages = Vec::with_capacity(store.small.spans.len() + store.large.entries.len());
 
         for span in &store.small.spans {
@@ -1081,7 +1047,7 @@ impl SharedManagedSpace {
                 continue;
             }
 
-            pages.push(span.pages);
+            pages.push(span.pages.clone());
         }
 
         for entry in &store.large.entries {
@@ -1091,57 +1057,255 @@ impl SharedManagedSpace {
                 continue;
             }
 
-            pages.push(entry.pages);
+            pages.push(entry.pages.clone());
         }
 
         pages
     }
 
-    /// Return the mapped live bytes for the current shared managed state.
-    pub(crate) fn live_mapped_bytes(&self, store: &SharedManagedState) -> u64 {
+    /// Return the mapped live bytes for the current shared heap state.
+    pub(crate) fn live_mapped_bytes(&self, store: &SharedHeapState) -> u64 {
         let pages = self.live_pages(store);
-        let cached_bytes = store.page_run_cache.cached_bytes(self.arena.page_bytes());
+        let cached_bytes = store
+            .page_run_cache
+            .cached_bytes(self.allocator.page_bytes());
 
-        self.arena
+        self.allocator
             .mapped_bytes_for_page_views(pages.iter())
             .saturating_add(cached_bytes)
     }
 
-    /// Return the page-rounded mapped bytes for one shared managed-space entry.
+    /// Return the page-rounded mapped bytes for one shared heap-space entry.
     fn round_up_allocation_bytes(&self, byte_len: usize) -> u64 {
         let page_bytes = self.page_bytes() as u64;
         let byte_len = byte_len as u64;
 
         byte_len.div_ceil(page_bytes) * page_bytes
     }
+
+    /// Return the visible owner for one physical page.
+    fn page_owner(&self, store: &SharedHeapState, page_id: PageId) -> Option<SharedHeapPageOwner> {
+        store.page_owners.get(page_id.index()).copied().flatten()
+    }
+
+    /// Record one visible owner for every page in one logical page view.
+    fn map_page_view(
+        &self,
+        store: &mut SharedHeapState,
+        page_view: &PageView,
+        mut owner: impl FnMut(usize) -> SharedHeapPageOwner,
+    ) -> HeapResult<()> {
+        for logical_page_index in 0..page_view.len() {
+            let Some(page_id) = page_view.page(logical_page_index) else {
+                return Err(HeapError::MissingLogicalPage {
+                    page_index: logical_page_index,
+                });
+            };
+            let page_index = page_id.index();
+
+            if store.page_owners.len() <= page_index {
+                store.page_owners.resize(page_index + 1, None);
+            }
+
+            store.page_owners[page_index] = Some(owner(logical_page_index));
+        }
+
+        Ok(())
+    }
+
+    /// Clear every visible owner for one logical page view.
+    pub(crate) fn unmap_page_view(
+        &self,
+        store: &mut SharedHeapState,
+        page_view: &PageView,
+    ) -> HeapResult<()> {
+        for logical_page_index in 0..page_view.len() {
+            let Some(page_id) = page_view.page(logical_page_index) else {
+                return Err(HeapError::MissingLogicalPage {
+                    page_index: logical_page_index,
+                });
+            };
+
+            if let Some(owner) = store.page_owners.get_mut(page_id.index()) {
+                *owner = None;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Return the resolved location for one live shared heap reference.
+    pub(crate) fn resolve_location(
+        &self,
+        reference: SharedHeapReference,
+    ) -> Option<SharedHeapLocation> {
+        let (page_id, page_offset) = self.allocator.address_page_position(reference.address())?;
+        let store = self.store.read();
+        let owner = self.page_owner(&store, page_id)?;
+
+        match owner {
+            SharedHeapPageOwner::Small {
+                span_index,
+                logical_page_index,
+            } => {
+                let span = store.small.spans.get(span_index)?.clone();
+                let span = span.read();
+                let logical_byte_offset = logical_page_index
+                    .checked_mul(self.allocator.page_bytes())?
+                    .checked_add(page_offset)?;
+                let slot_index = logical_byte_offset / span.size_class;
+                let slot_offset = logical_byte_offset % span.size_class;
+                if slot_index >= span.slot_count || !span.occupied.contains(slot_index) {
+                    return None;
+                }
+
+                let byte_len = *span.lengths.get(slot_index)?;
+                if slot_offset >= byte_len {
+                    return None;
+                }
+
+                let slot_base_offset = slot_index.checked_mul(span.size_class)?;
+                let base_address = self
+                    .allocator
+                    .page_view_ptr(&span.pages, slot_base_offset)
+                    .ok()? as *mut u8 as usize;
+                let slot = SpanSlot::new(span_index, slot_index).ok()?;
+
+                Some(SharedHeapLocation {
+                    storage: SharedHeapStorage::Small(slot),
+                    base: SharedHeapReference::new(base_address),
+                    byte_offset: slot_offset,
+                    byte_len,
+                })
+            }
+            SharedHeapPageOwner::Large {
+                entry_id,
+                logical_page_index,
+            } => {
+                let entry = store.large.entries.get(entry_id.index().ok()?)?.clone();
+                let entry = entry.read();
+                if !entry.is_live {
+                    return None;
+                }
+
+                let logical_byte_offset = logical_page_index
+                    .checked_mul(self.allocator.page_bytes())?
+                    .checked_add(page_offset)?;
+                if logical_byte_offset >= entry.len {
+                    return None;
+                }
+
+                let base_address =
+                    self.allocator.page_view_ptr(&entry.pages, 0).ok()? as *mut u8 as usize;
+
+                Some(SharedHeapLocation {
+                    storage: SharedHeapStorage::Large(entry_id),
+                    base: SharedHeapReference::new(base_address),
+                    byte_offset: logical_byte_offset,
+                    byte_len: entry.len,
+                })
+            }
+        }
+    }
+
+    /// Return every live shared heap reference.
+    pub(crate) fn live_references(&self) -> HeapResult<Vec<SharedHeapReference>> {
+        let store = self.store.read();
+        let mut references = Vec::new();
+
+        for span in &store.small.spans {
+            let span = span.read();
+            if span.occupied_count == 0 || span.pages.is_empty() {
+                continue;
+            }
+
+            for slot_index in 0..span.slot_count {
+                if !span.occupied.contains(slot_index) {
+                    continue;
+                }
+
+                let slot_offset = span.size_class.checked_mul(slot_index).ok_or(
+                    HeapError::InvariantOverflow {
+                        context: "shared heap slot base offset",
+                    },
+                )?;
+                let base_address =
+                    self.allocator.page_view_ptr(&span.pages, slot_offset)? as *mut u8 as usize;
+
+                references.push(SharedHeapReference::new(base_address));
+            }
+        }
+
+        for entry in &store.large.entries {
+            let entry = entry.read();
+            if !entry.is_live {
+                continue;
+            }
+
+            let base_address = self.allocator.page_view_ptr(&entry.pages, 0)? as *mut u8 as usize;
+            references.push(SharedHeapReference::new(base_address));
+        }
+
+        Ok(references)
+    }
+
+    /// Return the base reference for one shared heap storage partition.
+    fn base_reference(
+        &self,
+        store: &SharedHeapState,
+        storage: SharedHeapStorage,
+    ) -> HeapResult<SharedHeapReference> {
+        let base_address = match storage {
+            SharedHeapStorage::Small(slot) => {
+                let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
+                    return Err(HeapError::MissingSpan {
+                        span_index: slot.span_index(),
+                    });
+                };
+                let span = span.read();
+                let slot_offset = span.size_class.checked_mul(slot.slot_index()).ok_or(
+                    HeapError::InvariantOverflow {
+                        context: "shared heap slot base offset",
+                    },
+                )?;
+
+                self.allocator.page_view_ptr(&span.pages, slot_offset)? as *mut u8 as usize
+            }
+            SharedHeapStorage::Large(entry_id) => {
+                let Some(entry) = store.large.entries.get(entry_id.index()?).cloned() else {
+                    return Err(HeapError::MissingLargeEntry {
+                        entry_id: entry_id.id(),
+                    });
+                };
+                let entry = entry.read();
+                if !entry.is_live {
+                    return Err(HeapError::MissingLargeEntry {
+                        entry_id: entry_id.id(),
+                    });
+                }
+
+                self.allocator.page_view_ptr(&entry.pages, 0)? as *mut u8 as usize
+            }
+        };
+
+        Ok(SharedHeapReference::new(base_address))
+    }
 }
 
-/// Return the dense shared managed reference table index for one stable id.
-fn shared_reference_index(reference_id: u32) -> HeapResult<usize> {
-    let Some(index) = reference_id.checked_sub(1) else {
-        return Err(HeapError::InvalidSharedManagedReferenceId {
-            id: reference_id.into(),
-        });
-    };
-
-    Ok(index as usize)
-}
-
-/// Return the visible byte length for one shared managed reference.
-fn checked_remaining_byte_len(
-    reference: SharedManagedReference,
-    byte_len: usize,
-) -> HeapResult<usize> {
-    let byte_offset = reference.byte_offset();
-
+/// Return the visible byte length for one shared heap reference.
+fn checked_remaining_byte_len(byte_offset: usize, byte_len: usize) -> HeapResult<usize> {
     if byte_offset > byte_len {
-        return Err(HeapError::InvalidSharedManagedReference { reference });
+        return Err(HeapError::InvalidByteRange {
+            start: byte_offset,
+            len: 0,
+            capacity: byte_len,
+        });
     }
 
     Ok(byte_len - byte_offset)
 }
 
-/// Validate one byte range inside one shared managed entry.
+/// Validate one byte range inside one shared heap entry.
 fn checked_byte_range(
     pointer_offset: usize,
     start: usize,
@@ -1223,10 +1387,10 @@ pub(crate) fn find_next_free_slot(
     slot_count
 }
 
-impl Drop for SharedManagedSpace {
+impl Drop for SharedHeapSpace {
     fn drop(&mut self) {
         let mut store = self.store.write();
 
-        store.page_run_cache.flush(&self.arena);
+        store.page_run_cache.flush(&self.allocator);
     }
 }

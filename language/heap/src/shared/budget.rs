@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{HeapError, HeapResult, HeapSpace, apply_byte_delta};
+use crate::{AccountingRegion, HeapError, HeapResult, apply_byte_delta};
 
 /// One live admission budget for world-shared raw space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,7 +41,7 @@ impl SharedRawLimits {
             && active_bytes > max_bytes
         {
             return Err(HeapError::LimitExceeded {
-                space: HeapSpace::SharedRaw,
+                region: AccountingRegion::SharedRaw,
                 used_bytes: active_bytes,
                 max_bytes,
             });
@@ -56,21 +56,21 @@ impl SharedRawLimits {
     }
 }
 
-/// Hard limits for one live shared managed space.
+/// Hard limits for one live shared heap space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct SharedManagedLimits {
-    /// Optional hard limit for active shared managed-space bytes.
+pub struct SharedHeapSpaceLimits {
+    /// Optional hard limit for active shared heap-space bytes.
     pub max_bytes: Option<u64>,
 }
 
-impl SharedManagedLimits {
-    /// Check exact active shared managed-space bytes against these limits.
+impl SharedHeapSpaceLimits {
+    /// Check exact active shared heap-space bytes against these limits.
     pub fn check(&self, active_bytes: u64) -> HeapResult<()> {
         if let Some(max_bytes) = self.max_bytes
             && active_bytes > max_bytes
         {
             return Err(HeapError::LimitExceeded {
-                space: HeapSpace::SharedManaged,
+                region: AccountingRegion::SharedHeap,
                 used_bytes: active_bytes,
                 max_bytes,
             });
@@ -79,7 +79,7 @@ impl SharedManagedLimits {
         Ok(())
     }
 
-    /// Check active shared managed-space bytes after one requested mapped-byte delta.
+    /// Check active shared heap-space bytes after one requested mapped-byte delta.
     pub fn check_mapped_delta(&self, active_bytes: u64, mapped_delta: i64) -> HeapResult<()> {
         self.check(apply_byte_delta(active_bytes, mapped_delta)?)
     }
@@ -90,8 +90,8 @@ impl SharedManagedLimits {
 pub struct SharedHeapLimits {
     /// Optional hard limit for total retained shared-heap bytes.
     pub max_bytes: Option<u64>,
-    /// The managed-space limits.
-    pub managed: SharedManagedLimits,
+    /// The heap-space limits.
+    pub heap: SharedHeapSpaceLimits,
     /// The raw-space limits.
     pub raw: SharedRawLimits,
 }
