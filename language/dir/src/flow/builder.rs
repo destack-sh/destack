@@ -2022,6 +2022,20 @@ impl<'tree> FlowGraphBuilder<'tree> {
             TypeExpression::Declaration { declaration } => {
                 self.build_declaration_expression(*declaration, current_block_id)
             }
+            TypeExpression::FunctionTypeDeclaration(function) => {
+                if let Some(return_type) = function.return_type {
+                    self.build_type_expression(return_type, current_block_id)
+                } else {
+                    Some(current_block_id)
+                }
+            }
+            TypeExpression::ConstructorTypeDeclaration(function) => {
+                if let Some(return_type) = function.return_type {
+                    self.build_type_expression(return_type, current_block_id)
+                } else {
+                    Some(current_block_id)
+                }
+            }
             TypeExpression::Reference {
                 generic_arguments, ..
             } => self.build_generic_arguments(generic_arguments.as_slice(), current_block_id),
