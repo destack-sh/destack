@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use crate::{
-    Allocation, HeapOptions, SharedHeapSpace, SharedRawSpace, test_allocator, test_layouts,
-};
+use crate::{HeapOptions, Payload, SharedHeapSpace, SharedRawSpace, test_allocator, test_layouts};
 use destack_mir::ReferenceMap;
 
 /// Share unchanged shared allocations across image and fork boundaries.
@@ -17,10 +15,10 @@ fn test_roundtrip_shared_memory_image_and_fork() {
 
     // capture two allocations so only one has to detach later
     let first = shared
-        .allocate(6, Allocation::Bytes(&[1, 2, 3, 4, 5, 6]))
+        .allocate(6, Payload::Bytes(&[1, 2, 3, 4, 5, 6]))
         .expect("shared allocation should succeed");
     let second = shared
-        .allocate(6, Allocation::Bytes(&[7, 8, 9, 10, 11, 12]))
+        .allocate(6, Payload::Bytes(&[7, 8, 9, 10, 11, 12]))
         .expect("shared allocation should succeed");
     let image = shared.image();
     let forked = shared.fork().expect("shared fork should retain live pages");
@@ -84,10 +82,10 @@ fn test_roundtrip_shared_heap_space_image() {
     let first_bytes = vec![1; 6];
     let second_bytes = vec![2; 6];
     let first = heap
-        .allocate(first_layout_id, Allocation::Bytes(&first_bytes))
+        .allocate(first_layout_id, Payload::Bytes(&first_bytes))
         .expect("shared heap allocation should succeed");
     let _second = heap
-        .allocate(second_layout_id, Allocation::Bytes(&second_bytes))
+        .allocate(second_layout_id, Payload::Bytes(&second_bytes))
         .expect("shared heap allocation should succeed");
     let image = heap.image();
     let restored = SharedHeapSpace::from_image_with_allocator(allocator.clone(), &image)

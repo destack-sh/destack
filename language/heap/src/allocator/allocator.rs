@@ -14,10 +14,15 @@ use crate::{HeapError, HeapOptions, HeapResult};
 pub(crate) const DEFAULT_PAGE_BYTES: usize = 4 * 1024;
 
 /// The standard allocator arena size.
-pub(crate) const DEFAULT_ALLOCATOR_ARENA_BYTES: usize = 1024 * 1024;
+pub(crate) const DEFAULT_ALLOCATOR_ARENA_BYTES: usize = if cfg!(target_pointer_width = "64") {
+    64 * 1024 * 1024
+} else {
+    4 * 1024 * 1024
+};
 
 /// The admitted arena frontier, current fresh arena, free runs, and arena ownership.
 #[derive(Debug)]
+#[allow(clippy::vec_box)]
 struct AllocatorState {
     /// The number of arenas already admitted into allocation state.
     admitted_arena_count: usize,
@@ -25,7 +30,7 @@ struct AllocatorState {
     fresh_arena_index: Option<usize>,
     /// The free physical runs.
     free_runs: PageRunSet,
-    /// The owned arena records.
+    /// The owned arena records, boxed so address-map pointers stay stable.
     owned_arenas: Vec<Box<Arena>>,
 }
 

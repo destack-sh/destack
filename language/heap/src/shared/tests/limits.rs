@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    AccountingRegion, Allocation, Allocator, HeapError, SharedHeap, SharedHeapLimits,
+    AccountingRegion, Allocator, HeapError, Payload, SharedHeap, SharedHeapLimits,
     SharedHeapSpaceLimits, SharedRawLimits, test_layout,
 };
 use destack_mir::ReferenceMap;
@@ -23,7 +23,7 @@ fn shared_heap_active_bytes_after_allocate(bytes: &[u8]) -> u64 {
     .expect("shared heap should build");
 
     shared
-        .allocate(layout_id, Allocation::Bytes(bytes))
+        .allocate(layout_id, Payload::Bytes(bytes))
         .expect("shared heap allocation should succeed");
 
     shared.usage().heap.active_bytes
@@ -47,7 +47,7 @@ fn test_reject_shared_heap_allocation_when_limit_exceeded() {
     .expect("shared heap should build");
 
     let error = shared
-        .allocate(layout_id, Allocation::Bytes(&[1]))
+        .allocate(layout_id, Payload::Bytes(&[1]))
         .expect_err("shared heap allocation should be rejected");
 
     assert_eq!(
@@ -74,7 +74,7 @@ fn test_reject_shared_raw_replace_when_limit_exceeded() {
     )
     .expect("shared heap should build");
     let pointer = shared
-        .allocate_raw(4097, Allocation::Bytes(&vec![0xAA; 4097]))
+        .allocate_raw(4097, Payload::Bytes(&vec![0xAA; 4097]))
         .expect("shared raw allocation should succeed");
     let baseline = shared.usage().raw.active_bytes;
     let image = shared.image();
@@ -128,7 +128,7 @@ fn test_reject_shared_heap_image_when_limits_start_over_budget() {
     )
     .expect("shared heap should build");
     shared
-        .allocate(layout_id, Allocation::Bytes(&[1]))
+        .allocate(layout_id, Payload::Bytes(&[1]))
         .expect("shared heap allocation should succeed");
     let used_bytes = shared.usage().heap.active_bytes;
     let image = shared.image();

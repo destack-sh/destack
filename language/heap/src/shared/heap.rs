@@ -15,7 +15,7 @@ use super::{
     SharedRawSpace, SharedRawSpaceImage,
 };
 use crate::{
-    Allocation, Allocator, GcPacer, GcState, GcStats, HeapError, HeapOptions, HeapResult, PageId,
+    Allocator, GcPacer, GcState, GcStats, HeapError, HeapOptions, HeapResult, PageId, Payload,
     SharedHeapReference, SharedRawPointer, apply_byte_delta,
 };
 
@@ -239,7 +239,7 @@ impl SharedHeap {
     pub fn allocate_raw(
         &self,
         byte_len: usize,
-        allocation: Allocation<'_>,
+        allocation: Payload<'_>,
     ) -> HeapResult<SharedRawPointer> {
         self.check_raw_mapped_byte_delta(self.raw.alloc_mapped_byte_delta(byte_len))?;
 
@@ -268,7 +268,7 @@ impl SharedHeap {
     pub fn allocate(
         &self,
         layout_id: LayoutId,
-        allocation: Allocation<'_>,
+        allocation: Payload<'_>,
     ) -> HeapResult<SharedHeapReference> {
         let byte_len = self.heap.layout_byte_len(layout_id)?;
 
