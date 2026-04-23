@@ -2172,6 +2172,8 @@ pub fn type_expression_has_side_effects(
         | ast::TypeExpression::Array { .. }
         | ast::TypeExpression::Object { .. }
         | ast::TypeExpression::Declaration { .. }
+        | ast::TypeExpression::FunctionTypeDeclaration(_)
+        | ast::TypeExpression::ConstructorTypeDeclaration(_)
         | ast::TypeExpression::Reference { .. }
         | ast::TypeExpression::Infer { .. }
         | ast::TypeExpression::Predicate { .. } => false,
