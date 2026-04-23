@@ -2,13 +2,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::core::{Case, CaseResult, format_diagnostics};
-use destack_ast::TokenSpan;
+use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
 use destack_formatter::{
-    DestackFormatContext, DestackFormatOptions, build_formatter_tree_and_parents,
-    format_file_source, statement_list,
+    DestackFormatContext, DestackFormatOptions, format_file_source, statement_list,
 };
-use destack_parser::{Parser, source_colorizer};
+use destack_parser::{Parser, ParserSettings, source_colorizer};
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileType, IndentStyle,
     LanguageType, PrintOptions, Uri, print_diff,
@@ -236,7 +235,14 @@ fn format_source(path: &Path, source: &str, formatter: FormatterOptions) -> Resu
 
     // parse parser driven languages for diagnostic-rich failures
     let language_type = LanguageType::from(file_type);
-    let mut parser = Parser::lex_file(file.clone(), language_type);
+    let mut parser = Parser::lex_file_with_settings(
+        file.clone(),
+        language_type,
+        ParserSettings {
+            preserve_parenthesized_wrappers: false,
+            ..ParserSettings::default()
+        },
+    );
     let expressions = parser.parse();
 
     let has_errors = parser
@@ -282,14 +288,14 @@ fn format_expressions(
     // build formatter context
     let side_span = parser.compute_side_span();
     let strings = parser.strings.clone().into_immutable();
-    let (tree, parents) = build_formatter_tree_and_parents(&parser.tree, expressions);
+    let parents = NodeParentIndex::from_expression_roots(&parser.tree, expressions);
 
     // convert options and format
     let format_options = DestackFormatOptions::from_formatter_options(formatter, language_type);
     let context = DestackFormatContext::new(
         format_options,
         file,
-        &tree,
+        &parser.tree,
         tokens,
         side_tokens,
         &side_span,
