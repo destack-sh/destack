@@ -2,7 +2,7 @@ use super::{
     LargeEntry, LargeEntryId, RawPageOwner, RawSmallSpanClass, RawSpace, RawStorage, SmallSpan,
 };
 use crate::allocator::{Allocator, PageView, SpanSlot};
-use crate::{AccountingRegion, Bitmap, HeapError, HeapResult, RawPointer};
+use crate::{AccountingRegion, Allocation, Bitmap, HeapError, HeapResult, RawPointer};
 
 /// One raw slot initialization mode.
 enum SlotInit<'a> {
@@ -60,14 +60,28 @@ impl RawSpace {
         Ok(next_mapped_bytes as i64 - previous_mapped_bytes as i64)
     }
 
-    /// Allocate one raw byte entry.
-    pub fn allocate_bytes(&mut self, bytes: &[u8]) -> HeapResult<RawPointer> {
-        self.allocate_with_bytes(bytes.len(), Some(bytes))
-    }
+    /// Allocate one raw entry.
+    pub fn allocate(
+        &mut self,
+        byte_len: usize,
+        allocation: Allocation<'_>,
+    ) -> HeapResult<RawPointer> {
+        if let Some(bytes) = allocation.bytes()
+            && bytes.len() != byte_len
+        {
+            return Err(HeapError::InvalidAllocationBytes {
+                expected: byte_len,
+                actual: bytes.len(),
+            });
+        }
 
-    /// Allocate one zeroed raw byte entry.
-    pub fn allocate_zeroed(&mut self, byte_len: usize) -> HeapResult<RawPointer> {
-        self.allocate_with_bytes(byte_len, None)
+        let storage = self.allocate_storage(byte_len, allocation)?;
+        let pointer = self.base_pointer(storage)?;
+
+        // charge the live raw entry counters
+        self.usage.allocate(byte_len, AccountingRegion::Raw)?;
+
+        Ok(pointer)
     }
 
     /// Free one raw entry.
@@ -122,34 +136,19 @@ impl RawSpace {
         }
     }
 
-    /// Allocate one raw payload from explicit bytes or one zeroed length.
-    fn allocate_with_bytes(
-        &mut self,
-        byte_len: usize,
-        bytes: Option<&[u8]>,
-    ) -> HeapResult<RawPointer> {
-        let storage = self.allocate_storage(byte_len, bytes)?;
-        let pointer = self.base_pointer(storage)?;
-
-        // charge the live raw entry counters
-        self.usage.allocate(byte_len, AccountingRegion::Raw)?;
-
-        Ok(pointer)
-    }
-
     /// Allocate one raw storage location for the given payload.
     fn allocate_storage(
         &mut self,
         byte_len: usize,
-        bytes: Option<&[u8]>,
+        allocation: Allocation<'_>,
     ) -> HeapResult<RawStorage> {
         if let Some((class, span_index, slot_index)) = self.reserve_small_slot(byte_len)? {
-            let slot = self.initialize_small_slot(&class, span_index, slot_index, bytes)?;
+            let slot = self.initialize_small_slot(&class, span_index, slot_index, allocation)?;
 
             return Ok(RawStorage::Small(slot));
         }
 
-        let pages = self.allocate_large_pages(byte_len, bytes)?;
+        let pages = self.allocate_large_pages(byte_len, allocation)?;
         let entry_id = self.store_large_entry(byte_len, pages)?;
 
         Ok(RawStorage::Large(entry_id))
@@ -215,7 +214,7 @@ impl RawSpace {
             return Ok(None);
         };
 
-        self.initialize_small_slot(&class, span_index, slot_index, Some(bytes))
+        self.initialize_small_slot(&class, span_index, slot_index, Allocation::Bytes(bytes))
             .map(Some)
     }
 
@@ -296,7 +295,7 @@ impl RawSpace {
         class: &RawSmallSpanClass,
         span_index: usize,
         slot_index: usize,
-        bytes: Option<&[u8]>,
+        allocation: Allocation<'_>,
     ) -> HeapResult<SpanSlot> {
         // resolve the live span first
         let Some(span) = self.small.spans.get_mut(span_index) else {
@@ -312,9 +311,9 @@ impl RawSpace {
                 })?;
 
         // initialize the reserved slot payload
-        let write = match bytes {
-            Some(bytes) => SlotInit::Bytes(bytes),
-            None => SlotInit::Zeroed,
+        let write = match allocation {
+            Allocation::Bytes(bytes) => SlotInit::Bytes(bytes),
+            Allocation::Zeroed => SlotInit::Zeroed,
         };
         write.initialize_slot(&self.allocator, &mut span.pages, slot_offset)?;
 
@@ -466,11 +465,11 @@ impl RawSpace {
     fn allocate_large_pages(
         &mut self,
         byte_len: usize,
-        bytes: Option<&[u8]>,
+        allocation: Allocation<'_>,
     ) -> HeapResult<PageView> {
-        match bytes {
-            Some(bytes) => self.allocate_page_view_bytes(bytes),
-            None => self.allocate_page_view_zeroed(byte_len),
+        match allocation {
+            Allocation::Bytes(bytes) => self.allocate_page_view_bytes(bytes),
+            Allocation::Zeroed => self.allocate_page_view_zeroed(byte_len),
         }
     }
 }

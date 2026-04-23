@@ -15,7 +15,7 @@ use super::{
     SharedRawSpace, SharedRawSpaceImage,
 };
 use crate::{
-    Allocator, GcPacer, GcState, GcStats, HeapError, HeapOptions, HeapResult, PageId,
+    Allocation, Allocator, GcPacer, GcState, GcStats, HeapError, HeapOptions, HeapResult, PageId,
     SharedHeapReference, SharedRawPointer, apply_byte_delta,
 };
 
@@ -235,11 +235,15 @@ impl SharedHeap {
         self.raw.replace_mapped_byte_delta(pointer, next_byte_len)
     }
 
-    /// Allocate one shared raw byte allocation.
-    pub fn allocate_raw_bytes(&self, bytes: &[u8]) -> HeapResult<SharedRawPointer> {
-        self.check_raw_mapped_byte_delta(self.raw.alloc_mapped_byte_delta(bytes.len()))?;
+    /// Allocate one shared raw entry.
+    pub fn allocate_raw(
+        &self,
+        byte_len: usize,
+        allocation: Allocation<'_>,
+    ) -> HeapResult<SharedRawPointer> {
+        self.check_raw_mapped_byte_delta(self.raw.alloc_mapped_byte_delta(byte_len))?;
 
-        self.raw.allocate_bytes(bytes)
+        self.raw.allocate(byte_len, allocation)
     }
 
     /// Replace one shared raw allocation payload.
@@ -260,19 +264,21 @@ impl SharedHeap {
         self.raw.read_bytes(pointer)
     }
 
-    /// Allocate one shared heap byte allocation.
-    pub fn allocate_heap_bytes(
+    /// Allocate one shared managed heap entry.
+    pub fn allocate(
         &self,
-        bytes: &[u8],
         layout_id: LayoutId,
+        allocation: Allocation<'_>,
     ) -> HeapResult<SharedHeapReference> {
+        let byte_len = self.heap.layout_byte_len(layout_id)?;
+
         // projected growth
         let mapped_byte_delta = self.heap.mapped_byte_delta(layout_id)?;
         self.check_heap_mapped_byte_delta(mapped_byte_delta)?;
 
         // allocation and pacing
-        let reference = self.heap.allocate_bytes(bytes, layout_id)?;
-        self.accrue_assist_debt(bytes.len());
+        let reference = self.heap.allocate(layout_id, allocation)?;
+        self.accrue_assist_debt(byte_len);
         self.refresh_gc_request();
 
         Ok(reference)
@@ -281,22 +287,6 @@ impl SharedHeap {
     /// Register one shared managed layout and return its stable id.
     pub fn register_layout(&self, layout: Layout) -> LayoutId {
         self.heap.register_layout(layout)
-    }
-
-    /// Allocate one zeroed shared heap byte allocation.
-    pub fn allocate_heap_zeroed(&self, layout_id: LayoutId) -> HeapResult<SharedHeapReference> {
-        let byte_len = self.heap.layout_byte_len(layout_id)?;
-
-        // projected growth
-        let mapped_byte_delta = self.heap.mapped_byte_delta(layout_id)?;
-        self.check_heap_mapped_byte_delta(mapped_byte_delta)?;
-
-        // allocation and pacing
-        let reference = self.heap.allocate_zeroed(layout_id)?;
-        self.accrue_assist_debt(byte_len);
-        self.refresh_gc_request();
-
-        Ok(reference)
     }
 
     /// Return whether one shared heap reference currently refers to one live entry.

@@ -1,3 +1,4 @@
+mod allocation;
 mod cow;
 mod error;
 mod gc;
@@ -7,6 +8,7 @@ mod scan;
 mod shape;
 mod usage;
 
+pub use allocation::*;
 pub(crate) use cow::*;
 pub use error::*;
 pub use gc::*;
