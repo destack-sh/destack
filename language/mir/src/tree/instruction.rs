@@ -411,6 +411,15 @@ pub enum Instruction {
         /// The index values (stored in NodeTree's argument buffer).
         indices: ArgumentSlice,
     },
+    /// Extract a tensor element from a tensor value.
+    TensorExtract {
+        /// The SSA value to define with the extracted element.
+        destination: ValueReference,
+        /// The tensor value to extract from.
+        tensor: ValueReference,
+        /// The index values (stored in NodeTree's argument buffer).
+        indices: ArgumentSlice,
+    },
     /// Store a tensor element into a tensor reference.
     TensorStore {
         /// The tensor reference to store into.
@@ -923,6 +932,7 @@ impl Instruction {
             Instruction::VectorCompare { destination, .. } => Some(*destination),
             Instruction::VectorConvert { destination, .. } => Some(*destination),
             Instruction::TensorLoad { destination, .. } => Some(*destination),
+            Instruction::TensorExtract { destination, .. } => Some(*destination),
             Instruction::TensorStore { .. } => None,
             Instruction::TensorFill { .. } => None,
             Instruction::TensorCopy { .. } => None,
@@ -1030,6 +1040,7 @@ impl Instruction {
             Instruction::VectorCompare { left, right, .. } => smallvec![*left, *right],
             Instruction::VectorConvert { vector, .. } => smallvec![*vector],
             Instruction::TensorLoad { view, .. } => smallvec![*view],
+            Instruction::TensorExtract { tensor, .. } => smallvec![*tensor],
             Instruction::TensorStore { view, value, .. } => smallvec![*view, *value],
             Instruction::TensorFill { view, value } => smallvec![*view, *value],
             Instruction::TensorCopy { target, source } => smallvec![*target, *source],
@@ -1109,6 +1120,7 @@ impl Instruction {
             Instruction::Tuple { elements, .. } => Some(*elements),
             Instruction::Array { elements, .. } => Some(*elements),
             Instruction::TensorLoad { indices, .. } => Some(*indices),
+            Instruction::TensorExtract { indices, .. } => Some(*indices),
             Instruction::TensorStore { indices, .. } => Some(*indices),
             Instruction::TensorReshape { shape, .. } => Some(*shape),
             Instruction::TensorView { arguments, .. } => Some(*arguments),

@@ -316,6 +316,25 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Extract a tensor element from a tensor value.
+    pub fn tensor_extract(&mut self, tensor: Value, indices: Vec<Value>) -> Value {
+        let destination = self.allocate_value();
+        let tensor_type = self.value_type_or_panic(tensor, "tensor.extract tensor");
+        let element_type = self.element_type_for_tensor(tensor_type);
+        let indices = indices
+            .into_iter()
+            .map(ValueReference::from)
+            .collect::<Vec<_>>();
+        let indices = self.tree.add_arguments(&indices);
+        self.insert_instruction(Instruction::TensorExtract {
+            destination: destination.into(),
+            tensor: tensor.into(),
+            indices,
+        });
+        self.define_value(destination, element_type);
+        destination
+    }
+
     /// Store a tensor element into a tensor reference.
     pub fn tensor_store(&mut self, view: Value, indices: Vec<Value>, value: Value) {
         let indices = indices

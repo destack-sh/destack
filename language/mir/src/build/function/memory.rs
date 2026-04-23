@@ -172,6 +172,20 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Resolve the element type for a tensor view.
+    pub(super) fn element_type_for_tensor(
+        &self,
+        tensor_type: LocalNodeId<Type>,
+    ) -> LocalNodeId<Type> {
+        let tensor_type = self.tree.get(tensor_type);
+        match tensor_type {
+            Type::Tensor { element, .. } => {
+                concrete_type_reference(*element, "tensor element type")
+            }
+            _ => panic!("tensor extraction expects tensor type"),
+        }
+    }
+
+    /// Resolve the element type for a tensor view.
     pub(super) fn element_type_for_tensor_view(
         &self,
         reference_type: LocalNodeId<Type>,

@@ -897,6 +897,48 @@ impl<'a> Validator<'a> {
                     });
                 }
             }
+            Instruction::TensorExtract {
+                destination,
+                tensor,
+                indices,
+            } => {
+                let tensor_type_id =
+                    self.value_type_or_error(function, *tensor, anchor, "tensor.extract tensor")?;
+                let destination_type_id = self.value_type_or_error(
+                    function,
+                    *destination,
+                    anchor,
+                    "tensor.extract destination",
+                )?;
+                let tensor_type =
+                    self.tensor_type(tensor_type_id, anchor, "tensor.extract expects tensor")?;
+
+                if !self.types_equivalent(destination_type_id, tensor_type.0) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "tensor.extract destination type mismatches tensor element type"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+
+                let indices = self.tree.get_arguments(*indices);
+                if indices.len() != tensor_type.1.len() {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "tensor.extract index count must match tensor rank".to_string(),
+                        anchor,
+                    });
+                }
+
+                for index in indices {
+                    let index_type =
+                        self.value_type_or_error(function, *index, anchor, "tensor.extract index")?;
+                    self.expect_integer_like_type(
+                        index_type,
+                        anchor,
+                        "tensor.extract index must be an integer type",
+                    )?;
+                }
+            }
             Instruction::VectorSelect {
                 destination,
                 mask,

@@ -89,6 +89,9 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::VectorConvert {
                     vector: argument, ..
                 }
+                | Instruction::TensorExtract {
+                    tensor: argument, ..
+                }
                 | Instruction::TensorReshape {
                     tensor: argument, ..
                 }

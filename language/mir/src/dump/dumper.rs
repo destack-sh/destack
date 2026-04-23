@@ -876,6 +876,25 @@ impl<'a> Dumper<'a> {
                 self.write("]");
             }
 
+            Instruction::TensorExtract {
+                destination,
+                tensor,
+                indices,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.extract ");
+                self.write(&self.format_value(*tensor));
+                self.write(", [");
+                let args = self.tree.get_arguments(*indices);
+                for (i, arg) in args.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write("]");
+            }
+
             Instruction::TensorStore {
                 view,
                 indices,
