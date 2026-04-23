@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
-use crate::{HeapOptions, LayoutId, SharedHeapSpace, SharedRawSpace, TracePlan, test_allocator};
-use destack_mir::LayoutTrace;
+use crate::{HeapOptions, SharedHeapSpace, SharedRawSpace, test_allocator, test_layouts};
+use destack_mir::ReferenceMap;
 
 /// Share unchanged shared allocations across image and fork boundaries.
 #[test]
 fn test_roundtrip_shared_memory_image_and_fork() {
-    let layout = HeapOptions {
+    let options = HeapOptions {
         page_bytes: 4,
         ..HeapOptions::shared()
     };
-    let allocator = test_allocator(&layout);
+    let allocator = test_allocator(&options);
     let shared = SharedRawSpace::with_allocator(allocator);
 
     // capture two allocations so only one has to detach later
@@ -66,32 +66,34 @@ fn test_roundtrip_shared_memory_image_and_fork() {
 /// Preserve shared heap metadata across image roundtrips and detach only touched entries.
 #[test]
 fn test_roundtrip_shared_heap_space_image() {
-    let layout = HeapOptions {
+    let options = HeapOptions {
         page_bytes: 4,
         ..HeapOptions::shared()
     };
-    let allocator = test_allocator(&layout);
-    let heap = SharedHeapSpace::with_allocator(allocator.clone());
+    let allocator = test_allocator(&options);
+    let (layouts, layout_ids) =
+        test_layouts(&[(6, ReferenceMap::empty()), (6, ReferenceMap::empty())]);
+    let first_layout_id = layout_ids[0];
+    let second_layout_id = layout_ids[1];
+    let heap = SharedHeapSpace::with_layouts_and_options(allocator.clone(), layouts, &options)
+        .expect("shared heap space should build");
 
     // capture two entries in one shared small span
     let first_bytes = vec![1; 6];
     let second_bytes = vec![2; 6];
     let first = heap
-        .allocate_bytes(&first_bytes, LayoutTrace::empty(), None)
+        .allocate_bytes(&first_bytes, first_layout_id)
         .expect("shared heap allocation should succeed");
     let _second = heap
-        .allocate_bytes(&second_bytes, LayoutTrace::empty(), None)
+        .allocate_bytes(&second_bytes, second_layout_id)
         .expect("shared heap allocation should succeed");
-    heap.set_layout_id(first, LayoutId::new(41))
-        .expect("shared heap storage layout id should update");
     let image = heap.image();
     let restored = SharedHeapSpace::from_image_with_allocator(allocator.clone(), &image)
         .expect("shared heap image restore should succeed");
     let restored_image = restored.image();
 
     // restored metadata should match and untouched pages should still share
-    assert_eq!(restored.layout_id(first), Ok(Some(LayoutId::new(41))));
-    assert_eq!(restored.scan(first), Ok(TracePlan::empty()));
+    assert_eq!(restored.scan(first), Ok(ReferenceMap::empty()));
     assert!(Arc::ptr_eq(&restored.allocator, &allocator));
     assert_eq!(image.spans()[0].pages, restored_image.spans()[0].pages);
 

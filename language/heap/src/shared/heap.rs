@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
+use destack_mir::{Layout, LayoutId, LayoutTable, ReferenceMap};
 use serde::{Deserialize, Serialize};
 
 use super::constants::{
@@ -14,8 +15,8 @@ use super::{
     SharedRawSpace, SharedRawSpaceImage,
 };
 use crate::{
-    Allocator, GcPacer, GcStats, GcSummary, HeapError, HeapOptions, HeapResult, LayoutId, PageId,
-    SharedHeapReference, SharedRawPointer, TracePlan, apply_byte_delta,
+    Allocator, GcPacer, GcState, GcStats, HeapError, HeapOptions, HeapResult, PageId,
+    SharedHeapReference, SharedRawPointer, apply_byte_delta,
 };
 
 /// One live world-shared heap.
@@ -40,7 +41,7 @@ pub struct SharedHeap {
 }
 
 /// One frozen shared heap.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SharedHeapImage {
     /// The captured shared heap options.
     pub options: HeapOptions,
@@ -60,74 +61,19 @@ impl SharedHeapImage {
     }
 }
 
-impl Default for SharedHeap {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl SharedHeap {
-    /// Create a new empty shared heap.
-    pub fn new() -> Self {
-        Self::with_limits_and_options(SharedHeapLimits::default(), HeapOptions::shared())
-    }
-
-    /// Create a new empty shared heap with explicit options.
-    pub fn with_options(options: HeapOptions) -> Self {
-        Self::with_allocator_limits_and_options(
-            Arc::new(Allocator::new()),
-            SharedHeapLimits::default(),
-            options,
-        )
-    }
-
-    /// Create a new empty shared heap over one shared allocator.
-    pub fn with_allocator(allocator: Arc<Allocator>) -> Self {
-        let options = HeapOptions {
-            page_bytes: allocator.page_bytes(),
-            allocator_segment_bytes: allocator.segment_bytes(),
-            ..HeapOptions::shared()
-        };
-
-        Self::with_allocator_and_options(allocator, options)
-    }
-
-    /// Create a new empty shared heap with explicit limits and options.
-    pub fn with_limits_and_options(limits: SharedHeapLimits, options: HeapOptions) -> Self {
-        Self::with_allocator_limits_and_options(Arc::new(Allocator::new()), limits, options)
-    }
-
-    /// Create a new empty shared heap over one shared allocator and limit set.
-    pub fn with_allocator_and_limits(allocator: Arc<Allocator>, limits: SharedHeapLimits) -> Self {
-        let options = HeapOptions {
-            page_bytes: allocator.page_bytes(),
-            allocator_segment_bytes: allocator.segment_bytes(),
-            ..HeapOptions::shared()
-        };
-
-        Self::with_allocator_limits_and_options(allocator, limits, options)
-    }
-
-    /// Create a new empty shared heap over one shared allocator and explicit options.
-    pub fn with_allocator_and_options(allocator: Arc<Allocator>, options: HeapOptions) -> Self {
-        Self::with_allocator_limits_and_options(allocator, SharedHeapLimits::default(), options)
-    }
-
-    /// Create a new empty shared heap over one shared allocator, limits, and options.
-    pub fn with_allocator_limits_and_options(
+    /// Create one shared heap over one explicit allocator, layout table, limits, and options.
+    pub fn with_allocator_limits_layouts_and_options(
         allocator: Arc<Allocator>,
+        layouts: Arc<LayoutTable>,
         limits: SharedHeapLimits,
         options: HeapOptions,
-    ) -> Self {
-        options
-            .validate_shared()
-            .expect("shared heap options should validate");
-        options
-            .validate_allocator(&allocator)
-            .expect("shared heap allocator should match options");
+    ) -> HeapResult<Self> {
+        options.validate_shared()?;
+        options.validate_allocator(&allocator)?;
 
         let shared = Self {
-            heap: SharedHeapSpace::with_options(allocator.clone(), &options),
+            heap: SharedHeapSpace::with_layouts_and_options(allocator.clone(), layouts, &options)?,
             raw: SharedRawSpace::with_allocator(allocator.clone()),
             allocator,
             options,
@@ -138,12 +84,22 @@ impl SharedHeap {
 
         shared.refresh_gc_request();
 
-        shared
+        Ok(shared)
     }
 
-    /// Return the configured shared page width.
+    /// Return the configured shared page size.
     pub fn page_bytes(&self) -> usize {
         self.allocator.page_bytes()
+    }
+
+    /// Return the configured shared heap options.
+    pub fn options(&self) -> &HeapOptions {
+        &self.options
+    }
+
+    /// Return the configured shared heap limits.
+    pub fn limits(&self) -> SharedHeapLimits {
+        self.limits
     }
 
     /// Return the exact live usage for this shared heap.
@@ -160,7 +116,7 @@ impl SharedHeap {
     }
 
     /// Return the current shared heap collector state.
-    pub fn gc_state(&self) -> GcSummary {
+    pub fn gc_state(&self) -> GcState {
         self.heap.gc_state()
     }
 
@@ -266,22 +222,22 @@ impl SharedHeap {
     }
 
     /// Return the projected mapped-byte delta for one shared raw allocation.
-    pub fn raw_alloc_mapped_delta(&self, byte_len: usize) -> i64 {
-        self.raw.alloc_mapped_delta(byte_len)
+    pub fn raw_alloc_mapped_byte_delta(&self, byte_len: usize) -> i64 {
+        self.raw.alloc_mapped_byte_delta(byte_len)
     }
 
     /// Return the projected mapped-byte delta for one shared raw replacement.
-    pub fn raw_replace_mapped_delta(
+    pub fn raw_replace_mapped_byte_delta(
         &self,
         pointer: SharedRawPointer,
         next_byte_len: usize,
     ) -> HeapResult<i64> {
-        self.raw.replace_mapped_delta(pointer, next_byte_len)
+        self.raw.replace_mapped_byte_delta(pointer, next_byte_len)
     }
 
     /// Allocate one shared raw byte allocation.
     pub fn allocate_raw_bytes(&self, bytes: &[u8]) -> HeapResult<SharedRawPointer> {
-        self.check_raw_mapped_delta(self.raw.alloc_mapped_delta(bytes.len()))?;
+        self.check_raw_mapped_byte_delta(self.raw.alloc_mapped_byte_delta(bytes.len()))?;
 
         self.raw.allocate_bytes(bytes)
     }
@@ -292,7 +248,9 @@ impl SharedHeap {
         pointer: SharedRawPointer,
         bytes: &[u8],
     ) -> HeapResult<SharedRawPointer> {
-        self.check_raw_mapped_delta(self.raw.replace_mapped_delta(pointer, bytes.len())?)?;
+        self.check_raw_mapped_byte_delta(
+            self.raw.replace_mapped_byte_delta(pointer, bytes.len())?,
+        )?;
 
         self.raw.replace_bytes(pointer, bytes)
     }
@@ -306,34 +264,35 @@ impl SharedHeap {
     pub fn allocate_heap_bytes(
         &self,
         bytes: &[u8],
-        scan: impl Into<TracePlan>,
-        layout_id: Option<LayoutId>,
+        layout_id: LayoutId,
     ) -> HeapResult<SharedHeapReference> {
         // projected growth
-        let path = self.heap.allocation_path(bytes.len());
-        self.check_heap_mapped_delta(path.mapped_delta())?;
+        let mapped_byte_delta = self.heap.mapped_byte_delta(layout_id)?;
+        self.check_heap_mapped_byte_delta(mapped_byte_delta)?;
 
         // allocation and pacing
-        let reference = self.heap.place_bytes(bytes, scan, layout_id, path)?;
+        let reference = self.heap.allocate_bytes(bytes, layout_id)?;
         self.accrue_assist_debt(bytes.len());
         self.refresh_gc_request();
 
         Ok(reference)
     }
 
+    /// Register one shared managed layout and return its stable id.
+    pub fn register_layout(&self, layout: Layout) -> LayoutId {
+        self.heap.register_layout(layout)
+    }
+
     /// Allocate one zeroed shared heap byte allocation.
-    pub fn allocate_heap_zeroed(
-        &self,
-        byte_len: usize,
-        scan: impl Into<TracePlan>,
-        layout_id: Option<LayoutId>,
-    ) -> HeapResult<SharedHeapReference> {
+    pub fn allocate_heap_zeroed(&self, layout_id: LayoutId) -> HeapResult<SharedHeapReference> {
+        let byte_len = self.heap.layout_byte_len(layout_id)?;
+
         // projected growth
-        let path = self.heap.allocation_path(byte_len);
-        self.check_heap_mapped_delta(path.mapped_delta())?;
+        let mapped_byte_delta = self.heap.mapped_byte_delta(layout_id)?;
+        self.check_heap_mapped_byte_delta(mapped_byte_delta)?;
 
         // allocation and pacing
-        let reference = self.heap.place_zeroed(byte_len, scan, layout_id, path)?;
+        let reference = self.heap.allocate_zeroed(layout_id)?;
         self.accrue_assist_debt(byte_len);
         self.refresh_gc_request();
 
@@ -366,22 +325,8 @@ impl SharedHeap {
     }
 
     /// Return the scan metadata for one shared heap reference.
-    pub fn scan(&self, reference: SharedHeapReference) -> HeapResult<TracePlan> {
+    pub fn scan(&self, reference: SharedHeapReference) -> HeapResult<ReferenceMap> {
         self.heap.scan(reference)
-    }
-
-    /// Return the storage layout id for one shared heap reference.
-    pub fn heap_layout_id(&self, reference: SharedHeapReference) -> HeapResult<Option<LayoutId>> {
-        self.heap.layout_id(reference)
-    }
-
-    /// Set the storage layout id for one shared heap reference.
-    pub fn set_heap_layout_id(
-        &self,
-        reference: SharedHeapReference,
-        layout_id: LayoutId,
-    ) -> HeapResult<()> {
-        self.heap.set_layout_id(reference, layout_id)
     }
 
     /// Overwrite one shared heap byte range.
@@ -510,47 +455,6 @@ impl SharedHeap {
         })
     }
 
-    /// Create one shared heap from one frozen shared heap image.
-    pub fn from_image_with_allocator(
-        allocator: Arc<Allocator>,
-        image: &SharedHeapImage,
-    ) -> HeapResult<Self> {
-        Self::from_image_with_allocator_limits_and_options(
-            allocator,
-            image,
-            SharedHeapLimits::default(),
-            image.options.clone(),
-        )
-    }
-
-    /// Create one shared heap from one frozen shared heap image and explicit limits.
-    pub fn from_image_with_allocator_and_limits(
-        allocator: Arc<Allocator>,
-        image: &SharedHeapImage,
-        limits: SharedHeapLimits,
-    ) -> HeapResult<Self> {
-        Self::from_image_with_allocator_limits_and_options(
-            allocator,
-            image,
-            limits,
-            image.options.clone(),
-        )
-    }
-
-    /// Create one shared heap from one frozen shared heap image and explicit options.
-    pub fn from_image_with_allocator_and_options(
-        allocator: Arc<Allocator>,
-        image: &SharedHeapImage,
-        options: HeapOptions,
-    ) -> HeapResult<Self> {
-        Self::from_image_with_allocator_limits_and_options(
-            allocator,
-            image,
-            SharedHeapLimits::default(),
-            options,
-        )
-    }
-
     /// Create one shared heap from one frozen shared heap image, limits, and options.
     pub fn from_image_with_allocator_limits_and_options(
         allocator: Arc<Allocator>,
@@ -598,10 +502,10 @@ impl SharedHeap {
     }
 
     /// Check one projected mapped-byte delta against shared heap limits.
-    fn check_heap_mapped_delta(&self, mapped_delta: i64) -> HeapResult<()> {
+    fn check_heap_mapped_byte_delta(&self, mapped_byte_delta: i64) -> HeapResult<()> {
         // total limit
         if let Some(max_bytes) = self.limits.max_bytes {
-            let active_bytes = apply_byte_delta(self.active_bytes(), mapped_delta)?;
+            let active_bytes = apply_byte_delta(self.active_bytes(), mapped_byte_delta)?;
             if active_bytes > max_bytes {
                 return Err(HeapError::TotalLimitExceeded {
                     used_bytes: active_bytes,
@@ -613,14 +517,14 @@ impl SharedHeap {
         // heap limit
         self.limits
             .heap
-            .check_mapped_delta(self.heap.active_bytes(), mapped_delta)
+            .check_mapped_byte_delta(self.heap.active_bytes(), mapped_byte_delta)
     }
 
     /// Check one projected mapped-byte delta against shared raw limits.
-    fn check_raw_mapped_delta(&self, mapped_delta: i64) -> HeapResult<()> {
+    fn check_raw_mapped_byte_delta(&self, mapped_byte_delta: i64) -> HeapResult<()> {
         // total limit
         if let Some(max_bytes) = self.limits.max_bytes {
-            let active_bytes = apply_byte_delta(self.active_bytes(), mapped_delta)?;
+            let active_bytes = apply_byte_delta(self.active_bytes(), mapped_byte_delta)?;
             if active_bytes > max_bytes {
                 return Err(HeapError::TotalLimitExceeded {
                     used_bytes: active_bytes,
@@ -632,7 +536,7 @@ impl SharedHeap {
         // raw limit
         self.limits
             .raw
-            .check_mapped_delta(self.raw.active_bytes(), mapped_delta)
+            .check_mapped_byte_delta(self.raw.active_bytes(), mapped_byte_delta)
     }
 
     /// Return one frozen shared heap image.
