@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{HeapError, SizeClassTable};
 
-/// One homogeneous small-span payload class.
+/// One small-span size and scan class.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SmallSpanClass {
     /// The slot payload size in bytes.
