@@ -615,10 +615,7 @@ impl SharedHeapSpace {
             },
         );
 
-        // reader errors
-        if let Err(error) = trace_result {
-            return Err(error);
-        }
+        trace_result?;
 
         // published edges
         self.queue_references(edge_buffer)?;

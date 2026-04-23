@@ -93,7 +93,7 @@ impl SharedTraceQueue {
     fn shard_index(&self, work: SharedTraceWork) -> usize {
         match work {
             SharedTraceWork::SmallSpan(span_index) => span_index % self.shards.len(),
-            SharedTraceWork::Reference(reference) => reference.bits() as usize % self.shards.len(),
+            SharedTraceWork::Reference(reference) => reference.bits() % self.shards.len(),
         }
     }
 }

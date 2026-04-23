@@ -37,13 +37,7 @@ impl PageRunSet {
                 if let Some(run) = runs.pop() {
                     self.by_start.remove(&run.first_page.index());
 
-                    let (allocation, remainder) = run.split_prefix(page_count).unwrap_or_else(|| {
-                        panic!(
-                            "free page run should split cleanly: first_page={}, page_count={page_count}, run_len={}",
-                            run.first_page.index(),
-                            run.len()
-                        )
-                    });
+                    let (allocation, remainder) = run.split_prefix(page_count)?;
 
                     if !remainder.is_empty() {
                         self.insert(remainder);
@@ -55,13 +49,10 @@ impl PageRunSet {
         }
 
         // then fall back to larger ordered runs
-        let Some((run_len, run)) = self
+        let (run_len, run) = self
             .large_by_len
             .range_mut(page_count..)
-            .find_map(|(&run_len, runs)| runs.pop().map(|run| (run_len, run)))
-        else {
-            return None;
-        };
+            .find_map(|(&run_len, runs)| runs.pop().map(|run| (run_len, run)))?;
 
         self.by_start.remove(&run.first_page.index());
 
@@ -69,13 +60,7 @@ impl PageRunSet {
             self.large_by_len.remove(&run_len);
         }
 
-        let (allocation, remainder) = run.split_prefix(page_count).unwrap_or_else(|| {
-            panic!(
-                "free page run should split cleanly: first_page={}, page_count={page_count}, run_len={}",
-                run.first_page.index(),
-                run.len()
-            )
-        });
+        let (allocation, remainder) = run.split_prefix(page_count)?;
 
         if !remainder.is_empty() {
             self.insert(remainder);
