@@ -6,8 +6,8 @@ use crate::allocator::Allocator;
 use crate::local::raw::RawSpace;
 use crate::local::space::HeapSpace;
 use crate::{
-    GcPacer, GcState, GcStats, HeapLimits, HeapOptions, HeapReference, HeapResult, RawPointer,
-    SharedHeapReference,
+    Allocation, GcPacer, GcState, GcStats, HeapLimits, HeapOptions, HeapReference, HeapResult,
+    RawPointer, SharedHeapReference,
 };
 
 /// One pending local GC request.
@@ -202,11 +202,11 @@ impl Heap {
         Ok(Some(stats))
     }
 
-    /// Allocate one heap byte allocation.
-    pub fn allocate_heap_bytes(
+    /// Allocate one managed heap entry.
+    pub fn allocate(
         &mut self,
-        bytes: &[u8],
         layout_id: LayoutId,
+        allocation: Allocation<'_>,
     ) -> HeapResult<HeapReference> {
         let mapped_byte_delta = self.heap.mapped_byte_delta(layout_id)?;
 
@@ -214,40 +214,30 @@ impl Heap {
         self.check_mapped_byte_delta(mapped_byte_delta, 0)?;
 
         // then allocate through heap space
-        let reference = self.heap.allocate_bytes(bytes, layout_id)?;
+        let reference = self.heap.allocate(layout_id, allocation)?;
         self.refresh_gc_request();
 
         Ok(reference)
     }
 
-    /// Allocate one raw byte allocation.
-    pub fn allocate_raw_bytes(&mut self, bytes: &[u8]) -> HeapResult<RawPointer> {
-        let mapped_byte_delta = self.raw.alloc_mapped_byte_delta(bytes.len());
+    /// Allocate one raw entry.
+    pub fn allocate_raw(
+        &mut self,
+        byte_len: usize,
+        allocation: Allocation<'_>,
+    ) -> HeapResult<RawPointer> {
+        let mapped_byte_delta = self.raw.alloc_mapped_byte_delta(byte_len);
 
         // check the projected raw mapped-byte delta first
         self.check_mapped_byte_delta(0, mapped_byte_delta)?;
 
         // then allocate through raw space
-        self.raw.allocate_bytes(bytes)
+        self.raw.allocate(byte_len, allocation)
     }
 
     /// Register one managed layout and return its stable id.
     pub fn register_layout(&mut self, layout: destack_mir::Layout) -> LayoutId {
         self.heap.register_layout(layout)
-    }
-
-    /// Allocate one zeroed heap byte allocation.
-    pub fn allocate_heap_zeroed(&mut self, layout_id: LayoutId) -> HeapResult<HeapReference> {
-        let mapped_byte_delta = self.heap.mapped_byte_delta(layout_id)?;
-
-        // check the projected heap mapped-byte delta first
-        self.check_mapped_byte_delta(mapped_byte_delta, 0)?;
-
-        // then allocate through heap space
-        let reference = self.heap.allocate_zeroed(layout_id)?;
-        self.refresh_gc_request();
-
-        Ok(reference)
     }
 
     /// Return whether one heap reference currently refers to one live allocation.
@@ -304,17 +294,6 @@ impl Heap {
         byte_len: usize,
     ) -> HeapResult<()> {
         self.heap.write_barrier(reference, start, byte_len)
-    }
-
-    /// Allocate one zeroed raw byte allocation.
-    pub fn allocate_raw_zeroed(&mut self, byte_len: usize) -> HeapResult<RawPointer> {
-        let mapped_byte_delta = self.raw.alloc_mapped_byte_delta(byte_len);
-
-        // check the projected raw mapped-byte delta first
-        self.check_mapped_byte_delta(0, mapped_byte_delta)?;
-
-        // then allocate through raw space
-        self.raw.allocate_zeroed(byte_len)
     }
 
     /// Return the bytes for one raw allocation as one owned vector.

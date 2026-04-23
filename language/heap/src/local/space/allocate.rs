@@ -6,7 +6,7 @@ use super::{
 };
 use crate::allocator::{Allocator, PageView, SpanSlot};
 use crate::{
-    AccountingRegion, Bitmap, HeapError, HeapReference, HeapResult, SmallSpanClass,
+    AccountingRegion, Allocation, Bitmap, HeapError, HeapReference, HeapResult, SmallSpanClass,
     clear_slot_reference_bits, write_slot_reference_bits,
 };
 
@@ -77,18 +77,30 @@ impl HeapSpace {
         Ok(self.round_up_large_entry_bytes(byte_len) as i64)
     }
 
-    /// Allocate one heap byte entry.
-    pub fn allocate_bytes(
+    /// Allocate one managed heap entry.
+    pub fn allocate(
         &mut self,
-        bytes: &[u8],
         layout_id: LayoutId,
+        allocation: Allocation<'_>,
     ) -> HeapResult<HeapReference> {
-        self.allocate_with_bytes(layout_id, Some(bytes))
-    }
+        let byte_len = self.layout_byte_len(layout_id)?;
+        let has_shared_reference = self.reference_map(layout_id)?.has_shared_reference();
+        let storage = self.allocate_storage(layout_id, byte_len, allocation)?;
+        let reference = self.base_reference(storage)?;
 
-    /// Allocate one zeroed heap byte entry.
-    pub fn allocate_zeroed(&mut self, layout_id: LayoutId) -> HeapResult<HeapReference> {
-        self.allocate_with_bytes(layout_id, None)
+        self.usage.allocate(byte_len, AccountingRegion::Heap)?;
+
+        // track every live reference whose shape may contain shared edges
+        if has_shared_reference {
+            self.track_shared_edge_root(reference)?;
+        }
+
+        // queue newly published shared edges during an active shared cycle
+        if allocation.bytes().is_some() {
+            self.queue_shared_reference(reference)?;
+        }
+
+        Ok(reference)
     }
 
     /// Free one heap entry.
@@ -158,43 +170,17 @@ impl HeapSpace {
         }
     }
 
-    /// Allocate one heap payload from explicit bytes or one zeroed length.
-    fn allocate_with_bytes(
-        &mut self,
-        layout_id: LayoutId,
-        bytes: Option<&[u8]>,
-    ) -> HeapResult<HeapReference> {
-        let byte_len = self.layout_byte_len(layout_id)?;
-        let has_shared_reference = self.reference_map(layout_id)?.has_shared_reference();
-        let storage = self.allocate_storage(layout_id, byte_len, bytes)?;
-        let reference = self.base_reference(storage)?;
-
-        self.usage.allocate(byte_len, AccountingRegion::Heap)?;
-
-        // track every live reference whose shape may contain shared edges
-        if has_shared_reference {
-            self.track_shared_edge_root(reference)?;
-        }
-
-        // queue newly published shared edges during an active shared cycle
-        if bytes.is_some() {
-            self.queue_shared_reference(reference)?;
-        }
-
-        Ok(reference)
-    }
-
     /// Allocate one heap storage partition for the given payload.
     fn allocate_storage(
         &mut self,
         layout_id: LayoutId,
         byte_len: usize,
-        bytes: Option<&[u8]>,
+        allocation: Allocation<'_>,
     ) -> HeapResult<HeapStorage> {
         let reference_map = self.reference_map(layout_id)?.clone();
 
         // reject inconsistent allocation
-        if let Some(bytes) = bytes
+        if let Some(bytes) = allocation.bytes()
             && bytes.len() != byte_len
         {
             return Err(HeapError::InvalidLayoutBytes {
@@ -206,7 +192,7 @@ impl HeapSpace {
 
         // allocate into young space when the payload still fits there
         if self.young_fits(byte_len) {
-            let Some(young_id) = self.allocate_young(byte_len, bytes, layout_id)? else {
+            let Some(young_id) = self.allocate_young(byte_len, allocation, layout_id)? else {
                 return Err(HeapError::MissingYoungEntry {
                     generation: self.young.generation,
                     entry_index: self.young.entries.len() as u32,
@@ -217,9 +203,9 @@ impl HeapSpace {
         }
         // otherwise allocate from one homogeneous small span when the payload still fits
         else if let Some(class) = self.small_span_class(byte_len, &reference_map) {
-            let init = match bytes {
-                Some(bytes) => SlotInit::Bytes(bytes),
-                None => SlotInit::Zeroed,
+            let init = match allocation {
+                Allocation::Bytes(bytes) => SlotInit::Bytes(bytes),
+                Allocation::Zeroed => SlotInit::Zeroed,
             };
             let span_index = self.allocate_small_span(&class)?;
             let Some(span) = self.small.spans.get(span_index) else {
@@ -240,7 +226,7 @@ impl HeapSpace {
         }
         // otherwise allocate one dedicated large entry
         else {
-            let pages = self.allocate_large_pages(byte_len, bytes)?;
+            let pages = self.allocate_large_pages(byte_len, allocation)?;
             let entry_id = self.store_large_entry(byte_len, pages, layout_id, true)?;
 
             Ok(HeapStorage::Large(entry_id))
@@ -444,7 +430,7 @@ impl HeapSpace {
     fn allocate_young(
         &mut self,
         byte_len: usize,
-        bytes: Option<&[u8]>,
+        allocation: Allocation<'_>,
         layout_id: LayoutId,
     ) -> HeapResult<Option<HeapYoungId>> {
         let Some((young_id, write_offset)) = self.reserve_young_entry(byte_len, layout_id) else {
@@ -452,7 +438,7 @@ impl HeapSpace {
         };
 
         // initialize the reserved young-space range
-        if let Some(bytes) = bytes {
+        if let Allocation::Bytes(bytes) = allocation {
             self.allocator
                 .set_bytes(&mut self.young.pages, write_offset, bytes)?;
         }
@@ -535,11 +521,11 @@ impl HeapSpace {
     fn allocate_large_pages(
         &mut self,
         byte_len: usize,
-        bytes: Option<&[u8]>,
+        allocation: Allocation<'_>,
     ) -> HeapResult<PageView> {
-        match bytes {
-            Some(bytes) => self.allocate_page_view_bytes(bytes),
-            None => self.allocate_page_view_zeroed(byte_len),
+        match allocation {
+            Allocation::Bytes(bytes) => self.allocate_page_view_bytes(bytes),
+            Allocation::Zeroed => self.allocate_page_view_zeroed(byte_len),
         }
     }
 

@@ -385,6 +385,13 @@ pub enum HeapError {
         /// The traced value byte offset.
         start: usize,
     },
+    /// One allocation initializer did not match its requested byte length.
+    InvalidAllocationBytes {
+        /// The expected byte length.
+        expected: usize,
+        /// The actual byte length requested by the caller.
+        actual: usize,
+    },
     /// One managed allocation did not match its declared layout width.
     InvalidLayoutBytes {
         /// The layout identifier used for the allocation.
@@ -816,6 +823,12 @@ impl Display for HeapError {
                 write!(
                     formatter,
                     "invalid value payload while tracing heap references: start={start}"
+                )
+            }
+            Self::InvalidAllocationBytes { expected, actual } => {
+                write!(
+                    formatter,
+                    "allocation bytes do not match requested length: expected {expected}, got {actual}"
                 )
             }
             Self::InvalidLayoutBytes {

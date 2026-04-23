@@ -1,4 +1,4 @@
-use crate::{HeapError, HeapOptions, RawPointer, RawSpace, test_allocator};
+use crate::{Allocation, HeapError, HeapOptions, RawPointer, RawSpace, test_allocator};
 
 /// Reclaim one freed raw allocation and keep the allocator live.
 #[test]
@@ -7,7 +7,7 @@ fn test_free_raw_reclaims_live_allocation() {
     let mut raw =
         RawSpace::with_options(test_allocator(&options), &options).expect("raw space should build");
     let pointer = raw
-        .allocate_bytes(&[0xAB, 0xCD])
+        .allocate(2, Allocation::Bytes(&[0xAB, 0xCD]))
         .expect("raw allocation should succeed");
 
     // freeing one live allocation should retire it immediately
@@ -28,7 +28,10 @@ fn test_free_raw_reclaims_large_allocation() {
     let mut raw =
         RawSpace::with_options(test_allocator(&options), &options).expect("raw space should build");
     let pointer = raw
-        .allocate_bytes(&vec![0xAB; large_byte_len])
+        .allocate(
+            large_byte_len,
+            Allocation::Bytes(&vec![0xAB; large_byte_len]),
+        )
         .expect("raw large allocation should succeed");
 
     // freeing one large allocation should retire its pointer
@@ -36,7 +39,10 @@ fn test_free_raw_reclaims_large_allocation() {
     assert!(!raw.is_live(pointer));
 
     let next_pointer = raw
-        .allocate_bytes(&vec![0xCD; large_byte_len])
+        .allocate(
+            large_byte_len,
+            Allocation::Bytes(&vec![0xCD; large_byte_len]),
+        )
         .expect("raw large allocation should succeed");
 
     assert!(raw.is_live(next_pointer));

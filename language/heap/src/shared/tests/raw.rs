@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{Allocator, HeapError, SharedRawPointer, SharedRawSpace};
+use crate::{Allocation, Allocator, HeapError, SharedRawPointer, SharedRawSpace};
 
 /// Reject one invalid shared raw pointer loudly.
 #[test]
@@ -21,7 +21,7 @@ fn test_free_shared_reclaims_live_allocation() {
     let allocator = Arc::new(Allocator::try_default().expect("allocator should build"));
     let shared = SharedRawSpace::with_allocator(allocator);
     let pointer = shared
-        .allocate_bytes(&[0xAB, 0xCD])
+        .allocate(2, Allocation::Bytes(&[0xAB, 0xCD]))
         .expect("shared allocation should succeed");
 
     // freeing one live allocation should retire it immediately
@@ -30,7 +30,7 @@ fn test_free_shared_reclaims_live_allocation() {
     assert!(!shared.is_live(pointer));
 
     let next_pointer = shared
-        .allocate_bytes(&[0xEF])
+        .allocate(1, Allocation::Bytes(&[0xEF]))
         .expect("shared allocation should succeed");
 
     assert!(shared.is_live(next_pointer));
@@ -42,7 +42,7 @@ fn test_shared_reads_reject_invalid_pointer_offset() {
     let allocator = Arc::new(Allocator::try_default().expect("allocator should build"));
     let shared = SharedRawSpace::with_allocator(allocator);
     let pointer = shared
-        .allocate_bytes(&[0xAA, 0xBB, 0xCC])
+        .allocate(3, Allocation::Bytes(&[0xAA, 0xBB, 0xCC]))
         .expect("shared allocation should succeed");
     let pointer = pointer.add_bytes(4).expect("pointer offset should fit");
 

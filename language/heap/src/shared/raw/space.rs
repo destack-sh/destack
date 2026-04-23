@@ -5,8 +5,8 @@ use parking_lot::{Mutex, RwLock};
 use super::{SharedRawEntry, SharedRawLocation, SharedRawPageOwner};
 use crate::allocator::{PageRunCache, PageView};
 use crate::{
-    AccountingRegion, AllocationUsage, Allocator, HeapError, HeapResult, SharedRawPointer,
-    SharedRawSpaceUsage,
+    AccountingRegion, Allocation, AllocationUsage, Allocator, HeapError, HeapResult,
+    SharedRawPointer, SharedRawSpaceUsage,
 };
 
 /// Control state for one shared raw space.
@@ -111,13 +111,31 @@ impl SharedRawSpace {
         self.resolve_location(pointer).is_ok()
     }
 
-    /// Allocate one shared raw byte entry.
-    pub fn allocate_bytes(&self, bytes: &[u8]) -> HeapResult<SharedRawPointer> {
+    /// Allocate one shared raw entry.
+    pub fn allocate(
+        &self,
+        byte_len: usize,
+        allocation: Allocation<'_>,
+    ) -> HeapResult<SharedRawPointer> {
+        if let Some(bytes) = allocation.bytes()
+            && bytes.len() != byte_len
+        {
+            return Err(HeapError::InvalidAllocationBytes {
+                expected: byte_len,
+                actual: bytes.len(),
+            });
+        }
+
         let mut state = self.state.lock();
-        let pages = state
-            .page_run_cache
-            .allocate_bytes(&self.allocator, bytes)?;
-        let entry = Arc::new(RwLock::new(SharedRawEntry::new(bytes.len(), pages.clone())));
+        let pages = match allocation.bytes() {
+            Some(bytes) => state
+                .page_run_cache
+                .allocate_bytes(&self.allocator, bytes)?,
+            None => state
+                .page_run_cache
+                .allocate_zeroed(&self.allocator, byte_len)?,
+        };
+        let entry = Arc::new(RwLock::new(SharedRawEntry::new(byte_len, pages.clone())));
         let base_address = self.allocator.page_view_ptr(&pages, 0)? as *mut u8 as usize;
 
         let mut entries = self.entries.write();
@@ -128,7 +146,7 @@ impl SharedRawSpace {
         self.map_page_view(&pages, entry_index)?;
         state
             .usage
-            .allocate(bytes.len(), AccountingRegion::SharedRaw)?;
+            .allocate(byte_len, AccountingRegion::SharedRaw)?;
 
         Ok(SharedRawPointer::new(base_address))
     }
