@@ -1,4 +1,4 @@
-use destack_heap as heap;
+use destack_engine as engine;
 use serde::{Deserialize, Serialize};
 
 use crate::runtime::engine::LiveContinuation;
@@ -38,7 +38,7 @@ pub struct Task {
     /// Runnable continuation for this task.
     pub runnable: LiveContinuation,
     /// Resume payload passed back into the executor.
-    pub resume_value: heap::Value,
+    pub resume_value: engine::MaterializedValue,
     /// Current scheduling status.
     pub status: TaskStatus,
     /// Priority value for event loop ordering, higher values run first.

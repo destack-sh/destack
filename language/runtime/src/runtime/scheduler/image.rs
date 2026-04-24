@@ -1,6 +1,6 @@
 use destack_core::{Capture, CaptureMode};
+use destack_engine as engine;
 use destack_engine::Continuation;
-use destack_heap as heap;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -72,7 +72,7 @@ pub struct TaskImage {
     /// Runnable continuation image.
     pub runnable: Continuation,
     /// Resume payload passed back into the executor.
-    pub resume_value: heap::Value,
+    pub resume_value: engine::MaterializedValue,
     /// Current scheduling status.
     pub status: TaskStatus,
     /// Priority value for event-loop ordering.
@@ -87,7 +87,7 @@ pub struct MicrotaskImage {
     /// Runnable continuation image.
     pub continuation: Continuation,
     /// Resume payload passed back into the executor.
-    pub resume_value: heap::Value,
+    pub resume_value: engine::MaterializedValue,
     /// Current scheduling status.
     pub status: TaskStatus,
 }
@@ -150,9 +150,13 @@ impl EventLoop {
         mode: CaptureMode,
         engine: &mut dyn Engine,
     ) -> RuntimeResult<EventLoopSnapshot> {
-        // fork capture keeps the existing idle invariant
-        if mode == CaptureMode::Fork {
-            self.fork_capture_barrier()?;
+        // fork capture requires a quiescent scheduler state (TODO #Architecture?)
+        if mode == CaptureMode::Fork && !self.is_quiescent() {
+            return Err(RuntimeError::Internal {
+                message: "event loop cannot capture for Fork: queued or watched work is still live"
+                    .to_string(),
+            }
+            .boxed());
         }
 
         // queued continuations
@@ -344,7 +348,7 @@ impl EventLoop {
         Ok(TaskImage {
             id: task.id,
             runnable,
-            resume_value: task.resume_value,
+            resume_value: task.resume_value.clone(),
             status: task.status,
             priority: task.priority,
         })
@@ -357,7 +361,7 @@ impl EventLoop {
         Ok(Task {
             id: image.id,
             runnable,
-            resume_value: image.resume_value,
+            resume_value: image.resume_value.clone(),
             status: image.status,
             priority: image.priority,
         })
@@ -376,7 +380,7 @@ impl EventLoop {
         Ok(MicrotaskImage {
             id: microtask.id,
             continuation,
-            resume_value: microtask.resume_value,
+            resume_value: microtask.resume_value.clone(),
             status: microtask.status,
         })
     }
@@ -392,7 +396,7 @@ impl EventLoop {
         Ok(Microtask {
             id: image.id,
             continuation,
-            resume_value: image.resume_value,
+            resume_value: image.resume_value.clone(),
             status: image.status,
         })
     }

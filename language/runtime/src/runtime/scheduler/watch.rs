@@ -5,15 +5,14 @@ use crate::platform::ResourceId;
 use crate::runtime::engine::{Engine, LiveContinuation};
 use crate::runtime::poller::{PollerEvent, PollerToken};
 use destack_core::CaptureMode;
-use destack_heap as heap;
-
+use destack_engine as engine;
 impl EventLoop {
     /// Register one timer watch.
     pub fn watch_timer(
         &mut self,
         handle: ResourceId,
         runnable: LiveContinuation,
-        resume_value: heap::Value,
+        resume_value: engine::MaterializedValue,
         priority: u8,
         engine: &mut dyn Engine,
     ) -> RuntimeResult<()> {
@@ -33,7 +32,7 @@ impl EventLoop {
         &mut self,
         token: PollerToken,
         runnable: LiveContinuation,
-        resume_value: heap::Value,
+        resume_value: engine::MaterializedValue,
         priority: u8,
         engine: &mut dyn Engine,
     ) -> RuntimeResult<()> {
@@ -58,7 +57,7 @@ impl EventLoop {
         &mut self,
         kind: HostEventKind,
         runnable: LiveContinuation,
-        resume_value: heap::Value,
+        resume_value: engine::MaterializedValue,
         priority: u8,
         engine: &mut dyn Engine,
     ) -> RuntimeResult<()> {
@@ -117,7 +116,7 @@ impl EventLoop {
         Ok(Task {
             id: task_id,
             runnable,
-            resume_value: watch.resume_value,
+            resume_value: watch.resume_value.clone(),
             status: TaskStatus::Ready,
             priority: watch.priority,
         })
@@ -127,7 +126,7 @@ impl EventLoop {
     fn capture_watch(
         &self,
         runnable: LiveContinuation,
-        resume_value: heap::Value,
+        resume_value: engine::MaterializedValue,
         priority: u8,
         engine: &mut dyn Engine,
     ) -> RuntimeResult<EventLoopWatch> {

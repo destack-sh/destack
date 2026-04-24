@@ -281,10 +281,11 @@ fn create_timer(
     let state = timer_state_for_handle(context, handle)?;
     let state = state.lock();
     if let Err(error) = schedule_timer_state(context, handle, &state) {
-        let _ = context
-            .worker()
-            .resources
-            .remove(context.world(), handle.0, Some(context.engine()));
+        let _ =
+            context
+                .worker()
+                .resources
+                .remove(context.world(), handle.0, Some(context.engine()));
         return Err(error);
     }
 

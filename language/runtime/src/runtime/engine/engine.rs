@@ -1,29 +1,81 @@
 use std::any::Any;
 
 use destack_core::CaptureMode;
-use destack_engine::{Continuation, ExecutionOutcome};
-use {destack_heap as heap, destack_vm as vm};
+use {destack_engine as engine, destack_heap as heap, destack_vm as vm};
 
-use super::{EngineImage, Entry, LiveContinuation};
+use super::{Continuation, EngineImage, Entry, LiveContinuation, RunOutcome};
 use crate::diagnostic::RuntimeResult;
+use crate::runtime::memory::RootVisitor;
 
 /// Execution engine used by one worker event loop.
 pub trait Engine: Any + Send {
     /// Run the entrypoint function.
     fn run(
         &mut self,
-        memory: &mut vm::MemoryContext<'_>,
+        heap: &mut heap::Heap,
+        shared: &heap::SharedHeap,
         entry: &Entry,
-        args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>>;
+        args: &[vm::Value],
+    ) -> RuntimeResult<RunOutcome<LiveContinuation>>;
 
     /// Resume execution from a continuation.
     fn resume(
         &mut self,
-        memory: &mut vm::MemoryContext<'_>,
+        heap: &mut heap::Heap,
+        shared: &heap::SharedHeap,
         continuation: LiveContinuation,
-        value: heap::Value,
-    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>>;
+        value: engine::MaterializedValue,
+    ) -> RuntimeResult<RunOutcome<LiveContinuation>>;
+
+    /// Visit roots from active engine-owned state.
+    fn visit_roots(&mut self, _roots: &mut RootVisitor<'_>) -> RuntimeResult<()> {
+        Ok(())
+    }
+
+    /// Visit roots from one live continuation.
+    fn visit_live_continuation_roots(
+        &mut self,
+        _continuation: &LiveContinuation,
+        _roots: &mut RootVisitor<'_>,
+    ) -> RuntimeResult<()> {
+        Ok(())
+    }
+
+    /// Visit roots from one captured continuation image.
+    fn visit_continuation_image_roots(
+        &mut self,
+        _continuation: &Continuation,
+        _roots: &mut RootVisitor<'_>,
+    ) -> RuntimeResult<()> {
+        Ok(())
+    }
+
+    /// Visit roots from one materialized boundary value.
+    fn visit_materialized_value_roots(
+        &mut self,
+        _value: &engine::MaterializedValue,
+        _roots: &mut RootVisitor<'_>,
+    ) -> RuntimeResult<()> {
+        Ok(())
+    }
+
+    /// Stabilize one live continuation before it escapes into runtime owned state.
+    fn stabilize_live_continuation(
+        &mut self,
+        _heap: &mut heap::Heap,
+        _continuation: &mut LiveContinuation,
+    ) -> RuntimeResult<()> {
+        Ok(())
+    }
+
+    /// Stabilize one materialized boundary value before it escapes into runtime owned state.
+    fn stabilize_materialized_value(
+        &mut self,
+        _heap: &mut heap::Heap,
+        _value: &mut engine::MaterializedValue,
+    ) -> RuntimeResult<()> {
+        Ok(())
+    }
 
     /// Fork one live engine over one already-forked heap.
     fn fork(&mut self, heap: &mut heap::Heap) -> RuntimeResult<Box<dyn Engine>>;
@@ -58,32 +110,72 @@ pub trait Engine: Any + Send {
     ) -> RuntimeResult<()>;
 }
 
-/// Heap-layout metadata required while constructing one live engine.
-pub trait EngineLayout {
-    /// Return the managed-reference width required by this engine.
-    fn managed_reference_bytes(&self) -> u8;
-}
-
 impl<E> Engine for Box<E>
 where
     E: Engine + ?Sized,
 {
     fn run(
         &mut self,
-        memory: &mut vm::MemoryContext<'_>,
+        heap: &mut heap::Heap,
+        shared: &heap::SharedHeap,
         entry: &Entry,
-        args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
-        (**self).run(memory, entry, args)
+        args: &[vm::Value],
+    ) -> RuntimeResult<RunOutcome<LiveContinuation>> {
+        (**self).run(heap, shared, entry, args)
     }
 
     fn resume(
         &mut self,
-        memory: &mut vm::MemoryContext<'_>,
+        heap: &mut heap::Heap,
+        shared: &heap::SharedHeap,
         continuation: LiveContinuation,
-        value: heap::Value,
-    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
-        (**self).resume(memory, continuation, value)
+        value: engine::MaterializedValue,
+    ) -> RuntimeResult<RunOutcome<LiveContinuation>> {
+        (**self).resume(heap, shared, continuation, value)
+    }
+
+    fn visit_roots(&mut self, roots: &mut RootVisitor<'_>) -> RuntimeResult<()> {
+        (**self).visit_roots(roots)
+    }
+
+    fn visit_live_continuation_roots(
+        &mut self,
+        continuation: &LiveContinuation,
+        roots: &mut RootVisitor<'_>,
+    ) -> RuntimeResult<()> {
+        (**self).visit_live_continuation_roots(continuation, roots)
+    }
+
+    fn visit_continuation_image_roots(
+        &mut self,
+        continuation: &Continuation,
+        roots: &mut RootVisitor<'_>,
+    ) -> RuntimeResult<()> {
+        (**self).visit_continuation_image_roots(continuation, roots)
+    }
+
+    fn visit_materialized_value_roots(
+        &mut self,
+        value: &engine::MaterializedValue,
+        roots: &mut RootVisitor<'_>,
+    ) -> RuntimeResult<()> {
+        (**self).visit_materialized_value_roots(value, roots)
+    }
+
+    fn stabilize_live_continuation(
+        &mut self,
+        heap: &mut heap::Heap,
+        continuation: &mut LiveContinuation,
+    ) -> RuntimeResult<()> {
+        (**self).stabilize_live_continuation(heap, continuation)
+    }
+
+    fn stabilize_materialized_value(
+        &mut self,
+        heap: &mut heap::Heap,
+        value: &mut engine::MaterializedValue,
+    ) -> RuntimeResult<()> {
+        (**self).stabilize_materialized_value(heap, value)
     }
 
     fn fork(&mut self, heap: &mut heap::Heap) -> RuntimeResult<Box<dyn Engine>> {
@@ -123,14 +215,5 @@ where
         snapshot: &EngineImage,
     ) -> RuntimeResult<()> {
         (**self).restore_snapshot(heap, snapshot)
-    }
-}
-
-impl<E> EngineLayout for Box<E>
-where
-    E: EngineLayout + ?Sized,
-{
-    fn managed_reference_bytes(&self) -> u8 {
-        (**self).managed_reference_bytes()
     }
 }
