@@ -1231,6 +1231,8 @@ impl<'a> FunctionLowerer<'a> {
 
             // tensor ops: lower only after explicit lowering (#Incomplete?)
             mir::Instruction::TensorLoad { .. } => return unsupported("tensor.load"),
+            mir::Instruction::TensorSplat { .. } => return unsupported("tensor.splat"),
+            mir::Instruction::TensorExtract { .. } => return unsupported("tensor.extract"),
             mir::Instruction::TensorStore { .. } => return unsupported("tensor.store"),
             mir::Instruction::TensorFill { .. } => return unsupported("tensor.fill"),
             mir::Instruction::TensorCopy { .. } => return unsupported("tensor.copy"),
@@ -1612,7 +1614,11 @@ impl<'a> FunctionLowerer<'a> {
     ) -> CodegenCraneliftResult<cir::SigRef> {
         // callable abi
         let (signature, has_environment) = match self.tree.get(signature) {
-            mir::Type::FunctionPointer { .. } => (signature, false),
+            mir::Type::FunctionSignature { .. } => (signature, false),
+            mir::Type::FunctionPointer { signature } => (
+                self.type_id(*signature, "function pointer signature")?,
+                false,
+            ),
             mir::Type::Closure { signature } => {
                 (self.type_id(*signature, "closure signature")?, true)
             }
@@ -1624,9 +1630,9 @@ impl<'a> FunctionLowerer<'a> {
         };
 
         // extract function pointer params and result
-        let mir::Type::FunctionPointer { parameters, result } = self.tree.get(signature) else {
+        let mir::Type::FunctionSignature { parameters, result } = self.tree.get(signature) else {
             return Err(CodegenCraneliftError::Internal {
-                message: format!("{error_context} signature is not a function pointer"),
+                message: format!("{error_context} signature is not a function signature"),
             });
         };
 
