@@ -4,8 +4,8 @@ use destack_engine::MaterializedValue;
 use destack_heap::{Allocator, GcStats, Heap, HeapLimits, HeapOptions, SharedHeapLimits};
 
 use crate::SharedHeap;
+use destack_mir::Storage;
 use destack_mir::parse::{ParseOptions, Parser};
-use destack_mir::{LayoutTable, Storage};
 use destack_source::FileId;
 
 use crate::diagnostic::{Error, RuntimeResult};
@@ -21,67 +21,61 @@ pub(crate) struct TestIsolate {
     pub shared: SharedHeap,
 }
 
-/// Create one local test heap over explicit layouts.
-pub(crate) fn create_test_heap(layouts: Arc<LayoutTable>) -> Heap {
+/// Create one local test heap.
+pub(crate) fn create_test_heap() -> Heap {
     let options = HeapOptions::local();
     let allocator = Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
             .expect("test allocator should build"),
     );
 
-    Heap::with_allocator_limits_layouts_and_options(
-        allocator,
-        layouts,
-        HeapLimits::default(),
-        options,
-    )
-    .expect("test heap should build")
+    Heap::with_allocator_limits_and_options(allocator, HeapLimits::default(), options)
+        .expect("test heap should build")
 }
 
-/// Create one shared test heap over explicit layouts.
-pub(crate) fn create_test_shared_heap(layouts: Arc<LayoutTable>) -> SharedHeap {
+/// Create one shared test heap.
+pub(crate) fn create_test_shared_heap() -> SharedHeap {
     let options = HeapOptions::shared();
     let allocator = Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
             .expect("test allocator should build"),
     );
 
-    SharedHeap::with_allocator_limits_layouts_and_options(
-        allocator,
-        layouts,
-        SharedHeapLimits::default(),
-        options,
-    )
-    .expect("test shared heap should build")
+    SharedHeap::with_allocator_limits_and_options(allocator, SharedHeapLimits::default(), options)
+        .expect("test shared heap should build")
 }
 
 /// Create one empty local test heap.
 pub(crate) fn create_empty_test_heap() -> Heap {
-    create_test_heap(Arc::new(LayoutTable::new()))
+    create_test_heap()
 }
 
 /// Create one empty shared test heap.
 pub(crate) fn create_empty_test_shared_heap() -> SharedHeap {
-    create_test_shared_heap(Arc::new(LayoutTable::new()))
+    create_test_shared_heap()
 }
 
 impl TestIsolate {
     /// Build one test isolate from MIR text.
     pub(crate) fn new(mir_text: &str) -> Self {
+        Self::with_id(mir_text, IsolateId::new(1))
+    }
+
+    /// Build one test isolate from MIR text with one explicit isolate id.
+    pub(crate) fn with_id(mir_text: &str, isolate_id: IsolateId) -> Self {
         let (tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
             .validate()
             .expect("failed to parse MIR");
 
         let mut isolate =
-            Isolate::build_with_options(IsolateId::new(1), tree, strings, IsolateOptions::test())
+            Isolate::build_with_options(isolate_id, tree, strings, IsolateOptions::test())
                 .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
-        let layouts = Arc::new(isolate.layout_table().clone());
-        let mut heap = create_test_heap(layouts.clone());
-        let mut shared = create_test_shared_heap(layouts);
+        let mut heap = create_test_heap();
+        let shared = create_test_shared_heap();
 
         // initialize isolate state against the authoritative heap
         isolate
-            .initialize(&mut heap, &mut shared)
+            .initialize(&mut heap, &shared)
             .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
         Self {
@@ -122,7 +116,7 @@ impl TestIsolate {
                 context
                     .materialize_heap_value(ty, values)
                     .unwrap_or_else(|error| {
-                        panic!("failed to materialize typed composite: {error}")
+                        panic!("failed to materialize typed aggregate: {error}")
                     })
             })
         })
@@ -143,7 +137,7 @@ impl TestIsolate {
         arguments: &[Value],
     ) -> RuntimeResult<RunOutput> {
         self.isolate
-            .run_function_by_name(&mut self.heap, &mut self.shared, function, arguments)
+            .run_function_by_name(&mut self.heap, &self.shared, function, arguments)
     }
 
     /// Run one MIR function by name with yield support.
@@ -154,7 +148,7 @@ impl TestIsolate {
     ) -> RuntimeResult<crate::RunOutcome> {
         self.isolate.run_function_by_name_yielding(
             &mut self.heap,
-            &mut self.shared,
+            &self.shared,
             function,
             arguments,
         )
@@ -171,7 +165,7 @@ impl TestIsolate {
             .expect("test resume value should materialize");
 
         self.isolate
-            .resume(&mut self.heap, &mut self.shared, continuation, resume_value)
+            .resume(&mut self.heap, &self.shared, continuation, resume_value)
     }
 
     /// Collect garbage and return one GC summary.
@@ -213,6 +207,11 @@ pub(crate) fn create_isolate(mir_text: &str) -> TestIsolate {
     TestIsolate::new(mir_text)
 }
 
+/// Parse MIR text and create one test isolate with an explicit isolate id.
+pub(crate) fn create_isolate_with_id(mir_text: &str, isolate_id: IsolateId) -> TestIsolate {
+    TestIsolate::with_id(mir_text, isolate_id)
+}
+
 /// Parse MIR text and create one test isolate with explicit storage metadata.
 pub(crate) fn create_isolate_with_storage(mir_text: &str, storage: Storage) -> TestIsolate {
     let (tree, strings) = Parser::parse(
@@ -231,13 +230,12 @@ pub(crate) fn create_isolate_with_storage(mir_text: &str, storage: Storage) -> T
     let mut isolate =
         Isolate::build_with_options(IsolateId::new(1), tree, strings, IsolateOptions::test())
             .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
-    let layouts = Arc::new(isolate.layout_table().clone());
-    let mut heap = create_test_heap(layouts.clone());
-    let mut shared = create_test_shared_heap(layouts);
+    let mut heap = create_test_heap();
+    let shared = create_test_shared_heap();
 
     // initialize isolate state against the authoritative heap
     isolate
-        .initialize(&mut heap, &mut shared)
+        .initialize(&mut heap, &shared)
         .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
     TestIsolate {
@@ -397,8 +395,8 @@ b0(v0: int32):
     v1: Box = struct Box (v0)
     v2: ref<Box, managed, readonly> = new Box
     store v2, v1
-    v3: Box = load v2
-    v4: int32 = field.get v3, 0
+    v3: ref<int32, managed, readonly> = field.address v2, 0
+    v4: int32 = load v3
     v5: int32 = 1int32
     v6: int32 = int.add v4, v5
     return v6
@@ -428,8 +426,8 @@ b0(v0: int32):
 
 function Box.get(v0: ref<Box, managed, readonly>): int32 {
 b0(v0: ref<Box, managed, readonly>):
-    v1: Box = load v0
-    v2: int32 = field.get v1, 0
+    v1: ref<int32, managed, readonly> = field.address v0, 0
+    v2: int32 = load v1
     return v2
 }"#;
 
@@ -459,8 +457,8 @@ b0:
     v1: ref<Holder, managed, readonly> = new Holder
     v2: Holder = struct Holder (v0)
     store v1, v2
-    v3: Holder = load v1
-    v4: Fn = field.get v3, 0
+    v3: ref<Fn, managed, readonly> = field.address v1, 0
+    v4: Fn = load v3
     v5: int32 = call.indirect v4(): () -> int32
     return v5
 }"#;

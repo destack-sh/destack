@@ -598,9 +598,13 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
             .isolate
             .layout_id_for_type(pointee_type)
             .expect("managed pointee should have one layout");
+        let layout = isolate
+            .isolate
+            .allocation_layout(layout_id)
+            .expect("managed pointee layout should resolve");
         let handle = isolate
             .heap
-            .allocate(layout_id, Payload::Zeroed)
+            .allocate(layout, Payload::Zeroed)
             .expect("heap allocation should succeed");
 
         vec![
@@ -633,9 +637,13 @@ b0(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64):
             .isolate
             .layout_id_for_type(pointee_type)
             .expect("shared managed pointee should have one layout");
+        let layout = isolate
+            .isolate
+            .allocation_layout(layout_id)
+            .expect("shared managed pointee layout should resolve");
         let handle = isolate
             .shared
-            .allocate(layout_id, Payload::Zeroed)
+            .allocate(layout, Payload::Zeroed)
             .expect("shared heap allocation should succeed");
 
         vec![
@@ -670,9 +678,13 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
             .isolate
             .layout_id_for_type(pointee_type)
             .expect("managed pointee should have one layout");
+        let layout = isolate
+            .isolate
+            .allocation_layout(layout_id)
+            .expect("managed pointee layout should resolve");
         let handle = isolate
             .heap
-            .allocate(layout_id, Payload::Zeroed)
+            .allocate(layout, Payload::Zeroed)
             .expect("heap allocation should succeed");
 
         vec![
@@ -767,7 +779,7 @@ b0:
     trap.panic v0
 }
 "#;
-    let result = run_mir(&mir, "test", &[]);
+    let result = run_mir(mir, "test", &[]);
     assert!(result.is_err(), "expected panic error");
 }
 

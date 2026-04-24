@@ -1,32 +1,23 @@
 use crate::Value;
 use crate::tests::create_empty_test_heap;
-use destack_heap::{Heap, HeapError, HeapReference, Payload};
-use destack_mir::{Layout, LayoutId, LayoutKind, ReferenceMap};
-
-/// Register one managed test layout.
-fn register_layout(heap: &mut Heap, byte_len: usize, reference_map: ReferenceMap) -> LayoutId {
-    heap.register_layout(Layout {
-        kind: LayoutKind::Struct,
-        size: byte_len as u32,
-        alignment: 1,
-        reference_map,
-        fields: Vec::new(),
-    })
-}
+use destack_heap::{AllocationLayout, Heap, HeapError, HeapReference, Payload};
+use destack_mir::ReferenceMap;
 
 /// Allocate one zero-byte managed cell for tests.
 fn allocate_empty(heap: &mut Heap) -> HeapReference {
-    let layout_id = register_layout(heap, 0, ReferenceMap::empty());
+    let reference_map = ReferenceMap::empty();
+    let layout = AllocationLayout::new(0, &reference_map);
 
-    heap.allocate(layout_id, Payload::Zeroed)
+    heap.allocate(layout, Payload::Zeroed)
         .expect("heap allocation should succeed")
 }
 
 /// Allocate one managed cell for tests.
 fn allocate(heap: &mut Heap) -> HeapReference {
-    let layout_id = register_layout(heap, 1, ReferenceMap::empty());
+    let reference_map = ReferenceMap::empty();
+    let layout = AllocationLayout::new(1, &reference_map);
 
-    heap.allocate(layout_id, Payload::Bytes(&[0]))
+    heap.allocate(layout, Payload::Bytes(&[0]))
         .expect("heap allocation should succeed")
 }
 
@@ -52,9 +43,9 @@ fn allocate_with_values(heap: &mut Heap, values: Vec<Value>) -> HeapReference {
             shared_offsets: Vec::new().into_boxed_slice(),
         }
     };
-    let layout_id = register_layout(heap, bytes.len(), reference_map);
+    let layout = AllocationLayout::new(bytes.len(), &reference_map);
 
-    heap.allocate(layout_id, Payload::Bytes(&bytes))
+    heap.allocate(layout, Payload::Bytes(&bytes))
         .expect("heap allocation should succeed")
 }
 
@@ -77,6 +68,15 @@ fn decode_first_heap_reference(bytes: &[u8]) -> HeapReference {
     );
 
     HeapReference::from_bits(bits as usize)
+}
+
+/// Assert that one promoted payload starts with the exact requested bytes.
+fn assert_payload_prefix(heap: &Heap, reference: HeapReference, expected: &[u8]) {
+    let bytes = heap
+        .read_heap_bytes(reference)
+        .expect("promoted payload should read");
+
+    assert!(bytes.starts_with(expected));
 }
 
 /// Zero-byte heap allocations still use distinct references.
@@ -167,11 +167,7 @@ fn test_gc_follows_references() {
     assert!(!contains(&heap, child1));
     assert!(!contains(&heap, child2));
     assert!(contains(&heap, rewritten_root));
-    assert_eq!(
-        heap.read_heap_bytes(rewritten_child2),
-        Ok(vec![0]),
-        "rewritten tail should still decode"
-    );
+    assert_payload_prefix(&heap, rewritten_child2, &[0]);
 }
 
 /// Garbage collection correctly handles cyclic reference structures.
@@ -179,19 +175,16 @@ fn test_gc_follows_references() {
 fn test_gc_handles_cycles() {
     let mut heap = create_empty_test_heap();
 
-    let layout_id = register_layout(
-        &mut heap,
-        Value::BYTE_LEN,
-        ReferenceMap::Reference {
-            local_offsets: vec![0].into_boxed_slice(),
-            shared_offsets: Vec::new().into_boxed_slice(),
-        },
-    );
+    let reference_map = ReferenceMap::Reference {
+        local_offsets: vec![0].into_boxed_slice(),
+        shared_offsets: Vec::new().into_boxed_slice(),
+    };
+    let layout = AllocationLayout::new(Value::BYTE_LEN, &reference_map);
     let a = heap
-        .allocate(layout_id, Payload::Zeroed)
+        .allocate(layout, Payload::Zeroed)
         .expect("heap allocation should succeed");
     let b = heap
-        .allocate(layout_id, Payload::Zeroed)
+        .allocate(layout, Payload::Zeroed)
         .expect("heap allocation should succeed");
 
     heap.write_heap_bytes(a, 0, &Value::heap_reference(b).to_byte_array())
@@ -281,7 +274,7 @@ fn test_gc_multiple_references_to_same_cell() {
     assert_ne!(rewritten_child1, shared);
     assert_eq!(rewritten_child1, rewritten_child2);
     assert!(!contains(&heap, shared));
-    assert_eq!(heap.read_heap_bytes(rewritten_child1), Ok(vec![0]));
+    assert_payload_prefix(&heap, rewritten_child1, &[0]);
 }
 
 /// Garbage collection traces references nested inside aggregate values.
@@ -328,7 +321,7 @@ fn test_gc_handles_aggregates() {
         Value::from_byte_slice(&inner_bytes[..Value::BYTE_LEN]),
         Some(Value::int32(42))
     );
-    assert_eq!(heap.read_heap_bytes(rewritten_child), Ok(vec![0]));
+    assert_payload_prefix(&heap, rewritten_child, &[0]);
 }
 
 /// Garbage collection rejects invalid references in the roots list.

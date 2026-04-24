@@ -1,9 +1,9 @@
-use crate::Value;
 use crate::diagnostic::Error;
 use crate::tests::{
     assert_execution_completed, assert_execution_yielded, assert_materialized_plain,
-    assert_runtime_error_matches, create_isolate,
+    assert_runtime_error_matches, create_isolate, create_isolate_with_id,
 };
+use crate::{IsolateId, Value};
 
 /// Yield returns a value and resumes with the provided argument.
 #[test]
@@ -472,7 +472,7 @@ b1(v2: int32, v3: int32):
     );
 
     // create a different isolate
-    let mut other_isolate = create_isolate(mir);
+    let mut other_isolate = create_isolate_with_id(mir, IsolateId::new(2));
 
     // resume on a different isolate
     let result = other_isolate.resume(continuation, Value::int32(0));

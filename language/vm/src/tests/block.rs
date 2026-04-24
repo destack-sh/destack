@@ -232,17 +232,17 @@ b0(v0: (int32) -> int32, v1: int32):
         Isolate::build_with_options(IsolateId::new(1), tree, strings, IsolateOptions::test())
             .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
     let mut heap = create_empty_test_heap();
-    let mut shared = create_empty_test_shared_heap();
+    let shared = create_empty_test_shared_heap();
 
     // initialize isolate state against the authoritative heap
     isolate
-        .initialize(&mut heap, &mut shared)
+        .initialize(&mut heap, &shared)
         .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
     let result = isolate
         .run_function_by_name(
             &mut heap,
-            &mut shared,
+            &shared,
             "caller",
             &[Value::function_pointer(double_id), Value::int32(21)],
         )
@@ -267,17 +267,17 @@ b0(v0: (int32) -> int32, v1: int32):
         Isolate::build_with_options(IsolateId::new(1), tree, strings, IsolateOptions::test())
             .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
     let mut heap = create_empty_test_heap();
-    let mut shared = create_empty_test_shared_heap();
+    let shared = create_empty_test_shared_heap();
 
     // initialize isolate state against the authoritative heap
     isolate
-        .initialize(&mut heap, &mut shared)
+        .initialize(&mut heap, &shared)
         .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
     // pass an integer instead of a function pointer
     let result = isolate.run_function_by_name(
         &mut heap,
-        &mut shared,
+        &shared,
         "caller",
         &[Value::int32(999), Value::int32(21)],
     );
