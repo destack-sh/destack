@@ -6,6 +6,7 @@ use destack_ast::{
 use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::{format_with, *};
 use destack_fir::write;
+use destack_source::NodeSpanType;
 
 /// One source-ordered prefix item.
 #[derive(Debug, Copy, Clone)]
@@ -14,17 +15,6 @@ enum PrefixSequenceItem {
     Comment(Comment),
     /// One semantic annotation node.
     Decorator(LocalNodeId<Decorator>),
-}
-
-/// The prefix item subset to format.
-#[derive(Debug, Copy, Clone)]
-enum PrefixSequenceKind {
-    /// Format comments and all prefix annotations.
-    All,
-    /// Format comments and only non-decorator prefix annotations.
-    WithoutDecorators,
-    /// Format comments and only decorator prefix annotations.
-    DecoratorsOnly,
 }
 
 /// Return prefix comments for one node in source order.
@@ -36,10 +26,25 @@ where
     T: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<T>,
 {
+    let token_start = context.node_token_start(node_id);
+
+    if let Some(leading_span) = context.tree.get_side_span(node_id, NodeSpanType::Leading) {
+        return context
+            .comments()
+            .comments_in_range(leading_span.start, token_start)
+            .iter()
+            .copied()
+            .filter(|comment| comment.is_leading() || comment.preceded_by_newline())
+            .collect();
+    }
+
     context
         .comments()
-        .comments_before(context.node_token_start(node_id))
-        .to_vec()
+        .comments_before(token_start)
+        .iter()
+        .copied()
+        .filter(|comment| comment.is_leading() || comment.preceded_by_newline())
+        .collect()
 }
 
 /// Return prefix comments that are not physically inside decorator spans.
@@ -101,6 +106,20 @@ pub(crate) fn write_inline_prefix_annotations<'ast>(
     Ok(())
 }
 
+/// Format one vertical prefix annotation block.
+pub(crate) fn write_vertical_prefix_annotations<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    items: &[LocalNodeId<Decorator>],
+) -> FormatResult<()> {
+    for annotation_id in items.iter().copied() {
+        let annotation = f.context().annotation(annotation_id).clone();
+        annotation.format_node(annotation_id, f)?;
+        write!(f, [hard_line_break()])?;
+    }
+
+    Ok(())
+}
+
 /// Format block infix annotations for one node.
 pub(crate) fn block_infix_annotations<'ast, T>(
     context: &DestackFormatContext<'ast>,
@@ -129,12 +148,10 @@ where
     T: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<T>,
 {
-    prefix_sequence(
-        context,
-        node_id,
-        prefix_comment_nodes_outside_decorators(context, node_id),
-        PrefixSequenceKind::All,
-    )
+    let comments = prefix_comment_nodes_outside_decorators(context, node_id);
+    let annotation_ids = prefix_annotation_ids(context, node_id);
+
+    prefix_sequence(context, comments, annotation_ids)
 }
 
 /// Format prefix annotations for one node without leading comments.
@@ -146,7 +163,7 @@ where
     T: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<T>,
 {
-    prefix_sequence(context, node_id, Vec::new(), PrefixSequenceKind::All)
+    prefix_sequence(context, Vec::new(), prefix_annotation_ids(context, node_id))
 }
 
 /// Format prefix annotations for one node after one prefix comment cutoff.
@@ -159,28 +176,46 @@ where
     T: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<T>,
 {
-    prefix_sequence(
-        context,
-        node_id,
-        prefix_comments_after_offset(context, node_id, start_offset),
-        PrefixSequenceKind::All,
-    )
+    let comments = prefix_comments_after_offset(context, node_id, start_offset);
+    let annotation_ids = prefix_annotation_ids(context, node_id);
+
+    prefix_sequence(context, comments, annotation_ids)
 }
 
 /// Format one prefix sequence for one node.
-fn prefix_sequence<'ast, T>(
+fn prefix_sequence<'ast>(
+    context: &DestackFormatContext<'ast>,
+    comments: Vec<Comment>,
+    annotation_ids: Vec<LocalNodeId<Decorator>>,
+) -> impl Format<DestackFormatContext<'ast>> + use<'ast> {
+    let items = collect_prefix_sequence_items(context, comments, annotation_ids);
+
+    format_with(move |f: &mut DestackFormatter<'ast, '_>| write_prefix_sequence_items(f, &items))
+}
+
+/// Return prefix decorator ids for one node.
+fn prefix_annotation_ids<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
-    comments: Vec<Comment>,
-    kind: PrefixSequenceKind,
-) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
+) -> Vec<LocalNodeId<Decorator>>
 where
     T: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<T>,
 {
-    let items = collect_prefix_sequence_items(context, node_id, comments, kind);
+    let mut annotation_ids = Vec::new();
 
-    format_with(move |f: &mut DestackFormatter<'ast, '_>| write_prefix_sequence_items(f, &items))
+    for annotation_id in context.annotation_ids(node_id).iter().copied() {
+        let position = context.annotation(annotation_id).position;
+
+        if matches!(
+            position,
+            DecoratorPosition::BlockPrefix | DecoratorPosition::LinePrefix
+        ) {
+            annotation_ids.push(annotation_id);
+        }
+    }
+
+    annotation_ids
 }
 
 /// Return whether one comment lies inside any decorator annotation span for the node.
@@ -203,8 +238,8 @@ where
         })
 }
 
-/// Format prefix annotations for one node without decorator items.
-pub(crate) fn prefix_annotations_without_decorators<'ast, T>(
+/// Format prefix comments that appear before the decorator block for one node.
+pub(crate) fn prefix_comments_before_decorators<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
 ) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
@@ -225,12 +260,9 @@ where
         })
         .collect();
 
-    prefix_sequence(
-        context,
-        node_id,
-        comments,
-        PrefixSequenceKind::WithoutDecorators,
-    )
+    let items = collect_prefix_comment_items(comments);
+
+    format_with(move |f: &mut DestackFormatter<'ast, '_>| write_prefix_sequence_items(f, &items))
 }
 
 /// Format decorator prefix annotations for one node as a vertical prefix block.
@@ -256,58 +288,38 @@ where
                 && !comment_is_inside_decorator_span(context, node_id, *comment)
         })
         .collect();
-
-    let items = collect_prefix_sequence_items(
-        context,
-        node_id,
-        comments,
-        PrefixSequenceKind::DecoratorsOnly,
-    );
+    let annotation_ids = prefix_annotation_ids(context, node_id);
+    let items = collect_prefix_sequence_items(context, comments, annotation_ids);
 
     format_with(move |f: &mut DestackFormatter<'ast, '_>| {
         write_decorator_prefix_sequence_items(f, &items)
     })
 }
 
-/// Collect one prefix item sequence for one node.
-fn collect_prefix_sequence_items<'ast, T>(
+/// Collect one prefix item sequence.
+fn collect_prefix_sequence_items<'ast>(
     context: &DestackFormatContext<'ast>,
-    node_id: LocalNodeId<T>,
     comments: Vec<Comment>,
-    kind: PrefixSequenceKind,
-) -> Vec<PrefixSequenceItem>
-where
-    T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
-{
+    annotation_ids: Vec<LocalNodeId<Decorator>>,
+) -> Vec<PrefixSequenceItem> {
+    let mut items = collect_prefix_comment_items(comments);
+
+    for annotation_id in annotation_ids {
+        items.push(PrefixSequenceItem::Decorator(annotation_id));
+    }
+
+    sort_prefix_sequence_items(context, &mut items);
+
+    items
+}
+
+/// Collect one prefix comment item sequence.
+fn collect_prefix_comment_items(comments: Vec<Comment>) -> Vec<PrefixSequenceItem> {
     let mut items = Vec::new();
 
     for comment in comments {
         items.push(PrefixSequenceItem::Comment(comment));
     }
-
-    for annotation_id in context.annotation_ids(node_id).iter().copied() {
-        let position = context.annotation(annotation_id).position;
-
-        if !matches!(
-            position,
-            DecoratorPosition::BlockPrefix | DecoratorPosition::LinePrefix
-        ) {
-            continue;
-        }
-
-        let should_include = match kind {
-            PrefixSequenceKind::All => true,
-            PrefixSequenceKind::WithoutDecorators => false,
-            PrefixSequenceKind::DecoratorsOnly => true,
-        };
-
-        if should_include {
-            items.push(PrefixSequenceItem::Decorator(annotation_id));
-        }
-    }
-
-    sort_prefix_sequence_items(context, &mut items);
 
     items
 }

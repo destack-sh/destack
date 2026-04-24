@@ -256,7 +256,10 @@ where
     ) -> FormatResult<()>;
 }
 
-/// Implement formatter dispatch for typed local node ids.
+/// The formatted content for one node without trailing comments.
+pub(crate) struct FormatNodeWithoutTrailingComments<T: Node>(pub LocalNodeId<T>);
+
+/// Format a node.
 impl<'a, T: Node> Format<DestackFormatContext<'a>> for LocalNodeId<T>
 where
     T: Node + Clone,
@@ -271,7 +274,29 @@ where
     }
 }
 
-/// Implement formatter dispatch for dynamically typed local node ids.
+/// Format a node without trailing comments.
+impl<'a, T: Node> Format<DestackFormatContext<'a>> for FormatNodeWithoutTrailingComments<T>
+where
+    T: Node + Clone,
+    NodeTree: NodeTreeImpl<T>,
+    T: FormatNode<'a, T>,
+{
+    #[inline]
+    fn format(&self, f: &mut DestackFormatter<'a, '_>) -> FormatResult<()> {
+        let node_end = f.context().span(self.0).end;
+        let previous_limit = f
+            .context_mut()
+            .comments_mut()
+            .limit_comments_up_to(node_end);
+        let result = self.0.format(f);
+        f.context_mut()
+            .comments_mut()
+            .restore_view_limit(previous_limit);
+        result
+    }
+}
+
+/// Format a dynamically typed node.
 impl<'a> Format<DestackFormatContext<'a>> for LocalNodeIdAny {
     #[inline]
     fn format(&self, f: &mut DestackFormatter<'a, '_>) -> FormatResult<()> {

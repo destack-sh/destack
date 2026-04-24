@@ -49,7 +49,7 @@ impl<'a> Comments<'a> {
         let start = self.printed_count.min(self.comments.len());
 
         // limited speculative formatting can advance the printed cursor past the
-        // temporary view limit, which should yield an empty slice instead of panicking
+        // active view limit, which should yield an empty slice instead of panicking
         let end = self.view_limit.unwrap_or(self.comments.len());
         let end = end.max(start).min(self.comments.len());
 
@@ -299,7 +299,10 @@ impl<'a> Comments<'a> {
     /// Advance the printed cursor past one concrete comment span.
     #[inline]
     pub fn mark_comment_printed(&mut self, comment: Comment) {
-        self.skip_comments_before(comment.span.end);
+        let printed_count = self
+            .comments
+            .partition_point(|candidate| candidate.span.end <= comment.span.end);
+        self.printed_count = self.printed_count.max(printed_count);
     }
 
     /// Save the current comment cursor state.
