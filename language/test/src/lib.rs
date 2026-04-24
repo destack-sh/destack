@@ -5,7 +5,6 @@ pub mod emit;
 pub mod formatter;
 pub mod lsp;
 pub mod mdtest;
-pub mod optimize;
 pub mod query;
 pub mod smoke;
 pub mod specification;

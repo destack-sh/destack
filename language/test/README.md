@@ -154,6 +154,5 @@ cargo test -p destack_test --test lsp
 
 ## Performance
 
-This crate also houses MIR benchmark workloads through [`mirbench/`](mirbench/README.md).
 Benchmarks are measurement tools, not ordinary correctness gates.
 Stress is a correctness suite under extreme scale, not a benchmark suite.

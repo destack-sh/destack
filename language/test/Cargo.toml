@@ -77,11 +77,6 @@ name = "stress"
 path = "src/stress/main.rs"
 harness = false
 
-[[test]]
-name = "optimize"
-path = "src/optimize/main.rs"
-harness = false
-
 [dependencies]
 # language
 destack_artifact = { workspace = true }
@@ -105,7 +100,6 @@ destack_workspace = { workspace = true }
 destack_runtime = { workspace = true }
 destack_session = { workspace = true }
 destack_source = { workspace = true }
-destack_test_mirbench = { workspace = true }
 destack_vm = { workspace = true }
 
 # general
