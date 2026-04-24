@@ -1,80 +1,119 @@
-use std::collections::VecDeque;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, AtomicU64, AtomicUsize, Ordering};
 
+use crossbeam_deque::{Injector, Steal, Stealer, Worker};
 use parking_lot::{Mutex, RwLock};
 
-use super::{SharedGcPhase, SharedSmallSpanWork, SharedSmallSpanWorkTable, SharedTraceWork};
-/// The number of shared trace-queue shards.
-const SHARED_TRACE_QUEUE_SHARDS: usize = 8;
+use crate::SharedHeapReference;
 
-/// One sharded shared trace queue.
-#[derive(Debug)]
-pub(crate) struct SharedTraceQueue {
-    /// The per-shard pending work whose outgoing edges still need scanning.
-    shards: Box<[Mutex<VecDeque<SharedTraceWork>>]>,
-    /// The next shard to probe for pop work.
-    next_pop_shard: AtomicUsize,
+use super::SharedGcPhase;
+
+/// One queued unit of shared mark work.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SharedTraceWork {
+    /// One shared small span with marked slots to scan.
+    SmallSpan(usize),
+    /// One range of one shared large allocation to scan.
+    Large {
+        /// The shared allocation reference.
+        reference: SharedHeapReference,
+        /// The range start in bytes.
+        start: usize,
+    },
 }
 
-impl Default for SharedTraceQueue {
-    fn default() -> Self {
-        let shards = (0..SHARED_TRACE_QUEUE_SHARDS)
-            .map(|_| Mutex::new(VecDeque::new()))
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
+/// One registered shared GC worker handle.
+#[derive(Debug, Clone)]
+pub struct SharedGcWorker {
+    /// The worker registry key.
+    index: usize,
+    /// Work owned by this collector worker.
+    local: Arc<Mutex<Worker<SharedTraceWork>>>,
+    /// Public stealing handle for this worker.
+    stealer: Stealer<SharedTraceWork>,
+}
 
-        Self {
-            shards,
-            next_pop_shard: AtomicUsize::new(0),
-        }
-    }
+/// Shared trace queues for global work and worker-local work.
+#[derive(Debug, Default)]
+pub(crate) struct SharedTraceQueue {
+    /// Work published without a worker context.
+    global: Injector<SharedTraceWork>,
+    /// Work owned by active collector workers.
+    workers: RwLock<BTreeMap<usize, SharedGcWorker>>,
 }
 
 impl SharedTraceQueue {
-    /// Push one pending trace work item into its shard.
-    pub(crate) fn push(&self, work: SharedTraceWork) {
-        if let SharedTraceWork::Reference(reference) = work
+    /// Return the GC worker registered for one runtime worker.
+    pub(crate) fn worker(&self, worker_index: usize) -> SharedGcWorker {
+        {
+            let workers = self.workers.read();
+            if let Some(worker) = workers.get(&worker_index) {
+                return worker.clone();
+            }
+        }
+
+        let local = Worker::new_fifo();
+        let stealer = local.stealer();
+        let worker = SharedGcWorker {
+            index: worker_index,
+            local: Arc::new(Mutex::new(local)),
+            stealer,
+        };
+
+        self.workers
+            .write()
+            .entry(worker_index)
+            .or_insert_with(|| worker.clone())
+            .clone()
+    }
+
+    /// Push one pending trace work item.
+    pub(crate) fn push(&self, worker: Option<&SharedGcWorker>, work: SharedTraceWork) {
+        if let SharedTraceWork::Large { reference, .. } = work
             && reference.is_null()
         {
             return;
         }
 
-        let shard_index = self.shard_index(work);
-        let mut shard = self.shards[shard_index].lock();
+        if let Some(worker) = worker {
+            worker.local.lock().push(work);
 
-        shard.push_back(work);
+            return;
+        }
+
+        self.global.push(work);
     }
 
     /// Pop one bounded batch of pending work.
-    pub(crate) fn pop_batch(&self, batch_len: usize) -> Vec<SharedTraceWork> {
+    pub(crate) fn pop_batch(
+        &self,
+        worker: Option<&SharedGcWorker>,
+        batch_len: usize,
+    ) -> Vec<SharedTraceWork> {
         let mut batch = Vec::with_capacity(batch_len);
-        let start = self.next_pop_shard.fetch_add(1, Ordering::AcqRel);
 
-        for shard_offset in 0..self.shards.len() {
-            let shard_index = (start + shard_offset) % self.shards.len();
-            let mut shard = self.shards[shard_index].lock();
+        if let Some(worker) = worker {
+            self.pop_from_worker(worker, batch_len, &mut batch);
+        }
 
-            while batch.len() < batch_len {
-                let Some(work) = shard.pop_front() else {
-                    break;
-                };
+        self.pop_from_global(worker, batch_len, &mut batch);
 
-                batch.push(work);
-            }
-
-            if batch.len() == batch_len {
-                break;
-            }
+        if batch.len() < batch_len {
+            self.steal_from_workers(worker, batch_len, &mut batch);
         }
 
         batch
     }
 
-    /// Return whether every shard is currently empty.
+    /// Return whether every queue is currently empty.
     pub(crate) fn is_empty(&self) -> bool {
-        for shard in &*self.shards {
-            if !shard.lock().is_empty() {
+        if !self.global.is_empty() {
+            return false;
+        }
+
+        for worker in self.workers.read().values() {
+            if !worker.stealer.is_empty() {
                 return false;
             }
         }
@@ -82,18 +121,141 @@ impl SharedTraceQueue {
         true
     }
 
-    /// Clear every pending work item from every shard.
+    /// Clear every pending work item.
     pub(crate) fn clear(&self) {
-        for shard in &*self.shards {
-            shard.lock().clear();
+        self.drain_global();
+
+        for worker in self.workers.read().values() {
+            self.drain_stealer(&worker.stealer);
         }
     }
 
-    /// Return the shard index for one queued work item.
-    fn shard_index(&self, work: SharedTraceWork) -> usize {
-        match work {
-            SharedTraceWork::SmallSpan(span_index) => span_index % self.shards.len(),
-            SharedTraceWork::Reference(reference) => reference.bits() % self.shards.len(),
+    /// Pop work from one worker deque into one batch.
+    fn pop_from_worker(
+        &self,
+        worker: &SharedGcWorker,
+        batch_len: usize,
+        batch: &mut Vec<SharedTraceWork>,
+    ) {
+        let local = worker.local.lock();
+
+        while batch.len() < batch_len {
+            let Some(work) = local.pop() else {
+                break;
+            };
+
+            batch.push(work);
+        }
+    }
+
+    /// Pop global work into one batch.
+    fn pop_from_global(
+        &self,
+        worker: Option<&SharedGcWorker>,
+        batch_len: usize,
+        batch: &mut Vec<SharedTraceWork>,
+    ) {
+        let Some(worker) = worker else {
+            self.steal_from_global(batch_len, batch);
+
+            return;
+        };
+
+        while batch.len() < batch_len {
+            let local = worker.local.lock();
+            let steal = self.global.steal_batch_and_pop(&local);
+            drop(local);
+
+            match steal {
+                Steal::Success(work) => batch.push(work),
+                Steal::Empty => return,
+                Steal::Retry => continue,
+            }
+        }
+    }
+
+    /// Pop global work without a local worker.
+    fn steal_from_global(&self, batch_len: usize, batch: &mut Vec<SharedTraceWork>) {
+        while batch.len() < batch_len {
+            match self.global.steal() {
+                Steal::Success(work) => batch.push(work),
+                Steal::Empty => return,
+                Steal::Retry => continue,
+            }
+        }
+    }
+
+    /// Drain global work.
+    fn drain_global(&self) {
+        loop {
+            match self.global.steal() {
+                Steal::Success(_) | Steal::Retry => continue,
+                Steal::Empty => return,
+            }
+        }
+    }
+
+    /// Drain one worker through its public stealer.
+    fn drain_stealer(&self, stealer: &Stealer<SharedTraceWork>) {
+        loop {
+            match stealer.steal() {
+                Steal::Success(_) | Steal::Retry => continue,
+                Steal::Empty => return,
+            }
+        }
+    }
+
+    /// Steal work from other worker queues into one batch.
+    fn steal_from_workers(
+        &self,
+        local_worker: Option<&SharedGcWorker>,
+        batch_len: usize,
+        batch: &mut Vec<SharedTraceWork>,
+    ) {
+        let workers = self.workers.read();
+        for (worker_index, worker) in workers.iter() {
+            if local_worker.is_some_and(|worker| worker.index == *worker_index) {
+                continue;
+            }
+
+            self.steal_from_worker(local_worker, &worker.stealer, batch_len, batch);
+
+            if batch.len() == batch_len {
+                break;
+            }
+        }
+    }
+
+    /// Steal work from one worker queue into one batch.
+    fn steal_from_worker(
+        &self,
+        local_worker: Option<&SharedGcWorker>,
+        stealer: &Stealer<SharedTraceWork>,
+        batch_len: usize,
+        batch: &mut Vec<SharedTraceWork>,
+    ) {
+        let Some(local_worker) = local_worker else {
+            while batch.len() < batch_len {
+                match stealer.steal() {
+                    Steal::Success(work) => batch.push(work),
+                    Steal::Empty => return,
+                    Steal::Retry => continue,
+                }
+            }
+
+            return;
+        };
+
+        while batch.len() < batch_len {
+            let local = local_worker.local.lock();
+            let steal = stealer.steal_batch_and_pop(&local);
+            drop(local);
+
+            match steal {
+                Steal::Success(work) => batch.push(work),
+                Steal::Empty => return,
+                Steal::Retry => continue,
+            }
         }
     }
 }
@@ -105,8 +267,6 @@ pub(crate) struct SharedGcState {
     lifecycle: Mutex<()>,
     /// The reusable collector trace queue.
     pub(crate) trace_queue: SharedTraceQueue,
-    /// The per-span pending work state for shared small-span tracing.
-    small_span_work: RwLock<SharedSmallSpanWorkTable>,
     /// The current shared collection phase.
     phase: AtomicU8,
     /// Whether shared mark publication is temporarily closed for termination.
@@ -115,6 +275,8 @@ pub(crate) struct SharedGcState {
     pub(crate) mark_publishers: AtomicUsize,
     /// The next reference index to sweep.
     pub(crate) sweep_cursor: AtomicUsize,
+    /// The shared reference snapshot for the active sweep.
+    pub(crate) sweep_references: Mutex<Arc<[crate::SharedHeapReference]>>,
     /// The number of mark items currently being traced.
     pub(crate) mark_inflight: AtomicUsize,
     /// The allocations freed so far in the active cycle.
@@ -163,44 +325,6 @@ impl SharedGcState {
         is_queue_empty && inflight == 0 && publishers == 0
     }
 
-    /// Return one per-span pending work state, growing the table when needed.
-    pub(crate) fn ensure_small_span_work(
-        &self,
-        span_index: usize,
-        slot_count: usize,
-    ) -> Arc<SharedSmallSpanWork> {
-        {
-            let work = self.small_span_work.read();
-
-            if let Some(span_work) = work.get(span_index).cloned()
-                && span_work.matches_slot_count(slot_count)
-            {
-                return span_work;
-            }
-        }
-
-        let mut work = self.small_span_work.write();
-
-        while work.len() <= span_index {
-            work.push(Arc::new(SharedSmallSpanWork::new(slot_count)));
-        }
-
-        let span_work = Arc::new(SharedSmallSpanWork::new(slot_count));
-        work[span_index] = span_work.clone();
-
-        span_work
-    }
-
-    /// Return one existing per-span pending work state.
-    pub(crate) fn small_span_work(&self, span_index: usize) -> Option<Arc<SharedSmallSpanWork>> {
-        self.small_span_work.read().get(span_index).cloned()
-    }
-
-    /// Clear every per-span pending work state.
-    pub(crate) fn clear_small_span_work(&self) {
-        self.small_span_work.write().clear();
-    }
-
     /// Begin one shared mark publication and return its lifetime guard.
     pub(crate) fn begin_mark_publication(&self) -> Option<SharedMarkPublication<'_>> {
         if self.phase() != SharedGcPhase::Mark || self.is_mark_closing() {
@@ -229,5 +353,36 @@ pub(crate) struct SharedMarkPublication<'a> {
 impl Drop for SharedMarkPublication<'_> {
     fn drop(&mut self) {
         self.state.mark_publishers.fetch_sub(1, Ordering::AcqRel);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SharedTraceQueue, SharedTraceWork};
+    use crate::SharedHeapReference;
+
+    /// Reuse worker-local queues for stable runtime worker ids.
+    #[test]
+    fn test_reuse_worker_queue_by_index() {
+        let queue = SharedTraceQueue::default();
+        let worker = queue.worker(7);
+        queue.push(
+            Some(&worker),
+            SharedTraceWork::Large {
+                reference: SharedHeapReference::new(11),
+                start: 0,
+            },
+        );
+
+        let worker = queue.worker(7);
+        let batch = queue.pop_batch(Some(&worker), 1);
+
+        assert_eq!(
+            batch,
+            vec![SharedTraceWork::Large {
+                reference: SharedHeapReference::new(11),
+                start: 0,
+            }]
+        );
     }
 }

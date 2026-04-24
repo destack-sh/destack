@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use destack_mir::{Layout, LayoutId, LayoutTable, ReferenceMap};
+use destack_mir::ReferenceMap;
 use serde::{Deserialize, Serialize};
 
 use super::constants::{
@@ -11,12 +11,12 @@ use super::constants::{
     SHARED_MARK_PAGES_PER_BUDGET, SHARED_SWEEP_BUDGET_PER_WORKER, SHARED_SWEEP_PAGES_PER_BUDGET,
 };
 use super::{
-    SharedGcPhase, SharedHeapLimits, SharedHeapSpace, SharedHeapSpaceImage, SharedHeapUsage,
-    SharedRawSpace, SharedRawSpaceImage,
+    SharedGcPhase, SharedGcWorker, SharedHeapLimits, SharedHeapSpace, SharedHeapSpaceImage,
+    SharedHeapUsage, SharedRawSpace, SharedRawSpaceImage,
 };
 use crate::{
-    Allocator, GcPacer, GcState, GcStats, HeapError, HeapOptions, HeapResult, PageId, Payload,
-    SharedHeapReference, SharedRawPointer, apply_byte_delta,
+    AllocationLayout, Allocator, GcPacer, GcState, GcStats, HeapError, HeapOptions, HeapResult,
+    PageId, Payload, SharedHeapReference, SharedRawPointer, apply_byte_delta,
 };
 
 /// One live world-shared heap.
@@ -62,10 +62,9 @@ impl SharedHeapImage {
 }
 
 impl SharedHeap {
-    /// Create one shared heap over one explicit allocator, layout table, limits, and options.
-    pub fn with_allocator_limits_layouts_and_options(
+    /// Create one shared heap over one explicit allocator, limits, and options.
+    pub fn with_allocator_limits_and_options(
         allocator: Arc<Allocator>,
-        layouts: Arc<LayoutTable>,
         limits: SharedHeapLimits,
         options: HeapOptions,
     ) -> HeapResult<Self> {
@@ -73,7 +72,7 @@ impl SharedHeap {
         options.validate_allocator(&allocator)?;
 
         let shared = Self {
-            heap: SharedHeapSpace::with_layouts_and_options(allocator.clone(), layouts, &options)?,
+            heap: SharedHeapSpace::with_options(allocator.clone(), &options)?,
             raw: SharedRawSpace::with_allocator(allocator.clone()),
             allocator,
             options,
@@ -235,7 +234,7 @@ impl SharedHeap {
         self.raw.replace_mapped_byte_delta(pointer, next_byte_len)
     }
 
-    /// Allocate one shared raw entry.
+    /// Allocate one shared raw allocation.
     pub fn allocate_raw(
         &self,
         byte_len: usize,
@@ -264,32 +263,25 @@ impl SharedHeap {
         self.raw.read_bytes(pointer)
     }
 
-    /// Allocate one shared managed heap entry.
+    /// Allocate one shared managed heap allocation.
     pub fn allocate(
         &self,
-        layout_id: LayoutId,
+        layout: AllocationLayout<'_>,
         allocation: Payload<'_>,
     ) -> HeapResult<SharedHeapReference> {
-        let byte_len = self.heap.layout_byte_len(layout_id)?;
-
         // projected growth
-        let mapped_byte_delta = self.heap.mapped_byte_delta(layout_id)?;
+        let mapped_byte_delta = self.heap.mapped_byte_delta(layout)?;
         self.check_heap_mapped_byte_delta(mapped_byte_delta)?;
 
         // allocation and pacing
-        let reference = self.heap.allocate(layout_id, allocation)?;
-        self.accrue_assist_debt(byte_len);
+        let reference = self.heap.allocate(layout, allocation)?;
+        self.accrue_assist_debt(layout.byte_len);
         self.refresh_gc_request();
 
         Ok(reference)
     }
 
-    /// Register one shared managed layout and return its stable id.
-    pub fn register_layout(&self, layout: Layout) -> LayoutId {
-        self.heap.register_layout(layout)
-    }
-
-    /// Return whether one shared heap reference currently refers to one live entry.
+    /// Return whether one shared heap reference currently refers to one live allocation.
     pub fn is_heap_live(&self, reference: SharedHeapReference) -> bool {
         self.heap.is_live(reference)
     }
@@ -304,7 +296,7 @@ impl SharedHeap {
         self.heap.read_bytes(reference)
     }
 
-    /// Fill one caller-provided buffer from one shared heap entry at one offset.
+    /// Fill one caller-provided buffer from one shared heap allocation at one offset.
     pub fn read_heap_bytes_into(
         &self,
         reference: SharedHeapReference,
@@ -397,6 +389,22 @@ impl SharedHeap {
         roots_complete: bool,
         work_items: usize,
     ) -> HeapResult<Option<GcStats>> {
+        self.gc_step_for_worker(None, roots, roots_complete, work_items)
+    }
+
+    /// Return the shared GC worker handle for one runtime worker.
+    pub fn gc_worker(&self, worker_index: usize) -> SharedGcWorker {
+        self.heap.gc.trace_queue.worker(worker_index)
+    }
+
+    /// Run one shared collection step for one worker with one explicit work budget.
+    pub fn gc_step_for_worker(
+        &self,
+        worker: Option<&SharedGcWorker>,
+        roots: &[SharedHeapReference],
+        roots_complete: bool,
+        work_items: usize,
+    ) -> HeapResult<Option<GcStats>> {
         // empty budget
         if work_items == 0 {
             return Ok(None);
@@ -409,7 +417,8 @@ impl SharedHeap {
 
         // concurrent mark
         if self.gc_phase() == SharedGcPhase::Mark {
-            self.heap.mark_step(roots.iter().copied(), work_items)?;
+            self.heap
+                .mark_step(worker, roots.iter().copied(), work_items)?;
 
             // termination check
             if roots_complete {

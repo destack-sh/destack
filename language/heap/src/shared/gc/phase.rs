@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// One live phase of the shared heap collector.
+/// One stored phase of the shared heap collector.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum SharedGcPhase {
@@ -11,21 +11,28 @@ pub enum SharedGcPhase {
     Mark,
     /// Shared sweeping is active.
     Sweep,
+    /// The stored phase byte is invalid.
+    Invalid,
 }
 
 impl SharedGcPhase {
     /// Return the atomic representation for this phase.
     pub(crate) const fn bits(self) -> u8 {
-        self as u8
+        match self {
+            Self::Idle => 0,
+            Self::Mark => 1,
+            Self::Sweep => 2,
+            Self::Invalid => u8::MAX,
+        }
     }
 
     /// Decode one atomic phase byte.
-    pub(crate) fn from_bits(bits: u8) -> Self {
+    pub(crate) const fn from_bits(bits: u8) -> Self {
         match bits {
             0 => Self::Idle,
             1 => Self::Mark,
             2 => Self::Sweep,
-            _ => panic!("invalid shared gc phase: {bits}"),
+            _ => Self::Invalid,
         }
     }
 }

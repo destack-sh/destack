@@ -1,65 +1,65 @@
 use serde::{Deserialize, Serialize};
 
-use destack_mir::LayoutId;
+use destack_mir::ReferenceMap;
 
 use crate::allocator::PageView;
 use crate::{HeapError, HeapResult};
 
-/// One frozen shared heap large-entry root.
+/// One frozen shared heap large-allocation root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SharedHeapLargeEntryImage {
-    /// Whether this entry slot is live.
+pub struct SharedHeapLargeAllocationImage {
+    /// Whether this allocation slot is live.
     pub is_live: bool,
-    /// The logical byte length of this entry.
+    /// The logical byte length of this allocation.
     pub len: usize,
-    /// The allocator pages for this entry.
+    /// The allocator pages for this allocation.
     pub pages: PageView,
-    /// The managed layout stored in this entry.
-    pub layout_id: LayoutId,
+    /// The reference map for this allocation.
+    pub reference_map: ReferenceMap,
 }
 
-/// One stable shared heap large-entry identifier.
+/// One stable shared heap large-allocation identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct SharedLargeEntryId(u64);
+pub(crate) struct SharedLargeAllocationId(u64);
 
-impl SharedLargeEntryId {
-    /// Create one shared heap large-entry identifier.
+impl SharedLargeAllocationId {
+    /// Create one shared heap large-allocation identifier.
     pub(crate) const fn new(id: u64) -> Self {
         Self(id)
     }
 
-    /// Return the shared heap large-entry identifier value.
+    /// Return the shared heap large-allocation identifier value.
     pub(crate) const fn id(self) -> u64 {
         self.0
     }
 
-    /// Return the zero-based large-entry slot index.
+    /// Return the zero-based large-allocation slot index.
     pub(crate) fn index(self) -> HeapResult<usize> {
         let Some(index) = self.0.checked_sub(1) else {
-            return Err(HeapError::InvalidLargeEntryId { id: self.0 });
+            return Err(HeapError::InvalidLargeAllocationId { id: self.0 });
         };
 
         Ok(index as usize)
     }
 }
 
-/// One live shared heap large entry.
+/// One live shared heap large allocation.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SharedLargeEntry {
-    /// Whether this large-entry slot is live.
+pub(crate) struct SharedLargeAllocation {
+    /// Whether this large-allocation slot is live.
     pub(crate) is_live: bool,
-    /// The logical byte length of this entry.
+    /// The logical byte length of this allocation.
     pub(crate) len: usize,
-    /// The allocator pages for this entry.
+    /// The allocator pages for this allocation.
     pub(crate) pages: PageView,
-    /// The managed layout stored in this entry.
-    pub(crate) layout_id: LayoutId,
-    /// Whether this entry is marked in the active cycle.
+    /// The reference map for this allocation.
+    pub(crate) reference_map: ReferenceMap,
+    /// Whether this allocation is marked in the active cycle.
     pub(crate) is_marked: bool,
 }
 
-impl SharedLargeEntry {
-    /// Retire this shared heap large-entry slot.
+impl SharedLargeAllocation {
+    /// Retire this shared heap large-allocation slot.
     pub(crate) fn retire(&mut self) {
         self.is_live = false;
         self.len = 0;

@@ -8,22 +8,21 @@ use destack_mir::ReferenceMap;
 
 /// Return the active shared heap bytes for one allocation.
 fn shared_heap_active_bytes_after_allocate(bytes: &[u8]) -> u64 {
-    let (layouts, layout_id) = test_layout(bytes.len(), ReferenceMap::empty());
+    let layout = test_layout(bytes.len(), ReferenceMap::empty());
     let options = crate::HeapOptions::shared();
     let allocator = Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
             .expect("allocator should build"),
     );
-    let shared = SharedHeap::with_allocator_limits_layouts_and_options(
+    let shared = SharedHeap::with_allocator_limits_and_options(
         allocator,
-        layouts,
         SharedHeapLimits::default(),
         options,
     )
     .expect("shared heap should build");
 
     shared
-        .allocate(layout_id, Payload::Bytes(bytes))
+        .allocate(layout.allocation(), Payload::Bytes(bytes))
         .expect("shared heap allocation should succeed");
 
     shared.usage().heap.active_bytes
@@ -33,10 +32,9 @@ fn shared_heap_active_bytes_after_allocate(bytes: &[u8]) -> u64 {
 #[test]
 fn test_reject_shared_heap_allocation_when_limit_exceeded() {
     let expected_used_bytes = shared_heap_active_bytes_after_allocate(&[1]);
-    let (layouts, layout_id) = test_layout(1, ReferenceMap::empty());
-    let shared = SharedHeap::with_allocator_limits_layouts_and_options(
+    let layout = test_layout(1, ReferenceMap::empty());
+    let shared = SharedHeap::with_allocator_limits_and_options(
         Arc::new(Allocator::try_default().expect("allocator should build")),
-        layouts,
         SharedHeapLimits {
             max_bytes: None,
             heap: SharedHeapSpaceLimits { max_bytes: Some(0) },
@@ -47,7 +45,7 @@ fn test_reject_shared_heap_allocation_when_limit_exceeded() {
     .expect("shared heap should build");
 
     let error = shared
-        .allocate(layout_id, Payload::Bytes(&[1]))
+        .allocate(layout.allocation(), Payload::Bytes(&[1]))
         .expect_err("shared heap allocation should be rejected");
 
     assert_eq!(
@@ -66,9 +64,8 @@ fn test_reject_shared_heap_allocation_when_limit_exceeded() {
 fn test_reject_shared_raw_replace_when_limit_exceeded() {
     let allocator = Arc::new(Allocator::try_default().expect("allocator should build"));
     let options = crate::HeapOptions::shared();
-    let shared = SharedHeap::with_allocator_limits_layouts_and_options(
+    let shared = SharedHeap::with_allocator_limits_and_options(
         allocator.clone(),
-        Arc::new(destack_mir::LayoutTable::new()),
         SharedHeapLimits::default(),
         options.clone(),
     )
@@ -118,17 +115,16 @@ fn test_reject_shared_raw_replace_when_limit_exceeded() {
 #[test]
 fn test_reject_shared_heap_image_when_limits_start_over_budget() {
     let allocator = Arc::new(Allocator::try_default().expect("allocator should build"));
-    let (layouts, layout_id) = test_layout(1, ReferenceMap::empty());
+    let layout = test_layout(1, ReferenceMap::empty());
     let options = crate::HeapOptions::shared();
-    let shared = SharedHeap::with_allocator_limits_layouts_and_options(
+    let shared = SharedHeap::with_allocator_limits_and_options(
         allocator.clone(),
-        layouts,
         SharedHeapLimits::default(),
         options.clone(),
     )
     .expect("shared heap should build");
     shared
-        .allocate(layout_id, Payload::Bytes(&[1]))
+        .allocate(layout.allocation(), Payload::Bytes(&[1]))
         .expect("shared heap allocation should succeed");
     let used_bytes = shared.usage().heap.active_bytes;
     let image = shared.image();

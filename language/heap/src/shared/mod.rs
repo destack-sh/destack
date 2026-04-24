@@ -9,11 +9,11 @@ mod tests;
 mod usage;
 
 pub use budget::{SharedHeapLimits, SharedHeapSpaceLimits, SharedRawBudget, SharedRawLimits};
-pub use gc::SharedGcPhase;
+pub use gc::{SharedGcPhase, SharedGcWorker};
 pub use heap::{SharedHeap, SharedHeapImage};
-pub use raw::{SharedRawEntryImage, SharedRawPointer, SharedRawSpace, SharedRawSpaceImage};
+pub use raw::{SharedRawAllocationImage, SharedRawPointer, SharedRawSpace, SharedRawSpaceImage};
 pub use space::{
-    SharedHeapLargeEntryImage, SharedHeapReference, SharedHeapSmallSpanImage, SharedHeapSpace,
+    SharedHeapLargeAllocationImage, SharedHeapReference, SharedHeapSmallSpanImage, SharedHeapSpace,
     SharedHeapSpaceImage,
 };
 pub use usage::{SharedHeapSpaceUsage, SharedHeapUsage, SharedRawSpaceUsage};

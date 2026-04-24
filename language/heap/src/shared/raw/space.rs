@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use parking_lot::{Mutex, RwLock};
 
-use super::{SharedRawEntry, SharedRawLocation, SharedRawPageOwner};
+use super::{SharedRawAllocation, SharedRawLocation, SharedRawPageOwner};
 use crate::allocator::{PageRunCache, PageView};
 use crate::{
     AccountingRegion, AllocationUsage, Allocator, HeapError, HeapResult, Payload, SharedRawPointer,
@@ -21,14 +21,14 @@ pub(crate) struct SharedRawState {
 /// One live shared raw-space store rooted in one allocator.
 #[derive(Debug)]
 pub struct SharedRawSpace {
-    /// The shared raw-space allocator for every entry.
+    /// The shared raw-space allocator for every allocation.
     pub(crate) allocator: Arc<Allocator>,
     /// The shared raw-space state.
     pub(crate) state: Mutex<SharedRawState>,
-    /// The owning entry location for each visible allocator page.
+    /// The owning allocation location for each visible allocator page.
     pub(crate) page_owners: RwLock<Vec<Option<SharedRawPageOwner>>>,
-    /// The live shared raw-space entries.
-    pub(crate) entries: RwLock<Vec<Arc<RwLock<SharedRawEntry>>>>,
+    /// The live shared raw-space allocations.
+    pub(crate) allocations: RwLock<Vec<Arc<RwLock<SharedRawAllocation>>>>,
 }
 
 impl SharedRawSpace {
@@ -43,7 +43,7 @@ impl SharedRawSpace {
                 usage: AllocationUsage::default(),
             }),
             page_owners: RwLock::new(Vec::new()),
-            entries: RwLock::new(Vec::new()),
+            allocations: RwLock::new(Vec::new()),
         }
     }
 
@@ -66,8 +66,8 @@ impl SharedRawSpace {
 
     /// Return the exact borrowed shared bytes.
     pub fn borrowed_bytes(&self) -> u64 {
-        let entries = self.entries.read();
-        let pages = self.live_pages(&entries);
+        let allocations = self.allocations.read();
+        let pages = self.live_pages(&allocations);
 
         self.allocator.borrowed_bytes_for_page_views(pages.iter())
     }
@@ -95,8 +95,8 @@ impl SharedRawSpace {
 
     /// Return the mapped live bytes for the current shared raw state.
     fn live_mapped_bytes(&self, state: &SharedRawState) -> u64 {
-        let entries = self.entries.read();
-        let pages = self.live_pages(&entries);
+        let allocations = self.allocations.read();
+        let pages = self.live_pages(&allocations);
         let cached_bytes = state
             .page_run_cache
             .cached_bytes(self.allocator.page_bytes());
@@ -106,12 +106,12 @@ impl SharedRawSpace {
             .saturating_add(cached_bytes)
     }
 
-    /// Return whether one shared raw pointer currently refers to one live entry slot.
+    /// Return whether one shared raw pointer currently refers to one live allocation slot.
     pub fn is_live(&self, pointer: SharedRawPointer) -> bool {
         self.resolve_location(pointer).is_ok()
     }
 
-    /// Allocate one shared raw entry.
+    /// Allocate one shared raw allocation.
     pub fn allocate(
         &self,
         byte_len: usize,
@@ -135,18 +135,44 @@ impl SharedRawSpace {
                 .page_run_cache
                 .allocate_zeroed(&self.allocator, byte_len)?,
         };
-        if matches!(allocation, Payload::PageView { .. }) {
-            allocation.initialize(&self.allocator, &mut pages, 0)?;
+        if matches!(allocation, Payload::PageView { .. })
+            && let Err(error) = allocation.initialize(&self.allocator, &mut pages, 0)
+        {
+            state
+                .page_run_cache
+                .release_page_view(&self.allocator, pages)?;
+
+            return Err(error);
         }
-        let entry = Arc::new(RwLock::new(SharedRawEntry::new(byte_len, pages.clone())));
-        let base_address = self.allocator.page_view_ptr(&pages, 0)? as usize;
+        let base_address = match self.allocator.page_view_ptr(&pages, 0) {
+            Ok(base_address) => base_address as usize,
+            Err(error) => {
+                state
+                    .page_run_cache
+                    .release_page_view(&self.allocator, pages)?;
 
-        let mut entries = self.entries.write();
-        let entry_index = entries.len();
-        entries.push(entry);
-        drop(entries);
+                return Err(error);
+            }
+        };
 
-        self.map_page_view(&pages, entry_index)?;
+        let mut allocations = self.allocations.write();
+        let allocation_index = allocations.len();
+        if let Err(error) = self.map_page_view(&pages, allocation_index) {
+            drop(allocations);
+            state
+                .page_run_cache
+                .release_page_view(&self.allocator, pages)?;
+
+            return Err(error);
+        }
+
+        let allocation = Arc::new(RwLock::new(SharedRawAllocation::new(
+            byte_len,
+            pages.clone(),
+        )));
+        allocations.push(allocation);
+        drop(allocations);
+
         state
             .usage
             .allocate(byte_len, AccountingRegion::SharedRaw)?;
@@ -154,7 +180,7 @@ impl SharedRawSpace {
         Ok(SharedRawPointer::new(base_address))
     }
 
-    /// Return the projected mapped-byte delta for one shared entry.
+    /// Return the projected mapped-byte delta for one shared allocation.
     pub fn alloc_mapped_byte_delta(&self, byte_len: usize) -> i64 {
         self.round_up_allocation_bytes(byte_len) as i64
     }
@@ -171,11 +197,11 @@ impl SharedRawSpace {
         let location = self.resolve_location(pointer)?;
         let byte_len =
             checked_remaining_byte_len(pointer, location.byte_offset, location.byte_len)?;
-        let entry = self.entry(pointer, location.entry_index)?;
-        let entry = entry.read();
+        let allocation = self.allocation(pointer, location.allocation_index)?;
+        let allocation = allocation.read();
 
         self.allocator
-            .bytes_to_vec_from(&entry.pages, location.byte_offset, byte_len)
+            .bytes_to_vec_from(&allocation.pages, location.byte_offset, byte_len)
     }
 
     /// Replace the bytes for one shared raw pointer.
@@ -185,14 +211,14 @@ impl SharedRawSpace {
         bytes: &[u8],
     ) -> HeapResult<SharedRawPointer> {
         let location = self.resolve_location(pointer)?;
-        let entry = self.entry(pointer, location.entry_index)?;
+        let allocation = self.allocation(pointer, location.allocation_index)?;
         let mut state = self.state.lock();
         let next_pages = state
             .page_run_cache
             .allocate_bytes(&self.allocator, bytes)?;
-        let mut entry = entry.write();
+        let mut allocation = allocation.write();
 
-        if entry.is_vacant() {
+        if allocation.is_vacant() {
             state
                 .page_run_cache
                 .release_page_view(&self.allocator, next_pages)?;
@@ -200,17 +226,17 @@ impl SharedRawSpace {
             return Err(HeapError::InvalidSharedRawPointer { pointer });
         }
 
-        let previous_pages = entry.pages.clone();
-        let previous_len = entry.len;
+        let previous_pages = allocation.pages.clone();
+        let previous_len = allocation.len;
 
-        entry.pages = next_pages.clone();
-        entry.len = bytes.len();
-        let base_address = self.allocator.page_view_ptr(&entry.pages, 0)? as usize;
+        allocation.pages = next_pages.clone();
+        allocation.len = bytes.len();
+        let base_address = self.allocator.page_view_ptr(&allocation.pages, 0)? as usize;
 
-        drop(entry);
+        drop(allocation);
 
         self.unmap_page_view(&previous_pages)?;
-        self.map_page_view(&next_pages, location.entry_index)?;
+        self.map_page_view(&next_pages, location.allocation_index)?;
 
         state
             .usage
@@ -222,26 +248,26 @@ impl SharedRawSpace {
         Ok(SharedRawPointer::new(base_address))
     }
 
-    /// Free one shared raw-space entry.
+    /// Free one shared raw-space allocation.
     pub fn free(&self, pointer: SharedRawPointer) -> HeapResult<bool> {
         let location = self.resolve_location(pointer)?;
-        let entry = self.entry(pointer, location.entry_index)?;
+        let allocation = self.allocation(pointer, location.allocation_index)?;
         let mut state = self.state.lock();
-        let mut entry = entry.write();
+        let mut allocation = allocation.write();
 
-        if entry.is_vacant() {
+        if allocation.is_vacant() {
             return Err(HeapError::InvalidSharedRawPointer { pointer });
         }
 
-        let pages = entry.pages.clone();
-        let previous_len = entry.len as u64;
+        let pages = allocation.pages.clone();
+        let previous_len = allocation.len as u64;
 
         state
             .usage
             .check_free(previous_len, AccountingRegion::SharedRaw)?;
 
-        entry.retire();
-        drop(entry);
+        allocation.retire();
+        drop(allocation);
 
         self.unmap_page_view(&pages)?;
         state
@@ -261,20 +287,20 @@ impl SharedRawSpace {
         next_byte_len: usize,
     ) -> HeapResult<i64> {
         let location = self.resolve_location(pointer)?;
-        let entry = self.entry(pointer, location.entry_index)?;
-        let entry = entry.read();
+        let allocation = self.allocation(pointer, location.allocation_index)?;
+        let allocation = allocation.read();
 
-        if entry.is_vacant() {
+        if allocation.is_vacant() {
             return Err(HeapError::InvalidSharedRawPointer { pointer });
         }
 
-        let previous_mapped_bytes = self.round_up_allocation_bytes(entry.len);
+        let previous_mapped_bytes = self.round_up_allocation_bytes(allocation.len);
         let next_mapped_bytes = self.round_up_allocation_bytes(next_byte_len);
 
         Ok(next_mapped_bytes as i64 - previous_mapped_bytes as i64)
     }
 
-    /// Return the page-rounded mapped bytes for one shared entry.
+    /// Return the page-rounded mapped bytes for one shared allocation.
     fn round_up_allocation_bytes(&self, byte_len: usize) -> u64 {
         let page_bytes = self.page_bytes() as u64;
         let byte_len = byte_len as u64;
@@ -282,32 +308,32 @@ impl SharedRawSpace {
         byte_len.div_ceil(page_bytes) * page_bytes
     }
 
-    /// Return the current live raw entry page views.
-    fn live_pages(&self, entries: &[Arc<RwLock<SharedRawEntry>>]) -> Vec<crate::PageView> {
-        let mut pages = Vec::with_capacity(entries.len());
+    /// Return the current live raw allocation page views.
+    fn live_pages(&self, allocations: &[Arc<RwLock<SharedRawAllocation>>]) -> Vec<crate::PageView> {
+        let mut pages = Vec::with_capacity(allocations.len());
 
-        for entry in entries {
-            let entry = entry.read();
+        for allocation in allocations {
+            let allocation = allocation.read();
 
-            if entry.is_vacant() {
+            if allocation.is_vacant() {
                 continue;
             }
 
-            pages.push(entry.pages.clone());
+            pages.push(allocation.pages.clone());
         }
 
         pages
     }
 
-    /// Return one live shared raw entry by index.
-    fn entry(
+    /// Return one live shared raw allocation by index.
+    fn allocation(
         &self,
         pointer: SharedRawPointer,
-        entry_index: usize,
-    ) -> HeapResult<Arc<RwLock<SharedRawEntry>>> {
-        self.entries
+        allocation_index: usize,
+    ) -> HeapResult<Arc<RwLock<SharedRawAllocation>>> {
+        self.allocations
             .read()
-            .get(entry_index)
+            .get(allocation_index)
             .cloned()
             .ok_or(HeapError::InvalidSharedRawPointer { pointer })
     }
@@ -327,15 +353,15 @@ impl SharedRawSpace {
         else {
             return Err(HeapError::InvalidSharedRawPointer { pointer });
         };
-        let entry = self
-            .entries
+        let allocation = self
+            .allocations
             .read()
-            .get(owner.entry_index)
+            .get(owner.allocation_index)
             .cloned()
             .ok_or(HeapError::InvalidSharedRawPointer { pointer })?;
-        let entry = entry.read();
+        let allocation = allocation.read();
 
-        if entry.is_vacant() {
+        if allocation.is_vacant() {
             return Err(HeapError::InvalidSharedRawPointer { pointer });
         }
 
@@ -345,25 +371,29 @@ impl SharedRawSpace {
             .and_then(|byte_offset| byte_offset.checked_add(page_offset))
             .ok_or(HeapError::InvalidSharedRawPointer { pointer })?;
 
-        if byte_offset >= entry.len {
+        if byte_offset >= allocation.len {
             return Err(HeapError::InvalidSharedRawPointer { pointer });
         }
 
         let base_address =
             self.allocator
-                .page_view_ptr(&entry.pages, 0)
+                .page_view_ptr(&allocation.pages, 0)
                 .map_err(|_| HeapError::InvalidSharedRawPointer { pointer })? as usize;
 
         Ok(SharedRawLocation {
-            entry_index: owner.entry_index,
+            allocation_index: owner.allocation_index,
             base: SharedRawPointer::new(base_address),
             byte_offset,
-            byte_len: entry.len,
+            byte_len: allocation.len,
         })
     }
 
     /// Record one visible owner for every page in one page view.
-    pub(crate) fn map_page_view(&self, page_view: &PageView, entry_index: usize) -> HeapResult<()> {
+    pub(crate) fn map_page_view(
+        &self,
+        page_view: &PageView,
+        allocation_index: usize,
+    ) -> HeapResult<()> {
         let mut page_owners = self.page_owners.write();
 
         for logical_page_index in 0..page_view.len() {
@@ -379,7 +409,7 @@ impl SharedRawSpace {
             }
 
             page_owners[page_index] = Some(SharedRawPageOwner {
-                entry_index,
+                allocation_index,
                 logical_page_index,
             });
         }
@@ -411,7 +441,10 @@ impl Drop for SharedRawSpace {
     fn drop(&mut self) {
         let mut state = self.state.lock();
 
-        state.page_run_cache.flush(&self.allocator);
+        state
+            .page_run_cache
+            .flush(&self.allocator)
+            .unwrap_or_else(|error| panic!("shared raw page-run cache flush failed: {error}"));
     }
 }
 

@@ -29,20 +29,20 @@ fn test_roundtrip_shared_memory_image_and_fork() {
 
     // untouched pages should still share after fork and restore
     assert_eq!(
-        image.entry(0).unwrap().pages,
-        forked_image.entry(0).unwrap().pages
+        image.allocation(0).unwrap().pages,
+        forked_image.allocation(0).unwrap().pages
     );
     assert_eq!(
-        image.entry(1).unwrap().pages,
-        forked_image.entry(1).unwrap().pages
+        image.allocation(1).unwrap().pages,
+        forked_image.allocation(1).unwrap().pages
     );
     assert_eq!(
-        image.entry(0).unwrap().pages,
-        restored_image.entry(0).unwrap().pages
+        image.allocation(0).unwrap().pages,
+        restored_image.allocation(0).unwrap().pages
     );
     assert_eq!(
-        image.entry(1).unwrap().pages,
-        restored_image.entry(1).unwrap().pages
+        image.allocation(1).unwrap().pages,
+        restored_image.allocation(1).unwrap().pages
     );
 
     // mutating one allocation should detach only that allocation
@@ -52,18 +52,18 @@ fn test_roundtrip_shared_memory_image_and_fork() {
     let mutated_image = restored.image();
 
     assert_ne!(
-        image.entry(0).unwrap().pages,
-        mutated_image.entry(0).unwrap().pages
+        image.allocation(0).unwrap().pages,
+        mutated_image.allocation(0).unwrap().pages
     );
     assert_eq!(
-        image.entry(1).unwrap().pages,
-        mutated_image.entry(1).unwrap().pages
+        image.allocation(1).unwrap().pages,
+        mutated_image.allocation(1).unwrap().pages
     );
     assert_eq!(restored.read_bytes(first), Ok(vec![9, 2, 3, 4, 5, 6]));
     assert_eq!(restored.read_bytes(second), Ok(vec![7, 8, 9, 10, 11, 12]));
 }
 
-/// Preserve shared heap metadata across image roundtrips and detach only touched entries.
+/// Preserve shared heap metadata across image roundtrips and detach only touched allocations.
 #[test]
 fn test_roundtrip_shared_heap_space_image() {
     let options = HeapOptions {
@@ -71,21 +71,20 @@ fn test_roundtrip_shared_heap_space_image() {
         ..HeapOptions::shared()
     };
     let allocator = test_allocator(&options);
-    let (layouts, layout_ids) =
-        test_layouts(&[(6, ReferenceMap::empty()), (6, ReferenceMap::empty())]);
-    let first_layout_id = layout_ids[0];
-    let second_layout_id = layout_ids[1];
-    let heap = SharedHeapSpace::with_layouts_and_options(allocator.clone(), layouts, &options)
+    let layouts = test_layouts(&[(6, ReferenceMap::empty()), (6, ReferenceMap::empty())]);
+    let first_layout = &layouts[0];
+    let second_layout = &layouts[1];
+    let heap = SharedHeapSpace::with_options(allocator.clone(), &options)
         .expect("shared heap space should build");
 
-    // capture two entries in one shared small span
+    // capture two allocations in one shared small span
     let first_bytes = vec![1; 6];
     let second_bytes = vec![2; 6];
     let first = heap
-        .allocate(first_layout_id, Payload::Bytes(&first_bytes))
+        .allocate(first_layout.allocation(), Payload::Bytes(&first_bytes))
         .expect("shared heap allocation should succeed");
     let _second = heap
-        .allocate(second_layout_id, Payload::Bytes(&second_bytes))
+        .allocate(second_layout.allocation(), Payload::Bytes(&second_bytes))
         .expect("shared heap allocation should succeed");
     let image = heap.image();
     let restored = SharedHeapSpace::from_image_with_allocator(allocator.clone(), &image)
