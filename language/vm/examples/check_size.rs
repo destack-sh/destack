@@ -1,10 +1,10 @@
 use destack_vm::{
-    Continuation, Executable, Frame, HeapReference, Interpreter, Isolate, RawPointer, StackPointer,
+    Continuation, Frame, HeapReference, Interpreter, Isolate, Module, RawPointer, StackPointer,
     Value,
 };
 
 fn main() {
-    println!("Executable: {} bytes", std::mem::size_of::<Executable>());
+    println!("Module: {} bytes", std::mem::size_of::<Module>());
     println!("Isolate: {} bytes", std::mem::size_of::<Isolate>());
     println!("Interpreter: {} bytes", std::mem::size_of::<Interpreter>());
     println!(

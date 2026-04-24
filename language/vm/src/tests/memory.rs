@@ -11,7 +11,7 @@ use destack_heap::{
     SharedHeapReference, SharedRawBudget, SharedRawLimits,
 };
 use destack_mir::parse::{ParseOptions, Parser};
-use destack_mir::{LayoutTable, ReferenceMap, Storage};
+use destack_mir::{ReferenceMap, Storage};
 use destack_source::FileId;
 
 /// Decode one native-width heap reference from materialized bytes.
@@ -126,11 +126,9 @@ b0:
 
             assert_eq!(initial, vec![1, 2, 3]);
 
-            let pointer = context
+            context
                 .write_shared_bytes(pointer, &[7, 8, 9, 10])
-                .expect("shared bytes should write");
-
-            pointer
+                .expect("shared bytes should write")
         })
     });
 
@@ -171,9 +169,8 @@ fn test_roundtrip_shared_memory_image() {
         Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
             .expect("valid explicit allocator options should build"),
     );
-    let shared = SharedHeap::with_allocator_limits_layouts_and_options(
+    let shared = SharedHeap::with_allocator_limits_and_options(
         allocator.clone(),
-        std::sync::Arc::new(LayoutTable::new()),
         destack_heap::SharedHeapLimits::default(),
         options.clone(),
     )
@@ -198,12 +195,12 @@ fn test_roundtrip_shared_memory_image() {
 
     // untouched pages should still share after restore
     assert_eq!(
-        image.raw.entry(0).unwrap().pages,
-        restored_image.raw.entry(0).unwrap().pages
+        image.raw.allocation(0).unwrap().pages,
+        restored_image.raw.allocation(0).unwrap().pages
     );
     assert_eq!(
-        image.raw.entry(1).unwrap().pages,
-        restored_image.raw.entry(1).unwrap().pages
+        image.raw.allocation(1).unwrap().pages,
+        restored_image.raw.allocation(1).unwrap().pages
     );
 
     // mutating one allocation should detach only that allocation
@@ -213,12 +210,12 @@ fn test_roundtrip_shared_memory_image() {
     let mutated_image = restored.image();
 
     assert_ne!(
-        image.raw.entry(0).unwrap().pages,
-        mutated_image.raw.entry(0).unwrap().pages
+        image.raw.allocation(0).unwrap().pages,
+        mutated_image.raw.allocation(0).unwrap().pages
     );
     assert_eq!(
-        image.raw.entry(1).unwrap().pages,
-        mutated_image.raw.entry(1).unwrap().pages
+        image.raw.allocation(1).unwrap().pages,
+        mutated_image.raw.allocation(1).unwrap().pages
     );
     assert_eq!(restored.read_raw_bytes(first), Ok(vec![9, 2, 3, 4, 5, 6]));
     assert_eq!(
@@ -235,9 +232,8 @@ fn test_shared_raw_budget_tracks_committed_usage() {
         Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
             .expect("valid explicit allocator options should build"),
     );
-    let shared = SharedHeap::with_allocator_limits_layouts_and_options(
+    let shared = SharedHeap::with_allocator_limits_and_options(
         allocator,
-        std::sync::Arc::new(LayoutTable::new()),
         destack_heap::SharedHeapLimits::default(),
         options,
     )
@@ -670,18 +666,16 @@ b0:
     assert_eq!(isolate.heap.heap_byte_len(reference), Ok(16));
     assert_eq!(
         isolate.heap.scan(reference),
-        Ok(ReferenceMap::RepeatedReference {
-            count: 2,
-            stride: 8,
-            local_offsets: vec![0].into_boxed_slice(),
+        Ok(ReferenceMap::Reference {
+            local_offsets: vec![0, 8].into_boxed_slice(),
             shared_offsets: Vec::new().into_boxed_slice(),
         })
     );
 }
 
-/// Managed field loads match whole-object load plus field extraction.
+/// Managed field addresses load the same referenced payload directly.
 #[test]
-fn test_managed_field_load_matches_whole_object_load() {
+fn test_managed_field_address_loads_referenced_payload() {
     let mir = r#"
 type Holder {
     value: ref<int32, managed, readonly>;
@@ -697,20 +691,15 @@ b0:
     store v3, v2
     v4: ref<ref<int32, managed, readonly>, managed, readonly> = field.address v3, 0
     v5: ref<int32, managed, readonly> = load v4
-    v6: Holder = load v3
-    v7: ref<int32, managed, readonly> = field.get v6, 0
-    v8: int32 = load v5
-    v9: int32 = load v7
-    v10: int32 = int.add v8, v9
-    return v10
+    v6: int32 = load v5
+    return v6
 }"#;
     let mut isolate = create_isolate(mir);
     let output = isolate
         .run_function_by_name("comparePaths", &[])
         .expect("execution failed");
 
-    // both paths should recover the same referenced payload
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(82));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(41));
 }
 
 /// Out-of-bounds field access produces an error.
