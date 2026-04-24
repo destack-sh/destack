@@ -182,7 +182,8 @@ mod tests {
 
     use crate::parse::expression::common::DeclarationHeader;
     use crate::{
-        TestParser, assert_comment, assert_expression_path, assert_node, assert_path, assert_string,
+        ParserSettings, TestParser, assert_comment, assert_expression_path, assert_node,
+        assert_path, assert_string,
     };
 
     #[test]
@@ -287,6 +288,27 @@ struct Foo extends Bar {}
                 assert_node!(parser.tree, *expression, Expression::Binary { operator, .. } => {
                     assert_eq!(*operator, BinaryOperator::Add);
                 });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_class_with_parenthesized_sequence_extends_expression() {
+        let mut test =
+            TestParser::new_with_options("class A extends (a, b) {}", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        parser.apply_settings(ParserSettings {
+            preserve_parenthesized_wrappers: false,
+            ..ParserSettings::default()
+        });
+
+        let start = parser.mark();
+        let class_id = parser
+            .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+            .unwrap();
+        assert_node!(parser.tree, class_id, Declaration::Class(ClassDeclaration { extends_expression: Some(extends_expression), .. }) => {
+            assert_node!(parser.tree, *extends_expression, Expression::SequenceExpression { expressions } => {
+                assert_eq!(expressions.len(), 2);
             });
         });
     }

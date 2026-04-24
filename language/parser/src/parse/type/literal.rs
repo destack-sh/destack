@@ -51,6 +51,17 @@ impl Parser {
         }
     }
 
+    /// Map identifier text to one type literal when possible.
+    #[inline]
+    pub(crate) fn type_literal_identifier_str(
+        &self,
+        identifier: &str,
+        next_identifier: Option<&str>,
+    ) -> Option<TypeLiteral> {
+        self.type_literal_always_available_str(identifier)
+            .or_else(|| self.type_literal_type_context_str(identifier, next_identifier))
+    }
+
     /// Eat a variance bound maybe.
     #[inline]
     pub fn eat_variance_bound_maybe(&mut self) -> ParseResult<Option<VarianceBound>> {

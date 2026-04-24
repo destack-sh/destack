@@ -72,7 +72,7 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // parameter: `[K in keyof T]`
-        let name = self.eat_identifier()?;
+        let (name, name_span) = self.eat_identifier_with_span()?;
         self.eat_newlines_maybe()?;
         self.eat_keyword(Keyword::In)?;
         self.eat_newlines_maybe()?;
@@ -159,6 +159,7 @@ impl Parser {
         );
         self.tree
             .set_side_span(mapped_id, NodeSpanType::Head, mapped_head_span);
+        self.tree.set_main_span(mapped_id, name_span);
 
         Ok(mapped_id)
     }

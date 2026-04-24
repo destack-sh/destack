@@ -1780,7 +1780,7 @@ impl Parser {
             expressions.append(&mut body_expressions);
         }
 
-        // ensure one stable owner for trivia-only files
+        // ensure one stable owner for trivia only files
         self.ensure_trivia_anchor_maybe(&mut expressions, consumed_to_end);
 
         // attach comments only in the full parse pipeline
@@ -1831,7 +1831,7 @@ impl Parser {
             return;
         }
 
-        let stub_span = Span::new(self.file_id, 0, self.file.len);
+        let stub_span = self.eof_span();
 
         // comment only files need one returned expression owner
         if expressions.is_empty() {
@@ -1845,7 +1845,7 @@ impl Parser {
             return;
         }
 
-        // directive-only files with attachable semantic tokens already have stable owners
+        // directive only files with attachable semantic tokens already have stable owners
         if self.lexer.has_attachable_semantic_tokens() {
             return;
         }

@@ -40,7 +40,7 @@ impl Parser {
         &mut self,
         terminators: &[Keyword],
         mut eat_item: impl FnMut(&mut Parser) -> ParseResult<Item>,
-        mut set_item_span: impl FnMut(&mut Parser, &Item, Span),
+        mut finish_item: impl FnMut(&mut Parser, &Item, Span, bool) -> ParseResult<()>,
     ) -> ParseResult<Vec<Item>> {
         let mut items = Vec::new();
         let mut expect_item = true;
@@ -102,9 +102,10 @@ impl Parser {
             }
 
             let item_start = self.mark_span();
+            let item_starts_with_parenthesis = self.peek_is(TokenType::OpenParenthesis);
             let item = eat_item(self)?;
             let item_span = self.get_span_from(&item_start);
-            set_item_span(self, &item, item_span);
+            finish_item(self, &item, item_span, item_starts_with_parenthesis)?;
 
             items.push(item);
             expect_item = false;
@@ -235,10 +236,12 @@ impl Parser {
 
                 Ok(parser.normalize_super_type_expression(ty))
             },
-            |parser, ty, super_type_span| {
+            |parser, ty, super_type_span, _| {
                 parser
                     .tree
                     .set_side_span(*ty, NodeSpanType::Type, super_type_span);
+
+                Ok(())
             },
         )
     }
@@ -250,18 +253,19 @@ impl Parser {
     ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
         self.eat_super_list(
             terminators,
-            |parser| {
-                let ty = parser.eat_expression(parser.options.in_before_block())?;
-                if parser.super_type_has_invalid_unparenthesized_head(ty) {
-                    return Err(ParseError::unexpected(parser.tree.get_span(ty)));
-                }
-
-                Ok(ty)
-            },
-            |parser, ty, super_type_span| {
+            |parser| parser.eat_expression(parser.options.in_before_block()),
+            |parser, ty, super_type_span, item_starts_with_parenthesis| {
                 parser
                     .tree
                     .set_side_span(*ty, NodeSpanType::Type, super_type_span);
+
+                if !item_starts_with_parenthesis
+                    && parser.super_type_has_invalid_unparenthesized_head(*ty)
+                {
+                    return Err(ParseError::unexpected(parser.tree.get_span(*ty)));
+                }
+
+                Ok(())
             },
         )
     }

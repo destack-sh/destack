@@ -204,6 +204,9 @@ fn test_comment_only_file_gets_stub_expression_and_trivia() {
     // stub for `// only`
     assert_eq!(expressions.len(), 1);
     assert_node!(parser.tree, expressions[0], Expression::Stub);
+    let expression_span = parser.tree.get_span(expressions[0]);
+    assert_eq!(expression_span.start, parser.file.len);
+    assert_eq!(expression_span.end, parser.file.len);
     let annotations = parser.tree.get_decorators(expressions[0].id);
     assert!(annotations.is_empty());
 
@@ -1765,7 +1768,7 @@ call?.(); // optional"#,
 }
 
 #[test]
-fn test_if_shell_trailing_line_comments_preserve_raw_if_boundaries() {
+fn test_if_statement_trailing_line_comments_preserve_raw_if_boundaries() {
     let (parser, expressions) = parse_source(
         r#"if (base.endsWith(".js") || base === `/worker-entries`); // for dev
 if (base.endsWith(".js") || base === `/worker-entries`) base = ""; // for dev
