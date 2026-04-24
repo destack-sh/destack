@@ -9,7 +9,7 @@ pub struct StackPointer {
     /// The stack-allocation slot inside that frame.
     pub slot: usize,
     /// The byte offset inside the stack allocation.
-    pub slot_offset: usize,
+    pub byte_offset: usize,
 }
 
 impl StackPointer {
@@ -19,17 +19,17 @@ impl StackPointer {
         Self {
             frame_idx,
             slot,
-            slot_offset: 0,
+            byte_offset: 0,
         }
     }
 
     /// Create a stack pointer with one byte offset.
     #[inline]
-    pub fn with_offset(frame_idx: usize, slot: usize, slot_offset: usize) -> Self {
+    pub fn with_offset(frame_idx: usize, slot: usize, byte_offset: usize) -> Self {
         Self {
             frame_idx,
             slot,
-            slot_offset,
+            byte_offset,
         }
     }
 }
@@ -42,7 +42,7 @@ pub struct FramePointer {
     /// The slot index inside that frame.
     pub slot: usize,
     /// The byte offset inside the slot value.
-    pub slot_offset: usize,
+    pub byte_offset: usize,
 }
 
 impl FramePointer {
@@ -52,17 +52,17 @@ impl FramePointer {
         Self {
             frame_idx,
             slot,
-            slot_offset: 0,
+            byte_offset: 0,
         }
     }
 
     /// Create a frame pointer with one byte offset.
     #[inline]
-    pub fn with_offset(frame_idx: usize, slot: usize, slot_offset: usize) -> Self {
+    pub fn with_offset(frame_idx: usize, slot: usize, byte_offset: usize) -> Self {
         Self {
             frame_idx,
             slot,
-            slot_offset,
+            byte_offset,
         }
     }
 }
@@ -73,5 +73,5 @@ pub struct GlobalPointer {
     /// The global identifier.
     pub id: mir::LocalNodeId<mir::Global>,
     /// The byte offset inside the global value.
-    pub slot_offset: usize,
+    pub byte_offset: usize,
 }

@@ -11,19 +11,22 @@ pub mod isolate;
 pub mod options;
 pub mod snapshot;
 pub mod telemetry;
-
-pub use destack_heap::string::{STRING_TYPE_ALIAS, StringLayout, string_layout_matches};
-pub use destack_heap::{
-    GcStats, GlobalPointer, Heap, HeapImage, HeapSnapshot, LocalPointer, ManagedReference,
-    ManagedSpace, MemoryContext, RawPointer, RawSpace, ReferenceAddressSpace, ReferenceMeta,
-    SharedPointer, SharedSpace, StackPointer, Value, ValueBuffer, ValueTag,
-};
-
-#[cfg(test)]
-mod tests;
+mod value;
 
 pub use diagnostic::*;
 pub use executable::*;
 pub use interpreter::*;
 pub use isolate::*;
 pub use options::*;
+pub use value::*;
+
+pub use destack_engine::MaterializedValue;
+pub use destack_heap::{
+    Allocator, GcStats, Heap, HeapError, HeapImage, HeapLimits, HeapOptions, HeapReference,
+    HeapResult, HeapSpace, RawPointer, RawSpace, SharedHeap, SharedHeapImage, SharedHeapLimits,
+    SharedHeapReference, SharedHeapUsage, SharedRawBudget, SharedRawEntryImage, SharedRawLimits,
+    SharedRawPointer,
+};
+
+#[cfg(test)]
+mod tests;

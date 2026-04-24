@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use super::meta::ReferenceMeta;
 use super::tag::ValueTag;
 use crate::{
-    FramePointer, GlobalPointer, ManagedReference, RawPointer, SharedManagedReference,
-    SharedRawPointer, StackPointer,
+    FramePointer, GlobalPointer, HeapReference, RawPointer, SharedHeapReference, SharedRawPointer,
+    StackPointer,
 };
 
 const POINTER_BASE_MASK: u64 = 0xFFFF_FFFF;
@@ -15,17 +15,63 @@ const STACK_SLOT_SHIFT: u64 = 16;
 const REF_META_SHIFT: u64 = 16;
 const REF_META_MASK: u64 = 0xFF << REF_META_SHIFT;
 
+/// Pack one native pointer-width payload into the value data lane.
+const fn pack_pointer_bits(bits: usize) -> u64 {
+    bits as u64
+}
+
+/// Unpack one native pointer-width payload from the value data lane.
+const fn unpack_pointer_bits(bits: u64) -> usize {
+    bits as usize
+}
+
 /// A runtime value in the VM.
 ///
 /// Compact 16-byte representation using a packed data/meta layout.
-/// The data field stores the actual value, meta stores the tag and width.
+/// The data field stores the payload, meta stores the tag and auxiliary bits.
 #[derive(Clone, Copy, Serialize, Deserialize)]
+#[serde(try_from = "ValueEncoding", into = "ValueEncoding")]
 #[repr(C)]
 pub struct Value {
-    /// The value data (i64, u64, f64 bits, pointer id, etc.).
+    /// The packed value payload.
     data: u64,
-    /// Metadata: tag in low byte, width in second byte.
+    /// The packed value metadata.
     meta: u64,
+}
+
+/// Serialized form of one packed VM value.
+#[derive(Serialize, Deserialize)]
+struct ValueEncoding {
+    /// The packed value payload.
+    data: u64,
+    /// The packed value metadata.
+    meta: u64,
+}
+
+impl From<Value> for ValueEncoding {
+    fn from(value: Value) -> Self {
+        Self {
+            data: value.data,
+            meta: value.meta,
+        }
+    }
+}
+
+impl TryFrom<ValueEncoding> for Value {
+    type Error = String;
+
+    fn try_from(encoded: ValueEncoding) -> Result<Self, Self::Error> {
+        let value = Self {
+            data: encoded.data,
+            meta: encoded.meta,
+        };
+
+        if value.checked_tag().is_none() {
+            return Err(format!("invalid value tag {}", value.tag_byte()));
+        }
+
+        Ok(value)
+    }
 }
 
 impl Default for Value {
@@ -44,7 +90,11 @@ impl Eq for Value {}
 
 impl std::fmt::Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.tag() {
+        let Some(tag) = self.checked_tag() else {
+            return write!(f, "InvalidValueTag({})", self.tag_byte());
+        };
+
+        match tag {
             ValueTag::Void => write!(f, "Void"),
             ValueTag::Bool => write!(f, "Bool({})", self.data != 0),
             ValueTag::Int => write!(
@@ -65,91 +115,55 @@ impl std::fmt::Debug for Value {
                 let char_val = char::from_u32(self.data as u32).unwrap_or('\u{FFFD}');
                 write!(f, "Char('{char_val}')")
             }
-            ValueTag::ManagedReference => {
-                let reference = ManagedReference::from_bits(self.data);
-                if reference.slot_offset() == 0 {
-                    write!(f, "ManagedReference({})", reference.id())
-                } else {
-                    write!(
-                        f,
-                        "ManagedReference({}, slot {})",
-                        reference.id(),
-                        reference.slot_offset()
-                    )
-                }
+            ValueTag::HeapReference => {
+                let reference = HeapReference::from_bits(unpack_pointer_bits(self.data));
+                write!(f, "HeapReference(0x{:X})", reference.address())
             }
-            ValueTag::SharedManagedReference => {
-                let reference = SharedManagedReference::from_bits(self.data);
-                if reference.slot_offset() == 0 {
-                    write!(f, "SharedManagedReference({})", reference.id())
-                } else {
-                    write!(
-                        f,
-                        "SharedManagedReference({}, slot {})",
-                        reference.id(),
-                        reference.slot_offset()
-                    )
-                }
+            ValueTag::SharedHeapReference => {
+                let reference = SharedHeapReference::from_bits(unpack_pointer_bits(self.data));
+                write!(f, "SharedHeapReference(0x{:X})", reference.address())
             }
             ValueTag::RawPointer => {
-                let pointer = RawPointer::from_bits(self.data);
-                if pointer.slot_offset() == 0 {
-                    write!(f, "RawPointer({})", pointer.id())
-                } else {
-                    write!(
-                        f,
-                        "RawPointer({}, offset: {})",
-                        pointer.id(),
-                        pointer.slot_offset()
-                    )
-                }
+                let pointer = RawPointer::from_bits(unpack_pointer_bits(self.data));
+                write!(f, "RawPointer(0x{:X})", pointer.address())
             }
             ValueTag::SharedRawPointer => {
-                let pointer = SharedRawPointer::from_bits(self.data);
-                if pointer.byte_offset() == 0 {
-                    write!(f, "SharedRawPointer({})", pointer.id())
-                } else {
-                    write!(
-                        f,
-                        "SharedRawPointer({}, offset: {})",
-                        pointer.id(),
-                        pointer.byte_offset()
-                    )
-                }
+                let pointer = SharedRawPointer::from_bits(unpack_pointer_bits(self.data));
+                write!(f, "SharedRawPointer(0x{:X})", pointer.address())
             }
             ValueTag::StackPointer => {
                 let pointer = self.stack_pointer_parts();
-                if pointer.slot_offset == 0 {
+                if pointer.byte_offset == 0 {
                     write!(f, "StackPointer({}, {})", pointer.frame_idx, pointer.slot)
                 } else {
                     write!(
                         f,
                         "StackPointer({}, {}, offset: {})",
-                        pointer.frame_idx, pointer.slot, pointer.slot_offset
+                        pointer.frame_idx, pointer.slot, pointer.byte_offset
                     )
                 }
             }
             ValueTag::FramePointer => {
                 let pointer = self.frame_pointer_parts();
-                if pointer.slot_offset == 0 {
+                if pointer.byte_offset == 0 {
                     write!(f, "FramePointer({}, {})", pointer.frame_idx, pointer.slot)
                 } else {
                     write!(
                         f,
                         "FramePointer({}, {}, offset: {})",
-                        pointer.frame_idx, pointer.slot, pointer.slot_offset
+                        pointer.frame_idx, pointer.slot, pointer.byte_offset
                     )
                 }
             }
             ValueTag::GlobalPointer => {
                 let pointer = self.global_pointer_parts();
-                if pointer.slot_offset == 0 {
+                if pointer.byte_offset == 0 {
                     write!(f, "GlobalPointer({})", pointer.id.id)
                 } else {
                     write!(
                         f,
                         "GlobalPointer({}, offset: {})",
-                        pointer.id.id, pointer.slot_offset
+                        pointer.id.id, pointer.byte_offset
                     )
                 }
             }
@@ -227,7 +241,7 @@ impl Value {
 
     /// Return the raw packed tag byte.
     #[inline(always)]
-    fn tag_byte(&self) -> u8 {
+    pub(crate) fn tag_byte(&self) -> u8 {
         (self.meta & 0xFF) as u8
     }
 
@@ -359,44 +373,44 @@ impl Value {
         }
     }
 
-    /// Create a managed heap reference value.
+    /// Create a heap reference value.
     #[inline]
-    pub const fn managed_reference(reference: ManagedReference) -> Self {
+    pub const fn heap_reference(reference: HeapReference) -> Self {
         Self {
-            data: reference.bits(),
-            meta: Self::make_meta(ValueTag::ManagedReference, 0),
+            data: pack_pointer_bits(reference.bits()),
+            meta: Self::make_meta(ValueTag::HeapReference, 0),
         }
     }
 
-    /// Create a managed heap reference value with explicit metadata.
+    /// Create a heap reference value with explicit metadata.
     #[inline]
-    pub fn managed_reference_with_meta(reference: ManagedReference, meta: ReferenceMeta) -> Self {
-        Self::managed_reference(reference).with_reference_meta(meta)
+    pub fn heap_reference_with_meta(reference: HeapReference, meta: ReferenceMeta) -> Self {
+        Self::heap_reference(reference).with_reference_meta(meta)
     }
 
-    /// Create a shared managed heap reference value.
+    /// Create a shared heap reference value.
     #[inline]
-    pub const fn shared_managed_reference(reference: SharedManagedReference) -> Self {
+    pub const fn shared_heap_reference(reference: SharedHeapReference) -> Self {
         Self {
-            data: reference.bits(),
-            meta: Self::make_meta(ValueTag::SharedManagedReference, 0),
+            data: pack_pointer_bits(reference.bits()),
+            meta: Self::make_meta(ValueTag::SharedHeapReference, 0),
         }
     }
 
-    /// Create a shared managed heap reference value with explicit metadata.
+    /// Create a shared heap reference value with explicit metadata.
     #[inline]
-    pub fn shared_managed_reference_with_meta(
-        reference: SharedManagedReference,
+    pub fn shared_heap_reference_with_meta(
+        reference: SharedHeapReference,
         meta: ReferenceMeta,
     ) -> Self {
-        Self::shared_managed_reference(reference).with_reference_meta(meta)
+        Self::shared_heap_reference(reference).with_reference_meta(meta)
     }
 
     /// Create a raw pointer value.
     #[inline]
     pub const fn raw_pointer(ptr: RawPointer) -> Self {
         Self {
-            data: ptr.bits(),
+            data: pack_pointer_bits(ptr.bits()),
             meta: Self::make_meta(ValueTag::RawPointer, 0),
         }
     }
@@ -405,7 +419,7 @@ impl Value {
     #[inline]
     pub const fn shared_raw_pointer(ptr: SharedRawPointer) -> Self {
         Self {
-            data: ptr.bits(),
+            data: pack_pointer_bits(ptr.bits()),
             meta: Self::make_meta(ValueTag::SharedRawPointer, 0),
         }
     }
@@ -427,7 +441,7 @@ impl Value {
     pub fn stack_pointer(ptr: StackPointer) -> Option<Self> {
         let base = Self::packed_stack_index(ptr.frame_idx)?;
         let slot = Self::packed_stack_index(ptr.slot)?;
-        let offset = Self::packed_pointer_offset(ptr.slot_offset)?;
+        let offset = Self::packed_pointer_offset(ptr.byte_offset)?;
         let packed = base | (slot << STACK_SLOT_SHIFT) | (offset << POINTER_SLOT_SHIFT);
 
         Some(Self {
@@ -447,7 +461,7 @@ impl Value {
     pub fn frame_pointer(ptr: FramePointer) -> Option<Self> {
         let base = Self::packed_stack_index(ptr.frame_idx)?;
         let slot = Self::packed_stack_index(ptr.slot)?;
-        let offset = Self::packed_pointer_offset(ptr.slot_offset)?;
+        let offset = Self::packed_pointer_offset(ptr.byte_offset)?;
         let packed = base | (slot << STACK_SLOT_SHIFT) | (offset << POINTER_SLOT_SHIFT);
 
         Some(Self {
@@ -468,17 +482,17 @@ impl Value {
         Self::global_pointer_with_offset(id, 0)
     }
 
-    /// Create a global pointer value with an explicit slot offset.
+    /// Create a global pointer value with an explicit byte offset.
     #[inline]
     pub fn global_pointer_with_offset(
         id: mir::LocalNodeId<mir::Global>,
-        slot_offset: usize,
+        byte_offset: usize,
     ) -> Option<Self> {
         let base = id.id as u64;
-        let slot = Self::packed_pointer_offset(slot_offset)? << POINTER_SLOT_SHIFT;
+        let offset = Self::packed_pointer_offset(byte_offset)? << POINTER_SLOT_SHIFT;
 
         Some(Self {
-            data: base | slot,
+            data: base | offset,
             meta: Self::make_meta(ValueTag::GlobalPointer, 0),
         })
     }
@@ -487,10 +501,10 @@ impl Value {
     #[inline]
     pub fn global_pointer_with_meta(
         id: mir::LocalNodeId<mir::Global>,
-        slot_offset: usize,
+        byte_offset: usize,
         meta: ReferenceMeta,
     ) -> Option<Self> {
-        Some(Self::global_pointer_with_offset(id, slot_offset)?.with_reference_meta(meta))
+        Some(Self::global_pointer_with_offset(id, byte_offset)?.with_reference_meta(meta))
     }
 
     /// Create a function pointer value.
@@ -513,8 +527,8 @@ impl Value {
             ValueTag::Float32 => f32::from_bits(self.data as u32) != 0.0,
             ValueTag::Float64 => f64::from_bits(self.data) != 0.0,
             ValueTag::Char => true,
-            ValueTag::ManagedReference => self.data != 0,
-            ValueTag::SharedManagedReference => self.data != 0,
+            ValueTag::HeapReference => self.data != 0,
+            ValueTag::SharedHeapReference => self.data != 0,
             ValueTag::RawPointer => self.data != 0,
             ValueTag::SharedRawPointer => self.data != 0,
             ValueTag::StackPointer => true,
@@ -570,32 +584,36 @@ impl Value {
         self.tag() == ValueTag::Void
     }
 
-    /// Check if value is a managed reference.
+    /// Check if value is a heap reference.
     #[inline]
-    pub fn is_managed_reference(&self) -> bool {
-        self.tag() == ValueTag::ManagedReference
+    pub fn is_heap_reference(&self) -> bool {
+        self.tag() == ValueTag::HeapReference
     }
 
-    /// Check if value is a shared managed reference.
+    /// Check if value is a shared heap reference.
     #[inline]
-    pub fn is_shared_managed_reference(&self) -> bool {
-        self.tag() == ValueTag::SharedManagedReference
+    pub fn is_shared_heap_reference(&self) -> bool {
+        self.tag() == ValueTag::SharedHeapReference
     }
 
-    /// Try to get this value as a managed reference.
+    /// Try to get this value as a heap reference.
     #[inline]
-    pub fn as_managed_reference(&self) -> Option<ManagedReference> {
+    pub fn as_heap_reference(&self) -> Option<HeapReference> {
         match self.tag() {
-            ValueTag::ManagedReference => Some(ManagedReference::from_bits(self.data)),
+            ValueTag::HeapReference => {
+                Some(HeapReference::from_bits(unpack_pointer_bits(self.data)))
+            }
             _ => None,
         }
     }
 
-    /// Try to get this value as a shared managed reference.
+    /// Try to get this value as a shared heap reference.
     #[inline]
-    pub fn as_shared_managed_reference(&self) -> Option<SharedManagedReference> {
+    pub fn as_shared_heap_reference(&self) -> Option<SharedHeapReference> {
         match self.tag() {
-            ValueTag::SharedManagedReference => Some(SharedManagedReference::from_bits(self.data)),
+            ValueTag::SharedHeapReference => Some(SharedHeapReference::from_bits(
+                unpack_pointer_bits(self.data),
+            )),
             _ => None,
         }
     }
@@ -604,7 +622,7 @@ impl Value {
     #[inline]
     pub fn as_raw_pointer(&self) -> Option<RawPointer> {
         if self.tag() == ValueTag::RawPointer {
-            Some(RawPointer::from_bits(self.data))
+            Some(RawPointer::from_bits(unpack_pointer_bits(self.data)))
         } else {
             None
         }
@@ -614,7 +632,7 @@ impl Value {
     #[inline]
     pub fn as_shared_raw_pointer(&self) -> Option<SharedRawPointer> {
         if self.tag() == ValueTag::SharedRawPointer {
-            Some(SharedRawPointer::from_bits(self.data))
+            Some(SharedRawPointer::from_bits(unpack_pointer_bits(self.data)))
         } else {
             None
         }
@@ -734,12 +752,12 @@ impl Value {
     fn stack_pointer_parts(&self) -> StackPointer {
         let frame_idx = (self.data & STACK_INDEX_MASK) as usize;
         let slot = ((self.data >> STACK_SLOT_SHIFT) & STACK_INDEX_MASK) as usize;
-        let slot_offset = ((self.data >> POINTER_SLOT_SHIFT) & POINTER_BASE_MASK) as usize;
+        let byte_offset = ((self.data >> POINTER_SLOT_SHIFT) & POINTER_BASE_MASK) as usize;
 
         StackPointer {
             frame_idx,
             slot,
-            slot_offset,
+            byte_offset,
         }
     }
 
@@ -748,12 +766,12 @@ impl Value {
     fn frame_pointer_parts(&self) -> FramePointer {
         let frame_idx = (self.data & STACK_INDEX_MASK) as usize;
         let slot = ((self.data >> STACK_SLOT_SHIFT) & STACK_INDEX_MASK) as usize;
-        let slot_offset = ((self.data >> POINTER_SLOT_SHIFT) & POINTER_BASE_MASK) as usize;
+        let byte_offset = ((self.data >> POINTER_SLOT_SHIFT) & POINTER_BASE_MASK) as usize;
 
         FramePointer {
             frame_idx,
             slot,
-            slot_offset,
+            byte_offset,
         }
     }
 
@@ -761,9 +779,9 @@ impl Value {
     #[inline]
     fn global_pointer_parts(&self) -> GlobalPointer {
         let base = (self.data & POINTER_BASE_MASK) as u32;
-        let slot_offset = ((self.data >> POINTER_SLOT_SHIFT) & POINTER_BASE_MASK) as usize;
+        let byte_offset = ((self.data >> POINTER_SLOT_SHIFT) & POINTER_BASE_MASK) as usize;
         let id = mir::LocalNodeId::new(base);
 
-        GlobalPointer { id, slot_offset }
+        GlobalPointer { id, byte_offset }
     }
 }

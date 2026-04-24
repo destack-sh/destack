@@ -103,8 +103,8 @@ pub enum Error {
     /// Invalid array element access.
     InvalidArrayAccess { index: u64, length: u64 } = 18,
 
-    /// Invalid managed reference (dangling reference).
-    InvalidManagedReference = 19,
+    /// Invalid heap reference.
+    InvalidHeapReference = 19,
 
     /// Unsupported instruction for comptime evaluation.
     UnsupportedInstruction { name: String } = 20,
@@ -166,6 +166,15 @@ pub enum Error {
 
     /// One internal VM invariant was violated.
     InvariantViolation { context: String } = 39,
+
+    /// Native pointer width is incompatible with the host VM.
+    IncompatiblePointerWidth { bytes: u8, host_bytes: u8 } = 40,
+
+    /// Invalid raw pointer.
+    InvalidRawPointer = 41,
+
+    /// Invalid shared raw pointer.
+    InvalidSharedRawPointer = 42,
 }
 
 impl Error {
@@ -227,9 +236,7 @@ impl Error {
             Self::InvalidArrayAccess { index, length } => {
                 format!("invalid array access: index {index}, array has {length} elements")
             }
-            Self::InvalidManagedReference => {
-                "invalid managed reference (dangling reference)".to_string()
-            }
+            Self::InvalidHeapReference => "invalid heap reference".to_string(),
             Self::UnsupportedInstruction { name } => {
                 format!("unsupported instruction for comptime: {name}")
             }
@@ -284,6 +291,11 @@ impl Error {
             Self::InvariantViolation { context } => {
                 format!("vm invariant violated: {context}")
             }
+            Self::IncompatiblePointerWidth { bytes, host_bytes } => {
+                format!("incompatible pointer width: module {bytes} bytes, host {host_bytes}")
+            }
+            Self::InvalidRawPointer => "invalid raw pointer".to_string(),
+            Self::InvalidSharedRawPointer => "invalid shared raw pointer".to_string(),
         }
     }
 }
@@ -296,30 +308,31 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-impl From<heap::HeapLimitError> for Error {
-    fn from(error: heap::HeapLimitError) -> Self {
-        Self::HeapLimitExceeded {
-            scope: error.scope.name().to_string(),
-            used_bytes: error.used_bytes,
-            max_bytes: error.max_bytes,
-        }
-    }
-}
-
-impl From<heap::SharedLimitError> for Error {
-    fn from(error: heap::SharedLimitError) -> Self {
-        Self::HeapLimitExceeded {
-            scope: "shared".to_string(),
-            used_bytes: error.used_bytes,
-            max_bytes: error.max_bytes,
-        }
-    }
-}
-
-impl From<heap::ManagedCollectError> for Error {
-    fn from(error: heap::ManagedCollectError) -> Self {
-        Self::Panic {
-            message: error.to_string(),
+impl From<heap::HeapError> for Error {
+    fn from(error: heap::HeapError) -> Self {
+        match error {
+            heap::HeapError::LimitExceeded {
+                region,
+                used_bytes,
+                max_bytes,
+            } => Self::HeapLimitExceeded {
+                scope: region.to_string(),
+                used_bytes,
+                max_bytes,
+            },
+            heap::HeapError::TotalLimitExceeded {
+                used_bytes,
+                max_bytes,
+            } => Self::HeapLimitExceeded {
+                scope: "total".to_string(),
+                used_bytes,
+                max_bytes,
+            },
+            heap::HeapError::InvalidRawPointer { .. } => Self::InvalidRawPointer,
+            heap::HeapError::InvalidSharedRawPointer { .. } => Self::InvalidSharedRawPointer,
+            error => Self::Panic {
+                message: error.to_string(),
+            },
         }
     }
 }
@@ -330,7 +343,7 @@ pub struct RuntimeError {
     /// The underlying error.
     pub error: Error,
     /// The call stack at the time of the error.
-    pub call_stack: Vec<FrameInfo>,
+    pub stack: Vec<FrameInfo>,
     /// The location where the error occurred.
     pub anchor: DiagnosticAnchor,
 }
@@ -340,14 +353,14 @@ impl RuntimeError {
     pub fn new(error: Error) -> Self {
         Self {
             error,
-            call_stack: Vec::new(),
+            stack: Vec::new(),
             anchor: DiagnosticAnchor::None,
         }
     }
 
     /// Add call stack information.
-    pub fn with_call_stack(mut self, call_stack: Vec<FrameInfo>) -> Self {
-        self.call_stack = call_stack;
+    pub fn with_call_stack(mut self, stack: Vec<FrameInfo>) -> Self {
+        self.stack = stack;
         self
     }
 
@@ -359,12 +372,12 @@ impl RuntimeError {
 
     /// Format a stack trace for display.
     pub fn format_stack_trace(&self) -> String {
-        if self.call_stack.is_empty() {
+        if self.stack.is_empty() {
             return String::new();
         }
 
         let mut trace = String::from("\nStack trace:\n");
-        for (i, frame) in self.call_stack.iter().rev().enumerate() {
+        for (i, frame) in self.stack.iter().rev().enumerate() {
             let name = frame.function_name.as_deref().unwrap_or("<anonymous>");
             trace.push_str(&format!("  {i}: {name} (block {:?})\n", frame.block));
         }
