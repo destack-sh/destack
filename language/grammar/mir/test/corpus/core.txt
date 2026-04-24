@@ -587,11 +587,11 @@ block0(v0: bool):
     intrinsic.memset(v0, v0)
     local.set v0, v0
     local.get v0
-    local.addr v0
-    function.addr @misc.foo_bar
-    function.env @misc.foo_bar
-    global.addr @G0
-    global.const @G1
+    local.address v0
+    function.address @misc.foo_bar
+    callable.environment
+    global.address @G0
+    global.address @G1
     return
 }
 
@@ -632,8 +632,6 @@ block0(v0: bool):
   (ssa_identifier)
   (identifier)
   (ssa_identifier)
-  (identifier)
-  (symbol_identifier)
   (identifier)
   (symbol_identifier)
   (identifier)
