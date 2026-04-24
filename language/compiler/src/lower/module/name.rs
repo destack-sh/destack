@@ -272,12 +272,16 @@ impl ModuleLowerer<'_> {
         anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<NominalMetadataNames> {
         // resolve the qualified metadata name
-        let name =
-            self.qualified_symbol_name(symbol)
-                .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: anchor,
-                    message: "missing qualified name for nominal type".to_string(),
-                })?;
+        let name = self
+            .qualified_symbol_name(symbol)
+            .or_else(|| {
+                let dir = self.artifact_dir_data_if_present(symbol.module_id)?;
+                self.symbol_path_from_symbols(symbol, &dir.symbols)
+            })
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                node: anchor,
+                message: "missing qualified name for nominal type".to_string(),
+            })?;
         let name_id = self.builder.intern(&name);
         let mut names = NominalMetadataNames {
             reference: None,
@@ -1101,6 +1105,10 @@ impl ModuleLowerer<'_> {
 
     /// Resolve the qualified name for a symbol in this module.
     pub(crate) fn qualified_symbol_name(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
+        if symbol_id.module_id != self.module_id {
+            return self.qualified_symbol_name_for_global(symbol_id);
+        }
+
         self.qualified_symbol_name_for_module(symbol_id, self.module, self.symbols)
     }
 

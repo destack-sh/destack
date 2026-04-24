@@ -1,13 +1,14 @@
-use crate::{TestProgram, materialized_plain_value};
+use crate::TestProgram;
 
 /// Lower string literals into MIR and preserve UTF8 contents.
 #[test]
 fn test_lower_string_literal() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test =
+        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
         r#"
-function greet(): string {
+function greet(): Managed<String> {
     return "Hello, VM";
 }
 "#,
@@ -17,11 +18,18 @@ function greet(): string {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    let mut interpreter = test.mir_isolate(module_id, "native");
-    let output = interpreter
-        .run_function_by_name_output("greet", &[])
-        .expect("execution failed");
-    let value = materialized_plain_value(&output.value);
-    let actual = interpreter.string_value(value).expect("string value");
-    assert_eq!(actual, "Hello, VM");
+    let string_alias = test.string_type_alias_definition();
+    let string_name = test.string_literal_global_name("Hello, VM");
+    let expected = r#"
+${string_alias}
+global ${string_name}: ref<String, managed, readonly>, readonly = "Hello, VM"
+
+function greet(): ref<String, managed, readonly> {
+entry0:
+    value0: ref<String, managed, readonly> = global.const ${string_name}
+    return value0
+}"#;
+    let expected = expected.replace("${string_alias}", string_alias);
+    let expected = expected.replace("${string_name}", &string_name);
+    test.assert_target_mir(module_id, "native", &expected);
 }

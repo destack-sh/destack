@@ -173,7 +173,8 @@ impl<'a> ModuleLowerer<'a> {
             pointer_bytes,
             compiler.repository.clone(),
             vector_symbol,
-        );
+        )
+        .with_artifact_context(context.revision(), profile);
         let dispatch_call_name = builder.intern("@call");
         let dispatch_construct_name = builder.intern("@new");
         let vtable_field_name = builder.intern("@vtable");
@@ -609,12 +610,8 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Declare module-level artifacts before body lowering.
     fn declare(&mut self) -> LowerResult<()> {
-        // install builtin type identities
-        self.install_builtin_type_identities()?;
-
-        // declare runtime string globals and aliases
+        // declare runtime string globals
         self.declare_string_literal_globals()?;
-        self.declare_string_type_alias()?;
 
         // declare dispatch ids and slots
         self.declare_dispatch()?;
@@ -673,22 +670,6 @@ impl<'a> ModuleLowerer<'a> {
                         .into_global_any(self.module_id)
                         .into_anchored(Some(self.profile)),
                 );
-            }
-        }
-
-        // collect string literal types
-        for type_id in self.types.iter_type_ids() {
-            let dir::Type::TypeLiteral {
-                value: dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::String(string_id)),
-            } = self.types.get_type(type_id)
-            else {
-                continue;
-            };
-
-            literals.insert(*string_id);
-            if anchor.is_none() {
-                let source = self.types.get_type_source(type_id);
-                anchor = Some(source.into_anchored(self.module_id, Some(self.profile)));
             }
         }
 
@@ -752,17 +733,28 @@ impl<'a> ModuleLowerer<'a> {
         }
 
         // require the well known string layout
-        let Some(string_type) = self.type_lowerer.string_type() else {
-            if let Some(anchor) = anchor {
-                return Err(LowerError::UnsupportedConstruct {
-                    node: anchor,
-                    message: "missing well known String layout (load library/native)".to_string(),
-                });
-            }
+        let Some(anchor) = anchor else {
             return Err(LowerError::Internal {
                 module: self.module_id,
-                message: "missing well known String layout (load library/native)".to_string(),
+                message: "missing string literal anchor".to_string(),
             });
+        };
+        let string_type = if let Some(string_type) = self.type_lowerer.string_type() {
+            string_type
+        } else {
+            let mut builtin_layouts = BuiltinTypeLayouts::new(
+                self.compiler,
+                self.context.revision(),
+                self.profile,
+                &mut self.builder,
+                &mut self.type_lowerer,
+            );
+            builtin_layouts
+                .string_type_for_builtin(anchor)?
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: anchor,
+                    message: "missing well known String layout (load library/native)".to_string(),
+                })?
         };
 
         // create globals in deterministic order
@@ -892,91 +884,6 @@ impl<'a> ModuleLowerer<'a> {
     /// Finish the module lowering process and return the resulting MIR tree and string pool.
     pub(crate) fn finish(self) -> (mir::NodeTree, StringPool) {
         self.builder.finish_mutable()
-    }
-
-    /// Install canonical builtin type identities in MIR metadata.
-    fn install_builtin_type_identities(&mut self) -> LowerResult<()> {
-        self.install_well_known_string_type_identity()
-    }
-
-    /// Install the canonical well known string type in MIR metadata.
-    fn install_well_known_string_type_identity(&mut self) -> LowerResult<()> {
-        // get some anchor for error reporting
-        let Some(anchor) = self
-            .dir_roots
-            .first()
-            .copied()
-            .map(|root| root.into_global_any(self.module_id))
-            .map(|root| root.into_anchored(Some(self.profile)))
-        else {
-            return Ok(());
-        };
-
-        // ensure builtin layouts are installed
-        let mut builtin_layouts = BuiltinTypeLayouts::new(
-            self.compiler,
-            self.context.revision(),
-            self.profile,
-            &mut self.builder,
-            &mut self.type_lowerer,
-        );
-        let string_type = builtin_layouts.string_type_for_builtin(anchor)?;
-
-        // persist the canonical well known string identity in MIR metadata
-        if let Some(string_type) = string_type {
-            self.builder
-                .tree_mut()
-                .metadata
-                .layout
-                .set_string_type(string_type);
-        }
-
-        Ok(())
-    }
-
-    /// Declare the canonical string type alias in the MIR tree.
-    fn declare_string_type_alias(&mut self) -> LowerResult<()> {
-        // skip when no string literal globals exist
-        if self.string_literal_globals.is_empty() {
-            return Ok(());
-        }
-
-        // resolve the canonical string type id
-        let Some(string_type) = self.type_lowerer.string_type() else {
-            return Ok(());
-        };
-
-        // ensure the string type refers to a struct layout
-        let string_layout = match self.builder.tree().get(string_type) {
-            mir::Type::Reference { pointee, .. } => *pointee,
-            _ => {
-                return Err(LowerError::Internal {
-                    module: self.module_id,
-                    message: "string type is not a reference".to_string(),
-                });
-            }
-        };
-
-        // build the alias name for the string layout
-        let alias_id = self.builder.intern("String");
-
-        // skip when the alias already exists
-        let alias_exists = self
-            .builder
-            .tree()
-            .iter_nodes::<mir::TypeAlias>()
-            .any(|(_, alias)| alias.name == alias_id);
-        if alias_exists {
-            return Ok(());
-        }
-
-        // register the alias in the tree
-        self.builder.tree_mut().insert(mir::TypeAlias {
-            name: alias_id,
-            ty: string_layout,
-        });
-
-        Ok(())
     }
 
     /// Declare nominal aliases in the MIR tree.

@@ -312,9 +312,10 @@ impl ModuleLowerer<'_> {
             self.extract_lifetime_annotation(declaration.symbol, &declaration.signature);
 
         // build a MIR signature type aligned with the lowered parameters
-        let signature_type = self
+        let mir_signature = self
             .builder
-            .type_function_pointer(parameter_types.clone(), return_type);
+            .type_function_signature(parameter_types.clone(), return_type);
+        let signature_type = self.builder.type_function_pointer(mir_signature);
 
         // declare the function and register bindings
         let allocation_mode = self.allocation_mode_for_symbol(symbol_id);
@@ -512,9 +513,10 @@ impl ModuleLowerer<'_> {
             self.extract_lifetime_annotation(declaration.symbol, &declaration.signature);
 
         // build a MIR signature type aligned with the lowered parameters
-        let signature_type = self
+        let mir_signature = self
             .builder
-            .type_function_pointer(parameter_types.clone(), return_type);
+            .type_function_signature(parameter_types.clone(), return_type);
+        let signature_type = self.builder.type_function_pointer(mir_signature);
 
         // prelower body expression types
         if let Some(body_id) = declaration.body {
@@ -925,9 +927,10 @@ impl ModuleLowerer<'_> {
         };
 
         // build a MIR signature type aligned with the lowered parameters
-        let signature_type = self
+        let mir_signature = self
             .builder
-            .type_function_pointer(parameter_types.clone(), return_type);
+            .type_function_signature(parameter_types.clone(), return_type);
+        let signature_type = self.builder.type_function_pointer(mir_signature);
 
         // prelower body expression types
         if let Some(body_id) = body {

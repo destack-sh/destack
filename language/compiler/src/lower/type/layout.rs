@@ -341,17 +341,19 @@ impl TypeLowerer {
                 let align = bytes.min(8);
                 Some((bytes, align))
             }
+            mir::Type::FunctionSignature { .. } => None,
             mir::Type::TypeDescriptor | mir::Type::TypeId | mir::Type::Reference { .. } => {
                 let bytes = pointer_bytes as u32;
                 Some((bytes, bytes))
             }
             mir::Type::Slice {
+                kind,
                 element,
                 address_space,
                 mutability,
             } => {
                 let (data, length) =
-                    mir::slice_header_types(*element, *mutability, address_space.clone());
+                    mir::slice_header_types(*kind, *element, *mutability, address_space.clone());
                 let fields = [&data, &length];
                 let mut max_align: u32 = 1;
                 let mut current_offset: u32 = 0;
@@ -365,7 +367,7 @@ impl TypeLowerer {
                 let total_size = self.align_up(current_offset, max_align);
                 Some((total_size, max_align))
             }
-            mir::Type::TensorReference { .. } => {
+            mir::Type::TensorView { .. } => {
                 let bytes = pointer_bytes as u32;
                 Some((bytes, bytes))
             }

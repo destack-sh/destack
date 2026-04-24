@@ -1,6 +1,6 @@
 use destack_vm::Value;
 
-use crate::{TestProgram, materialized_plain_value};
+use crate::TestProgram;
 
 /// Lower integer enum member values into nominal enum constants.
 #[test]
@@ -76,7 +76,8 @@ function checkActive(): boolean {
 /// Lower string enum member values into nominal enum constants.
 #[test]
 fn test_lower_lowers_enum_string_members() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test =
+        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -85,8 +86,8 @@ enum Flavor {
     Sour = "sour"
 }
 
-function flavorValue(): string {
-    return Flavor.Sour as string;
+function flavorValue(): Flavor {
+    return Flavor.Sour;
 }
 "#,
     );
@@ -95,28 +96,26 @@ function flavorValue(): string {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    test.assert_mir(
-        module_id,
-        "native",
-        r#"
-type Flavor = newtype<ref<String, managed, readonly>>;
+    let string_alias = test.string_type_alias_definition();
+    let sweet_name = test.string_literal_global_name("sweet");
+    let string_name = test.string_literal_global_name("sour");
+    let expected = r#"
+${string_alias}
+global ${string_name}: ref<String, managed, readonly>, readonly = "sour"
+global ${sweet_name}: ref<String, managed, readonly>, readonly = "sweet"
 
-function flavorValue(): ref<String, managed, readonly> {
+function flavorValue(): Flavor {
 entry0:
-    value0: ref<String, managed, readonly> = global.const stringLiteralSour
+    value0: ref<String, managed, readonly> = global.const ${string_name}
     value1: Flavor = cast.bit value0 -> Flavor
-    value2: ref<String, managed, readonly> = cast.bit value1 -> ref<String, managed, readonly>
-    return value2
-}"#,
-    );
+    return value1
+}
 
-    let mut interpreter = test.mir_isolate(module_id, "native");
-    let output = interpreter
-        .run_function_by_name_output("flavorValue", &[])
-        .expect("execution failed");
-    let value = materialized_plain_value(&output.value);
-    let actual = interpreter.string_value(value).expect("string value");
-    assert_eq!(actual, "sour");
+type Flavor = newtype<ref<String, managed, readonly>>;"#;
+    let expected = expected.replace("${string_alias}", string_alias);
+    let expected = expected.replace("${sweet_name}", &sweet_name);
+    let expected = expected.replace("${string_name}", &string_name);
+    test.assert_target_mir(module_id, "native", &expected);
 }
 
 /// Lower static enum method calls with nominal enum parameters.
