@@ -371,7 +371,7 @@ impl OwnershipAnalysis {
         let ty = tree.get(type_id);
         match ty {
             Type::Reference { pointee, .. } => pointee.ty(),
-            Type::TensorReference { element, .. } => element.ty(),
+            Type::TensorView { element, .. } => element.ty(),
             _ => None,
         }
     }
@@ -389,15 +389,17 @@ impl OwnershipAnalysis {
             | Type::Float { .. }
             | Type::TypeDescriptor
             | Type::TypeId => true,
-            // function pointers and closure values are copy
-            Type::FunctionPointer { .. } | Type::Closure { .. } => true,
+            // callable metadata and values are copy
+            Type::FunctionSignature { .. }
+            | Type::FunctionPointer { .. }
+            | Type::Closure { .. } => true,
             // raw and borrowed references are copy
             Type::Reference {
                 kind: ReferenceKind::Raw | ReferenceKind::Borrowed,
                 ..
             } => true,
-            // tensor references follow reference copy semantics
-            Type::TensorReference {
+            // tensor views follow reference copy semantics
+            Type::TensorView {
                 kind: ReferenceKind::Raw | ReferenceKind::Borrowed,
                 ..
             } => true,
@@ -406,13 +408,20 @@ impl OwnershipAnalysis {
                 kind: ReferenceKind::Owned | ReferenceKind::Managed,
                 ..
             } => false,
-            // managed tensor references are not copy
-            Type::TensorReference {
+            // managed tensor views are not copy
+            Type::TensorView {
                 kind: ReferenceKind::Owned | ReferenceKind::Managed,
                 ..
             } => false,
-            // aggregates: check copy field
-            Type::Slice { .. } => true,
+            // slices follow reference copy semantics
+            Type::Slice {
+                kind: ReferenceKind::Raw | ReferenceKind::Borrowed,
+                ..
+            } => true,
+            Type::Slice {
+                kind: ReferenceKind::Owned | ReferenceKind::Managed,
+                ..
+            } => false,
             Type::Array { copy, .. }
             | Type::Tuple { copy, .. }
             | Type::Struct { copy, .. }
@@ -676,6 +685,23 @@ impl OwnershipAnalysis {
             }
 
             // tensor ops that produce owned values
+            Instruction::TensorSplat { destination, value } => {
+                if !self.value_is_copy(*value, tree) {
+                    state.mark_moved_with_source(*value, at);
+                }
+                state.mark_owned(*destination);
+                let origin = state.origin_for_value(*value);
+                self.set_origin_for_destination(state, *destination, origin, tree);
+            }
+            Instruction::TensorExtract {
+                destination,
+                tensor,
+                ..
+            } => {
+                state.mark_owned(*destination);
+                let origin = state.origin_for_value(*tensor);
+                self.set_origin_for_destination(state, *destination, origin, tree);
+            }
             Instruction::TensorLoad { destination, .. }
             | Instruction::TensorReshape { destination, .. }
             | Instruction::TensorBroadcast { destination, .. }
@@ -1246,12 +1272,14 @@ fn value_is_copy(
         | Type::Float { .. }
         | Type::TypeDescriptor
         | Type::TypeId => true,
-        Type::FunctionPointer { .. } | Type::Closure { .. } => true,
+        Type::FunctionSignature { .. } | Type::FunctionPointer { .. } | Type::Closure { .. } => {
+            true
+        }
         Type::Reference {
             kind: ReferenceKind::Raw | ReferenceKind::Borrowed,
             ..
         } => true,
-        Type::TensorReference {
+        Type::TensorView {
             kind: ReferenceKind::Raw | ReferenceKind::Borrowed,
             ..
         } => true,
@@ -1259,11 +1287,18 @@ fn value_is_copy(
             kind: ReferenceKind::Owned | ReferenceKind::Managed,
             ..
         } => false,
-        Type::TensorReference {
+        Type::TensorView {
             kind: ReferenceKind::Owned | ReferenceKind::Managed,
             ..
         } => false,
-        Type::Slice { .. } => true,
+        Type::Slice {
+            kind: ReferenceKind::Raw | ReferenceKind::Borrowed,
+            ..
+        } => true,
+        Type::Slice {
+            kind: ReferenceKind::Owned | ReferenceKind::Managed,
+            ..
+        } => false,
         Type::Array { copy, .. }
         | Type::Tuple { copy, .. }
         | Type::Struct { copy, .. }
@@ -1494,6 +1529,21 @@ fn process_instruction(
         }
 
         // tensor ops that produce owned values
+        Instruction::TensorSplat { destination, value } => {
+            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types);
+            state.mark_owned(*destination);
+            let origin = state.origin_for_value(*value);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types);
+        }
+        Instruction::TensorExtract {
+            destination,
+            tensor,
+            ..
+        } => {
+            state.mark_owned(*destination);
+            let origin = state.origin_for_value(*tensor);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types);
+        }
         Instruction::TensorLoad { destination, .. }
         | Instruction::TensorReshape { destination, .. }
         | Instruction::TensorBroadcast { destination, .. }

@@ -882,6 +882,8 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::VectorReduce { .. }
             | mir::Instruction::VectorCompare { .. }
             | mir::Instruction::VectorConvert { .. }
+            | mir::Instruction::TensorSplat { .. }
+            | mir::Instruction::TensorExtract { .. }
             | mir::Instruction::TensorReshape { .. }
             | mir::Instruction::TensorBroadcast { .. }
             | mir::Instruction::TensorTranspose { .. }
@@ -1442,7 +1444,7 @@ impl<'a> MemoryAccessCollector<'a> {
                 // skip non reference arguments
                 if !matches!(
                     self.tree.get(arg_type),
-                    mir::Type::Reference { .. } | mir::Type::TensorReference { .. }
+                    mir::Type::Reference { .. } | mir::Type::TensorView { .. }
                 ) {
                     continue;
                 }
@@ -1565,7 +1567,7 @@ impl<'a> MemoryAccessCollector<'a> {
         // prefer the signature from the instruction
         if let Some(signature) = instruction.call_signature() {
             let signature = self.tree.get(signature.ty()?);
-            if let mir::Type::FunctionPointer { parameters, .. } = signature {
+            if let mir::Type::FunctionSignature { parameters, .. } = signature {
                 return parameters
                     .iter()
                     .map(|parameter| parameter.ty())

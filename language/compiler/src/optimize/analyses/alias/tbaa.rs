@@ -184,7 +184,7 @@ impl TypeBasedAA {
     fn address_space_of(ty: &TypeKey) -> Option<destack_mir::AddressSpace> {
         match ty {
             TypeKey::Reference { address_space, .. } => Some(address_space.clone()),
-            TypeKey::TensorReference { address_space, .. } => Some(address_space.clone()),
+            TypeKey::TensorView { address_space, .. } => Some(address_space.clone()),
             _ => None,
         }
     }
@@ -196,7 +196,7 @@ impl TypeBasedAA {
             TypeKey::Reference {
                 kind: destack_mir::ReferenceKind::Raw,
                 ..
-            } | TypeKey::TensorReference {
+            } | TypeKey::TensorView {
                 kind: destack_mir::ReferenceKind::Raw,
                 ..
             }
@@ -594,11 +594,13 @@ mod tests {
         let tbaa = TypeBasedAA::new();
 
         let fn_ptr_ty = TypeKey::FunctionPointer {
-            parameters: vec![TypeKey::Int {
-                width: 32,
-                signed: true,
-            }],
-            result: Box::new(TypeKey::Void),
+            signature: Box::new(TypeKey::FunctionSignature {
+                parameters: vec![TypeKey::Int {
+                    width: 32,
+                    signed: true,
+                }],
+                result: Box::new(TypeKey::Void),
+            }),
         };
         let int_ty = TypeKey::Int {
             width: 64,

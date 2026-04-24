@@ -840,7 +840,7 @@ impl MemoryLocation {
                 address_space,
                 ..
             }
-            | TypeKey::TensorReference {
+            | TypeKey::TensorView {
                 kind,
                 address_space,
                 ..
@@ -1216,7 +1216,7 @@ pub fn resolve_pointer_pointee_type(
     let ty = tree.get(type_id);
     match ty {
         mir::Type::Reference { pointee, .. } => pointee.ty(),
-        mir::Type::TensorReference { element, .. } => element.ty(),
+        mir::Type::TensorView { element, .. } => element.ty(),
         _ => None,
     }
 }
@@ -1232,7 +1232,7 @@ pub fn resolve_pointer_address_space(
     let ty = tree.get(ty_id);
     match ty {
         mir::Type::Reference { address_space, .. } => Some(address_space.clone()),
-        mir::Type::TensorReference { address_space, .. } => Some(address_space.clone()),
+        mir::Type::TensorView { address_space, .. } => Some(address_space.clone()),
         _ => None,
     }
 }
@@ -1248,7 +1248,7 @@ pub fn resolve_pointer_kind(
     let ty = tree.get(ty_id);
     match ty {
         mir::Type::Reference { kind, .. } => Some(*kind),
-        mir::Type::TensorReference { kind, .. } => Some(*kind),
+        mir::Type::TensorView { kind, .. } => Some(*kind),
         _ => None,
     }
 }

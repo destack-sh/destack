@@ -71,7 +71,7 @@ pub fn constant_matches_type(
 
     match (constant_type, tree.get(destination_type)) {
         (ConstantType::Null, Type::Reference { is_nullable, .. })
-        | (ConstantType::Null, Type::TensorReference { is_nullable, .. }) => *is_nullable,
+        | (ConstantType::Null, Type::TensorView { is_nullable, .. }) => *is_nullable,
         (ConstantType::Boolean, Type::Boolean) => true,
         (ConstantType::Int { width, signed }, ty) => {
             let Some((ty_width, ty_signed)) = ty.int_info_with_pointer_width(pointer_width_bits)

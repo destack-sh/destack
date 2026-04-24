@@ -641,6 +641,8 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::VectorReduce { .. }
         | mir::Instruction::VectorCompare { .. }
         | mir::Instruction::VectorConvert { .. }
+        | mir::Instruction::TensorSplat { .. }
+        | mir::Instruction::TensorExtract { .. }
         | mir::Instruction::TensorLoad { .. }
         | mir::Instruction::TensorStore { .. }
         | mir::Instruction::TensorFill { .. }

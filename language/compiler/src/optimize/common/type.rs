@@ -50,6 +50,7 @@ pub enum TypeKey {
     },
     /// Slice type.
     Slice {
+        kind: mir::ReferenceKind,
         element: Box<TypeKey>,
         address_space: mir::AddressSpace,
         mutability: mir::Mutability,
@@ -83,7 +84,7 @@ pub enum TypeKey {
         copy: mir::Copy,
     },
     /// Tensor view type.
-    TensorReference {
+    TensorView {
         kind: mir::ReferenceKind,
         address_space: mir::AddressSpace,
         mutability: mir::Mutability,
@@ -92,11 +93,13 @@ pub enum TypeKey {
         layout: mir::TensorLayout,
         is_nullable: bool,
     },
-    /// Function pointer type.
-    FunctionPointer {
+    /// Bare function signature.
+    FunctionSignature {
         parameters: Vec<TypeKey>,
         result: Box<TypeKey>,
     },
+    /// Function pointer type.
+    FunctionPointer { signature: Box<TypeKey> },
     /// Callable closure value type.
     Closure { signature: Box<TypeKey> },
     /// Recursive reference to a previously visited type id.
@@ -171,10 +174,12 @@ impl TypeKey {
                 copy: *copy,
             },
             mir::Type::Slice {
+                kind,
                 element,
                 address_space,
                 mutability,
             } => TypeKey::Slice {
+                kind: *kind,
                 element: Box::new(Self::from_type_reference(*element, tree)),
                 address_space: address_space.clone(),
                 mutability: *mutability,
@@ -233,7 +238,7 @@ impl TypeKey {
                 copy: *copy,
             },
 
-            mir::Type::TensorReference {
+            mir::Type::TensorView {
                 kind,
                 address_space,
                 mutability,
@@ -241,7 +246,7 @@ impl TypeKey {
                 shape,
                 layout,
                 is_nullable,
-            } => TypeKey::TensorReference {
+            } => TypeKey::TensorView {
                 kind: *kind,
                 address_space: address_space.clone(),
                 mutability: *mutability,
@@ -251,16 +256,19 @@ impl TypeKey {
                 is_nullable: *is_nullable,
             },
 
-            mir::Type::FunctionPointer { parameters, result } => {
+            mir::Type::FunctionSignature { parameters, result } => {
                 let parameters = parameters
                     .iter()
                     .map(|param| Self::from_type_reference(*param, tree))
                     .collect();
-                TypeKey::FunctionPointer {
+                TypeKey::FunctionSignature {
                     parameters,
                     result: Box::new(Self::from_type_reference(*result, tree)),
                 }
             }
+            mir::Type::FunctionPointer { signature } => TypeKey::FunctionPointer {
+                signature: Box::new(Self::from_type_reference(*signature, tree)),
+            },
             mir::Type::Closure { signature } => TypeKey::Closure {
                 signature: Box::new(Self::from_type_reference(*signature, tree)),
             },
@@ -444,16 +452,20 @@ fn types_are_equal_inner(
         ) => c1 == c2 && l1 == l2 && type_references_are_equal(*e1, *e2, tree, visiting),
         (
             mir::Type::Slice {
+                kind: k1,
                 element: e1,
                 address_space: a1,
                 mutability: m1,
             },
             mir::Type::Slice {
+                kind: k2,
                 element: e2,
                 address_space: a2,
                 mutability: m2,
             },
-        ) => a1 == a2 && m1 == m2 && type_references_are_equal(*e1, *e2, tree, visiting),
+        ) => {
+            k1 == k2 && a1 == a2 && m1 == m2 && type_references_are_equal(*e1, *e2, tree, visiting)
+        }
 
         // tuples: compare element types
         (
@@ -509,11 +521,11 @@ fn types_are_equal_inner(
 
         // function pointers: compare parameter and result types
         (
-            mir::Type::FunctionPointer {
+            mir::Type::FunctionSignature {
                 parameters: p1,
                 result: r1,
             },
-            mir::Type::FunctionPointer {
+            mir::Type::FunctionSignature {
                 parameters: p2,
                 result: r2,
             },
@@ -525,6 +537,12 @@ fn types_are_equal_inner(
                     .all(|(a, b)| type_references_are_equal(*a, *b, tree, visiting))
                 && type_references_are_equal(*r1, *r2, tree, visiting)
         }
+
+        // function pointers: compare signatures
+        (
+            mir::Type::FunctionPointer { signature: s1 },
+            mir::Type::FunctionPointer { signature: s2 },
+        ) => type_references_are_equal(*s1, *s2, tree, visiting),
 
         // function values: compare signatures
         (mir::Type::Closure { signature: s1 }, mir::Type::Closure { signature: s2 }) => {

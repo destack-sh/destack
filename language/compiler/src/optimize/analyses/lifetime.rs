@@ -398,7 +398,7 @@ b0:
             width: 32,
             is_signed: true,
         });
-        let signature = program.tree.insert_type(mir::Type::FunctionPointer {
+        let signature = program.tree.insert_type(mir::Type::FunctionSignature {
             parameters: vec![int_ty.into()],
             result: int_ty.into(),
         });
@@ -429,7 +429,7 @@ b0:
             pointee: int_ty.into(),
             is_nullable: false,
         });
-        let signature = program.tree.insert_type(mir::Type::FunctionPointer {
+        let signature = program.tree.insert_type(mir::Type::FunctionSignature {
             parameters: vec![int_ty.into()],
             result: borrowed_ref.into(),
         });
@@ -460,7 +460,7 @@ b0:
             pointee: int_ty.into(),
             is_nullable: false,
         });
-        let signature = program.tree.insert_type(mir::Type::FunctionPointer {
+        let signature = program.tree.insert_type(mir::Type::FunctionSignature {
             parameters: vec![int_ty.into(), borrowed_ref.into()],
             result: borrowed_ref.into(),
         });

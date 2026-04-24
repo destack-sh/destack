@@ -1411,6 +1411,8 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::NodeTree) -> u64
         | mir::Instruction::VectorReduce { .. }
         | mir::Instruction::VectorCompare { .. }
         | mir::Instruction::VectorConvert { .. }
+        | mir::Instruction::TensorSplat { .. }
+        | mir::Instruction::TensorExtract { .. }
         | mir::Instruction::TensorReshape { .. }
         | mir::Instruction::TensorBroadcast { .. }
         | mir::Instruction::TensorTranspose { .. }

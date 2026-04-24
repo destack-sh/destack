@@ -48,6 +48,8 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         | Instruction::VectorReduce { .. }
         | Instruction::VectorCompare { .. }
         | Instruction::VectorConvert { .. }
+        | Instruction::TensorSplat { .. }
+        | Instruction::TensorExtract { .. }
         | Instruction::TensorReshape { .. }
         | Instruction::TensorBroadcast { .. }
         | Instruction::TensorTranspose { .. }
@@ -150,7 +152,7 @@ pub fn instruction_is_speculatable(instruction: &Instruction, tree: &mir::NodeTr
                 mir::Type::Reference {
                     kind: mir::ReferenceKind::Raw,
                     ..
-                } | mir::Type::TensorReference {
+                } | mir::Type::TensorView {
                     kind: mir::ReferenceKind::Raw,
                     ..
                 }
@@ -220,6 +222,8 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         | Instruction::VectorReduce { .. }
         | Instruction::VectorCompare { .. }
         | Instruction::VectorConvert { .. }
+        | Instruction::TensorSplat { .. }
+        | Instruction::TensorExtract { .. }
         | Instruction::TensorLoad { .. }
         | Instruction::TensorReshape { .. }
         | Instruction::TensorBroadcast { .. }
@@ -805,6 +809,10 @@ pub fn instruction_substitute_uses(
             mode: *mode,
             vector: substitute(vector),
         },
+        mir::Instruction::TensorSplat { destination, value } => mir::Instruction::TensorSplat {
+            destination: *destination,
+            value: substitute(value),
+        },
         mir::Instruction::TensorLoad {
             destination,
             view,
@@ -812,6 +820,15 @@ pub fn instruction_substitute_uses(
         } => mir::Instruction::TensorLoad {
             destination: *destination,
             view: substitute(view),
+            indices: *indices,
+        },
+        mir::Instruction::TensorExtract {
+            destination,
+            tensor,
+            indices,
+        } => mir::Instruction::TensorExtract {
+            destination: *destination,
+            tensor: substitute(tensor),
             indices: *indices,
         },
         mir::Instruction::TensorStore {
@@ -1252,6 +1269,10 @@ pub fn instruction_substitute_uses_in_tree(
             mode: *mode,
             vector: substitute(*vector),
         },
+        mir::Instruction::TensorSplat { destination, value } => mir::Instruction::TensorSplat {
+            destination: *destination,
+            value: substitute(*value),
+        },
         mir::Instruction::TensorLoad {
             destination,
             view,
@@ -1259,6 +1280,15 @@ pub fn instruction_substitute_uses_in_tree(
         } => mir::Instruction::TensorLoad {
             destination: *destination,
             view: substitute(*view),
+            indices: substitute_arguments(*indices),
+        },
+        mir::Instruction::TensorExtract {
+            destination,
+            tensor,
+            indices,
+        } => mir::Instruction::TensorExtract {
+            destination: *destination,
+            tensor: substitute(*tensor),
             indices: substitute_arguments(*indices),
         },
         mir::Instruction::TensorStore {
@@ -2348,6 +2378,10 @@ pub fn instruction_map(
             mode: *mode,
             vector: remap(*vector),
         },
+        mir::Instruction::TensorSplat { destination, value } => mir::Instruction::TensorSplat {
+            destination: remap(*destination),
+            value: remap(*value),
+        },
         mir::Instruction::TensorLoad {
             destination,
             view,
@@ -2355,6 +2389,15 @@ pub fn instruction_map(
         } => mir::Instruction::TensorLoad {
             destination: remap(*destination),
             view: remap(*view),
+            indices: remap_arguments(*indices),
+        },
+        mir::Instruction::TensorExtract {
+            destination,
+            tensor,
+            indices,
+        } => mir::Instruction::TensorExtract {
+            destination: remap(*destination),
+            tensor: remap(*tensor),
             indices: remap_arguments(*indices),
         },
         mir::Instruction::TensorStore {
@@ -3026,6 +3069,10 @@ pub fn instruction_map_with_locals(
             mode: *mode,
             vector: remap(*vector),
         },
+        mir::Instruction::TensorSplat { destination, value } => mir::Instruction::TensorSplat {
+            destination: remap(*destination),
+            value: remap(*value),
+        },
         mir::Instruction::TensorLoad {
             destination,
             view,
@@ -3033,6 +3080,15 @@ pub fn instruction_map_with_locals(
         } => mir::Instruction::TensorLoad {
             destination: remap(*destination),
             view: remap(*view),
+            indices: remap_arguments(*indices),
+        },
+        mir::Instruction::TensorExtract {
+            destination,
+            tensor,
+            indices,
+        } => mir::Instruction::TensorExtract {
+            destination: remap(*destination),
+            tensor: remap(*tensor),
             indices: remap_arguments(*indices),
         },
         mir::Instruction::TensorStore {

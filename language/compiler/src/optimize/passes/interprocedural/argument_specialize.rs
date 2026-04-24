@@ -731,7 +731,7 @@ b0:
                 .and_then(|signature| signature.ty())
                 .expect("call signature should be concrete"),
         );
-        let expected_signature = mir::Type::FunctionPointer {
+        let expected_signature = mir::Type::FunctionSignature {
             parameters: callee.parameters.iter().map(|param| param.ty).collect(),
             result: callee.return_type,
         };
