@@ -5,7 +5,9 @@ use std::sync::Arc;
 use destack_core::{Capture, CaptureMode, ImmutableStringPool, SnapshotCodec};
 use {destack_engine as engine, destack_mir as mir};
 
-use super::{ExternalCallContext, ExternalFn, ExternalHandler, GlobalStorage, RootSet, RootSink};
+use super::{
+    ExternalCallContext, ExternalFn, ExternalHandler, GlobalStorage, RootSet, RootVisitor,
+};
 use crate::diagnostic::{Error, FrameInfo, RuntimeError, RuntimeResult};
 use crate::interpreter::{
     Continuation, Interpreter, RunOutcome, RunOutput, visit_materialized_value_roots,
@@ -157,12 +159,12 @@ impl Isolate {
         self.externals.insert(name.to_string(), Arc::new(handler));
     }
 
-    // FUGU #Architecture: remove once generated ABI stops registering runtime storage schemas
-    /// Accept generated runtime storage registrations.
-    pub fn register_named_storage_type(
+    // FUGU #Architecture: remove once generated ABI stops registering runtime aggregate schemas
+    /// Accept generated runtime aggregate registrations.
+    pub fn register_named_aggregate_type(
         &mut self,
         _name: &str,
-        _component_count: usize,
+        _field_count: usize,
     ) -> Result<(), Error> {
         Ok(())
     }
@@ -312,7 +314,7 @@ impl Isolate {
     pub fn visit_materialized_value_roots(
         &self,
         value: &engine::MaterializedValue,
-        roots: &mut impl RootSink,
+        roots: &mut impl RootVisitor,
     ) -> RuntimeResult<()> {
         visit_materialized_value_roots(value, self.module.as_ref(), roots)
             .map_err(RuntimeError::new)
@@ -352,7 +354,7 @@ impl Isolate {
     pub fn visit_state_roots(
         &mut self,
         continuations: &[Continuation],
-        roots: &mut impl RootSink,
+        roots: &mut impl RootVisitor,
     ) -> RuntimeResult<()> {
         self.interpreter
             .visit_roots(&self.module, &self.globals, continuations, roots)
@@ -370,7 +372,7 @@ impl Isolate {
     pub fn visit_continuation_roots(
         &mut self,
         continuation: &Continuation,
-        roots: &mut impl RootSink,
+        roots: &mut impl RootVisitor,
     ) -> RuntimeResult<()> {
         continuation
             .visit_roots(&self.module, roots)
@@ -393,7 +395,7 @@ impl Isolate {
     pub fn visit_image_roots(
         &mut self,
         image: &ContinuationImage,
-        roots: &mut impl RootSink,
+        roots: &mut impl RootVisitor,
     ) -> RuntimeResult<()> {
         Continuation::visit_image_roots(image, &self.module, roots)
             .map_err(|error| self.make_error(error))
@@ -494,7 +496,7 @@ impl Isolate {
 
     /// Borrow the canonical runtime layout table.
     pub fn layout_table(&self) -> &mir::LayoutTable {
-        self.module.heap_layouts()
+        self.module.layouts()
     }
 
     /// Return the canonical layout id for one MIR type.
@@ -504,6 +506,15 @@ impl Isolate {
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Option<mir::LayoutId> {
         self.module.layout_id_for_type(ty)
+    }
+
+    /// Return the heap allocation layout for one layout id.
+    #[cfg(test)]
+    pub(crate) fn allocation_layout(
+        &self,
+        layout_id: mir::LayoutId,
+    ) -> crate::Result<destack_heap::AllocationLayout<'_>> {
+        self.module.allocation_layout(layout_id)
     }
 
     /// Borrow the module MIR tree.
