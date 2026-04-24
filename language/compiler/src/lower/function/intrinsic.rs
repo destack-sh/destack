@@ -9,7 +9,7 @@ const ATOMIC_METADATA_SLOTS: [AtomicMetadataSlot; 7] = [
     AtomicMetadataSlot::Ordering,
     AtomicMetadataSlot::Scope,
     AtomicMetadataSlot::MemoryScope,
-    AtomicMetadataSlot::Locations,
+    AtomicMetadataSlot::Spaces,
     AtomicMetadataSlot::IsVolatile,
     AtomicMetadataSlot::IsMakeAvailable,
     AtomicMetadataSlot::IsMakeVisible,
@@ -23,8 +23,8 @@ enum AtomicMetadataSlot {
     Scope,
     /// The memory scope.
     MemoryScope,
-    /// The effect region set.
-    Locations,
+    /// The memory space set.
+    Spaces,
     /// The volatile flag.
     IsVolatile,
     /// The make-available flag.
@@ -609,7 +609,7 @@ impl FunctionLowerer<'_> {
         let mut ordering = None;
         let mut scope = None;
         let mut memory_scope = None;
-        let mut locations = None;
+        let mut spaces = None;
         let mut is_volatile = None;
         let mut is_make_available = None;
         let mut is_make_visible = None;
@@ -626,8 +626,8 @@ impl FunctionLowerer<'_> {
                 AtomicMetadataSlot::MemoryScope => {
                     memory_scope = Some(self.parse_memory_scope(expression_id, expression)?);
                 }
-                AtomicMetadataSlot::Locations => {
-                    locations = Some(self.parse_memory_region_set(expression_id, expression)?);
+                AtomicMetadataSlot::Spaces => {
+                    spaces = Some(self.parse_memory_space_set(expression_id, expression)?);
                 }
                 AtomicMetadataSlot::IsVolatile => {
                     is_volatile = Some(self.parse_boolean_literal(expression_id, expression)?);
@@ -648,8 +648,8 @@ impl FunctionLowerer<'_> {
             scope.ok_or_else(|| self.error(expression_id, "atomic intrinsic missing scope"))?;
         let memory_scope = memory_scope
             .ok_or_else(|| self.error(expression_id, "atomic intrinsic missing memory scope"))?;
-        let locations = locations.ok_or_else(|| {
-            self.error(expression_id, "atomic intrinsic missing effect region set")
+        let spaces = spaces.ok_or_else(|| {
+            self.error(expression_id, "atomic intrinsic missing memory space set")
         })?;
         let is_volatile = is_volatile
             .ok_or_else(|| self.error(expression_id, "atomic intrinsic missing volatile flag"))?;
@@ -664,7 +664,7 @@ impl FunctionLowerer<'_> {
         })?;
 
         let semantics = mir::MemorySemantics::with_flags(
-            locations,
+            spaces,
             is_volatile,
             is_make_available,
             is_make_visible,
@@ -723,17 +723,17 @@ impl FunctionLowerer<'_> {
         })
     }
 
-    /// Parse an MemoryRegionSet constant from an expression.
-    fn parse_memory_region_set(
+    /// Parse a memory space set constant from an expression.
+    fn parse_memory_space_set(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         argument_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<mir::MemoryRegionSet> {
+    ) -> LowerResult<mir::MemorySpaceSet> {
         let name = self.enum_member_name(expression_id, argument_id)?;
-        mir::MemoryRegionSet::try_from(name.as_ref()).map_err(|_| {
+        mir::MemorySpaceSet::try_from(name.as_ref()).map_err(|_| {
             self.error(
                 expression_id,
-                "unsupported effect region set for atomic intrinsic",
+                "unsupported memory space set for atomic intrinsic",
             )
         })
     }

@@ -913,7 +913,7 @@ pub fn effects_match_location(
     }
 
     // check location sets
-    if !region_sets_may_alias(current.region_set, previous.region_set) {
+    if !space_sets_may_alias(current.space_set, previous.space_set) {
         return false;
     }
 
@@ -965,7 +965,7 @@ pub fn effects_may_alias(
     }
 
     // check location sets
-    if !region_sets_may_alias(left.region_set, right.region_set) {
+    if !space_sets_may_alias(left.space_set, right.space_set) {
         return false;
     }
 
@@ -1079,14 +1079,14 @@ pub fn memory_locations_compatible(a: &MemoryLocation, b: &MemoryLocation) -> bo
 }
 
 /// Check whether two location sets may alias.
-pub fn region_sets_may_alias(a: mir::MemoryRegionSet, b: mir::MemoryRegionSet) -> bool {
+pub fn space_sets_may_alias(a: mir::MemorySpaceSet, b: mir::MemorySpaceSet) -> bool {
     !a.is_disjoint(b)
 }
 
 /// Check whether two address space sets may alias.
 pub fn address_spaces_may_alias(
-    a: &Option<mir::AddressSpaceMask>,
-    b: &Option<mir::AddressSpaceMask>,
+    a: &Option<mir::AddressSpaceSet>,
+    b: &Option<mir::AddressSpaceSet>,
 ) -> bool {
     match (a, b) {
         (Some(a), Some(b)) => !a.is_disjoint(b),

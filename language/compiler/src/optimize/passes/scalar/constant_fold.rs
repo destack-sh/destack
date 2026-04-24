@@ -5,9 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::ConstantPropagation;
 use crate::optimize::common::{
-    constant_from_global, fold_binary, fold_cast, fold_intrinsic, fold_unary,
-    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
-    terminator_substitute_uses,
+    fold_binary, fold_cast, fold_intrinsic, fold_unary, instruction_substitute_uses_in_tree,
+    remap_instruction_memory_accesses, terminator_substitute_uses,
 };
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, TypeContext, resolve_substitution_chains,
@@ -104,32 +103,6 @@ fn run_constant_fold(
                 mir::Instruction::Const { destination, value } => {
                     if let Some(destination) = destination.value() {
                         block_constants.insert(destination, value.clone());
-                    }
-                }
-
-                mir::Instruction::GlobalConst {
-                    destination,
-                    global,
-                } => {
-                    // fold immutable scalar globals
-                    let Some(destination) = destination.value() else {
-                        continue;
-                    };
-                    let Some(global) = global.global() else {
-                        block_constants.remove(&destination);
-                        continue;
-                    };
-
-                    if let Some(constant) = constant_from_global(global, tree) {
-                        block_constants.insert(destination, constant.clone());
-                        let new_instruction = mir::Instruction::Const {
-                            destination: mir::ValueReference::Value(destination),
-                            value: constant,
-                        };
-                        tree.replace(instruction_id, new_instruction);
-                        changed = true;
-                    } else {
-                        block_constants.remove(&destination);
                     }
                 }
 
@@ -736,41 +709,35 @@ b2:
         test.assert_output(expected);
     }
 
-    /// Global constants fold through unary operations.
+    /// Readonly global loads do not fold through unary operations.
     #[test]
-    fn test_fold_global_const_boolean() {
+    fn test_preserve_readonly_global_load_boolean() {
         let input = r#"
 global flag: boolean, readonly = true
 function test(): boolean {
 b0:
-    v0: boolean = global.const flag
-    v1: boolean = int.not v0
-    return v1
-}"#;
-        let expected = r#"
-global flag: boolean, readonly = true
-function test(): boolean {
-b0:
-    v0: boolean = true
-    v1: boolean = false
-    return v1
+    v0: ref<boolean, raw, readonly> = global.address flag
+    v1: boolean = load v0
+    v2: boolean = int.not v1
+    return v2
 }"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
-        test.assert_output(expected);
+        test.assert_unchanged(input);
     }
 
     /// Mutable globals do not fold through constant operations.
     #[test]
-    fn test_preserve_mutable_global_const() {
+    fn test_preserve_mutable_global_load_boolean() {
         let input = r#"
 global flag: boolean = true
 function test(): boolean {
 b0:
-    v0: boolean = global.const flag
-    v1: boolean = int.not v0
-    return v1
+    v0: ref<boolean, raw> = global.address flag
+    v1: boolean = load v0
+    v2: boolean = int.not v1
+    return v2
 }"#;
 
         let mut test = TestProgram::new(input);

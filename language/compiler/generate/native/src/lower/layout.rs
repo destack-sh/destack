@@ -70,7 +70,7 @@ pub(crate) fn compute_type_layout(
         mir::Type::Struct { .. }
             | mir::Type::Tuple { .. }
             | mir::Type::Array { .. }
-            | mir::Type::Closure { .. }
+            | mir::Type::Callable { .. }
     ) {
         return Err(CodegenCraneliftError::unsupported_type(
             "missing layout metadata",
@@ -185,8 +185,8 @@ pub(crate) fn compute_type_layout(
             Ok(TypeLayout::new(layout.size, layout.alignment))
         }
 
-        // function values: read canonical layout metadata
-        mir::Type::Closure { .. } => {
+        // callables: read canonical layout metadata
+        mir::Type::Callable { .. } => {
             let Some(layout) = tree.metadata.layout.type_layout(type_id) else {
                 return Err(CodegenCraneliftError::unsupported_type(
                     "missing layout metadata",

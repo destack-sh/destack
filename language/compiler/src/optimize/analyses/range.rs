@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use destack_mir as mir;
 
 use crate::optimize::common::{
-    SuccessorArguments, constant_from_global, fold_binary, fold_cast, fold_unary,
+    SuccessorArguments, fold_binary, fold_cast, fold_unary,
     terminator_arguments_for_successor_checked,
 };
 use crate::optimize::{
@@ -658,11 +658,6 @@ fn range_for_instruction(
 ) -> Option<ValueRange> {
     match instruction {
         mir::Instruction::Const { value, .. } => ValueRange::from_constant(value),
-        mir::Instruction::GlobalConst { global, .. } => {
-            let global = global.global()?;
-            let constant = constant_from_global(global, tree)?;
-            ValueRange::from_constant(&constant)
-        }
         mir::Instruction::Binary {
             operator,
             left,

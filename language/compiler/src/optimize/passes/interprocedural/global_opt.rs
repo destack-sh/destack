@@ -7,10 +7,9 @@ use crate::optimize::common::build_value_definition_map;
 use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
 
 declare_pass! {
-    /// Optimize immutable globals and fold constant loads.
+    /// Mark private globals readonly when no write can reach them.
     ///
-    /// This pass promotes mutable globals to immutable when they are never
-    /// written, then rewrites direct loads to `global.const` for faster access.
+    /// This pass promotes mutable globals to immutable when they are never written.
     ///
     /// ```mir
     /// global value: int32 = 42int32
@@ -26,7 +25,8 @@ declare_pass! {
     /// global value: int32, readonly = 42int32
     /// function root(): int32 {
     /// b0:
-    ///     v1 = global.const value
+    ///     v0 = global.address value -> ref<int32, raw>
+    ///     v1 = load v0 -> int32
     ///     return v1
     /// }
     /// ```
@@ -72,7 +72,7 @@ fn run_global_opt(tree: &mut mir::NodeTree) -> bool {
     // track whether anything changed
     let mut changed = false;
 
-    // scan globals and rewrite constant loads
+    // scan globals that can become readonly
     let globals: Vec<_> = tree
         .iter_nodes::<mir::Global>()
         .map(|(global_id, global)| (global_id, global.linkage, global.mutability))
@@ -112,64 +112,10 @@ fn run_global_opt(tree: &mut mir::NodeTree) -> bool {
             continue;
         }
 
-        let mut global_changed = false;
-
-        // rewrite direct loads into global.const
-        for entry in addr_entries {
-            let Some(uses) = use_maps.get(&entry.function_id) else {
-                continue;
-            };
-
-            let mut entry_changed = false;
-
-            for &use_id in uses
-                .instruction_uses
-                .get(&entry.destination)
-                .into_iter()
-                .flatten()
-            {
-                let mir::Instruction::Load { destination, .. } = tree.get(use_id) else {
-                    continue;
-                };
-
-                // rewrite load into global.const
-                *tree.get_mut(use_id) = mir::Instruction::GlobalConst {
-                    destination: *destination,
-                    global: global_id.into(),
-                };
-
-                // drop memory metadata for the load
-                tree.metadata
-                    .memory
-                    .memory_accesses_by_instruction_id
-                    .remove(&use_id);
-                entry_changed = true;
-            }
-
-            if entry_changed {
-                // remove the global.address instruction after rewriting loads
-                let block = tree.get_mut(entry.block_id);
-                block.instructions.retain(|id| *id != entry.instruction_id);
-                tree.metadata
-                    .debug
-                    .instruction_locations
-                    .remove(&entry.instruction_id);
-                update_debug_for_removed_global_addr(
-                    entry.function_id,
-                    entry.destination,
-                    global_id,
-                    tree,
-                );
-                global_changed = true;
-            }
-        }
-
-        // mark the global as immutable now that all loads are const
-        if global_changed {
-            let global = tree.get_mut(global_id);
-            global.mutability = mir::Mutability::Immutable;
-            changed = true;
-        }
+        // mark the global as immutable when no writes remain
+        let global = tree.get_mut(global_id);
+        global.mutability = mir::Mutability::Immutable;
+        changed = true;
     }
 
     changed
@@ -180,10 +126,6 @@ fn run_global_opt(tree: &mut mir::NodeTree) -> bool {
 struct GlobalAddrEntry {
     /// The function containing the instruction.
     function_id: mir::LocalNodeId<mir::Function>,
-    /// The block containing the instruction.
-    block_id: mir::LocalNodeId<mir::Block>,
-    /// The instruction id for the global.address.
-    instruction_id: mir::LocalNodeId<mir::Instruction>,
     /// The destination value for the global.address.
     destination: mir::Value,
 }
@@ -230,8 +172,6 @@ fn collect_global_addr_info(tree: &mir::NodeTree) -> GlobalAddrInfo {
 
                 let entry = GlobalAddrEntry {
                     function_id,
-                    block_id,
-                    instruction_id,
                     destination,
                 };
 
@@ -547,85 +487,6 @@ fn global_addr_base(
     }
 }
 
-/// Update debug info for a removed global.address value.
-fn update_debug_for_removed_global_addr(
-    function_id: mir::LocalNodeId<mir::Function>,
-    removed_value: mir::Value,
-    global_id: mir::LocalNodeId<mir::Global>,
-    tree: &mut mir::NodeTree,
-) {
-    // read the function scope for debug updates
-    let Some(function_scope) = tree
-        .metadata
-        .debug
-        .function_scopes
-        .get(&function_id)
-        .copied()
-    else {
-        return;
-    };
-
-    // collect debug variables referencing the removed value
-    let mut to_update = Vec::new();
-    for (index, binding) in tree.metadata.debug.bindings.iter().enumerate() {
-        // skip bindings outside the function scope
-        if !scope_in_function(binding.scope, function_scope, &tree.metadata.debug) {
-            continue;
-        }
-
-        // read the current binding location ranges
-        let binding_id = mir::DebugBindingId::new(index as u32);
-        let Some(ranges) = tree.metadata.debug.binding_location_ranges.get(&binding_id) else {
-            continue;
-        };
-
-        // collect bindings tied to the removed value
-        let matches_removed = ranges.iter().any(|range| {
-            matches!(range.location, mir::DebugValueLocation::Value(value) if value == removed_value)
-        });
-
-        if matches_removed {
-            to_update.push(binding_id);
-        }
-    }
-
-    // rewrite debug locations to the global value
-    for binding_id in to_update {
-        if let Some(ranges) = tree
-            .metadata
-            .debug
-            .binding_location_ranges
-            .get_mut(&binding_id)
-        {
-            for range in ranges {
-                range.location = mir::DebugValueLocation::Global(global_id);
-            }
-        }
-    }
-}
-
-/// Return true when a debug scope belongs to a function scope.
-fn scope_in_function(
-    scope: mir::DebugScopeId,
-    function_scope: mir::DebugScopeId,
-    debug_info: &mir::Debug,
-) -> bool {
-    // walk the scope chain to find the function scope
-    let mut current = Some(scope);
-
-    while let Some(scope_id) = current {
-        // stop once the function scope is found
-        if scope_id == function_scope {
-            return true;
-        }
-
-        // step to the parent scope
-        current = debug_info.scope(scope_id).parent;
-    }
-
-    false
-}
-
 /// Return true when the intrinsic may write memory.
 fn intrinsic_writes_memory(intrinsic: mir::Intrinsic) -> bool {
     matches!(
@@ -709,9 +570,9 @@ mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
 
-    /// Loads from immutable globals are rewritten to global.const.
+    /// Unwritten private globals are marked readonly.
     #[test]
-    fn test_global_opt_rewrites_loads() {
+    fn test_global_opt_marks_unwritten_global_readonly() {
         let input = r#"
 global value: int32 = 42int32
 function root(): int32 {
@@ -725,8 +586,9 @@ b0:
 global value: int32, readonly = 42int32
 function root(): int32 {
 b0:
-    v0: int32 = global.const value
-    return v0
+    v0: ref<int32, raw> = global.address value
+    v1: int32 = load v0
+    return v1
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -771,7 +633,7 @@ b0:
         test.assert_output(input);
     }
 
-    /// Terminator uses prevent const rewriting.
+    /// Terminator uses keep globals mutable.
     #[test]
     fn test_global_opt_skips_terminator_use() {
         let input = r#"
@@ -785,116 +647,6 @@ b0:
         let mut test = TestProgram::new(input);
         test.run_module_pass(&GlobalOpt);
         test.assert_output(input);
-    }
-
-    /// Debug locations are updated when global.address is removed.
-    #[test]
-    fn test_global_opt_updates_debug_locations() {
-        let input = r#"
-global value: int32 = 42int32
-function root(): int32 {
-b0:
-    v0: ref<int32, raw> = global.address value
-    v1: int32 = load v0
-    return v1
-}"#;
-
-        let expected = r#"
-global value: int32, readonly = 42int32
-function root(): int32 {
-b0:
-    v0: int32 = global.const value
-    return v0
-}"#;
-
-        let mut test = TestProgram::new(input);
-        let root_id = test.function_id_by_name("root");
-        let instruction_id = test
-            .entry_instructions(root_id)
-            .into_iter()
-            .find(|instruction_id| {
-                matches!(
-                    test.tree.get(*instruction_id),
-                    mir::Instruction::GlobalAddr { .. }
-                )
-            })
-            .expect("missing global.address");
-
-        let (destination, global_id) = match test.tree.get(instruction_id) {
-            mir::Instruction::GlobalAddr {
-                destination,
-                global,
-                ..
-            } => (*destination, *global),
-            _ => unreachable!(),
-        };
-
-        let root_name = test.tree.get(root_id).name;
-        let global_id = global_id.global().expect("global should be concrete");
-        let destination = destination.value().expect("destination should be concrete");
-        let global_type = test.tree.get(global_id).ty;
-        let scope_id =
-            test.tree
-                .metadata
-                .debug
-                .create_scope(mir::DebugScopeKind::Function, None, None, None);
-        test.tree
-            .metadata
-            .debug
-            .function_scopes
-            .insert(root_id, scope_id);
-        let binding_id = test.tree.metadata.debug.create_binding(
-            root_name,
-            global_type.ty().expect("global type should be concrete"),
-            scope_id,
-            None,
-            mir::DebugBindingKind::Local,
-        );
-        test.tree.metadata.debug.binding_location_ranges.insert(
-            binding_id,
-            vec![mir::DebugBindingLocationRange {
-                binding: binding_id,
-                location: mir::DebugValueLocation::Value(destination),
-                start: mir::DebugRangeStart::instruction(instruction_id),
-                end: None,
-            }],
-        );
-        test.tree.metadata.debug.instruction_locations.insert(
-            instruction_id,
-            mir::DebugLocation {
-                scope: scope_id,
-                provenance: None,
-                inline_site: None,
-            },
-        );
-
-        test.run_module_pass(&GlobalOpt);
-        test.assert_output(expected);
-        let location = test
-            .tree
-            .metadata
-            .debug
-            .binding_location_ranges
-            .get(&binding_id)
-            .expect("missing debug binding location");
-
-        assert_eq!(
-            location,
-            &vec![mir::DebugBindingLocationRange {
-                binding: binding_id,
-                location: mir::DebugValueLocation::Global(global_id),
-                start: mir::DebugRangeStart::instruction(instruction_id),
-                end: None,
-            }]
-        );
-        assert!(
-            !test
-                .tree
-                .metadata
-                .debug
-                .instruction_locations
-                .contains_key(&instruction_id)
-        );
     }
 
     /// Exceptional call terminators keep written globals mutable.

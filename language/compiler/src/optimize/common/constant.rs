@@ -104,10 +104,9 @@ pub fn constant_for_value(
     let inst_id = *definitions.get(&value)?;
     let inst = tree.get(inst_id);
 
-    // extract constants from direct or global constant instructions
+    // extract constants from direct constant instructions
     match inst {
         mir::Instruction::Const { value, .. } => Some(value.clone()),
-        mir::Instruction::GlobalConst { global, .. } => constant_from_global(*global, tree),
         _ => None,
     }
 }
@@ -692,7 +691,6 @@ fn constant_tree_from_initializer(
             constant_tree_from_zero(ty, tree, max_aggregate_elements, pointer_width_bits)
         }
         mir::GlobalInitializer::Scalar(constant) => constant_tree_from_scalar(constant, ty, tree),
-        mir::GlobalInitializer::String(_) => ConstantTree::Unknown,
         mir::GlobalInitializer::Bytes(bytes) => {
             constant_tree_from_bytes(bytes, ty, tree, max_aggregate_elements)
         }

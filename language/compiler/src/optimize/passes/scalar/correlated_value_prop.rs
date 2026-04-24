@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::optimize::analyses::{ConstantPropagation, ControlFlowGraph, DominatorTree, ValueRange};
 use crate::optimize::common::{
     apply_substitutions_in_dominated_blocks, build_use_def_maps, build_value_instruction_map,
-    constant_from_global, swap_comparison_operator,
+    swap_comparison_operator,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -406,7 +406,7 @@ fn range_constraints_for_condition(
 fn constant_from_value(
     value: mir::Value,
     value_to_instruction: &HashMap<mir::Value, mir::Instruction>,
-    tree: &mir::NodeTree,
+    _tree: &mir::NodeTree,
 ) -> Option<mir::Constant> {
     // look up the defining instruction
     let instruction = value_to_instruction.get(&value)?;
@@ -414,9 +414,6 @@ fn constant_from_value(
     // map constants to their values
     match instruction {
         mir::Instruction::Const { value, .. } => Some(value.clone()),
-        mir::Instruction::GlobalConst { global, .. } => {
-            constant_from_global(global.global()?, tree)
-        }
         _ => None,
     }
 }

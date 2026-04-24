@@ -10,8 +10,8 @@ use crate::optimize::common::{
     BlockParamForwarding, CallsiteHotness, CallsiteHotnessPolicy, ValueTypeMap,
     block_execution_counts, block_hotness_from_counts, build_use_def_maps,
     build_value_definition_map, clone_instruction_metadata, clone_loop_blocks,
-    constant_from_global, instruction_is_speculatable, instruction_map,
-    terminator_arguments_for_successor, terminator_remap,
+    instruction_is_speculatable, instruction_map, terminator_arguments_for_successor,
+    terminator_remap,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -2675,9 +2675,6 @@ fn constant_value_for(
 
     match instruction {
         mir::Instruction::Const { value, .. } => Some(value.clone()),
-        mir::Instruction::GlobalConst { global, .. } => {
-            constant_from_global(global.global()?, tree)
-        }
         _ => None,
     }
 }

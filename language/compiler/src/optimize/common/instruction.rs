@@ -72,11 +72,10 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         | Instruction::ElementSet { .. } => true,
 
         // immutable global references
-        Instruction::GlobalConst { .. }
-        | Instruction::GlobalAddr { .. }
+        Instruction::GlobalAddr { .. }
         | Instruction::FunctionAddr { .. }
-        | Instruction::FunctionBind { .. }
-        | Instruction::FunctionEnvironment { .. } => true,
+        | Instruction::CallableBind { .. }
+        | Instruction::CallableEnvironment { .. } => true,
 
         // borrow producing address computations are not speculatable
         Instruction::FieldAddr { .. }
@@ -245,11 +244,10 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         | Instruction::FieldAddr { .. }
         | Instruction::ElementGet { .. }
         | Instruction::ElementAddr { .. }
-        | Instruction::GlobalConst { .. }
         | Instruction::GlobalAddr { .. }
         | Instruction::FunctionAddr { .. }
-        | Instruction::FunctionBind { .. }
-        | Instruction::FunctionEnvironment { .. }
+        | Instruction::CallableBind { .. }
+        | Instruction::CallableEnvironment { .. }
         | Instruction::LocalAddr { .. }
         | Instruction::Assume { .. } => false,
 
@@ -1103,14 +1101,13 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::LocalGet { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
-        | mir::Instruction::FunctionBind { .. }
+        | mir::Instruction::CallableBind { .. }
         | mir::Instruction::LocalAddr { .. }
-        | mir::Instruction::GlobalConst { .. }
         | mir::Instruction::Struct { .. }
         | mir::Instruction::Tuple { .. }
         | mir::Instruction::Array { .. }
         | mir::Instruction::Call { .. }
-        | mir::Instruction::FunctionEnvironment { .. }
+        | mir::Instruction::CallableEnvironment { .. }
         | mir::Instruction::New { .. }
         | mir::Instruction::RawAlloc { .. }
         | mir::Instruction::StackAlloc { .. }
@@ -2246,17 +2243,17 @@ pub fn instruction_map(
             destination: remap(*destination),
             function: *function,
         },
-        mir::Instruction::FunctionBind {
+        mir::Instruction::CallableBind {
             destination,
             function,
             environment,
-        } => mir::Instruction::FunctionBind {
+        } => mir::Instruction::CallableBind {
             destination: remap(*destination),
             function: *function,
             environment: remap(*environment),
         },
-        mir::Instruction::FunctionEnvironment { destination } => {
-            mir::Instruction::FunctionEnvironment {
+        mir::Instruction::CallableEnvironment { destination } => {
+            mir::Instruction::CallableEnvironment {
                 destination: remap(*destination),
             }
         }
@@ -2268,13 +2265,6 @@ pub fn instruction_map(
             destination: remap(*destination),
             local: *local,
             result_type: *result_type,
-        },
-        mir::Instruction::GlobalConst {
-            destination,
-            global,
-        } => mir::Instruction::GlobalConst {
-            destination: remap(*destination),
-            global: *global,
         },
         mir::Instruction::Struct {
             destination,
@@ -2937,17 +2927,17 @@ pub fn instruction_map_with_locals(
             destination: remap(*destination),
             function: *function,
         },
-        mir::Instruction::FunctionBind {
+        mir::Instruction::CallableBind {
             destination,
             function,
             environment,
-        } => mir::Instruction::FunctionBind {
+        } => mir::Instruction::CallableBind {
             destination: remap(*destination),
             function: *function,
             environment: remap(*environment),
         },
-        mir::Instruction::FunctionEnvironment { destination } => {
-            mir::Instruction::FunctionEnvironment {
+        mir::Instruction::CallableEnvironment { destination } => {
+            mir::Instruction::CallableEnvironment {
                 destination: remap(*destination),
             }
         }
@@ -2959,13 +2949,6 @@ pub fn instruction_map_with_locals(
             destination: remap(*destination),
             local: *local,
             result_type: *result_type,
-        },
-        mir::Instruction::GlobalConst {
-            destination,
-            global,
-        } => mir::Instruction::GlobalConst {
-            destination: remap(*destination),
-            global: *global,
         },
         mir::Instruction::Struct {
             destination,

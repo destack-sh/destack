@@ -4,10 +4,10 @@ use super::compile_mir_to_normalized_clif;
 #[test]
 fn test_string_global() {
     let mir = r#"
-global readonly hello: uint8[5] = b"hello";
-function get_hello(): ref<uint8[5], raw, readonly, space(global)> {
+global hello: uint8[5], readonly, space(static) = b"hello";
+function get_hello(): ref<uint8[5], raw, readonly, space(static)> {
 bb0:
-    v0: ref<uint8[5], raw, readonly, space(global)> = global.address hello
+    v0: ref<uint8[5], raw, readonly, space(static)> = global.address hello
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -23,10 +23,10 @@ bb0:
 #[test]
 fn test_empty_string_global() {
     let mir = r#"
-global readonly empty: uint8[0] = b"";
-function get_empty(): ref<uint8[0], raw, readonly, space(global)> {
+global empty: uint8[0], readonly, space(static) = b"";
+function get_empty(): ref<uint8[0], raw, readonly, space(static)> {
 bb0:
-    v0: ref<uint8[0], raw, readonly, space(global)> = global.address empty
+    v0: ref<uint8[0], raw, readonly, space(static)> = global.address empty
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -40,15 +40,16 @@ bb0:
 #[test]
 fn test_integer_global_const() {
     let mir = r#"
-global readonly magic: int32 = 42int32;
+global magic: int32, readonly, space(static) = 42int32;
 function get_magic(): int32 {
 bb0:
-    v0: int32 = global.const magic
-    return v0
+    v0: ref<int32, raw, readonly, space(static)> = global.address magic
+    v1: int32 = load v0
+    return v1
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
-    // global.const should produce global_value + load
+    // global.address should produce global_value + load
     assert!(
         clif.contains("global_value"),
         "expected global_value in: {clif}"
@@ -60,11 +61,11 @@ bb0:
 #[test]
 fn test_mutable_global() {
     let mir = r#"
-global counter: int32 = 0int32 ;
+global counter: int32, space(static) = 0int32 ;
 
 function increment(): int32 {
 bb0:
-    v0: ref<int32, raw, space(global)> = global.address counter
+    v0: ref<int32, raw, space(static)> = global.address counter
     v1: int32 = load v0
     v2: int32 = const 1int32
     v3: int32 = int.add v1, v2
@@ -87,11 +88,11 @@ bb0:
 #[test]
 fn test_zeroinit_global() {
     let mir = r#"
-global data: int64 = zeroInit ;
+global data: int64, space(static) = zeroInit ;
 
 function get_data(): int64 {
 bb0:
-    v0: ref<int64, raw, space(global)> = global.address data
+    v0: ref<int64, raw, space(static)> = global.address data
     v1: int64 = load v0
     return v1
 }"#;

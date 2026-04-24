@@ -4,14 +4,11 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::common::{
-    ConstantTree, build_use_def_maps, constant_tree_from_global, fold_binary, fold_cast,
-    fold_intrinsic, fold_unary, instruction_substitute_uses_in_tree,
-    remap_instruction_memory_accesses, terminator_substitute_uses,
+    build_use_def_maps, fold_binary, fold_cast, fold_intrinsic, fold_unary,
+    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
-
-/// Maximum aggregate elements to materialize from globals.
-const MAX_AGGREGATE_ELEMENTS: usize = 1024;
 
 declare_pass! {
     /// Perform sparse conditional constant propagation.
@@ -644,15 +641,6 @@ impl<'a> SccpState<'a> {
         // fold instructions that yield constants
         match instruction {
             mir::Instruction::Const { value, .. } => LatticeValue::Constant(value.clone()),
-            mir::Instruction::GlobalConst { global, .. } => {
-                // read global constant
-                let Some(global) = global.global() else {
-                    return LatticeValue::Overdefined;
-                };
-
-                lattice_from_global(global, self.tree, self.type_context.pointer_width_bits)
-                    .unwrap_or(LatticeValue::Overdefined)
-            }
             mir::Instruction::Binary {
                 operator,
                 left,
@@ -1018,33 +1006,6 @@ fn switch_constant_value(constant: &mir::Constant) -> Option<i64> {
         mir::Constant::Int { value, .. } => Some(*value),
         mir::Constant::UInt { value, .. } => Some(*value as i64),
         _ => None,
-    }
-}
-
-/// Convert an immutable global initializer into a lattice value when possible.
-fn lattice_from_global(
-    global_id: mir::LocalNodeId<mir::Global>,
-    tree: &mir::NodeTree,
-    pointer_width_bits: u16,
-) -> Option<LatticeValue> {
-    // read constant tree
-    let constant_tree =
-        constant_tree_from_global(global_id, tree, MAX_AGGREGATE_ELEMENTS, pointer_width_bits)?;
-
-    // map to lattice value
-    Some(lattice_from_constant_tree(&constant_tree))
-}
-
-/// Convert a constant tree into a lattice value.
-fn lattice_from_constant_tree(constant_tree: &ConstantTree) -> LatticeValue {
-    // map constant nodes to lattice values
-    match constant_tree {
-        ConstantTree::Scalar(constant) => LatticeValue::Constant(constant.clone()),
-        ConstantTree::Aggregate(elements) => {
-            let elements = elements.iter().map(lattice_from_constant_tree).collect();
-            LatticeValue::Aggregate(elements)
-        }
-        ConstantTree::Unknown => LatticeValue::Overdefined,
     }
 }
 
@@ -1539,36 +1500,27 @@ b1:
         test.assert_output(expected);
     }
 
-    /// Global const values fold branch conditions and remove dead blocks.
+    /// Readonly global loads are not scalar constants.
     #[test]
-    fn test_global_const_branch_folding() {
+    fn test_readonly_global_load_not_constant() {
         let input = r#"
 global flag: boolean, readonly = true
 function test(): int32 {
 b0:
-    v0: boolean = global.const flag
-    branch v0, b1, b2
+    v0: ref<boolean, raw, readonly> = global.address flag
+    v1: boolean = load v0
+    branch v1, b1, b2
 b1:
-    v1: int32 = 1int32
-    return v1
-b2:
-    v2: int32 = 2int32
+    v2: int32 = 1int32
     return v2
-}"#;
-        let expected = r#"
-global flag: boolean, readonly = true
-function test(): int32 {
-b0:
-    v0: boolean = true
-    jump b1
-b1:
-    v1: int32 = 1int32
-    return v1
+b2:
+    v3: int32 = 2int32
+    return v3
 }"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
-        test.assert_output(expected);
+        test.assert_unchanged(input);
     }
 
     /// Mutable globals are not treated as constants.
@@ -1578,14 +1530,15 @@ b1:
 global flag: boolean = true
 function test(): int32 {
 b0:
-    v0: boolean = global.const flag
-    branch v0, b1, b2
+    v0: ref<boolean, raw> = global.address flag
+    v1: boolean = load v0
+    branch v1, b1, b2
 b1:
-    v1: int32 = 1int32
-    return v1
-b2:
-    v2: int32 = 2int32
+    v2: int32 = 1int32
     return v2
+b2:
+    v3: int32 = 2int32
+    return v3
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1839,81 +1792,59 @@ b0:
         test.assert_output(expected);
     }
 
-    /// Global aggregate constants are used for field access folding.
+    /// Readonly global aggregate loads are not aggregate constants.
     #[test]
-    fn test_global_struct_field_get_constant() {
+    fn test_readonly_global_struct_field_get_not_constant() {
         let input = r#"
 global pair: { int32, int32 }, readonly = {1int32, 2int32}
 function test(): int32 {
 b0:
-    v0: { int32, int32 } = global.const pair
-    v1: int32 = field.get v0, 1
-    return v1
-}"#;
-        let expected = r#"
-global pair: { int32, int32 }, readonly = {1int32, 2int32}
-function test(): int32 {
-b0:
-    v0: { int32, int32 } = global.const pair
-    v1: int32 = 2int32
-    return v1
-}"#;
-
-        let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
-        test.assert_output(expected);
-    }
-
-    /// Zero initializers produce aggregate constants for field access.
-    #[test]
-    fn test_global_zero_initializer_field_get() {
-        let input = r#"
-global pair: (int32, int32), readonly = zeroInit
-function test(): int32 {
-b0:
-    v0: (int32, int32) = global.const pair
-    v1: int32 = field.get v0, 0
-    return v1
-}"#;
-        let expected = r#"
-global pair: (int32, int32), readonly = zeroInit
-function test(): int32 {
-b0:
-    v0: (int32, int32) = global.const pair
-    v1: int32 = 0int32
-    return v1
-}"#;
-
-        let mut test = TestProgram::new(input);
-        test.run_pass(&SparseConditionalConstantPropagation);
-        test.assert_output(expected);
-    }
-
-    /// Byte initializers on u8 arrays fold element access with constant indices.
-    #[test]
-    fn test_global_bytes_element_get() {
-        let input = r#"
-global data: uint8[4], readonly = b"test"
-function test(): uint8 {
-b0:
-    v0: uint8[4] = global.const data
-    v1: int64 = 2int64
-    v2: uint8 = element.get v0, v1
-    return v2
-}"#;
-        let expected = r#"
-global data: uint8[4], readonly = b"test"
-function test(): uint8 {
-b0:
-    v0: uint8[4] = global.const data
-    v1: int64 = 2int64
-    v2: uint8 = 115uint8
+    v0: ref<{ int32, int32 }, raw, readonly> = global.address pair
+    v1: { int32, int32 } = load v0
+    v2: int32 = field.get v1, 1
     return v2
 }"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
-        test.assert_output(expected);
+        test.assert_unchanged(input);
+    }
+
+    /// Zero initializer loads are not aggregate constants.
+    #[test]
+    fn test_global_zero_initializer_field_get_not_constant() {
+        let input = r#"
+global pair: (int32, int32), readonly = zeroInit
+function test(): int32 {
+b0:
+    v0: ref<(int32, int32), raw, readonly> = global.address pair
+    v1: (int32, int32) = load v0
+    v2: int32 = field.get v1, 0
+    return v2
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_unchanged(input);
+    }
+
+    /// Byte initializer loads are not array constants.
+    #[test]
+    fn test_global_bytes_element_get_not_constant() {
+        let input = r#"
+global data: uint8[4], readonly = b"test"
+function test(): uint8 {
+b0:
+    v0: ref<uint8[4], raw, readonly> = global.address data
+    v1: uint8[4] = load v0
+    v2: int64 = 2int64
+    v3: uint8 = element.get v1, v2
+    return v3
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_unchanged(input);
     }
 
     /// Constant selects are folded to the chosen value.

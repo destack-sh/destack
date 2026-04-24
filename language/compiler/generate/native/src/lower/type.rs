@@ -100,8 +100,8 @@ pub(crate) fn lower_type(
             type_id.into_any(),
         )),
 
-        mir::Type::Closure { .. } => Err(CodegenCraneliftError::unsupported_type(
-            "closures must be lowered to aggregate operations",
+        mir::Type::Callable { .. } => Err(CodegenCraneliftError::unsupported_type(
+            "callables must be lowered to aggregate operations",
             type_id.into_any(),
         )),
 

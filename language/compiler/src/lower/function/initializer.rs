@@ -142,8 +142,8 @@ impl FunctionLowerer<'_> {
                 }
                 self.state.builder.struct_(ty, values)
             }
-            mir::Type::Closure { signature } => {
-                let environment = self.state.builder.tree().function_value_environment_type();
+            mir::Type::Callable { signature } => {
+                let environment = self.state.builder.tree().callable_environment_type();
                 let signature = signature
                     .ty()
                     .ok_or_else(|| LowerError::UnsupportedConstruct {

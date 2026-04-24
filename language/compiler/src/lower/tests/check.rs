@@ -39,7 +39,7 @@ entry0(value0: int32, value1: int32):
     value5: boolean = int.not value4
     check int.add.overflow.s value0, value1 -> block2, block1
 block1:
-    value6: ref<String, managed, readonly> = global.const ${integer_overflow}
+    value6: ref<String, managed, readonly> = global.address ${integer_overflow}
     trap.panic value6
 block2:
     return value3
@@ -125,7 +125,7 @@ entry0(value0: uint32, value1: uint32):
     value5: boolean = int.not value4
     check int.add.overflow.u value0, value1 -> block2, block1
 block1:
-    value6: ref<String, managed, readonly> = global.const ${integer_overflow}
+    value6: ref<String, managed, readonly> = global.address ${integer_overflow}
     trap.panic value6
 block2:
     return value3
@@ -202,7 +202,7 @@ entry0(value0: int32, value1: int32):
     value3: boolean = int.ne value1, value2
     check zeroDivisor value1 -> block2, block1
 block1:
-    value4: ref<String, managed, readonly> = global.const ${division_by_zero}
+    value4: ref<String, managed, readonly> = global.address ${division_by_zero}
     trap.panic value4
 block2:
     value5: int32 = -2147483648int32
@@ -213,7 +213,7 @@ block2:
     value10: boolean = int.not value9
     check int.div.overflow.s value0, value1 -> block4, block3
 block3:
-    value11: ref<String, managed, readonly> = global.const ${division_overflow}
+    value11: ref<String, managed, readonly> = global.address ${division_overflow}
     trap.panic value11
 block4:
     value12: int32 = int.div.s value0, value1
@@ -313,7 +313,7 @@ entry0(value0: uint32, value1: uint32):
     value3: boolean = int.ne value1, value2
     check zeroDivisor value1 -> block2, block1
 block1:
-    value4: ref<String, managed, readonly> = global.const ${division_by_zero}
+    value4: ref<String, managed, readonly> = global.address ${division_by_zero}
     trap.panic value4
 block2:
     value5: uint32 = int.div.u value0, value1
@@ -361,7 +361,7 @@ entry0(value0: int32, value1: int32):
     value6: boolean = int.and value4, value5
     check shiftRange.s value1, 32 -> block2, block1
 block1:
-    value7: ref<String, managed, readonly> = global.const ${shift_out_of_range}
+    value7: ref<String, managed, readonly> = global.address ${shift_out_of_range}
     trap.panic value7
 block2:
     value8: int32 = int.shl value0, value1
@@ -448,7 +448,7 @@ entry0(value0: uint32, value1: uint32):
     value3: boolean = int.lt.u value1, value2
     check shiftRange.u value1, 32 -> block2, block1
 block1:
-    value4: ref<String, managed, readonly> = global.const ${shift_out_of_range}
+    value4: ref<String, managed, readonly> = global.address ${shift_out_of_range}
     trap.panic value4
 block2:
     value5: uint32 = int.shl value0, value1
@@ -494,7 +494,7 @@ entry0(value0: int32[4], value1: int32):
     value6: boolean = int.and value4, value5
     check bounds.s value1, value2, value0 -> block2, block1
 block1:
-    value7: ref<String, managed, readonly> = global.const ${bounds_check_failed}
+    value7: ref<String, managed, readonly> = global.address ${bounds_check_failed}
     trap.panic value7
 block2:
     value8: int32 = element.get value0, value1
@@ -581,7 +581,7 @@ entry0(value0: int32[4], value1: uint32):
     value3: boolean = int.lt.u value1, value2
     check bounds.u value1, value2, value0 -> block2, block1
 block1:
-    value4: ref<String, managed, readonly> = global.const ${bounds_check_failed}
+    value4: ref<String, managed, readonly> = global.address ${bounds_check_failed}
     trap.panic value4
 block2:
     value5: int32 = element.get value0, value1

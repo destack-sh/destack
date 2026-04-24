@@ -13,7 +13,7 @@ declare_pass! {
     /// global dead: int32, readonly = 2int32
     /// function root(): int32 {
     /// b0:
-    ///     v0 = global.const live
+    ///     v0 = global.address live
     ///     return v0
     /// }
     /// ```
@@ -23,7 +23,7 @@ declare_pass! {
     /// extern global dead: int32, readonly
     /// function root(): int32 {
     /// b0:
-    ///     v0 = global.const live
+    ///     v0 = global.address live
     ///     return v0
     /// }
     /// ```
@@ -105,8 +105,7 @@ fn collect_used_globals(tree: &mir::NodeTree) -> HashSet<mir::LocalNodeId<mir::G
             for &instruction_id in &block.instructions {
                 // record direct global references
                 match tree.get(instruction_id) {
-                    mir::Instruction::GlobalAddr { global, .. }
-                    | mir::Instruction::GlobalConst { global, .. } => {
+                    mir::Instruction::GlobalAddr { global, .. } => {
                         if let Some(global) = global.global() {
                             used.insert(global);
                         }
@@ -159,8 +158,9 @@ global live: int32, readonly = 1int32
 global dead: int32, readonly = 2int32
 function root(): int32 {
 b0:
-    v0: int32 = global.const live
-    return v0
+    v0: ref<int32, raw, readonly> = global.address live
+    v1: int32 = load v0
+    return v1
 }"#;
 
         let expected = r#"
@@ -168,8 +168,9 @@ global live: int32, readonly = 1int32
 extern global dead: int32, readonly
 function root(): int32 {
 b0:
-    v0: int32 = global.const live
-    return v0
+    v0: ref<int32, raw, readonly> = global.address live
+    v1: int32 = load v0
+    return v1
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -211,8 +212,9 @@ global live: int32, readonly = 1int32
 global dead: int32, readonly = 2int32
 function root(): int32 {
 b0:
-    v0: int32 = global.const live
-    return v0
+    v0: ref<int32, raw, readonly> = global.address live
+    v1: int32 = load v0
+    return v1
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -221,12 +223,12 @@ b0:
             .entry_instructions(root_id)
             .into_iter()
             .find_map(|instruction_id| match test.tree.get(instruction_id) {
-                mir::Instruction::GlobalConst { global, .. } => {
+                mir::Instruction::GlobalAddr { global, .. } => {
                     Some(global.global().expect("live global should be concrete"))
                 }
                 _ => None,
             })
-            .expect("missing global.const");
+            .expect("missing global.address");
         let global_id = test
             .tree
             .iter_nodes::<mir::Global>()

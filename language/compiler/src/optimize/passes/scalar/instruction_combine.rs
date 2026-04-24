@@ -8,7 +8,7 @@ use destack_workspace::FloatMathPolicy;
 
 use crate::ConstantMap;
 use crate::optimize::analyses::{ConstantPropagation, RangeAnalysis, RangeMap};
-use crate::optimize::common::{constant_from_global, fold_binary, fold_cast, fold_unary};
+use crate::optimize::common::{fold_binary, fold_cast, fold_unary};
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, TypeContext, constant_all_ones_like,
     constant_is_all_ones, constant_is_float_one, constant_is_float_zero, constant_is_one,
@@ -817,15 +817,6 @@ fn update_constant_map(
     match instruction {
         mir::Instruction::Const { value, .. } => {
             block_constants.insert(destination, value.clone());
-        }
-        mir::Instruction::GlobalConst { global, .. } => {
-            if let Some(global) = global.global()
-                && let Some(constant) = constant_from_global(global, tree)
-            {
-                block_constants.insert(destination, constant);
-            } else {
-                block_constants.remove(destination);
-            }
         }
         mir::Instruction::Binary {
             operator,

@@ -143,7 +143,7 @@ impl ModuleLowerer<'_> {
                 mir::ReferenceKind::Raw,
                 self.type_lowerer.ty_void,
                 mir::Mutability::Immutable,
-                mir::AddressSpace::Global,
+                mir::AddressSpace::Static,
                 false,
             );
             let (size, alignment) = self

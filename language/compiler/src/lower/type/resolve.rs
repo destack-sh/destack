@@ -289,7 +289,7 @@ impl FunctionLowerer<'_> {
                 message: "missing local reference target symbol".to_string(),
             })?;
 
-        Ok(*binding)
+        Ok(binding.clone())
     }
 
     /// Resolve a global binding for a symbol reference.
@@ -309,7 +309,7 @@ impl FunctionLowerer<'_> {
                 message: "unresolved symbol reference".to_string(),
             })?;
 
-        Ok(*binding)
+        Ok(binding.clone())
     }
 
     /// Get the resolution for an expression from the TypeTable.

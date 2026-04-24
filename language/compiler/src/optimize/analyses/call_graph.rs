@@ -271,7 +271,7 @@ enum SignatureType {
         signature: Box<SignatureType>,
     },
     /// Callable closure value signature.
-    Closure {
+    Callable {
         /// The bare function pointer signature.
         signature: Box<SignatureType>,
     },
@@ -412,7 +412,7 @@ impl SignatureType {
             mir::Type::FunctionPointer { signature } => SignatureType::FunctionPointer {
                 signature: Box::new(SignatureType::from_type(tree, signature.ty()?)?),
             },
-            mir::Type::Closure { signature } => SignatureType::Closure {
+            mir::Type::Callable { signature } => SignatureType::Callable {
                 signature: Box::new(SignatureType::from_type(tree, signature.ty()?)?),
             },
         })

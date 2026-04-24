@@ -142,8 +142,6 @@ enum ExpressionTemplate {
     FieldGet { index: u32 },
     /// Element access expression template.
     ElementGet,
-    /// Global constant expression template.
-    GlobalConst,
 }
 
 /// Run PRE on a single function and report whether it changed.
@@ -435,7 +433,6 @@ fn template_from_instruction(instruction: &mir::Instruction) -> ExpressionTempla
         mir::Instruction::Select { .. } => ExpressionTemplate::Select,
         mir::Instruction::FieldGet { index, .. } => ExpressionTemplate::FieldGet { index: *index },
         mir::Instruction::ElementGet { .. } => ExpressionTemplate::ElementGet,
-        mir::Instruction::GlobalConst { .. } => ExpressionTemplate::GlobalConst,
         _ => panic!("unsupported expression template: {instruction:?}"),
     }
 }
@@ -453,7 +450,6 @@ fn expression_operands(key: &ExpressionKey) -> Vec<mir::Value> {
         } => vec![*condition, *then_value, *else_value],
         ExpressionKey::FieldGet { aggregate, .. } => vec![*aggregate],
         ExpressionKey::ElementGet { array, index } => vec![*array, *index],
-        ExpressionKey::GlobalConst { .. } => Vec::new(),
     }
 }
 
@@ -747,12 +743,6 @@ fn build_instruction_from_key(
                 destination: destination.into(),
                 array: (*array).into(),
                 index: (*index).into(),
-            }
-        }
-        (ExpressionKey::GlobalConst { global }, ExpressionTemplate::GlobalConst) => {
-            mir::Instruction::GlobalConst {
-                destination: destination.into(),
-                global: (*global).into(),
             }
         }
         _ => panic!("mismatched expression template"),

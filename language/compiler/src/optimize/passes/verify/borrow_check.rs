@@ -2014,7 +2014,7 @@ b0:
 global g1: int32 = 42int32
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(global)> = global.address g1
+    v0: ref<int32, raw, space(static)> = global.address g1
     v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 1int32
     store v1, v2

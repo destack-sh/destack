@@ -40,7 +40,7 @@ type Circle {
     radius: int32;
 }
 
-extern function Drawable.draw({ draw: closure() -> int32, color: int32 }): int32
+extern function Drawable.draw({ draw: () => int32, color: int32 }): int32
 
 function Circle.draw(value0: Circle): int32 {
 entry0(value0: Circle):
@@ -102,7 +102,7 @@ type Circle {
     radius: int32;
 }
 
-extern function Drawable.draw({ draw: closure() -> int32, color: int32 }): int32
+extern function Drawable.draw({ draw: () => int32, color: int32 }): int32
 
 function Circle.draw(value0: Circle): int32 {
 entry0(value0: Circle):
@@ -297,7 +297,7 @@ struct Widget implements Shape, Paint {
         module_id,
         "native",
         r#"
-type Closure0 = closure() -> int32;
+type Closure0 = () => int32;
 type Widget {
     width: int32;
     color: int32;
@@ -421,7 +421,7 @@ function useDrawable(d: Drawable): int32 {
         module_id,
         "native",
         r#"
-type Drawable#method:draw#function = closure() -> int32;
+type Drawable#method:draw#function = () => int32;
 type Drawable { object: ref<void, managed, readonly>, itab: usize }
 type Circle { color: int32, radius: int32 }
 type Drawable#object { draw: Drawable#method:draw#function, color: int32 }
@@ -494,7 +494,7 @@ type Sprite {
     value: int32;
 }
 
-extern function Renderable.draw({ draw: closure() -> int32 }): int32
+extern function Renderable.draw({ draw: () => int32 }): int32
 
 function castRenderable(value0: int32): Renderable {
 entry0(value0: int32):

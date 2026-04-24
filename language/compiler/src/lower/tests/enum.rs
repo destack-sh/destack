@@ -106,7 +106,7 @@ global ${sweet_name}: ref<String, managed, readonly>, readonly = "sweet"
 
 function flavorValue(): Flavor {
 entry0:
-    value0: ref<String, managed, readonly> = global.const ${string_name}
+    value0: ref<String, managed, readonly> = global.address ${string_name}
     value1: Flavor = cast.bit value0 -> Flavor
     return value1
 }
@@ -262,7 +262,7 @@ global Status.Default: Status, readonly = 1int32
 
 function defaultValue(): int32 {
 entry0:
-    value0: Status = global.const Status.Default
+    value0: Status = global.address Status.Default
     value1: int32 = cast.bit value0 -> int32
     return value1
 }

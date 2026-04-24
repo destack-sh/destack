@@ -245,6 +245,7 @@ impl ModuleLowerer<'_> {
                 global: global_id,
                 ty: mir_type,
                 mutability: mir_mutability,
+                space: self.builder.tree().get(global_id).space.clone(),
             };
             self.insert_global_binding(symbol_id, binding)?;
         }

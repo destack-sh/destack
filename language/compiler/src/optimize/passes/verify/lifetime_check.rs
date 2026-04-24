@@ -674,8 +674,8 @@ fn apply_instruction_effects(
             assign_origin_if_borrowed(state, *destination, origins, tree, types);
         }
 
-        // function.environment is an implicit parameter, treat as unknown origin
-        Instruction::FunctionEnvironment { destination } => {
+        // callable.environment is an implicit parameter, treat as unknown origin
+        Instruction::CallableEnvironment { destination } => {
             assign_origin_if_borrowed(
                 state,
                 *destination,
@@ -705,8 +705,7 @@ fn apply_instruction_effects(
 
         // globals are static borrows
         Instruction::GlobalAddr { destination, .. }
-        | Instruction::FunctionAddr { destination, .. }
-        | Instruction::GlobalConst { destination, .. } => {
+        | Instruction::FunctionAddr { destination, .. } => {
             assign_origin_if_borrowed(
                 state,
                 *destination,
@@ -717,7 +716,7 @@ fn apply_instruction_effects(
         }
 
         // function values preserve the environment origin
-        Instruction::FunctionBind {
+        Instruction::CallableBind {
             destination,
             environment,
             ..
