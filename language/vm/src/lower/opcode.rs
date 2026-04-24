@@ -171,9 +171,9 @@ pub(super) fn select_load_opcode(value_kinds: &ValueKindMap, pointer: mir::Value
             ..
         }) => Opcode::LoadFrame,
         Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Global,
+            pointer_class: PointerClass::Static,
             ..
-        }) => Opcode::LoadGlobal,
+        }) => Opcode::LoadStatic,
         _ => Opcode::Load,
     }
 }
@@ -198,17 +198,17 @@ pub(super) fn select_store_opcode(value_kinds: &ValueKindMap, pointer: mir::Valu
             ..
         }) => Opcode::StoreFrame,
         Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Global,
+            pointer_class: PointerClass::Static,
             ..
-        }) => Opcode::StoreGlobal,
+        }) => Opcode::StoreStatic,
         _ => Opcode::Store,
     }
 }
 
-/// Pick a field get handler based on inferred aggregate storage.
+/// Pick a field get handler based on inferred aggregate value kind.
 pub(super) fn select_field_get_opcode(value_kinds: &ValueKindMap, aggregate: mir::Value) -> Opcode {
     match value_kinds.get(aggregate) {
-        Some(ValueKind::Composite { .. }) => Opcode::FieldGet,
+        Some(ValueKind::Aggregate { .. }) => Opcode::FieldGet,
         Some(ValueKind::Pointer {
             pointer_class: PointerClass::Heap,
             ..
@@ -226,17 +226,17 @@ pub(super) fn select_field_get_opcode(value_kinds: &ValueKindMap, aggregate: mir
             ..
         }) => Opcode::FieldLoad,
         Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Global,
+            pointer_class: PointerClass::Static,
             ..
-        }) => Opcode::FieldLoadGlobal,
+        }) => Opcode::FieldLoadStatic,
         _ => Opcode::FieldLoad,
     }
 }
 
-/// Pick an element get handler based on inferred array storage.
+/// Pick an element get handler based on inferred array value kind.
 pub(super) fn select_element_get_opcode(value_kinds: &ValueKindMap, array: mir::Value) -> Opcode {
     match value_kinds.get(array) {
-        Some(ValueKind::Array { .. }) | Some(ValueKind::Composite { .. }) => Opcode::ElementGet,
+        Some(ValueKind::Array { .. }) | Some(ValueKind::Aggregate { .. }) => Opcode::ElementGet,
         Some(ValueKind::Pointer {
             pointer_class: PointerClass::Heap,
             ..
@@ -254,20 +254,20 @@ pub(super) fn select_element_get_opcode(value_kinds: &ValueKindMap, array: mir::
             ..
         }) => Opcode::ElementLoad,
         Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Global,
+            pointer_class: PointerClass::Static,
             ..
-        }) => Opcode::ElementLoadGlobal,
+        }) => Opcode::ElementLoadStatic,
         _ => Opcode::ElementLoad,
     }
 }
 
-/// Pick a field address handler based on inferred aggregate storage.
+/// Pick a field address handler based on inferred aggregate value kind.
 pub(super) fn select_field_addr_opcode(
     value_kinds: &ValueKindMap,
     aggregate: mir::Value,
 ) -> Opcode {
     match value_kinds.get(aggregate) {
-        Some(ValueKind::Composite { .. }) => Opcode::FieldAddr,
+        Some(ValueKind::Aggregate { .. }) => Opcode::FieldAddr,
         Some(ValueKind::Pointer {
             pointer_class: PointerClass::Heap,
             ..
@@ -285,17 +285,17 @@ pub(super) fn select_field_addr_opcode(
             ..
         }) => Opcode::FieldAddr,
         Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Global,
+            pointer_class: PointerClass::Static,
             ..
-        }) => Opcode::FieldAddrGlobal,
+        }) => Opcode::FieldAddrStatic,
         _ => Opcode::FieldAddr,
     }
 }
 
-/// Pick an element address handler based on inferred array storage.
+/// Pick an element address handler based on inferred array value kind.
 pub(super) fn select_element_addr_opcode(value_kinds: &ValueKindMap, array: mir::Value) -> Opcode {
     match value_kinds.get(array) {
-        Some(ValueKind::Array { .. }) | Some(ValueKind::Composite { .. }) => Opcode::ElementAddr,
+        Some(ValueKind::Array { .. }) | Some(ValueKind::Aggregate { .. }) => Opcode::ElementAddr,
         Some(ValueKind::Pointer {
             pointer_class: PointerClass::Heap,
             ..
@@ -313,20 +313,20 @@ pub(super) fn select_element_addr_opcode(value_kinds: &ValueKindMap, array: mir:
             ..
         }) => Opcode::ElementAddr,
         Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Global,
+            pointer_class: PointerClass::Static,
             ..
-        }) => Opcode::ElementAddrGlobal,
+        }) => Opcode::ElementAddrStatic,
         _ => Opcode::ElementAddr,
     }
 }
 
-/// Pick a field load handler based on inferred aggregate storage.
+/// Pick a field load handler based on inferred aggregate value kind.
 pub(super) fn select_field_load_opcode(
     value_kinds: &ValueKindMap,
     aggregate: mir::Value,
 ) -> Opcode {
     match value_kinds.get(aggregate) {
-        Some(ValueKind::Composite { .. }) => Opcode::FieldLoad,
+        Some(ValueKind::Aggregate { .. }) => Opcode::FieldLoad,
         Some(ValueKind::Pointer {
             pointer_class: PointerClass::Heap,
             ..
@@ -344,20 +344,20 @@ pub(super) fn select_field_load_opcode(
             ..
         }) => Opcode::FieldLoad,
         Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Global,
+            pointer_class: PointerClass::Static,
             ..
-        }) => Opcode::FieldLoadGlobal,
+        }) => Opcode::FieldLoadStatic,
         _ => Opcode::FieldLoad,
     }
 }
 
-/// Pick a field store handler based on inferred aggregate storage.
+/// Pick a field store handler based on inferred aggregate value kind.
 pub(super) fn select_field_store_opcode(
     value_kinds: &ValueKindMap,
     aggregate: mir::Value,
 ) -> Opcode {
     match value_kinds.get(aggregate) {
-        Some(ValueKind::Composite { .. }) => Opcode::FieldStore,
+        Some(ValueKind::Aggregate { .. }) => Opcode::FieldStore,
         Some(ValueKind::Pointer {
             pointer_class: PointerClass::Heap,
             ..
@@ -375,17 +375,17 @@ pub(super) fn select_field_store_opcode(
             ..
         }) => Opcode::FieldStore,
         Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Global,
+            pointer_class: PointerClass::Static,
             ..
-        }) => Opcode::FieldStoreGlobal,
+        }) => Opcode::FieldStoreStatic,
         _ => Opcode::FieldStore,
     }
 }
 
-/// Pick an element load handler based on inferred array storage.
+/// Pick an element load handler based on inferred array value kind.
 pub(super) fn select_element_load_opcode(value_kinds: &ValueKindMap, array: mir::Value) -> Opcode {
     match value_kinds.get(array) {
-        Some(ValueKind::Array { .. }) | Some(ValueKind::Composite { .. }) => Opcode::ElementLoad,
+        Some(ValueKind::Array { .. }) | Some(ValueKind::Aggregate { .. }) => Opcode::ElementLoad,
         Some(ValueKind::Pointer {
             pointer_class: PointerClass::Heap,
             ..
@@ -403,17 +403,17 @@ pub(super) fn select_element_load_opcode(value_kinds: &ValueKindMap, array: mir:
             ..
         }) => Opcode::ElementLoad,
         Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Global,
+            pointer_class: PointerClass::Static,
             ..
-        }) => Opcode::ElementLoadGlobal,
+        }) => Opcode::ElementLoadStatic,
         _ => Opcode::ElementLoad,
     }
 }
 
-/// Pick an element store handler based on inferred array storage.
+/// Pick an element store handler based on inferred array value kind.
 pub(super) fn select_element_store_opcode(value_kinds: &ValueKindMap, array: mir::Value) -> Opcode {
     match value_kinds.get(array) {
-        Some(ValueKind::Array { .. }) | Some(ValueKind::Composite { .. }) => Opcode::ElementStore,
+        Some(ValueKind::Array { .. }) | Some(ValueKind::Aggregate { .. }) => Opcode::ElementStore,
         Some(ValueKind::Pointer {
             pointer_class: PointerClass::Heap,
             ..
@@ -431,9 +431,9 @@ pub(super) fn select_element_store_opcode(value_kinds: &ValueKindMap, array: mir
             ..
         }) => Opcode::ElementStore,
         Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Global,
+            pointer_class: PointerClass::Static,
             ..
-        }) => Opcode::ElementStoreGlobal,
+        }) => Opcode::ElementStoreStatic,
         _ => Opcode::ElementStore,
     }
 }

@@ -102,7 +102,7 @@ pub(super) fn tensor_element_type_for_view_type(
 /// Resolve the field count for a struct or tuple kind.
 pub(super) fn field_count_from_kind(tree: &mir::NodeTree, kind: ValueKind) -> Option<u32> {
     match kind {
-        ValueKind::Composite { ty } => match tree.get(ty) {
+        ValueKind::Aggregate { ty } => match tree.get(ty) {
             mir::Type::Struct { fields, copy: _ } => u32::try_from(fields.len()).ok(),
             mir::Type::Tuple { elements, copy: _ } => u32::try_from(elements.len()).ok(),
             _ => None,
@@ -120,7 +120,7 @@ pub(super) fn field_count_from_kind(tree: &mir::NodeTree, kind: ValueKind) -> Op
 pub(super) fn array_length_from_kind(tree: &mir::NodeTree, kind: ValueKind) -> Option<u64> {
     match kind {
         ValueKind::Array { length, .. } => Some(length),
-        ValueKind::Composite { ty } => match tree.get(ty) {
+        ValueKind::Aggregate { ty } => match tree.get(ty) {
             mir::Type::Array { length, .. } => Some(*length),
             _ => None,
         },

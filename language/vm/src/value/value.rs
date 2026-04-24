@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use super::meta::ReferenceMeta;
 use super::tag::ValueTag;
 use crate::{
-    FramePointer, GlobalPointer, HeapReference, RawPointer, SharedHeapReference, SharedRawPointer,
-    StackPointer,
+    FramePointer, HeapReference, RawPointer, SharedHeapReference, SharedRawPointer, StackPointer,
+    StaticPointer,
 };
 
 const POINTER_BASE_MASK: u64 = 0xFFFF_FFFF;
@@ -155,14 +155,14 @@ impl std::fmt::Debug for Value {
                     )
                 }
             }
-            ValueTag::GlobalPointer => {
-                let pointer = self.global_pointer_parts();
+            ValueTag::StaticPointer => {
+                let pointer = self.static_pointer_parts();
                 if pointer.byte_offset == 0 {
-                    write!(f, "GlobalPointer({})", pointer.id.id)
+                    write!(f, "StaticPointer({})", pointer.id.id)
                 } else {
                     write!(
                         f,
-                        "GlobalPointer({}, offset: {})",
+                        "StaticPointer({}, offset: {})",
                         pointer.id.id, pointer.byte_offset
                     )
                 }
@@ -476,15 +476,15 @@ impl Value {
         Some(Self::frame_pointer(ptr)?.with_reference_meta(meta))
     }
 
-    /// Create a global pointer value.
+    /// Create a static pointer value.
     #[inline]
-    pub fn global_pointer(id: mir::LocalNodeId<mir::Global>) -> Option<Self> {
-        Self::global_pointer_with_offset(id, 0)
+    pub fn static_pointer(id: mir::LocalNodeId<mir::Global>) -> Option<Self> {
+        Self::static_pointer_with_offset(id, 0)
     }
 
-    /// Create a global pointer value with an explicit byte offset.
+    /// Create a static pointer value with an explicit byte offset.
     #[inline]
-    pub fn global_pointer_with_offset(
+    pub fn static_pointer_with_offset(
         id: mir::LocalNodeId<mir::Global>,
         byte_offset: usize,
     ) -> Option<Self> {
@@ -493,18 +493,18 @@ impl Value {
 
         Some(Self {
             data: base | offset,
-            meta: Self::make_meta(ValueTag::GlobalPointer, 0),
+            meta: Self::make_meta(ValueTag::StaticPointer, 0),
         })
     }
 
-    /// Create a global pointer value with explicit metadata.
+    /// Create a static pointer value with explicit metadata.
     #[inline]
-    pub fn global_pointer_with_meta(
+    pub fn static_pointer_with_meta(
         id: mir::LocalNodeId<mir::Global>,
         byte_offset: usize,
         meta: ReferenceMeta,
     ) -> Option<Self> {
-        Some(Self::global_pointer_with_offset(id, byte_offset)?.with_reference_meta(meta))
+        Some(Self::static_pointer_with_offset(id, byte_offset)?.with_reference_meta(meta))
     }
 
     /// Create a function pointer value.
@@ -533,7 +533,7 @@ impl Value {
             ValueTag::SharedRawPointer => self.data != 0,
             ValueTag::StackPointer => true,
             ValueTag::FramePointer => true,
-            ValueTag::GlobalPointer => true,
+            ValueTag::StaticPointer => true,
             ValueTag::FunctionPointer => true,
         }
     }
@@ -656,11 +656,11 @@ impl Value {
         None
     }
 
-    /// Try to get this value as a global pointer.
+    /// Try to get this value as a static pointer.
     #[inline]
-    pub fn as_global_pointer(&self) -> Option<GlobalPointer> {
-        if self.tag() == ValueTag::GlobalPointer {
-            return Some(self.global_pointer_parts());
+    pub fn as_static_pointer(&self) -> Option<StaticPointer> {
+        if self.tag() == ValueTag::StaticPointer {
+            return Some(self.static_pointer_parts());
         }
         None
     }
@@ -775,13 +775,13 @@ impl Value {
         }
     }
 
-    /// Decode one global pointer from the packed value payload.
+    /// Decode one static pointer from the packed value payload.
     #[inline]
-    fn global_pointer_parts(&self) -> GlobalPointer {
+    fn static_pointer_parts(&self) -> StaticPointer {
         let base = (self.data & POINTER_BASE_MASK) as u32;
         let byte_offset = ((self.data >> POINTER_SLOT_SHIFT) & POINTER_BASE_MASK) as usize;
         let id = mir::LocalNodeId::new(base);
 
-        GlobalPointer { id, byte_offset }
+        StaticPointer { id, byte_offset }
     }
 }

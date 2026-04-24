@@ -9,8 +9,8 @@ pub(crate) enum Opcode {
     AddInt,
     /// The `add_uint` opcode.
     AddUint,
-    /// The `composite` opcode.
-    Composite,
+    /// The `aggregate` opcode.
+    Aggregate,
     /// The `and_int` opcode.
     AndInt,
     /// The `and_uint` opcode.
@@ -89,8 +89,8 @@ pub(crate) enum Opcode {
     Const,
     /// The `element_addr` opcode.
     ElementAddr,
-    /// The `element_addr_global` opcode.
-    ElementAddrGlobal,
+    /// The `element_addr_static` opcode.
+    ElementAddrStatic,
     /// The `element_addr_heap` opcode.
     ElementAddrHeap,
     /// The `element_addr_raw` opcode.
@@ -101,8 +101,8 @@ pub(crate) enum Opcode {
     ElementGet,
     /// The `element_load` opcode.
     ElementLoad,
-    /// The `element_load_global` opcode.
-    ElementLoadGlobal,
+    /// The `element_load_static` opcode.
+    ElementLoadStatic,
     /// The `element_load_heap` opcode.
     ElementLoadHeap,
     /// The `element_load_raw` opcode.
@@ -113,8 +113,8 @@ pub(crate) enum Opcode {
     ElementSet,
     /// The `element_store` opcode.
     ElementStore,
-    /// The `element_store_global` opcode.
-    ElementStoreGlobal,
+    /// The `element_store_static` opcode.
+    ElementStoreStatic,
     /// The `element_store_heap` opcode.
     ElementStoreHeap,
     /// The `element_store_raw` opcode.
@@ -127,8 +127,8 @@ pub(crate) enum Opcode {
     EqInt,
     /// The `field_addr` opcode.
     FieldAddr,
-    /// The `field_addr_global` opcode.
-    FieldAddrGlobal,
+    /// The `field_addr_static` opcode.
+    FieldAddrStatic,
     /// The `field_addr_heap` opcode.
     FieldAddrHeap,
     /// The `field_addr_raw` opcode.
@@ -139,8 +139,8 @@ pub(crate) enum Opcode {
     FieldGet,
     /// The `field_load` opcode.
     FieldLoad,
-    /// The `field_load_global` opcode.
-    FieldLoadGlobal,
+    /// The `field_load_static` opcode.
+    FieldLoadStatic,
     /// The `field_load_heap` opcode.
     FieldLoadHeap,
     /// The `field_load_raw` opcode.
@@ -151,8 +151,8 @@ pub(crate) enum Opcode {
     FieldSet,
     /// The `field_store` opcode.
     FieldStore,
-    /// The `field_store_global` opcode.
-    FieldStoreGlobal,
+    /// The `field_store_static` opcode.
+    FieldStoreStatic,
     /// The `field_store_heap` opcode.
     FieldStoreHeap,
     /// The `field_store_raw` opcode.
@@ -173,12 +173,12 @@ pub(crate) enum Opcode {
     GeInt,
     /// The `ge_uint` opcode.
     GeUint,
-    /// The `global_addr` opcode.
-    GlobalAddr,
-    /// The `global_load` opcode.
-    GlobalLoad,
-    /// The `global_store` opcode.
-    GlobalStore,
+    /// The `static_addr` opcode.
+    StaticAddr,
+    /// The `static_load` opcode.
+    StaticLoad,
+    /// The `static_store` opcode.
+    StaticStore,
     /// The `gt_const_int` opcode.
     GtConstInt,
     /// The `gt_const_uint` opcode.
@@ -201,8 +201,8 @@ pub(crate) enum Opcode {
     LeUint,
     /// The `load` opcode.
     Load,
-    /// The `load_global` opcode.
-    LoadGlobal,
+    /// The `load_static` opcode.
+    LoadStatic,
     /// The `load_frame` opcode.
     LoadFrame,
     /// The `load_heap` opcode.
@@ -275,8 +275,8 @@ pub(crate) enum Opcode {
     StackAlloc,
     /// The `store` opcode.
     Store,
-    /// The `store_global` opcode.
-    StoreGlobal,
+    /// The `store_static` opcode.
+    StoreStatic,
     /// The `store_frame` opcode.
     StoreFrame,
     /// The `store_heap` opcode.
@@ -423,12 +423,12 @@ impl Opcode {
             Opcode::LocalGet => "local_get",
             Opcode::LocalAddr => "local_addr",
             Opcode::LocalSet => "local_set",
-            Opcode::GlobalAddr => "global_addr",
+            Opcode::StaticAddr => "static_addr",
             Opcode::FunctionAddr => "function_addr",
             Opcode::CallableBind => "callable_bind",
             Opcode::CallableEnvironment => "callable_environment",
-            Opcode::GlobalLoad => "global_load",
-            Opcode::GlobalStore => "global_store",
+            Opcode::StaticLoad => "static_load",
+            Opcode::StaticStore => "static_store",
             Opcode::Load => "load",
             Opcode::Store => "store",
             Opcode::FieldGet => "field_get",
@@ -441,7 +441,7 @@ impl Opcode {
             Opcode::ElementLoad => "element_load",
             Opcode::ElementSet => "element_set",
             Opcode::ElementStore => "element_store",
-            Opcode::Composite => "composite",
+            Opcode::Aggregate => "aggregate",
             Opcode::VectorSplat => "vector_splat",
             Opcode::VectorExtract => "vector_extract",
             Opcode::VectorInsert => "vector_insert",

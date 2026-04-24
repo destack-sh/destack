@@ -32,7 +32,7 @@ pub(crate) struct ElementLayout {
 pub(crate) enum LayoutShape {
     /// One scalar or pointer value with no structural decomposition.
     Scalar,
-    /// One field-addressable composite with a fixed field list.
+    /// One field-addressable aggregate with a fixed field list.
     Fields(Vec<FieldLayout>),
     /// One element-addressable array with a fixed element stride.
     Array {
@@ -1050,11 +1050,6 @@ type Vec = vector<ref<int32, managed, readonly>, 2>"#;
         assert_eq!(element.byte_len, 8);
         assert_eq!(element.stride, 8);
         assert_eq!(layout.byte_len, 16);
-
-        // vector lanes should reflect the canonical lane stride
-        let element = layout.element().expect("missing vector element layout");
-        assert_eq!(element.stride * 0, 0);
-        assert_eq!(element.stride * 1, 8);
 
         // reference tracing should include both lanes
         assert_eq!(

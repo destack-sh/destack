@@ -215,7 +215,7 @@ pub(super) fn raw_pointee_type_for_value_kind(
                 | PointerClass::SharedRaw
                 | PointerClass::Stack
                 | PointerClass::Frame
-                | PointerClass::Global,
+                | PointerClass::Static,
             ..
         }) => Some(pointee),
         _ => None,
@@ -688,7 +688,7 @@ fn infer_instruction_kind(
             let ValueKind::Pointer { pointer_class, .. } = &mut kind else {
                 return None;
             };
-            *pointer_class = PointerClass::Global;
+            *pointer_class = PointerClass::Static;
             Some(kind)
         }
         mir::Instruction::FunctionAddr { function, .. } => {
@@ -872,7 +872,7 @@ fn kind_from_pointer(tree: &mir::NodeTree, kind: ValueKind) -> Option<ValueKind>
 
 /// Resolve the field kind for one aggregate value.
 fn kind_from_field(tree: &mir::NodeTree, kind: ValueKind, index: u32) -> Option<ValueKind> {
-    let ValueKind::Composite { ty } = kind else {
+    let ValueKind::Aggregate { ty } = kind else {
         return None;
     };
 
@@ -894,7 +894,7 @@ fn kind_from_field(tree: &mir::NodeTree, kind: ValueKind, index: u32) -> Option<
 fn kind_from_element(tree: &mir::NodeTree, kind: ValueKind) -> Option<ValueKind> {
     match kind {
         ValueKind::Array { element, .. } => Some(kind_from_type(tree, element)),
-        ValueKind::Composite { ty } => match tree.get(ty) {
+        ValueKind::Aggregate { ty } => match tree.get(ty) {
             mir::Type::Array { element, .. } => Some(kind_from_type(tree, element.ty()?)),
             _ => None,
         },

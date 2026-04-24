@@ -73,7 +73,7 @@ impl<'a> BlockLowerer<'a> {
                             opcode: select_field_load_opcode(self.value_kind_map(), aggregate),
                             immediate: Immediate::FieldLoad {
                                 dest: load_dest.value()?,
-                                composite: aggregate,
+                                aggregate,
                                 index: *index,
                                 field_count,
                                 field,
@@ -88,7 +88,7 @@ impl<'a> BlockLowerer<'a> {
                             Instruction {
                                 opcode: select_field_store_opcode(self.value_kind_map(), aggregate),
                                 immediate: Immediate::FieldStore {
-                                    composite: aggregate,
+                                    aggregate,
                                     index: *index,
                                     value: value.value()?,
                                     reference: reference_meta_for_value(
@@ -190,8 +190,8 @@ impl<'a> BlockLowerer<'a> {
                         ..
                     } if pointer.value()? == destination => Some((
                         Instruction {
-                            opcode: Opcode::GlobalLoad,
-                            immediate: Immediate::GlobalLoad {
+                            opcode: Opcode::StaticLoad,
+                            immediate: Immediate::StaticLoad {
                                 dest: load_dest.value()?,
                                 global: global.id,
                             },
@@ -203,8 +203,8 @@ impl<'a> BlockLowerer<'a> {
                     {
                         Some((
                             Instruction {
-                                opcode: Opcode::GlobalStore,
-                                immediate: Immediate::GlobalStore {
+                                opcode: Opcode::StaticStore,
+                                immediate: Immediate::StaticStore {
                                     global: global.id,
                                     value: value.value()?,
                                     reference,
@@ -772,8 +772,8 @@ impl<'a> BlockLowerer<'a> {
                     })?;
 
                 Instruction {
-                    opcode: Opcode::GlobalAddr,
-                    immediate: Immediate::GlobalAddr {
+                    opcode: Opcode::StaticAddr,
+                    immediate: Immediate::StaticAddr {
                         dest: destination,
                         global: global.id,
                         reference: reference_meta_for_value(self.value_kind_map(), destination),
@@ -1038,7 +1038,7 @@ impl<'a> BlockLowerer<'a> {
                         opcode,
                         immediate: Immediate::FieldGet {
                             dest: destination,
-                            composite: aggregate,
+                            aggregate,
                             index: *index,
                             field_count,
                             field,
@@ -1048,7 +1048,7 @@ impl<'a> BlockLowerer<'a> {
                         opcode,
                         immediate: Immediate::FieldLoad {
                             dest: destination,
-                            composite: aggregate,
+                            aggregate,
                             index: *index,
                             field_count,
                             field,
@@ -1106,7 +1106,7 @@ impl<'a> BlockLowerer<'a> {
 
                         Immediate::FieldAddr {
                             dest: destination,
-                            composite: aggregate,
+                            aggregate,
                             index: *index,
                             reference: reference_meta_for_value(self.value_kind_map(), destination),
                             field_count: self.field_count_for_value(aggregate),
@@ -1141,7 +1141,7 @@ impl<'a> BlockLowerer<'a> {
                     opcode: Opcode::FieldSet,
                     immediate: Immediate::FieldSet {
                         dest: destination,
-                        composite: aggregate,
+                        aggregate,
                         index: *index,
                         value,
                         field_count: self.field_count_for_value(aggregate),
@@ -1305,8 +1305,8 @@ impl<'a> BlockLowerer<'a> {
                     "struct field argument",
                 )?;
                 Instruction {
-                    opcode: Opcode::Composite,
-                    immediate: Immediate::Composite {
+                    opcode: Opcode::Aggregate,
+                    immediate: Immediate::Aggregate {
                         dest: destination,
                         elements: args,
                     },
@@ -1329,8 +1329,8 @@ impl<'a> BlockLowerer<'a> {
                     "tuple element argument",
                 )?;
                 Instruction {
-                    opcode: Opcode::Composite,
-                    immediate: Immediate::Composite {
+                    opcode: Opcode::Aggregate,
+                    immediate: Immediate::Aggregate {
                         dest: destination,
                         elements: args,
                     },
@@ -1353,8 +1353,8 @@ impl<'a> BlockLowerer<'a> {
                     "array element argument",
                 )?;
                 Instruction {
-                    opcode: Opcode::Composite,
-                    immediate: Immediate::Composite {
+                    opcode: Opcode::Aggregate,
+                    immediate: Immediate::Aggregate {
                         dest: destination,
                         elements: args,
                     },

@@ -30,8 +30,8 @@ pub enum ValueTag {
     StackPointer = 11,
     /// Frame slot pointer.
     FramePointer = 12,
-    /// Global variable pointer.
-    GlobalPointer = 13,
+    /// Static value pointer.
+    StaticPointer = 13,
     /// Function pointer.
     FunctionPointer = 14,
 }
@@ -53,7 +53,7 @@ impl ValueTag {
             10 => Some(Self::SharedRawPointer),
             11 => Some(Self::StackPointer),
             12 => Some(Self::FramePointer),
-            13 => Some(Self::GlobalPointer),
+            13 => Some(Self::StaticPointer),
             14 => Some(Self::FunctionPointer),
             _ => None,
         }

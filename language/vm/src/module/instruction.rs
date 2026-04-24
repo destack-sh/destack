@@ -5,7 +5,7 @@ use {destack_engine as engine, destack_mir as mir};
 
 use crate::{ReferenceMeta, Value};
 
-use super::{ArgumentRange, CallTarget, CopyRange, Opcode, SwitchRange};
+use super::{ArgumentRange, CallTarget, CopyRange, Opcode, SwitchCase};
 
 /// One decoded module instruction.
 #[derive(Clone)]
@@ -248,8 +248,8 @@ pub(crate) enum Immediate {
     /// Store local variable.
     LocalSet { local: u32, value: mir::Value },
 
-    /// Get global address.
-    GlobalAddr {
+    /// Get static address.
+    StaticAddr {
         dest: mir::Value,
         global: u32,
         reference: ReferenceMeta,
@@ -268,11 +268,11 @@ pub(crate) enum Immediate {
     /// Load the callable environment pointer.
     CallableEnvironment { dest: mir::Value },
 
-    /// Fused global address + load.
-    GlobalLoad { dest: mir::Value, global: u32 },
+    /// Fused static address and load.
+    StaticLoad { dest: mir::Value, global: u32 },
 
-    /// Fused global address + store.
-    GlobalStore {
+    /// Fused static address and store.
+    StaticStore {
         global: u32,
         value: mir::Value,
         reference: ReferenceMeta,
@@ -296,7 +296,7 @@ pub(crate) enum Immediate {
     /// Get struct or tuple field.
     FieldGet {
         dest: mir::Value,
-        composite: mir::Value,
+        aggregate: mir::Value,
         index: u32,
         field_count: Option<u32>,
         field: Option<FieldAccess>,
@@ -305,7 +305,7 @@ pub(crate) enum Immediate {
     /// Get struct or tuple field address.
     FieldAddr {
         dest: mir::Value,
-        composite: mir::Value,
+        aggregate: mir::Value,
         index: u32,
         reference: ReferenceMeta,
         field_count: Option<u32>,
@@ -315,7 +315,7 @@ pub(crate) enum Immediate {
     /// Load a field through field address plus load.
     FieldLoad {
         dest: mir::Value,
-        composite: mir::Value,
+        aggregate: mir::Value,
         index: u32,
         field_count: Option<u32>,
         field: Option<FieldAccess>,
@@ -324,7 +324,7 @@ pub(crate) enum Immediate {
     /// Set struct or tuple field.
     FieldSet {
         dest: mir::Value,
-        composite: mir::Value,
+        aggregate: mir::Value,
         index: u32,
         value: mir::Value,
         field_count: Option<u32>,
@@ -333,7 +333,7 @@ pub(crate) enum Immediate {
 
     /// Store a field through field address plus store.
     FieldStore {
-        composite: mir::Value,
+        aggregate: mir::Value,
         index: u32,
         value: mir::Value,
         reference: ReferenceMeta,
@@ -379,8 +379,8 @@ pub(crate) enum Immediate {
         element: Option<ElementAccess>,
     },
 
-    /// Construct a composite from element values.
-    Composite {
+    /// Construct an aggregate from element values.
+    Aggregate {
         dest: mir::Value,
         elements: ArgumentRange,
     },
@@ -825,7 +825,7 @@ pub(crate) enum Immediate {
     /// Switch on integer.
     Switch {
         value: mir::Value,
-        cases: SwitchRange,
+        cases: Box<[SwitchCase]>,
         default_target: u32,
         default_copies: CopyRange,
     },
@@ -834,7 +834,7 @@ pub(crate) enum Immediate {
     SwitchTable {
         value: mir::Value,
         min: i64,
-        table: SwitchRange,
+        table: Box<[SwitchCase]>,
         default_target: u32,
         default_copies: CopyRange,
     },
