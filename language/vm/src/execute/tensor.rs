@@ -136,17 +136,17 @@ pub(crate) fn tensor_layout_info(
     })
 }
 
-/// Materialize one tensor result slot by slot.
-fn materialize_tensor_by_slot<F>(
-    state: &mut StepState<'_, '_>,
+/// Allocate one tensor result element by element.
+fn allocate_tensor_by_element<F>(
+    state: &mut ExecutionState<'_, '_>,
     dest: mir::Value,
     storage_len: usize,
-    mut slot_value: F,
+    mut element_value: F,
 ) -> Result<Value, Error>
 where
-    F: FnMut(&mut StepState<'_, '_>, usize) -> Result<Value, Error>,
+    F: FnMut(&mut ExecutionState<'_, '_>, usize) -> Result<Value, Error>,
 {
-    materialize_composite_by_index(state, dest, |state, slot_index, _value_type| {
+    allocate_payload_by_index(state, dest, |state, slot_index, _value_type| {
         let slot_index = usize::try_from(slot_index).map_err(|_| Error::TypeMismatch {
             expected: "tensor storage slot".to_string(),
             actual: slot_index.to_string(),
@@ -158,13 +158,13 @@ where
             });
         }
 
-        slot_value(state, slot_index)
+        element_value(state, slot_index)
     })
 }
 
-/// Store one tensor slot into one typed composite place.
-fn set_tensor_slot(
-    state: &mut StepState<'_, '_>,
+/// Store one tensor element into one aggregate.
+fn store_tensor_element(
+    state: &mut ExecutionState<'_, '_>,
     tensor: Value,
     tensor_type: mir::LocalNodeId<mir::Type>,
     slot_index: usize,
@@ -186,15 +186,15 @@ fn set_tensor_slot(
     access::store_to_pointer_with_access(state, pointer, Some(TypedAccess::from(element)), value)
 }
 
-/// Materialize one tensor result by destination index.
-fn materialize_tensor_by_index<F>(
-    state: &mut StepState<'_, '_>,
+/// Allocate one tensor result by destination index.
+fn allocate_tensor_by_index<F>(
+    state: &mut ExecutionState<'_, '_>,
     dest: mir::Value,
     layout: &TensorLayoutInfo,
     mut index_value: F,
 ) -> Result<Value, Error>
 where
-    F: FnMut(&mut StepState<'_, '_>, &[u64]) -> Result<Value, Error>,
+    F: FnMut(&mut ExecutionState<'_, '_>, &[u64]) -> Result<Value, Error>,
 {
     let dest_type = state.value_type(dest)?;
     let result = access::allocate_zeroed_heap_value(state, dest_type)?;
@@ -221,7 +221,9 @@ where
             }
         };
 
-        if let Err(current_error) = set_tensor_slot(state, result, dest_type, dst_offset, value) {
+        if let Err(current_error) =
+            store_tensor_element(state, result, dest_type, dst_offset, value)
+        {
             error = Some(current_error);
         }
     });
@@ -274,9 +276,9 @@ pub(crate) fn tensor_linear_index(
     })
 }
 
-/// Load one tensor storage slot through indexed storage.
-pub(crate) fn tensor_slot_value(
-    state: &mut StepState<'_, '_>,
+/// Load one tensor element through indexed access.
+pub(crate) fn tensor_element_value(
+    state: &mut ExecutionState<'_, '_>,
     tensor: Value,
     tensor_type: mir::LocalNodeId<mir::Type>,
     slot_index: usize,
@@ -297,9 +299,9 @@ pub(crate) fn tensor_slot_value(
     access::load_from_pointer_with_access(state, pointer, Some(TypedAccess::from(element)))
 }
 
-/// Step tensor.splat.
-pub(crate) fn step_tensor_splat(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.splat.
+pub(crate) fn execute_tensor_splat(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -320,21 +322,20 @@ pub(crate) fn step_tensor_splat(
     };
     let value = state.get(*value);
 
-    // materialize the result one active index at a time
-    let result =
-        match materialize_tensor_by_index(state, *dest, &layout, |_state, _index| Ok(value)) {
-            Ok(result) => result,
-            Err(error) => return Transfer::Error(error),
-        };
+    // allocate the result one active index at a time
+    let result = match allocate_tensor_by_index(state, *dest, &layout, |_state, _index| Ok(value)) {
+        Ok(result) => result,
+        Err(error) => return Transfer::Error(error),
+    };
     state.set(*dest, result);
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Step tensor.extract.
-pub(crate) fn step_tensor_extract(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.extract.
+pub(crate) fn execute_tensor_extract(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -372,7 +373,7 @@ pub(crate) fn step_tensor_extract(
 
     // load the tensor value slot
     let tensor_value = state.get(*tensor);
-    let value = match tensor_slot_value(state, tensor_value, *tensor_type, slot_index) {
+    let value = match tensor_element_value(state, tensor_value, *tensor_type, slot_index) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -433,7 +434,7 @@ pub(crate) fn offset_pointer(
     // preserve reference metadata
     let reference_meta = value.reference_meta();
 
-    // offset the pointer according to its storage class
+    // offset the pointer according to its pointer kind
     match value.tag() {
         ValueTag::HeapReference => {
             let Some(reference) = value.as_heap_reference() else {
@@ -505,8 +506,8 @@ pub(crate) fn offset_pointer(
 
             frame_pointer_value_with_meta(pointer, reference_meta)
         }
-        ValueTag::GlobalPointer => {
-            let Some(pointer) = value.as_global_pointer() else {
+        ValueTag::StaticPointer => {
+            let Some(pointer) = value.as_static_pointer() else {
                 return Err(Error::InvalidPointerType {
                     actual: format!("{value:?}"),
                 });
@@ -516,7 +517,7 @@ pub(crate) fn offset_pointer(
                 .byte_offset
                 .saturating_add(offset.saturating_mul(element.byte_stride));
 
-            global_pointer_value_with_meta(pointer.id, slot, reference_meta)
+            static_pointer_value_with_meta(pointer.id, slot, reference_meta)
         }
 
         // reject non pointer values loudly
@@ -526,9 +527,9 @@ pub(crate) fn offset_pointer(
     }
 }
 
-/// Step tensor.load.
-pub(crate) fn step_tensor_load(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.load.
+pub(crate) fn execute_tensor_load(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -592,9 +593,9 @@ pub(crate) fn step_tensor_load(
     next!(state, block, pc)
 }
 
-/// Step tensor.store.
-pub(crate) fn step_tensor_store(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.store.
+pub(crate) fn execute_tensor_store(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -658,9 +659,9 @@ pub(crate) fn step_tensor_store(
     next!(state, block, pc)
 }
 
-/// Step tensor.fill.
-pub(crate) fn step_tensor_fill(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.fill.
+pub(crate) fn execute_tensor_fill(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -709,9 +710,9 @@ pub(crate) fn step_tensor_fill(
     next!(state, block, pc)
 }
 
-/// Step tensor.copy.
-pub(crate) fn step_tensor_copy(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.copy.
+pub(crate) fn execute_tensor_copy(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -804,9 +805,9 @@ pub(crate) fn step_tensor_copy(
     next!(state, block, pc)
 }
 
-/// Step tensor.reshape.
-pub(crate) fn step_tensor_reshape(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.reshape.
+pub(crate) fn execute_tensor_reshape(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -858,11 +859,11 @@ pub(crate) fn step_tensor_reshape(
     }
 
     // copy the source storage into the reshaped result
-    let result = match materialize_tensor_by_slot(
+    let result = match allocate_tensor_by_element(
         state,
         *dest,
         dest_layout.storage_len,
-        |state, slot_index| tensor_slot_value(state, tensor_value, tensor_type, slot_index),
+        |state, slot_index| tensor_element_value(state, tensor_value, tensor_type, slot_index),
     ) {
         Ok(result) => result,
         Err(error) => return Transfer::Error(error),
@@ -873,9 +874,9 @@ pub(crate) fn step_tensor_reshape(
     next!(state, block, pc)
 }
 
-/// Step tensor.broadcast.
-pub(crate) fn step_tensor_broadcast(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.broadcast.
+pub(crate) fn execute_tensor_broadcast(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -915,7 +916,7 @@ pub(crate) fn step_tensor_broadcast(
 
     // allocate result
     let result =
-        match materialize_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
+        match allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
             for (i, dim) in dimensions.iter().enumerate() {
                 let output_value = output_index[*dim as usize];
                 let source_dim = source_layout.shape[i];
@@ -925,7 +926,7 @@ pub(crate) fn step_tensor_broadcast(
             let src_offset =
                 tensor_linear_index(&input_index, &source_layout.shape, &source_layout.strides)?;
 
-            tensor_slot_value(state, tensor_value, *source_type, src_offset)
+            tensor_element_value(state, tensor_value, *source_type, src_offset)
         }) {
             Ok(result) => result,
             Err(error) => return Transfer::Error(error),
@@ -936,9 +937,9 @@ pub(crate) fn step_tensor_broadcast(
     next!(state, block, pc)
 }
 
-/// Step tensor.transpose.
-pub(crate) fn step_tensor_transpose(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.transpose.
+pub(crate) fn execute_tensor_transpose(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -978,7 +979,7 @@ pub(crate) fn step_tensor_transpose(
 
     // allocate result
     let result =
-        match materialize_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
+        match allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
             for (out_dim, in_dim) in permutation.iter().enumerate() {
                 input_index[*in_dim as usize] = output_index[out_dim];
             }
@@ -986,7 +987,7 @@ pub(crate) fn step_tensor_transpose(
             let src_offset =
                 tensor_linear_index(&input_index, &source_layout.shape, &source_layout.strides)?;
 
-            tensor_slot_value(state, tensor_value, *source_type, src_offset)
+            tensor_element_value(state, tensor_value, *source_type, src_offset)
         }) {
             Ok(result) => result,
             Err(error) => return Transfer::Error(error),
@@ -997,9 +998,9 @@ pub(crate) fn step_tensor_transpose(
     next!(state, block, pc)
 }
 
-/// Step tensor.slice.
-pub(crate) fn step_tensor_slice(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.slice.
+pub(crate) fn execute_tensor_slice(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1067,7 +1068,7 @@ pub(crate) fn step_tensor_slice(
 
     // allocate result
     let result =
-        match materialize_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
+        match allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
             for i in 0..input_index.len() {
                 let offset = offsets.get(i).copied().unwrap_or(0);
                 let stride = strides.get(i).copied().unwrap_or(1);
@@ -1077,7 +1078,7 @@ pub(crate) fn step_tensor_slice(
             let src_offset =
                 tensor_linear_index(&input_index, &source_layout.shape, &source_layout.strides)?;
 
-            tensor_slot_value(state, tensor_value, *source_type, src_offset)
+            tensor_element_value(state, tensor_value, *source_type, src_offset)
         }) {
             Ok(result) => result,
             Err(error) => return Transfer::Error(error),
@@ -1088,9 +1089,9 @@ pub(crate) fn step_tensor_slice(
     next!(state, block, pc)
 }
 
-/// Step tensor.pad.
-pub(crate) fn step_tensor_pad(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.pad.
+pub(crate) fn execute_tensor_pad(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1160,7 +1161,7 @@ pub(crate) fn step_tensor_pad(
 
     // allocate result
     let result =
-        match materialize_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
+        match allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
             for i in 0..input_index.len() {
                 let low_pad = low.get(i).copied().unwrap_or(0);
                 let interior_pad = interior.get(i).copied().unwrap_or(0);
@@ -1185,7 +1186,7 @@ pub(crate) fn step_tensor_pad(
             let src_offset =
                 tensor_linear_index(&input_index, &source_layout.shape, &source_layout.strides)?;
 
-            tensor_slot_value(state, tensor_value, *source_type, src_offset)
+            tensor_element_value(state, tensor_value, *source_type, src_offset)
         }) {
             Ok(result) => result,
             Err(error) => return Transfer::Error(error),
@@ -1196,9 +1197,9 @@ pub(crate) fn step_tensor_pad(
     next!(state, block, pc)
 }
 
-/// Step tensor.concat.
-pub(crate) fn step_tensor_concat(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.concat.
+pub(crate) fn execute_tensor_concat(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1255,7 +1256,7 @@ pub(crate) fn step_tensor_concat(
 
     // allocate result
     let result =
-        match materialize_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
+        match allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
             let axis_value = output_index[axis_index];
             let mut selected = None;
             for (i, offset) in axis_offsets.iter().enumerate() {
@@ -1275,7 +1276,7 @@ pub(crate) fn step_tensor_concat(
 
             let src_offset = tensor_linear_index(&input_index, &layout.shape, &layout.strides)?;
 
-            tensor_slot_value(state, *tensor_value, *tensor_type, src_offset)
+            tensor_element_value(state, *tensor_value, *tensor_type, src_offset)
         }) {
             Ok(result) => result,
             Err(error) => return Transfer::Error(error),
@@ -1286,9 +1287,9 @@ pub(crate) fn step_tensor_concat(
     next!(state, block, pc)
 }
 
-/// Step tensor.reduce.
-pub(crate) fn step_tensor_reduce(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.reduce.
+pub(crate) fn execute_tensor_reduce(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1338,7 +1339,7 @@ pub(crate) fn step_tensor_reduce(
 
     // allocate result
     let result =
-        match materialize_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
+        match allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
             let mut output_cursor = 0usize;
             for (dim, slot) in source_index.iter_mut().enumerate() {
                 if reduce_axes.contains(&(dim as u32)) {
@@ -1375,7 +1376,7 @@ pub(crate) fn step_tensor_reduce(
                     }
                 };
                 let src_value =
-                    match tensor_slot_value(state, tensor_value, *source_type, src_offset) {
+                    match tensor_element_value(state, tensor_value, *source_type, src_offset) {
                         Ok(value) => value,
                         Err(error) => {
                             reduce_error = Some(error);
@@ -1411,9 +1412,9 @@ pub(crate) fn step_tensor_reduce(
     next!(state, block, pc)
 }
 
-/// Step tensor.dot.
-pub(crate) fn step_tensor_dot(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.dot.
+pub(crate) fn execute_tensor_dot(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1494,112 +1495,106 @@ pub(crate) fn step_tensor_dot(
     let mut rhs_index = vec![0u64; rhs_rank];
 
     // allocate result
-    let result =
-        match materialize_tensor_by_index(state, *dest, &dest_layout, |state, out_index| {
-            for (i, dim) in lhs_batch.iter().enumerate() {
-                let value = out_index[i];
-                lhs_index[*dim as usize] = value;
-                rhs_index[rhs_batch[i] as usize] = value;
+    let result = match allocate_tensor_by_index(state, *dest, &dest_layout, |state, out_index| {
+        for (i, dim) in lhs_batch.iter().enumerate() {
+            let value = out_index[i];
+            lhs_index[*dim as usize] = value;
+            rhs_index[rhs_batch[i] as usize] = value;
+        }
+        for (i, dim) in lhs_free.iter().enumerate() {
+            lhs_index[*dim as usize] = out_index[lhs_batch.len() + i];
+        }
+        for (i, dim) in rhs_free.iter().enumerate() {
+            let offset = lhs_batch.len() + lhs_free.len() + i;
+            rhs_index[*dim as usize] = out_index[offset];
+        }
+
+        let mut accum = None;
+        let mut contract_error = None;
+
+        // iterate the contracting dimensions for this destination element
+        for_each_index(&contract_shape, |contract_index| {
+            if contract_error.is_some() {
+                return;
             }
-            for (i, dim) in lhs_free.iter().enumerate() {
-                lhs_index[*dim as usize] = out_index[lhs_batch.len() + i];
+
+            for (i, dim) in lhs_contract.iter().enumerate() {
+                lhs_index[*dim as usize] = contract_index[i];
             }
-            for (i, dim) in rhs_free.iter().enumerate() {
-                let offset = lhs_batch.len() + lhs_free.len() + i;
-                rhs_index[*dim as usize] = out_index[offset];
+            for (i, dim) in rhs_contract.iter().enumerate() {
+                rhs_index[*dim as usize] = contract_index[i];
             }
 
-            let mut accum = None;
-            let mut contract_error = None;
-
-            // iterate the contracting dimensions for this destination element
-            for_each_index(&contract_shape, |contract_index| {
-                if contract_error.is_some() {
-                    return;
-                }
-
-                for (i, dim) in lhs_contract.iter().enumerate() {
-                    lhs_index[*dim as usize] = contract_index[i];
-                }
-                for (i, dim) in rhs_contract.iter().enumerate() {
-                    rhs_index[*dim as usize] = contract_index[i];
-                }
-
-                let lhs_offset =
-                    match tensor_linear_index(&lhs_index, &left_layout.shape, &left_layout.strides)
-                    {
-                        Ok(offset) => offset,
-                        Err(error) => {
-                            contract_error = Some(error);
-                            return;
-                        }
-                    };
-                let rhs_offset = match tensor_linear_index(
-                    &rhs_index,
-                    &right_layout.shape,
-                    &right_layout.strides,
-                ) {
+            let lhs_offset =
+                match tensor_linear_index(&lhs_index, &left_layout.shape, &left_layout.strides) {
                     Ok(offset) => offset,
                     Err(error) => {
                         contract_error = Some(error);
                         return;
                     }
                 };
-                let lhs_val = match tensor_slot_value(state, left_value, *left_type, lhs_offset) {
-                    Ok(value) => value,
+            let rhs_offset =
+                match tensor_linear_index(&rhs_index, &right_layout.shape, &right_layout.strides) {
+                    Ok(offset) => offset,
                     Err(error) => {
                         contract_error = Some(error);
                         return;
                     }
                 };
-                let rhs_val = match tensor_slot_value(state, right_value, *right_type, rhs_offset) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        contract_error = Some(error);
-                        return;
-                    }
-                };
-                let product =
-                    match apply_reduce_operator(ReduceOperator::Multiply, lhs_val, rhs_val) {
-                        Ok(value) => value,
+            let lhs_val = match tensor_element_value(state, left_value, *left_type, lhs_offset) {
+                Ok(value) => value,
+                Err(error) => {
+                    contract_error = Some(error);
+                    return;
+                }
+            };
+            let rhs_val = match tensor_element_value(state, right_value, *right_type, rhs_offset) {
+                Ok(value) => value,
+                Err(error) => {
+                    contract_error = Some(error);
+                    return;
+                }
+            };
+            let product = match apply_reduce_operator(ReduceOperator::Multiply, lhs_val, rhs_val) {
+                Ok(value) => value,
+                Err(error) => {
+                    contract_error = Some(error);
+                    return;
+                }
+            };
+
+            accum = match accum {
+                None => Some(product),
+                Some(current) => {
+                    match apply_reduce_operator(ReduceOperator::Add, current, product) {
+                        Ok(value) => Some(value),
                         Err(error) => {
                             contract_error = Some(error);
                             return;
                         }
-                    };
-
-                accum = match accum {
-                    None => Some(product),
-                    Some(current) => {
-                        match apply_reduce_operator(ReduceOperator::Add, current, product) {
-                            Ok(value) => Some(value),
-                            Err(error) => {
-                                contract_error = Some(error);
-                                return;
-                            }
-                        }
                     }
-                };
-            });
+                }
+            };
+        });
 
-            if let Some(error) = contract_error {
-                return Err(error);
-            }
+        if let Some(error) = contract_error {
+            return Err(error);
+        }
 
-            accum.ok_or(Error::InvalidInstruction)
-        }) {
-            Ok(result) => result,
-            Err(error) => return Transfer::Error(error),
-        };
+        accum.ok_or(Error::InvalidInstruction)
+    }) {
+        Ok(result) => result,
+        Err(error) => return Transfer::Error(error),
+    };
     state.set(*dest, result);
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Step tensor.convolution.
-pub(crate) fn step_tensor_convolution(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.convolution.
+pub(crate) fn execute_tensor_convolution(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1712,120 +1707,115 @@ pub(crate) fn step_tensor_convolution(
     let mut kernel_index = vec![0u64; kernel_layout.shape.len()];
 
     // allocate result
-    let result =
-        match materialize_tensor_by_index(state, *dest, &dest_layout, |state, out_index| {
-            let out_batch = out_index[output_batch_dim];
-            let out_feature = out_index[output_feature_dim];
+    let result = match allocate_tensor_by_index(state, *dest, &dest_layout, |state, out_index| {
+        let out_batch = out_index[output_batch_dim];
+        let out_feature = out_index[output_feature_dim];
 
-            let batch_group = out_batch / out_batches_per_group;
-            let feature_group = out_feature / out_features_per_group;
+        let batch_group = out_batch / out_batches_per_group;
+        let feature_group = out_feature / out_features_per_group;
 
-            let input_batch =
-                batch_group * in_batches_per_group + (out_batch % out_batches_per_group);
-            let input_feature_base = feature_group * in_features_per_group;
-            let kernel_out_feature = out_feature % out_features_per_group;
+        let input_batch = batch_group * in_batches_per_group + (out_batch % out_batches_per_group);
+        let input_feature_base = feature_group * in_features_per_group;
+        let kernel_out_feature = out_feature % out_features_per_group;
 
-            input_index[input_batch_dim] = input_batch;
-            kernel_index[kernel_output_feature_dim] = kernel_out_feature;
+        input_index[input_batch_dim] = input_batch;
+        kernel_index[kernel_output_feature_dim] = kernel_out_feature;
 
-            let mut accum = None;
-            let mut convolution_error = None;
+        let mut accum = None;
+        let mut convolution_error = None;
 
-            for in_feature in 0..in_features_per_group {
-                input_index[input_feature_dim] = input_feature_base + in_feature;
-                kernel_index[kernel_input_feature_dim] = in_feature;
+        for in_feature in 0..in_features_per_group {
+            input_index[input_feature_dim] = input_feature_base + in_feature;
+            kernel_index[kernel_input_feature_dim] = in_feature;
 
-                for_each_index(&kernel_spatial_shape, |kernel_spatial_index| {
-                    if convolution_error.is_some() {
-                        return;
+            for_each_index(&kernel_spatial_shape, |kernel_spatial_index| {
+                if convolution_error.is_some() {
+                    return;
+                }
+
+                let mut is_valid = true;
+                for (i, &dim) in dimensions.input_spatial.iter().enumerate() {
+                    let out_spatial_dim = output_spatial[i] as usize;
+                    let kernel_dim = kernel_spatial[i] as usize;
+                    let stride = window.strides[i];
+                    let padding_low = window.padding_low[i];
+                    let lhs_dilation = window.lhs_dilation[i];
+                    let rhs_dilation = window.rhs_dilation[i];
+                    let kernel_size = kernel_layout.shape[kernel_dim];
+                    let mut kernel_pos = kernel_spatial_index[i];
+                    if window.window_reversal[i] {
+                        kernel_pos = kernel_size.saturating_sub(1).saturating_sub(kernel_pos);
                     }
 
-                    let mut is_valid = true;
-                    for (i, &dim) in dimensions.input_spatial.iter().enumerate() {
-                        let out_spatial_dim = output_spatial[i] as usize;
-                        let kernel_dim = kernel_spatial[i] as usize;
-                        let stride = window.strides[i];
-                        let padding_low = window.padding_low[i];
-                        let lhs_dilation = window.lhs_dilation[i];
-                        let rhs_dilation = window.rhs_dilation[i];
-                        let kernel_size = kernel_layout.shape[kernel_dim];
-                        let mut kernel_pos = kernel_spatial_index[i];
-                        if window.window_reversal[i] {
-                            kernel_pos = kernel_size.saturating_sub(1).saturating_sub(kernel_pos);
-                        }
-
-                        let out_pos = out_index[out_spatial_dim];
-                        let mut input_pos = out_pos
-                            .saturating_mul(stride)
-                            .saturating_add(kernel_pos * rhs_dilation);
-                        if input_pos < padding_low {
+                    let out_pos = out_index[out_spatial_dim];
+                    let mut input_pos = out_pos
+                        .saturating_mul(stride)
+                        .saturating_add(kernel_pos * rhs_dilation);
+                    if input_pos < padding_low {
+                        is_valid = false;
+                        break;
+                    }
+                    input_pos -= padding_low;
+                    if lhs_dilation > 1 {
+                        if input_pos % lhs_dilation != 0 {
                             is_valid = false;
                             break;
                         }
-                        input_pos -= padding_low;
-                        if lhs_dilation > 1 {
-                            if input_pos % lhs_dilation != 0 {
-                                is_valid = false;
-                                break;
-                            }
-                            input_pos /= lhs_dilation;
-                        }
-                        if input_pos >= input_layout.shape[dim as usize] {
-                            is_valid = false;
-                            break;
-                        }
-
-                        input_index[dim as usize] = input_pos;
-                        kernel_index[kernel_dim] = kernel_pos;
+                        input_pos /= lhs_dilation;
+                    }
+                    if input_pos >= input_layout.shape[dim as usize] {
+                        is_valid = false;
+                        break;
                     }
 
-                    if !is_valid {
+                    input_index[dim as usize] = input_pos;
+                    kernel_index[kernel_dim] = kernel_pos;
+                }
+
+                if !is_valid {
+                    return;
+                }
+
+                let input_offset = match tensor_linear_index(
+                    &input_index,
+                    &input_layout.shape,
+                    &input_layout.strides,
+                ) {
+                    Ok(offset) => offset,
+                    Err(error) => {
+                        convolution_error = Some(error);
                         return;
                     }
-
-                    let input_offset = match tensor_linear_index(
-                        &input_index,
-                        &input_layout.shape,
-                        &input_layout.strides,
-                    ) {
-                        Ok(offset) => offset,
+                };
+                let kernel_offset = match tensor_linear_index(
+                    &kernel_index,
+                    &kernel_layout.shape,
+                    &kernel_layout.strides,
+                ) {
+                    Ok(offset) => offset,
+                    Err(error) => {
+                        convolution_error = Some(error);
+                        return;
+                    }
+                };
+                let input_val =
+                    match tensor_element_value(state, input_value, *input_type, input_offset) {
+                        Ok(value) => value,
                         Err(error) => {
                             convolution_error = Some(error);
                             return;
                         }
                     };
-                    let kernel_offset = match tensor_linear_index(
-                        &kernel_index,
-                        &kernel_layout.shape,
-                        &kernel_layout.strides,
-                    ) {
-                        Ok(offset) => offset,
+                let kernel_val =
+                    match tensor_element_value(state, kernel_value, *kernel_type, kernel_offset) {
+                        Ok(value) => value,
                         Err(error) => {
                             convolution_error = Some(error);
                             return;
                         }
                     };
-                    let input_val =
-                        match tensor_slot_value(state, input_value, *input_type, input_offset) {
-                            Ok(value) => value,
-                            Err(error) => {
-                                convolution_error = Some(error);
-                                return;
-                            }
-                        };
-                    let kernel_val =
-                        match tensor_slot_value(state, kernel_value, *kernel_type, kernel_offset) {
-                            Ok(value) => value,
-                            Err(error) => {
-                                convolution_error = Some(error);
-                                return;
-                            }
-                        };
-                    let product = match apply_reduce_operator(
-                        ReduceOperator::Multiply,
-                        input_val,
-                        kernel_val,
-                    ) {
+                let product =
+                    match apply_reduce_operator(ReduceOperator::Multiply, input_val, kernel_val) {
                         Ok(value) => value,
                         Err(error) => {
                             convolution_error = Some(error);
@@ -1833,39 +1823,39 @@ pub(crate) fn step_tensor_convolution(
                         }
                     };
 
-                    accum = match accum {
-                        None => Some(product),
-                        Some(current) => {
-                            match apply_reduce_operator(ReduceOperator::Add, current, product) {
-                                Ok(value) => Some(value),
-                                Err(error) => {
-                                    convolution_error = Some(error);
-                                    return;
-                                }
+                accum = match accum {
+                    None => Some(product),
+                    Some(current) => {
+                        match apply_reduce_operator(ReduceOperator::Add, current, product) {
+                            Ok(value) => Some(value),
+                            Err(error) => {
+                                convolution_error = Some(error);
+                                return;
                             }
                         }
-                    };
-                });
-            }
+                    }
+                };
+            });
+        }
 
-            if let Some(error) = convolution_error {
-                return Err(error);
-            }
+        if let Some(error) = convolution_error {
+            return Err(error);
+        }
 
-            accum.ok_or(Error::InvalidInstruction)
-        }) {
-            Ok(result) => result,
-            Err(error) => return Transfer::Error(error),
-        };
+        accum.ok_or(Error::InvalidInstruction)
+    }) {
+        Ok(result) => result,
+        Err(error) => return Transfer::Error(error),
+    };
     state.set(*dest, result);
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Step tensor.gather.
-pub(crate) fn step_tensor_gather(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.gather.
+pub(crate) fn execute_tensor_gather(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1907,79 +1897,78 @@ pub(crate) fn step_tensor_gather(
         dimensions.collapsed_slice_dims.iter().copied().collect();
 
     // allocate result
-    let result =
-        match materialize_tensor_by_index(state, *dest, &dest_layout, |state, out_index| {
-            let mut index_coords = Vec::new();
-            for (dim, value) in out_index.iter().enumerate() {
-                if !offset_dims.contains(&(dim as u32)) {
-                    index_coords.push(*value);
-                }
+    let result = match allocate_tensor_by_index(state, *dest, &dest_layout, |state, out_index| {
+        let mut index_coords = Vec::new();
+        for (dim, value) in out_index.iter().enumerate() {
+            if !offset_dims.contains(&(dim as u32)) {
+                index_coords.push(*value);
+            }
+        }
+
+        let mut index_vec = vec![0u64; dimensions.start_index_map.len()];
+        let mut indices_index = vec![0u64; indices_layout.shape.len()];
+        let mut coord_iter = index_coords.iter();
+        for (dim, slot) in indices_index.iter_mut().enumerate() {
+            if dim as u32 == dimensions.index_vector_dim {
+                continue;
+            }
+            *slot = *coord_iter.next().unwrap_or(&0);
+        }
+
+        let index_offset = tensor_linear_index(
+            &indices_index,
+            &indices_layout.shape,
+            &indices_layout.strides,
+        )?;
+        let index_base = index_offset;
+        for (i, &_map_dim) in dimensions.start_index_map.iter().enumerate() {
+            let slot_index = index_base + i;
+            let value = tensor_element_value(state, indices_value, *indices_type, slot_index)?;
+            index_vec[i] = value_to_u64(value)?;
+            indices_index[dimensions.index_vector_dim as usize] = index_vec[i];
+        }
+
+        let mut operand_index = vec![0u64; operand_layout.shape.len()];
+        for (i, &map_dim) in dimensions.start_index_map.iter().enumerate() {
+            operand_index[map_dim as usize] = index_vec[i];
+        }
+
+        let mut offset_iter = out_index.iter();
+        for (dim, slot) in operand_index.iter_mut().enumerate() {
+            if collapsed_dims.contains(&(dim as u32)) {
+                continue;
             }
 
-            let mut index_vec = vec![0u64; dimensions.start_index_map.len()];
-            let mut indices_index = vec![0u64; indices_layout.shape.len()];
-            let mut coord_iter = index_coords.iter();
-            for (dim, slot) in indices_index.iter_mut().enumerate() {
-                if dim as u32 == dimensions.index_vector_dim {
-                    continue;
-                }
-                *slot = *coord_iter.next().unwrap_or(&0);
-            }
+            let offset = if offset_dims.contains(&(dim as u32)) {
+                *offset_iter.next().unwrap_or(&0)
+            } else {
+                0
+            };
+            let size = slice_sizes.get(dim).copied().unwrap_or(1) as u64;
+            let start = *slot;
+            *slot = start + offset.min(size.saturating_sub(1));
+        }
 
-            let index_offset = tensor_linear_index(
-                &indices_index,
-                &indices_layout.shape,
-                &indices_layout.strides,
-            )?;
-            let index_base = index_offset;
-            for (i, &_map_dim) in dimensions.start_index_map.iter().enumerate() {
-                let slot_index = index_base + i;
-                let value = tensor_slot_value(state, indices_value, *indices_type, slot_index)?;
-                index_vec[i] = value_to_u64(value)?;
-                indices_index[dimensions.index_vector_dim as usize] = index_vec[i];
-            }
+        let src_offset = tensor_linear_index(
+            &operand_index,
+            &operand_layout.shape,
+            &operand_layout.strides,
+        )?;
 
-            let mut operand_index = vec![0u64; operand_layout.shape.len()];
-            for (i, &map_dim) in dimensions.start_index_map.iter().enumerate() {
-                operand_index[map_dim as usize] = index_vec[i];
-            }
-
-            let mut offset_iter = out_index.iter();
-            for (dim, slot) in operand_index.iter_mut().enumerate() {
-                if collapsed_dims.contains(&(dim as u32)) {
-                    continue;
-                }
-
-                let offset = if offset_dims.contains(&(dim as u32)) {
-                    *offset_iter.next().unwrap_or(&0)
-                } else {
-                    0
-                };
-                let size = slice_sizes.get(dim).copied().unwrap_or(1) as u64;
-                let start = *slot;
-                *slot = start + offset.min(size.saturating_sub(1));
-            }
-
-            let src_offset = tensor_linear_index(
-                &operand_index,
-                &operand_layout.shape,
-                &operand_layout.strides,
-            )?;
-
-            tensor_slot_value(state, operand_value, *operand_type, src_offset)
-        }) {
-            Ok(result) => result,
-            Err(error) => return Transfer::Error(error),
-        };
+        tensor_element_value(state, operand_value, *operand_type, src_offset)
+    }) {
+        Ok(result) => result,
+        Err(error) => return Transfer::Error(error),
+    };
     state.set(*dest, result);
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Step tensor.scatter.
-pub(crate) fn step_tensor_scatter(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.scatter.
+pub(crate) fn execute_tensor_scatter(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -2023,11 +2012,11 @@ pub(crate) fn step_tensor_scatter(
     let indices_value = state.get(*indices);
     let updates_value = state.get(*updates);
 
-    let result = match materialize_tensor_by_slot(
+    let result = match allocate_tensor_by_element(
         state,
         *dest,
         dest_layout.storage_len,
-        |state, slot_index| tensor_slot_value(state, operand_value, *operand_type, slot_index),
+        |state, slot_index| tensor_element_value(state, operand_value, *operand_type, slot_index),
     ) {
         Ok(result) => result,
         Err(error) => return Transfer::Error(error),
@@ -2073,7 +2062,7 @@ pub(crate) fn step_tensor_scatter(
         let mut scatter_indices = Vec::with_capacity(dimensions.scatter_dims_to_operand_dims.len());
         for i in 0..dimensions.scatter_dims_to_operand_dims.len() {
             let slot_index = index_offset + i;
-            let Ok(value) = tensor_slot_value(state, indices_value, *indices_type, slot_index)
+            let Ok(value) = tensor_element_value(state, indices_value, *indices_type, slot_index)
             else {
                 scatter_error = Some(Error::InvalidInstruction);
                 return;
@@ -2114,12 +2103,12 @@ pub(crate) fn step_tensor_scatter(
             return;
         };
         let Ok(update_value) =
-            tensor_slot_value(state, updates_value, *updates_type, update_offset)
+            tensor_element_value(state, updates_value, *updates_type, update_offset)
         else {
             scatter_error = Some(Error::InvalidInstruction);
             return;
         };
-        let current_value = match tensor_slot_value(state, result, *dest_type, dst_offset) {
+        let current_value = match tensor_element_value(state, result, *dest_type, dst_offset) {
             Ok(value) => value,
             Err(error) => {
                 scatter_error = Some(error);
@@ -2193,7 +2182,7 @@ pub(crate) fn step_tensor_scatter(
             }
         };
 
-        if let Err(error) = set_tensor_slot(state, result, *dest_type, dst_offset, new_value) {
+        if let Err(error) = store_tensor_element(state, result, *dest_type, dst_offset, new_value) {
             scatter_error = Some(error);
         }
     });
@@ -2208,9 +2197,9 @@ pub(crate) fn step_tensor_scatter(
     next!(state, block, pc)
 }
 
-/// Step tensor.convert.
-pub(crate) fn step_tensor_convert(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.convert.
+pub(crate) fn execute_tensor_convert(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -2291,12 +2280,12 @@ pub(crate) fn step_tensor_convert(
     let convert_mode = ScalarConvertMode::from(*mode);
 
     // allocate result
-    let result = match materialize_tensor_by_slot(
+    let result = match allocate_tensor_by_element(
         state,
         *dest,
         dest_layout.storage_len,
         |state, slot_index| {
-            let src = tensor_slot_value(state, tensor_value, *source_type, slot_index)?;
+            let src = tensor_element_value(state, tensor_value, *source_type, slot_index)?;
 
             convert_scalar_value(src, source_info, dest_info, convert_mode)
         },
@@ -2310,9 +2299,9 @@ pub(crate) fn step_tensor_convert(
     next!(state, block, pc)
 }
 
-/// Step tensor.compare.
-pub(crate) fn step_tensor_compare(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.compare.
+pub(crate) fn execute_tensor_compare(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -2350,13 +2339,13 @@ pub(crate) fn step_tensor_compare(
 
     // allocate result
     let result =
-        match materialize_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
+        match allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
             let left_offset =
                 tensor_linear_index(output_index, &left_layout.shape, &left_layout.strides)?;
             let right_offset =
                 tensor_linear_index(output_index, &right_layout.shape, &right_layout.strides)?;
-            let left_value = tensor_slot_value(state, left_value, *left_type, left_offset)?;
-            let right_value = tensor_slot_value(state, right_value, *right_type, right_offset)?;
+            let left_value = tensor_element_value(state, left_value, *left_type, left_offset)?;
+            let right_value = tensor_element_value(state, right_value, *right_type, right_offset)?;
 
             operator::execute_binary(*operator, left_value, right_value)
         }) {
@@ -2369,9 +2358,9 @@ pub(crate) fn step_tensor_compare(
     next!(state, block, pc)
 }
 
-/// Step tensor.select.
-pub(crate) fn step_tensor_select(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.select.
+pub(crate) fn execute_tensor_select(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -2406,14 +2395,14 @@ pub(crate) fn step_tensor_select(
     let mask_value = state.get(*mask);
     let then_value = state.get(*then_value);
     let else_value = state.get(*else_value);
-    let result = match materialize_tensor_by_slot(
+    let result = match allocate_tensor_by_element(
         state,
         *dest,
         dest_layout.storage_len,
         |state, slot_index| {
-            let mask_value = tensor_slot_value(state, mask_value, mask_type, slot_index)?;
-            let then_slot = tensor_slot_value(state, then_value, then_type, slot_index)?;
-            let else_slot = tensor_slot_value(state, else_value, else_type, slot_index)?;
+            let mask_value = tensor_element_value(state, mask_value, mask_type, slot_index)?;
+            let then_slot = tensor_element_value(state, then_value, then_type, slot_index)?;
+            let else_slot = tensor_element_value(state, else_value, else_type, slot_index)?;
 
             if !matches!(mask_value.tag(), ValueTag::Bool) {
                 return Err(Error::TypeMismatch {
@@ -2433,9 +2422,9 @@ pub(crate) fn step_tensor_select(
     next!(state, block, pc)
 }
 
-/// Step tensor.cast.
-pub(crate) fn step_tensor_cast(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.cast.
+pub(crate) fn execute_tensor_cast(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -2452,9 +2441,9 @@ pub(crate) fn step_tensor_cast(
     next!(state, block, pc)
 }
 
-/// Step tensor.view.
-pub(crate) fn step_tensor_view(
-    state: &mut StepState<'_, '_>,
+/// Execute tensor.view.
+pub(crate) fn execute_tensor_view(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {

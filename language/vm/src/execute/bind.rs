@@ -186,7 +186,7 @@ pub(crate) fn materialize_plain_value(
 
         ValueTag::StackPointer
         | ValueTag::FramePointer
-        | ValueTag::GlobalPointer
+        | ValueTag::StaticPointer
         | ValueTag::FunctionPointer => Err(Error::TypeMismatch {
             expected: "plain boundary value".to_string(),
             actual: format!("{value:?}"),

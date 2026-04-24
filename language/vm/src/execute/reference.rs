@@ -15,9 +15,9 @@ pub(crate) fn reference_label(reference: ReferenceMeta) -> String {
     }
 }
 
-/// Validate reference kind against the pointer storage.
+/// Validate reference kind against the pointer value.
 pub(crate) fn check_reference_kind(
-    state: &StepState<'_, '_>,
+    state: &ExecutionState<'_, '_>,
     reference: ReferenceMeta,
     pointer: Value,
 ) -> Result<(), Error> {
@@ -31,7 +31,7 @@ pub(crate) fn check_reference_kind(
         return Ok(());
     };
 
-    // compare the declared kind against the runtime storage class
+    // compare the declared kind against the runtime pointer kind
     let is_typed = matches!(
         pointer.tag(),
         ValueTag::HeapReference | ValueTag::SharedHeapReference
@@ -53,9 +53,9 @@ pub(crate) fn check_reference_kind(
     check_reference_address_space(state, reference, pointer)
 }
 
-/// Validate reference address space against the pointer storage.
+/// Validate reference address space against the pointer value.
 pub(crate) fn check_reference_address_space(
-    state: &StepState<'_, '_>,
+    state: &ExecutionState<'_, '_>,
     reference: ReferenceMeta,
     pointer: Value,
 ) -> Result<(), Error> {
@@ -64,7 +64,7 @@ pub(crate) fn check_reference_address_space(
         return Ok(());
     }
 
-    // local address spaces accept local runtime pointer storage
+    // local address spaces accept local runtime pointer values
     let address_space = reference.address_space();
     if !address_space.is_supported_by_vm() {
         return Err(Error::UnsupportedAddressSpace {
@@ -72,11 +72,11 @@ pub(crate) fn check_reference_address_space(
         });
     }
 
-    // map the runtime pointer storage to one VM address space
+    // map the runtime pointer value to one VM address space
     let actual_space = match pointer.tag() {
         ValueTag::StackPointer => ReferenceAddressSpace::Stack,
         ValueTag::FramePointer => ReferenceAddressSpace::Frame,
-        ValueTag::GlobalPointer => pointer.reference_meta().address_space(),
+        ValueTag::StaticPointer => pointer.reference_meta().address_space(),
         ValueTag::HeapReference => ReferenceAddressSpace::Local,
         ValueTag::SharedHeapReference => ReferenceAddressSpace::Shared,
         ValueTag::RawPointer => ReferenceAddressSpace::Local,
@@ -114,7 +114,7 @@ pub(crate) fn check_reference_address_space(
 
 /// Validate reference mutability for stores.
 pub(crate) fn check_reference_mutability(
-    state: &StepState<'_, '_>,
+    state: &ExecutionState<'_, '_>,
     reference: ReferenceMeta,
 ) -> Result<(), Error> {
     // skip validation when the runtime checks are disabled

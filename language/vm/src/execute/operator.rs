@@ -816,7 +816,7 @@ pub(crate) fn execute_cast(
                 | ValueTag::SharedRawPointer
                 | ValueTag::StackPointer
                 | ValueTag::FramePointer
-                | ValueTag::GlobalPointer
+                | ValueTag::StaticPointer
                 | ValueTag::FunctionPointer => Value::uint(argument.raw_data(), target_width),
                 _ => argument,
             }

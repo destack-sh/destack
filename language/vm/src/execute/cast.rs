@@ -1,8 +1,8 @@
 use super::prelude::*;
 
-/// Step cast opcode.
-pub(crate) fn step_cast(
-    state: &mut StepState<'_, '_>,
+/// Execute cast opcode.
+pub(crate) fn execute_cast(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -34,9 +34,9 @@ pub(crate) fn step_cast(
     next!(state, block, pc)
 }
 
-/// Step select opcode.
-pub(crate) fn step_select(
-    state: &mut StepState<'_, '_>,
+/// Execute select opcode.
+pub(crate) fn execute_select(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {

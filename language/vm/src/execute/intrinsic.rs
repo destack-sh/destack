@@ -5,11 +5,11 @@ use crate::module::{Immediate, Instruction, Transfer, is_invalid_value};
 use crate::{Value, ValueTag};
 
 use super::{access, collect_values, next};
-use crate::interpreter::StepState;
+use crate::interpreter::ExecutionState;
 
-/// Step intrinsic call.
-pub(crate) fn step_intrinsic(
-    state: &mut StepState<'_, '_>,
+/// Execute intrinsic call.
+pub(crate) fn execute_intrinsic(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -40,7 +40,7 @@ pub(crate) fn step_intrinsic(
 }
 
 #[allow(clippy::too_many_arguments)]
-impl StepState<'_, '_> {
+impl ExecutionState<'_, '_> {
     /// Materialize one 2-field result in field order.
     fn materialize_pair(
         &mut self,
@@ -48,7 +48,7 @@ impl StepState<'_, '_> {
         first: Value,
         second: Value,
     ) -> RuntimeResult<Value> {
-        Ok(super::value::materialize_composite_by_index(
+        Ok(super::value::allocate_payload_by_index(
             self,
             destination,
             |_state, index, _ty| match index {

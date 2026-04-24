@@ -4,7 +4,7 @@ use crate::telemetry::stat_inc;
 
 /// Record one control-flow branch in the VM statistics.
 #[inline(always)]
-fn record_branch(state: &mut StepState<'_, '_>) {
+fn record_branch(state: &mut ExecutionState<'_, '_>) {
     if state.collect_stats {
         stat_inc!(state.engine.statistics, branches);
     }
@@ -43,7 +43,7 @@ fn default_switch_transfer(default_target: u32, default_copies: CopyRange) -> Tr
 
 /// Load one switch operand as a signed integer.
 #[inline(always)]
-fn load_switch_value(state: &StepState<'_, '_>, value: mir::Value) -> Result<i64, Error> {
+fn load_switch_value(state: &ExecutionState<'_, '_>, value: mir::Value) -> Result<i64, Error> {
     let value = state.get(value);
 
     value.as_int().ok_or_else(|| Error::TypeMismatch {
@@ -54,7 +54,10 @@ fn load_switch_value(state: &StepState<'_, '_>, value: mir::Value) -> Result<i64
 
 /// Load one value as a signed integer.
 #[inline(always)]
-fn load_signed_value(state: &StepState<'_, '_>, value: mir::Value) -> Result<(i64, u8), Error> {
+fn load_signed_value(
+    state: &ExecutionState<'_, '_>,
+    value: mir::Value,
+) -> Result<(i64, u8), Error> {
     let value = state.get(value);
 
     value
@@ -67,7 +70,10 @@ fn load_signed_value(state: &StepState<'_, '_>, value: mir::Value) -> Result<(i6
 
 /// Load one value as an unsigned integer.
 #[inline(always)]
-fn load_unsigned_value(state: &StepState<'_, '_>, value: mir::Value) -> Result<(u64, u8), Error> {
+fn load_unsigned_value(
+    state: &ExecutionState<'_, '_>,
+    value: mir::Value,
+) -> Result<(u64, u8), Error> {
     let value = state.get(value);
 
     value
@@ -80,7 +86,7 @@ fn load_unsigned_value(state: &StepState<'_, '_>, value: mir::Value) -> Result<(
 
 /// Load one value as a non-negative length.
 #[inline(always)]
-fn load_length_value(state: &StepState<'_, '_>, value: mir::Value) -> Result<u64, Error> {
+fn load_length_value(state: &ExecutionState<'_, '_>, value: mir::Value) -> Result<u64, Error> {
     let value = state.get(value);
 
     if let Some((length, _)) = value.as_uint_with_width() {
@@ -101,7 +107,7 @@ fn load_length_value(state: &StepState<'_, '_>, value: mir::Value) -> Result<u64
 
 /// Evaluate one overflow guard.
 fn evaluate_overflow_check(
-    state: &StepState<'_, '_>,
+    state: &ExecutionState<'_, '_>,
     operator: mir::BinaryOperator,
     left: mir::Value,
     right: mir::Value,
@@ -178,7 +184,7 @@ fn evaluate_overflow_check(
 
 /// Evaluate one semantic check guard.
 fn evaluate_check_constraint(
-    state: &StepState<'_, '_>,
+    state: &ExecutionState<'_, '_>,
     constraint: &mir::CheckConstraint,
 ) -> Result<bool, Error> {
     match constraint {
@@ -345,9 +351,9 @@ fn evaluate_check_constraint(
     }
 }
 
-/// Step assume (optimizer hint).
-pub(crate) fn step_assume(
-    state: &mut StepState<'_, '_>,
+/// Execute assume (optimizer hint).
+pub(crate) fn execute_assume(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -362,9 +368,9 @@ pub(crate) fn step_assume(
     next!(state, block, pc)
 }
 
-/// Step return (exits tail-call chain).
-pub(crate) fn step_return(
-    state: &mut StepState<'_, '_>,
+/// Execute return (exits tail-call chain).
+pub(crate) fn execute_return(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -386,9 +392,9 @@ pub(crate) fn step_return(
     Transfer::Return(return_value)
 }
 
-/// Step yield (exits tail-call chain).
-pub(crate) fn step_yield(
-    state: &mut StepState<'_, '_>,
+/// Execute yield (exits tail-call chain).
+pub(crate) fn execute_yield(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -415,9 +421,9 @@ pub(crate) fn step_yield(
     }
 }
 
-/// Step unconditional jump (exits tail-call chain).
-pub(crate) fn step_jump(
-    state: &mut StepState<'_, '_>,
+/// Execute unconditional jump (exits tail-call chain).
+pub(crate) fn execute_jump(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -435,9 +441,9 @@ pub(crate) fn step_jump(
     }
 }
 
-/// Step conditional branch (exits tail-call chain).
-pub(crate) fn step_branch(
-    state: &mut StepState<'_, '_>,
+/// Execute conditional branch (exits tail-call chain).
+pub(crate) fn execute_branch(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -471,9 +477,9 @@ pub(crate) fn step_branch(
     )
 }
 
-/// Step boolean branch (exits tail-call chain).
-pub(crate) fn step_branch_bool(
-    state: &mut StepState<'_, '_>,
+/// Execute boolean branch (exits tail-call chain).
+pub(crate) fn execute_branch_bool(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -507,9 +513,9 @@ pub(crate) fn step_branch_bool(
     )
 }
 
-/// Step semantic check (exits tail-call chain).
-pub(crate) fn step_check(
-    state: &mut StepState<'_, '_>,
+/// Execute semantic check (exits tail-call chain).
+pub(crate) fn execute_check(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -542,10 +548,10 @@ pub(crate) fn step_check(
     )
 }
 
-/// Step fused compare-and-branch for signed integers (most common).
+/// Execute fused compare-and-branch for signed integers (most common).
 #[inline(always)]
-pub(crate) fn step_compare_and_branch_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_compare_and_branch_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -592,10 +598,10 @@ pub(crate) fn step_compare_and_branch_int(
     )
 }
 
-/// Step fused compare-and-branch for unsigned integers.
+/// Execute fused compare-and-branch for unsigned integers.
 #[inline(always)]
-pub(crate) fn step_compare_and_branch_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_compare_and_branch_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -640,10 +646,10 @@ pub(crate) fn step_compare_and_branch_uint(
     )
 }
 
-/// Step fused compare-and-branch for floats.
+/// Execute fused compare-and-branch for floats.
 #[inline(always)]
-pub(crate) fn step_compare_and_branch_float(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_compare_and_branch_float(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -690,9 +696,9 @@ pub(crate) fn step_compare_and_branch_float(
     )
 }
 
-/// Step fused compare-and-branch (generic fallback).
-pub(crate) fn step_compare_and_branch(
-    state: &mut StepState<'_, '_>,
+/// Execute fused compare-and-branch (generic fallback).
+pub(crate) fn execute_compare_and_branch(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -752,10 +758,10 @@ pub(crate) fn step_compare_and_branch(
     )
 }
 
-/// Step fused compare-and-branch with constant right operand for signed integers.
+/// Execute fused compare-and-branch with constant right operand for signed integers.
 #[inline(always)]
-pub(crate) fn step_compare_and_branch_const_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_compare_and_branch_const_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -802,10 +808,10 @@ pub(crate) fn step_compare_and_branch_const_int(
     )
 }
 
-/// Step fused compare-and-branch with constant right operand for unsigned integers.
+/// Execute fused compare-and-branch with constant right operand for unsigned integers.
 #[inline(always)]
-pub(crate) fn step_compare_and_branch_const_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_compare_and_branch_const_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -855,10 +861,10 @@ pub(crate) fn step_compare_and_branch_const_uint(
     }
 }
 
-/// Step fused compare-and-branch with constant right operand for floats.
+/// Execute fused compare-and-branch with constant right operand for floats.
 #[inline(always)]
-pub(crate) fn step_compare_and_branch_const_float(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_compare_and_branch_const_float(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -912,9 +918,9 @@ pub(crate) fn step_compare_and_branch_const_float(
     }
 }
 
-/// Step fused compare-and-branch with constant right operand (generic fallback).
-pub(crate) fn step_compare_and_branch_const(
-    state: &mut StepState<'_, '_>,
+/// Execute fused compare-and-branch with constant right operand (generic fallback).
+pub(crate) fn execute_compare_and_branch_const(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -980,9 +986,9 @@ pub(crate) fn step_compare_and_branch_const(
     }
 }
 
-/// Step switch (exits tail-call chain).
-pub(crate) fn step_switch(
-    state: &mut StepState<'_, '_>,
+/// Execute switch (exits tail-call chain).
+pub(crate) fn execute_switch(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1011,8 +1017,7 @@ pub(crate) fn step_switch(
     }
 
     // find matching case
-    let case_slice = state.switch_cases(*cases);
-    for case in case_slice {
+    for case in cases.as_ref() {
         if case.value == int_val {
             // forward case copies
             return Transfer::Jump {
@@ -1026,9 +1031,9 @@ pub(crate) fn step_switch(
     default_switch_transfer(*default_target, *default_copies)
 }
 
-/// Step switch via dense jump table (exits tail-call chain).
-pub(crate) fn step_switch_table(
-    state: &mut StepState<'_, '_>,
+/// Execute switch via dense jump table (exits tail-call chain).
+pub(crate) fn execute_switch_table(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1060,8 +1065,7 @@ pub(crate) fn step_switch_table(
         return default_switch_transfer(*default_target, *default_copies);
     }
     let offset = (int_val - *min) as usize;
-    let case_slice = state.switch_cases(*table);
-    let Some(case) = case_slice.get(offset) else {
+    let Some(case) = table.get(offset) else {
         return default_switch_transfer(*default_target, *default_copies);
     };
 
@@ -1072,9 +1076,9 @@ pub(crate) fn step_switch_table(
     }
 }
 
-/// Step integer switch (exits tail-call chain).
-pub(crate) fn step_switch_int(
-    state: &mut StepState<'_, '_>,
+/// Execute integer switch (exits tail-call chain).
+pub(crate) fn execute_switch_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1099,8 +1103,7 @@ pub(crate) fn step_switch_int(
     record_branch(state);
 
     // find matching case
-    let case_slice = state.switch_cases(*cases);
-    for case in case_slice {
+    for case in cases.as_ref() {
         if case.value == int_val {
             // forward case copies
             return Transfer::Jump {
@@ -1114,9 +1117,9 @@ pub(crate) fn step_switch_int(
     default_switch_transfer(*default_target, *default_copies)
 }
 
-/// Step integer switch via dense jump table (exits tail-call chain).
-pub(crate) fn step_switch_table_int(
-    state: &mut StepState<'_, '_>,
+/// Execute integer switch via dense jump table (exits tail-call chain).
+pub(crate) fn execute_switch_table_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1146,8 +1149,7 @@ pub(crate) fn step_switch_table_int(
         return default_switch_transfer(*default_target, *default_copies);
     }
     let offset = (int_val - *min) as usize;
-    let case_slice = state.switch_cases(*table);
-    let Some(case) = case_slice.get(offset) else {
+    let Some(case) = table.get(offset) else {
         return default_switch_transfer(*default_target, *default_copies);
     };
 
@@ -1158,9 +1160,9 @@ pub(crate) fn step_switch_table_int(
     }
 }
 
-/// Step unreachable (errors).
-pub(crate) fn step_trap(
-    state: &mut StepState<'_, '_>,
+/// Execute unreachable (errors).
+pub(crate) fn execute_trap(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1188,9 +1190,9 @@ pub(crate) fn step_trap(
     }
 }
 
-/// Step throw terminator.
-pub(crate) fn step_throw(
-    state: &mut StepState<'_, '_>,
+/// Execute throw terminator.
+pub(crate) fn execute_throw(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1205,9 +1207,9 @@ pub(crate) fn step_throw(
     Transfer::Throw(value)
 }
 
-/// Step unreachable (errors).
-pub(crate) fn step_unreachable(
-    state: &mut StepState<'_, '_>,
+/// Execute unreachable (errors).
+pub(crate) fn execute_unreachable(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {

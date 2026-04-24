@@ -11,7 +11,7 @@ const INTERFACE_ITAB_FIELD_INDEX: u32 = 1;
 
 /// Resolve one receiver field access from one managed pointee type.
 fn receiver_field_access(
-    state: &StepState<'_, '_>,
+    state: &ExecutionState<'_, '_>,
     heap_pointee: mir::LocalNodeId<mir::Type>,
     field_index: u32,
 ) -> Result<crate::module::FieldAccess, Error> {
@@ -23,7 +23,7 @@ fn receiver_field_access(
     field.map_or_else(
         || {
             Err(Error::TypeMismatch {
-                expected: "receiver composite field".to_string(),
+                expected: "receiver aggregate field".to_string(),
                 actual: format!("{heap_pointee:?}"),
             })
         },
@@ -42,14 +42,14 @@ fn receiver_field_access(
     )
 }
 
-/// Load a field value from a heap composite receiver.
+/// Load a field value from a heap receiver.
 fn load_receiver_field(
-    state: &mut StepState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     receiver: Value,
     heap_pointee: Option<mir::LocalNodeId<mir::Type>>,
     field_index: u32,
 ) -> Result<Value, Error> {
-    // resolve based on receiver storage
+    // resolve the receiver allocation
     match receiver.tag() {
         ValueTag::HeapReference => {
             let Some(heap_pointee) = heap_pointee else {
@@ -62,7 +62,7 @@ fn load_receiver_field(
             let handle = receiver
                 .as_heap_reference()
                 .ok_or_else(|| Error::TypeMismatch {
-                    expected: "composite".to_string(),
+                    expected: "heap receiver".to_string(),
                     actual: format!("{receiver:?}"),
                 })?;
             let field = receiver_field_access(state, heap_pointee, field_index)?;
@@ -79,30 +79,14 @@ fn load_receiver_field(
                 receiver
                     .as_shared_heap_reference()
                     .ok_or_else(|| Error::TypeMismatch {
-                        expected: "composite".to_string(),
+                        expected: "shared heap receiver".to_string(),
                         actual: format!("{receiver:?}"),
                     })?;
             let field = receiver_field_access(state, heap_pointee, field_index)?;
             access::load_field_shared_heap(state, handle, field, field_index, None)
         }
-        ValueTag::StackPointer => {
-            let Some(heap_pointee) = heap_pointee else {
-                return Err(Error::ConcreteMirRequired {
-                    context: "receiver field access".to_string(),
-                });
-            };
-
-            let pointer = receiver
-                .as_stack_pointer()
-                .ok_or_else(|| Error::TypeMismatch {
-                    expected: "composite".to_string(),
-                    actual: format!("{receiver:?}"),
-                })?;
-            let field = receiver_field_access(state, heap_pointee, field_index)?;
-            access::load_field_stack(state, pointer, field, field_index, None)
-        }
         _ => Err(Error::TypeMismatch {
-            expected: "composite".to_string(),
+            expected: "heap receiver".to_string(),
             actual: format!("{receiver:?}"),
         }),
     }
@@ -110,7 +94,7 @@ fn load_receiver_field(
 
 /// Resolve the vtable dispatch target for a virtual call.
 fn resolve_virtual_dispatch_target(
-    state: &mut StepState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     receiver: Value,
     heap_pointee: Option<mir::LocalNodeId<mir::Type>>,
     slot_id: u32,
@@ -118,11 +102,11 @@ fn resolve_virtual_dispatch_target(
     // load the vtable pointer from the receiver
     let vtable_value = load_receiver_field(state, receiver, heap_pointee, VTABLE_FIELD_INDEX)?;
 
-    // require a global pointer for the vtable
+    // require a static pointer for the vtable
     let vtable_pointer = vtable_value
-        .as_global_pointer()
+        .as_static_pointer()
         .ok_or_else(|| Error::TypeMismatch {
-            expected: "global_pointer".to_string(),
+            expected: "static_pointer".to_string(),
             actual: format!("{vtable_value:?}"),
         })?;
 
@@ -151,7 +135,7 @@ fn resolve_virtual_dispatch_target(
 
 /// Resolve the itab dispatch target for an interface call.
 fn resolve_interface_dispatch_target(
-    state: &mut StepState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     receiver: Value,
     heap_pointee: Option<mir::LocalNodeId<mir::Type>>,
     slot_id: u32,
@@ -193,7 +177,7 @@ fn resolve_interface_dispatch_target(
 
 /// Resolve one indirect callable into function code and environment.
 fn resolve_indirect_callable(
-    state: &mut StepState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     callable: Value,
     callable_type: mir::LocalNodeId<mir::Type>,
 ) -> Result<(mir::LocalNodeId<mir::Function>, Option<Value>), Error> {
@@ -226,8 +210,8 @@ fn resolve_indirect_callable(
 }
 
 /// Load a function pointer.
-pub(crate) fn step_function_addr(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_function_addr(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -248,8 +232,8 @@ pub(crate) fn step_function_addr(
 }
 
 /// Build a callable value from one function and environment.
-pub(crate) fn step_callable_bind(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_callable_bind(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -283,8 +267,8 @@ pub(crate) fn step_callable_bind(
 }
 
 /// Load the callable environment pointer for the current frame.
-pub(crate) fn step_callable_environment(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_callable_environment(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -306,10 +290,10 @@ pub(crate) fn step_callable_environment(
     next!(state, block, pc)
 }
 
-/// Resolve one lowered direct-call target for the step fast path.
+/// Resolve one lowered direct-call target for the dispatch fast path.
 #[inline]
 fn resolve_direct_local_callee(
-    state: &StepState<'_, '_>,
+    state: &ExecutionState<'_, '_>,
     target: CallTarget,
 ) -> Option<NonNull<crate::module::Function>> {
     // only lowered targets can use the direct fast path
@@ -322,8 +306,8 @@ fn resolve_direct_local_callee(
 /// Try to enter one lowered callee without returning to the transfer trampoline.
 #[inline]
 #[allow(clippy::too_many_arguments)]
-fn try_step_direct_local_call(
-    state: &mut StepState<'_, '_>,
+fn try_execute_direct_local_call(
+    state: &mut ExecutionState<'_, '_>,
     function_id: mir::LocalNodeId<mir::Function>,
     target: CallTarget,
     env: Option<Value>,
@@ -401,13 +385,13 @@ fn try_step_direct_local_call(
     state.enter_frame(new_index, callee);
 
     let entry_instructions = entry_block.instructions.as_slice();
-    Some(step_instruction(state, entry_instructions, 0))
+    Some(dispatch_instruction(state, entry_instructions, 0))
 }
 
 /// Enter a call with a resolved target function.
 #[allow(clippy::too_many_arguments)]
 fn call_with_target(
-    state: &mut StepState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     dest: mir::Value,
     function_id: mir::LocalNodeId<mir::Function>,
     target: CallTarget,
@@ -420,7 +404,7 @@ fn call_with_target(
     // run the specialized lowered fast path when the caller allows it
     if allow_direct
         && let Some(transfer) =
-            try_step_direct_local_call(state, function_id, target, env, copy_plan, resume_pc)
+            try_execute_direct_local_call(state, function_id, target, env, copy_plan, resume_pc)
     {
         return transfer;
     }
@@ -458,9 +442,9 @@ fn call_branch_with_target(
     }
 }
 
-/// Step function call (returns to trampoline).
-pub(crate) fn step_call(
-    state: &mut StepState<'_, '_>,
+/// Execute function call (returns to trampoline).
+pub(crate) fn execute_call(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -482,7 +466,7 @@ pub(crate) fn step_call(
     let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
     let copy_plan = Some(*copies);
 
-    // skip fast path when stats or step limits are active
+    // skip fast path when stats or instruction limits are active
     let allow_direct = !state.collect_stats && state.options().limits.max_instructions.is_none();
 
     call_with_target(
@@ -498,9 +482,9 @@ pub(crate) fn step_call(
     )
 }
 
-/// Step exceptional direct call terminator.
-pub(crate) fn step_call_branch(
-    state: &mut StepState<'_, '_>,
+/// Execute exceptional direct call terminator.
+pub(crate) fn execute_call_branch(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -529,9 +513,9 @@ pub(crate) fn step_call_branch(
     )
 }
 
-/// Step virtual call (returns to trampoline).
-pub(crate) fn step_call_virtual(
-    state: &mut StepState<'_, '_>,
+/// Execute virtual call (returns to trampoline).
+pub(crate) fn execute_call_virtual(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -565,7 +549,7 @@ pub(crate) fn step_call_virtual(
         }
     };
 
-    // skip fast path when stats or step limits are active
+    // skip fast path when stats or instruction limits are active
     let allow_direct = !state.collect_stats && state.options().limits.max_instructions.is_none();
 
     call_with_target(
@@ -581,9 +565,9 @@ pub(crate) fn step_call_virtual(
     )
 }
 
-/// Step exceptional virtual call terminator.
-pub(crate) fn step_call_virtual_branch(
-    state: &mut StepState<'_, '_>,
+/// Execute exceptional virtual call terminator.
+pub(crate) fn execute_call_virtual_branch(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -626,9 +610,9 @@ pub(crate) fn step_call_virtual_branch(
     )
 }
 
-/// Step interface call (returns to trampoline).
-pub(crate) fn step_call_interface(
-    state: &mut StepState<'_, '_>,
+/// Execute interface call (returns to trampoline).
+pub(crate) fn execute_call_interface(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -662,7 +646,7 @@ pub(crate) fn step_call_interface(
         }
     };
 
-    // skip fast path when stats or step limits are active
+    // skip fast path when stats or instruction limits are active
     let allow_direct = !state.collect_stats && state.options().limits.max_instructions.is_none();
 
     call_with_target(
@@ -678,9 +662,9 @@ pub(crate) fn step_call_interface(
     )
 }
 
-/// Step exceptional interface call terminator.
-pub(crate) fn step_call_interface_branch(
-    state: &mut StepState<'_, '_>,
+/// Execute exceptional interface call terminator.
+pub(crate) fn execute_call_interface_branch(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -723,9 +707,9 @@ pub(crate) fn step_call_interface_branch(
     )
 }
 
-/// Step indirect call (returns to trampoline).
-pub(crate) fn step_call_indirect(
-    state: &mut StepState<'_, '_>,
+/// Execute indirect call (returns to trampoline).
+pub(crate) fn execute_call_indirect(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -777,9 +761,9 @@ pub(crate) fn step_call_indirect(
     }
 }
 
-/// Step exceptional indirect call terminator.
-pub(crate) fn step_call_indirect_branch(
-    state: &mut StepState<'_, '_>,
+/// Execute exceptional indirect call terminator.
+pub(crate) fn execute_call_indirect_branch(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -825,7 +809,7 @@ pub(crate) fn step_call_indirect_branch(
 
 /// Enter a tail call by reusing the current frame.
 fn enter_tail_call(
-    state: &mut StepState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     function_id: mir::LocalNodeId<mir::Function>,
     callee: &Function,
     argument_values: &[super::bind::TransferredValue],
@@ -876,9 +860,9 @@ fn enter_tail_call(
     Ok(())
 }
 
-/// Step tail call to function.
-pub(crate) fn step_tail_call(
-    state: &mut StepState<'_, '_>,
+/// Execute tail call to function.
+pub(crate) fn execute_tail_call(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -953,12 +937,12 @@ pub(crate) fn step_tail_call(
     let entry_block_ptr = state.current_frame_mut().block_ptr;
     let entry_block = unsafe { entry_block_ptr.as_ref() };
     let entry_instructions = entry_block.instructions.as_slice();
-    become step_instruction(state, entry_instructions, 0)
+    become dispatch_instruction(state, entry_instructions, 0)
 }
 
-/// Step self tail call by reusing the current frame.
-pub(crate) fn step_tail_call_self(
-    state: &mut StepState<'_, '_>,
+/// Execute self tail call by reusing the current frame.
+pub(crate) fn execute_tail_call_self(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1037,12 +1021,12 @@ pub(crate) fn step_tail_call_self(
 
     // continue at entry block
     let entry_instructions = entry_block.instructions.as_slice();
-    become step_instruction(state, entry_instructions, 0)
+    become dispatch_instruction(state, entry_instructions, 0)
 }
 
-/// Step virtual tail call (returns to trampoline).
-pub(crate) fn step_tail_call_virtual(
-    state: &mut StepState<'_, '_>,
+/// Execute virtual tail call (returns to trampoline).
+pub(crate) fn execute_tail_call_virtual(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1084,9 +1068,9 @@ pub(crate) fn step_tail_call_virtual(
     }
 }
 
-/// Step interface tail call (returns to trampoline).
-pub(crate) fn step_tail_call_interface(
-    state: &mut StepState<'_, '_>,
+/// Execute interface tail call (returns to trampoline).
+pub(crate) fn execute_tail_call_interface(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1128,9 +1112,9 @@ pub(crate) fn step_tail_call_interface(
     }
 }
 
-/// Step indirect tail call.
-pub(crate) fn step_tail_call_indirect(
-    state: &mut StepState<'_, '_>,
+/// Execute indirect tail call.
+pub(crate) fn execute_tail_call_indirect(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1217,5 +1201,5 @@ pub(crate) fn step_tail_call_indirect(
     let entry_block_ptr = state.current_frame_mut().block_ptr;
     let entry_block = unsafe { entry_block_ptr.as_ref() };
     let entry_instructions = entry_block.instructions.as_slice();
-    become step_instruction(state, entry_instructions, 0)
+    become dispatch_instruction(state, entry_instructions, 0)
 }

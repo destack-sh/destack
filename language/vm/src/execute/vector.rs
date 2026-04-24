@@ -3,7 +3,7 @@ use super::prelude::*;
 // TODO #Performance: improve VM vector performance
 
 /// Return the lane count for one vector value id.
-fn vector_lane_count(state: &StepState<'_, '_>, value_id: mir::Value) -> Result<usize, Error> {
+fn vector_lane_count(state: &ExecutionState<'_, '_>, value_id: mir::Value) -> Result<usize, Error> {
     let vector_type = state.value_type(value_id)?;
 
     match state.tree().get(vector_type) {
@@ -15,9 +15,9 @@ fn vector_lane_count(state: &StepState<'_, '_>, value_id: mir::Value) -> Result<
     }
 }
 
-/// Load one vector lane through indexed storage.
+/// Load one vector lane through indexed access.
 fn vector_lane_value(
-    state: &mut StepState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     vector: Value,
     vector_type: mir::LocalNodeId<mir::Type>,
     lane_index: usize,
@@ -32,16 +32,16 @@ fn vector_lane_value(
     access::get_element(state, vector, index.into(), element_count, Some(element))
 }
 
-/// Materialize one vector result lane by lane.
-fn materialize_vector_by_lane<F>(
-    state: &mut StepState<'_, '_>,
+/// Allocate one vector result lane by lane.
+fn allocate_vector_by_lane<F>(
+    state: &mut ExecutionState<'_, '_>,
     dest: mir::Value,
     mut lane_value: F,
 ) -> Result<Value, Error>
 where
-    F: FnMut(&mut StepState<'_, '_>, usize) -> Result<Value, Error>,
+    F: FnMut(&mut ExecutionState<'_, '_>, usize) -> Result<Value, Error>,
 {
-    materialize_composite_by_index(state, dest, |state, lane_index, _value_type| {
+    allocate_payload_by_index(state, dest, |state, lane_index, _value_type| {
         let lane_index = usize::try_from(lane_index).map_err(|_| Error::TypeMismatch {
             expected: "vector lane index".to_string(),
             actual: lane_index.to_string(),
@@ -51,9 +51,9 @@ where
     })
 }
 
-/// Step vector.splat.
-pub(crate) fn step_vector_splat(
-    state: &mut StepState<'_, '_>,
+/// Execute vector.splat.
+pub(crate) fn execute_vector_splat(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -64,21 +64,20 @@ pub(crate) fn step_vector_splat(
 
     let lane_value = state.get(*value);
 
-    // materialize the result one lane at a time
-    let result =
-        match materialize_vector_by_lane(state, *dest, |_state, _lane_index| Ok(lane_value)) {
-            Ok(result) => result,
-            Err(error) => return Transfer::Error(error),
-        };
+    // allocate the result one lane at a time
+    let result = match allocate_vector_by_lane(state, *dest, |_state, _lane_index| Ok(lane_value)) {
+        Ok(result) => result,
+        Err(error) => return Transfer::Error(error),
+    };
     state.set(*dest, result);
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Step vector.extract.
-pub(crate) fn step_vector_extract(
-    state: &mut StepState<'_, '_>,
+/// Execute vector.extract.
+pub(crate) fn execute_vector_extract(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -124,9 +123,9 @@ pub(crate) fn step_vector_extract(
     next!(state, block, pc)
 }
 
-/// Step vector.insert.
-pub(crate) fn step_vector_insert(
-    state: &mut StepState<'_, '_>,
+/// Execute vector.insert.
+pub(crate) fn execute_vector_insert(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -166,8 +165,8 @@ pub(crate) fn step_vector_insert(
 
     let inserted_value = state.get(*value);
 
-    // materialize the updated vector one lane at a time
-    let result = match materialize_vector_by_lane(state, *dest, |state, lane_index| {
+    // allocate the updated vector one lane at a time
+    let result = match allocate_vector_by_lane(state, *dest, |state, lane_index| {
         if lane_index == index_value {
             return Ok(inserted_value);
         }
@@ -183,9 +182,9 @@ pub(crate) fn step_vector_insert(
     next!(state, block, pc)
 }
 
-/// Step vector.shuffle.
-pub(crate) fn step_vector_shuffle(
-    state: &mut StepState<'_, '_>,
+/// Execute vector.shuffle.
+pub(crate) fn execute_vector_shuffle(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -220,8 +219,8 @@ pub(crate) fn step_vector_shuffle(
         Err(error) => return Transfer::Error(error),
     };
 
-    // materialize the shuffled lanes directly
-    let result = match materialize_vector_by_lane(state, *dest, |state, lane_index| {
+    // allocate the shuffled lanes directly
+    let result = match allocate_vector_by_lane(state, *dest, |state, lane_index| {
         let idx = *mask.get(lane_index).ok_or(Error::IndexOutOfBounds {
             index: lane_index as u64,
             length: mask.len() as u64,
@@ -250,9 +249,9 @@ pub(crate) fn step_vector_shuffle(
     next!(state, block, pc)
 }
 
-/// Step vector.select.
-pub(crate) fn step_vector_select(
-    state: &mut StepState<'_, '_>,
+/// Execute vector.select.
+pub(crate) fn execute_vector_select(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -301,8 +300,8 @@ pub(crate) fn step_vector_select(
         });
     }
 
-    // materialize the selected lanes directly
-    let result = match materialize_vector_by_lane(state, *dest, |state, lane_index| {
+    // allocate the selected lanes directly
+    let result = match allocate_vector_by_lane(state, *dest, |state, lane_index| {
         let mask_lane = match vector_lane_value(state, mask_value, mask_type, lane_index) {
             Ok(value) => value,
             Err(error) => return Err(error),
@@ -331,9 +330,9 @@ pub(crate) fn step_vector_select(
     next!(state, block, pc)
 }
 
-/// Step vector.reduce.
-pub(crate) fn step_vector_reduce(
-    state: &mut StepState<'_, '_>,
+/// Execute vector.reduce.
+pub(crate) fn execute_vector_reduce(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -385,9 +384,9 @@ pub(crate) fn step_vector_reduce(
     next!(state, block, pc)
 }
 
-/// Step vector.compare.
-pub(crate) fn step_vector_compare(
-    state: &mut StepState<'_, '_>,
+/// Execute vector.compare.
+pub(crate) fn execute_vector_compare(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -431,7 +430,7 @@ pub(crate) fn step_vector_compare(
     }
 
     // compare the vectors lane by lane
-    let result = match materialize_vector_by_lane(state, *dest, |state, lane_index| {
+    let result = match allocate_vector_by_lane(state, *dest, |state, lane_index| {
         let lhs = match vector_lane_value(state, left_value, left_type, lane_index) {
             Ok(value) => value,
             Err(error) => return Err(error),
@@ -451,9 +450,9 @@ pub(crate) fn step_vector_compare(
     next!(state, block, pc)
 }
 
-/// Step vector.convert.
-pub(crate) fn step_vector_convert(
-    state: &mut StepState<'_, '_>,
+/// Execute vector.convert.
+pub(crate) fn execute_vector_convert(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -528,7 +527,7 @@ pub(crate) fn step_vector_convert(
     let convert_mode = ScalarConvertMode::from(*mode);
 
     // convert the lanes one by one
-    let result = match materialize_vector_by_lane(state, *dest, |state, lane_index| {
+    let result = match allocate_vector_by_lane(state, *dest, |state, lane_index| {
         let value = vector_lane_value(state, vector_value, vector_type, lane_index)?;
 
         convert_scalar_value(value, source_info, dest_info, convert_mode)
