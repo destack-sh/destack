@@ -17,7 +17,7 @@ fn test_format_type_conditional_with_constrained_infer() {
     );
 }
 
-/// Mapped types with key remaps should keep the shared shell.
+/// Mapped types with key remaps should keep the shared layout.
 #[test]
 fn test_format_type_mapped_with_remap() {
     assert_format_program!(
@@ -39,7 +39,7 @@ fn test_format_type_mapped_with_remap_separator_block_comment() {
 }
 "#,
         r#"type Paths<T> = {
-    [K in keyof T as /* remap-note */ `get${Capitalize<K & string>}`]: () => T[K];
+    [K in keyof T /* remap-note */ as `get${Capitalize<K & string>}`]: () => T[K];
 };
 "#,
         FileType::TypeScript
@@ -56,8 +56,7 @@ fn test_format_type_mapped_with_remap_separator_line_comment() {
 }
 "#,
         r#"type Paths<T> = {
-    [K in keyof T as // remap-note
-    Capitalize<K & string>]: () => T[K];
+    [K in keyof T as Capitalize<K & string>]: () => T[K]; // remap-note
 };
 "#,
         FileType::TypeScript
@@ -674,7 +673,7 @@ fn test_format_parenthesized_union_last_arm_comment() {
     );
 }
 
-/// Union doc heads should collapse inline at wider widths like the reference formatter.
+/// Union doc heads should collapse inline at wider widths.
 #[test]
 fn test_format_union_doc_head_width_behavior() {
     assert_format_program_reference_widths(
@@ -760,7 +759,7 @@ export interface TestUnionTypeAnnotation2 {
     );
 }
 
-/// Template literal unions should collapse inline at wider widths like the reference formatter.
+/// Template literal unions should collapse inline at wider widths.
 #[test]
 fn test_format_template_literal_union_width_behavior() {
     assert_format_program_reference_widths(

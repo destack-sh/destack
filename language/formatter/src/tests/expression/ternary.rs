@@ -33,3 +33,14 @@ fn test_format_ternary_new_branch_separator_comments() {
         DestackFormatOptions::default_with_line_width(36),
     );
 }
+
+/// JSX-chain block comments after `null` branches should stay before `:`.
+#[test]
+fn test_format_jsx_chain_null_branch_separator_block_comment() {
+    assert_format_program_roundtrip_with_file_type(
+        "const value = <>{condition ? null /* branch-note */ : other ? <A /> : <B />}</>\n",
+        "const value = <>{condition ? null /* branch-note */ : other ? <A /> : <B />}</>;\n",
+        FileType::TypeScriptXml,
+        DestackFormatOptions::default_with_line_width(100),
+    );
+}

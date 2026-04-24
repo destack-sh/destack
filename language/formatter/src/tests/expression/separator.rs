@@ -1,6 +1,8 @@
 use crate::format::expression::expression_needs_parentheses_in_parent;
 use crate::{DestackFormatOptions, TestFormatter, assert_format_program_roundtrip_with_file_type};
-use destack_ast::{CommentKind, CommentPosition, Expression};
+use destack_ast::{
+    CommentKind, CommentPosition, Declaration, Declarator, Expression, TypeExpression,
+};
 use destack_source::FileType;
 
 /// Computed member separator comments should stay on the receiver.
@@ -81,7 +83,7 @@ fn test_unary_negative_initializer_separator_comment_attaches_before_operand_tok
     let Expression::Let { declarators, .. } = context.tree.get(expression_id) else {
         panic!("expected let expression");
     };
-    let destack_ast::Declarator { value, .. } = context.tree.get(declarators[0]);
+    let Declarator { value, .. } = context.tree.get(declarators[0]);
     let value_id = value.expect("expected initializer");
     let Expression::Unary { right, .. } = context.tree.get(value_id) else {
         panic!("expected unary initializer");
@@ -152,11 +154,11 @@ fn test_format_parenthesized_scalar_separator_mixed_comments() {
 #[test]
 fn test_parenthesized_scalar_separator_mixed_comments_attach_as_inner_leading_slice() {
     let input = "(/* keep */ // comment\n    a as any) + 1";
-    let block_start = input.find("/* keep */").unwrap() as u32;
-    let block_end = block_start + "/* keep */".len() as u32;
-    let line_start = input.find("// comment").unwrap() as u32;
-    let line_end = line_start + "// comment".len() as u32;
-    let inner_start = input.find("a as any").unwrap() as u32;
+    let block_start = 1;
+    let block_end = 11;
+    let line_start = 12;
+    let line_end = 22;
+    let inner_start = 27;
     let (test, expression_id) =
         TestFormatter::parse_with_file_type(input, FileType::TypeScript, |parser| {
             parser.eat_expression(Default::default())
@@ -167,17 +169,17 @@ fn test_parenthesized_scalar_separator_mixed_comments_attach_as_inner_leading_sl
     let Expression::Binary { left, .. } = context.tree.get(expression_id) else {
         panic!("expected binary expression");
     };
-    let Expression::Parenthesized { expression } = context.tree.get(*left) else {
-        panic!("expected parenthesized left expression");
+
+    if !matches!(context.tree.get(*left), Expression::As { .. }) {
+        panic!("expected assertion left expression");
     };
-    let inner_expression_id = *expression;
-    let inner_expression_span = context.span(inner_expression_id);
-    let leading_comments = context
-        .comments()
-        .comments_before(inner_expression_span.start);
+
+    let inner_expression_id = *left;
+    let token_start = context.expression_token_start(inner_expression_id);
+    let leading_comments = context.comments().comments_before(token_start);
 
     assert_eq!(leading_comments.len(), 2);
-    assert_eq!(inner_expression_span.start, inner_start);
+    assert_eq!(token_start, inner_start);
 
     assert_eq!(leading_comments[0].kind, CommentKind::SingleLineBlock);
     assert_eq!(leading_comments[0].position, CommentPosition::Leading);
@@ -213,10 +215,7 @@ fn test_format_inner_assertion_with_parenthesized_scalar_separator_mixed_comment
     let context = test.context(DestackFormatOptions::default_with_line_width(100));
 
     let inner_expression_id = match context.tree.get(expression_id) {
-        Expression::Binary { left, .. } => match context.tree.get(*left) {
-            Expression::Parenthesized { expression } => *expression,
-            _ => panic!("expected parenthesized left expression"),
-        },
+        Expression::Binary { left, .. } => *left,
         _ => panic!("expected binary expression"),
     };
 
@@ -280,5 +279,53 @@ fn test_format_tagged_template_expression_preserves_generic_arguments() {
         "const value = sql<Type>`select * from t`;\n",
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(100),
+    );
+}
+
+/// Template remap comments should stay owned by the template container, not the generic argument.
+#[test]
+fn test_type_template_remap_comment_stays_outside_generic_argument_ownership() {
+    let input = "type Paths<T> = {\n  [K in keyof T as // remap-note\n    `get${Capitalize<K & string>}`]: () => T[K]\n}";
+    let (test, expression_id) =
+        TestFormatter::parse_with_file_type(input, FileType::TypeScript, |parser| {
+            parser.eat_expression(Default::default())
+        })
+        .unwrap();
+    let context = test.context(DestackFormatOptions::default_with_line_width(100));
+
+    let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
+        panic!("expected type declaration");
+    };
+    let Declaration::Type(declaration) = context.tree.get(*declaration_id) else {
+        panic!("expected type declaration");
+    };
+    let TypeExpression::Mapped { parameter, .. } = context.tree.get(declaration.value) else {
+        panic!("expected mapped type");
+    };
+    let key_remap = parameter.key_remap.expect("expected key remap");
+    let TypeExpression::TemplateLiteral { spans, .. } = context.tree.get(key_remap) else {
+        panic!("expected template literal remap");
+    };
+    let interpolation_type = spans[0];
+    let TypeExpression::Reference {
+        generic_arguments, ..
+    } = context.tree.get(interpolation_type)
+    else {
+        panic!("expected reference interpolation type");
+    };
+    let generic_argument_leading_comments =
+        context.comments_after_previous_non_trivia_token_for(generic_arguments[0]);
+    let formatted_expression = test.format(
+        &expression_id,
+        DestackFormatOptions::default_with_line_width(100),
+    );
+
+    assert!(
+        generic_argument_leading_comments.is_empty(),
+        "generic argument should not claim the remap comment"
+    );
+    assert_eq!(
+        formatted_expression,
+        "type Paths<T> = {\n    [K in keyof T as `get${Capitalize<K & string>}`]: () => T[K]; // remap-note\n};"
     );
 }

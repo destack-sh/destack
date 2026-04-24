@@ -69,7 +69,7 @@ fn test_format_match_with_annotated_arm() {
     );
 }
 
-/// Else-branch comments should stay attached to the correct branch shell.
+/// Else-branch comments should stay attached to the correct branch.
 #[test]
 fn test_format_if_else_comments() {
     assert_format_program_reference_widths(

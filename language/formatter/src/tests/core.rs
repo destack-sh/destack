@@ -5,7 +5,7 @@ use destack_ast::{NodeParentIndex, NodeTree, TokenSpan};
 use destack_core::ImmutableStringPool;
 use destack_fir::format;
 use destack_fir::format::Format;
-use destack_parser::{ParseResult, Parser};
+use destack_parser::{ParseResult, Parser, ParserSettings};
 use destack_source::{
     DiffOptions, File, FileId, FileType, LanguageType, MultiSpan, Uri, print_diff,
 };
@@ -68,7 +68,14 @@ impl TestFormatter {
         // parse
         let language = LanguageType::from(file_type);
         let (side_span, tree, tokens, side_tokens, strings, n) = {
-            let mut parser = Parser::lex_file(file.clone(), language);
+            let mut parser = Parser::lex_file_with_settings(
+                file.clone(),
+                language,
+                ParserSettings {
+                    preserve_parenthesized_wrappers: false,
+                    ..ParserSettings::default()
+                },
+            );
             let n = parse_fn(&mut parser)?;
 
             // finalize retained comments for every entrypoint

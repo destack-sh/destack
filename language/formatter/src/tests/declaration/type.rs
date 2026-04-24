@@ -53,6 +53,18 @@ fn test_format_enum_with_generic_parameters() {
     );
 }
 
+/// Class extends sequence expressions should keep required parentheses.
+#[test]
+fn test_format_class_extends_sequence_expression_parentheses() {
+    assert_format_program!(
+        r#"class A extends (a, b) {}
+"#,
+        r#"class A extends (a, b) {}
+"#,
+        FileType::TypeScript,
+    );
+}
+
 /// Class type layout should keep the expected extends and implements forms.
 #[test]
 fn test_format_class_type_layout() {

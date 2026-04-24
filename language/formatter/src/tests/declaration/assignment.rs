@@ -1,7 +1,7 @@
 use crate::assert_format_program_reference_widths;
 use destack_source::FileType;
 
-/// Type alias comments after `=` should normalize to the stable union shell.
+/// Type alias comments after `=` should stay with the union head.
 #[test]
 fn test_format_union_head_comment_after_equals_is_idempotent() {
     assert_format_program_reference_widths(
@@ -23,7 +23,7 @@ fn test_format_union_head_comment_after_equals_is_idempotent() {
     );
 }
 
-/// Type alias line comments after `=` should keep the rhs in the assignment shell.
+/// Type alias line comments after `=` should keep the rhs indented after the operator.
 #[test]
 fn test_format_type_alias_line_comment_after_equals() {
     assert_format_program_reference_widths(
@@ -48,7 +48,7 @@ Alpha | Beta;
     );
 }
 
-/// Assignment comments should stay attached to the formatted assignment shell.
+/// Assignment comments should stay attached to the formatted assignment.
 #[test]
 fn test_format_assignment_comments() {
     assert_format_program_reference_widths(
@@ -145,7 +145,7 @@ fn test_format_assignment_interpolated_template_argument_uses_fluid_layout() {
     );
 }
 
-/// Primitive `null` arguments should still count as short in the assignment-like chain shell.
+/// Primitive `null` arguments should still count as short in assignment-like chains.
 #[test]
 fn test_format_assignment_null_argument_breaks_after_operator() {
     assert_format_program_reference_widths(
@@ -221,7 +221,7 @@ const s = /* comment */ foo<A | B | C>();
     );
 }
 
-/// Conditional type aliases should keep the assignment-like shell from the reference formatter.
+/// Conditional type aliases should keep the assignment-like operator layout.
 #[test]
 fn test_format_type_alias_conditional_layout() {
     assert_format_program_reference_widths(
@@ -289,7 +289,7 @@ const onPanning: ComponenASDtProps<typeof TransformWrapper>["onPanning"] = () =>
     );
 }
 
-/// Formats chained assignment initializers with the stepped shell.
+/// Formats chained assignment initializers with the stepped layout.
 #[test]
 fn test_format_assignment_chain_layout() {
     assert_format_program_reference_widths(
@@ -373,7 +373,7 @@ fn test_format_assignment_break_left_hand_side_layout() {
     );
 }
 
-/// Complex type arguments on assignment-like right-hand sides should match the expected shell.
+/// Complex type arguments on assignment-like right-hand sides should match the expected layout.
 #[test]
 fn test_format_assignment_complex_type_arguments_layout() {
     assert_format_program_reference_widths(
@@ -464,7 +464,7 @@ const result = configurationService.getValue<Record<string, boolean>>(enalementS
     );
 }
 
-/// Assignment-like shells with long generic calls should follow the reference width behavior.
+/// Assignment-like expressions with long generic calls should follow the expected width behavior.
 #[test]
 fn test_format_assignment_generic_call_width_behavior() {
     assert_format_program_reference_widths(
