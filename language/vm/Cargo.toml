@@ -25,6 +25,7 @@ destack_mir = { workspace = true }
 destack_source = { workspace = true }
 
 # util
+postcard = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 smallvec = { workspace = true }
 
@@ -34,12 +35,7 @@ perf-event = { workspace = true, optional = true }
 [dev-dependencies]
 clap = { workspace = true, features = ["derive"] }
 criterion = { workspace = true }
-destack_test_mirbench = { workspace = true, features = ["cli", "stats"] }
 pprof = { workspace = true }
-
-[[bench]]
-name = "vm_execute"
-harness = false
 
 [lints]
 workspace = true
