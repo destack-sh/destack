@@ -2,11 +2,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{env, fs, io};
 
-use destack_ast::LocalNodeId;
-use destack_formatter::{
-    DestackFormatContext, DestackFormatOptions, build_formatter_tree_and_parents, statement_list,
-};
-use destack_parser::Parser;
+use destack_ast::{LocalNodeId, NodeParentIndex};
+use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
+use destack_parser::{Parser, ParserSettings};
 use destack_source::{File, FileId, FileType, LanguageType, MultiSpan, Uri};
 
 const DEFAULT_ROOT: &str = "language/test/fixtures/formatter/conformance/staging/oxfmt";
@@ -217,13 +215,20 @@ fn format_source(file_id: u64, path: &Path, source: &str) -> Result<String, Stri
     let file = Arc::new(file);
 
     // parse and build formatter context
-    let mut parser = Parser::lex_file(file.clone(), language);
+    let mut parser = Parser::lex_file_with_settings(
+        file.clone(),
+        language,
+        ParserSettings {
+            preserve_parenthesized_wrappers: false,
+            ..ParserSettings::default()
+        },
+    );
     let expressions: Vec<LocalNodeId<destack_ast::Expression>> = parser.parse();
     let side_span: MultiSpan = parser.compute_side_span();
     let (tokens, side_tokens) = parser.take_tokens();
     let tree = parser.tree;
     let strings = parser.strings.into_immutable();
-    let (tree, parents) = build_formatter_tree_and_parents(&tree, &expressions);
+    let parents = NodeParentIndex::from_expression_roots(&tree, &expressions);
     let options = DestackFormatOptions::default();
     let context = DestackFormatContext::new(
         options,
