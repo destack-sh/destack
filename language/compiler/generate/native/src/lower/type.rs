@@ -60,7 +60,7 @@ pub(crate) fn lower_type(
         | mir::Type::TypeId
         | mir::Type::Reference { .. }
         | mir::Type::FunctionPointer { .. }
-        | mir::Type::TensorReference { .. } => {
+        | mir::Type::TensorView { .. } => {
             // inline pointer_type
             let ty = match pointer_bytes {
                 4 => cir::types::I32,
@@ -74,6 +74,11 @@ pub(crate) fn lower_type(
             };
             Ok(ty)
         }
+
+        mir::Type::FunctionSignature { .. } => Err(CodegenCraneliftError::unsupported_type(
+            "function signatures do not lower to runtime values",
+            type_id.into_any(),
+        )),
 
         mir::Type::Array { .. } => Err(CodegenCraneliftError::unsupported_type(
             "array types must be lowered to memory operations",

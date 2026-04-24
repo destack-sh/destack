@@ -105,6 +105,10 @@ pub(crate) fn compute_type_layout(
         | mir::Type::TypeId
         | mir::Type::Reference { .. }
         | mir::Type::FunctionPointer { .. } => Ok(TypeLayout::natural(pointer_bytes as u32)),
+        mir::Type::FunctionSignature { .. } => Err(CodegenCraneliftError::unsupported_type(
+            "function signatures do not have a runtime layout",
+            type_id.into_any(),
+        )),
 
         // arrays: size = element_size * length, alignment = element alignment
         mir::Type::Array {
@@ -125,12 +129,13 @@ pub(crate) fn compute_type_layout(
 
         // slices: laid out like a builtin two field record
         mir::Type::Slice {
+            kind,
             element,
             address_space,
             mutability,
         } => {
             let (data, _length) =
-                mir::slice_header_types(*element, *mutability, address_space.clone());
+                mir::slice_header_types(*kind, *element, *mutability, address_space.clone());
             let data = tree
                 .iter_nodes::<mir::Type>()
                 .find_map(|(type_id, ty)| (ty == &data).then_some(type_id))
@@ -242,8 +247,8 @@ pub(crate) fn compute_type_layout(
             }
         }
 
-        // tensor references are reference-like
-        mir::Type::TensorReference { .. } => Ok(TypeLayout::natural(pointer_bytes as u32)),
+        // tensor views are reference-like
+        mir::Type::TensorView { .. } => Ok(TypeLayout::natural(pointer_bytes as u32)),
     }
 }
 
