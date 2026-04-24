@@ -1,43 +1,37 @@
-#![cfg(test)]
+use destack_mir::ReferenceMap;
 
-use std::sync::Arc;
+use crate::AllocationLayout;
 
-use destack_mir::{Layout, LayoutId, LayoutKind, LayoutTable, ReferenceMap};
-
-/// Insert one test layout and return its id.
-pub(crate) fn insert_test_layout(
-    layouts: &mut LayoutTable,
-    byte_len: usize,
-    reference_map: ReferenceMap,
-) -> LayoutId {
-    layouts.insert(Layout {
-        kind: LayoutKind::Struct,
-        size: byte_len as u32,
-        alignment: 1,
-        reference_map,
-        fields: Vec::new(),
-    })
+/// One allocation layout used by tests.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct TestLayout {
+    /// The exact payload byte length.
+    pub(crate) byte_len: usize,
+    /// The exact heap reference map.
+    pub(crate) reference_map: ReferenceMap,
 }
 
-/// Create one shared layout table and the inserted layout ids.
-pub(crate) fn test_layouts(layouts: &[(usize, ReferenceMap)]) -> (Arc<LayoutTable>, Vec<LayoutId>) {
-    let mut table = LayoutTable::new();
-    let mut layout_ids = Vec::with_capacity(layouts.len());
-
-    for (byte_len, reference_map) in layouts {
-        let layout_id = insert_test_layout(&mut table, *byte_len, reference_map.clone());
-        layout_ids.push(layout_id);
+impl TestLayout {
+    /// Return this test layout as heap allocation facts.
+    pub(crate) fn allocation(&self) -> AllocationLayout<'_> {
+        AllocationLayout::new(self.byte_len, &self.reference_map)
     }
-
-    (Arc::new(table), layout_ids)
 }
 
-/// Create one shared layout table and the inserted layout id.
-pub(crate) fn test_layout(
-    byte_len: usize,
-    reference_map: ReferenceMap,
-) -> (Arc<LayoutTable>, LayoutId) {
-    let (layouts, layout_ids) = test_layouts(&[(byte_len, reference_map)]);
+/// Create test allocation layouts.
+pub(crate) fn test_layouts(layouts: &[(usize, ReferenceMap)]) -> Vec<TestLayout> {
+    layouts
+        .iter()
+        .map(|(byte_len, reference_map)| TestLayout {
+            byte_len: *byte_len,
+            reference_map: reference_map.clone(),
+        })
+        .collect()
+}
 
-    (layouts, layout_ids[0])
+/// Create one test allocation layout.
+pub(crate) fn test_layout(byte_len: usize, reference_map: ReferenceMap) -> TestLayout {
+    let mut layouts = test_layouts(&[(byte_len, reference_map)]);
+
+    layouts.remove(0)
 }

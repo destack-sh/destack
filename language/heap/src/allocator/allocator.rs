@@ -4,8 +4,8 @@ use std::sync::atomic::Ordering;
 use parking_lot::Mutex;
 
 use super::arena::{
-    Arena, ArenaAddressMap, ArenaLocation, ArenaTable, allocate_arena_bytes, arena_frame_index,
-    arena_frame_indices, free_arena_bytes, max_arena_count, max_arena_frame_count,
+    Arena, ArenaAddressMap, ArenaDirectory, ArenaLocation, allocate_arena_bytes, arena_frame_index,
+    free_arena_bytes, max_arena_count, max_arena_frame_count,
 };
 use super::{PageId, PageRun, PageRunSet, PageView};
 use crate::{HeapError, HeapOptions, HeapResult};
@@ -45,8 +45,8 @@ pub struct Allocator {
     pages_per_arena: u32,
     /// The maximum addressable arena count.
     max_arena_count: u32,
-    /// The dense arena table keyed by logical arena index.
-    arenas: ArenaTable,
+    /// The sparse arena directory keyed by logical arena index.
+    arena_directory: ArenaDirectory,
     /// The sparse arena map keyed by mapped arena address.
     arena_map: ArenaAddressMap,
     /// The admitted arena frontier, fresh arena, and free-run index.
@@ -89,7 +89,7 @@ impl Allocator {
             arena_bytes: arena_bytes as u32,
             pages_per_arena: pages_per_arena as u32,
             max_arena_count: max_arena_count as u32,
-            arenas: ArenaTable::new(max_arena_count),
+            arena_directory: ArenaDirectory::new(max_arena_count),
             arena_map: ArenaAddressMap::new(max_arena_frames),
             state: Mutex::new(AllocatorState {
                 admitted_arena_count: 0,
@@ -599,24 +599,24 @@ impl Allocator {
     }
 
     /// Free one cache-owned run back into the allocator free-run index.
-    pub(super) fn free_cached_run(&self, run: PageRun) {
+    pub(super) fn free_cached_run(&self, run: PageRun) -> HeapResult<()> {
         if run.is_empty() {
-            return;
+            return Ok(());
         }
 
-        let refcount = self.run_refcount(run).unwrap_or_else(|error| {
-            panic!("cached page run should resolve one live refcount: {error}")
-        });
+        let refcount = self.run_refcount(run)?;
 
         let current_refcount = refcount.swap(0, Ordering::AcqRel);
         if current_refcount != 1 {
-            panic!(
-                "cached page run should stay uniquely owned: first_page={}, refcount={current_refcount}",
-                run.first_page.index()
-            );
+            return Err(HeapError::InvalidRunRefcount {
+                first_page: run.first_page,
+                refcount: current_refcount,
+            });
         }
 
         self.free_run(run);
+
+        Ok(())
     }
 
     /// Raise one arena fresh-allocation watermark to the given page index.
@@ -651,9 +651,9 @@ impl Allocator {
         Ok(())
     }
 
-    /// Return one existing arena through the fixed arena metadata table.
+    /// Return one existing arena through the logical arena directory.
     fn arena(&self, arena_index: usize) -> Option<&Arena> {
-        self.arenas.get(arena_index)
+        self.arena_directory.get(arena_index)
     }
 
     /// Initialize one admitted arena range.
@@ -688,10 +688,13 @@ impl Allocator {
         let mut arena = Box::new(Arena::new(arena_index, base, self.pages_per_arena()));
         let arena_ptr = arena.as_mut() as *mut Arena;
 
-        self.arenas.insert(arena_index, arena_ptr);
-        for arena_frame_index in arena_frame_indices(base_address, self.arena_bytes())? {
-            self.arena_map.insert(arena_frame_index, arena_ptr);
-        }
+        let arena_frame_index = arena_frame_index(base_address, self.arena_bytes()).ok_or(
+            HeapError::AllocatorAddressUnsupported {
+                address: base_address,
+            },
+        )?;
+        self.arena_map.insert(arena_frame_index, arena_ptr)?;
+        self.arena_directory.insert(arena_index, arena_ptr)?;
         self.state.lock().owned_arenas.push(arena);
 
         Ok(())

@@ -1,8 +1,6 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
-use destack_mir::LayoutId;
-
 use crate::allocator::PageId;
 use crate::{AccountingRegion, HeapReference, RawPointer, SharedHeapReference, SharedRawPointer};
 
@@ -16,8 +14,8 @@ pub enum ScanSource {
     Reference(HeapReference),
     /// One mature span.
     Span(usize),
-    /// One mature large entry.
-    LargeEntry(u64),
+    /// One mature large allocation.
+    LargeAllocation(u64),
 }
 
 /// Heap configuration failure.
@@ -96,7 +94,7 @@ pub enum HeapError {
         /// The invalid size class in bytes.
         class_bytes: usize,
     },
-    /// The allocator arena count cannot grow far enough for one entry.
+    /// The allocator arena count cannot grow far enough for one allocation.
     AllocatorArenaLimitExceeded {
         /// The required arena count.
         required_arenas: usize,
@@ -112,6 +110,11 @@ pub enum HeapError {
     AllocatorAddressUnsupported {
         /// The mapped arena address.
         address: usize,
+    },
+    /// One allocator arena-map index was outside the supported arena map.
+    AllocatorArenaMapIndexUnsupported {
+        /// The sparse arena-map index.
+        index: usize,
     },
     /// One heap-space hard limit was exceeded.
     LimitExceeded {
@@ -163,16 +166,16 @@ pub enum HeapError {
         /// The current active pin count before the failed decrement.
         active_count: usize,
     },
-    /// One heap byte range was outside the logical entry.
+    /// One heap byte range was outside the logical allocation.
     InvalidByteRange {
         /// The requested byte offset.
         start: usize,
         /// The requested byte length.
         len: usize,
-        /// The logical entry capacity in bytes.
+        /// The logical allocation capacity in bytes.
         capacity: usize,
     },
-    /// One heap reference did not resolve to one live entry.
+    /// One heap reference did not resolve to one live allocation.
     InvalidHeapReference {
         /// The invalid heap reference.
         reference: HeapReference,
@@ -214,14 +217,14 @@ pub enum HeapError {
     InvalidUsage {
         /// The heap space whose counters were invalid.
         region: AccountingRegion,
-        /// The live entry count before the release.
+        /// The live allocation count before the release.
         allocated_count: usize,
         /// The live byte count before the release.
         allocated_bytes: u64,
         /// The bytes being released.
         freed_bytes: u64,
     },
-    /// One raw pointer did not resolve to one live entry.
+    /// One raw pointer did not resolve to one live allocation.
     InvalidRawPointer {
         /// The invalid raw pointer.
         pointer: RawPointer,
@@ -231,12 +234,12 @@ pub enum HeapError {
         /// The first borrowed logical page index in the write window.
         page_index: usize,
     },
-    /// One shared heap reference did not resolve to one live entry.
+    /// One shared heap reference did not resolve to one live allocation.
     InvalidSharedHeapReference {
         /// The invalid shared heap reference.
         reference: SharedHeapReference,
     },
-    /// One shared raw pointer did not resolve to one live entry.
+    /// One shared raw pointer did not resolve to one live allocation.
     InvalidSharedRawPointer {
         /// The invalid shared raw pointer.
         pointer: SharedRawPointer,
@@ -244,6 +247,11 @@ pub enum HeapError {
     /// One internal heap invariant exceeded representable arithmetic range.
     InvariantOverflow {
         /// The overflowing invariant context.
+        context: &'static str,
+    },
+    /// One internal heap invariant was violated.
+    InvariantViolation {
+        /// The violated invariant context.
         context: &'static str,
     },
     /// One serialized image page could not be resolved.
@@ -275,28 +283,28 @@ pub enum HeapError {
         /// The missing span index.
         span_index: usize,
     },
-    /// One live small entry disappeared from its owning span.
+    /// One live small slot disappeared from its owning span.
     MissingSmallSlot {
         /// The missing span index.
         span_index: usize,
         /// The missing slot index.
         slot_index: usize,
     },
-    /// One live young entry disappeared before initialization or access.
-    MissingYoungEntry {
+    /// One live young allocation disappeared before initialization or access.
+    MissingYoungAllocation {
         /// The missing young-space generation.
         generation: u32,
-        /// The missing young-entry index.
-        entry_index: u32,
+        /// The missing young-allocation index.
+        allocation_index: u32,
     },
-    /// One live large entry disappeared before access.
-    MissingLargeEntry {
-        /// The missing large-entry identifier.
-        entry_id: u64,
+    /// One live large allocation disappeared before access.
+    MissingLargeAllocation {
+        /// The missing large-allocation identifier.
+        allocation_id: u64,
     },
-    /// One large-entry id cannot be represented by large-entry tables.
-    InvalidLargeEntryId {
-        /// The invalid large-entry id.
+    /// One large-allocation id cannot be represented by large-allocation tables.
+    InvalidLargeAllocationId {
+        /// The invalid large-allocation id.
         id: u64,
     },
     /// One run refcount entry was missing for one live run.
@@ -315,16 +323,6 @@ pub enum HeapError {
     InvalidPageId {
         /// The invalid page index.
         index: usize,
-    },
-    /// One managed layout id did not resolve in the heap layout table.
-    InvalidLayoutId {
-        /// The invalid layout index.
-        index: usize,
-    },
-    /// One managed layout was missing from one derived heap index.
-    MissingLayout {
-        /// The missing layout identifier.
-        layout_id: LayoutId,
     },
     /// One page run exceeded the encoded allocator page range.
     InvalidPageRun {
@@ -388,15 +386,6 @@ pub enum HeapError {
     /// One allocation initializer did not match its requested byte length.
     InvalidAllocationBytes {
         /// The expected byte length.
-        expected: usize,
-        /// The actual byte length requested by the caller.
-        actual: usize,
-    },
-    /// One managed allocation did not match its declared layout width.
-    InvalidLayoutBytes {
-        /// The layout identifier used for the allocation.
-        layout_id: LayoutId,
-        /// The expected byte length from the layout table.
         expected: usize,
         /// The actual byte length requested by the caller.
         actual: usize,
@@ -541,6 +530,12 @@ impl Display for HeapError {
                     "allocator arena address is outside the supported arena map: {address:#x}"
                 )
             }
+            Self::AllocatorArenaMapIndexUnsupported { index } => {
+                write!(
+                    formatter,
+                    "allocator arena-map index is outside the supported arena map: {index}"
+                )
+            }
             Self::LimitExceeded {
                 region,
                 used_bytes,
@@ -630,10 +625,10 @@ impl Display for HeapError {
                         "heap scan failed for dirty span {span_index}: {error}"
                     )
                 }
-                ScanSource::LargeEntry(entry_id) => {
+                ScanSource::LargeAllocation(allocation_id) => {
                     write!(
                         formatter,
-                        "heap scan failed for dirty large entry {entry_id}: {error}"
+                        "heap scan failed for dirty large allocation {allocation_id}: {error}"
                     )
                 }
             },
@@ -692,6 +687,9 @@ impl Display for HeapError {
             Self::InvariantOverflow { context } => {
                 write!(formatter, "heap invariant overflow: {context}")
             }
+            Self::InvariantViolation { context } => {
+                write!(formatter, "heap invariant violation: {context}")
+            }
             Self::ImageMissingPage { page_id } => {
                 write!(formatter, "heap image is missing page {page_id:?}")
             }
@@ -723,20 +721,23 @@ impl Display for HeapError {
                     "heap lost live span slot at span {span_index}, slot {slot_index}"
                 )
             }
-            Self::MissingYoungEntry {
+            Self::MissingYoungAllocation {
                 generation,
-                entry_index,
+                allocation_index,
             } => {
                 write!(
                     formatter,
-                    "heap lost live young entry in generation {generation} at index {entry_index}"
+                    "heap lost live young allocation in generation {generation} at index {allocation_index}"
                 )
             }
-            Self::MissingLargeEntry { entry_id } => {
-                write!(formatter, "heap lost live large entry with id {entry_id}")
+            Self::MissingLargeAllocation { allocation_id } => {
+                write!(
+                    formatter,
+                    "heap lost live large allocation with id {allocation_id}"
+                )
             }
-            Self::InvalidLargeEntryId { id } => {
-                write!(formatter, "invalid large-entry id: {id}")
+            Self::InvalidLargeAllocationId { id } => {
+                write!(formatter, "invalid large-allocation id: {id}")
             }
             Self::MissingRunRefcount { first_page } => {
                 write!(
@@ -758,12 +759,6 @@ impl Display for HeapError {
                     formatter,
                     "page identifier exceeds encoded page range: {index}"
                 )
-            }
-            Self::InvalidLayoutId { index } => {
-                write!(formatter, "invalid managed layout id: {index}")
-            }
-            Self::MissingLayout { layout_id } => {
-                write!(formatter, "managed layout {layout_id:?} is missing")
             }
             Self::InvalidPageRun {
                 first_page,
@@ -829,16 +824,6 @@ impl Display for HeapError {
                 write!(
                     formatter,
                     "allocation bytes do not match requested length: expected {expected}, got {actual}"
-                )
-            }
-            Self::InvalidLayoutBytes {
-                layout_id,
-                expected,
-                actual,
-            } => {
-                write!(
-                    formatter,
-                    "managed allocation bytes do not match layout {layout_id:?}: expected {expected}, got {actual}"
                 )
             }
         }
