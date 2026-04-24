@@ -6,7 +6,7 @@ use destack_workspace::{PollerBackend, RuntimeOptions};
 pub(super) fn poller_for_options(
     options: &RuntimeOptions,
 ) -> RuntimeResult<Option<Box<dyn HostPoller>>> {
-    poller_for_backend(options.scheduler.poller_backend)
+    poller_for_backend(options.scheduler_options().poller_backend)
 }
 
 /// Build a poller instance from one explicit backend selector.

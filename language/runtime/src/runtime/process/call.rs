@@ -15,8 +15,8 @@ use crate::runtime::world::WorldRef;
 use crate::simulation::Simulation;
 
 use super::{
-    Worker, BindingCallBuilder, EventLoopScope, ExecutionContext, ExecutionContextId,
-    binding_affinity_name, current_worker_context, current_event_loop_scope,
+    BindingCallBuilder, EventLoopScope, ExecutionContext, ExecutionContextId, Worker,
+    binding_affinity_name, current_event_loop_scope, current_worker_context,
     with_binding_call_arena,
 };
 use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
@@ -318,7 +318,7 @@ impl BindingCallContext {
     pub fn random_stream_id(&self) -> RandomStreamId {
         // resolve runtime and worker scoped stream selection policy
         let worker = self.worker();
-        let is_per_runnable = worker.options.random.per_runnable;
+        let is_per_runnable = worker.options.random_options().per_runnable;
         let task_id = if is_per_runnable {
             self.scope.task_id().map(TaskId::get)
         } else {

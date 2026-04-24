@@ -8,8 +8,8 @@ use std::ptr;
 
 use serde::{Deserialize, Serialize};
 
-use super::worker::Worker;
 use super::call::BindingCallContext;
+use super::worker::Worker;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::Session;
 use crate::platform::NativeArray;
