@@ -137,7 +137,7 @@ impl ModuleLowerer<'_> {
             kind: layout_kind,
             size,
             alignment,
-            trace: mir::LayoutTrace::empty(),
+            reference_map: mir::ReferenceMap::empty(),
             fields,
         };
 

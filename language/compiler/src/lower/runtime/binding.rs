@@ -125,9 +125,10 @@ impl ModuleLowerer<'_> {
         let error_id_type = self.builder.type_u64();
         let parameters = vec![out_ptr_type, error_id_type];
 
-        let signature_type = self
+        let signature = self
             .builder
-            .type_function_pointer(parameters.clone(), status_layout.ty);
+            .type_function_signature(parameters.clone(), status_layout.ty);
+        let signature_type = self.builder.type_function_pointer(signature);
         self.assign_signature_metadata_name(signature_type, symbol, anchor)?;
 
         let function_id =

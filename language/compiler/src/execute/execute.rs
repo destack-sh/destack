@@ -1,4 +1,5 @@
 use indexmap::IndexMap;
+use std::sync::Arc;
 
 use crate::{Compiler, CompilerContext, ExecuteError, ExecuteResult, RequirementCollector};
 
@@ -7,7 +8,7 @@ use destack_source::ModuleId;
 use destack_workspace::{ProfileId, TrustPolicy};
 
 use super::{ComptimeOutput, ComptimePatch, collect_comptime_dependencies};
-use vm::{Heap, SharedHeap};
+use vm::{Allocator, Heap, HeapLimits, HeapOptions, SharedHeap, SharedHeapLimits};
 use {destack_dir as dir, destack_vm as vm};
 
 /// In-flight comptime results for one module build.
@@ -168,7 +169,9 @@ impl Compiler {
                 TrustPolicy::Internal => vm::TrustPolicy::Internal,
             };
             options.apply_trust_policy(trust_policy);
+            let layouts = Arc::new(mir_tree.metadata.layout.layout_table.clone());
 
+            // TODO #Cleanup: figure out a nicer way to create the Isolate for comptime
             let mut isolate = vm::Isolate::build_with_options(
                 mir_tree,
                 strings.into_immutable(), // TODO #Performance: avoid cloning the string pool
@@ -178,11 +181,38 @@ impl Compiler {
                 module: module_id,
                 message: format!("{error}"),
             })?;
-            let mut heap = Heap::new().map_err(|error| ExecuteError::FailedExecution {
+            let local_options = HeapOptions::local();
+            let shared_options = HeapOptions::shared();
+            let allocator = Arc::new(
+                Allocator::try_new(
+                    local_options.page_bytes,
+                    local_options.allocator_arena_bytes,
+                )
+                .map_err(|error| ExecuteError::FailedExecution {
+                    module: module_id,
+                    message: format!("{error}"),
+                })?,
+            );
+            let mut heap = Heap::with_allocator_limits_layouts_and_options(
+                allocator.clone(),
+                layouts.clone(),
+                HeapLimits::default(),
+                local_options,
+            )
+            .map_err(|error| ExecuteError::FailedExecution {
                 module: module_id,
                 message: format!("{error}"),
             })?;
-            let mut shared = SharedHeap::new();
+            let mut shared = SharedHeap::with_allocator_limits_layouts_and_options(
+                allocator,
+                layouts,
+                SharedHeapLimits::default(),
+                shared_options,
+            )
+            .map_err(|error| ExecuteError::FailedExecution {
+                module: module_id,
+                message: format!("{error}"),
+            })?;
 
             isolate
                 .initialize(&mut heap, &mut shared)

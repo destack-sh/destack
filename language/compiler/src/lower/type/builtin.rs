@@ -199,7 +199,8 @@ impl<'a> BuiltinTypeLayouts<'a> {
             pointer_bytes,
             self.compiler.repository.clone(),
             vector_symbol,
-        );
+        )
+        .with_artifact_context(self.revision, self.profile);
 
         for (source_index, member_id) in members.iter().enumerate() {
             let dir::Member::Field {

@@ -94,12 +94,12 @@ impl Compiler {
 
         // resolve target configuration
         let target = {
-            let module = context.module(module_id);
-            let package = context.package(module.package_id);
-            package
-                .targets
-                .get(&target_id)
-                .cloned()
+            self.repository
+                .effective_target(context.revision(), target_id)
+                .map_err(|error| LowerError::Internal {
+                    module: module_id,
+                    message: format!("failed to resolve target '{target_id}': {error}"),
+                })?
                 .ok_or_else(|| LowerError::Internal {
                     module: module_id,
                     message: format!("target '{target_id}' not found for lowering"),

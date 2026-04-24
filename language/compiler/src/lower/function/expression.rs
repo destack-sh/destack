@@ -469,7 +469,7 @@ impl FunctionLowerer<'_> {
             mir::Type::Reference {
                 is_nullable: true,
                 ..
-            } | mir::Type::TensorReference {
+            } | mir::Type::TensorView {
                 is_nullable: true,
                 ..
             }

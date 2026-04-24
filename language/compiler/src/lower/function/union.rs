@@ -485,7 +485,7 @@ impl FunctionLowerer<'_> {
                 let union_mir_type = self.state.builder.tree().get(union_mir_type);
                 if matches!(
                     union_mir_type,
-                    mir::Type::Reference { .. } | mir::Type::TensorReference { .. }
+                    mir::Type::Reference { .. } | mir::Type::TensorView { .. }
                 ) {
                     return Ok(None);
                 }

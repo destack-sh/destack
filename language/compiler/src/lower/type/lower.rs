@@ -1,13 +1,13 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use {destack_dir as dir, destack_mir as mir};
 
 use destack_ast::{StringId, StringPool};
 use destack_source::ModuleId;
-use destack_workspace::Repository;
+use destack_workspace::{ProfileId, Repository, Revision};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, StructLayout, TypeLayoutPolicy};
-use crate::lower::lower_mutability;
+use crate::lower::{lower_mutability, static_key_to_field_name};
 use crate::{InterfaceRefLayout, LowerError, LowerResult, UnionLayout};
 
 // synthetic field names for function value layouts
@@ -64,8 +64,17 @@ pub(crate) struct TypeLowerer {
     pub(crate) interface_ref_cache: HashMap<dir::LocalTypeId, InterfaceRefLayout>,
     /// Cached function pointer signature types by DIR function type id.
     pub(crate) function_signature_types: HashMap<dir::LocalTypeId, mir::LocalNodeId<mir::Type>>,
+    /// Cached remote nominal layouts by source symbol.
+    pub(crate) remote_nominal_layouts_by_symbol:
+        HashMap<dir::GlobalSymbolId, mir::LocalNodeId<mir::Type>>,
+    /// Remote nominal layouts currently being lowered.
+    pub(crate) remote_nominal_layouts_in_progress: HashSet<dir::GlobalSymbolId>,
     /// Policy values for layout decisions.
     pub(crate) layout_policy: TypeLayoutPolicy,
+    /// Artifact revision used to read remote symbol names.
+    pub(crate) artifact_revision: Option<Revision>,
+    /// Profile used to read remote symbol names.
+    pub(crate) profile: Option<ProfileId>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -108,8 +117,19 @@ impl TypeLowerer {
             union_cache: HashMap::new(),
             interface_ref_cache: HashMap::new(),
             function_signature_types: HashMap::new(),
+            remote_nominal_layouts_by_symbol: HashMap::new(),
+            remote_nominal_layouts_in_progress: HashSet::new(),
             layout_policy,
+            artifact_revision: None,
+            profile: None,
         }
+    }
+
+    /// Attach artifact context for cross-module symbol reads.
+    pub(crate) fn with_artifact_context(mut self, revision: Revision, profile: ProfileId) -> Self {
+        self.artifact_revision = Some(revision);
+        self.profile = Some(profile);
+        self
     }
 
     /// Return a cached mir type when available.
@@ -287,7 +307,7 @@ impl TypeLowerer {
         };
 
         // cache the signature type
-        let signature = builder.type_function_pointer(lowered_parameters, result);
+        let signature = builder.type_function_signature(lowered_parameters, result);
         self.function_signature_types.insert(type_id, signature);
 
         Ok(signature)
@@ -420,7 +440,7 @@ impl TypeLowerer {
                 LowerError::UnsupportedType {
                     node,
                     ty: type_id.into_global(module_id),
-                    message: "unsupported type".to_string(),
+                    message: format!("unsupported type {dir_type:?}"),
                 }
             })?,
         };
@@ -489,6 +509,18 @@ impl TypeLowerer {
         node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        if let Some(mir_type) = self.lower_ownership_alias_type(
+            types,
+            type_id,
+            symbol,
+            static_arguments,
+            module_id,
+            node,
+            builder,
+        )? {
+            return Ok(mir_type);
+        }
+
         if symbol.ty() == dir::SymbolType::Interface {
             return self.lower_interface_reference_type(types, type_id, module_id, node, builder);
         }
@@ -500,6 +532,9 @@ impl TypeLowerer {
             }
 
             return self.lower_nominal_enum_type(types, symbol, node, builder);
+        }
+        if let Some(mir_type) = self.lower_remote_nominal_type(symbol, module_id, node, builder)? {
+            return Ok(mir_type);
         }
 
         // handle vector type lowering
@@ -579,6 +614,342 @@ impl TypeLowerer {
         }
     }
 
+    /// Lower a remote nominal struct layout when its analyzed artifact is available.
+    fn lower_remote_nominal_type(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        current_module_id: ModuleId,
+        node: dir::AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<Option<mir::LocalNodeId<mir::Type>>> {
+        if symbol.module_id == current_module_id || symbol.ty() != dir::SymbolType::Struct {
+            return Ok(None);
+        }
+        if let Some(mir_type) = self.remote_nominal_layouts_by_symbol.get(&symbol).copied() {
+            return Ok(Some(mir_type));
+        }
+        if !self.remote_nominal_layouts_in_progress.insert(symbol) {
+            return Err(LowerError::UnsupportedConstruct {
+                node,
+                message: "cycle detected while lowering remote nominal layout".to_string(),
+            });
+        }
+
+        let Some(revision) = self.artifact_revision else {
+            self.remote_nominal_layouts_in_progress.remove(&symbol);
+            return Ok(None);
+        };
+        let Some(profile) = self.profile else {
+            self.remote_nominal_layouts_in_progress.remove(&symbol);
+            return Ok(None);
+        };
+        let Some(dir) = self
+            .repository
+            .dir_analyzed(revision, symbol.module_id, profile)
+        else {
+            self.remote_nominal_layouts_in_progress.remove(&symbol);
+            return Ok(None);
+        };
+        let Some(members) = self.struct_members_for_symbol(symbol, &dir.symbols, &dir.tree) else {
+            self.remote_nominal_layouts_in_progress.remove(&symbol);
+            return Ok(None);
+        };
+
+        let mut field_lowerer = TypeLowerer::new(
+            builder,
+            self.pointer_bytes(),
+            Arc::clone(&self.repository),
+            self.vector_symbol,
+        )
+        .with_artifact_context(revision, profile);
+        let mut fields = Vec::new();
+
+        for (source_index, member_id) in members.iter().enumerate() {
+            let dir::Member::Field { key, value, .. } = dir.tree.get(*member_id) else {
+                continue;
+            };
+            let Some(key) = key.and_then(Self::static_key_from_member_key) else {
+                continue;
+            };
+            let Some(value) = value else {
+                continue;
+            };
+            let type_id = dir
+                .types
+                .get_declared_or_inferred_type_id(value.into_global_any(symbol.module_id))
+                .ok_or_else(|| LowerError::MissingType {
+                    node: value
+                        .into_global_any(symbol.module_id)
+                        .into_anchored(Some(profile)),
+                })?;
+            let field_type =
+                field_lowerer.lower_type(&dir.types, type_id, symbol.module_id, node, builder)?;
+            let mir_type = builder.tree().get(field_type);
+            let (size, alignment) = field_lowerer
+                .size_and_align_of_type(mir_type, builder.tree())
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node,
+                    message: "remote nominal layout requires concrete nested types".to_string(),
+                })?;
+
+            fields.push(FieldInput {
+                name: static_key_to_field_name(&key, builder),
+                ty: field_type,
+                size,
+                alignment,
+                source_index: Some(source_index as u32),
+                kind: FieldLayoutKind::Source,
+            });
+        }
+
+        let layout = self.compute_struct_layout(fields, LayoutPolicy::Source);
+        let mir_type = self.create_struct_type(&layout, builder);
+        self.set_layout(mir_type, layout);
+        self.remote_nominal_layouts_by_symbol
+            .insert(symbol, mir_type);
+        self.remote_nominal_layouts_in_progress.remove(&symbol);
+
+        Ok(Some(mir_type))
+    }
+
+    /// Return struct members for a symbol declaration.
+    fn struct_members_for_symbol(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        symbols: &dir::SymbolTable,
+        tree: &dir::NodeTree,
+    ) -> Option<Vec<dir::LocalNodeId<dir::Member>>> {
+        let declaration = symbols.get_symbol(symbol.local_id).primary_declaration?;
+        let declaration_id = declaration
+            .local_id
+            .try_into_typed::<dir::Declaration>()
+            .ok()?;
+
+        let dir::Declaration::Struct { members, .. } = tree.get(declaration_id) else {
+            return None;
+        };
+
+        Some(members.clone())
+    }
+
+    /// Convert a simple member key to a static field key.
+    fn static_key_from_member_key(key: dir::DynamicKey) -> Option<dir::StaticKey> {
+        match key {
+            dir::DynamicKey::Name(name) | dir::DynamicKey::Private(name) => {
+                Some(dir::StaticKey::Name(name))
+            }
+            dir::DynamicKey::Number(name) => Some(dir::StaticKey::Number(name)),
+            dir::DynamicKey::Expression(_) | dir::DynamicKey::NamedExpression { .. } => None,
+        }
+    }
+
+    /// Lower an intrinsic ownership alias into a MIR reference type.
+    fn lower_ownership_alias_type(
+        &mut self,
+        types: &dir::TypeTable,
+        type_id: dir::LocalTypeId,
+        symbol: dir::GlobalSymbolId,
+        static_arguments: Option<&[dir::StaticArgument]>,
+        module_id: ModuleId,
+        node: dir::AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<Option<mir::LocalNodeId<mir::Type>>> {
+        if symbol.ty() != dir::SymbolType::TypeAlias && symbol.ty() != dir::SymbolType::Newtype {
+            return Ok(None);
+        }
+
+        let Some(name) = self.symbol_name(symbol) else {
+            return Ok(None);
+        };
+        let name = self.repository.strings.get(name).to_string();
+
+        let kind = match name.as_str() {
+            "Managed" | "AsManaged" => Some(mir::ReferenceKind::Managed),
+            "Owned" | "AsOwned" => Some(mir::ReferenceKind::Owned),
+            "Borrowed" | "AsBorrowed" => Some(mir::ReferenceKind::Borrowed),
+            "Raw" | "AsRaw" => Some(mir::ReferenceKind::Raw),
+            "Form" => self.ownership_form_kind(static_arguments),
+            "Shared" => {
+                let inner_type_id =
+                    self.first_type_static_argument(static_arguments, type_id, module_id, node)?;
+                let inner_type = self.lower_type(types, inner_type_id, module_id, node, builder)?;
+                let shared_type = self.rewrite_reference_address_space(
+                    inner_type,
+                    mir::AddressSpace::Shared,
+                    type_id,
+                    module_id,
+                    node,
+                    builder,
+                )?;
+
+                return Ok(Some(shared_type));
+            }
+            _ => None,
+        };
+        let Some(kind) = kind else {
+            return Ok(None);
+        };
+
+        let base_type_id =
+            self.first_type_static_argument(static_arguments, type_id, module_id, node)?;
+        let base_type = self.lower_type(types, base_type_id, module_id, node, builder)?;
+        let address_space = self.ownership_form_address_space(static_arguments);
+        let mutability = self.default_reference_mutability(kind);
+
+        Ok(Some(builder.type_reference(
+            kind,
+            base_type,
+            mutability,
+            address_space,
+            false,
+        )))
+    }
+
+    /// Return the lowered mutability for one ownership kind.
+    fn default_reference_mutability(&self, kind: mir::ReferenceKind) -> mir::Mutability {
+        match kind {
+            mir::ReferenceKind::Managed | mir::ReferenceKind::Raw => mir::Mutability::Immutable,
+            mir::ReferenceKind::Owned | mir::ReferenceKind::Borrowed => mir::Mutability::Mutable,
+        }
+    }
+
+    /// Return the first type static argument for an ownership alias.
+    fn first_type_static_argument(
+        &self,
+        static_arguments: Option<&[dir::StaticArgument]>,
+        type_id: dir::LocalTypeId,
+        module_id: ModuleId,
+        node: dir::AnchoredGlobalNodeId,
+    ) -> LowerResult<dir::LocalTypeId> {
+        let Some(arguments) = static_arguments else {
+            return Err(LowerError::UnsupportedType {
+                node,
+                ty: type_id.into_global(module_id),
+                message: "ownership form missing base type".to_string(),
+            });
+        };
+        let Some(argument) = arguments.first() else {
+            return Err(LowerError::UnsupportedType {
+                node,
+                ty: type_id.into_global(module_id),
+                message: "ownership form missing base type".to_string(),
+            });
+        };
+        let dir::StaticArgument::Evaluated {
+            value: dir::StaticExpression::Type { ty },
+            ..
+        } = argument
+        else {
+            return Err(LowerError::UnsupportedType {
+                node,
+                ty: type_id.into_global(module_id),
+                message: "ownership form base must be a type".to_string(),
+            });
+        };
+
+        Ok(*ty)
+    }
+
+    /// Return the reference kind encoded by an ownership form.
+    fn ownership_form_kind(
+        &self,
+        static_arguments: Option<&[dir::StaticArgument]>,
+    ) -> Option<mir::ReferenceKind> {
+        let ownership = self.static_string_argument(static_arguments?, 1)?;
+        let ownership = self.repository.strings.get(ownership);
+
+        match ownership.as_ref() {
+            "managed" => Some(mir::ReferenceKind::Managed),
+            "owned" => Some(mir::ReferenceKind::Owned),
+            "borrowed" => Some(mir::ReferenceKind::Borrowed),
+            "raw" => Some(mir::ReferenceKind::Raw),
+            _ => None,
+        }
+    }
+
+    /// Return the address space encoded by an ownership form.
+    fn ownership_form_address_space(
+        &self,
+        static_arguments: Option<&[dir::StaticArgument]>,
+    ) -> mir::AddressSpace {
+        let Some(space) =
+            static_arguments.and_then(|arguments| self.static_string_argument(arguments, 2))
+        else {
+            return mir::AddressSpace::Local;
+        };
+        let space = self.repository.strings.get(space);
+
+        mir::AddressSpace::from_name(space.as_ref())
+    }
+
+    /// Return one string static argument.
+    fn static_string_argument(
+        &self,
+        arguments: &[dir::StaticArgument],
+        index: usize,
+    ) -> Option<StringId> {
+        let dir::StaticArgument::Evaluated {
+            value:
+                dir::StaticExpression::ScalarLiteral {
+                    value: dir::ScalarLiteral::String(value),
+                },
+            ..
+        } = arguments.get(index)?
+        else {
+            return None;
+        };
+
+        Some(*value)
+    }
+
+    /// Rewrite a lowered reference into another address space.
+    fn rewrite_reference_address_space(
+        &self,
+        ty: mir::LocalNodeId<mir::Type>,
+        address_space: mir::AddressSpace,
+        type_id: dir::LocalTypeId,
+        module_id: ModuleId,
+        node: dir::AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        let mir_type = builder.tree().get(ty).clone();
+        let mir::Type::Reference {
+            kind,
+            mutability,
+            pointee,
+            is_nullable,
+            ..
+        } = mir_type
+        else {
+            return Ok(builder.type_reference(
+                mir::ReferenceKind::Managed,
+                ty,
+                mir::Mutability::Immutable,
+                address_space,
+                false,
+            ));
+        };
+        let Some(pointee) = pointee.ty() else {
+            return Err(LowerError::UnsupportedType {
+                node,
+                ty: type_id.into_global(module_id),
+                message: "reference address-space rewrite requires a concrete pointee".to_string(),
+            });
+        };
+
+        Ok(builder.type_reference(kind, pointee, mutability, address_space, is_nullable))
+    }
+
+    /// Return the source name for one symbol when artifacts are available.
+    fn symbol_name(&self, symbol: dir::GlobalSymbolId) -> Option<StringId> {
+        let revision = self.artifact_revision?;
+        let profile = self.profile?;
+        let dir = self
+            .repository
+            .dir_declared(revision, symbol.module_id, profile)?;
+        dir.symbols.get_symbol(symbol.local_id).name()
+    }
+
     /// Lower a function type into its closure-pair representation.
     fn lower_function_type(
         &mut self,
@@ -630,7 +1001,7 @@ impl TypeLowerer {
             },
         ];
 
-        let mir_type = builder.type_function_value(signature);
+        let mir_type = builder.type_closure(signature);
         let function_value_environment_type = builder.tree().function_value_environment_type();
         fields[1].ty = function_value_environment_type;
 

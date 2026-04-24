@@ -23,13 +23,16 @@ use destack_dir::{
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_linter::Linter;
 use destack_mir as mir;
-use destack_mir::{MirFormatOptions, format_mir};
+use destack_mir::{LayoutTable, MirFormatOptions, format_mir};
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileContent, FileId, FileSystem,
     FileType, MemoryFileSystem, ModuleId, ModuleVersion, MultiSpan, PackageId, PhysicalFileSystem,
     TargetId, Uri, print_diff,
 };
-use destack_vm::{Heap, Isolate, IsolateOptions, SharedHeap, Value};
+use destack_vm::{
+    Allocator, Heap, HeapLimits, HeapOptions, Isolate, IsolateOptions, SharedHeap,
+    SharedHeapLimits, Value,
+};
 use destack_workspace::{
     AmbientSnapshot, BoundsCheckPolicy, BundleFormat, BundleMode, CacheMode, Change,
     CheckFailurePolicy, DivisionCheckPolicy, Edit, EsTarget, Module, Package, Profile, ProfileId,
@@ -506,12 +509,37 @@ impl TestIsolate {
             .run_function_by_name_output(function, arguments)
             .expect("execution failed");
 
-        output.value
+        materialized_plain_value(&output.value)
     }
+}
 
-    /// Read one VM string value through the authoritative heap.
-    pub fn string_value(&self, value: Value) -> Result<String, destack_vm::Error> {
-        self.isolate.string_value(&self.heap, value)
+/// Return one plain VM value from one materialized boundary value.
+pub(crate) fn materialized_plain_value(value: &destack_vm::MaterializedValue) -> Value {
+    match value {
+        destack_vm::MaterializedValue::Void => Value::VOID,
+        destack_vm::MaterializedValue::Bool(value) => Value::bool(*value),
+        destack_vm::MaterializedValue::Int { value, width } => Value::int(*value, *width),
+        destack_vm::MaterializedValue::UInt { value, width } => Value::uint(*value, *width),
+        destack_vm::MaterializedValue::Float32 { bits } => Value::float32(f32::from_bits(*bits)),
+        destack_vm::MaterializedValue::Float64 { bits } => Value::float64(f64::from_bits(*bits)),
+        destack_vm::MaterializedValue::Char(value) => Value::char(*value),
+        destack_vm::MaterializedValue::HeapReference(reference) => {
+            Value::heap_reference(*reference)
+        }
+        destack_vm::MaterializedValue::SharedHeapReference(reference) => {
+            Value::shared_heap_reference(*reference)
+        }
+        destack_vm::MaterializedValue::RawPointer(pointer) => Value::raw_pointer(*pointer),
+        destack_vm::MaterializedValue::SharedRawPointer(pointer) => {
+            Value::shared_raw_pointer(*pointer)
+        }
+        destack_vm::MaterializedValue::Undefined
+        | destack_vm::MaterializedValue::Aggregate { .. }
+        | destack_vm::MaterializedValue::FrameAddress(_)
+        | destack_vm::MaterializedValue::GlobalAddress(_)
+        | destack_vm::MaterializedValue::Function(_) => {
+            panic!("expected plain materialized value, got {value:?}")
+        }
     }
 }
 
@@ -1717,12 +1745,15 @@ impl TestProgram {
     pub fn lower_module(&self, module: ModuleId, target: &str) {
         let package_id = module.package_id;
         let target_id = self.target_id(package_id, target);
-        self.add_target(module, target);
-
-        let profile = self
-            .program
-            .profile_id_for_target(module, &target_id)
-            .unwrap_or_else(|| panic!("missing profile for target '{target}'"));
+        let profile = match self.program.profile_id_for_target(module, &target_id) {
+            Some(profile) => profile,
+            None => {
+                self.add_target(module, target);
+                self.program
+                    .profile_id_for_target(module, &target_id)
+                    .unwrap_or_else(|| panic!("missing profile for target '{target}'"))
+            }
+        };
         self.enqueue(ArtifactKey::mir_base(module, profile, target_id));
     }
 
@@ -1964,7 +1995,7 @@ impl TestProgram {
             })),
             "native" => Some(json!({
                 "emit": "native",
-                "runtime": "native-hosted",
+                "runtime": "native-managed",
                 "platform": "universal",
                 "optimize": true,
             })),
@@ -2694,6 +2725,20 @@ impl TestProgram {
         format_mir(&tree, &strings, self.mir_format_options())
     }
 
+    /// Format a module's MIR using the profile selected by the target.
+    pub fn target_mir_to_string(&self, module_id: ModuleId, target: &str) -> String {
+        let module = self.program.module_descriptor(module_id);
+        let module = module.as_ref();
+        let target_id = self.target_id(module.package_id, target);
+        let profile = self
+            .program
+            .profile_id_for_target(module_id, &target_id)
+            .unwrap_or_else(|| panic!("missing profile for target '{target}'"));
+        let (tree, strings) = self.artifact_mir_parts(module_id, profile, &target_id);
+
+        format_mir(&tree, &strings, self.mir_format_options())
+    }
+
     /// Format MIR options for test output.
     fn mir_format_options(&self) -> MirFormatOptions {
         // enable type aliases in test output
@@ -2789,11 +2834,9 @@ impl TestProgram {
         let (tree, strings) = self.artifact_mir_parts(module_id, profile, &target_id);
         let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
             .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
+        let layouts = Arc::new(isolate.layout_table().clone());
 
-        let heap = Heap::new().expect("default heap should build");
-        let mut heap = heap;
-        let shared = SharedHeap::new();
-        let mut shared = shared;
+        let (mut heap, mut shared) = create_test_heaps(layouts);
 
         isolate
             .initialize(&mut heap, &mut shared)
@@ -2870,6 +2913,18 @@ impl TestProgram {
         let expected = self.normalize_mir_expected(expected);
 
         // compare formatted output
+        if actual != expected {
+            print_diff(&expected, &actual, &DiffOptions::new());
+            panic!("mir code mismatch");
+        }
+    }
+
+    /// Assert that a target-profile MIR artifact matches the expected text format.
+    pub fn assert_target_mir(&self, module_id: ModuleId, target: &str, expected: &str) {
+        let actual = self.target_mir_to_string(module_id, target);
+        let actual = self.normalize_mir_actual(&actual);
+        let expected = self.normalize_mir_expected(expected);
+
         if actual != expected {
             print_diff(&expected, &actual, &DiffOptions::new());
             panic!("mir code mismatch");
@@ -3232,6 +3287,35 @@ impl TestProgram {
             first_argument_is_string_literal,
         }
     }
+}
+
+/// Create local and shared test heaps over one allocator and explicit layouts.
+fn create_test_heaps(layouts: Arc<LayoutTable>) -> (Heap, SharedHeap) {
+    let local_options = HeapOptions::local();
+    let shared_options = HeapOptions::shared();
+    let allocator = Arc::new(
+        Allocator::try_new(
+            local_options.page_bytes,
+            local_options.allocator_arena_bytes,
+        )
+        .expect("test allocator should build"),
+    );
+    let heap = Heap::with_allocator_limits_layouts_and_options(
+        allocator.clone(),
+        layouts.clone(),
+        HeapLimits::default(),
+        local_options,
+    )
+    .expect("test heap should build");
+    let shared = SharedHeap::with_allocator_limits_layouts_and_options(
+        allocator,
+        layouts,
+        SharedHeapLimits::default(),
+        shared_options,
+    )
+    .expect("test shared heap should build");
+
+    (heap, shared)
 }
 
 /// Format one compact compiler stats snapshot for timeout diagnostics.

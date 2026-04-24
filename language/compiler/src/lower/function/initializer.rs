@@ -52,6 +52,12 @@ impl FunctionLowerer<'_> {
                 })?;
                 self.state.builder.iconst(0, width, is_signed)
             }
+            mir::Type::FunctionSignature { .. } => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node,
+                    message: "constructor cannot initialize function signatures".to_string(),
+                });
+            }
             mir::Type::Float { width } => {
                 let width = u8::try_from(width).map_err(|_| LowerError::UnsupportedConstruct {
                     node,
@@ -77,7 +83,7 @@ impl FunctionLowerer<'_> {
                     .builder
                     .cast(mir::CastOperator::IntToPointer, zero, ty)
             }
-            mir::Type::TensorReference { .. } => {
+            mir::Type::TensorView { .. } => {
                 let pointer_bits = self.context.type_lowerer.pointer_bytes() * 8;
                 let zero = self.state.builder.iconst(0, pointer_bits, false);
                 self.state

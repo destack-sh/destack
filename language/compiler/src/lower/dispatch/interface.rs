@@ -54,9 +54,10 @@ impl ModuleLowerer<'_> {
         let parameter_types = self.method_parameter_types(signature, Some(interface_type))?;
 
         // build a MIR signature type aligned with the lowered parameters
-        let signature_type = self
+        let signature = self
             .builder
-            .type_function_pointer(parameter_types.clone(), return_type);
+            .type_function_signature(parameter_types.clone(), return_type);
+        let signature_type = self.builder.type_function_pointer(signature);
 
         // declare the interface method stub
         let function_id = self

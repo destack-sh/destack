@@ -31,31 +31,24 @@ impl Compiler {
     /// Convert a VM value into a static expression.
     pub(crate) fn value_to_static_expression(
         &self,
-        isolate: &vm::Isolate,
-        heap: &vm::Heap,
-        value: &vm::Value,
+        _isolate: &vm::Isolate,
+        _heap: &vm::Heap,
+        value: &vm::MaterializedValue,
     ) -> Option<dir::StaticExpression> {
-        use vm::ValueTag;
-
-        let scalar = match value.tag() {
-            ValueTag::Bool => dir::ScalarLiteral::Boolean(value.as_bool()?),
-            ValueTag::Int => dir::ScalarLiteral::Integer(value.as_int()?),
-            ValueTag::UInt => dir::ScalarLiteral::Integer(value.as_uint()?.try_into().ok()?),
-            ValueTag::Float32 => dir::ScalarLiteral::Float(value.as_float32()? as f64),
-            ValueTag::Float64 => dir::ScalarLiteral::Float(value.as_float64()?),
-            ValueTag::Char => dir::ScalarLiteral::Character(value.as_char()?),
-
-            // preserve null literals instead of treating them as unsupported pointers
-            ValueTag::RawPointer if value.as_raw_pointer()?.is_null() => dir::ScalarLiteral::Null,
-
-            // resolve managed string objects through the isolate helper
-            ValueTag::ManagedReference => {
-                let literal = isolate.string_value(heap, *value).ok()?;
-                let literal_id = self.repository.strings.intern(&literal);
-                return Some(dir::StaticExpression::ScalarLiteral {
-                    value: dir::ScalarLiteral::String(literal_id),
-                });
+        let scalar = match value {
+            vm::MaterializedValue::Bool(value) => dir::ScalarLiteral::Boolean(*value),
+            vm::MaterializedValue::Int { value, .. } => dir::ScalarLiteral::Integer(*value),
+            vm::MaterializedValue::UInt { value, .. } => {
+                dir::ScalarLiteral::Integer((*value).try_into().ok()?)
             }
+            vm::MaterializedValue::Float32 { bits } => {
+                dir::ScalarLiteral::Float(f32::from_bits(*bits) as f64)
+            }
+            vm::MaterializedValue::Float64 { bits } => {
+                dir::ScalarLiteral::Float(f64::from_bits(*bits))
+            }
+            vm::MaterializedValue::Char(value) => dir::ScalarLiteral::Character(*value),
+
             _ => return None, // #Incomplete: support more complex static values in comptime
         };
 

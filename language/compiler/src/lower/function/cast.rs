@@ -20,12 +20,12 @@ impl FunctionLowerer<'_> {
                 address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
                 ..
             }
-            | mir::Type::TensorReference {
+            | mir::Type::TensorView {
                 kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
                 address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
                 ..
             }
-            | mir::Type::TensorReference {
+            | mir::Type::TensorView {
                 kind: mir::ReferenceKind::Borrowed,
                 address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
                 ..
@@ -41,7 +41,7 @@ impl FunctionLowerer<'_> {
                 kind: mir::ReferenceKind::Raw,
                 ..
             }
-            | mir::Type::TensorReference {
+            | mir::Type::TensorView {
                 kind: mir::ReferenceKind::Raw,
                 ..
             } => true,

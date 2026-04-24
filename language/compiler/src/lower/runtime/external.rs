@@ -182,9 +182,10 @@ impl ModuleLowerer<'_> {
             }
             abi_parameters.extend(parameter_types);
 
-            let signature_type = self
+            let signature = self
                 .builder
-                .type_function_pointer(abi_parameters.clone(), abi_info.ty);
+                .type_function_signature(abi_parameters.clone(), abi_info.ty);
+            let signature_type = self.builder.type_function_pointer(signature);
             self.assign_signature_metadata_name(signature_type, target_symbol, anchor)?;
 
             let function_id =
@@ -200,9 +201,10 @@ impl ModuleLowerer<'_> {
         }
 
         // create a signature type for direct callsites
-        let signature_type = self
+        let signature = self
             .builder
-            .type_function_pointer(parameter_types.clone(), return_type);
+            .type_function_signature(parameter_types.clone(), return_type);
+        let signature_type = self.builder.type_function_pointer(signature);
         // attach a metadata name for the signature type
         self.assign_signature_metadata_name(signature_type, target_symbol, anchor)?;
 
