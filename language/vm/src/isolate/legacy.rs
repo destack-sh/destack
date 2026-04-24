@@ -361,11 +361,11 @@ impl<'ctx> ExternalCallContext<'ctx> {
                 expected: "heap aggregate".to_string(),
                 actual: format!("{value:?}"),
             })?;
-        let bytes = self.heap_ref().read_heap_bytes(source)?;
-
-        if bytes.len() != self.layout(ty)?.byte_len {
-            return Err(Error::InvalidHeapReference);
-        }
+        let byte_len = self.layout(ty)?.byte_len;
+        let mut bytes = vec![0u8; byte_len];
+        self.heap_ref()
+            .read_heap_bytes_into(source, 0, &mut bytes)
+            .map_err(Error::from)?;
 
         self.write_heap_bytes(handle, start, &bytes)
     }
@@ -426,12 +426,8 @@ impl<'ctx> ExternalCallContext<'ctx> {
             .module()
             .layout_id_for_type(ty)
             .ok_or(Error::InvalidInstruction)?;
-        let layout = self.module().allocation_layout(layout_id)?;
         let bytes = self.callable_payload(values)?;
-        let handle = self
-            .heap()
-            .allocate(layout, Payload::Bytes(&bytes))
-            .map_err(Error::from)?;
+        let handle = self.allocate_heap_layout(layout_id, Payload::Bytes(&bytes))?;
         let handle = self.capture_heap_reference(handle)?;
         self.record_heap_type(handle, ty);
 
@@ -455,11 +451,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
             .module()
             .layout_id_for_type(ty)
             .ok_or(Error::InvalidInstruction)?;
-        let layout = self.module().allocation_layout(layout_id)?;
-        let handle = self
-            .heap()
-            .allocate(layout, Payload::Zeroed)
-            .map_err(Error::from)?;
+        let handle = self.allocate_heap_layout(layout_id, Payload::Zeroed)?;
         let handle = self.capture_heap_reference(handle)?;
         self.record_heap_type(handle, ty);
         let value_layouts = aggregate_members(self.layout(ty)?)?;

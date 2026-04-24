@@ -160,8 +160,21 @@ impl<'ctx> ExternalCallContext<'ctx> {
     }
 
     /// Borrow the local heap.
-    pub(super) fn heap(&self) -> &mut Heap {
+    pub(super) fn heap(&mut self) -> &mut Heap {
         unsafe { &mut *self.heap }
+    }
+
+    /// Allocate one local heap payload from one module layout id.
+    pub(super) fn allocate_heap_layout(
+        &mut self,
+        layout_id: mir::LayoutId,
+        payload: Payload<'_>,
+    ) -> Result<HeapReference, Error> {
+        let layout = self.module.allocation_layout(layout_id)?;
+
+        unsafe { &mut *self.heap }
+            .allocate(layout, payload)
+            .map_err(Error::from)
     }
 
     /// Write one managed byte range through the external mutator path.
@@ -521,6 +534,7 @@ impl Drop for ExternalCallContext<'_> {
     }
 }
 
+#[allow(clippy::mut_from_ref)]
 impl<'call, 'ctx> ExternalReadContext<'call, 'ctx> {
     /// Return the external call context immutably.
     pub(super) fn context(&self) -> &ExternalCallContext<'ctx> {
@@ -573,6 +587,7 @@ impl<'call, 'ctx> ExternalReadContext<'call, 'ctx> {
     }
 }
 
+#[allow(clippy::mut_from_ref)]
 impl<'call, 'ctx> ExternalWriteContext<'call, 'ctx> {
     /// Return the external call context mutably.
     pub(super) fn context_mut(&self) -> &mut ExternalCallContext<'ctx> {

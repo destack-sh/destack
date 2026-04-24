@@ -26,8 +26,8 @@ pub use destack_engine::{IsolateId, MaterializedValue};
 pub use destack_heap::{
     Allocator, GcStats, Heap, HeapError, HeapImage, HeapLimits, HeapOptions, HeapReference,
     HeapResult, HeapSpace, RawPointer, RawSpace, SharedHeap, SharedHeapImage, SharedHeapLimits,
-    SharedHeapReference, SharedHeapUsage, SharedRawBudget, SharedRawEntryImage, SharedRawLimits,
-    SharedRawPointer,
+    SharedHeapReference, SharedHeapUsage, SharedRawAllocationImage, SharedRawBudget,
+    SharedRawLimits, SharedRawPointer,
 };
 
 #[cfg(test)]

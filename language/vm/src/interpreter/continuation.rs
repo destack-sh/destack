@@ -3,8 +3,8 @@ use {destack_engine as engine, destack_mir as mir};
 use super::Frame;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::execute::{
-    frame_pointer_value, frame_pointer_value_with_meta, global_pointer_value,
-    global_pointer_value_with_meta, stack_pointer_value, stack_pointer_value_with_meta,
+    frame_pointer_value, frame_pointer_value_with_meta, stack_pointer_value,
+    stack_pointer_value_with_meta, static_pointer_value, static_pointer_value_with_meta,
 };
 use crate::interpreter::StackAllocation;
 use crate::module::{FunctionTable, Module, repr_type};
@@ -12,7 +12,7 @@ use crate::snapshot::ContinuationImage;
 #[cfg(feature = "stats")]
 use crate::telemetry::InstructionProfile;
 use crate::telemetry::Statistics;
-use crate::{FramePointer, ReferenceMeta, RootSink, StackPointer, Value, ValueTag};
+use crate::{FramePointer, ReferenceMeta, RootVisitor, StackPointer, Value, ValueTag};
 use destack_heap::Heap;
 
 /// Continuation snapshot captured at a yield terminator.
@@ -82,7 +82,7 @@ impl Continuation {
     pub(crate) fn visit_roots(
         &self,
         module: &Module,
-        roots: &mut impl RootSink,
+        roots: &mut impl RootVisitor,
     ) -> Result<(), Error> {
         // collect roots from captured frames
         for frame in &self.stack {
@@ -127,7 +127,7 @@ impl Continuation {
     pub(crate) fn visit_image_roots(
         image: &ContinuationImage,
         module: &Module,
-        roots: &mut impl RootSink,
+        roots: &mut impl RootVisitor,
     ) -> Result<(), Error> {
         // captured frames
         for frame in &image.frames {
@@ -179,7 +179,7 @@ impl Continuation {
 fn visit_frame_image_roots(
     image: &engine::FrameImage,
     module: &Module,
-    roots: &mut impl RootSink,
+    roots: &mut impl RootVisitor,
 ) -> Result<(), Error> {
     // captured slots
     for value in &image.slots {
@@ -206,16 +206,14 @@ fn visit_frame_image_roots(
 pub(crate) fn visit_materialized_value_roots(
     value: &engine::MaterializedValue,
     _module: &Module,
-    roots: &mut impl RootSink,
+    roots: &mut impl RootVisitor,
 ) -> Result<(), Error> {
-    match value {
-        engine::MaterializedValue::HeapReference(reference) => {
-            roots.push_heap(*reference);
-        }
-        engine::MaterializedValue::SharedHeapReference(reference) => {
-            roots.push_shared(*reference);
-        }
-        _ => {}
+    if let engine::MaterializedValue::HeapReference(reference) = value {
+        roots.push_heap(*reference);
+    }
+
+    if let engine::MaterializedValue::SharedHeapReference(reference) = value {
+        roots.push_shared(*reference);
     }
 
     Ok(())
@@ -227,15 +225,14 @@ pub(crate) fn stabilize_materialized_value(
     heap: &mut Heap,
     value: &mut engine::MaterializedValue,
 ) -> RuntimeResult<()> {
-    match value {
-        engine::MaterializedValue::HeapReference(reference) => {
-            if !reference.is_null() {
-                *reference = heap
-                    .stabilize_heap(*reference)
-                    .map_err(|error| RuntimeError::new(Error::from(error)))?;
-            }
-        }
-        _ => {}
+    let engine::MaterializedValue::HeapReference(reference) = value else {
+        return Ok(());
+    };
+
+    if !reference.is_null() {
+        *reference = heap
+            .stabilize_heap(*reference)
+            .map_err(|error| RuntimeError::new(Error::from(error)))?;
     }
 
     Ok(())
@@ -613,13 +610,13 @@ fn capture_slot_value(
                 byte_offset,
             })
         }
-        ValueTag::GlobalPointer => {
+        ValueTag::StaticPointer => {
             let pointer = value
-                .as_global_pointer()
+                .as_static_pointer()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
             let byte_offset = u32::try_from(pointer.byte_offset).map_err(|_| {
                 RuntimeError::new(Error::InvariantViolation {
-                    context: "global pointer offset exceeds uint32".to_string(),
+                    context: "static pointer offset exceeds uint32".to_string(),
                 })
             })?;
 
@@ -713,10 +710,10 @@ fn restore_slot_value(
                 .map_err(|_| RuntimeError::new(Error::InvalidContinuation))?;
 
             if let Some(reference_meta) = reference_meta {
-                global_pointer_value_with_meta(pointer.global, byte_offset, reference_meta)
+                static_pointer_value_with_meta(pointer.global, byte_offset, reference_meta)
                     .map_err(RuntimeError::new)?
             } else {
-                global_pointer_value(pointer.global, byte_offset).map_err(RuntimeError::new)?
+                static_pointer_value(pointer.global, byte_offset).map_err(RuntimeError::new)?
             }
         }
         engine::MaterializedValue::Function(function) => Value::function_pointer(*function),
