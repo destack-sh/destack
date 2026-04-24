@@ -503,8 +503,8 @@ impl Parser {
             let parameter_start = self.mark_span();
             let (parameter_name, parameter_name_span) = self.eat_binding_identifier_with_span()?;
             let (parameter_type, parameter_type_span) = if has_type_annotation {
-                let type_start = self.mark_span();
                 self.eat_newlines_maybe()?;
+                let type_start = self.mark_span();
                 self.eat_token(TokenType::Colon)?;
                 self.eat_newlines_maybe()?;
                 let mut type_options = self
@@ -552,8 +552,8 @@ impl Parser {
 
         // parse an explicit lambda return type when present
         let (return_type, return_type_span) = if self.has_lambda_return_type_marker() {
-            let type_start = self.mark_span();
             self.eat_newlines_maybe()?;
+            let type_start = self.mark_span();
             self.eat_token(TokenType::Colon)?;
             self.eat_newlines_maybe()?;
 
@@ -641,8 +641,8 @@ impl Parser {
 
         // explicit lambda return type
         let (return_type, return_type_span) = if self.has_lambda_return_type_marker() {
-            let type_start = self.mark_span();
             self.eat_newlines_maybe()?;
+            let type_start = self.mark_span();
             self.eat_token(TokenType::Colon)?;
             self.eat_newlines_maybe()?;
 
@@ -1022,8 +1022,8 @@ impl Parser {
         let (return_type, return_type_span, where_clauses) = {
             // lambda with explicit return type
             if kind == FunctionKind::Lambda && self.has_lambda_return_type_marker() {
-                let type_start = self.mark_span();
                 self.eat_newlines_maybe()?;
+                let type_start = self.mark_span();
                 self.bump(); // eat colon or arrow
                 self.eat_newlines_maybe()?;
 
@@ -1062,8 +1062,8 @@ impl Parser {
                         && (self.is_token_after_newlines(self.pos(), TokenType::Arrow)
                             || self.is_token_after_newlines(self.pos(), TokenType::Colon));
                 let (return_type, return_type_span) = if has_return_type_marker {
-                    let type_start = self.mark_span();
                     self.eat_newlines_maybe()?;
+                    let type_start = self.mark_span();
                     self.bump(); // eat arrow or colon
                     self.eat_newlines_maybe()?;
 

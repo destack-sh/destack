@@ -728,8 +728,8 @@ impl Parser {
                     );
 
             if has_type_annotation_marker {
-                let type_start = self.mark_span();
                 self.eat_newlines_maybe()?;
+                let type_start = self.mark_span();
                 self.bump(); // eat colon or keyword
                 self.eat_newlines_maybe()?;
                 let declared_type = if self.peek_is(TokenType::Assign)
@@ -1098,8 +1098,8 @@ impl Parser {
         let is_value_parameter = is_comptime;
 
         let (declared_type, declared_type_span) = if has_annotation {
-            let type_start = self.mark_span();
             self.eat_newlines_maybe()?;
+            let type_start = self.mark_span();
             self.bump(); // eat colon or extends
             self.eat_newlines_maybe()?;
             let declared_type = if self.peek_is(TokenType::Assign)

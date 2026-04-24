@@ -522,8 +522,8 @@ impl Parser {
             || self.peek_is(TokenType::Newline)
                 && self.is_token_after_newlines(self.pos(), TokenType::Colon);
         let (return_type, return_type_span) = if has_return_type_marker {
-            let type_start = self.mark_span();
             self.eat_newlines_maybe()?;
+            let type_start = self.mark_span();
             self.eat_token(TokenType::Colon)?;
             self.eat_newlines_maybe()?;
 
@@ -1135,8 +1135,8 @@ impl Parser {
             let is_optional = self.eat_token_maybe(TokenType::Maybe)?;
             let optional_span = is_optional.then(|| self.get_span_from(&optional_start));
 
-            let type_start = self.mark_span();
             self.eat_newlines_maybe()?;
+            let type_start = self.mark_span();
             self.eat_token(TokenType::Colon)?;
             self.eat_newlines_maybe()?;
 
