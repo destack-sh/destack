@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use crate::diagnostic::RuntimeResult;
 use crate::runtime::observe::Observation;
 use crate::runtime::scheduler::Timer;
-use crate::runtime::{WorkerId, TickOutcome};
+use crate::runtime::{TickOutcome, WorkerId};
 use destack_workspace::{ExecutionMode, TimeMode};
 
 use super::{Command, RuntimeId, Wake, World};
@@ -32,24 +32,44 @@ impl World {
 
     /// Execute one world tick across all stored runtimes in stable order.
     pub fn tick(&mut self) -> RuntimeResult<TickOutcome> {
+        self.tick_drive()
+    }
+
+    /// Execute one world tick directly on the current lane.
+    pub(crate) fn tick_drive(&mut self) -> RuntimeResult<TickOutcome> {
         let command = self.resolve_command(Command::Tick)?;
         if self.trace.mode() == ExecutionMode::Record {
             self.ingest(command.clone())?;
         }
+
         self.tick_inner()
     }
 
     /// Execute one world tick without tracing the outer invocation.
     pub(crate) fn tick_inner(&mut self) -> RuntimeResult<TickOutcome> {
         let world = self.world_ref();
-
         // runnable work and ingress
         for runtime in self.runtimes.values_mut() {
             if runtime.tick(&world)?.progressed() {
+                self.tick_shared_gc()?;
+
                 world.observe(Observation::scheduler_progressed());
 
                 return Ok(TickOutcome::Progressed);
             }
+        }
+
+        // shared heap work also counts as scheduler progress
+        if self.tick_shared_gc()? {
+            world.observe(Observation::scheduler_progressed());
+
+            return Ok(TickOutcome::Progressed);
+        }
+
+        // background shared GC still counts as live world work,
+        // but it did not advance on this caller lane
+        if self.shared_gc_in_flight() {
+            return Ok(TickOutcome::Concurrent);
         }
 
         // host time cannot advance under world control
@@ -108,9 +128,20 @@ impl World {
     /// Execute world ticks across all stored runtimes until idle.
     pub fn tick_until_idle(&mut self) -> RuntimeResult<()> {
         loop {
-            if self.tick()? == TickOutcome::Idle {
-                return Ok(());
+            let outcome = self.tick()?;
+
+            // keep yielding while one background side plane is still draining
+            if outcome == TickOutcome::Concurrent {
+                std::thread::yield_now();
+                continue;
+            }
+
+            // stop when the scheduler cannot make further progress
+            if outcome == TickOutcome::Idle {
+                break;
             }
         }
+
+        Ok(())
     }
 }
