@@ -72,6 +72,12 @@ pub enum MaterializedValue {
     RawPointer(RawPointer),
     /// One shared raw-space pointer.
     SharedRawPointer(SharedRawPointer),
+    /// One durable address into one captured frame allocation.
+    FrameAddress(FrameAddress),
+    /// One durable address into one global value.
+    GlobalAddress(GlobalAddress),
+    /// One MIR function reference.
+    Function(mir::LocalNodeId<mir::Function>),
     /// One durable by-value aggregate payload.
     Aggregate {
         /// The stored MIR type.
@@ -79,10 +85,4 @@ pub enum MaterializedValue {
         /// The owned aggregate bytes.
         bytes: Vec<u8>,
     },
-    /// One durable address into one captured frame allocation.
-    FrameAddress(FrameAddress),
-    /// One durable address into one global value.
-    GlobalAddress(GlobalAddress),
-    /// One MIR function reference.
-    Function(mir::LocalNodeId<mir::Function>),
 }

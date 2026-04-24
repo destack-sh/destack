@@ -19,10 +19,10 @@ pub enum ValueTag {
     /// Unicode character.
     Char = 6,
     /// GC-tracked heap reference.
-    ManagedReference = 7,
+    HeapReference = 7,
     /// Shared GC-tracked heap reference.
-    SharedManagedReference = 8,
-    /// Manually managed heap pointer.
+    SharedHeapReference = 8,
+    /// Raw heap pointer.
     RawPointer = 9,
     /// Shared raw-memory pointer.
     SharedRawPointer = 10,
@@ -47,8 +47,8 @@ impl ValueTag {
             4 => Some(Self::Float32),
             5 => Some(Self::Float64),
             6 => Some(Self::Char),
-            7 => Some(Self::ManagedReference),
-            8 => Some(Self::SharedManagedReference),
+            7 => Some(Self::HeapReference),
+            8 => Some(Self::SharedHeapReference),
             9 => Some(Self::RawPointer),
             10 => Some(Self::SharedRawPointer),
             11 => Some(Self::StackPointer),
