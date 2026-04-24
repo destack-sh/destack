@@ -3,55 +3,55 @@ use serde::{Deserialize, Serialize};
 use crate::allocator::PageView;
 use crate::{HeapError, HeapResult};
 
-/// One frozen raw large-entry root.
+/// One frozen raw large-allocation root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct LargeEntryImage {
-    /// Whether this entry slot is live.
+pub(crate) struct LargeAllocationImage {
+    /// Whether this allocation slot is live.
     pub is_live: bool,
-    /// The logical byte length of this entry.
+    /// The logical byte length of this allocation.
     pub len: usize,
-    /// The full byte payload for this entry.
+    /// The full byte payload for this allocation.
     pub bytes: Box<[u8]>,
 }
 
-/// One stable raw large-entry identifier.
+/// One stable raw large-allocation identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct LargeEntryId(u64);
+pub(crate) struct LargeAllocationId(u64);
 
-impl LargeEntryId {
-    /// Create one raw large-entry identifier.
+impl LargeAllocationId {
+    /// Create one raw large-allocation identifier.
     pub(crate) const fn new(id: u64) -> Self {
         Self(id)
     }
 
-    /// Return the raw large-entry identifier value.
+    /// Return the raw large-allocation identifier value.
     pub(crate) const fn id(self) -> u64 {
         self.0
     }
 
-    /// Return the zero-based large-entry slot index.
+    /// Return the zero-based large-allocation slot index.
     pub(crate) fn index(self) -> HeapResult<usize> {
         let Some(index) = self.0.checked_sub(1) else {
-            return Err(HeapError::InvalidLargeEntryId { id: self.0 });
+            return Err(HeapError::InvalidLargeAllocationId { id: self.0 });
         };
 
         Ok(index as usize)
     }
 }
 
-/// One live raw large entry.
+/// One live raw large allocation.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct LargeEntry {
-    /// Whether this large-entry slot is live.
+pub(crate) struct LargeAllocation {
+    /// Whether this large-allocation slot is live.
     pub(crate) is_live: bool,
-    /// The logical byte length of this entry.
+    /// The logical byte length of this allocation.
     pub(crate) len: usize,
-    /// The allocator pages for this entry.
+    /// The allocator pages for this allocation.
     pub(crate) pages: PageView,
 }
 
-impl LargeEntry {
-    /// Retire this raw large-entry slot.
+impl LargeAllocation {
+    /// Retire this raw large-allocation slot.
     pub(crate) fn retire(&mut self) {
         self.is_live = false;
         self.len = 0;

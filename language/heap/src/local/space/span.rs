@@ -11,8 +11,6 @@ pub(crate) struct SmallSpanImage {
     pub class: SmallSpanClass,
     /// The number of slots in this span.
     pub slot_count: usize,
-    /// The exact byte lengths stored in each slot.
-    pub byte_lens: Box<[usize]>,
     /// The occupied slots in this span.
     pub occupied: Bitmap,
     /// The exact local-reference bits for each occupied slot.
@@ -30,8 +28,6 @@ pub(crate) struct SmallSpan {
     pub(crate) class: SmallSpanClass,
     /// The number of slots in this span.
     pub(crate) slot_count: usize,
-    /// The exact byte lengths stored in each slot.
-    pub(crate) byte_lens: Box<[usize]>,
     /// The number of occupied slots in this span.
     pub(crate) occupied_count: usize,
     /// The next likely free-slot search cursor.

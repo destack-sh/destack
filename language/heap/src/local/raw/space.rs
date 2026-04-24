@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use super::{LargeEntry, LargeEntryId, RawLocation, RawPageOwner, RawStorage, SmallSpan};
+use super::{LargeAllocation, LargeAllocationId, RawLocation, RawPageOwner, RawPlace, SmallSpan};
 use crate::allocator::{Allocator, PageId, PageRunCache, PageView, SizeClassTable};
 use crate::{AllocationUsage, CowTable, HeapError, HeapOptions, HeapResult, RawSpaceUsage};
 
-/// The first non-null raw large-entry id.
-const FIRST_ALLOCATED_LARGE_ENTRY_ID: u64 = 1;
+/// The first non-null raw large-allocation id.
+const FIRST_ALLOCATED_LARGE_ALLOCATION_ID: u64 = 1;
 
 /// One raw small space.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,23 +18,23 @@ pub(crate) struct SmallSpace {
     /// The live raw spans.
     pub(crate) spans: CowTable<SmallSpan>,
     /// The reusable non-full spans per logical byte length.
-    pub(crate) available_spans: BTreeMap<usize, Vec<usize>>,
+    pub(crate) partial_spans: BTreeMap<usize, Vec<usize>>,
 }
 
 /// One raw large space.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LargeSpace {
-    /// The configured page width for entries in large space.
+    /// The configured page width for allocations in large space.
     pub(crate) page_bytes: usize,
-    /// The live raw entries.
-    pub(crate) entries: CowTable<LargeEntry>,
-    /// The free raw entry ids available for reuse.
-    pub(crate) free_large_entry_ids: Vec<u64>,
-    /// The next raw entry id to allocate.
-    pub(crate) next_unused_large_entry_id: u64,
+    /// The live raw allocations.
+    pub(crate) allocations: CowTable<LargeAllocation>,
+    /// The free raw allocation ids available for reuse.
+    pub(crate) free_large_allocation_ids: Vec<u64>,
+    /// The next raw allocation id to allocate.
+    pub(crate) next_unused_large_allocation_id: u64,
 }
 
-/// One live raw entry space rooted in one allocator.
+/// One live raw allocation space rooted in one allocator.
 #[derive(Debug)]
 pub struct RawSpace {
     /// The shared page allocator for every raw payload.
@@ -70,13 +70,13 @@ impl RawSpace {
                 size_classes: options.size_classes.clone(),
                 span_bytes: options.raw_small_bytes,
                 spans: CowTable::new(),
-                available_spans: BTreeMap::new(),
+                partial_spans: BTreeMap::new(),
             },
             large: LargeSpace {
                 page_bytes: options.page_bytes,
-                entries: CowTable::new(),
-                free_large_entry_ids: Vec::new(),
-                next_unused_large_entry_id: FIRST_ALLOCATED_LARGE_ENTRY_ID,
+                allocations: CowTable::new(),
+                free_large_allocation_ids: Vec::new(),
+                next_unused_large_allocation_id: FIRST_ALLOCATED_LARGE_ALLOCATION_ID,
             },
             page_owners: Vec::new(),
             usage: AllocationUsage::default(),
@@ -88,7 +88,7 @@ impl RawSpace {
         &self.allocator
     }
 
-    /// Return the number of live raw entries.
+    /// Return the number of live raw allocations.
     pub fn allocation_count(&self) -> usize {
         self.usage.allocation_count()
     }
@@ -101,11 +101,12 @@ impl RawSpace {
     /// Return the exact mapped raw page bytes.
     pub fn mapped_bytes(&self) -> u64 {
         self.allocator.mapped_bytes_for_page_views(
-            self.small
-                .spans
-                .iter()
-                .map(|span| &span.pages)
-                .chain(self.large.entries.iter().map(|entry| &entry.pages)),
+            self.small.spans.iter().map(|span| &span.pages).chain(
+                self.large
+                    .allocations
+                    .iter()
+                    .map(|allocation| &allocation.pages),
+            ),
         ) + self
             .page_run_cache
             .cached_bytes(self.allocator.page_bytes())
@@ -145,24 +146,38 @@ impl RawSpace {
     }
 
     /// Flush transient cache state before one exact branch boundary.
-    pub(crate) fn flush_branch_boundary(&mut self) {
-        self.page_run_cache.flush(&self.allocator);
+    pub(crate) fn flush_branch_boundary(&mut self) -> HeapResult<()> {
+        self.page_run_cache.flush(&self.allocator)
     }
 
-    /// Return one live raw large entry by id.
-    pub(super) fn large_entry(&self, entry_id: LargeEntryId) -> Option<&LargeEntry> {
-        let index = entry_id.index().ok()?;
-        let entry = self.large.entries.get(index)?;
+    /// Return one live raw large allocation by id.
+    pub(super) fn large_allocation(
+        &self,
+        allocation_id: LargeAllocationId,
+    ) -> Option<&LargeAllocation> {
+        let index = allocation_id.index().ok()?;
+        let allocation = self.large.allocations.get(index)?;
 
-        if entry.is_live { Some(entry) } else { None }
+        if allocation.is_live {
+            Some(allocation)
+        } else {
+            None
+        }
     }
 
-    /// Return one live raw large entry mutably by id.
-    pub(super) fn large_entry_mut(&mut self, entry_id: LargeEntryId) -> Option<&mut LargeEntry> {
-        let index = entry_id.index().ok()?;
-        let entry = self.large.entries.get_mut(index)?;
+    /// Return one live raw large allocation mutably by id.
+    pub(super) fn large_allocation_mut(
+        &mut self,
+        allocation_id: LargeAllocationId,
+    ) -> Option<&mut LargeAllocation> {
+        let index = allocation_id.index().ok()?;
+        let allocation = self.large.allocations.get_mut(index)?;
 
-        if entry.is_live { Some(entry) } else { None }
+        if allocation.is_live {
+            Some(allocation)
+        } else {
+            None
+        }
     }
 
     /// Return one live raw span by index.
@@ -258,44 +273,45 @@ impl RawSpace {
                 let slot = crate::allocator::SpanSlot::new(span_index, slot_index).ok()?;
 
                 Some(RawLocation {
-                    storage: RawStorage::Small(slot),
+                    place: RawPlace::Small(slot),
                     base: crate::RawPointer::new(base_address),
                     byte_offset: slot_offset,
                     byte_len,
                 })
             }
             RawPageOwner::Large {
-                entry_id,
+                allocation_id,
                 logical_page_index,
             } => {
-                let entry = self.large_entry(entry_id)?;
+                let allocation = self.large_allocation(allocation_id)?;
                 let logical_byte_offset = logical_page_index
                     .checked_mul(self.allocator.page_bytes())?
                     .checked_add(page_offset)?;
-                if entry.len == 0 {
+                if allocation.len == 0 {
                     if logical_byte_offset != 0 {
                         return None;
                     }
-                } else if logical_byte_offset >= entry.len {
+                } else if logical_byte_offset >= allocation.len {
                     return None;
                 }
 
-                let base_address = self.allocator.page_view_ptr(&entry.pages, 0).ok()? as usize;
+                let base_address =
+                    self.allocator.page_view_ptr(&allocation.pages, 0).ok()? as usize;
 
                 Some(RawLocation {
-                    storage: RawStorage::Large(entry_id),
+                    place: RawPlace::Large(allocation_id),
                     base: crate::RawPointer::new(base_address),
                     byte_offset: logical_byte_offset,
-                    byte_len: entry.len,
+                    byte_len: allocation.len,
                 })
             }
         }
     }
 
-    /// Return the base pointer for one raw storage partition.
-    pub(crate) fn base_pointer(&self, storage: RawStorage) -> HeapResult<crate::RawPointer> {
-        let base_address = match storage {
-            RawStorage::Small(slot) => {
+    /// Return the base pointer for one raw place.
+    pub(crate) fn base_pointer(&self, place: RawPlace) -> HeapResult<crate::RawPointer> {
+        let base_address = match place {
+            RawPlace::Small(slot) => {
                 let Some(span) = self.span(slot.span_index()) else {
                     return Err(HeapError::MissingSpan {
                         span_index: slot.span_index(),
@@ -309,14 +325,14 @@ impl RawSpace {
 
                 self.allocator.page_view_ptr(&span.pages, slot_offset)? as usize
             }
-            RawStorage::Large(entry_id) => {
-                let Some(entry) = self.large_entry(entry_id) else {
-                    return Err(HeapError::MissingLargeEntry {
-                        entry_id: entry_id.id(),
+            RawPlace::Large(allocation_id) => {
+                let Some(allocation) = self.large_allocation(allocation_id) else {
+                    return Err(HeapError::MissingLargeAllocation {
+                        allocation_id: allocation_id.id(),
                     });
                 };
 
-                self.allocator.page_view_ptr(&entry.pages, 0)? as usize
+                self.allocator.page_view_ptr(&allocation.pages, 0)? as usize
             }
         };
 
@@ -326,6 +342,8 @@ impl RawSpace {
 
 impl Drop for RawSpace {
     fn drop(&mut self) {
-        self.page_run_cache.flush(&self.allocator);
+        self.page_run_cache
+            .flush(&self.allocator)
+            .unwrap_or_else(|error| panic!("raw page-run cache flush failed: {error}"));
     }
 }

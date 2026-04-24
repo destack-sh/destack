@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use crate::allocator::Allocator;
 use crate::local::{Heap, HeapLimits, HeapOptions};
-use destack_mir::LayoutTable;
 
 /// One heap test harness.
 pub(crate) struct TestHeap {
@@ -20,9 +19,8 @@ impl TestHeap {
         );
 
         Self {
-            heap: Heap::with_allocator_limits_layouts_and_options(
+            heap: Heap::with_allocator_limits_and_options(
                 allocator,
-                Arc::new(LayoutTable::new()),
                 HeapLimits::default(),
                 options,
             )
@@ -43,32 +41,8 @@ impl TestHeap {
         );
 
         Self {
-            heap: Heap::with_allocator_limits_layouts_and_options(
-                allocator,
-                Arc::new(LayoutTable::new()),
-                limits,
-                options,
-            )
-            .expect("explicit heap options should build"),
-        }
-    }
-
-    /// Create one test heap with one explicit layout table.
-    pub(crate) fn with_limits_and_layout_table(
-        limits: HeapLimits,
-        options: HeapOptions,
-        layouts: Arc<LayoutTable>,
-    ) -> Self {
-        let allocator = Arc::new(
-            Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
-                .expect("explicit allocator should build"),
-        );
-
-        Self {
-            heap: Heap::with_allocator_limits_layouts_and_options(
-                allocator, layouts, limits, options,
-            )
-            .expect("explicit heap layouts should build"),
+            heap: Heap::with_allocator_limits_and_options(allocator, limits, options)
+                .expect("explicit heap options should build"),
         }
     }
 }

@@ -7,7 +7,7 @@ use crate::{HeapError, HeapReference, HeapResult};
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct PinSet {
     /// The active scoped pins keyed by heap reference.
-    entries: BTreeMap<HeapReference, NonZeroU32>,
+    counts: BTreeMap<HeapReference, NonZeroU32>,
     /// The total number of active scoped pins across all references.
     active_count: usize,
 }
@@ -15,7 +15,7 @@ pub(crate) struct PinSet {
 impl PinSet {
     /// Pin one heap reference.
     pub(crate) fn pin(&mut self, reference: HeapReference) -> HeapResult<()> {
-        if let Some(count) = self.entries.get_mut(&reference) {
+        if let Some(count) = self.counts.get_mut(&reference) {
             let next_count = count
                 .get()
                 .checked_add(1)
@@ -46,14 +46,14 @@ impl PinSet {
                 .ok_or(HeapError::HeapPinActiveCountOverflow {
                     active_count: self.active_count,
                 })?;
-        self.entries.insert(reference, NonZeroU32::MIN);
+        self.counts.insert(reference, NonZeroU32::MIN);
 
         Ok(())
     }
 
     /// Unpin one heap reference.
     pub(crate) fn unpin(&mut self, reference: HeapReference) -> HeapResult<()> {
-        let Some(count) = self.entries.get(&reference).copied() else {
+        let Some(count) = self.counts.get(&reference).copied() else {
             return Err(HeapError::HeapPinMissing { reference });
         };
 
@@ -66,14 +66,14 @@ impl PinSet {
                 })?;
 
         if count.get() == 1 {
-            self.entries.remove(&reference);
+            self.counts.remove(&reference);
 
             return Ok(());
         }
 
         let next_count =
             NonZeroU32::new(count.get() - 1).ok_or(HeapError::HeapPinMissing { reference })?;
-        let Some(count) = self.entries.get_mut(&reference) else {
+        let Some(count) = self.counts.get_mut(&reference) else {
             return Err(HeapError::HeapPinMissing { reference });
         };
         *count = next_count;
@@ -88,7 +88,7 @@ impl PinSet {
 
     /// Return every currently pinned heap reference.
     pub(crate) fn references(&self) -> impl Iterator<Item = HeapReference> + '_ {
-        self.entries.keys().copied()
+        self.counts.keys().copied()
     }
 
     /// Rewrite every pinned reference through one promotion map.
@@ -100,13 +100,13 @@ impl PinSet {
             return Ok(());
         }
 
-        let previous_entries = std::mem::take(&mut self.entries);
-        let mut next_entries: BTreeMap<HeapReference, NonZeroU32> = BTreeMap::new();
+        let previous_counts = std::mem::take(&mut self.counts);
+        let mut next_counts: BTreeMap<HeapReference, NonZeroU32> = BTreeMap::new();
 
-        for (reference, count) in previous_entries {
+        for (reference, count) in previous_counts {
             let reference = references.get(&reference).copied().unwrap_or(reference);
 
-            if let Some(previous_count) = next_entries.get_mut(&reference) {
+            if let Some(previous_count) = next_counts.get_mut(&reference) {
                 let merged_count = previous_count.get().checked_add(count.get()).ok_or(
                     HeapError::HeapPinCountOverflow {
                         reference,
@@ -124,10 +124,10 @@ impl PinSet {
                 continue;
             }
 
-            next_entries.insert(reference, count);
+            next_counts.insert(reference, count);
         }
 
-        self.entries = next_entries;
+        self.counts = next_counts;
 
         Ok(())
     }
@@ -151,7 +151,7 @@ mod tests {
         assert_eq!(pins.references().collect::<Vec<_>>(), vec![reference]);
         assert_eq!(pins.active_count, 2);
         assert_eq!(
-            pins.entries.get(&reference).map(|count| count.get()),
+            pins.counts.get(&reference).map(|count| count.get()),
             Some(2)
         );
 
@@ -161,7 +161,7 @@ mod tests {
         assert_eq!(pins.references().collect::<Vec<_>>(), vec![reference]);
         assert_eq!(pins.active_count, 1);
         assert_eq!(
-            pins.entries.get(&reference).map(|count| count.get()),
+            pins.counts.get(&reference).map(|count| count.get()),
             Some(1)
         );
 
@@ -177,7 +177,7 @@ mod tests {
     fn test_pin_rejects_count_overflow() {
         let reference = HeapReference::new(7);
         let mut pins = PinSet {
-            entries: BTreeMap::from([(reference, NonZeroU32::MAX)]),
+            counts: BTreeMap::from([(reference, NonZeroU32::MAX)]),
             active_count: 1,
         };
 
@@ -193,7 +193,7 @@ mod tests {
         );
         assert_eq!(pins.active_count, 1);
         assert_eq!(
-            pins.entries.get(&reference).map(|count| count.get()),
+            pins.counts.get(&reference).map(|count| count.get()),
             Some(u32::MAX)
         );
     }
@@ -203,7 +203,7 @@ mod tests {
     fn test_pin_rejects_active_count_overflow() {
         let reference = HeapReference::new(7);
         let mut pins = PinSet {
-            entries: BTreeMap::new(),
+            counts: BTreeMap::new(),
             active_count: usize::MAX,
         };
 
@@ -241,7 +241,7 @@ mod tests {
     fn test_unpin_rejects_active_count_underflow() {
         let reference = HeapReference::new(7);
         let mut pins = PinSet {
-            entries: BTreeMap::from([(reference, NonZeroU32::MIN)]),
+            counts: BTreeMap::from([(reference, NonZeroU32::MIN)]),
             active_count: 0,
         };
 
@@ -258,7 +258,7 @@ mod tests {
             }
         );
         assert_eq!(
-            pins.entries.get(&reference).map(|count| count.get()),
+            pins.counts.get(&reference).map(|count| count.get()),
             Some(1)
         );
     }

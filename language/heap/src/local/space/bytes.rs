@@ -1,6 +1,6 @@
 use destack_mir::ReferenceMap;
 
-use super::{HeapLocation, HeapSpace, HeapStorage};
+use super::{HeapLocation, HeapPlace, HeapSpace};
 use crate::allocator::PageView;
 use crate::{HeapError, HeapReference, HeapResult};
 
@@ -17,7 +17,7 @@ impl HeapSpace {
         Ok(0)
     }
 
-    /// Fill one caller-provided buffer from one heap entry at one offset.
+    /// Fill one caller-provided buffer from one heap allocation at one offset.
     pub(crate) fn read_bytes_into(
         &self,
         reference: HeapReference,
@@ -30,15 +30,15 @@ impl HeapSpace {
         self.fill_location_bytes(location, byte_offset, target)
     }
 
-    /// Return whether one heap reference currently refers to one live entry.
+    /// Return whether one heap reference currently refers to one live allocation.
     pub fn is_live(&self, reference: HeapReference) -> bool {
         self.resolve_location(reference).is_some()
     }
 
     #[cfg(test)]
-    /// Return the live storage location for one heap reference.
-    pub(crate) fn location(&self, reference: HeapReference) -> Option<HeapStorage> {
-        Some(self.resolve_location(reference)?.storage)
+    /// Return the live place for one heap reference.
+    pub(crate) fn place(&self, reference: HeapReference) -> Option<HeapPlace> {
+        Some(self.resolve_location(reference)?.place)
     }
 
     /// Return the reference map for one heap reference.
@@ -47,7 +47,7 @@ impl HeapSpace {
             return Err(HeapError::InvalidHeapReference { reference });
         };
 
-        self.location_reference_map(location.storage)
+        self.place_reference_map(location.place)
     }
 
     /// Return the remaining byte length for one heap reference.
@@ -107,17 +107,19 @@ impl HeapSpace {
         byte_offset: usize,
         byte_len: usize,
     ) -> HeapResult<()> {
+        self.write_major_barrier(location, byte_offset, byte_len)?;
+
         // only mature locations need remembered-write bookkeeping
-        match location.storage {
-            HeapStorage::Young(_) => Ok(()),
-            HeapStorage::Small(slot) => self.mark_span_slot_dirty(
+        match location.place {
+            HeapPlace::Young(_) => Ok(()),
+            HeapPlace::Small(slot) => self.mark_span_slot_dirty(
                 slot.span_index(),
                 slot.slot_index(),
                 byte_offset,
                 byte_len,
             ),
-            HeapStorage::Large(entry_id) => {
-                self.mark_large_entry_dirty(entry_id, byte_offset, byte_len)
+            HeapPlace::Large(allocation_id) => {
+                self.mark_large_allocation_dirty(allocation_id, byte_offset, byte_len)
             }
         }
     }
@@ -134,7 +136,7 @@ impl HeapSpace {
             return Ok(());
         }
 
-        let reference_map = self.location_reference_map(location.storage)?;
+        let reference_map = self.place_reference_map(location.place)?;
 
         if !self.overlaps_shared_roots(&reference_map, byte_offset, byte_len)? {
             return Ok(());
@@ -150,19 +152,19 @@ impl HeapSpace {
         byte_offset: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
-        // write through the storage partition that owns this location
-        match location.storage {
-            HeapStorage::Young(young_id) => {
+        // write through the owning place
+        match location.place {
+            HeapPlace::Young(young_id) => {
                 let previous_pages = self.young.pages.clone();
-                let Some(entry) = self.young_entry(young_id) else {
-                    return Err(HeapError::MissingYoungEntry {
+                let Some(allocation) = self.young_allocation(young_id) else {
+                    return Err(HeapError::MissingYoungAllocation {
                         generation: young_id.generation(),
-                        entry_index: young_id.index(),
+                        allocation_index: young_id.index(),
                     });
                 };
 
-                let read_offset = checked_storage_offset(
-                    self.young_entry_offset(entry),
+                let read_offset = checked_place_offset(
+                    self.young_allocation_offset(allocation),
                     byte_offset,
                     self.young.capacity_bytes,
                 )?;
@@ -181,7 +183,7 @@ impl HeapSpace {
 
                 Ok(())
             }
-            HeapStorage::Small(slot) => {
+            HeapPlace::Small(slot) => {
                 let allocator = self.allocator().clone();
                 let (previous_pages, next_pages) = {
                     let Some(span) = self.span_mut(slot.span_index()) else {
@@ -197,7 +199,7 @@ impl HeapSpace {
                         slot.slot_index(),
                     )?;
                     let write_offset =
-                        checked_storage_offset(slot_offset, byte_offset, span_byte_len)?;
+                        checked_place_offset(slot_offset, byte_offset, span_byte_len)?;
 
                     allocator.set_bytes(&mut span.pages, write_offset, bytes)?;
 
@@ -216,26 +218,26 @@ impl HeapSpace {
 
                 Ok(())
             }
-            HeapStorage::Large(entry_id) => {
+            HeapPlace::Large(allocation_id) => {
                 let allocator = self.allocator().clone();
                 let (previous_pages, next_pages) = {
-                    let Some(entry) = self.large_entry_mut(entry_id) else {
-                        return Err(HeapError::MissingLargeEntry {
-                            entry_id: entry_id.id(),
+                    let Some(allocation) = self.large_allocation_mut(allocation_id) else {
+                        return Err(HeapError::MissingLargeAllocation {
+                            allocation_id: allocation_id.id(),
                         });
                     };
-                    let previous_pages = entry.pages.clone();
+                    let previous_pages = allocation.pages.clone();
 
-                    allocator.set_bytes(&mut entry.pages, byte_offset, bytes)?;
+                    allocator.set_bytes(&mut allocation.pages, byte_offset, bytes)?;
 
-                    (previous_pages, entry.pages.clone())
+                    (previous_pages, allocation.pages.clone())
                 };
 
                 if next_pages != previous_pages {
                     self.unmap_page_view(&previous_pages)?;
                     self.map_page_view(&next_pages, |logical_page_index| {
                         super::HeapPageOwner::Large {
-                            entry_id,
+                            allocation_id,
                             logical_page_index,
                         }
                     })?;
@@ -256,7 +258,7 @@ impl HeapSpace {
         self.write_bytes(reference, index, &[byte])
     }
 
-    /// Return the bytes for one heap entry as one owned vector.
+    /// Return the bytes for one heap allocation as one owned vector.
     pub fn read_bytes(&self, reference: HeapReference) -> HeapResult<Vec<u8>> {
         let Some(location) = self.resolve_location(reference) else {
             return Err(HeapError::InvalidHeapReference { reference });
@@ -273,17 +275,17 @@ impl HeapSpace {
         byte_offset: usize,
         byte_len: usize,
     ) -> HeapResult<Vec<u8>> {
-        // read through the storage partition that owns this location
-        match location.storage {
-            HeapStorage::Young(young_id) => {
-                let Some(entry) = self.young_entry(young_id) else {
-                    return Err(HeapError::MissingYoungEntry {
+        // read through the owning place
+        match location.place {
+            HeapPlace::Young(young_id) => {
+                let Some(allocation) = self.young_allocation(young_id) else {
+                    return Err(HeapError::MissingYoungAllocation {
                         generation: young_id.generation(),
-                        entry_index: young_id.index(),
+                        allocation_index: young_id.index(),
                     });
                 };
-                let read_offset = checked_storage_offset(
-                    self.young_entry_offset(entry),
+                let read_offset = checked_place_offset(
+                    self.young_allocation_offset(allocation),
                     byte_offset,
                     self.young.capacity_bytes,
                 )?;
@@ -291,7 +293,7 @@ impl HeapSpace {
                 self.allocator()
                     .bytes_to_vec_from(&self.young.pages, read_offset, byte_len)
             }
-            HeapStorage::Small(slot) => {
+            HeapPlace::Small(slot) => {
                 let Some(span) = self.span(slot.span_index()) else {
                     return Err(HeapError::MissingSpan {
                         span_index: slot.span_index(),
@@ -303,20 +305,20 @@ impl HeapSpace {
                     span.class.size_class,
                     slot.slot_index(),
                 )?;
-                let read_offset = checked_storage_offset(slot_offset, byte_offset, span_byte_len)?;
+                let read_offset = checked_place_offset(slot_offset, byte_offset, span_byte_len)?;
 
                 self.allocator()
                     .bytes_to_vec_from(&span.pages, read_offset, byte_len)
             }
-            HeapStorage::Large(entry_id) => {
-                let Some(entry) = self.large_entry(entry_id) else {
-                    return Err(HeapError::MissingLargeEntry {
-                        entry_id: entry_id.id(),
+            HeapPlace::Large(allocation_id) => {
+                let Some(allocation) = self.large_allocation(allocation_id) else {
+                    return Err(HeapError::MissingLargeAllocation {
+                        allocation_id: allocation_id.id(),
                     });
                 };
 
                 self.allocator()
-                    .bytes_to_vec_from(&entry.pages, byte_offset, byte_len)
+                    .bytes_to_vec_from(&allocation.pages, byte_offset, byte_len)
             }
         }
     }
@@ -328,17 +330,17 @@ impl HeapSpace {
         byte_offset: usize,
         target: &mut [u8],
     ) -> HeapResult<()> {
-        // read through the storage partition that owns this location
-        match location.storage {
-            HeapStorage::Young(young_id) => {
-                let Some(entry) = self.young_entry(young_id) else {
-                    return Err(HeapError::MissingYoungEntry {
+        // read through the owning place
+        match location.place {
+            HeapPlace::Young(young_id) => {
+                let Some(allocation) = self.young_allocation(young_id) else {
+                    return Err(HeapError::MissingYoungAllocation {
                         generation: young_id.generation(),
-                        entry_index: young_id.index(),
+                        allocation_index: young_id.index(),
                     });
                 };
-                let read_offset = checked_storage_offset(
-                    self.young_entry_offset(entry),
+                let read_offset = checked_place_offset(
+                    self.young_allocation_offset(allocation),
                     byte_offset,
                     self.young.capacity_bytes,
                 )?;
@@ -346,7 +348,7 @@ impl HeapSpace {
                 self.allocator()
                     .fill_bytes_from(&self.young.pages, read_offset, target)
             }
-            HeapStorage::Small(slot) => {
+            HeapPlace::Small(slot) => {
                 let Some(span) = self.span(slot.span_index()) else {
                     return Err(HeapError::MissingSpan {
                         span_index: slot.span_index(),
@@ -358,26 +360,26 @@ impl HeapSpace {
                     span.class.size_class,
                     slot.slot_index(),
                 )?;
-                let read_offset = checked_storage_offset(slot_offset, byte_offset, span_byte_len)?;
+                let read_offset = checked_place_offset(slot_offset, byte_offset, span_byte_len)?;
 
                 self.allocator()
                     .fill_bytes_from(&span.pages, read_offset, target)
             }
-            HeapStorage::Large(entry_id) => {
-                let Some(entry) = self.large_entry(entry_id) else {
-                    return Err(HeapError::MissingLargeEntry {
-                        entry_id: entry_id.id(),
+            HeapPlace::Large(allocation_id) => {
+                let Some(allocation) = self.large_allocation(allocation_id) else {
+                    return Err(HeapError::MissingLargeAllocation {
+                        allocation_id: allocation_id.id(),
                     });
                 };
 
                 self.allocator()
-                    .fill_bytes_from(&entry.pages, byte_offset, target)
+                    .fill_bytes_from(&allocation.pages, byte_offset, target)
             }
         }
     }
 }
 
-/// Return one checked entry-local byte range start.
+/// Return one checked allocation-local byte range start.
 fn checked_byte_range(
     base_offset: usize,
     start: usize,
@@ -410,7 +412,7 @@ fn checked_byte_range(
     Ok(byte_offset)
 }
 
-/// Return the remaining bytes after one checked entry-local offset.
+/// Return the remaining bytes after one checked allocation-local offset.
 fn checked_remaining_byte_len(byte_offset: usize, capacity: usize) -> HeapResult<usize> {
     if byte_offset > capacity {
         return Err(HeapError::InvalidByteRange {
@@ -423,8 +425,8 @@ fn checked_remaining_byte_len(byte_offset: usize, capacity: usize) -> HeapResult
     Ok(capacity - byte_offset)
 }
 
-/// Return one checked storage-local offset.
-fn checked_storage_offset(
+/// Return one checked place-local offset.
+fn checked_place_offset(
     base_offset: usize,
     byte_offset: usize,
     capacity: usize,

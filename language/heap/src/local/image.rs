@@ -7,7 +7,7 @@ use super::Heap;
 use crate::allocator::{Allocator, AllocatorImage, PageId};
 use crate::local::raw::{RawSpace, RawSpaceImage};
 use crate::local::space::{
-    GcState, HeapLocation, HeapPageOwner, HeapSpace, HeapSpaceImage, HeapStorage, live_page_views,
+    GcState, HeapLocation, HeapPageOwner, HeapPlace, HeapSpace, HeapSpaceImage, live_page_views,
 };
 use crate::{HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult};
 
@@ -124,7 +124,7 @@ impl HeapImage {
             })
     }
 
-    /// Return whether one heap entry shares allocator storage with another heap root.
+    /// Return whether one heap allocation shares allocator place with another heap root.
     #[doc(hidden)]
     pub fn shares_heap_allocation_with(&self, other: &Self, reference: HeapReference) -> bool {
         // resolve the captured heap locations first
@@ -142,11 +142,11 @@ impl HeapImage {
         }
 
         // compare the location-specific page maps
-        match (location.storage, other_location.storage) {
-            (HeapStorage::Young(_), HeapStorage::Young(_)) => {
+        match (location.place, other_location.place) {
+            (HeapPlace::Young(_), HeapPlace::Young(_)) => {
                 self.heap.young().pages() == other.heap.young().pages()
             }
-            (HeapStorage::Small(slot), HeapStorage::Small(other_slot)) => {
+            (HeapPlace::Small(slot), HeapPlace::Small(other_slot)) => {
                 let Some(span) = self.heap.spans().get(slot.span_index()) else {
                     return false;
                 };
@@ -156,21 +156,22 @@ impl HeapImage {
 
                 slot == other_slot && span.pages == other_span.pages
             }
-            (HeapStorage::Large(entry), HeapStorage::Large(other_entry)) => {
-                let Ok(entry_index) = entry.index() else {
+            (HeapPlace::Large(allocation), HeapPlace::Large(other_allocation)) => {
+                let Ok(allocation_index) = allocation.index() else {
                     return false;
                 };
-                let Ok(other_entry_index) = other_entry.index() else {
+                let Ok(other_allocation_index) = other_allocation.index() else {
                     return false;
                 };
-                let Some(entry) = self.heap.entries().get(entry_index) else {
+                let Some(allocation) = self.heap.allocations().get(allocation_index) else {
                     return false;
                 };
-                let Some(other_entry) = other.heap.entries().get(other_entry_index) else {
+                let Some(other_allocation) = other.heap.allocations().get(other_allocation_index)
+                else {
                     return false;
                 };
 
-                entry.pages == other_entry.pages
+                allocation.pages == other_allocation.pages
             }
             _ => false,
         }
@@ -183,13 +184,13 @@ impl HeapImage {
         // collect the young-space pages first
         pages.extend(self.heap.young().pages().page_ids());
 
-        // collect every heap span and entry page
+        // collect every heap span and allocation page
         for span in self.heap.spans() {
             pages.extend(span.pages.page_ids());
         }
 
-        for entry in self.heap.entries() {
-            pages.extend(entry.pages.page_ids());
+        for allocation in self.heap.allocations() {
+            pages.extend(allocation.pages.page_ids());
         }
 
         pages
@@ -273,7 +274,7 @@ impl Heap {
     /// Capture one frozen heap root.
     pub fn image(&mut self) -> Result<HeapImage, HeapError> {
         let heap = self.heap.image()?;
-        let raw = self.raw.image();
+        let raw = self.raw.image()?;
 
         Ok(HeapImage::new(
             self.allocator().clone(),
@@ -337,12 +338,14 @@ fn image_heap_page_owner(image: &HeapSpaceImage, page_id: PageId) -> Option<Heap
         }
     }
 
-    for (entry_index, entry) in image.entries().iter().enumerate() {
-        for logical_page_index in 0..entry.pages.len() {
-            let image_page_id = entry.pages.page(logical_page_index)?;
+    for (allocation_index, allocation) in image.allocations().iter().enumerate() {
+        for logical_page_index in 0..allocation.pages.len() {
+            let image_page_id = allocation.pages.page(logical_page_index)?;
             if image_page_id == page_id {
                 return Some(HeapPageOwner::Large {
-                    entry_id: crate::local::space::LargeEntryId::new(entry_index as u64 + 1),
+                    allocation_id: crate::local::space::LargeAllocationId::new(
+                        allocation_index as u64 + 1,
+                    ),
                     logical_page_index,
                 });
             }
@@ -367,38 +370,35 @@ fn image_heap_location(
                 .checked_mul(image.young().page_bytes())?
                 .checked_add(page_offset)?;
 
-            // young entries are bump ordered, so address resolution is predecessor lookup
-            let entry_end = image.young().entries().partition_point(|entry| {
-                let entry_offset = entry.first_page as usize * image.young().page_bytes()
-                    + entry.first_offset as usize;
-
-                entry_offset <= logical_byte_offset
-            });
-            if entry_end == 0 {
+            // young allocations are bump ordered, so address resolution is predecessor lookup
+            let allocation_end = image
+                .young()
+                .allocations()
+                .partition_point(|allocation| allocation.first_offset <= logical_byte_offset);
+            if allocation_end == 0 {
                 return None;
             }
 
-            let entry_index = entry_end - 1;
-            let entry = image.young().entries().get(entry_index)?;
-            if !entry.is_live {
+            let allocation_index = allocation_end - 1;
+            let allocation = image.young().allocations().get(allocation_index)?;
+            if !image.young().live().contains(allocation_index) {
                 return None;
             }
 
-            let entry_offset = entry.first_page as usize * image.young().page_bytes()
-                + entry.first_offset as usize;
-            if entry.byte_len == 0 {
-                if logical_byte_offset != entry_offset {
+            let allocation_offset = allocation.first_offset;
+            if allocation.byte_len == 0 {
+                if logical_byte_offset != allocation_offset {
                     return None;
                 }
 
                 let base_address = allocator
-                    .page_view_ptr(image.young().pages(), entry_offset)
+                    .page_view_ptr(image.young().pages(), allocation_offset)
                     .ok()? as usize;
 
                 return Some(HeapLocation {
-                    storage: HeapStorage::Young(crate::local::space::HeapYoungId::new(
+                    place: HeapPlace::Young(crate::local::space::HeapYoungId::new(
                         image.young().generation(),
-                        entry_index as u32,
+                        allocation_index as u32,
                     )),
                     base: HeapReference::new(base_address),
                     byte_offset: 0,
@@ -406,24 +406,24 @@ fn image_heap_location(
                 });
             }
 
-            let entry_limit = entry_offset.checked_add(entry.byte_len)?;
-            if logical_byte_offset >= entry_limit {
+            let allocation_limit = allocation_offset.checked_add(allocation.byte_len)?;
+            if logical_byte_offset >= allocation_limit {
                 return None;
             }
 
             let base_address = allocator
-                .page_view_ptr(image.young().pages(), entry_offset)
+                .page_view_ptr(image.young().pages(), allocation_offset)
                 .ok()? as usize;
-            let byte_offset = logical_byte_offset.checked_sub(entry_offset)?;
+            let byte_offset = logical_byte_offset.checked_sub(allocation_offset)?;
 
             Some(HeapLocation {
-                storage: HeapStorage::Young(crate::local::space::HeapYoungId::new(
+                place: HeapPlace::Young(crate::local::space::HeapYoungId::new(
                     image.young().generation(),
-                    entry_index as u32,
+                    allocation_index as u32,
                 )),
                 base: HeapReference::new(base_address),
                 byte_offset,
-                byte_len: entry.byte_len,
+                byte_len: allocation.byte_len,
             })
         }
         HeapPageOwner::Small {
@@ -441,12 +441,8 @@ fn image_heap_location(
                 return None;
             }
 
-            let byte_len = *span.byte_lens.get(slot_index)?;
-            if byte_len == 0 {
-                if slot_offset != 0 {
-                    return None;
-                }
-            } else if slot_offset >= byte_len {
+            let byte_len = span.class.size_class;
+            if slot_offset >= byte_len {
                 return None;
             }
 
@@ -457,36 +453,36 @@ fn image_heap_location(
             let slot = crate::allocator::SpanSlot::new(span_index, slot_index).ok()?;
 
             Some(HeapLocation {
-                storage: HeapStorage::Small(slot),
+                place: HeapPlace::Small(slot),
                 base: HeapReference::new(base_address),
                 byte_offset: slot_offset,
                 byte_len,
             })
         }
         HeapPageOwner::Large {
-            entry_id,
+            allocation_id,
             logical_page_index,
         } => {
-            let entry = image.entries().get(entry_id.index().ok()?)?;
+            let allocation = image.allocations().get(allocation_id.index().ok()?)?;
             let logical_byte_offset = logical_page_index
                 .checked_mul(image.page_bytes())?
                 .checked_add(page_offset)?;
 
-            if entry.len == 0 {
+            if allocation.len == 0 {
                 if logical_byte_offset != 0 {
                     return None;
                 }
-            } else if logical_byte_offset >= entry.len {
+            } else if logical_byte_offset >= allocation.len {
                 return None;
             }
 
-            let base_address = allocator.page_view_ptr(&entry.pages, 0).ok()? as usize;
+            let base_address = allocator.page_view_ptr(&allocation.pages, 0).ok()? as usize;
 
             Some(HeapLocation {
-                storage: HeapStorage::Large(entry_id),
+                place: HeapPlace::Large(allocation_id),
                 base: HeapReference::new(base_address),
                 byte_offset: logical_byte_offset,
-                byte_len: entry.len,
+                byte_len: allocation.len,
             })
         }
     }
