@@ -115,30 +115,40 @@ impl Arena {
     }
 }
 
-/// One dense logical arena table.
+/// One sparse logical arena directory.
 #[derive(Debug)]
-pub(super) struct ArenaTable {
-    /// The arena pointers stored by logical arena index.
-    arenas: Box<[AtomicPtr<Arena>]>,
+pub(super) struct ArenaDirectory {
+    /// The maximum arena index stored in this directory.
+    entry_count: usize,
+    /// The sparse directory chunks.
+    chunks: Box<[AtomicPtr<ArenaDirectoryChunk>]>,
 }
 
-impl ArenaTable {
-    /// Create one empty arena table for the given arena count.
-    pub(super) fn new(arena_count: usize) -> Self {
-        let mut arenas = Vec::with_capacity(arena_count);
-
-        for _ in 0..arena_count {
-            arenas.push(AtomicPtr::new(null_mut()));
-        }
+impl ArenaDirectory {
+    /// Create one empty arena directory for the given arena count.
+    pub(super) fn new(entry_count: usize) -> Self {
+        let chunk_count = entry_count.div_ceil(ArenaDirectoryChunk::LEN);
 
         Self {
-            arenas: arenas.into_boxed_slice(),
+            entry_count,
+            chunks: atomic_ptr_slice(chunk_count),
         }
     }
 
     /// Return one arena by logical arena index.
     pub(super) fn get(&self, arena_index: usize) -> Option<&Arena> {
-        let arena = self.arenas.get(arena_index)?.load(Ordering::Acquire);
+        if arena_index >= self.entry_count {
+            return None;
+        }
+
+        let chunk_index = arena_index / ArenaDirectoryChunk::LEN;
+        let slot_index = arena_index % ArenaDirectoryChunk::LEN;
+        let chunk = self.chunks.get(chunk_index)?.load(Ordering::Acquire);
+        if chunk.is_null() {
+            return None;
+        }
+
+        let arena = unsafe { &*chunk }.arenas[slot_index].load(Ordering::Acquire);
         if arena.is_null() {
             return None;
         }
@@ -147,39 +157,97 @@ impl ArenaTable {
     }
 
     /// Insert one arena pointer at one logical arena index.
-    pub(super) fn insert(&self, arena_index: usize, arena: *mut Arena) {
-        let Some(slot) = self.arenas.get(arena_index) else {
-            panic!("arena table index should stay in bounds: arena_index={arena_index}");
-        };
-        let previous = slot.swap(arena, Ordering::AcqRel);
+    pub(super) fn insert(&self, arena_index: usize, arena: *mut Arena) -> HeapResult<()> {
+        if arena_index >= self.entry_count {
+            return Err(HeapError::AllocatorArenaLimitExceeded {
+                required_arenas: arena_index + 1,
+                max_arenas: self.entry_count,
+            });
+        }
 
-        if !previous.is_null() {
-            panic!("arena table entry should be installed once: arena_index={arena_index}");
+        let chunk_index = arena_index / ArenaDirectoryChunk::LEN;
+        let slot_index = arena_index % ArenaDirectoryChunk::LEN;
+        let chunk = self.ensure_chunk(chunk_index)?;
+
+        if chunk.arenas[slot_index]
+            .compare_exchange(null_mut(), arena, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            return Err(HeapError::InvariantViolation {
+                context: "allocator arena directory entry installed twice",
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Ensure one sparse directory chunk exists.
+    fn ensure_chunk(&self, chunk_index: usize) -> HeapResult<&ArenaDirectoryChunk> {
+        let slot = self
+            .chunks
+            .get(chunk_index)
+            .ok_or(HeapError::InvariantViolation {
+                context: "allocator arena directory chunk missing",
+            })?;
+        let current = slot.load(Ordering::Acquire);
+        if !current.is_null() {
+            return Ok(unsafe { &*current });
+        }
+
+        let chunk = Box::into_raw(Box::new(ArenaDirectoryChunk::new()));
+        match slot.compare_exchange(null_mut(), chunk, Ordering::AcqRel, Ordering::Acquire) {
+            Ok(_) => Ok(unsafe { &*chunk }),
+            Err(current) => {
+                unsafe {
+                    drop(Box::from_raw(chunk));
+                }
+
+                Ok(unsafe { &*current })
+            }
         }
     }
 }
 
-/// One sparse address-map block.
+impl Drop for ArenaDirectory {
+    fn drop(&mut self) {
+        drop_atomic_ptr_chunks(&self.chunks);
+    }
+}
+
+/// One sparse arena-directory chunk.
 #[derive(Debug)]
-struct ArenaAddressBlock {
-    /// The arena pointers stored in this block.
+struct ArenaDirectoryChunk {
+    /// The arena pointers stored in this chunk.
     arenas: Box<[AtomicPtr<Arena>]>,
 }
 
-impl ArenaAddressBlock {
-    /// The number of arena pointers stored in one block.
+impl ArenaDirectoryChunk {
+    /// The number of arena pointers stored in one chunk.
     const LEN: usize = 1 << 12;
 
-    /// Create one empty address-map block.
+    /// Create one empty arena-directory chunk.
     fn new() -> Self {
-        let mut arenas = Vec::with_capacity(Self::LEN);
-
-        for _ in 0..Self::LEN {
-            arenas.push(AtomicPtr::new(null_mut()));
-        }
-
         Self {
-            arenas: arenas.into_boxed_slice(),
+            arenas: atomic_ptr_slice(Self::LEN),
+        }
+    }
+}
+
+/// One sparse address-map chunk.
+#[derive(Debug)]
+struct ArenaAddressChunk {
+    /// The arena pointers stored in this chunk.
+    arenas: Box<[AtomicPtr<Arena>]>,
+}
+
+impl ArenaAddressChunk {
+    /// The number of arena pointers stored in one chunk.
+    const LEN: usize = 1 << 12;
+
+    /// Create one empty address-map chunk.
+    fn new() -> Self {
+        Self {
+            arenas: atomic_ptr_slice(Self::LEN),
         }
     }
 }
@@ -189,23 +257,18 @@ impl ArenaAddressBlock {
 pub(super) struct ArenaAddressMap {
     /// The maximum index stored in this map.
     entry_count: usize,
-    /// The sparse block pointers.
-    blocks: Box<[AtomicPtr<ArenaAddressBlock>]>,
+    /// The sparse address-map chunks.
+    chunks: Box<[AtomicPtr<ArenaAddressChunk>]>,
 }
 
 impl ArenaAddressMap {
     /// Create one sparse arena address map for the given entry count.
     pub(super) fn new(entry_count: usize) -> Self {
-        let block_count = entry_count.div_ceil(ArenaAddressBlock::LEN);
-        let mut blocks = Vec::with_capacity(block_count);
-
-        for _ in 0..block_count {
-            blocks.push(AtomicPtr::new(null_mut()));
-        }
+        let chunk_count = entry_count.div_ceil(ArenaAddressChunk::LEN);
 
         Self {
             entry_count,
-            blocks: blocks.into_boxed_slice(),
+            chunks: atomic_ptr_slice(chunk_count),
         }
     }
 
@@ -215,14 +278,14 @@ impl ArenaAddressMap {
             return None;
         }
 
-        let block_index = index / ArenaAddressBlock::LEN;
-        let slot_index = index % ArenaAddressBlock::LEN;
-        let block = self.blocks.get(block_index)?.load(Ordering::Acquire);
-        if block.is_null() {
+        let chunk_index = index / ArenaAddressChunk::LEN;
+        let slot_index = index % ArenaAddressChunk::LEN;
+        let chunk = self.chunks.get(chunk_index)?.load(Ordering::Acquire);
+        if chunk.is_null() {
             return None;
         }
 
-        let arena = unsafe { &*block }.arenas[slot_index].load(Ordering::Acquire);
+        let arena = unsafe { &*chunk }.arenas[slot_index].load(Ordering::Acquire);
         if arena.is_null() {
             return None;
         }
@@ -231,34 +294,48 @@ impl ArenaAddressMap {
     }
 
     /// Insert one arena pointer at one sparse address-map index.
-    pub(super) fn insert(&self, index: usize, arena: *mut Arena) {
-        let block_index = index / ArenaAddressBlock::LEN;
-        let slot_index = index % ArenaAddressBlock::LEN;
-        let block = self.ensure_block(block_index);
-        let previous = block.arenas[slot_index].swap(arena, Ordering::AcqRel);
-
-        if !previous.is_null() {
-            panic!("arena address map entry should be installed once: index={index}");
+    pub(super) fn insert(&self, index: usize, arena: *mut Arena) -> HeapResult<()> {
+        if index >= self.entry_count {
+            return Err(HeapError::AllocatorArenaMapIndexUnsupported { index });
         }
+
+        let chunk_index = index / ArenaAddressChunk::LEN;
+        let slot_index = index % ArenaAddressChunk::LEN;
+        let chunk = self.ensure_chunk(chunk_index)?;
+        if chunk.arenas[slot_index]
+            .compare_exchange(null_mut(), arena, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            return Err(HeapError::InvariantViolation {
+                context: "allocator arena address-map entry installed twice",
+            });
+        }
+
+        Ok(())
     }
 
-    /// Ensure one sparse address-map block exists.
-    fn ensure_block(&self, block_index: usize) -> &ArenaAddressBlock {
-        let slot = &self.blocks[block_index];
+    /// Ensure one sparse address-map chunk exists.
+    fn ensure_chunk(&self, chunk_index: usize) -> HeapResult<&ArenaAddressChunk> {
+        let slot = self
+            .chunks
+            .get(chunk_index)
+            .ok_or(HeapError::InvariantViolation {
+                context: "allocator arena address-map chunk missing",
+            })?;
         let current = slot.load(Ordering::Acquire);
         if !current.is_null() {
-            return unsafe { &*current };
+            return Ok(unsafe { &*current });
         }
 
-        let block = Box::into_raw(Box::new(ArenaAddressBlock::new()));
-        match slot.compare_exchange(null_mut(), block, Ordering::AcqRel, Ordering::Acquire) {
-            Ok(_) => unsafe { &*block },
+        let chunk = Box::into_raw(Box::new(ArenaAddressChunk::new()));
+        match slot.compare_exchange(null_mut(), chunk, Ordering::AcqRel, Ordering::Acquire) {
+            Ok(_) => Ok(unsafe { &*chunk }),
             Err(current) => {
                 unsafe {
-                    drop(Box::from_raw(block));
+                    drop(Box::from_raw(chunk));
                 }
 
-                unsafe { &*current }
+                Ok(unsafe { &*current })
             }
         }
     }
@@ -266,22 +343,38 @@ impl ArenaAddressMap {
 
 impl Drop for ArenaAddressMap {
     fn drop(&mut self) {
-        for block in &self.blocks {
-            let block = block.load(Ordering::Acquire);
-            if block.is_null() {
-                continue;
-            }
+        drop_atomic_ptr_chunks(&self.chunks);
+    }
+}
 
-            unsafe {
-                drop(Box::from_raw(block));
-            }
+/// Return one boxed slice of null atomic pointers.
+fn atomic_ptr_slice<T>(len: usize) -> Box<[AtomicPtr<T>]> {
+    let mut pointers = Vec::with_capacity(len);
+
+    for _ in 0..len {
+        pointers.push(AtomicPtr::new(null_mut()));
+    }
+
+    pointers.into_boxed_slice()
+}
+
+/// Drop every initialized chunk in one atomic pointer slice.
+fn drop_atomic_ptr_chunks<T>(chunks: &[AtomicPtr<T>]) {
+    for chunk in chunks {
+        let chunk = chunk.load(Ordering::Acquire);
+        if chunk.is_null() {
+            continue;
+        }
+
+        unsafe {
+            drop(Box::from_raw(chunk));
         }
     }
 }
 
 /// Return the maximum allocator arena count addressable by page ids.
 pub(super) fn max_arena_count(page_bytes: usize, arena_bytes: usize) -> usize {
-    ((u32::MAX as usize) + 1).div_ceil(arena_bytes / page_bytes)
+    (u32::MAX as usize) / (arena_bytes / page_bytes)
 }
 
 /// Return the number of sparse arena-map entries addressable for this arena size.
@@ -315,31 +408,6 @@ pub(super) fn arena_frame_index(address: usize, arena_bytes: usize) -> Option<us
     Some(address / arena_bytes)
 }
 
-/// Return the sparse arena-map indexes covered by one mapped arena.
-pub(super) fn arena_frame_indices(
-    base_address: usize,
-    byte_len: usize,
-) -> HeapResult<std::ops::RangeInclusive<usize>> {
-    let first_index = arena_frame_index(base_address, byte_len).ok_or(
-        HeapError::AllocatorAddressUnsupported {
-            address: base_address,
-        },
-    )?;
-    let last_address =
-        base_address
-            .checked_add(byte_len - 1)
-            .ok_or(HeapError::InvariantOverflow {
-                context: "allocator arena end address",
-            })?;
-    let last_index = arena_frame_index(last_address, byte_len).ok_or(
-        HeapError::AllocatorAddressUnsupported {
-            address: last_address,
-        },
-    )?;
-
-    Ok(first_index..=last_index)
-}
-
 /// Return the supported user virtual address width for arena-map indexing.
 pub(super) const fn arena_address_bits() -> usize {
     if cfg!(target_pointer_width = "64") {
@@ -351,6 +419,11 @@ pub(super) const fn arena_address_bits() -> usize {
 
 /// Allocate one mapped allocator arena.
 pub(super) fn allocate_arena_bytes(byte_len: usize) -> HeapResult<NonNull<u8>> {
+    let mapped_byte_len = byte_len
+        .checked_mul(2)
+        .ok_or(HeapError::InvariantOverflow {
+            context: "allocator arena alignment reservation",
+        })?;
     let flags = libc::MAP_PRIVATE
         | if cfg!(any(target_os = "macos", target_os = "ios")) {
             libc::MAP_ANON
@@ -360,7 +433,7 @@ pub(super) fn allocate_arena_bytes(byte_len: usize) -> HeapResult<NonNull<u8>> {
     let data = unsafe {
         libc::mmap(
             null_mut(),
-            byte_len,
+            mapped_byte_len,
             libc::PROT_READ | libc::PROT_WRITE,
             flags,
             -1,
@@ -369,11 +442,45 @@ pub(super) fn allocate_arena_bytes(byte_len: usize) -> HeapResult<NonNull<u8>> {
     };
 
     if data == libc::MAP_FAILED {
-        return Err(HeapError::AllocatorArenaAllocationFailed { byte_len });
+        return Err(HeapError::AllocatorArenaAllocationFailed {
+            byte_len: mapped_byte_len,
+        });
     }
 
-    NonNull::new(data.cast()).ok_or(HeapError::AllocatorAddressUnsupported {
-        address: data as usize,
+    let mapped_base = data as usize;
+    let arena_base = align_up(mapped_base, byte_len).ok_or(HeapError::InvariantOverflow {
+        context: "allocator arena aligned base",
+    })?;
+    let mapped_end =
+        mapped_base
+            .checked_add(mapped_byte_len)
+            .ok_or(HeapError::InvariantOverflow {
+                context: "allocator arena reservation end",
+            })?;
+    let arena_end = arena_base
+        .checked_add(byte_len)
+        .ok_or(HeapError::InvariantOverflow {
+            context: "allocator arena aligned end",
+        })?;
+
+    // trim the prefix before the aligned arena
+    let prefix_byte_len = arena_base - mapped_base;
+    if prefix_byte_len != 0 {
+        unsafe {
+            libc::munmap(data, prefix_byte_len);
+        }
+    }
+
+    // trim the suffix after the aligned arena
+    let suffix_byte_len = mapped_end - arena_end;
+    if suffix_byte_len != 0 {
+        unsafe {
+            libc::munmap((arena_end as *mut u8).cast(), suffix_byte_len);
+        }
+    }
+
+    NonNull::new(arena_base as *mut u8).ok_or(HeapError::AllocatorAddressUnsupported {
+        address: arena_base,
     })
 }
 
@@ -388,6 +495,14 @@ pub(super) fn free_arena_bytes(data: *mut u8, byte_len: usize) {
     }
 }
 
+/// Return one address rounded up to the given alignment.
+fn align_up(address: usize, alignment: usize) -> Option<usize> {
+    let mask = alignment.checked_sub(1)?;
+    let address = address.checked_add(mask)?;
+
+    Some(address & !mask)
+}
+
 /// One allocator arena location resolved from one live address.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ArenaLocation {
@@ -395,4 +510,19 @@ pub(crate) struct ArenaLocation {
     pub(crate) arena_index: usize,
     /// The byte offset inside the arena.
     pub(crate) arena_offset: usize,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{allocate_arena_bytes, free_arena_bytes};
+
+    #[test]
+    fn test_allocate_arena_bytes_aligns_to_arena_size() {
+        let byte_len = 64 * 1024;
+        let data = allocate_arena_bytes(byte_len).expect("arena bytes should map");
+
+        assert_eq!(data.as_ptr() as usize % byte_len, 0);
+
+        free_arena_bytes(data.as_ptr(), byte_len);
+    }
 }

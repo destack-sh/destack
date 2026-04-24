@@ -60,7 +60,7 @@ impl SizeClassPolicy {
         classes
     }
 
-    /// Validate this small object policy.
+    /// Validate this small allocation policy.
     fn validate(self) -> Result<(), HeapError> {
         if self.min_bytes == 0 || self.max_bytes == 0 {
             return Err(HeapError::ZeroSizeClass);

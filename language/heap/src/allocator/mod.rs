@@ -8,7 +8,7 @@ mod cow;
 mod image;
 mod page;
 mod run;
-mod slot;
+mod span;
 
 pub use allocator::*;
 pub use bitmap::*;
@@ -17,6 +17,6 @@ pub use class::*;
 pub use image::*;
 pub use page::*;
 pub(crate) use run::*;
-pub use slot::*;
+pub use span::*;
 
 pub(crate) mod test;

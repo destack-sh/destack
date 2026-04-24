@@ -15,6 +15,7 @@ doctest = false
 # language
 destack_core = { workspace = true }
 destack_mir = { workspace = true }
+crossbeam-deque = { workspace = true }
 libc = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }

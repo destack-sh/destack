@@ -23,6 +23,18 @@ impl Bitmap {
         }
     }
 
+    /// Ensure this bitmap can represent the given bit count.
+    pub fn ensure_capacity(&mut self, capacity: usize) {
+        if capacity <= self.capacity {
+            return;
+        }
+
+        let word_count = capacity.div_ceil(BITMAP_WORD_BITS);
+
+        self.words.resize(word_count, 0);
+        self.capacity = capacity;
+    }
+
     /// Report whether one bit is set.
     pub fn contains(&self, offset: usize) -> bool {
         if offset >= self.capacity {

@@ -81,16 +81,18 @@ impl PageRunCache {
             return Ok(());
         }
 
-        allocator.free_cached_run(run);
+        allocator.free_cached_run(run)?;
 
         Ok(())
     }
 
     /// Flush this cache back into the allocator free runs.
-    pub(crate) fn flush(&mut self, allocator: &Allocator) {
+    pub(crate) fn flush(&mut self, allocator: &Allocator) -> HeapResult<()> {
         for run in self.drain() {
-            allocator.free_cached_run(run);
+            allocator.free_cached_run(run)?;
         }
+
+        Ok(())
     }
 
     /// Return the currently cached byte count.
