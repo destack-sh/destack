@@ -12,6 +12,7 @@ use destack_fir::prelude::{
     soft_block_indent, soft_line_break_or_space, space, token,
 };
 use destack_fir::{format_args, write};
+use destack_source::Span;
 use destack_workspace::TrailingComma;
 
 /// The separator to emit for one call argument entry.
@@ -76,7 +77,7 @@ pub(crate) fn call_argument_lines_before(
 /// Format all call arguments in explicit broken-out layout.
 pub(crate) fn format_all_args_broken_out<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    _call_span: destack_source::Span,
+    _call_span: Span,
     arguments: &[LocalNodeId<Argument>],
     group_id: GroupId,
     disallow_trailing_separator: bool,
@@ -129,7 +130,7 @@ pub(crate) fn format_all_args_broken_out<'ast>(
 /// Format arguments for one long curried call.
 pub(crate) fn format_long_curried_call_arguments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    _call_span: destack_source::Span,
+    _call_span: Span,
     arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
     let write_trailing_separator = matches!(f.context().options.trailing_comma, TrailingComma::All);
@@ -268,7 +269,7 @@ fn empty_call_argument_comments(
 /// Write call arguments with the direct flat list layout.
 pub(crate) fn write_simple_call_argument_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    _call_span: destack_source::Span,
+    _call_span: Span,
     arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
     write!(f, [token("(")])?;
@@ -353,7 +354,7 @@ fn empty_call_infix_requires_multiline(
 /// Format call arguments with the default list formatter.
 pub(crate) fn format_default_call_argument_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    _call_span: destack_source::Span,
+    _call_span: Span,
     group_id: GroupId,
     arguments: &[LocalNodeId<Argument>],
     force_expand: bool,

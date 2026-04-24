@@ -1,6 +1,6 @@
 use crate::format::annotation::{
     block_infix_annotations, decorator_prefix_annotations, format_comment,
-    infix_or_postfix_annotations, postfix_annotations, prefix_annotations_without_decorators,
+    infix_or_postfix_annotations, postfix_annotations, prefix_comments_before_decorators,
 };
 use crate::format::chain::transparent_inner_expression;
 use crate::format::declaration::signature::{
@@ -20,7 +20,7 @@ use crate::format::operator::{
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     Ambientness, BinaryOperator, Comment, Expression, FunctionSignature, Key, Keyword, LocalNodeId,
-    Mutability, Name, Node, NodeTree, NodeTreeImpl, NodeType, Property, ScalarLiteral,
+    Mutability, Name, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Property, ScalarLiteral,
     TypeExpression, Visibility, is_identifier_compat,
 };
 use destack_core::StringId;
@@ -418,7 +418,7 @@ fn property_should_force_quote_keys<'ast>(
     })
 }
 
-/// Format one runtime object property value using the assignment-like shell.
+/// Format one runtime object property value using the assignment-like layout.
 fn format_object_property_value<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Property>,
@@ -503,7 +503,7 @@ fn format_object_property_value<'ast>(
     Ok(())
 }
 
-/// Write the shared left side of one field-like assignment shell.
+/// Write the shared left side of one field-like assignment layout.
 fn write_field_like_left<'ast, T>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<T>,
@@ -738,7 +738,7 @@ where
 }
 
 /// Collect method parameters, including `this`.
-fn method_parameters(signature: &FunctionSignature) -> Vec<LocalNodeId<destack_ast::Parameter>> {
+fn method_parameters(signature: &FunctionSignature) -> Vec<LocalNodeId<Parameter>> {
     let mut parameters = Vec::with_capacity(signature.parameters.len() + 1);
 
     if let Some(this_parameter) = signature.this_parameter {
@@ -754,7 +754,7 @@ fn write_method_parameters_and_return_type<'ast, N>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<N>,
     signature: &FunctionSignature,
-    parameters: &[LocalNodeId<destack_ast::Parameter>],
+    parameters: &[LocalNodeId<Parameter>],
 ) -> FormatResult<()>
 where
     N: Node + Clone + 'ast,
@@ -897,10 +897,7 @@ where
     F: FnMut(&mut DestackFormatter<'ast, '_>) -> FormatResult<()>,
 {
     let is_ignored = node_has_ignore_directive(f.context(), node_id);
-    write!(
-        f,
-        [prefix_annotations_without_decorators(f.context(), node_id)]
-    )?;
+    write!(f, [prefix_comments_before_decorators(f.context(), node_id)])?;
     write!(f, [decorator_prefix_annotations(f.context(), node_id)])?;
 
     if is_ignored {

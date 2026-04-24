@@ -14,11 +14,12 @@ mod r#type;
 pub(crate) use self::control::write_control_branch_after_head;
 pub(crate) use self::declarator::format_declarator;
 pub(crate) use self::dispatch::{
-    format_expression, write_expression_without_prefix_annotations,
-    write_expression_without_trailing_comments,
+    format_expression, write_expression_without_derived_parentheses,
+    write_expression_without_prefix_annotations, write_expression_without_trailing_comments,
 };
 pub(crate) use self::member::{
     format_index_expression, format_member_expression, format_type_template_literal,
+    write_index_access,
 };
 pub(crate) use self::parentheses::{
     expression_needs_parentheses_in_parent, parenthesized_expression_needs_preserved_wrapper,

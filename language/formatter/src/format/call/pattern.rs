@@ -1,7 +1,6 @@
 use crate::DestackFormatContext;
 use crate::format::chain::{
-    argument_value_id_if_present, chain_has_call_like_expression, is_expression_chain,
-    transparent_inner_expression,
+    argument_value_id_if_present, chain_has_call_like_expression, transparent_inner_expression,
 };
 use crate::format::declaration::expression_is_in_statement_position;
 use destack_ast::{
@@ -123,9 +122,7 @@ pub(crate) fn call_should_route_to_chain(
     left: LocalNodeId<Expression>,
     arguments: &[LocalNodeId<Argument>],
 ) -> bool {
-    if !is_expression_chain(context.tree, node_id)
-        || !chain_has_call_like_expression(context.tree, node_id)
-    {
+    if !chain_has_call_like_expression(context.tree, node_id) {
         return false;
     }
 

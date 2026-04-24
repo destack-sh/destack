@@ -1,4 +1,6 @@
-use crate::format::annotation::block_infix_annotations;
+use crate::format::annotation::{
+    FormatTrailingComments, block_infix_annotations, format_leading_comments,
+};
 use crate::format::chain::transparent_inner_expression;
 use crate::format::declaration::expression_is_in_statement_position;
 use crate::format::expression::format_generic_argument_list;
@@ -19,6 +21,7 @@ use destack_fir::prelude::{
     space, token,
 };
 use destack_fir::{format_args, write};
+use destack_source::Span;
 use destack_workspace::QuoteStyle;
 
 /// Return the value expression id for one tree child argument.
@@ -198,7 +201,8 @@ fn format_tree_children_multiline<'ast>(
             f,
             [format_with(|f| write_tree_expression_argument(
                 f,
-                *element_id
+                *element_id,
+                None,
             ))]
         )?;
         wrote_child = true;
@@ -222,7 +226,8 @@ fn format_tree_children_tree_per_line<'ast>(
             f,
             [format_with(|f| write_tree_expression_argument(
                 f,
-                *element_id
+                *element_id,
+                None,
             ))]
         )?;
     }
@@ -562,7 +567,7 @@ fn format_tree_children_fill<'ast>(
 
         fill.entry(
             &separator,
-            &format_with(|f| write_tree_expression_argument(f, *element_id)),
+            &format_with(|f| write_tree_expression_argument(f, *element_id, None)),
         );
     }
 
@@ -834,6 +839,110 @@ fn tree_literal_should_expand_in_parent(
     }
 }
 
+/// Return the source span for the rendered tag body.
+fn tree_literal_tag_span(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> Span {
+    context
+        .tree
+        .get_head_span(node_id)
+        .unwrap_or_else(|| context.span(node_id))
+}
+
+/// Return whether conditional branch trailing comments were written for one tree literal.
+fn write_tree_literal_conditional_trailing_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+) -> FormatResult<bool> {
+    if f.context().options.language_type.is_destack() {
+        return Ok(false);
+    }
+
+    let Some((parent_id, parent_type)) = f.context().parent_by_id(node_id.id) else {
+        return Ok(false);
+    };
+    if parent_type != NodeType::Expression {
+        return Ok(false);
+    }
+
+    let parent_id = LocalNodeId::<Expression>::new(parent_id);
+    let Expression::If {
+        kind: IfKind::Ternary,
+        then_expression,
+        else_expression,
+        ..
+    } = f.context().tree.get(parent_id)
+    else {
+        return Ok(false);
+    };
+
+    // alternate branch interior
+    let comments = if else_expression
+        .as_ref()
+        .is_some_and(|else_expression| *else_expression == node_id)
+    {
+        let parent_span = f.context().span(parent_id);
+        f.context().comments().comments_before(parent_span.end)
+    }
+    // consequent line suffix
+    else if *then_expression == node_id {
+        let node_span = tree_literal_tag_span(f.context(), node_id);
+        f.context()
+            .comments()
+            .end_of_line_comments_after(node_span.end)
+    }
+    // other branch positions use default trailing comments
+    else {
+        return Ok(false);
+    };
+
+    write!(f, [FormatTrailingComments::Comments(comments)])?;
+
+    Ok(true)
+}
+
+/// Write trailing comments owned by one tree literal.
+fn write_tree_literal_trailing_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    if write_tree_literal_conditional_trailing_comments(f, node_id)? {
+        return Ok(());
+    }
+
+    Ok(())
+}
+
+/// Format one tree literal layout and its branch trailing comments.
+fn format_tree_literal_with_branch_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    left: &Option<LocalNodeId<Expression>>,
+    generic_arguments: &[LocalNodeId<GenericArgument>],
+    arguments: &Option<Vec<LocalNodeId<Argument>>>,
+    elements: &Option<Vec<LocalNodeId<Argument>>>,
+    layout: (bool, Option<(bool, bool, bool, bool)>, bool, bool),
+) -> FormatResult<()> {
+    let expression_span = f.context().span(node_id);
+    let token_start = f.context().expression_token_start(node_id);
+    let token_start_span = Span::new(expression_span.file, token_start, token_start);
+
+    // leading comments
+    write!(f, [format_leading_comments(token_start_span)])?;
+
+    format_tree_literal_with_layout(
+        f,
+        node_id,
+        left,
+        generic_arguments,
+        arguments,
+        elements,
+        layout,
+    )?;
+    write_tree_literal_trailing_comments(f, node_id)
+}
+
 /// Format a tree literal expression with optional wrap-on-break parentheses.
 pub(crate) fn format_tree_literal_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -844,20 +953,36 @@ pub(crate) fn format_tree_literal_expression<'ast>(
     elements: &Option<Vec<LocalNodeId<Argument>>>,
 ) -> FormatResult<()> {
     let should_expand_in_parent = tree_literal_should_expand_in_parent(f.context(), node_id);
+    let layout = tree_literal_layout(f.context(), arguments, elements);
 
     if !tree_literal_wraps_on_break(f.context(), node_id) {
         if !should_expand_in_parent {
-            return format_tree_literal(f, node_id, left, generic_arguments, arguments, elements);
+            return format_tree_literal_with_branch_comments(
+                f,
+                node_id,
+                left,
+                generic_arguments,
+                arguments,
+                elements,
+                layout,
+            );
         }
 
         let formatted_tree = format_with(|f| {
-            format_tree_literal(f, node_id, left, generic_arguments, arguments, elements)
+            format_tree_literal_with_branch_comments(
+                f,
+                node_id,
+                left,
+                generic_arguments,
+                arguments,
+                elements,
+                layout,
+            )
         });
 
         return write!(f, [group(&formatted_tree).should_expand(true)]);
     }
 
-    let layout = tree_literal_layout(f.context(), arguments, elements);
     let should_expand = layout.3 || should_expand_in_parent;
 
     write!(
@@ -866,7 +991,7 @@ pub(crate) fn format_tree_literal_expression<'ast>(
             write!(f, [if_group_breaks(&token("("))])?;
 
             let formatted_tree = format_with(|f| {
-                format_tree_literal_with_layout(
+                format_tree_literal_with_branch_comments(
                     f,
                     node_id,
                     left,
@@ -903,13 +1028,26 @@ fn format_tree_attributes<'ast>(
         } else {
             &soft_line_break_or_space()
         };
-    let format_attrs = format_with(|f| {
-        f.join_with(attr_separator)
-            .entries(
+    let format_attrs = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let following_span_starts = arguments
+            .iter()
+            .enumerate()
+            .map(|(index, _)| {
                 arguments
-                    .iter()
-                    .map(|argument| format_with(|f| write_tree_expression_argument(f, *argument))),
-            )
+                    .get(index + 1)
+                    .map(|argument| f.context().span(*argument).start)
+            })
+            .collect::<Vec<_>>();
+
+        f.join_with(attr_separator)
+            .entries(arguments.iter().enumerate().map(|(index, argument)| {
+                let argument_id = *argument;
+                let following_span_start = following_span_starts[index];
+
+                format_with(move |f| {
+                    write_tree_expression_argument(f, argument_id, following_span_start)
+                })
+            }))
             .finish()
     });
 
@@ -1070,27 +1208,5 @@ fn format_tree_literal_with_layout<'ast>(
             format_tree_body(f, _expression_id, left, elements, layout)
         }))
         .should_expand(should_expand)]
-    )
-}
-
-/// Format a tree literal.
-#[inline]
-pub(crate) fn format_tree_literal<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    expression_id: LocalNodeId<Expression>,
-    left: &Option<LocalNodeId<Expression>>,
-    generic_arguments: &[LocalNodeId<GenericArgument>],
-    arguments: &Option<Vec<LocalNodeId<Argument>>>,
-    elements: &Option<Vec<LocalNodeId<Argument>>>,
-) -> FormatResult<()> {
-    let layout = tree_literal_layout(f.context(), arguments, elements);
-    format_tree_literal_with_layout(
-        f,
-        expression_id,
-        left,
-        generic_arguments,
-        arguments,
-        elements,
-        layout,
     )
 }

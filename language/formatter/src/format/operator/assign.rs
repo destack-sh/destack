@@ -174,7 +174,7 @@ fn is_complex_generic_arguments<'ast>(
     f.speculate_will_break_after(start, &content)
 }
 
-/// Return whether one call or member chain is awkward to break inside an assignment shell.
+/// Return whether one call or member chain is awkward to break inside an assignment layout.
 pub(crate) fn is_poorly_breakable_member_or_call_chain<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
@@ -235,7 +235,7 @@ pub(crate) fn is_poorly_breakable_member_or_call_chain<'ast>(
         };
     }
 
-    // non-simple chain heads do not use this shell shortcut
+    // non-simple chain heads do not use this layout shortcut
     if !is_chain || !has_simple_head {
         return Ok(false);
     }
@@ -376,7 +376,7 @@ fn assignment_rhs_has_inline_operator_prefix_annotation_style(
     false
 }
 
-/// Return whether one rhs expression is a class declaration shell.
+/// Return whether one rhs expression is a class declaration.
 fn expression_is_class_declaration(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
@@ -439,11 +439,29 @@ fn assignment_rhs_operator_comment_nodes(
     let right_token_start = context
         .first_non_trivia_token_in_span(right_span)
         .map_or(right_span.start, |token| token.span.start);
-    let Some(previous_token) = context.previous_non_trivia_token_before_span(Span::new(
+    let mut previous_token = context.previous_non_whitespace_token_before_span(Span::new(
         right_span.file,
         right_token_start,
         right_token_start,
-    )) else {
+    ));
+
+    // transparent grouping and adjacent comments
+    while let Some(token) = previous_token {
+        if !matches!(
+            token.token.ty,
+            TokenType::OpenParenthesis
+                | TokenType::LineComment
+                | TokenType::BlockComment
+                | TokenType::DocLineComment
+                | TokenType::DocBlockComment
+        ) {
+            break;
+        }
+
+        previous_token = context.previous_non_whitespace_token_before_span(token.span);
+    }
+
+    let Some(previous_token) = previous_token else {
         return Vec::new();
     };
 
@@ -852,6 +870,24 @@ pub(crate) fn write_assignment_rhs_operator_comments<'ast>(
         }
     }
 
+    // inline line comments belong to the operator boundary
+    if omit_leading_separator && comment_nodes[0].is_line() {
+        let first_comment = comment_nodes[0];
+
+        if !f.context().span_starts_on_own_line(first_comment.span) {
+            write!(f, [space()])?;
+        }
+
+        format_comment(f, first_comment)?;
+        write!(f, [hard_line_break()])?;
+
+        if comment_nodes.len() > 1 {
+            write_comment_slice(f, &comment_nodes[1..])?;
+        }
+
+        return Ok(());
+    }
+
     // comment body
     format_comment(f, comment_nodes[0])?;
     if comment_nodes.len() > 1 {
@@ -1000,7 +1036,7 @@ fn write_expression_with_assignment_layout<'ast>(
     )
 }
 
-/// Format one declarator assignment shell through the shared assignment-like owner.
+/// Format one declarator assignment through the shared assignment-like owner.
 pub(crate) fn format_declarator_assignment<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     declarator_id: LocalNodeId<Declarator>,
@@ -1008,7 +1044,7 @@ pub(crate) fn format_declarator_assignment<'ast>(
     AssignmentLike::Declarator(declarator_id).format(f)
 }
 
-/// One layout for one assignment-like shell.
+/// One layout for one assignment-like expression.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AssignmentLikeLayout {
     /// Break the right-hand side only when it forces the outer group to expand.
@@ -1023,7 +1059,7 @@ pub(crate) enum AssignmentLikeLayout {
     /// Break the left-hand side first and then group the right-hand side independently.
     BreakLeftHandSide,
 
-    /// Keep a chained assignment head attached to the following assignment shell.
+    /// Keep a chained assignment head attached to the following assignment.
     Chain,
 
     /// Indent the final right-hand side of one eligible assignment chain.
@@ -1036,10 +1072,10 @@ pub(crate) enum AssignmentLikeLayout {
 /// One assignment-like formatter owner.
 #[derive(Clone, Copy, Debug)]
 enum AssignmentLike {
-    /// One declarator assignment shell.
+    /// One declarator assignment.
     Declarator(LocalNodeId<Declarator>),
 
-    /// One assignment expression shell.
+    /// One assignment expression.
     Expression {
         node_id: LocalNodeId<Expression>,
         left: LocalNodeId<AssignPattern>,
@@ -1073,7 +1109,7 @@ impl AssignmentLike {
         }
     }
 
-    /// Select one layout for one assignment-like shell.
+    /// Select one layout for one assignment-like expression.
     fn layout<'ast>(
         self,
         f: &mut DestackFormatter<'ast, '_>,
@@ -1106,6 +1142,11 @@ impl AssignmentLike {
 
         // operator-bound trivia and rhs pressure
         if self.should_break_after_operator(f, is_left_short)? {
+            return Ok(AssignmentLikeLayout::BreakAfterOperator);
+        }
+
+        // operator-bound line comments keep the rhs on the next line
+        if assignment_rhs_has_inline_operator_prefix_comment(f.context(), right) {
             return Ok(AssignmentLikeLayout::BreakAfterOperator);
         }
 
@@ -1161,12 +1202,15 @@ impl AssignmentLike {
                     && !rhs_has_prefix_annotation_that_forces_break
                     && !rhs_has_between_comment
                     && !rhs_has_own_line_prefix_annotation;
-                if rhs_is_template_expression || rhs_is_compact_keyword || rhs_is_compact_class {
+                if (rhs_is_template_expression || rhs_is_compact_keyword || rhs_is_compact_class)
+                    && !rhs_has_inline_operator_prefix_comment
+                {
                     return Ok(AssignmentLikeLayout::NeverBreakAfterOperator);
                 }
 
                 if !left_may_break
                     && (is_left_short || rhs_is_template_expression || rhs_is_class_declaration)
+                    && !rhs_has_inline_operator_prefix_comment
                 {
                     return Ok(AssignmentLikeLayout::NeverBreakAfterOperator);
                 }
@@ -1175,8 +1219,13 @@ impl AssignmentLike {
             // assignment-expression compact rhs
             AssignmentLike::Expression { .. } => {
                 let context = f.context();
+                let rhs_has_inline_operator_prefix_comment =
+                    assignment_rhs_has_inline_operator_prefix_comment(context, right);
 
-                if !left_may_break && (is_left_short || assignment_rhs_is_compact(context, right)) {
+                if !left_may_break
+                    && (is_left_short || assignment_rhs_is_compact(context, right))
+                    && !rhs_has_inline_operator_prefix_comment
+                {
                     return Ok(AssignmentLikeLayout::NeverBreakAfterOperator);
                 }
             }
@@ -1185,7 +1234,7 @@ impl AssignmentLike {
         Ok(AssignmentLikeLayout::Fluid)
     }
 
-    /// Write the operator for one assignment-like shell.
+    /// Write the operator for one assignment-like expression.
     fn write_operator<'ast>(self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             AssignmentLike::Declarator(_) => write!(f, [space(), token("=")]),
@@ -1204,7 +1253,7 @@ impl AssignmentLike {
         }
     }
 
-    /// Write the right-hand side for one assignment-like shell.
+    /// Write the right-hand side for one assignment-like expression.
     fn write_right<'ast>(
         self,
         f: &mut DestackFormatter<'ast, '_>,
@@ -1221,6 +1270,26 @@ impl AssignmentLike {
                     assignment_rhs_operator_comment_nodes(f.context(), value);
                 let rhs_has_inline_operator_prefix_comment =
                     assignment_rhs_has_inline_operator_prefix_comment(f.context(), value);
+                let has_inline_line_operator_comment = rhs_has_inline_operator_prefix_comment
+                    && rhs_operator_comment_nodes
+                        .first()
+                        .is_some_and(|comment| comment.is_line());
+
+                if has_inline_line_operator_comment {
+                    let first_comment = rhs_operator_comment_nodes[0];
+                    let formatted_right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                        write_declarator_assignment_value(f, value, layout, true, &[])
+                    });
+                    let indented_right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                        write!(f, [hard_line_break(), formatted_right])
+                    });
+
+                    write!(f, [space()])?;
+                    format_comment(f, first_comment)?;
+
+                    return write!(f, [indent(&indented_right)]);
+                }
+
                 let formatted_right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
                     write_assignment_rhs_operator_comments(f, value, true)?;
                     write_declarator_assignment_value(
@@ -1235,8 +1304,46 @@ impl AssignmentLike {
                 write_assignment_like_right(f, layout, &formatted_right)
             }
             AssignmentLike::Expression { right, .. } => {
+                let rhs_operator_comment_nodes =
+                    assignment_rhs_operator_comment_nodes(f.context(), right);
+                let rhs_has_inline_operator_prefix_comment =
+                    assignment_rhs_has_inline_operator_prefix_comment(f.context(), right);
+                let has_inline_line_operator_comment = rhs_has_inline_operator_prefix_comment
+                    && rhs_operator_comment_nodes
+                        .first()
+                        .is_some_and(|comment| comment.is_line());
+
+                if has_inline_line_operator_comment {
+                    let first_comment = rhs_operator_comment_nodes[0];
+                    let formatted_right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                        write_expression_with_assignment_layout(
+                            f,
+                            right,
+                            layout,
+                            rhs_has_inline_operator_prefix_comment,
+                        )
+                    });
+                    let indented_right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                        write!(f, [hard_line_break(), formatted_right])
+                    });
+
+                    write!(f, [space()])?;
+                    format_comment(f, first_comment)?;
+
+                    return write!(f, [indent(&indented_right)]);
+                }
+
                 let formatted_right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    write_expression_with_assignment_layout(f, right, layout, false)
+                    if !rhs_operator_comment_nodes.is_empty() {
+                        write_assignment_rhs_operator_comments(f, right, true)?;
+                    }
+
+                    write_expression_with_assignment_layout(
+                        f,
+                        right,
+                        layout,
+                        rhs_has_inline_operator_prefix_comment,
+                    )
                 });
 
                 write_assignment_like_right(f, layout, &formatted_right)
@@ -1244,7 +1351,7 @@ impl AssignmentLike {
         }
     }
 
-    /// Return one explicit chain layout when this shell is eligible.
+    /// Return one explicit chain layout when this expression is eligible.
     fn chain_layout(self, context: &DestackFormatContext<'_>) -> Option<AssignmentLikeLayout> {
         let AssignmentLike::Expression { node_id, right, .. } = self else {
             return None;
@@ -1256,7 +1363,7 @@ impl AssignmentLike {
             return None;
         };
 
-        // eligible chain shells
+        // eligible chain layouts
         let is_eligible = match parent_type {
             NodeType::Declarator => !right_is_tail,
             NodeType::Expression => {
@@ -1398,7 +1505,7 @@ impl AssignmentLike {
         }
     }
 
-    /// Format one assignment-like shell.
+    /// Format one assignment-like expression.
     fn format<'ast>(self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         // left side only
         let Some(_) = self.right(f.context()) else {
@@ -1424,7 +1531,7 @@ impl AssignmentLike {
             Ok(())
         });
 
-        // shell
+        // content
         let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
             if layout == AssignmentLikeLayout::BreakLeftHandSide {
                 write!(f, [formatted_left])?;
@@ -1558,7 +1665,7 @@ pub(crate) fn assignment_rhs_prefers_break_after_operator<'ast>(
     Ok(should_break)
 }
 
-/// Return the innermost rhs expression after unwrapping unary-like shells.
+/// Return the innermost rhs expression after unwrapping unary-like expressions.
 fn assignment_rhs_innermost_expression<'a>(
     context: &'a DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,

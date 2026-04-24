@@ -1,4 +1,5 @@
 use crate::DestackFormatter;
+use crate::format::annotation::FormatLeadingComments;
 use crate::format::file::{ignore_ranges_for_nodes, write_ignored_span};
 use destack_ast::{LocalNodeId, Node, NodeTree, NodeTreeImpl};
 use destack_fir::format::{Buffer, FormatResult};
@@ -24,10 +25,29 @@ where
     f.context().has_blank_line(between_span)
 }
 
-/// Format one block of nodes while honoring ignored ranges and entry spacing.
-pub(crate) fn format_block_nodes_with_ignore_ranges<'ast, T, F>(
+/// Write comments between one block delimiter and its first entry.
+fn write_initial_block_entry_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    start: u32,
+    end: u32,
+) -> FormatResult<()> {
+    if end <= start {
+        return Ok(());
+    }
+
+    let comment_nodes = f.context().comments().comments_in_range(start, end);
+    if comment_nodes.is_empty() {
+        return Ok(());
+    }
+
+    write!(f, [FormatLeadingComments::Comments(comment_nodes)])
+}
+
+/// Format one block of nodes after an optional opening delimiter cursor.
+pub(crate) fn format_block_nodes_with_ignore_ranges_after<'ast, T, F>(
     f: &mut DestackFormatter<'ast, '_>,
     node_ids: &[LocalNodeId<T>],
+    initial_gap: Option<(u32, u32)>,
     mut format_node: F,
 ) -> FormatResult<()>
 where
@@ -66,6 +86,13 @@ where
             write_ignored_span(f, *range_span)?;
             skip_until = Some(range_span.end);
             continue;
+        }
+
+        // initial entry comments
+        if index == 0
+            && let Some((start, end)) = initial_gap
+        {
+            write_initial_block_entry_comments(f, start, end)?;
         }
 
         format_node(f, node_id)?;

@@ -1,11 +1,10 @@
-use crate::format::annotation::{FormatTrailingComments, write_comment_slice};
 use std::collections::HashMap;
 
-use destack_fir::format::{FormatResult, GroupId};
-
+use crate::format::annotation::{FormatTrailingComments, write_comment_slice};
 use crate::format::file::{ignore_ranges_for_nodes, write_ignored_span};
 use crate::{DestackFormatContext, FormatNode};
-use destack_ast::{Comment, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenType};
+use destack_ast::{Comment, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan, TokenType};
+use destack_fir::format::{FormatResult, GroupId};
 use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_source::Span;
@@ -107,7 +106,12 @@ where
 
             if separator_precedes_trailing_comments {
                 if self.is_last && source_separator.is_some() {
-                    write_immediate_trailing_separator(f, self.separator, self.trailing_separator)?;
+                    write_immediate_trailing_separator(
+                        f,
+                        self.separator,
+                        self.trailing_separator,
+                        self.group_id,
+                    )?;
                 } else {
                     write_separator_token(
                         f,
@@ -125,7 +129,12 @@ where
                 write_comment_slice(f, trailing_comments)?;
 
                 if self.is_last && source_separator.is_none() {
-                    write_immediate_trailing_separator(f, self.separator, self.trailing_separator)?;
+                    write_immediate_trailing_separator(
+                        f,
+                        self.separator,
+                        self.trailing_separator,
+                        self.group_id,
+                    )?;
                 } else {
                     write_separator_token(
                         f,
@@ -141,7 +150,12 @@ where
         }
 
         if self.is_last && source_separator.is_none() && !element_tail_comments.is_empty() {
-            write_immediate_trailing_separator(f, self.separator, self.trailing_separator)?;
+            write_immediate_trailing_separator(
+                f,
+                self.separator,
+                self.trailing_separator,
+                self.group_id,
+            )?;
         } else {
             write_separator_token(
                 f,
@@ -159,7 +173,7 @@ where
 /// Return the next non-trivia start after one list element's separator, when present.
 fn list_element_following_start(
     context: &DestackFormatContext<'_>,
-    source_separator: Option<destack_ast::TokenSpan>,
+    source_separator: Option<TokenSpan>,
     next_following_start: u32,
 ) -> u32 {
     let Some(source_separator) = source_separator else {
@@ -204,9 +218,16 @@ fn write_immediate_trailing_separator<'ast>(
     f: &mut Formatter<'_, DestackFormatContext<'ast>>,
     separator: &'static str,
     trailing_separator: TrailingSeparator,
+    group_id: Option<GroupId>,
 ) -> FormatResult<()> {
     match trailing_separator {
-        TrailingSeparator::Allowed | TrailingSeparator::Mandatory => {
+        TrailingSeparator::Allowed => {
+            write!(
+                f,
+                [if_group_breaks(&token(separator)).with_group_id(group_id)]
+            )?;
+        }
+        TrailingSeparator::Mandatory => {
             write!(f, [token(separator)])?;
         }
         TrailingSeparator::Omit => {}
@@ -221,7 +242,7 @@ fn separator_token_after_element(
     element_span: Span,
     next_element_start: Option<u32>,
     separator: &str,
-) -> Option<destack_ast::TokenSpan> {
+) -> Option<TokenSpan> {
     let separator_token_type = separator_token_type(separator)?;
     let last_token_in_element = context.last_non_trivia_token_in_span(element_span);
     if let Some(token) = last_token_in_element
@@ -279,7 +300,7 @@ fn element_tail_comments(
 /// Split one gap comment slice around one source separator token.
 fn split_gap_comments_around_separator(
     comments: &[Comment],
-    separator_token: Option<destack_ast::TokenSpan>,
+    separator_token: Option<TokenSpan>,
 ) -> (&[Comment], &[Comment]) {
     let Some(separator_token) = separator_token else {
         return (&[][..], comments);
@@ -466,12 +487,20 @@ where
                 ignored_range_starts_with_separator(f.context(), *range_span, separator);
             let ends_with_separator =
                 ignored_range_ends_with_separator(f.context(), *range_span, separator);
+            let has_following_element = elements
+                .iter()
+                .copied()
+                .any(|next_element_id| f.context().span(next_element_id).start >= range_span.end);
 
             if needs_separator && !starts_with_separator {
                 write!(f, [token(separator), soft_line_break_or_space()])?;
             }
 
             write_ignored_span(f, *range_span)?;
+            if ends_with_separator && has_following_element {
+                write!(f, [soft_line_break_or_space()])?;
+            }
+
             skip_until = Some(range_span.end);
             needs_separator = !ends_with_separator;
             continue;
@@ -481,11 +510,45 @@ where
             write!(f, [token(separator), soft_line_break_or_space()])?;
         }
 
-        write!(f, [*element_id])?;
+        let following_span_start =
+            list_element_following_span_start(f.context(), elements, element_id);
+        let previous_following_span_start = f
+            .context_mut()
+            .replace_following_span_start(following_span_start);
+        let result = write!(f, [*element_id]);
+        f.context_mut()
+            .replace_following_span_start(previous_following_span_start);
+        result?;
+
         needs_separator = true;
     }
 
     Ok(needs_separator)
+}
+
+/// Return the source start of the next list element after one element.
+fn list_element_following_span_start<T>(
+    context: &DestackFormatContext<'_>,
+    elements: &[LocalNodeId<T>],
+    element_id: &LocalNodeId<T>,
+) -> u32
+where
+    T: Node + Clone,
+    NodeTree: NodeTreeImpl<T>,
+{
+    let element_span = context.span(*element_id);
+    let next_element = elements
+        .iter()
+        .copied()
+        .find(|next_element_id| context.span(*next_element_id).start > element_span.start);
+
+    next_element.map_or(0, |next_element_id| {
+        let next_span = context.span(next_element_id);
+
+        context
+            .first_non_trivia_token_in_span(next_span)
+            .map_or(next_span.start, |token| token.span.start)
+    })
 }
 
 /// Return the token type used for one list separator string.

@@ -18,17 +18,19 @@ use crate::format::call::{
 use crate::format::context::DestackFormatterSpeculationExt;
 use crate::format::expression::{
     format_generic_argument_list, format_generic_argument_list_with_relational_spacing,
+    write_index_access,
 };
 use crate::format::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Comment, CommentPosition, Declaration, DecoratorPosition, Expression, FunctionKind,
-    LocalNodeId, Member, NodeType, PostfixPosition, ScalarLiteral,
+    LocalNodeId, Member, NodeType, PostfixPosition,
 };
+use destack_core::StringId;
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{
     empty_line, expand_parent, format_with, group, hard_line_break, indent, line_suffix_boundary,
-    soft_block_indent, token,
+    token,
 };
 use destack_fir::{best_fitting, write};
 use destack_source::Span;
@@ -360,7 +362,7 @@ fn expression_is_standalone_statement(
 }
 
 /// Return whether one identifier name follows the factory-style merge rule.
-fn is_factory_name(context: &DestackFormatContext<'_>, string_id: destack_core::StringId) -> bool {
+fn is_factory_name(context: &DestackFormatContext<'_>, string_id: StringId) -> bool {
     let name = context.strings.get(string_id);
     let mut bytes = name.bytes();
 
@@ -1169,32 +1171,7 @@ fn write_chain_operation<'ast>(
                 write!(f, [token(".")])?;
             }
             if let Some(index) = index {
-                let index_has_trailing_comment = f
-                    .context()
-                    .comments()
-                    .has_comment_before(f.context().span(*node_id).end);
-
-                // numeric indexes stay inline
-                if matches!(
-                    f.context().tree.get(*index),
-                    Expression::ScalarLiteral(
-                        ScalarLiteral::Integer(_)
-                            | ScalarLiteral::Bigint(_)
-                            | ScalarLiteral::Float(_)
-                    )
-                ) && !index_has_trailing_comment
-                {
-                    write!(f, [token("["), *index, token("]")])?;
-                }
-                // other indexes use the computed-member group shape
-                else {
-                    write!(
-                        f,
-                        [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                            write!(f, [token("["), soft_block_indent(index), token("]")])
-                        }))]
-                    )?;
-                }
+                write_index_access(f, *node_id, *index, false)?;
             } else {
                 write!(f, [token("[]")])?;
             }

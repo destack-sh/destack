@@ -27,6 +27,7 @@ enum StructLiteralLayout {
     Empty,
     Expanded {
         separator: &'static str,
+        trailing_separator: TrailingSeparator,
     },
     InlineParameterTypeLiteral {
         property_id: LocalNodeId<Property>,
@@ -308,6 +309,7 @@ fn write_expanded_struct_literal<'ast>(
     expression_id: LocalNodeId<Expression>,
     properties_ids: &[LocalNodeId<Property>],
     separator: &'static str,
+    trailing_separator: TrailingSeparator,
 ) -> FormatResult<()> {
     write!(
         f,
@@ -320,7 +322,7 @@ fn write_expanded_struct_literal<'ast>(
                     [separated_entries(
                         separator,
                         properties_ids,
-                        TrailingSeparator::Omit,
+                        trailing_separator,
                         None,
                     )]
                 )?;
@@ -549,9 +551,22 @@ fn struct_literal_layout(
         || has_complex_destructuring_assignment_target
         || (is_assignment_target && has_newline_in_source);
     let separator = struct_literal_separator(f, in_type_context, properties_ids);
+    let ends_with_spread = properties_ids.last().is_some_and(|property_id| {
+        matches!(f.context().tree.get(*property_id), Property::Spread { .. })
+    });
+    let allow_trailing_separator = !(is_assignment_target && ends_with_spread);
+    let trailing_separator =
+        if !allow_trailing_separator || f.context().options.trailing_comma == TrailingComma::None {
+            TrailingSeparator::Omit
+        } else {
+            TrailingSeparator::Allowed
+        };
 
     if has_ignore_ranges || (in_type_context && should_expand) {
-        return StructLiteralLayout::Expanded { separator };
+        return StructLiteralLayout::Expanded {
+            separator,
+            trailing_separator,
+        };
     }
 
     let should_inline_parameter_type_literal = in_type_context
@@ -567,17 +582,6 @@ fn struct_literal_layout(
             property_id: properties_ids[0],
         };
     }
-
-    let ends_with_spread = properties_ids.last().is_some_and(|property_id| {
-        matches!(f.context().tree.get(*property_id), Property::Spread { .. })
-    });
-    let allow_trailing_separator = !(is_assignment_target && ends_with_spread);
-    let trailing_separator =
-        if !allow_trailing_separator || f.context().options.trailing_comma == TrailingComma::None {
-            TrailingSeparator::Omit
-        } else {
-            TrailingSeparator::Allowed
-        };
 
     StructLiteralLayout::Grouped {
         separator,
@@ -600,9 +604,16 @@ pub(crate) fn format_struct_literal<'ast>(
 
     match struct_literal_layout(f, expression_id, properties_ids) {
         StructLiteralLayout::Empty => write_empty_struct_literal(f, expression_id),
-        StructLiteralLayout::Expanded { separator } => {
-            write_expanded_struct_literal(f, expression_id, properties_ids, separator)
-        }
+        StructLiteralLayout::Expanded {
+            separator,
+            trailing_separator,
+        } => write_expanded_struct_literal(
+            f,
+            expression_id,
+            properties_ids,
+            separator,
+            trailing_separator,
+        ),
         StructLiteralLayout::InlineParameterTypeLiteral { property_id } => {
             write_inline_parameter_type_literal(f, property_id)
         }

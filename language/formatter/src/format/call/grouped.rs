@@ -7,7 +7,7 @@ use crate::format::annotation::{format_leading_comments, format_trailing_comment
 use crate::format::chain::{SimpleArgument, transparent_inner_expression};
 use crate::format::declaration::{
     FormatLambdaDeclarationOptions, FunctionCacheMode, GroupedCallArgumentLayout,
-    format_lambda_declaration_with_options,
+    format_function_declaration, format_lambda_declaration_with_options,
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
@@ -23,6 +23,7 @@ use destack_fir::prelude::{
 };
 use destack_fir::{best_fitting, format_args, write};
 use destack_source::NodeSpanType;
+use destack_workspace::TrailingComma;
 
 /// Return whether any argument carries annotations.
 fn arguments_have_annotations(
@@ -72,12 +73,12 @@ fn can_group_lambda_argument(
             };
 
             let block = context.tree.get(*block_id);
-            let body_shell_span = context
+            let body_span = context
                 .tree
                 .get_side_span(declaration_id, NodeSpanType::Body)
                 .unwrap_or_else(|| context.span(body_id));
 
-            if block.is_empty() && !context.comments().has_comment_before(body_shell_span.end) {
+            if block.is_empty() && !context.comments().has_comment_before(body_span.end) {
                 return false;
             }
         }
@@ -575,13 +576,14 @@ fn grouped_function_argument_declaration_id(
     None
 }
 
-/// Write one function argument through the lambda owner.
+/// Write one function argument through its declaration owner.
 fn write_function_argument_with_options<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     argument_id: LocalNodeId<Argument>,
     declaration_id: LocalNodeId<Declaration>,
     following_span_start: u32,
-    options: FormatLambdaDeclarationOptions,
+    call_argument_layout: Option<GroupedCallArgumentLayout>,
+    cache_mode: FunctionCacheMode,
 ) -> FormatResult<()> {
     let Declaration::Function(function) = f.context().tree.get(declaration_id) else {
         unreachable!();
@@ -613,16 +615,39 @@ fn write_function_argument_with_options<'ast>(
         Argument::Positional { .. } | Argument::Error => {}
     }
 
-    format_lambda_declaration_with_options(
-        f,
-        declaration_id,
-        function.export,
-        function.ambient,
-        function.name,
-        &function.signature,
-        &function.body,
-        options,
-    )?;
+    // declaration
+    match function.signature.kind {
+        FunctionKind::Lambda => {
+            let options = FormatLambdaDeclarationOptions {
+                assignment_layout: None,
+                call_argument_layout,
+                cache_mode,
+            };
+
+            format_lambda_declaration_with_options(
+                f,
+                declaration_id,
+                function.export,
+                function.ambient,
+                function.name,
+                &function.signature,
+                &function.body,
+                options,
+            )?;
+        }
+        FunctionKind::Function => {
+            format_function_declaration(
+                f,
+                declaration_id,
+                function.export,
+                function.ambient,
+                function.name,
+                &function.signature,
+                &function.body,
+                cache_mode,
+            )?;
+        }
+    }
 
     // trailing comments
     write!(
@@ -642,8 +667,8 @@ fn write_grouped_argument_entry<'ast>(
     following_span_start: u32,
     write_comma: bool,
     layout: GroupedCallArgumentLayout,
+    is_only_argument: bool,
 ) -> FormatResult<()> {
-    let is_only_argument = !write_comma && following_span_start == 0;
     let Some(declaration_id) = grouped_function_argument_declaration_id(
         f.context(),
         argument_id,
@@ -659,19 +684,14 @@ fn write_grouped_argument_entry<'ast>(
         return write_call_argument_in_list(f, argument_id, following_span_start, separator);
     };
 
-    let options = FormatLambdaDeclarationOptions {
-        assignment_layout: None,
-        call_argument_layout: Some(layout),
-        cache_mode: FunctionCacheMode::Cache,
-    };
-
     with_argument_following_span_start(f, following_span_start, |f| {
         write_function_argument_with_options(
             f,
             argument_id,
             declaration_id,
             following_span_start,
-            options,
+            Some(layout),
+            FunctionCacheMode::Cache,
         )
     })?;
 
@@ -733,18 +753,13 @@ pub(crate) fn write_grouped_arguments<'ast>(
                 );
 
                 if let Some(declaration_id) = declaration_id {
-                    let options = FormatLambdaDeclarationOptions {
-                        assignment_layout: None,
-                        call_argument_layout: None,
-                        cache_mode: FunctionCacheMode::Cache,
-                    };
-
                     write_function_argument_with_options(
                         f,
                         argument_id,
                         declaration_id,
                         following_span_start,
-                        options,
+                        None,
+                        FunctionCacheMode::Cache,
                     )?;
 
                     if index != last_index {
@@ -803,6 +818,7 @@ pub(crate) fn write_grouped_arguments<'ast>(
             unreachable!("grouped function argument should be one declaration expression");
         };
         let declaration_id = *declaration_id;
+
         let Declaration::Function(_) = f.context().tree.get(declaration_id) else {
             unreachable!();
         };
@@ -812,8 +828,9 @@ pub(crate) fn write_grouped_arguments<'ast>(
             .tree
             .get_side_span(declaration_id, NodeSpanType::Parameters)
             .unwrap_or_else(|| {
-                unreachable!("grouped function argument should own its parameter shell")
+                unreachable!("grouped function argument should own its parameter container")
             });
+
         let Some(cached_signature) = f.context().get_cached_element(&cache_key) else {
             unreachable!("grouped lambda signature should already be cached");
         };
@@ -840,6 +857,7 @@ pub(crate) fn write_grouped_arguments<'ast>(
                 following_span_starts[grouped_index],
                 grouped_index != last_index,
                 layout,
+                arguments.len() == 1,
             )
         });
         let interned = f.intern(&content)?;
@@ -966,10 +984,7 @@ fn format_all_elements_broken_out<'ast>(
     expand: bool,
 ) -> FormatResult<()> {
     let write_trailing_separator = !disallow_trailing_separator
-        && matches!(
-            f.context().options.trailing_comma,
-            destack_workspace::TrailingComma::All
-        );
+        && matches!(f.context().options.trailing_comma, TrailingComma::All);
 
     write!(
         f,

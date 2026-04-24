@@ -7,9 +7,11 @@ use crate::format::chain::{
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Argument, Comment, Declaration, Expression, FunctionDeclaration, FunctionKind, IfCondition,
-    IfKind, LocalNodeId, NodeTree, ScalarLiteral, TokenType,
+    IfKind, LocalNodeId, Node, NodeTree, NodeTreeImpl, ScalarLiteral, TokenType,
 };
 use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::prelude::{hard_line_break, space};
+use destack_fir::write;
 use destack_source::Span;
 
 /// Return whether one node span contains a line comment.
@@ -18,8 +20,8 @@ pub(crate) fn node_has_line_comment<T>(
     node_id: LocalNodeId<T>,
 ) -> bool
 where
-    T: destack_ast::Node,
-    NodeTree: destack_ast::NodeTreeImpl<T>,
+    T: Node,
+    NodeTree: NodeTreeImpl<T>,
 {
     let span = context.span(node_id);
 
@@ -28,6 +30,26 @@ where
         .iter()
         .copied()
         .any(|comment| context.comment_is_line(comment))
+}
+
+/// Return whether one tree argument has a line comment outside the value span.
+pub(crate) fn tree_argument_has_outer_line_comment(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+    value_id: LocalNodeId<Expression>,
+) -> bool {
+    let argument_span = context.span(argument_id);
+    let value_span = context.span(value_id);
+
+    context
+        .comment_tokens_in_range(argument_span.start, value_span.start)
+        .iter()
+        .chain(
+            context
+                .comment_tokens_in_range(value_span.end, argument_span.end)
+                .iter(),
+        )
+        .any(|comment| context.comment_is_line(*comment))
 }
 
 /// Return whether one tree callback body forces multiline element layout.
@@ -121,7 +143,7 @@ pub(crate) fn tree_child_should_inline_braced_expression(
         }
     }
 
-    if node_has_line_comment(context, argument_id) {
+    if tree_argument_has_outer_line_comment(context, argument_id, value_id) {
         return false;
     }
 
@@ -140,10 +162,7 @@ pub(crate) fn tree_child_should_inline_braced_expression(
         | Expression::PrivateMember { .. }
         | Expression::Index { .. }
         | Expression::Maybe { .. }
-        | Expression::Must { .. } => {
-            !node_has_line_comment(context, value_id)
-                && !expression_chain_has_separator_comment(context, value_id)
-        }
+        | Expression::Must { .. } => !expression_chain_has_separator_comment(context, value_id),
         Expression::If {
             kind: IfKind::Ternary,
             condition,
@@ -160,19 +179,7 @@ pub(crate) fn tree_child_should_inline_braced_expression(
                 return false;
             }
 
-            let condition_id = match condition {
-                IfCondition::Expression { condition } => *condition,
-                IfCondition::Let { .. } => return false,
-            };
-            if node_has_line_comment(context, value_id)
-                || node_has_line_comment(context, condition_id)
-                || node_has_line_comment(context, *then_expression)
-                || else_expression.is_some_and(|else_id| node_has_line_comment(context, else_id))
-            {
-                return false;
-            }
-
-            true
+            matches!(condition, IfCondition::Expression { .. })
         }
         Expression::Declaration(declaration_id) => matches!(
             context.tree.get(*declaration_id),
@@ -317,9 +324,6 @@ pub(crate) fn format_multiline_stub_comment_nodes<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     comment_nodes: &[Comment],
 ) -> FormatResult<()> {
-    use destack_fir::prelude::hard_line_break;
-    use destack_fir::write;
-
     for (index, comment) in comment_nodes.iter().copied().enumerate() {
         if index > 0 {
             write!(f, [hard_line_break()])?;
@@ -335,9 +339,6 @@ pub(crate) fn format_inline_stub_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     span: Span,
 ) -> FormatResult<bool> {
-    use destack_fir::prelude::space;
-    use destack_fir::write;
-
     let comment_nodes = {
         let comments = f.context().comments();
         comments.comments_in_range(span.start, span.end).to_vec()
