@@ -13,11 +13,10 @@ use crate::runtime::random::RandomImage;
 use crate::runtime::time::ClockImage;
 use crate::runtime::topology::{RuntimeId, Topology, WorldEdge, WorldEntity};
 use crate::runtime::world::{World, WorldResource, WorldResourceId};
-use crate::runtime::{WorkerId, WorkerImage, Runtime, RuntimeImage};
+use crate::runtime::{Runtime, RuntimeImage, WorkerId, WorkerImage};
 use crate::simulation::Simulation;
 use destack_workspace::{
-    ExecutionMode, RandomMode, RandomOptions, ReplayOptions, ReplayPayloadMode, RuntimeOptions,
-    TimeMode, TimeOptions,
+    ExecutionMode, ExecutorMode, RandomMode, ReplayPayloadMode, RuntimeOptions, TimeMode,
 };
 use postcard::to_allocvec;
 
@@ -28,6 +27,8 @@ use super::{CheckpointId, Lineage, LineageSnapshot, Revision, RevisionState};
 pub struct SnapshotConfig {
     /// Execution mode for the rebuilt world.
     pub execution: ExecutionMode,
+    /// Executor mode for the rebuilt world.
+    pub executor_mode: ExecutorMode,
     /// Effective world time mode.
     pub time_mode: TimeMode,
     /// Effective world random mode.
@@ -210,12 +211,15 @@ impl WorldImage {
 
     /// Return one worker image by id.
     pub fn worker(&self, worker_id: WorkerId) -> RuntimeResult<&WorkerImage> {
-        self.workers.get(&worker_id).map(Arc::as_ref).ok_or_else(|| {
-            RuntimeError::WorkerNotFound {
-                worker_id: worker_id.0,
-            }
-            .boxed()
-        })
+        self.workers
+            .get(&worker_id)
+            .map(Arc::as_ref)
+            .ok_or_else(|| {
+                RuntimeError::WorkerNotFound {
+                    worker_id: worker_id.0,
+                }
+                .boxed()
+            })
     }
 
     /// Return labels for one worker image.
@@ -361,6 +365,7 @@ impl World {
 
         SnapshotConfig {
             execution: self.trace.mode(),
+            executor_mode: self.collector.mode().to_executor_mode(),
             time_mode: self.time_mode,
             random_mode: self.random_mode,
             replay_payload,
@@ -370,28 +375,12 @@ impl World {
 
     /// Build runtime options for one serialized world snapshot.
     fn runtime_options_from_snapshot(snapshot: &WorldSnapshot) -> RuntimeOptions {
-        let mut options = RuntimeOptions {
-            execution: snapshot.config.execution,
-            time: TimeOptions {
-                mode: snapshot.config.time_mode,
-                ..TimeOptions::default()
-            },
-            random: RandomOptions {
-                mode: snapshot.config.random_mode,
-                ..RandomOptions::default()
-            },
-            replay: ReplayOptions {
-                chunk_size_mb: snapshot.config.replay_chunk_size_mb,
-                payload: snapshot.config.replay_payload,
-                ..ReplayOptions::default()
-            },
-            ..RuntimeOptions::default()
-        };
+        let mut options = RuntimeOptions::default();
 
-        if snapshot.config.execution == ExecutionMode::Replay {
-            options.time.mode = TimeMode::Virtual;
-            options.random.mode = RandomMode::Deterministic;
-        }
+        options.set_execution_mode(snapshot.config.execution);
+        options.execution.mode = snapshot.config.executor_mode;
+        options.trace.chunk_size_mb = snapshot.config.replay_chunk_size_mb;
+        options.trace.payload = snapshot.config.replay_payload;
 
         options
     }
@@ -433,7 +422,7 @@ impl World {
                 .boxed()
             })?;
 
-            (revision, lineage.full_snapshot(&self.shared_arena)?)
+            (revision, lineage.full_snapshot()?)
         };
 
         Ok(WorldSnapshot::new(
@@ -504,7 +493,7 @@ impl World {
         };
         let image =
             self.revision_image(&target_revision, &base_revision, &image, &trace_image, None)?;
-        let mut lineage_snapshot = self.lineage.read().full_snapshot(&self.shared_arena)?;
+        let mut lineage_snapshot = self.lineage.read().full_snapshot()?;
         lineage_snapshot
             .images
             .insert(revision_info.image_id, image);
@@ -560,12 +549,10 @@ impl World {
                 (image, trace_image.as_ref().clone())
             }
         };
-        let lineage_snapshot = self.lineage.read().exact_snapshot(
-            &self.shared_arena,
-            revision,
-            &image,
-            &trace_image,
-        )?;
+        let lineage_snapshot =
+            self.lineage
+                .read()
+                .exact_snapshot(revision, &image, &trace_image)?;
 
         Ok(WorldSnapshot::new(
             self.snapshot_config(),
@@ -649,9 +636,8 @@ impl World {
             .boxed());
         }
 
-        let (shared_arena, lineage) = Lineage::from_snapshot(snapshot.lineage.clone())?;
-        self.shared_arena = shared_arena;
-        *self.lineage.write() = lineage;
+        *self.lineage.write() =
+            Lineage::from_snapshot(snapshot.lineage.clone(), self.collector.clone())?;
         let (image, trace_image) = {
             let (_, image, trace_image) = self.revision_data(snapshot.revision)?;
 
@@ -663,29 +649,37 @@ impl World {
 
     /// Capture one materialized world image while the world is under exclusive access.
     pub(crate) fn capture_image(&mut self, mode: CaptureMode) -> RuntimeResult<WorldImage> {
+        self.quiesce_shared_gc();
+
         // runtime and worker state
-        let mut runtime_images = BTreeMap::new();
-        let mut worker_images = BTreeMap::new();
+        let image = (|| {
+            let mut runtime_images = BTreeMap::new();
+            let mut worker_images = BTreeMap::new();
 
-        for runtime in self.runtimes.values_mut() {
-            let (runtime_image, runtime_agents) = runtime.capture_image(mode)?;
-            runtime_images.insert(runtime.runtime_id(), runtime_image);
-            worker_images.extend(runtime_agents);
-        }
+            for runtime in self.runtimes.values_mut() {
+                let (runtime_image, runtime_agents) = runtime.capture_image(mode)?;
+                runtime_images.insert(runtime.runtime_id(), runtime_image);
+                worker_images.extend(runtime_agents);
+            }
 
-        Ok(WorldImage {
-            next_runtime_id: self.next_runtime_id,
-            next_worker_id: self.next_worker_id,
-            policy: self.policy.clone(),
-            topology: self.topology.clone(),
-            resources: self.resources.clone(),
-            simulation: self.simulation.clone(),
-            clock: self.clock.snapshot(),
-            random: self.random.snapshot(),
-            shared: self.shared.image(),
-            runtimes: runtime_images,
-            workers: worker_images,
-        })
+            Ok(WorldImage {
+                next_runtime_id: self.next_runtime_id,
+                next_worker_id: self.next_worker_id,
+                policy: self.policy.clone(),
+                topology: self.topology.clone(),
+                resources: self.resources.clone(),
+                simulation: self.simulation.clone(),
+                clock: self.clock.snapshot(),
+                random: self.random.snapshot(),
+                shared: self.shared.image(),
+                runtimes: runtime_images,
+                workers: worker_images,
+            })
+        })();
+
+        self.resume_shared_gc();
+
+        image
     }
 
     /// Restore one materialized image into this world while the world is quiesced.
@@ -694,65 +688,79 @@ impl World {
         image: &WorldImage,
         rebind_context: Option<&ResourceRebinders>,
     ) -> RuntimeResult<()> {
-        // world-owned state
-        self.next_runtime_id = image.next_runtime_id;
-        self.next_worker_id = image.next_worker_id;
-        self.policy = image.policy.clone();
-        self.topology = image.topology.clone();
-        self.resources = image.resources.clone();
-        self.simulation = image.simulation.clone();
+        self.quiesce_shared_gc();
+        let result = (|| {
+            // world-owned state
+            self.next_runtime_id = image.next_runtime_id;
+            self.next_worker_id = image.next_worker_id;
+            self.policy = image.policy.clone();
+            self.topology = image.topology.clone();
+            self.resources = image.resources.clone();
+            self.simulation = image.simulation.clone();
 
-        self.shared =
-            heap::SharedHeap::from_image_with_arena(self.shared_arena.clone(), &image.shared)
-                .map_err(Box::<RuntimeError>::from)?;
+            self.shared = Arc::new(
+                heap::SharedHeap::from_image_with_allocator_limits_and_options(
+                    self.shared_allocator(),
+                    &image.shared,
+                    self.shared.limits(),
+                    self.shared.options().clone(),
+                )
+                .map_err(Box::<RuntimeError>::from)?,
+            );
+            self.rebuild_shared_collection();
 
-        self.clock.restore_snapshot(&image.clock);
-        self.random.restore_snapshot(&image.random)?;
-        self.observations.reset();
+            self.clock.restore_snapshot(&image.clock);
+            self.random.restore_snapshot(&image.random)?;
+            self.observations.reset();
 
-        // runtime and worker state
-        let mut restored_runtimes = BTreeMap::new();
-        for (runtime_id, runtime_image) in &image.runtimes {
-            let runtime_name = self
-                .topology
-                .runtime_subject(*runtime_id)
-                .ok_or_else(|| {
-                    RuntimeError::RuntimeNotFound {
-                        runtime_id: runtime_id.0,
-                    }
-                    .boxed()
-                })?
-                .0
-                .to_string();
-            let runtime_agent_images = image
-                .workers
-                .iter()
-                .filter(|(worker_id, _)| image.runtime_owns_worker(*runtime_id, **worker_id))
-                .map(|(worker_id, worker_image)| (*worker_id, worker_image.clone()))
-                .collect::<BTreeMap<_, _>>();
-            let runtime_agent_names = runtime_agent_images
-                .keys()
-                .map(|worker_id| {
-                    let worker_name = image.worker_name(*worker_id)?;
+            // runtime and worker state
+            let mut restored_runtimes = BTreeMap::new();
+            for (runtime_id, runtime_image) in &image.runtimes {
+                let runtime_name = self
+                    .topology
+                    .runtime_subject(*runtime_id)
+                    .ok_or_else(|| {
+                        RuntimeError::RuntimeNotFound {
+                            runtime_id: runtime_id.0,
+                        }
+                        .boxed()
+                    })?
+                    .0
+                    .to_string();
+                let runtime_agent_images = image
+                    .workers
+                    .iter()
+                    .filter(|(worker_id, _)| image.runtime_owns_worker(*runtime_id, **worker_id))
+                    .map(|(worker_id, worker_image)| (*worker_id, worker_image.clone()))
+                    .collect::<BTreeMap<_, _>>();
+                let runtime_agent_names = runtime_agent_images
+                    .keys()
+                    .map(|worker_id| {
+                        let worker_name = image.worker_name(*worker_id)?;
 
-                    Ok((*worker_id, worker_name.to_string()))
-                })
-                .collect::<RuntimeResult<BTreeMap<_, _>>>()?;
-            let runtime = Runtime::from_image(
-                &self.world_ref(),
-                *runtime_id,
-                runtime_name,
-                runtime_image.as_ref(),
-                &runtime_agent_names,
-                &runtime_agent_images,
-                rebind_context,
-            )?;
-            restored_runtimes.insert(*runtime_id, Box::new(runtime));
-        }
+                        Ok((*worker_id, worker_name.to_string()))
+                    })
+                    .collect::<RuntimeResult<BTreeMap<_, _>>>()?;
+                let runtime = Runtime::from_image(
+                    &self.world_ref(),
+                    *runtime_id,
+                    runtime_name,
+                    runtime_image.as_ref(),
+                    &runtime_agent_names,
+                    &runtime_agent_images,
+                    rebind_context,
+                )?;
+                restored_runtimes.insert(*runtime_id, Box::new(runtime));
+            }
 
-        self.runtimes = restored_runtimes;
+            self.runtimes = restored_runtimes;
 
-        Ok(())
+            Ok(())
+        })();
+
+        self.resume_shared_gc();
+
+        result
     }
 
     /// Return the encoded size and hash for one image.

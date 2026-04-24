@@ -9,7 +9,7 @@ use crate::runtime::observe::ObservationRecord;
 use crate::runtime::time::WorldInstant;
 use crate::runtime::trace::{TraceImage, TraceSequence};
 use crate::runtime::world::RuntimeId;
-use crate::runtime::{WorkerId, WorkerImage, RuntimeImage};
+use crate::runtime::{Collector, RuntimeImage, WorkerId, WorkerImage};
 
 use super::{
     Branch, BranchId, BranchOrigin, Checkpoint, CheckpointId, ImageId, Moment, Revision,
@@ -59,9 +59,13 @@ impl AgentImageId {
     }
 }
 
-/// World-owned lineage metadata and durable restore metadata.
+/// Lineage-root metadata and durable restore metadata.
 #[derive(Debug)]
 pub(crate) struct Lineage {
+    /// The shared allocator backing retained and live world images in this lineage.
+    allocator: Arc<heap::Allocator>,
+    /// The collector scheduler shared by live worlds in this lineage.
+    collector: Arc<Collector>,
     /// The next branch identifier to allocate.
     pub next_branch_id: u128,
     /// The next revision identifier to allocate.
@@ -101,8 +105,8 @@ pub struct LineageSnapshot {
     pub next_revision_id: u128,
     /// The next checkpoint identifier to allocate.
     pub next_checkpoint_id: u128,
-    /// The serialized shared-heap arena pages reachable from this lineage.
-    pub arena: heap::ArenaImage,
+    /// The serialized shared-heap allocator pages reachable from this lineage.
+    pub allocator: heap::AllocatorImage,
     /// The next image identifier to allocate.
     pub next_image_id: u128,
     /// The next runtime image identifier to allocate.
@@ -125,17 +129,14 @@ pub struct LineageSnapshot {
 
 impl Lineage {
     /// Capture one durable lineage snapshot for all retained history.
-    pub(crate) fn full_snapshot(
-        &self,
-        shared_arena: &Arc<heap::Arena>,
-    ) -> RuntimeResult<LineageSnapshot> {
+    pub(crate) fn full_snapshot(&self) -> RuntimeResult<LineageSnapshot> {
         let reachable_pages = self.reachable_image_pages(self.images.values().map(Arc::as_ref));
 
         Ok(LineageSnapshot {
             next_branch_id: self.next_branch_id,
             next_revision_id: self.next_revision_id,
             next_checkpoint_id: self.next_checkpoint_id,
-            arena: shared_arena.image_pages_from_ids(&reachable_pages)?,
+            allocator: self.allocator.image_pages_from_ids(&reachable_pages)?,
             next_image_id: self.next_image_id,
             next_runtime_image_id: self.next_runtime_image_id,
             next_agent_image_id: self.next_agent_image_id,
@@ -161,7 +162,6 @@ impl Lineage {
     /// Capture one durable lineage snapshot for one exact revision closure.
     pub(crate) fn exact_snapshot(
         &self,
-        shared_arena: &Arc<heap::Arena>,
         revision: Revision,
         image: &WorldImage,
         trace_image: &TraceImage,
@@ -206,7 +206,7 @@ impl Lineage {
             next_branch_id: self.next_branch_id,
             next_revision_id: self.next_revision_id,
             next_checkpoint_id: self.next_checkpoint_id,
-            arena: shared_arena.image_pages_from_ids(&reachable_pages)?,
+            allocator: self.allocator.image_pages_from_ids(&reachable_pages)?,
             next_image_id: self.next_image_id,
             next_runtime_image_id: self.next_runtime_image_id,
             next_agent_image_id: self.next_agent_image_id,
@@ -221,6 +221,8 @@ impl Lineage {
 
     /// Create one lineage with one fully materialized root revision.
     pub(crate) fn new_root(
+        allocator: Arc<heap::Allocator>,
+        collector: Arc<Collector>,
         wall: WorldInstant,
         mono: WorldInstant,
         sequence: TraceSequence,
@@ -262,6 +264,8 @@ impl Lineage {
         );
 
         Self {
+            allocator,
+            collector,
             next_branch_id: INITIAL_BRANCH_ID,
             next_revision_id: INITIAL_REVISION_ID,
             next_checkpoint_id: INITIAL_CHECKPOINT_ID,
@@ -282,8 +286,9 @@ impl Lineage {
     /// Rebuild lineage state from one durable lineage snapshot.
     pub(crate) fn from_snapshot(
         snapshot: LineageSnapshot,
-    ) -> RuntimeResult<(Arc<heap::Arena>, Self)> {
-        let shared_arena = Arc::new(heap::Arena::from_image(&snapshot.arena)?);
+        collector: Arc<Collector>,
+    ) -> RuntimeResult<Self> {
+        let allocator = Arc::new(heap::Allocator::from_image(&snapshot.allocator)?);
         let images = snapshot
             .images
             .into_iter()
@@ -296,6 +301,8 @@ impl Lineage {
             .collect();
 
         let mut lineage = Self {
+            allocator,
+            collector,
             next_branch_id: snapshot.next_branch_id,
             next_revision_id: snapshot.next_revision_id,
             next_checkpoint_id: snapshot.next_checkpoint_id,
@@ -313,10 +320,20 @@ impl Lineage {
         };
         lineage.rebuild_image_tables();
 
-        Ok((shared_arena, lineage))
+        Ok(lineage)
     }
 
-    /// Collect the arena pages reachable from one set of retained world images.
+    /// Return the shared allocator for this lineage.
+    pub(crate) fn allocator(&self) -> Arc<heap::Allocator> {
+        self.allocator.clone()
+    }
+
+    /// Return the shared collector for this lineage.
+    pub(crate) fn collector(&self) -> Arc<Collector> {
+        self.collector.clone()
+    }
+
+    /// Collect the allocator pages reachable from one set of retained world images.
     fn reachable_image_pages<'a>(
         &self,
         images: impl IntoIterator<Item = &'a WorldImage>,

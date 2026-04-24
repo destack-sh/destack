@@ -7,15 +7,15 @@ use parking_lot::RwLock;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::runtime::bindings::BindingReplayPayload;
-use crate::runtime::memory::resolve_shared_raw_limits;
+use crate::runtime::memory::{MarkRootSet, resolve_shared_heap_options};
 use crate::runtime::observe::{Observation, ObservationSequence, Observations};
 use crate::runtime::policy::{Policy, PolicyState};
 use crate::runtime::random::{Random, RandomStreamId};
-use crate::runtime::time::{Clock, HostClockSource, Nanos};
+use crate::runtime::time::{Clock, HostClockSource, Nanos, WorldInstant};
 use crate::runtime::trace::{EnvironmentConfig, Outcome, Trace, TraceHeader, TraceSequence};
-use crate::runtime::{Runtime, WorkerId};
+use crate::runtime::{Collection, Collector, CollectorMode, Runtime, WorkerId};
 use crate::simulation::Simulation;
-use destack_workspace::{ExecutionMode, RandomMode, ReplayPayloadMode, RuntimeOptions, TimeMode};
+use destack_workspace::{RandomMode, ReplayPayloadMode, RuntimeOptions, TimeMode};
 
 use super::lineage::{Lineage, ROOT_BRANCH_ID};
 use super::topology::Topology;
@@ -156,12 +156,9 @@ impl WorldRef {
     }
 
     /// Return the earliest deadline across worker-local and world-local timed work.
-    pub(crate) fn next_deadline<I>(
-        &self,
-        worker_deadlines: I,
-    ) -> Option<crate::runtime::time::WorldInstant>
+    pub(crate) fn next_deadline<I>(&self, worker_deadlines: I) -> Option<WorldInstant>
     where
-        I: IntoIterator<Item = Option<crate::runtime::time::WorldInstant>>,
+        I: IntoIterator<Item = Option<WorldInstant>>,
     {
         let mut next_deadline = self.simulation().next_deadline();
 
@@ -178,7 +175,7 @@ impl WorldRef {
     }
 }
 
-/// Shared deterministic runtime world.
+/// One interconnected runtime world.
 #[derive(Debug)]
 pub struct World {
     /// Active branch identifier for this live world instance.
@@ -198,6 +195,17 @@ pub struct World {
     /// Logical resource records keyed by world resource identifier.
     pub(crate) resources: BTreeMap<WorldResourceId, WorldResource>,
 
+    /// Lineage-root metadata for this live world.
+    pub(crate) lineage: Arc<RwLock<Lineage>>,
+    /// Shared heap visible across workers in this world.
+    pub(crate) shared: Arc<heap::SharedHeap>,
+    /// Mark roots used by shared heap collection.
+    pub(crate) mark_roots: Arc<MarkRootSet>,
+    /// Lineage-owned shared heap collector.
+    pub(crate) collector: Arc<Collector>,
+    /// Per-world shared heap collection state.
+    pub(crate) collection: Arc<Collection>,
+
     /// Effective world time mode after execution-mode resolution.
     pub(crate) time_mode: TimeMode,
     /// Effective world random mode after execution-mode resolution.
@@ -210,17 +218,36 @@ pub struct World {
     pub(crate) trace: Trace,
     /// Emitted observation log (separate from causal trace).
     pub(crate) observations: Observations,
-    /// Shared-heap arena for every branchable world allocation.
-    pub(crate) shared_arena: Arc<heap::Arena>,
-    /// World-owned lineage metadata.
-    pub(crate) lineage: Arc<RwLock<Lineage>>,
-    /// World-owned shared heap visible across workers.
-    pub(crate) shared: heap::SharedHeap,
-    /// Exact hard limits for world-owned shared raw space.
-    pub(crate) shared_raw_limits: heap::SharedRawLimits,
 }
 
 impl World {
+    /// Return the shared allocator for this world lineage.
+    pub(crate) fn shared_allocator(&self) -> Arc<heap::Allocator> {
+        self.lineage.read().allocator()
+    }
+
+    /// Replace shared collection state after one heap rebuild.
+    pub(crate) fn rebuild_shared_collection(&mut self) {
+        self.mark_roots = Arc::new(MarkRootSet::default());
+        self.collection = Collection::new(self.shared.clone(), self.mark_roots.clone());
+    }
+
+    /// Suspend shared GC while one quiescent world operation runs.
+    pub(crate) fn quiesce_shared_gc(&self) {
+        self.collection.quiesce();
+    }
+
+    /// Resume shared GC after one quiescent world operation.
+    pub(crate) fn resume_shared_gc(&self) {
+        self.collection.resume();
+
+        if self.collector.mode().is_concurrent()
+            && self.shared.gc_phase() != heap::SharedGcPhase::Idle
+        {
+            self.collector.wake(&self.collection);
+        }
+    }
+
     /// Create one world from runtime options.
     pub fn from_options(options: &RuntimeOptions) -> RuntimeResult<Self> {
         Self::new(options, None)
@@ -240,33 +267,25 @@ impl World {
         options: &RuntimeOptions,
         host_clock_source: Option<std::sync::Arc<dyn HostClockSource>>,
     ) -> RuntimeResult<Self> {
-        // execution mode: replay forces virtual time and deterministic random
-        let is_replay = options.execution == ExecutionMode::Replay;
-        let time_mode = if is_replay {
-            TimeMode::Virtual
-        } else {
-            options.time.mode
-        };
-        let random_mode = if is_replay {
-            RandomMode::Deterministic
-        } else {
-            options.random.mode
-        };
-        let replay_payload = match options.replay.payload {
+        // collapsed execution summaries
+        let execution_mode = options.execution_mode();
+        let time_mode = options.time_mode();
+        let random_mode = options.random_mode();
+        let replay_payload = match options.replay_payload_mode() {
             ReplayPayloadMode::ResultsOnly => BindingReplayPayload::Results,
             ReplayPayloadMode::ArgumentsAndResults => BindingReplayPayload::ArgumentsAndResults,
         };
 
         // replay header: options with chunk-size override
         let mut trace_header = TraceHeader {
-            execution_mode: options.execution,
+            execution_mode,
             time_mode,
             random_mode,
             branch_id,
             replay_payload,
             ..TraceHeader::new(EnvironmentConfig::default())
         };
-        if let Some(chunk_size_mb) = options.replay.chunk_size_mb {
+        if let Some(chunk_size_mb) = options.trace_chunk_size_mb() {
             let chunk_bytes = chunk_size_mb.saturating_mul(BYTES_PER_MB);
             if chunk_bytes > 0 {
                 trace_header.max_chunk_bytes = chunk_bytes;
@@ -274,22 +293,32 @@ impl World {
         }
 
         // world state
+        let time_options = options.time_options();
         let clock = if let Some(host_clock_source) = host_clock_source {
-            Clock::from_options_with_host_clock_source(&options.time, host_clock_source)
+            Clock::from_options_with_host_clock_source(&time_options, host_clock_source)
         } else {
-            Clock::from_options(&options.time)
+            Clock::from_options(&time_options)
         };
-        let random = Random::new(options.random.seed.unwrap_or(0));
-        let policy = Policy::from_workspace_rules(&options.rules);
-        let trace = Trace::new(options.execution, trace_header);
+        let random = Random::new(options.random_options().seed.unwrap_or(0));
+        let policy = Policy::from_workspace_rules(&options.policy.rules);
+        let trace = Trace::new(execution_mode, trace_header);
         let topology = Topology::new();
-        let shared_arena = Arc::new(
-            heap::Arena::try_new(options.heap.page_bytes, options.heap.arena_segment_bytes)
-                .map_err(Box::<RuntimeError>::from)?,
+        let shared_allocator = Arc::new(
+            heap::Allocator::try_new(
+                options.heap.layout.page_bytes,
+                options.heap.layout.arena_bytes,
+            )
+            .map_err(Box::<RuntimeError>::from)?,
         );
-        let shared = heap::SharedHeap::with_arena(shared_arena.clone());
-        let shared_raw_limits = resolve_shared_raw_limits(&options.heap);
-        policy.validate_with_kind_catalog(&topology)?;
+        let shared_heap_options = resolve_shared_heap_options(&options.heap)?;
+        let shared = Arc::new(
+            heap::SharedHeap::with_allocator_limits_and_options(
+                shared_allocator.clone(),
+                shared_heap_options.limits,
+                shared_heap_options.options,
+            )
+            .map_err(Box::<RuntimeError>::from)?,
+        );
 
         // final world state
         let root_image = Arc::new(WorldImage {
@@ -306,13 +335,21 @@ impl World {
             workers: BTreeMap::new(),
         });
         let root_trace_image = Arc::new(trace.capture_image());
+        let collector_mode = CollectorMode::from_executor_mode(options.execution.mode);
+        let collector = Collector::new(collector_mode, format!("destack.collector.{branch_id:?}"))?;
         let lineage = Arc::new(RwLock::new(Lineage::new_root(
+            shared_allocator,
+            collector.clone(),
             root_image.clock.virtual_wall,
             root_image.clock.virtual_mono,
             root_trace_image.next_sequence,
             root_image,
             root_trace_image,
         )));
+        let mark_roots = Arc::new(MarkRootSet::default());
+        let collection = Collection::new(shared.clone(), mark_roots.clone());
+        let collector = lineage.read().collector();
+        policy.validate_with_kind_catalog(&topology)?;
 
         let world = Self {
             branch_id,
@@ -329,10 +366,11 @@ impl World {
             random,
             trace,
             observations: Observations::default(),
-            shared_arena,
             lineage,
             shared,
-            shared_raw_limits,
+            mark_roots,
+            collector,
+            collection,
         };
 
         Ok(world)
@@ -349,7 +387,7 @@ impl World {
     }
 
     /// Return the earliest deadline contributed by simulation state.
-    pub fn next_simulation_deadline(&self) -> Option<crate::runtime::time::WorldInstant> {
+    pub fn next_simulation_deadline(&self) -> Option<WorldInstant> {
         self.simulation.next_deadline()
     }
 
@@ -419,7 +457,6 @@ impl World {
             self.branch_id,
             self.time_mode,
             self.random_mode,
-            self.shared_raw_limits,
             &mut self.simulation,
             &mut self.policy,
             &mut self.next_runtime_id,
@@ -430,7 +467,10 @@ impl World {
             &self.random,
             &self.trace,
             &self.observations,
-            &mut self.shared,
+            self.shared.as_ref(),
+            self.mark_roots.as_ref(),
+            &self.collector,
+            &self.collection,
         )
     }
 

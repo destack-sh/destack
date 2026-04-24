@@ -4,6 +4,7 @@ mod constants;
 mod policy;
 mod r#ref;
 mod resource;
+mod root;
 mod runtime;
 mod tick;
 mod wake;

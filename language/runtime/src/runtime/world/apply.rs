@@ -33,6 +33,9 @@ impl World {
 
             // structural commands
             Command::RemoveWorker { worker_id } => {
+                self.mark_roots.leave_root_scan(worker_id);
+                self.mark_roots.leave_edge_scan(worker_id);
+                self.mark_roots.remove_direct_roots(worker_id);
                 self.resources
                     .retain(|resource_id, _| resource_id.worker_id != worker_id);
                 self.topology.remove_worker(worker_id);

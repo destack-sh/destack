@@ -3,7 +3,9 @@ use std::sync::Arc;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::resource::ResourceRebinders;
+use crate::runtime::Collection;
 use crate::runtime::bindings::BindingReplayPayload;
+use crate::runtime::memory::MarkRootSet;
 use crate::runtime::observe::Observations;
 use crate::runtime::random::Random;
 use crate::runtime::time::WorldInstant;
@@ -11,11 +13,7 @@ use crate::runtime::trace::{
     Outcome, Trace, TraceCheckpointIndex, TraceHeader, TraceImage, TraceRecord, TraceSequence,
 };
 use destack_core::CaptureMode;
-use destack_heap as heap;
-use destack_workspace::{
-    ExecutionMode, RandomMode, RandomOptions, ReplayOptions, ReplayPayloadMode, RuntimeOptions,
-    TimeMode, TimeOptions,
-};
+use destack_workspace::{ExecutionMode, ReplayPayloadMode, RuntimeOptions};
 
 use serde::{Deserialize, Serialize};
 
@@ -345,7 +343,7 @@ impl World {
         }
 
         // child world: fresh mutable state over shared lineage data
-        let mut child = self.fork_child_world(child_branch.id, trace_header);
+        let mut child = self.fork_child_world(child_branch.id, trace_header)?;
 
         // restore the child to the fork checkpoint
         let image =
@@ -370,23 +368,12 @@ impl World {
             Some(header.max_chunk_bytes / (1024 * 1024))
         };
 
-        RuntimeOptions {
-            execution: ExecutionMode::Replay,
-            time: TimeOptions {
-                mode: TimeMode::Virtual,
-                ..TimeOptions::default()
-            },
-            random: RandomOptions {
-                mode: RandomMode::Deterministic,
-                ..RandomOptions::default()
-            },
-            replay: ReplayOptions {
-                chunk_size_mb: replay_chunk_size_mb,
-                payload: replay_payload,
-                ..ReplayOptions::default()
-            },
-            ..RuntimeOptions::default()
-        }
+        let mut options = RuntimeOptions::default();
+        options.set_execution_mode(ExecutionMode::Replay);
+        options.trace.chunk_size_mb = replay_chunk_size_mb;
+        options.trace.payload = replay_payload;
+
+        options
     }
 
     /// Restore one exact image for one committed revision.
@@ -554,16 +541,24 @@ impl World {
     }
 
     /// Build one fresh child-world shell for one forked branch.
-    fn fork_child_world(&self, branch_id: BranchId, trace_header: TraceHeader) -> World {
+    fn fork_child_world(
+        &self,
+        branch_id: BranchId,
+        trace_header: TraceHeader,
+    ) -> RuntimeResult<World> {
         // parent execution mode
         let trace_mode = self.trace.mode();
 
         // parent clock and randomness policy
         let clock = self.clock.clone();
         let random = Random::new(self.random.root_seed());
+        let shared = Arc::new(self.shared.fork().map_err(Box::<RuntimeError>::from)?);
+        let mark_roots = Arc::new(MarkRootSet::default());
+        let collection = Collection::new(shared.clone(), mark_roots.clone());
+        let collector = self.lineage.read().collector();
 
         // fresh child shell: restore_image will install policy, topology, resources, simulation, ids, and runtimes
-        World {
+        Ok(World {
             branch_id,
             runtimes: Default::default(),
             simulation: Default::default(),
@@ -578,11 +573,12 @@ impl World {
             random,
             trace: Trace::new(trace_mode, trace_header),
             observations: Observations::default(),
-            shared_arena: self.shared_arena.clone(),
             lineage: self.lineage.clone(),
-            shared: heap::SharedHeap::with_arena(self.shared_arena.clone()),
-            shared_raw_limits: self.shared_raw_limits,
-        }
+            shared,
+            mark_roots,
+            collector,
+            collection,
+        })
     }
 
     /// Try to fork one live child world from the current committed branch head.
@@ -592,45 +588,58 @@ impl World {
         trace_header: TraceHeader,
         trace_image: &TraceImage,
     ) -> RuntimeResult<Option<World>> {
+        self.quiesce_shared_gc();
+
         // direct live fork still requires all runtimes to be quiescent
-        let execution_mode = self.trace.mode();
-        let mut runtimes = BTreeMap::new();
-        for (runtime_id, runtime) in &mut self.runtimes {
-            let Some(runtime) = runtime.try_fork(execution_mode)? else {
-                return Ok(None);
-            };
-            runtimes.insert(*runtime_id, Box::new(runtime));
-        }
+        let result = (|| {
+            // direct live fork still requires all runtimes to be quiescent
+            let execution_mode = self.trace.mode();
+            let mut runtimes = BTreeMap::new();
+            for (runtime_id, runtime) in &mut self.runtimes {
+                let Some(runtime) = runtime.try_fork(execution_mode)? else {
+                    return Ok(None);
+                };
+                runtimes.insert(*runtime_id, Box::new(runtime));
+            }
 
-        // fork branch-local time, random, and shared-heap roots
-        let clock = self.clock.clone();
-        let random = self.random.fork()?;
-        let shared = self.shared.fork().map_err(Box::<RuntimeError>::from)?;
+            // fork branch-local time, random, and shared-heap roots
+            let clock = self.clock.clone();
+            let random = self.random.fork()?;
+            let shared = Arc::new(self.shared.fork().map_err(Box::<RuntimeError>::from)?);
+            let mark_roots = Arc::new(MarkRootSet::default());
+            let collection = Collection::new(shared.clone(), mark_roots.clone());
+            let collector = self.lineage.read().collector();
 
-        // rebuild one live child trace over the retained head image
-        let trace = Trace::new(execution_mode, trace_header);
-        trace.restore_image(trace_image)?;
-        trace.set_branch_id(branch_id);
+            // rebuild one live child trace over the retained head image
+            let trace = Trace::new(execution_mode, trace_header);
+            trace.restore_image(trace_image)?;
+            trace.set_branch_id(branch_id);
 
-        Ok(Some(World {
-            branch_id,
-            runtimes,
-            simulation: self.simulation.clone(),
-            policy: self.policy.clone(),
-            next_runtime_id: self.next_runtime_id,
-            next_worker_id: self.next_worker_id,
-            topology: self.topology.clone(),
-            resources: self.resources.clone(),
-            time_mode: self.time_mode,
-            random_mode: self.random_mode,
-            clock,
-            random,
-            trace,
-            observations: Observations::default(),
-            shared_arena: self.shared_arena.clone(),
-            lineage: self.lineage.clone(),
-            shared,
-            shared_raw_limits: self.shared_raw_limits,
-        }))
+            Ok(Some(World {
+                branch_id,
+                runtimes,
+                simulation: self.simulation.clone(),
+                policy: self.policy.clone(),
+                next_runtime_id: self.next_runtime_id,
+                next_worker_id: self.next_worker_id,
+                topology: self.topology.clone(),
+                resources: self.resources.clone(),
+                time_mode: self.time_mode,
+                random_mode: self.random_mode,
+                clock,
+                random,
+                trace,
+                observations: Observations::default(),
+                lineage: self.lineage.clone(),
+                shared,
+                mark_roots,
+                collector,
+                collection,
+            }))
+        })();
+
+        self.resume_shared_gc();
+
+        result
     }
 }
