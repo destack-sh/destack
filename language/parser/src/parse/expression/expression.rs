@@ -1707,15 +1707,24 @@ impl Parser {
         // operand
         let expression_id = self.eat_type_expression_inner_with_stack_guard()?;
         let operand_span = self.tree.get_span(expression_id);
+        let operand_head_span = self.type_expression_head_span(expression_id);
+        let operand_has_transparent_wrapper = operand_span.start != operand_head_span.start;
 
-        // explicit leading separators always keep the corresponding chain container
+        // collapsed wrappers keep a visible singleton chain head
         let full_span = self.get_span_from(start);
         let expression_id = match (
             leading_binary_operator,
             self.tree.get(expression_id).clone(),
         ) {
             (BinaryOperator::ElementwiseOr, TypeExpression::Union { .. })
-            | (BinaryOperator::ElementwiseAnd, TypeExpression::Intersection { .. }) => {
+                if !operand_has_transparent_wrapper =>
+            {
+                expression_id
+            }
+
+            (BinaryOperator::ElementwiseAnd, TypeExpression::Intersection { .. })
+                if !operand_has_transparent_wrapper =>
+            {
                 expression_id
             }
 
@@ -1748,8 +1757,7 @@ impl Parser {
         );
 
         // preserve the explicit leading separator without widening the main span
-        let head_span = self.type_expression_head_span(expression_id);
-        self.tree.set_head_span(expression_id, head_span);
+        self.tree.set_head_span(expression_id, operand_head_span);
 
         Ok(expression_id)
     }
