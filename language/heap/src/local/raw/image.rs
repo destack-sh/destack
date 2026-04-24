@@ -3,10 +3,11 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use super::{
-    LargeEntry, LargeEntryId, LargeEntryImage, RawPageOwner, RawSpace, SmallSpan, SmallSpanImage,
+    LargeAllocation, LargeAllocationId, LargeAllocationImage, RawPageOwner, RawSpace, SmallSpan,
+    SmallSpanImage,
 };
 use crate::allocator::{Allocator, PageRunCache, SizeClassTable};
-use crate::{AllocationUsage, CowTable, HeapError};
+use crate::{AllocationUsage, CowTable, HeapError, HeapResult};
 
 /// One frozen raw-space image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -19,13 +20,13 @@ pub(crate) struct RawSpaceImage {
     spans: Box<[SmallSpanImage]>,
     /// The configured local page width.
     page_bytes: usize,
-    /// The captured raw entries in large space.
-    entries: Box<[LargeEntryImage]>,
+    /// The captured raw allocations in large space.
+    allocations: Box<[LargeAllocationImage]>,
 
-    /// The next raw entry id to allocate in large space.
-    next_unused_large_entry_id: u64,
+    /// The next raw allocation id to allocate in large space.
+    next_unused_large_allocation_id: u64,
 
-    /// The number of live raw entries.
+    /// The number of live raw allocations.
     allocated_count: usize,
     /// The number of live raw bytes.
     allocated_bytes: u64,
@@ -39,8 +40,8 @@ impl RawSpaceImage {
         small_bytes: usize,
         spans: Box<[SmallSpanImage]>,
         page_bytes: usize,
-        entries: Box<[LargeEntryImage]>,
-        next_unused_large_entry_id: u64,
+        allocations: Box<[LargeAllocationImage]>,
+        next_unused_large_allocation_id: u64,
         allocated_count: usize,
         allocated_bytes: u64,
     ) -> Self {
@@ -49,8 +50,8 @@ impl RawSpaceImage {
             small_bytes,
             spans,
             page_bytes,
-            entries,
-            next_unused_large_entry_id,
+            allocations,
+            next_unused_large_allocation_id,
             allocated_count,
             allocated_bytes,
         }
@@ -76,17 +77,17 @@ impl RawSpaceImage {
         self.page_bytes
     }
 
-    /// Return the captured raw entries in large space.
-    pub(crate) fn entries(&self) -> &[LargeEntryImage] {
-        &self.entries
+    /// Return the captured raw allocations in large space.
+    pub(crate) fn allocations(&self) -> &[LargeAllocationImage] {
+        &self.allocations
     }
 
-    /// Return the next raw entry id in large space.
-    pub(crate) const fn next_unused_large_entry_id(&self) -> u64 {
-        self.next_unused_large_entry_id
+    /// Return the next raw allocation id in large space.
+    pub(crate) const fn next_unused_large_allocation_id(&self) -> u64 {
+        self.next_unused_large_allocation_id
     }
 
-    /// Return the number of live raw entries.
+    /// Return the number of live raw allocations.
     pub(crate) const fn allocated_count(&self) -> usize {
         self.allocated_count
     }
@@ -108,7 +109,7 @@ impl RawSpaceImage {
 impl RawSpace {
     /// Fork one raw space over the same allocator.
     pub(crate) fn fork(&mut self) -> Result<Self, HeapError> {
-        let image = self.image();
+        let image = self.image()?;
 
         Self::from_image(self.allocator.clone(), &image)
     }
@@ -125,13 +126,13 @@ impl RawSpace {
                 size_classes: image.size_classes().clone(),
                 span_bytes: image.small_bytes(),
                 spans: CowTable::new(),
-                available_spans: Default::default(),
+                partial_spans: Default::default(),
             },
             large: super::LargeSpace {
                 page_bytes: image.page_bytes(),
-                entries: CowTable::new(),
-                free_large_entry_ids: Vec::new(),
-                next_unused_large_entry_id: image.next_unused_large_entry_id(),
+                allocations: CowTable::new(),
+                free_large_allocation_ids: Vec::new(),
+                next_unused_large_allocation_id: image.next_unused_large_allocation_id(),
             },
             page_owners: Vec::new(),
             usage: AllocationUsage::new(image.allocated_count(), image.allocated_bytes()),
@@ -145,47 +146,47 @@ impl RawSpace {
         }
 
         // rebuild the derived small-span state
-        Self::restore_available_spans(&mut space.small)?;
+        Self::restore_partial_spans(&mut space.small)?;
 
         // restore raw large space next
-        for entry in image.entries() {
-            let entry = space.restore_large_entry(entry)?;
+        for allocation in image.allocations() {
+            let allocation = space.restore_large_allocation(allocation)?;
 
-            space.large.entries.push(entry)?;
+            space.large.allocations.push(allocation)?;
         }
 
-        // rebuild the reusable large-entry ids
-        space.large.free_large_entry_ids = Self::free_large_entry_ids(image);
+        // rebuild the reusable large-allocation ids
+        space.large.free_large_allocation_ids = Self::free_large_allocation_ids(image);
 
-        // rebuild the live root over fresh raw storage
+        // rebuild the live root over fresh raw place
         space.rebuild_page_owners()?;
 
         Ok(space)
     }
 
     /// Return one frozen raw-space image.
-    pub(crate) fn image(&mut self) -> RawSpaceImage {
-        self.flush_branch_boundary();
+    pub(crate) fn image(&mut self) -> HeapResult<RawSpaceImage> {
+        self.flush_branch_boundary()?;
 
-        // capture the live raw storage directly
+        // capture the live raw allocations directly
         let spans = self.capture_span_images();
-        let entries = self.capture_large_entry_images();
+        let allocations = self.capture_large_allocation_images();
 
         // freeze the current raw root
-        RawSpaceImage::new(
+        Ok(RawSpaceImage::new(
             self.small.size_classes.clone(),
             self.small.span_bytes,
             spans,
             self.large.page_bytes,
-            entries,
-            self.large.next_unused_large_entry_id,
+            allocations,
+            self.large.next_unused_large_allocation_id,
             self.usage.allocation_count(),
             self.usage.allocated_bytes(),
-        )
+        ))
     }
 
     /// Rebuild the derived reusable-span state for one restored small space.
-    fn restore_available_spans(small: &mut super::SmallSpace) -> Result<(), HeapError> {
+    fn restore_partial_spans(small: &mut super::SmallSpace) -> Result<(), HeapError> {
         for span_index in 0..small.spans.len() {
             let Some(span) = small.spans.get_mut(span_index) else {
                 return Err(HeapError::MissingSpan { span_index });
@@ -213,7 +214,7 @@ impl RawSpace {
             }
 
             small
-                .available_spans
+                .partial_spans
                 .entry(span.class.byte_len)
                 .or_default()
                 .push(span_index);
@@ -236,28 +237,31 @@ impl RawSpace {
         })
     }
 
-    /// Restore one raw entry from one frozen entry image.
-    fn restore_large_entry(&mut self, entry: &LargeEntryImage) -> Result<LargeEntry, HeapError> {
-        let pages = if entry.is_live {
-            self.allocate_page_view_bytes(&entry.bytes)?
+    /// Restore one raw allocation from one frozen allocation image.
+    fn restore_large_allocation(
+        &mut self,
+        allocation: &LargeAllocationImage,
+    ) -> Result<LargeAllocation, HeapError> {
+        let pages = if allocation.is_live {
+            self.allocate_page_view_bytes(&allocation.bytes)?
         } else {
             crate::allocator::PageView::empty()
         };
 
-        Ok(LargeEntry {
-            is_live: entry.is_live,
-            len: entry.len,
+        Ok(LargeAllocation {
+            is_live: allocation.is_live,
+            len: allocation.len,
             pages,
         })
     }
 
-    /// Return the reusable raw entry ids from one frozen image.
-    fn free_large_entry_ids(image: &RawSpaceImage) -> Vec<u64> {
+    /// Return the reusable raw allocation ids from one frozen image.
+    fn free_large_allocation_ids(image: &RawSpaceImage) -> Vec<u64> {
         image
-            .entries()
+            .allocations()
             .iter()
             .enumerate()
-            .filter_map(|(index, entry)| (!entry.is_live).then_some(index as u64 + 1))
+            .filter_map(|(index, allocation)| (!allocation.is_live).then_some(index as u64 + 1))
             .collect()
     }
 
@@ -287,37 +291,37 @@ impl RawSpace {
         }
     }
 
-    /// Capture every live raw entry image in large space.
-    fn capture_large_entry_images(&self) -> Box<[LargeEntryImage]> {
+    /// Capture every live raw allocation image in large space.
+    fn capture_large_allocation_images(&self) -> Box<[LargeAllocationImage]> {
         self.large
-            .entries
+            .allocations
             .iter()
-            .map(|entry| self.capture_large_entry_image(entry))
+            .map(|allocation| self.capture_large_allocation_image(allocation))
             .collect::<Vec<_>>()
             .into_boxed_slice()
     }
 
-    /// Capture one live raw entry image in large space.
-    fn capture_large_entry_image(&self, entry: &LargeEntry) -> LargeEntryImage {
-        let bytes = if entry.is_live {
+    /// Capture one live raw allocation image in large space.
+    fn capture_large_allocation_image(&self, allocation: &LargeAllocation) -> LargeAllocationImage {
+        let bytes = if allocation.is_live {
             self.allocator
-                .read_bytes(&entry.pages, entry.len)
-                .expect("raw entry image bytes should resolve")
+                .read_bytes(&allocation.pages, allocation.len)
+                .expect("raw allocation image bytes should resolve")
                 .into_boxed_slice()
         } else {
             Box::new([])
         };
 
-        LargeEntryImage {
-            is_live: entry.is_live,
-            len: entry.len,
+        LargeAllocationImage {
+            is_live: allocation.is_live,
+            len: allocation.len,
             bytes,
         }
     }
 }
 
 impl RawSpace {
-    /// Rebuild the page-owner table from live raw storage.
+    /// Rebuild the page-owner table from live raw allocations.
     fn rebuild_page_owners(&mut self) -> Result<(), HeapError> {
         self.page_owners.clear();
 
@@ -333,15 +337,15 @@ impl RawSpace {
             })?;
         }
 
-        for entry_index in 0..self.large.entries.len() {
-            let entry_id = LargeEntryId::new(entry_index as u64 + 1);
-            let Some(entry) = self.large_entry(entry_id) else {
+        for allocation_index in 0..self.large.allocations.len() {
+            let allocation_id = LargeAllocationId::new(allocation_index as u64 + 1);
+            let Some(allocation) = self.large_allocation(allocation_id) else {
                 continue;
             };
-            let pages = entry.pages.clone();
+            let pages = allocation.pages.clone();
 
             self.map_page_view(&pages, |logical_page_index| RawPageOwner::Large {
-                entry_id,
+                allocation_id,
                 logical_page_index,
             })?;
         }

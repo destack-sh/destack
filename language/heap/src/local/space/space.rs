@@ -1,23 +1,35 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use destack_mir::{Layout, LayoutId, LayoutTable, ReferenceMap};
+use destack_mir::ReferenceMap;
 
 use super::{
-    GcState, HeapLocation, HeapPageOwner, HeapStorage, HeapYoungId, LargeEntry, LargeEntryId,
-    PinSet, SmallSpan, YoungEntry, YoungSpace,
+    GcState, HeapLocation, HeapPageOwner, HeapPlace, HeapYoungId, LargeAllocation,
+    LargeAllocationId, PinSet, SmallSpan, YoungAllocation, YoungSpace,
 };
 use crate::allocator::{Allocator, PageId, PageRunCache, PageView, SizeClassTable, SpanSlot};
 use crate::{
     AllocationUsage, CowTable, HeapError, HeapOptions, HeapReference, HeapResult, HeapSpaceUsage,
-    SmallSpanClass, TraceQueue, overlaps_heap_range, overlaps_shared_range, slot_reference_map,
+    SmallSpanClass, TraceQueue, allocation_reference_map, overlaps_heap_range,
+    overlaps_shared_range, slot_reference_map,
 };
 
 /// Collector queue for local heap references.
 type HeapTraceQueue = TraceQueue<HeapReference>;
 
-/// The first non-null heap large-entry id.
-const FIRST_ALLOCATED_LARGE_ENTRY_ID: u64 = 1;
+/// The first non-null heap large-allocation id.
+const FIRST_ALLOCATED_LARGE_ALLOCATION_ID: u64 = 1;
+
+/// The current local major collection phase.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LocalGcPhase {
+    /// No major collection is active.
+    Idle,
+    /// The major collector is marking reachable allocations.
+    Mark,
+    /// The major collector is reclaiming unreachable allocations.
+    Sweep,
+}
 
 /// One heap small space.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,21 +40,21 @@ pub(crate) struct SmallSpace {
     pub(crate) span_bytes: usize,
     /// The live heap spans.
     pub(crate) spans: CowTable<SmallSpan>,
-    /// The reusable non-full spans per layout id.
-    pub(crate) available_spans: Vec<Vec<usize>>,
+    /// The reusable non-full spans per size and scan class.
+    pub(crate) partial_spans: Vec<Vec<usize>>,
 }
 
 /// One heap large space.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LargeSpace {
-    /// The configured page width for entries in large space.
+    /// The configured page width for allocations in large space.
     pub(crate) page_bytes: usize,
-    /// The live heap entries.
-    pub(crate) entries: CowTable<LargeEntry>,
-    /// The free heap entry ids available for reuse.
-    pub(crate) free_large_entry_ids: Vec<u64>,
-    /// The next heap entry id to allocate.
-    pub(crate) next_unused_large_entry_id: u64,
+    /// The live heap allocations.
+    pub(crate) allocations: CowTable<LargeAllocation>,
+    /// The free heap allocation ids available for reuse.
+    pub(crate) free_large_allocation_ids: Vec<u64>,
+    /// The next heap allocation id to allocate.
+    pub(crate) next_unused_large_allocation_id: u64,
 }
 
 /// One heap space over a shared allocator.
@@ -50,8 +62,6 @@ pub(crate) struct LargeSpace {
 pub struct HeapSpace {
     /// The shared page allocator for every heap payload.
     pub(super) allocator: Arc<Allocator>,
-    /// The managed layout table visible to this heap space.
-    pub(super) layouts: Arc<LayoutTable>,
     /// The local front-end cache of reusable page runs.
     pub(crate) page_run_cache: PageRunCache,
 
@@ -73,14 +83,26 @@ pub struct HeapSpace {
     pub(crate) gc: GcState,
     /// The reusable collector trace queue.
     pub(crate) trace_queue: HeapTraceQueue,
+    /// The current local major collection phase.
+    pub(crate) major_phase: LocalGcPhase,
+    /// The persistent trace queue for an active local major cycle.
+    pub(crate) major_trace_queue: HeapTraceQueue,
+    /// The stable sweep reference snapshot for an active local major cycle.
+    pub(crate) major_sweep_references: Vec<HeapReference>,
+    /// The next sweep snapshot index to visit.
+    pub(crate) major_sweep_cursor: usize,
+    /// The number of allocations freed by the active local major cycle.
+    pub(crate) major_freed_allocations: usize,
+    /// The number of bytes freed by the active local major cycle.
+    pub(crate) major_freed_bytes: u64,
     /// Whether a heap collection is currently running.
     pub(crate) is_collecting: bool,
     /// The scoped heap pins that keep stable addresses and block branch boundaries.
     pub(crate) pins: PinSet,
     /// Mature spans queued for dirty-card scanning.
     pub(crate) dirty_spans: Vec<usize>,
-    /// Mature large entries queued for dirty-card scanning.
-    pub(crate) dirty_large_entries: Vec<LargeEntryId>,
+    /// Mature large allocations queued for dirty-card scanning.
+    pub(crate) dirty_large_allocations: Vec<LargeAllocationId>,
     /// Live local references whose shapes may contain shared heap edges.
     pub(crate) shared_edge_roots: Vec<HeapReference>,
     /// Reverse index into tracked shared-edge roots.
@@ -91,40 +113,25 @@ pub struct HeapSpace {
     pub(crate) shared_edge_cursor: usize,
     /// The pending local references whose shared edges need rescanning.
     pub(crate) shared_edge_queue: HeapTraceQueue,
-    /// Queue-membership for pending shared-edge rescans.
+    /// Queue membership for pending shared-edge rescans.
     pub(crate) shared_edge_pending: BTreeSet<HeapReference>,
 }
 
 impl HeapSpace {
-    /// Register one managed layout in this heap space and return its stable id.
-    pub(crate) fn register_layout(&mut self, layout: Layout) -> LayoutId {
-        Arc::make_mut(&mut self.layouts).insert(layout)
-    }
-
     /// Create one heap space with explicit options.
     pub fn with_options(
         allocator: Arc<Allocator>,
         options: &HeapOptions,
     ) -> Result<Self, HeapError> {
-        Self::with_layouts_and_options(allocator, Arc::new(LayoutTable::new()), options)
-    }
-
-    /// Create one heap space with explicit layouts and options.
-    pub fn with_layouts_and_options(
-        allocator: Arc<Allocator>,
-        layouts: Arc<LayoutTable>,
-        options: &HeapOptions,
-    ) -> Result<Self, HeapError> {
         options.validate_local()?;
         options.validate_allocator(&allocator)?;
 
-        Self::build_with_options(allocator, layouts, options)
+        Self::build_with_options(allocator, options)
     }
 
     /// Create one heap space from one checked options set.
     pub(crate) fn build_with_options(
         allocator: Arc<Allocator>,
-        layouts: Arc<LayoutTable>,
         options: &HeapOptions,
     ) -> Result<Self, HeapError> {
         let mut page_run_cache = PageRunCache::new(allocator.pages_per_arena());
@@ -134,6 +141,7 @@ impl HeapSpace {
             &allocator,
             options.heap_young_bytes,
             options.page_bytes,
+            options.small_allocation_alignment_bytes,
             &mut page_run_cache,
         )?;
         let max_young_allocation_bytes = if options.heap_young_bytes == 0 {
@@ -146,7 +154,6 @@ impl HeapSpace {
         let young_pages = young.pages.clone();
         let mut space = Self {
             allocator,
-            layouts,
             page_run_cache,
             max_young_allocation_bytes,
             young,
@@ -154,25 +161,31 @@ impl HeapSpace {
                 size_classes: options.size_classes.clone(),
                 span_bytes: options.heap_small_bytes,
                 spans: CowTable::new(),
-                available_spans: vec![
+                partial_spans: vec![
                     Vec::new();
                     SmallSpanClass::bucket_count(&options.size_classes)
                 ],
             },
             large: LargeSpace {
                 page_bytes: options.page_bytes,
-                entries: CowTable::new(),
-                free_large_entry_ids: Vec::new(),
-                next_unused_large_entry_id: FIRST_ALLOCATED_LARGE_ENTRY_ID,
+                allocations: CowTable::new(),
+                free_large_allocation_ids: Vec::new(),
+                next_unused_large_allocation_id: FIRST_ALLOCATED_LARGE_ALLOCATION_ID,
             },
             page_owners: Vec::new(),
             usage: AllocationUsage::default(),
             gc: GcState::default(),
             trace_queue: TraceQueue::default(),
+            major_phase: LocalGcPhase::Idle,
+            major_trace_queue: TraceQueue::default(),
+            major_sweep_references: Vec::new(),
+            major_sweep_cursor: 0,
+            major_freed_allocations: 0,
+            major_freed_bytes: 0,
             is_collecting: false,
             pins: PinSet::default(),
             dirty_spans: Vec::new(),
-            dirty_large_entries: Vec::new(),
+            dirty_large_allocations: Vec::new(),
             shared_edge_roots: Vec::new(),
             shared_edge_index: BTreeMap::new(),
             is_scanning_shared_edges: false,
@@ -203,7 +216,12 @@ impl HeapSpace {
         self.allocator.mapped_bytes_for_page_views(
             std::iter::once(&self.young.pages)
                 .chain(self.small.spans.iter().map(|span| &span.pages))
-                .chain(self.large.entries.iter().map(|entry| &entry.pages)),
+                .chain(
+                    self.large
+                        .allocations
+                        .iter()
+                        .map(|allocation| &allocation.pages),
+                ),
         ) + self
             .page_run_cache
             .cached_bytes(self.allocator.page_bytes())
@@ -214,7 +232,12 @@ impl HeapSpace {
         self.allocator.borrowed_bytes_for_page_views(
             std::iter::once(&self.young.pages)
                 .chain(self.small.spans.iter().map(|span| &span.pages))
-                .chain(self.large.entries.iter().map(|entry| &entry.pages)),
+                .chain(
+                    self.large
+                        .allocations
+                        .iter()
+                        .map(|allocation| &allocation.pages),
+                ),
         )
     }
 
@@ -223,14 +246,14 @@ impl HeapSpace {
         &self.gc
     }
 
-    /// Stabilize one local heap reference in mature storage.
+    /// Stabilize one local heap reference in mature place.
     pub fn stabilize(&mut self, reference: HeapReference) -> HeapResult<HeapReference> {
         self.promote_reference(reference)
     }
 
     /// Pin one local heap reference against movement.
     pub fn pin(&mut self, reference: HeapReference) -> HeapResult<HeapReference> {
-        // first ensure the reference already points at stable mature storage
+        // first ensure the reference already points at stable mature place
         let reference = self.stabilize(reference)?;
 
         // then record the active pin count
@@ -244,7 +267,7 @@ impl HeapSpace {
         self.pins.unpin(reference)
     }
 
-    /// Return the number of live heap entries.
+    /// Return the number of live heap allocations.
     pub fn allocation_count(&self) -> usize {
         self.usage.allocation_count()
     }
@@ -266,8 +289,8 @@ impl HeapSpace {
     }
 
     /// Flush transient cache state before one exact branch boundary.
-    pub(crate) fn flush_branch_boundary(&mut self) {
-        self.page_run_cache.flush(&self.allocator);
+    pub(crate) fn flush_branch_boundary(&mut self) -> HeapResult<()> {
+        self.page_run_cache.flush(&self.allocator)
     }
 
     /// Allocate one zeroed page view through the local page-run cache.
@@ -349,9 +372,14 @@ impl HeapSpace {
                 self.resolve_small_location(reference, span_index, logical_page_index, page_offset)
             }
             HeapPageOwner::Large {
-                entry_id,
+                allocation_id,
                 logical_page_index,
-            } => self.resolve_large_location(reference, entry_id, logical_page_index, page_offset),
+            } => self.resolve_large_location(
+                reference,
+                allocation_id,
+                logical_page_index,
+                page_offset,
+            ),
         }
     }
 
@@ -365,36 +393,35 @@ impl HeapSpace {
             .checked_mul(self.young.page_bytes)?
             .checked_add(page_offset)?;
 
-        // young entries are bump ordered, so address resolution is predecessor lookup
-        let entry_end = self
-            .young
-            .entries
-            .partition_point(|entry| self.young_entry_offset(entry) <= logical_byte_offset);
-        if entry_end == 0 {
+        // young allocations are bump ordered, so address resolution is predecessor lookup
+        let allocation_end = self.young.allocations.partition_point(|allocation| {
+            self.young_allocation_offset(allocation) <= logical_byte_offset
+        });
+        if allocation_end == 0 {
             return None;
         }
 
-        let entry_index = entry_end - 1;
-        let entry = self.young.entries.get(entry_index)?;
-        if !entry.is_live {
+        let allocation_index = allocation_end - 1;
+        let allocation = self.young.allocations.get(allocation_index)?;
+        if !self.young.live.contains(allocation_index) {
             return None;
         }
 
-        let entry_offset = self.young_entry_offset(entry);
-        if entry.byte_len == 0 {
-            if logical_byte_offset != entry_offset {
+        let allocation_offset = self.young_allocation_offset(allocation);
+        if allocation.byte_len == 0 {
+            if logical_byte_offset != allocation_offset {
                 return None;
             }
 
             let base_address = self
                 .allocator
-                .page_view_ptr(&self.young.pages, entry_offset)
+                .page_view_ptr(&self.young.pages, allocation_offset)
                 .ok()? as usize;
 
             return Some(HeapLocation {
-                storage: HeapStorage::Young(HeapYoungId::new(
+                place: HeapPlace::Young(HeapYoungId::new(
                     self.young.generation,
-                    entry_index as u32,
+                    allocation_index as u32,
                 )),
                 base: HeapReference::new(base_address),
                 byte_offset: 0,
@@ -402,25 +429,25 @@ impl HeapSpace {
             });
         }
 
-        let entry_limit = entry_offset.checked_add(entry.byte_len)?;
-        if logical_byte_offset >= entry_limit {
+        let allocation_limit = allocation_offset.checked_add(allocation.byte_len)?;
+        if logical_byte_offset >= allocation_limit {
             return None;
         }
 
         let base_address = self
             .allocator
-            .page_view_ptr(&self.young.pages, entry_offset)
+            .page_view_ptr(&self.young.pages, allocation_offset)
             .ok()? as usize;
-        let byte_offset = logical_byte_offset.checked_sub(entry_offset)?;
+        let byte_offset = logical_byte_offset.checked_sub(allocation_offset)?;
 
         Some(HeapLocation {
-            storage: HeapStorage::Young(HeapYoungId::new(
+            place: HeapPlace::Young(HeapYoungId::new(
                 self.young.generation,
-                entry_index as u32,
+                allocation_index as u32,
             )),
             base: HeapReference::new(base_address),
             byte_offset,
-            byte_len: entry.byte_len,
+            byte_len: allocation.byte_len,
         })
     }
 
@@ -442,12 +469,8 @@ impl HeapSpace {
             return None;
         }
 
-        let byte_len = *span.byte_lens.get(slot_index)?;
-        if byte_len == 0 {
-            if slot_offset != 0 {
-                return None;
-            }
-        } else if slot_offset >= byte_len {
+        let byte_len = span.class.size_class;
+        if slot_offset >= byte_len {
             return None;
         }
 
@@ -461,34 +484,34 @@ impl HeapSpace {
         debug_assert_eq!(reference.address(), base_address.checked_add(slot_offset)?);
 
         Some(HeapLocation {
-            storage: HeapStorage::Small(slot),
+            place: HeapPlace::Small(slot),
             base: HeapReference::new(base_address),
             byte_offset: slot_offset,
             byte_len,
         })
     }
 
-    /// Return the resolved large-entry location for one live heap reference.
+    /// Return the resolved large-allocation location for one live heap reference.
     fn resolve_large_location(
         &self,
         reference: HeapReference,
-        entry_id: LargeEntryId,
+        allocation_id: LargeAllocationId,
         logical_page_index: usize,
         page_offset: usize,
     ) -> Option<HeapLocation> {
-        let entry = self.large_entry(entry_id)?;
+        let allocation = self.large_allocation(allocation_id)?;
         let logical_byte_offset = logical_page_index
             .checked_mul(self.allocator.page_bytes())?
             .checked_add(page_offset)?;
-        if entry.len == 0 {
+        if allocation.len == 0 {
             if logical_byte_offset != 0 {
                 return None;
             }
-        } else if logical_byte_offset >= entry.len {
+        } else if logical_byte_offset >= allocation.len {
             return None;
         }
 
-        let base_address = self.allocator.page_view_ptr(&entry.pages, 0).ok()? as usize;
+        let base_address = self.allocator.page_view_ptr(&allocation.pages, 0).ok()? as usize;
 
         debug_assert_eq!(
             reference.address(),
@@ -496,10 +519,10 @@ impl HeapSpace {
         );
 
         Some(HeapLocation {
-            storage: HeapStorage::Large(entry_id),
+            place: HeapPlace::Large(allocation_id),
             base: HeapReference::new(base_address),
             byte_offset: logical_byte_offset,
-            byte_len: entry.len,
+            byte_len: allocation.len,
         })
     }
 
@@ -538,9 +561,16 @@ impl HeapSpace {
             return Ok(());
         };
 
-        let moved_reference = self.shared_edge_roots.pop();
+        self.shared_edge_pending.remove(&reference);
 
-        let Some(moved_reference) = moved_reference else {
+        // active scans need stable cursor ordering
+        if self.is_scanning_shared_edges {
+            self.shared_edge_roots[tracked_index] = HeapReference::NULL;
+
+            return Ok(());
+        }
+
+        let Some(moved_reference) = self.shared_edge_roots.pop() else {
             return Ok(());
         };
 
@@ -549,52 +579,64 @@ impl HeapSpace {
         }
 
         self.shared_edge_roots[tracked_index] = moved_reference;
-        self.shared_edge_index
-            .insert(moved_reference, tracked_index);
+        if !moved_reference.is_null() {
+            self.shared_edge_index
+                .insert(moved_reference, tracked_index);
+        }
 
         Ok(())
     }
 
-    /// Return one live large entry by id.
-    pub(crate) fn large_entry(&self, entry_id: LargeEntryId) -> Option<&LargeEntry> {
-        // resolve the dense table slot first
-        let index = entry_id.index().ok()?;
-        let entry = self.large.entries.get(index)?;
+    /// Compact removed roots after one active shared-edge scan.
+    pub(crate) fn compact_shared_edge_roots(&mut self) {
+        self.shared_edge_roots
+            .retain(|reference| !reference.is_null());
+        self.shared_edge_index.clear();
 
-        // skip free entries
-        entry.is_live.then_some(entry)
+        for (index, reference) in self.shared_edge_roots.iter().copied().enumerate() {
+            self.shared_edge_index.insert(reference, index);
+        }
     }
 
-    /// Return one live large entry mutably by id.
-    pub(crate) fn large_entry_mut(&mut self, entry_id: LargeEntryId) -> Option<&mut LargeEntry> {
+    /// Return one live large allocation by id.
+    pub(crate) fn large_allocation(
+        &self,
+        allocation_id: LargeAllocationId,
+    ) -> Option<&LargeAllocation> {
         // resolve the dense table slot first
-        let index = entry_id.index().ok()?;
-        let entry = self.large.entries.get_mut(index)?;
+        let index = allocation_id.index().ok()?;
+        let allocation = self.large.allocations.get(index)?;
 
-        // skip free entries
-        entry.is_live.then_some(entry)
+        // skip free allocations
+        allocation.is_live.then_some(allocation)
     }
 
-    /// Return one live young entry by id.
-    pub(crate) fn young_entry(&self, young_id: HeapYoungId) -> Option<&YoungEntry> {
+    /// Return one live large allocation mutably by id.
+    pub(crate) fn large_allocation_mut(
+        &mut self,
+        allocation_id: LargeAllocationId,
+    ) -> Option<&mut LargeAllocation> {
+        // resolve the dense table slot first
+        let index = allocation_id.index().ok()?;
+        let allocation = self.large.allocations.get_mut(index)?;
+
+        // skip free allocations
+        allocation.is_live.then_some(allocation)
+    }
+
+    /// Return one live young allocation by id.
+    pub(crate) fn young_allocation(&self, young_id: HeapYoungId) -> Option<&YoungAllocation> {
         // reject stale generation ids first
         self.check_young_generation(young_id)?;
 
-        let entry = self.young.entries.get(young_id.index() as usize)?;
+        let allocation_index = young_id.index() as usize;
+        let allocation = self.young.allocations.get(allocation_index)?;
 
-        // skip free young-entry slots
-        entry.is_live.then_some(entry)
-    }
-
-    /// Return one live young entry mutably by id.
-    pub(crate) fn young_entry_mut(&mut self, young_id: HeapYoungId) -> Option<&mut YoungEntry> {
-        // reject stale generation ids first
-        self.check_young_generation(young_id)?;
-
-        let entry = self.young.entries.get_mut(young_id.index() as usize)?;
-
-        // skip free young-entry slots
-        entry.is_live.then_some(entry)
+        // skip free young-allocation slots
+        self.young
+            .live
+            .contains(allocation_index)
+            .then_some(allocation)
     }
 
     /// Return one live heap span by index.
@@ -607,29 +649,9 @@ impl HeapSpace {
         self.small.spans.get_mut(span_index)
     }
 
-    /// Return the byte offset for one young entry.
-    pub(crate) fn young_entry_offset(&self, entry: &YoungEntry) -> usize {
-        entry.first_page as usize * self.young.page_bytes + entry.first_offset as usize
-    }
-
-    /// Return one managed layout by id.
-    pub(crate) fn layout(&self, layout_id: LayoutId) -> HeapResult<&Layout> {
-        self.layouts
-            .layouts
-            .get(layout_id.index())
-            .ok_or(HeapError::InvalidLayoutId {
-                index: layout_id.index(),
-            })
-    }
-
-    /// Return the byte length for one managed layout.
-    pub(crate) fn layout_byte_len(&self, layout_id: LayoutId) -> HeapResult<usize> {
-        Ok(self.layout(layout_id)?.size as usize)
-    }
-
-    /// Return the reference map for one managed layout.
-    pub(crate) fn reference_map(&self, layout_id: LayoutId) -> HeapResult<&ReferenceMap> {
-        Ok(&self.layout(layout_id)?.reference_map)
+    /// Return the byte offset for one young allocation.
+    pub(crate) fn young_allocation_offset(&self, allocation: &YoungAllocation) -> usize {
+        allocation.first_offset
     }
 
     /// Check that one young id belongs to the current young-space generation.
@@ -637,29 +659,18 @@ impl HeapSpace {
         (young_id.generation() == self.young.generation).then_some(())
     }
 
-    /// Return the reference map for one heap storage partition.
-    pub(crate) fn location_reference_map(&self, storage: HeapStorage) -> HeapResult<ReferenceMap> {
-        match storage {
-            HeapStorage::Young(young_id) => {
-                let reference_map = self
-                    .young_entry(young_id)
-                    .ok_or(HeapError::MissingYoungEntry {
-                        generation: young_id.generation(),
-                        entry_index: young_id.index(),
-                    })?
-                    .reference_map
-                    .clone();
-
-                Ok(reference_map)
-            }
-            HeapStorage::Small(slot) => {
+    /// Return the reference map for one heap place.
+    pub(crate) fn place_reference_map(&self, place: HeapPlace) -> HeapResult<ReferenceMap> {
+        match place {
+            HeapPlace::Young(young_id) => self.young_allocation_reference_map(young_id),
+            HeapPlace::Small(slot) => {
                 self.small_slot_reference_map(slot.span_index(), slot.slot_index())
             }
-            HeapStorage::Large(entry_id) => {
+            HeapPlace::Large(allocation_id) => {
                 let reference_map = self
-                    .large_entry(entry_id)
-                    .ok_or(HeapError::MissingLargeEntry {
-                        entry_id: entry_id.id(),
+                    .large_allocation(allocation_id)
+                    .ok_or(HeapError::MissingLargeAllocation {
+                        allocation_id: allocation_id.id(),
                     })?
                     .reference_map
                     .clone();
@@ -669,22 +680,55 @@ impl HeapSpace {
         }
     }
 
-    /// Return the base reference for one heap storage partition.
-    pub(crate) fn base_reference(&self, storage: HeapStorage) -> HeapResult<HeapReference> {
-        let base_address = match storage {
-            HeapStorage::Young(young_id) => {
-                let Some(entry) = self.young_entry(young_id) else {
-                    return Err(HeapError::MissingYoungEntry {
+    /// Return the byte length for one heap place.
+    pub(crate) fn place_byte_len(&self, place: HeapPlace) -> HeapResult<usize> {
+        match place {
+            HeapPlace::Young(young_id) => Ok(self
+                .young_allocation(young_id)
+                .ok_or(HeapError::MissingYoungAllocation {
+                    generation: young_id.generation(),
+                    allocation_index: young_id.index(),
+                })?
+                .byte_len),
+            HeapPlace::Small(slot) => {
+                let span = self.span(slot.span_index()).ok_or(HeapError::MissingSpan {
+                    span_index: slot.span_index(),
+                })?;
+
+                if !span.occupied.contains(slot.slot_index()) {
+                    return Err(HeapError::MissingSmallSlot {
+                        span_index: slot.span_index(),
+                        slot_index: slot.slot_index(),
+                    });
+                }
+
+                Ok(span.class.size_class)
+            }
+            HeapPlace::Large(allocation_id) => Ok(self
+                .large_allocation(allocation_id)
+                .ok_or(HeapError::MissingLargeAllocation {
+                    allocation_id: allocation_id.id(),
+                })?
+                .len),
+        }
+    }
+
+    /// Return the base reference for one heap place.
+    pub(crate) fn base_reference(&self, place: HeapPlace) -> HeapResult<HeapReference> {
+        let base_address = match place {
+            HeapPlace::Young(young_id) => {
+                let Some(allocation) = self.young_allocation(young_id) else {
+                    return Err(HeapError::MissingYoungAllocation {
                         generation: young_id.generation(),
-                        entry_index: young_id.index(),
+                        allocation_index: young_id.index(),
                     });
                 };
-                let entry_offset = self.young_entry_offset(entry);
+                let allocation_offset = self.young_allocation_offset(allocation);
 
                 self.allocator
-                    .page_view_ptr(&self.young.pages, entry_offset)? as usize
+                    .page_view_ptr(&self.young.pages, allocation_offset)? as usize
             }
-            HeapStorage::Small(slot) => {
+            HeapPlace::Small(slot) => {
                 let Some(span) = self.span(slot.span_index()) else {
                     return Err(HeapError::MissingSpan {
                         span_index: slot.span_index(),
@@ -698,14 +742,14 @@ impl HeapSpace {
 
                 self.allocator.page_view_ptr(&span.pages, slot_offset)? as usize
             }
-            HeapStorage::Large(entry_id) => {
-                let Some(entry) = self.large_entry(entry_id) else {
-                    return Err(HeapError::MissingLargeEntry {
-                        entry_id: entry_id.id(),
+            HeapPlace::Large(allocation_id) => {
+                let Some(allocation) = self.large_allocation(allocation_id) else {
+                    return Err(HeapError::MissingLargeAllocation {
+                        allocation_id: allocation_id.id(),
                     });
                 };
 
-                self.allocator.page_view_ptr(&entry.pages, 0)? as usize
+                self.allocator.page_view_ptr(&allocation.pages, 0)? as usize
             }
         };
 
@@ -715,7 +759,7 @@ impl HeapSpace {
     /// Rebuild the mature remembered set conservatively.
     pub(crate) fn rebuild_remembered_set(&mut self) -> HeapResult<()> {
         self.dirty_spans.clear();
-        self.dirty_large_entries.clear();
+        self.dirty_large_allocations.clear();
 
         // conservatively dirty every mature span slot with heap edges
         for span_index in 0..self.small.spans.len() {
@@ -739,17 +783,17 @@ impl HeapSpace {
             }
         }
 
-        // conservatively dirty every mature large entry with heap edges
-        for entry_index in 0..self.large.entries.len() {
-            let entry_id = LargeEntryId::new(entry_index as u64 + 1);
-            let Some(entry) = self.large_entry(entry_id) else {
+        // conservatively dirty every mature large allocation with heap edges
+        for allocation_index in 0..self.large.allocations.len() {
+            let allocation_id = LargeAllocationId::new(allocation_index as u64 + 1);
+            let Some(allocation) = self.large_allocation(allocation_id) else {
                 continue;
             };
-            if !entry.reference_map.has_reference() {
+            if !allocation.reference_map.has_reference() {
                 continue;
             }
 
-            self.mark_large_entry_dirty(entry_id, 0, entry.len)?;
+            self.mark_large_allocation_dirty(allocation_id, 0, allocation.len)?;
         }
 
         Ok(())
@@ -811,37 +855,37 @@ impl HeapSpace {
         Ok(())
     }
 
-    /// Remember one mature heap large-entry write if it may touch references.
-    pub(crate) fn mark_large_entry_dirty(
+    /// Remember one mature heap large-allocation write if it may touch references.
+    pub(crate) fn mark_large_allocation_dirty(
         &mut self,
-        entry_id: LargeEntryId,
+        allocation_id: LargeAllocationId,
         byte_offset: usize,
         byte_len: usize,
     ) -> HeapResult<()> {
-        let Some(entry) = self.large_entry(entry_id) else {
-            return Err(HeapError::MissingLargeEntry {
-                entry_id: entry_id.id(),
+        let Some(allocation) = self.large_allocation(allocation_id) else {
+            return Err(HeapError::MissingLargeAllocation {
+                allocation_id: allocation_id.id(),
             });
         };
-        let is_overlapping = overlaps_heap_range(&entry.reference_map, byte_offset, byte_len)?;
+        let is_overlapping = overlaps_heap_range(&allocation.reference_map, byte_offset, byte_len)?;
         if !is_overlapping {
             return Ok(());
         }
 
-        // mark the overlapping card range on the owning entry
+        // mark the overlapping card range on the owning allocation
         let mut should_queue = false;
-        if let Some(entry) = self.large_entry_mut(entry_id) {
-            entry.dirty_cards.mark_range(byte_offset, byte_len);
+        if let Some(allocation) = self.large_allocation_mut(allocation_id) {
+            allocation.dirty_cards.mark_range(byte_offset, byte_len);
 
-            if !entry.is_dirty_queued {
-                entry.is_dirty_queued = true;
+            if !allocation.is_dirty_queued {
+                allocation.is_dirty_queued = true;
                 should_queue = true;
             }
         }
 
-        // queue the owning entry once for the next minor collection
+        // queue the owning allocation once for the next minor collection
         if should_queue {
-            self.dirty_large_entries.push(entry_id);
+            self.dirty_large_allocations.push(allocation_id);
         }
 
         Ok(())
@@ -866,19 +910,40 @@ impl HeapSpace {
         let Some(span) = self.span(span_index) else {
             return Err(HeapError::MissingSpan { span_index });
         };
-        let Some(&byte_len) = span.byte_lens.get(slot_index) else {
+        if !span.occupied.contains(slot_index) {
             return Err(HeapError::MissingSmallSlot {
                 span_index,
                 slot_index,
             });
-        };
+        }
 
         Ok(slot_reference_map(
             &span.local_reference_bits,
             &span.shared_reference_bits,
             slot_index,
             span.class.size_class,
-            byte_len,
+            span.class.size_class,
+        ))
+    }
+
+    /// Return the exact reference map stored for one young allocation.
+    pub(crate) fn young_allocation_reference_map(
+        &self,
+        young_id: HeapYoungId,
+    ) -> HeapResult<ReferenceMap> {
+        let Some(allocation) = self.young_allocation(young_id) else {
+            return Err(HeapError::MissingYoungAllocation {
+                generation: young_id.generation(),
+                allocation_index: young_id.index(),
+            });
+        };
+        let allocation_offset = self.young_allocation_offset(allocation);
+
+        Ok(allocation_reference_map(
+            &self.young.local_reference_bits,
+            &self.young.shared_reference_bits,
+            allocation_offset,
+            allocation.byte_len,
         ))
     }
 
@@ -890,6 +955,8 @@ impl HeapSpace {
 
 impl Drop for HeapSpace {
     fn drop(&mut self) {
-        self.page_run_cache.flush(&self.allocator);
+        self.page_run_cache
+            .flush(&self.allocator)
+            .unwrap_or_else(|error| panic!("heap page-run cache flush failed: {error}"));
     }
 }

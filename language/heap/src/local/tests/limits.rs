@@ -8,12 +8,11 @@ use super::TestHeap;
 
 /// Return the active local heap bytes for one allocation in the given heap options.
 fn heap_active_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 {
-    let (layouts, layout_id) = test_layout(bytes.len(), ReferenceMap::empty());
-    let mut test_heap =
-        TestHeap::with_limits_and_layout_table(crate::HeapLimits::default(), options, layouts);
+    let layout = test_layout(bytes.len(), ReferenceMap::empty());
+    let mut test_heap = TestHeap::with_limits_and_options(crate::HeapLimits::default(), options);
     let heap = &mut test_heap.heap;
 
-    heap.allocate(layout_id, Payload::Bytes(bytes))
+    heap.allocate(layout.allocation(), Payload::Bytes(bytes))
         .expect("heap allocation should succeed");
 
     heap.usage().heap.active_bytes
@@ -39,9 +38,8 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
         ..HeapOptions::local()
     };
     let expected_used_bytes = heap_active_bytes_after_allocate(options.clone(), &[1]);
-    let (layouts, layout_id) = test_layout(1, ReferenceMap::empty());
-    let mut test_heap =
-        TestHeap::with_limits_and_layout_table(crate::HeapLimits::default(), options, layouts);
+    let layout = test_layout(1, ReferenceMap::empty());
+    let mut test_heap = TestHeap::with_limits_and_options(crate::HeapLimits::default(), options);
     let heap = &mut test_heap.heap;
     let baseline = heap.usage().heap.active_bytes;
     heap.set_limits(HeapLimits {
@@ -54,7 +52,7 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
     .expect("baseline heap should fit its current active-byte limit");
 
     let error = heap
-        .allocate(layout_id, Payload::Bytes(&[1]))
+        .allocate(layout.allocation(), Payload::Bytes(&[1]))
         .expect_err("heap allocation should be rejected");
 
     assert_eq!(

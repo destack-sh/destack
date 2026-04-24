@@ -1,15 +1,15 @@
 use serde::{Deserialize, Serialize};
 
-use super::LargeEntryId;
+use super::LargeAllocationId;
 use crate::allocator::SpanSlot;
 
-/// One stable raw storage partition.
+/// One raw allocation place.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) enum RawStorage {
-    /// One small-space entry stored in one span slot.
+pub(crate) enum RawPlace {
+    /// One small-space allocation stored in one span slot.
     Small(SpanSlot),
-    /// One entry stored in raw large space.
-    Large(LargeEntryId),
+    /// One allocation stored in raw large space.
+    Large(LargeAllocationId),
 }
 
 /// One physical page owner in local raw space.
@@ -22,11 +22,11 @@ pub(crate) enum RawPageOwner {
         /// The logical page index inside the span.
         logical_page_index: usize,
     },
-    /// One large-entry page and its logical page index.
+    /// One large-allocation page and its logical page index.
     Large {
-        /// The owning large-entry id.
-        entry_id: LargeEntryId,
-        /// The logical page index inside the large entry.
+        /// The owning large-allocation id.
+        allocation_id: LargeAllocationId,
+        /// The logical page index inside the large allocation.
         logical_page_index: usize,
     },
 }
@@ -34,8 +34,8 @@ pub(crate) enum RawPageOwner {
 /// One resolved raw location.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct RawLocation {
-    /// The owning raw storage.
-    pub(crate) storage: RawStorage,
+    /// The owning raw place.
+    pub(crate) place: RawPlace,
     /// The base pointer for the owning allocation.
     pub(crate) base: crate::RawPointer,
     /// The byte offset from the base allocation.

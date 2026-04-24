@@ -15,7 +15,7 @@ use super::constants::{
 pub struct LocalHeapPolicy {
     /// The collector configuration.
     pub gc: GcOptions,
-    /// The small-object allocation policy.
+    /// The small-allocation policy.
     pub small: SizeClassPolicy,
     /// The byte size for heap young space.
     pub heap_young_bytes: usize,
@@ -72,7 +72,7 @@ impl LocalHeapPolicy {
 pub struct SharedHeapPolicy {
     /// The collector configuration.
     pub gc: GcOptions,
-    /// The small-object allocation policy.
+    /// The small-allocation policy.
     pub small: SizeClassPolicy,
     /// The byte size for heap small-allocation spans.
     pub heap_small_bytes: usize,
@@ -303,13 +303,9 @@ mod tests {
             Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
                 .expect("allocator should build"),
         );
-        let error = Heap::with_allocator_limits_layouts_and_options(
-            allocator,
-            Arc::new(destack_mir::LayoutTable::new()),
-            HeapLimits::default(),
-            options,
-        )
-        .expect_err("invalid heap options should fail loudly");
+        let error =
+            Heap::with_allocator_limits_and_options(allocator, HeapLimits::default(), options)
+                .expect_err("invalid heap options should fail loudly");
 
         assert_eq!(error, HeapError::InvalidGcTriggerPercent { percent: 101 });
     }
@@ -327,13 +323,9 @@ mod tests {
             Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
                 .expect("allocator should build"),
         );
-        let error = Heap::with_allocator_limits_layouts_and_options(
-            allocator,
-            Arc::new(destack_mir::LayoutTable::new()),
-            HeapLimits::default(),
-            options,
-        )
-        .expect_err("invalid heap options should fail loudly");
+        let error =
+            Heap::with_allocator_limits_and_options(allocator, HeapLimits::default(), options)
+                .expect_err("invalid heap options should fail loudly");
 
         assert_eq!(
             error,
@@ -358,13 +350,9 @@ mod tests {
             Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
                 .expect("allocator should build"),
         );
-        let error = Heap::with_allocator_limits_layouts_and_options(
-            allocator,
-            Arc::new(destack_mir::LayoutTable::new()),
-            HeapLimits::default(),
-            options,
-        )
-        .expect_err("invalid heap options should fail loudly");
+        let error =
+            Heap::with_allocator_limits_and_options(allocator, HeapLimits::default(), options)
+                .expect_err("invalid heap options should fail loudly");
 
         assert_eq!(
             error,

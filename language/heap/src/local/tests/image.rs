@@ -1,12 +1,10 @@
 use std::sync::Arc;
 
-use destack_mir::LayoutId;
-
 use crate::allocator::{Allocator, PageView};
 use crate::local::raw::RawSpaceImage;
 use crate::local::space::{HeapSpaceImage, YoungImage};
 use crate::{
-    HeapError, HeapImage, HeapOptions, HeapSpace, Payload, RawSpace, SizeClassTable,
+    HeapError, HeapImage, HeapOptions, HeapSpace, Payload, RawSpace, SizeClassTable, TestLayout,
     test_allocator, test_layouts,
 };
 use destack_mir::ReferenceMap;
@@ -17,33 +15,31 @@ use super::TestHeap;
 fn heap_space_with_empty_layouts(
     allocator: Arc<Allocator>,
     options: &HeapOptions,
-    byte_lens: &[usize],
-) -> (HeapSpace, Vec<LayoutId>) {
-    let layout_specs = byte_lens
+    allocation_byte_lens: &[usize],
+) -> (HeapSpace, Vec<TestLayout>) {
+    let layout_specs = allocation_byte_lens
         .iter()
         .map(|byte_len| (*byte_len, ReferenceMap::empty()))
         .collect::<Vec<_>>();
-    let (layouts, layout_ids) = test_layouts(&layout_specs);
-    let heap = HeapSpace::with_layouts_and_options(allocator, layouts, options)
-        .expect("heap should build");
+    let layouts = test_layouts(&layout_specs);
+    let heap = HeapSpace::with_options(allocator, options).expect("heap should build");
 
-    (heap, layout_ids)
+    (heap, layouts)
 }
 
 /// Build one full heap with explicit empty managed layouts.
 fn test_heap_with_empty_layouts(
     options: HeapOptions,
-    byte_lens: &[usize],
-) -> (TestHeap, Vec<LayoutId>) {
-    let layout_specs = byte_lens
+    allocation_byte_lens: &[usize],
+) -> (TestHeap, Vec<TestLayout>) {
+    let layout_specs = allocation_byte_lens
         .iter()
         .map(|byte_len| (*byte_len, ReferenceMap::empty()))
         .collect::<Vec<_>>();
-    let (layouts, layout_ids) = test_layouts(&layout_specs);
-    let heap =
-        TestHeap::with_limits_and_layout_table(crate::HeapLimits::default(), options, layouts);
+    let layouts = test_layouts(&layout_specs);
+    let heap = TestHeap::with_limits_and_options(crate::HeapLimits::default(), options);
 
-    (heap, layout_ids)
+    (heap, layouts)
 }
 
 /// Return the visible bytes from one logical page view.
@@ -58,8 +54,12 @@ fn read_page_view_bytes(
         .expect("image bytes should resolve")
 }
 
-/// Return the bytes for one large image entry.
-fn read_large_entry_bytes(allocator: &Allocator, page_view: &PageView, byte_len: usize) -> Vec<u8> {
+/// Return the bytes for one large image allocation.
+fn read_large_allocation_bytes(
+    allocator: &Allocator,
+    page_view: &PageView,
+    byte_len: usize,
+) -> Vec<u8> {
     read_page_view_bytes(allocator, page_view, 0, byte_len)
 }
 
@@ -76,26 +76,24 @@ fn read_small_slot_bytes(
     read_page_view_bytes(allocator, page_view, start, byte_len)
 }
 
-/// Return the bytes for one young-space entry.
-fn read_young_entry_bytes(
+/// Return the bytes for one young-space allocation.
+fn read_young_allocation_bytes(
     allocator: &Allocator,
     young: &YoungImage,
-    entry_index: usize,
+    allocation_index: usize,
 ) -> Vec<u8> {
-    let entry = &young.entries()[entry_index];
-    let start = young.page_bytes() * entry.first_page as usize + entry.first_offset as usize;
+    let allocation = &young.allocations()[allocation_index];
+    let start = allocation.first_offset;
 
-    read_page_view_bytes(allocator, young.pages(), start, entry.byte_len)
+    read_page_view_bytes(allocator, young.pages(), start, allocation.byte_len)
 }
 
 /// Return the first live heap allocation bytes from one captured image.
 fn read_first_heap_image_bytes(allocator: &Allocator, image: &HeapSpaceImage) -> Vec<u8> {
-    // young entries first
-    for entry_index in 0..image.young().entries().len() {
-        let entry = &image.young().entries()[entry_index];
-
-        if entry.is_live {
-            return read_young_entry_bytes(allocator, image.young(), entry_index);
+    // young allocations first
+    for allocation_index in 0..image.young().allocations().len() {
+        if image.young().live().contains(allocation_index) {
+            return read_young_allocation_bytes(allocator, image.young(), allocation_index);
         }
     }
 
@@ -106,25 +104,23 @@ fn read_first_heap_image_bytes(allocator: &Allocator, image: &HeapSpaceImage) ->
                 continue;
             }
 
-            let byte_len = span.byte_lens[slot_index];
-
             return read_small_slot_bytes(
                 allocator,
                 &span.pages,
                 span.class.size_class,
                 slot_index,
-                byte_len,
+                span.class.size_class,
             );
         }
     }
 
-    // then large entries
-    for entry in image.entries() {
-        if !entry.is_live {
+    // then large allocations
+    for allocation in image.allocations() {
+        if !allocation.is_live {
             continue;
         }
 
-        return read_large_entry_bytes(allocator, &entry.pages, entry.len);
+        return read_large_allocation_bytes(allocator, &allocation.pages, allocation.len);
     }
 
     panic!("heap image should contain one live allocation")
@@ -146,13 +142,13 @@ fn read_first_raw_image_bytes(image: &RawSpaceImage) -> Vec<u8> {
         }
     }
 
-    // then large entries
-    for entry in image.entries() {
-        if !entry.is_live {
+    // then large allocations
+    for allocation in image.allocations() {
+        if !allocation.is_live {
             continue;
         }
 
-        return entry.bytes[..entry.len].to_vec();
+        return allocation.bytes[..allocation.len].to_vec();
     }
 
     panic!("raw image should contain one live allocation")
@@ -160,21 +156,21 @@ fn read_first_raw_image_bytes(image: &RawSpaceImage) -> Vec<u8> {
 
 /// Return the first restored large raw pointer.
 fn first_restored_large_raw_pointer(raw: &RawSpace) -> crate::RawPointer {
-    raw.base_pointer(crate::local::raw::RawStorage::Large(
-        crate::local::raw::LargeEntryId::new(1),
+    raw.base_pointer(crate::local::raw::RawPlace::Large(
+        crate::local::raw::LargeAllocationId::new(1),
     ))
-    .expect("restored raw entry should have one base pointer")
+    .expect("restored raw allocation should have one base pointer")
 }
 
 /// Return the first restored small raw pointer.
 fn first_restored_small_raw_pointer(raw: &RawSpace) -> crate::RawPointer {
     let slot = crate::allocator::SpanSlot::new(0, 0).expect("first restored raw slot should exist");
 
-    raw.base_pointer(crate::local::raw::RawStorage::Small(slot))
+    raw.base_pointer(crate::local::raw::RawPlace::Small(slot))
         .expect("restored raw slot should have one base pointer")
 }
 
-/// Preserve heap metadata across image roundtrips and detach only touched entries.
+/// Preserve heap metadata across image roundtrips and detach only touched allocations.
 #[test]
 fn test_roundtrip_heap_space_image() {
     let options = HeapOptions {
@@ -191,15 +187,15 @@ fn test_roundtrip_heap_space_image() {
         &options,
         &[first_bytes.len(), second_bytes.len()],
     );
-    let first_layout_id = layout_ids[0];
-    let second_layout_id = layout_ids[1];
+    let first_layout = &layout_ids[0];
+    let second_layout = &layout_ids[1];
 
-    // capture two entries so the restored copy has independent raw bytes
+    // capture two allocations so the restored copy has independent raw bytes
     let first = heap
-        .allocate(first_layout_id, Payload::Bytes(&first_bytes))
+        .allocate(first_layout.allocation(), Payload::Bytes(&first_bytes))
         .expect("heap allocation should succeed");
     let _second = heap
-        .allocate(second_layout_id, Payload::Bytes(&second_bytes))
+        .allocate(second_layout.allocation(), Payload::Bytes(&second_bytes))
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
     let mut restored =
@@ -208,8 +204,14 @@ fn test_roundtrip_heap_space_image() {
 
     // restored metadata should match and untouched pages should still share
     assert!(Arc::ptr_eq(restored.allocator(), &allocator));
-    assert_eq!(image.entries()[0].pages, restored_image.entries()[0].pages);
-    assert_eq!(image.entries()[1].pages, restored_image.entries()[1].pages);
+    assert_eq!(
+        image.allocations()[0].pages,
+        restored_image.allocations()[0].pages
+    );
+    assert_eq!(
+        image.allocations()[1].pages,
+        restored_image.allocations()[1].pages
+    );
 
     // mutating one allocation should detach only that allocation
     restored
@@ -217,8 +219,14 @@ fn test_roundtrip_heap_space_image() {
         .expect("heap byte write should succeed");
     let mutated_image = restored.image().expect("heap image should capture");
 
-    assert_ne!(image.entries()[0].pages, mutated_image.entries()[0].pages);
-    assert_eq!(image.entries()[1].pages, mutated_image.entries()[1].pages);
+    assert_ne!(
+        image.allocations()[0].pages,
+        mutated_image.allocations()[0].pages
+    );
+    assert_eq!(
+        image.allocations()[1].pages,
+        mutated_image.allocations()[1].pages
+    );
 }
 
 /// Roundtrip raw images as independent byte payloads.
@@ -232,7 +240,7 @@ fn test_roundtrip_raw_space_image() {
     let mut raw = RawSpace::with_options(allocator.clone(), &options)
         .expect("explicit raw options should build");
 
-    // capture two entries so only one has to detach later
+    // capture two allocations so only one has to detach later
     let first_bytes = vec![1; 5000];
     let second_bytes = vec![2; 5000];
     let first = raw
@@ -242,13 +250,13 @@ fn test_roundtrip_raw_space_image() {
         .allocate(second_bytes.len(), Payload::Bytes(&second_bytes))
         .expect("raw allocation should succeed");
 
-    let image = raw.image();
+    let image = raw.image().expect("raw image should capture");
     let mut restored =
         RawSpace::from_image(allocator.clone(), &image).expect("raw image should restore");
 
     let restored_first = first_restored_large_raw_pointer(&restored);
 
-    // restored bytes should match without sharing image storage
+    // restored bytes should match without sharing image place
     assert!(Arc::ptr_eq(restored.allocator(), &allocator));
     assert_eq!(read_first_raw_image_bytes(&image), first_bytes);
     assert_eq!(
@@ -261,7 +269,7 @@ fn test_roundtrip_raw_space_image() {
     restored
         .set_byte(restored_first, 1, 0xFE)
         .expect("raw byte write should succeed");
-    let mutated_image = restored.image();
+    let mutated_image = restored.image().expect("raw image should capture");
 
     let mut expected_first = first_bytes;
     expected_first[1] = 0xFE;
@@ -284,10 +292,10 @@ fn test_roundtrip_heap_image_and_fork() {
     let heap_bytes = 7i64.to_le_bytes();
     let (mut test_heap, layout_ids) =
         test_heap_with_empty_layouts(HeapOptions::local(), &[heap_bytes.len()]);
-    let layout_id = layout_ids[0];
+    let layout = &layout_ids[0];
     let heap = &mut test_heap.heap;
     let _heap_reference = heap
-        .allocate(layout_id, Payload::Bytes(&heap_bytes))
+        .allocate(layout.allocation(), Payload::Bytes(&heap_bytes))
         .expect("heap allocation should succeed");
     let _raw = heap
         .allocate_raw(4, Payload::Bytes(&[0xCA, 0xFE, 0xBA, 0xBE]))
@@ -332,10 +340,10 @@ fn test_heap_heap_write_detaches_only_touched_allocation() {
         test_heap_with_empty_layouts(options, &[first_bytes.len(), second_bytes.len()]);
     let heap = &mut test_heap.heap;
     let first = heap
-        .allocate(layout_ids[0], Payload::Bytes(&first_bytes))
+        .allocate(layout_ids[0].allocation(), Payload::Bytes(&first_bytes))
         .expect("heap allocation should succeed");
     let _second = heap
-        .allocate(layout_ids[1], Payload::Bytes(&second_bytes))
+        .allocate(layout_ids[1].allocation(), Payload::Bytes(&second_bytes))
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
     let mut restored = crate::Heap::from_image(&image).expect("heap image should restore");
@@ -347,28 +355,28 @@ fn test_heap_heap_write_detaches_only_touched_allocation() {
     let mutated_image = restored.image().expect("heap image should capture");
 
     assert_ne!(
-        image.heap().entries()[0].pages,
-        mutated_image.heap().entries()[0].pages
+        image.heap().allocations()[0].pages,
+        mutated_image.heap().allocations()[0].pages
     );
     assert_eq!(
-        image.heap().entries()[1].pages,
-        mutated_image.heap().entries()[1].pages
+        image.heap().allocations()[1].pages,
+        mutated_image.heap().allocations()[1].pages
     );
     let mut expected_first = first_bytes;
     expected_first[0] = 0xCC;
 
     assert_eq!(
-        read_large_entry_bytes(
+        read_large_allocation_bytes(
             restored.allocator(),
-            &mutated_image.heap().entries()[0].pages,
+            &mutated_image.heap().allocations()[0].pages,
             expected_first.len(),
         ),
         expected_first
     );
     assert_eq!(
-        read_large_entry_bytes(
+        read_large_allocation_bytes(
             restored.allocator(),
-            &mutated_image.heap().entries()[1].pages,
+            &mutated_image.heap().allocations()[1].pages,
             second_bytes.len(),
         ),
         second_bytes
@@ -387,7 +395,7 @@ fn test_heap_heap_write_detaches_only_touched_page() {
     let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[bytes.len()]);
     let heap = &mut test_heap.heap;
     let reference = heap
-        .allocate(layout_ids[0], Payload::Bytes(&bytes))
+        .allocate(layout_ids[0].allocation(), Payload::Bytes(&bytes))
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
     let mut restored = crate::Heap::from_image(&image).expect("heap image should restore");
@@ -397,8 +405,8 @@ fn test_heap_heap_write_detaches_only_touched_page() {
         .write_heap_bytes(reference, 4096, &[0xCC])
         .expect("heap bytes should update");
     let mutated_image = restored.image().expect("heap image should capture");
-    let original_pages = &image.heap().entries()[0].pages;
-    let mutated_pages = &mutated_image.heap().entries()[0].pages;
+    let original_pages = &image.heap().allocations()[0].pages;
+    let mutated_pages = &mutated_image.heap().allocations()[0].pages;
 
     assert_eq!(original_pages.page(0), mutated_pages.page(0));
     assert_ne!(original_pages.page(1), mutated_pages.page(1));
@@ -418,7 +426,7 @@ fn test_heap_heap_write_keeps_sparse_page_sharing() {
     let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[bytes.len()]);
     let heap = &mut test_heap.heap;
     let reference = heap
-        .allocate(layout_ids[0], Payload::Bytes(&bytes))
+        .allocate(layout_ids[0].allocation(), Payload::Bytes(&bytes))
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
     let mut restored = crate::Heap::from_image(&image).expect("heap image should restore");
@@ -428,8 +436,8 @@ fn test_heap_heap_write_keeps_sparse_page_sharing() {
         .write_heap_bytes(reference, 0, &vec![0xCC; 3 * 4096])
         .expect("heap bytes should update");
     let mutated_image = restored.image().expect("heap image should capture");
-    let original_pages = &image.heap().entries()[0].pages;
-    let mutated_pages = &mutated_image.heap().entries()[0].pages;
+    let original_pages = &image.heap().allocations()[0].pages;
+    let mutated_pages = &mutated_image.heap().allocations()[0].pages;
 
     assert_ne!(original_pages.page(0), mutated_pages.page(0));
     assert_ne!(original_pages.page(1), mutated_pages.page(1));
@@ -451,7 +459,7 @@ fn test_heap_heap_write_keeps_sparse_page_sharing_across_many_patches() {
     let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[bytes.len()]);
     let heap = &mut test_heap.heap;
     let reference = heap
-        .allocate(layout_ids[0], Payload::Bytes(&bytes))
+        .allocate(layout_ids[0].allocation(), Payload::Bytes(&bytes))
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
     let mut restored = crate::Heap::from_image(&image).expect("heap image should restore");
@@ -461,8 +469,8 @@ fn test_heap_heap_write_keeps_sparse_page_sharing_across_many_patches() {
         .write_heap_bytes(reference, 0, &vec![0xCC; 4 * 4096])
         .expect("heap bytes should update");
     let mutated_image = restored.image().expect("heap image should capture");
-    let original_pages = &image.heap().entries()[0].pages;
-    let mutated_pages = &mutated_image.heap().entries()[0].pages;
+    let original_pages = &image.heap().allocations()[0].pages;
+    let mutated_pages = &mutated_image.heap().allocations()[0].pages;
 
     assert_ne!(original_pages.page(0), mutated_pages.page(0));
     assert_ne!(original_pages.page(1), mutated_pages.page(1));
@@ -483,12 +491,12 @@ fn test_roundtrip_heap_small_space_image() {
     let (mut heap, layout_ids) =
         heap_space_with_empty_layouts(allocator.clone(), &options, &[3, 3]);
 
-    // small entries should roundtrip as independent raw bytes
+    // small allocations should roundtrip as independent raw bytes
     let first = heap
-        .allocate(layout_ids[0], Payload::Bytes(&[1, 2, 3]))
+        .allocate(layout_ids[0].allocation(), Payload::Bytes(&[1, 2, 3]))
         .expect("heap allocation should succeed");
     let _second = heap
-        .allocate(layout_ids[1], Payload::Bytes(&[4, 5, 6]))
+        .allocate(layout_ids[1].allocation(), Payload::Bytes(&[4, 5, 6]))
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
     let mut restored =
@@ -516,7 +524,7 @@ fn test_roundtrip_heap_small_space_image() {
     );
 }
 
-/// Preserve allocator sharing for heap young-space entries across image roundtrips.
+/// Preserve allocator sharing for heap young-space allocations across image roundtrips.
 #[test]
 fn test_roundtrip_heap_young_space_image() {
     let options = HeapOptions {
@@ -527,12 +535,12 @@ fn test_roundtrip_heap_young_space_image() {
     let (mut heap, layout_ids) =
         heap_space_with_empty_layouts(allocator.clone(), &options, &[3, 3]);
 
-    // young entries should share young-space pages after restore
+    // young allocations should share young-space pages after restore
     let first = heap
-        .allocate(layout_ids[0], Payload::Bytes(&[1, 2, 3]))
+        .allocate(layout_ids[0].allocation(), Payload::Bytes(&[1, 2, 3]))
         .expect("heap allocation should succeed");
     let _second = heap
-        .allocate(layout_ids[1], Payload::Bytes(&[4, 5, 6]))
+        .allocate(layout_ids[1].allocation(), Payload::Bytes(&[4, 5, 6]))
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
     let mut restored =
@@ -541,7 +549,7 @@ fn test_roundtrip_heap_young_space_image() {
 
     assert_eq!(image.young().pages(), restored_image.young().pages());
 
-    // mutating one young entry should detach the young-space pages
+    // mutating one young allocation should detach the young-space pages
     restored
         .write_byte(first, 1, 0xFE)
         .expect("heap byte write should succeed");
@@ -549,7 +557,7 @@ fn test_roundtrip_heap_young_space_image() {
 
     assert_ne!(image.young().pages(), mutated_image.young().pages());
     assert_eq!(
-        read_young_entry_bytes(restored.allocator(), mutated_image.young(), 0),
+        read_young_allocation_bytes(restored.allocator(), mutated_image.young(), 0),
         vec![1, 0xFE, 3]
     );
 }
@@ -565,17 +573,17 @@ fn test_roundtrip_raw_small_space_image() {
     let mut raw = RawSpace::with_options(allocator.clone(), &options)
         .expect("explicit raw options should build");
 
-    // small entries should stay in spans and share those span pages after restore
+    // small allocations should stay in spans and share those span pages after restore
     let first = raw
         .allocate(3, Payload::Bytes(&[1, 2, 3]))
         .expect("raw allocation should succeed");
     let _second = raw
         .allocate(3, Payload::Bytes(&[4, 5, 6]))
         .expect("raw allocation should succeed");
-    let image = raw.image();
+    let image = raw.image().expect("raw image should capture");
     let mut restored =
         RawSpace::from_image(allocator.clone(), &image).expect("raw image should restore");
-    let restored_image = restored.image();
+    let restored_image = restored.image().expect("raw image should capture");
     let restored_first = first_restored_small_raw_pointer(&restored);
 
     assert_eq!(read_first_raw_image_bytes(&image), vec![1, 2, 3]);
@@ -590,7 +598,7 @@ fn test_roundtrip_raw_small_space_image() {
     restored
         .set_byte(restored_first, 1, 0xFE)
         .expect("raw byte write should succeed");
-    let mutated_image = restored.image();
+    let mutated_image = restored.image().expect("raw image should capture");
 
     assert_eq!(read_first_raw_image_bytes(&image), vec![1, 2, 3]);
     assert_eq!(read_first_raw_image_bytes(&mutated_image), vec![1, 0xFE, 3]);
@@ -616,9 +624,9 @@ fn test_roundtrip_raw_small_space_image_with_large_size_class() {
     let _pointer = raw
         .allocate(bytes.len(), Payload::Bytes(&bytes))
         .expect("raw allocation should succeed");
-    let image = raw.image();
+    let image = raw.image().expect("raw image should capture");
     let mut restored = RawSpace::from_image(allocator, &image).expect("raw image should restore");
-    let restored_image = restored.image();
+    let restored_image = restored.image().expect("raw image should capture");
 
     assert_eq!(image.spans()[0].class.byte_len, bytes.len());
     assert_eq!(read_first_raw_image_bytes(&restored_image), bytes);
@@ -633,7 +641,7 @@ fn test_restore_full_heap_image_releases_retained_pages_on_failure() {
     };
     let allocator = test_allocator(&options);
     let (mut heap, layout_ids) = heap_space_with_empty_layouts(allocator.clone(), &options, &[3]);
-    heap.allocate(layout_ids[0], Payload::Bytes(&[1, 2, 3]))
+    heap.allocate(layout_ids[0].allocation(), Payload::Bytes(&[1, 2, 3]))
         .expect("heap allocation should succeed");
 
     let image = heap.image().expect("heap image should capture");
@@ -659,7 +667,7 @@ fn test_fork_heap_space_releases_retained_pages_on_failure() {
     };
     let allocator = test_allocator(&options);
     let (mut heap, layout_ids) = heap_space_with_empty_layouts(allocator.clone(), &options, &[3]);
-    heap.allocate(layout_ids[0], Payload::Bytes(&[1, 2, 3]))
+    heap.allocate(layout_ids[0].allocation(), Payload::Bytes(&[1, 2, 3]))
         .expect("heap allocation should succeed");
     heap.small.size_classes = SizeClassTable::new([8]).expect("size classes should validate");
 
@@ -682,7 +690,7 @@ fn test_restore_raw_image_releases_retained_pages_on_failure() {
     raw.allocate(3, Payload::Bytes(&[1, 2, 3]))
         .expect("raw allocation should succeed");
 
-    let image = raw.image();
+    let image = raw.image().expect("raw image should capture");
     let image =
         image.with_size_classes(SizeClassTable::new([8]).expect("size classes should validate"));
 
@@ -725,7 +733,7 @@ fn test_restore_heap_image_releases_retained_pages_on_failure() {
     };
     let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[3]);
     let heap = &mut test_heap.heap;
-    heap.allocate(layout_ids[0], Payload::Bytes(&[1, 2, 3]))
+    heap.allocate(layout_ids[0].allocation(), Payload::Bytes(&[1, 2, 3]))
         .expect("heap allocation should succeed");
     heap.allocate_raw(3, Payload::Bytes(&[4, 5, 6]))
         .expect("raw allocation should succeed");
@@ -759,7 +767,7 @@ fn test_fork_heap_releases_retained_pages_on_failure() {
     };
     let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[3]);
     let heap = &mut test_heap.heap;
-    heap.allocate(layout_ids[0], Payload::Bytes(&[1, 2, 3]))
+    heap.allocate(layout_ids[0].allocation(), Payload::Bytes(&[1, 2, 3]))
         .expect("heap allocation should succeed");
     heap.allocate_raw(3, Payload::Bytes(&[4, 5, 6]))
         .expect("raw allocation should succeed");

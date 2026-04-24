@@ -1,14 +1,17 @@
 use std::sync::Arc;
 
-use destack_mir::{LayoutId, LayoutTable, ReferenceMap};
+use destack_mir::ReferenceMap;
 
 use crate::allocator::Allocator;
 use crate::local::raw::RawSpace;
 use crate::local::space::HeapSpace;
 use crate::{
-    GcPacer, GcState, GcStats, HeapLimits, HeapOptions, HeapReference, HeapResult, Payload,
-    RawPointer, SharedHeapReference,
+    AllocationLayout, GcPacer, GcState, GcStats, HeapLimits, HeapOptions, HeapReference,
+    HeapResult, Payload, RawPointer, SharedHeapReference,
 };
+
+/// The default local major collection work budget per safepoint.
+const DEFAULT_LOCAL_MAJOR_GC_WORK_ITEMS: usize = 64;
 
 /// One pending local GC request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,28 +42,26 @@ pub struct Heap {
 }
 
 impl Heap {
-    /// Create one heap over one explicit allocator, layout table, limits, and options.
-    pub fn with_allocator_limits_layouts_and_options(
+    /// Create one heap over one explicit allocator, limits, and options.
+    pub fn with_allocator_limits_and_options(
         allocator: Arc<Allocator>,
-        layouts: Arc<LayoutTable>,
         limits: HeapLimits,
         options: HeapOptions,
     ) -> HeapResult<Self> {
         options.validate_local()?;
         options.validate_allocator(&allocator)?;
 
-        Self::build_with_options(allocator, layouts, limits, options)
+        Self::build_with_options(allocator, limits, options)
     }
 
     /// Create one heap from one checked shared allocator, limits, and options.
     fn build_with_options(
         allocator: Arc<Allocator>,
-        layouts: Arc<LayoutTable>,
         limits: HeapLimits,
         options: HeapOptions,
     ) -> HeapResult<Self> {
         let mut heap = Self {
-            heap: HeapSpace::build_with_options(allocator.clone(), layouts, &options)?,
+            heap: HeapSpace::build_with_options(allocator.clone(), &options)?,
             raw: RawSpace::with_options(allocator.clone(), &options)?,
             allocator,
             options,
@@ -185,15 +186,37 @@ impl Heap {
 
     /// Run one pacing-driven local collection step at one safepoint.
     pub fn gc_step(&mut self, roots: &mut [HeapReference]) -> HeapResult<Option<GcStats>> {
+        if self.heap.major_gc_active() {
+            let stats = self
+                .heap
+                .step_major_gc(roots, DEFAULT_LOCAL_MAJOR_GC_WORK_ITEMS)?;
+
+            if let Some(stats) = stats {
+                self.on_after_gc_cycle(stats);
+            }
+
+            return Ok(stats);
+        }
+
         let Some(gc_request) = self.gc_request.take() else {
             return Ok(None);
         };
 
-        // full cycles compact mature space and clear all young debt
+        // full cycles first clear young debt, then continue as incremental major work
         if gc_request == GcRequest::Full {
-            let stats = self.collect_full(roots)?;
+            let _minor = self.heap.collect_minor(roots)?;
+            self.heap.start_major_gc(roots)?;
+            let stats = self
+                .heap
+                .step_major_gc(roots, DEFAULT_LOCAL_MAJOR_GC_WORK_ITEMS)?;
 
-            return Ok(Some(stats));
+            if let Some(stats) = stats {
+                self.on_after_gc_cycle(stats);
+            } else {
+                self.gc_request = Some(GcRequest::Full);
+            }
+
+            return Ok(stats);
         }
 
         // minor cycles keep the steady-state path short
@@ -202,48 +225,25 @@ impl Heap {
         Ok(Some(stats))
     }
 
-    /// Allocate one managed heap entry.
+    /// Allocate one managed heap allocation.
     pub fn allocate(
         &mut self,
-        layout_id: LayoutId,
+        layout: AllocationLayout<'_>,
         allocation: Payload<'_>,
     ) -> HeapResult<HeapReference> {
-        let mapped_byte_delta = self.heap.mapped_byte_delta(layout_id)?;
+        let mapped_byte_delta = self.heap.mapped_byte_delta(layout)?;
 
         // check the projected heap mapped-byte delta first
         self.check_mapped_byte_delta(mapped_byte_delta, 0)?;
 
         // then allocate through heap space
-        let reference = self.heap.allocate(layout_id, allocation)?;
+        let reference = self.heap.allocate(layout, allocation)?;
         self.refresh_gc_request();
 
         Ok(reference)
     }
 
-    /// Allocate one managed slice backing entry.
-    pub fn allocate_slice(
-        &mut self,
-        element_layout_id: LayoutId,
-        length: usize,
-        allocation: Payload<'_>,
-    ) -> HeapResult<HeapReference> {
-        let mapped_byte_delta = self
-            .heap
-            .slice_mapped_byte_delta(element_layout_id, length)?;
-
-        // check the projected heap mapped-byte delta first
-        self.check_mapped_byte_delta(mapped_byte_delta, 0)?;
-
-        // then allocate through heap space
-        let reference = self
-            .heap
-            .allocate_slice(element_layout_id, length, allocation)?;
-        self.refresh_gc_request();
-
-        Ok(reference)
-    }
-
-    /// Allocate one raw entry.
+    /// Allocate one raw allocation.
     pub fn allocate_raw(
         &mut self,
         byte_len: usize,
@@ -256,11 +256,6 @@ impl Heap {
 
         // then allocate through raw space
         self.raw.allocate(byte_len, allocation)
-    }
-
-    /// Register one managed layout and return its stable id.
-    pub fn register_layout(&mut self, layout: destack_mir::Layout) -> LayoutId {
-        self.heap.register_layout(layout)
     }
 
     /// Return whether one heap reference currently refers to one live allocation.
