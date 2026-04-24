@@ -105,6 +105,49 @@ fn test_parse_type_conditional_infer_extends_parenthesized_conditional() {
     });
 }
 
+/// Parse parenthesized nested conditional types in conditional branches.
+#[test]
+fn test_parse_type_conditional_with_parenthesized_nested_branch() {
+    let mut test = TestParser::new_with_options(
+        "type Nested<T> = T extends string ? (T extends \"a\" ? 1 : 2) : 3",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // type Nested<T> = T extends string ? (T extends "a" ? 1 : 2) : 3
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "T");
+                assert_node!(parser.tree, *extends_type, TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::String);
+                });
+                assert_node!(parser.tree, *then_type, TypeExpression::Parenthesized { expression } => {
+                    assert_node!(parser.tree, *expression, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "T");
+                        assert_node!(parser.tree, *extends_type, TypeExpression::ScalarLiteral { value } => {
+                            let ScalarLiteral::String(string_id) = value else {
+                                panic!("expected string literal, got {value:?}");
+                            };
+                            assert_string!(parser, *string_id, "a");
+                        });
+                        assert_node!(parser.tree, *then_type, TypeExpression::ScalarLiteral { value } => {
+                            assert_eq!(*value, ScalarLiteral::Integer(1));
+                        });
+                        assert_node!(parser.tree, *else_type, TypeExpression::ScalarLiteral { value } => {
+                            assert_eq!(*value, ScalarLiteral::Integer(2));
+                        });
+                    });
+                });
+                assert_node!(parser.tree, *else_type, TypeExpression::ScalarLiteral { value } => {
+                    assert_eq!(*value, ScalarLiteral::Integer(3));
+                });
+            });
+        });
+    });
+}
+
 #[test]
 fn test_parse_type_expression_with_generic_arguments() {
     let mut test = TestParser::new("type T<A, B>");

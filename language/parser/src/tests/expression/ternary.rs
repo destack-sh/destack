@@ -109,6 +109,69 @@ fn test_parse_if_ternary_boundary_comments_attach_to_branch_owners() {
     assert_comment!(parser, 1, CommentKind::Line, "else-boundary");
 }
 
+/// Keep inline branch comments outside ternary branch spans.
+#[test]
+fn test_parse_if_ternary_inline_branch_comment_keeps_branch_token_span() {
+    let mut test = TestParser::new_with_options(
+        "condition ? null /* branch-note */ : other",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+    parser.attach_comments();
+
+    assert_node!(parser.tree, expression_id, Expression::If { then_expression, else_expression, .. } => {
+        let then_span = parser.tree.get_span(*then_expression);
+        let then_head_span = parser
+            .tree
+            .get_head_span(*then_expression)
+            .unwrap_or(then_span);
+        let else_expression = else_expression.expect("expected ternary else branch");
+        let else_span = parser.tree.get_span(else_expression);
+
+        assert_eq!(parser.get_span_str(then_span), "null");
+        assert_eq!(parser.get_span_str(then_head_span), "null");
+        assert_eq!(parser.get_span_str(else_span), "other");
+    });
+
+    assert_eq!(parser.tree.comments().len(), 1);
+    assert_comment!(parser, 0, CommentKind::SingleLineBlock, " branch-note");
+}
+
+/// Keep nested tree branch spans on the branch tokens.
+#[test]
+fn test_parse_if_ternary_nested_tree_branches_keep_token_spans() {
+    let mut test = TestParser::new_with_options(
+        "condition ? null /* branch-note */ : other ? <A /> : <B />",
+        LanguageType::TypeScriptXml,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+    parser.attach_comments();
+
+    assert_node!(parser.tree, expression_id, Expression::If { else_expression, .. } => {
+        let nested_id = else_expression.expect("expected nested else ternary");
+        assert_node!(parser.tree, nested_id, Expression::If { then_expression, else_expression, .. } => {
+            let then_span = parser.tree.get_span(*then_expression);
+            let then_head_span = parser
+                .tree
+                .get_head_span(*then_expression)
+                .unwrap_or(then_span);
+            let else_expression = else_expression.expect("expected nested else branch");
+            let else_span = parser.tree.get_span(else_expression);
+            let else_head_span = parser
+                .tree
+                .get_head_span(else_expression)
+                .unwrap_or(else_span);
+
+            assert_eq!(parser.get_span_str(then_span), "<A />");
+            assert_eq!(parser.get_span_str(then_head_span), "<A />");
+            assert_eq!(parser.get_span_str(else_span), "<B />");
+            assert_eq!(parser.get_span_str(else_head_span), "<B />");
+        });
+    });
+}
+
 /// Parse `x ? () : ()`.
 #[test]
 fn test_parse_if_ternary_with_parenthesis() {

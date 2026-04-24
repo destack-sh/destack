@@ -29,8 +29,11 @@ fn test_parse_mapped_type() {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { name, generic_parameters, value, .. }) => {
             assert_string!(parser, name.string(), "A");
             assert!(generic_parameters.is_empty());
-            assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, readonly, optional, value } => {
+            let mapped_type_id = *value;
+            assert_node!(parser.tree, mapped_type_id, TypeExpression::Mapped { parameter, readonly, optional, value } => {
                 assert_string!(parser, parameter.name, "test");
+                let name_span = parser.tree.get_main_span(mapped_type_id).expect("missing mapped parameter name span");
+                assert_eq!(parser.get_span_str(name_span), "test");
                 assert_eq!(*readonly, TypeModifier::None);
                 assert_eq!(*optional, TypeModifier::None);
                 assert_node!(parser.tree, parameter.source_type, TypeExpression::Union { elements } => {

@@ -1060,33 +1060,22 @@ impl Parser {
             return false;
         }
 
-        let Ok(token) = self.peek().copied() else {
+        let Ok(identifier_span) = self.peek().map(|token| token.span) else {
             return false;
         };
-        let identifier = self.file.span_str(token.span);
 
-        matches!(
-            identifier,
-            "undefined"
-                | "unknown"
-                | "object"
-                | "null"
-                | "any"
-                | "never"
-                | "boolean"
-                | "void"
-                | "character"
-                | "string"
-                | "bigint"
-                | "number"
-                | "int"
-                | "isize"
-                | "uint"
-                | "usize"
-                | "float"
-                | "symbol"
-                | "unique"
-        )
+        let next_identifier_span = self.peek_next().ok().and_then(|token| {
+            if token.token.ty == TokenType::Identifier {
+                Some(token.span)
+            } else {
+                None
+            }
+        });
+        let identifier = self.file.span_str(identifier_span);
+        let next_identifier = next_identifier_span.map(|span| self.file.span_str(span));
+
+        self.type_literal_identifier_str(identifier, next_identifier)
+            .is_some()
     }
 
     /// Return true when the current identifier should be parsed as a contextual type literal.
@@ -1254,6 +1243,98 @@ impl Parser {
         starts_named_tuple_element || group.has_top_level_comma
     }
 
+    /// Return whether the current parenthesized group starts a function type.
+    fn can_start_parenthesized_function_type(&mut self) -> bool {
+        if !self.peek_is(TokenType::OpenParenthesis) {
+            return false;
+        }
+
+        let mark = self.mark();
+        let tree_mark = self.tree.next_id();
+        let can_start = self
+            .can_start_parenthesized_function_type_inner()
+            .unwrap_or(false);
+        self.restore(mark, tree_mark);
+
+        can_start
+    }
+
+    /// Parse the current parenthesized head enough to identify function types.
+    fn can_start_parenthesized_function_type_inner(&mut self) -> ParseResult<bool> {
+        // open parameter list
+        self.bump();
+        self.eat_newlines_maybe()?;
+
+        // empty parameter list
+        if self.peek_is(TokenType::CloseParenthesis) {
+            self.bump();
+            self.eat_newlines_maybe()?;
+
+            return Ok(matches!(
+                self.peek_token_type(),
+                TokenType::Arrow | TokenType::ArrowWide
+            ));
+        }
+
+        // rest parameter
+        if self.peek_is(TokenType::Spread) {
+            return Ok(true);
+        }
+
+        // first parameter head
+        if self.eat_function_type_parameter_head().is_err() {
+            return Ok(false);
+        }
+        self.eat_newlines_maybe()?;
+
+        // annotated, optional, defaulted, or followed by more parameters
+        if matches!(
+            self.peek_token_type(),
+            TokenType::Colon | TokenType::Comma | TokenType::Maybe | TokenType::Assign
+        ) {
+            return Ok(true);
+        }
+
+        // bare single parameter
+        if !self.peek_is(TokenType::CloseParenthesis) {
+            return Ok(false);
+        }
+        self.bump();
+        self.eat_newlines_maybe()?;
+
+        Ok(!self.options.is_in_arrow_return_type()
+            && matches!(
+                self.peek_token_type(),
+                TokenType::Arrow | TokenType::ArrowWide
+            ))
+    }
+
+    /// Eat one function type parameter head.
+    fn eat_function_type_parameter_head(&mut self) -> ParseResult<()> {
+        self.eat_binding_modifiers_prefix_maybe(
+            true,
+            false,
+            self.options.is_in_static(),
+            false,
+            true,
+        )?;
+
+        let starts_shared_pattern = matches!(
+            self.peek_token_type(),
+            TokenType::OpenBracket | TokenType::OpenBrace
+        );
+        let starts_destack_pattern = self.language.is_destack()
+            && (self.peek_is(TokenType::OpenParenthesis) || self.peek_identifier_str_is("_"));
+        if starts_shared_pattern || starts_destack_pattern {
+            self.eat_pattern()?;
+            return Ok(());
+        }
+
+        self.eat_binding_identifier_with_span()?;
+
+        Ok(())
+    }
+
     /// Try to parse one parenthesized lambda declaration from one known group shape.
     fn try_eat_parenthesized_lambda_declaration_from_group(
         &mut self,
@@ -1309,16 +1390,12 @@ impl Parser {
         Ok(lambda_id.map(|lambda_id| self.insert_declaration_expression(start, lambda_id)))
     }
 
-    /// Try to parse a parenthesized lambda from one known group shape in strict type space.
-    fn try_eat_type_parenthesized_lambda_from_group(
+    /// Try to parse a parenthesized function type in strict type space.
+    fn try_eat_parenthesized_function_type(
         &mut self,
         start: &ParserMark,
-        group: ParenthesizedGroupShape,
     ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
-        if self
-            .parenthesized_group_lambda_follow_token_maybe(group)
-            .is_none()
-        {
+        if !self.can_start_parenthesized_function_type() {
             return Ok(None);
         }
 
@@ -1494,10 +1571,8 @@ impl Parser {
         let _group_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_GROUP);
         let group = self.parenthesized_group_shape()?;
 
-        // parse lambda heads before consuming the grouped body
-        if let Some(type_expression_id) =
-            self.try_eat_type_parenthesized_lambda_from_group(start, group)?
-        {
+        // parse function types before consuming the grouped body
+        if let Some(type_expression_id) = self.try_eat_parenthesized_function_type(start)? {
             return Ok(type_expression_id);
         }
 
@@ -1540,7 +1615,7 @@ impl Parser {
 
         let (label, label_span, body) = self.eat_labelled_expression_parts()?;
 
-        // attach decorators to the labelled shell
+        // attach decorators to the labelled expression
         let labelled_id = self.insert_node(
             Expression::Labelled { label, body },
             self.get_span_from(start),
