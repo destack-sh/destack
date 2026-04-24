@@ -1,13 +1,15 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use destack_heap as heap;
 
+use crate::runtime::memory::MarkRootSet;
 use crate::runtime::observe::{Observation, ObservationSequence, Observations};
 use crate::runtime::policy::PolicyState;
 use crate::runtime::random::Random;
 use crate::runtime::time::Clock;
 use crate::runtime::trace::Trace;
-use crate::runtime::{WorkerId, RuntimeId};
+use crate::runtime::{Collection, Collector, RuntimeId, WorkerId};
 use crate::simulation::Simulation;
 use destack_workspace::{RandomMode, TimeMode};
 
@@ -22,8 +24,6 @@ pub(crate) struct WorldRef {
     pub(crate) time_mode: TimeMode,
     /// Effective world random mode after execution-mode resolution.
     pub(crate) random_mode: RandomMode,
-    /// Exact hard limits for world-owned shared raw space.
-    pub(crate) shared_raw_limits: heap::SharedRawLimits,
     /// Shared simulation state for all workers using this world.
     simulation: *mut Simulation,
     /// Active policy state.
@@ -44,8 +44,14 @@ pub(crate) struct WorldRef {
     trace: *const Trace,
     /// Emitted observations.
     observations: *const Observations,
-    /// World-owned shared heap visible across workers.
-    shared: *mut heap::SharedHeap,
+    /// Shared heap visible across workers in this world.
+    shared: *const heap::SharedHeap,
+    /// Mark roots used by shared heap collection.
+    pub(crate) mark_roots: *const MarkRootSet,
+    /// Lineage-owned shared heap collector.
+    collector: *const Arc<Collector>,
+    /// Per-world shared heap collection state.
+    collection: *const Arc<Collection>,
 }
 
 impl WorldRef {
@@ -55,7 +61,6 @@ impl WorldRef {
         branch_id: BranchId,
         time_mode: TimeMode,
         random_mode: RandomMode,
-        shared_raw_limits: heap::SharedRawLimits,
         simulation: &mut Simulation,
         policy: &mut PolicyState,
         next_runtime_id: &mut u64,
@@ -66,13 +71,15 @@ impl WorldRef {
         random: &Random,
         trace: &Trace,
         observations: &Observations,
-        shared: &mut heap::SharedHeap,
+        shared: &heap::SharedHeap,
+        mark_roots: &MarkRootSet,
+        collector: &Arc<Collector>,
+        collection: &Arc<Collection>,
     ) -> Self {
         Self {
             branch_id,
             time_mode,
             random_mode,
-            shared_raw_limits,
             simulation,
             policy,
             next_runtime_id,
@@ -84,6 +91,9 @@ impl WorldRef {
             trace,
             observations,
             shared,
+            mark_roots,
+            collector,
+            collection,
         }
     }
 
@@ -167,11 +177,22 @@ impl WorldRef {
         self.observations().record_at(self.moment(), observation)
     }
 
-    /// Borrow the shared world heap mutably.
+    /// Borrow the shared world heap.
     #[inline]
-    pub(crate) fn shared_mut(&self) -> &mut heap::SharedHeap {
+    pub(crate) fn shared(&self) -> &heap::SharedHeap {
         // safety: the execution scope owns the live shared-heap borrow
-        unsafe { &mut *self.shared }
+        unsafe { &*self.shared }
+    }
+
+    /// Wake shared heap collection.
+    #[inline]
+    pub(crate) fn wake_shared_gc(&self) {
+        // safety: the execution scope owns the live shared collector
+        unsafe {
+            let collector = &*self.collector;
+            let collection = &*self.collection;
+            collector.wake(collection);
+        }
     }
 
     /// Allocate one runtime identifier.

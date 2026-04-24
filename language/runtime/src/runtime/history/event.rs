@@ -4,7 +4,7 @@ use crate::runtime::observe::{
 };
 use crate::runtime::trace::{Outcome, Trace, TraceRecord, TraceSequence};
 use crate::runtime::world::{Command, World, WorldResourceId};
-use crate::runtime::{WorkerId, RuntimeId};
+use crate::runtime::{RuntimeId, WorkerId};
 
 use super::{BranchId, LineageView, Moment};
 

@@ -8,7 +8,7 @@ use crate::runtime::topology::{
     WorldEntityKindDefinition,
 };
 use crate::runtime::world::{WorldResource, WorldResourceId};
-use crate::runtime::{WorkerId, WorkerImage, RuntimeImage};
+use crate::runtime::{RuntimeImage, WorkerId, WorkerImage};
 
 use super::{Moment, WorldImage};
 
