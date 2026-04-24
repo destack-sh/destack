@@ -20,12 +20,12 @@ pub enum FrameAddress {
     },
 }
 
-/// One durable address into one global value.
+/// One durable address into one static value.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct GlobalAddress {
+pub struct StaticAddress {
     /// The referenced MIR global.
     pub global: mir::LocalNodeId<mir::Global>,
-    /// The byte offset within the global value.
+    /// The byte offset within the static value.
     pub byte_offset: u32,
 }
 
@@ -74,15 +74,8 @@ pub enum MaterializedValue {
     SharedRawPointer(SharedRawPointer),
     /// One durable address into one captured frame allocation.
     FrameAddress(FrameAddress),
-    /// One durable address into one global value.
-    GlobalAddress(GlobalAddress),
+    /// One durable address into one static value.
+    StaticAddress(StaticAddress),
     /// One MIR function reference.
     Function(mir::LocalNodeId<mir::Function>),
-    /// One durable by-value aggregate payload.
-    Aggregate {
-        /// The stored MIR type.
-        ty: mir::LocalNodeId<mir::Type>,
-        /// The owned aggregate bytes.
-        bytes: Vec<u8>,
-    },
 }
