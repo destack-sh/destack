@@ -3,6 +3,7 @@ use crate::format::annotation::{
     prefix_comment_nodes,
 };
 use crate::format::collection::TrailingSeparator;
+use crate::format::collection::literal::format_scalar_literal;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     Argument, DecoratorPosition, DependencyItem, DependencyKind, DependencyMode, Expression,
@@ -18,10 +19,8 @@ use destack_query::format::{
     ImportDeclarationKey, categorize_import, sort_dependency_items as query_sort_dependency_items,
     sort_import_declaration_indices,
 };
-use destack_workspace::ImportSortOrder;
-
-use crate::format::collection::literal::format_scalar_literal;
-use destack_source::Span;
+use destack_source::{FileId, Span};
+use destack_workspace::{ImportSortOrder, TrailingComma};
 
 /// Format a dependency item name.
 fn format_dependency_item_name<'ast>(
@@ -294,7 +293,7 @@ fn dependency_item_mode(item: &DependencyItem) -> Option<DependencyMode> {
 }
 
 /// Return one dependency item's alias when it is valid.
-fn dependency_item_alias(item: &DependencyItem) -> Option<destack_core::StringId> {
+fn dependency_item_alias(item: &DependencyItem) -> Option<StringId> {
     match item {
         DependencyItem::Item { alias, .. } => *alias,
         DependencyItem::Error => None,
@@ -630,7 +629,7 @@ fn dependency_gap_has_comments(context: &DestackFormatContext<'_>, start: u32, e
 /// Return the previous non-trivia token before one offset.
 fn previous_non_trivia_token_before_offset(
     context: &DestackFormatContext<'_>,
-    file_id: destack_source::FileId,
+    file_id: FileId,
     offset: u32,
 ) -> Option<TokenSpan> {
     context.previous_non_trivia_token_before_span(Span::new(file_id, offset, offset))
@@ -652,7 +651,7 @@ fn dependency_item_collection_close_brace_token(
     }
 
     let expression_span = context.span(node_id);
-    let shell_end = context
+    let clause_end = context
         .tree
         .get_main_span(node_id)
         .and_then(|target_span| {
@@ -667,10 +666,10 @@ fn dependency_item_collection_close_brace_token(
                 })
         })
         .unwrap_or(expression_span.end);
-    let shell_span = Span::new(expression_span.file, expression_span.start, shell_end);
+    let clause_span = Span::new(expression_span.file, expression_span.start, clause_end);
 
     context
-        .non_trivia_tokens_in_span(shell_span)
+        .non_trivia_tokens_in_span(clause_span)
         .into_iter()
         .rev()
         .find(|token| token.token.ty == TokenType::CloseBrace)
@@ -690,14 +689,14 @@ fn dependency_item_collection_open_brace_token(
 
     let close_brace = dependency_item_collection_close_brace_token(context, node_id, items)?;
     let expression_span = context.span(node_id);
-    let shell_span = Span::new(
+    let clause_span = Span::new(
         expression_span.file,
         expression_span.start,
         close_brace.span.end,
     );
 
     context
-        .non_trivia_tokens_in_span(shell_span)
+        .non_trivia_tokens_in_span(clause_span)
         .into_iter()
         .find(|token| token.token.ty == TokenType::OpenBrace)
 }
@@ -780,15 +779,10 @@ fn dependency_items_for_output(
 /// Write one dependency item list body with preserved separator comments.
 fn write_dependency_item_entries<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    open_brace: Option<TokenSpan>,
     items: &[LocalNodeId<DependencyItem>],
     trailing_separator: TrailingSeparator,
 ) -> FormatResult<()> {
-    let open_brace = items.first().and_then(|first_item_id| {
-        f.context()
-            .previous_non_trivia_token_before_span(f.context().span(*first_item_id))
-            .filter(|token| token.token.ty == TokenType::OpenBrace)
-    });
-
     for (index, item_id) in items.iter().copied().enumerate() {
         if index == 0
             && let Some(open_brace) = open_brace
@@ -809,6 +803,8 @@ fn write_dependency_item_entries<'ast>(
             break;
         };
 
+        write!(f, [token(",")])?;
+
         let item_span = f.context().span(item_id);
         let next_item_start = dependency_item_prefix_start(f.context(), next_item_id);
         let gap_start = f
@@ -817,7 +813,6 @@ fn write_dependency_item_entries<'ast>(
             .filter(|token| token.token.ty == TokenType::Comma && token.span.end <= next_item_start)
             .map_or(item_span.end, |token| token.span.end);
 
-        write!(f, [token(",")])?;
         write_dependency_gap(f, gap_start, next_item_start, true)?;
     }
 
@@ -829,22 +824,49 @@ fn write_dependency_item_entries<'ast>(
     Ok(())
 }
 
+/// Write one reordered dependency item list body.
+fn write_reordered_dependency_item_entries<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    items: &[LocalNodeId<DependencyItem>],
+    trailing_separator: TrailingSeparator,
+) -> FormatResult<()> {
+    for (index, item_id) in items.iter().copied().enumerate() {
+        if index == 0 && f.context().options.bracket_spacing {
+            write!(f, [if_group_fits_on_line(&space())])?;
+        }
+
+        write!(f, [item_id])?;
+
+        if index + 1 < items.len() {
+            write!(f, [token(","), soft_line_break_or_space()])?;
+        }
+    }
+
+    if trailing_separator == TrailingSeparator::Allowed {
+        write!(f, [if_group_breaks(&token(","))])?;
+    }
+
+    Ok(())
+}
+
 /// Write one dependency item collection list with stable expansion rules.
 fn write_dependency_item_collection<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
+    source_items: &[LocalNodeId<DependencyItem>],
     items: &[LocalNodeId<DependencyItem>],
     should_expand: bool,
 ) -> FormatResult<()> {
     let trailing_separator = match f.context().options.trailing_comma {
-        destack_workspace::TrailingComma::None => TrailingSeparator::Omit,
-        destack_workspace::TrailingComma::Es5 | destack_workspace::TrailingComma::All => {
-            TrailingSeparator::Allowed
-        }
+        TrailingComma::None => TrailingSeparator::Omit,
+        TrailingComma::Es5 | TrailingComma::All => TrailingSeparator::Allowed,
     };
 
-    let open_brace = dependency_item_collection_open_brace_token(f.context(), node_id, items);
-    let close_brace = dependency_item_collection_close_brace_token(f.context(), node_id, items);
+    let is_source_order = source_items == items;
+    let open_brace =
+        dependency_item_collection_open_brace_token(f.context(), node_id, source_items);
+    let close_brace =
+        dependency_item_collection_close_brace_token(f.context(), node_id, source_items);
 
     if let Some(open_brace) = open_brace
         && let Some(anchor_token) = previous_non_trivia_token_before_offset(
@@ -867,32 +889,40 @@ fn write_dependency_item_collection<'ast>(
 
             let format_interior = format_with(|f: &mut DestackFormatter<'ast, '_>| {
                 if !items.is_empty() {
-                    write_dependency_item_entries(f, items, trailing_separator)?;
+                    if is_source_order {
+                        write_dependency_item_entries(f, open_brace, items, trailing_separator)?;
+                    } else {
+                        write_reordered_dependency_item_entries(f, items, trailing_separator)?;
+                    }
 
                     if let Some(close_brace) = close_brace {
-                        let trailing_start = if trailing_separator == TrailingSeparator::Allowed {
-                            f.context()
-                                .previous_non_trivia_token_before_span(close_brace.span)
-                                .filter(|token| token.token.ty == TokenType::Comma)
-                                .map_or_else(
-                                    || {
-                                        f.context()
-                                            .span(*items.last().expect("items is not empty"))
-                                            .end
-                                    },
-                                    |token| token.span.end,
-                                )
-                        } else {
-                            f.context()
-                                .span(*items.last().expect("items is not empty"))
-                                .end
-                        };
-                        if trailing_start >= close_brace.span.start {
-                            if f.context().options.bracket_spacing {
-                                write!(f, [if_group_fits_on_line(&space())])?;
+                        let last_item = items[items.len() - 1];
+                        let last_item_end = f.context().span(last_item).end;
+                        if is_source_order {
+                            let trailing_start = if trailing_separator == TrailingSeparator::Allowed
+                            {
+                                f.context()
+                                    .previous_non_trivia_token_before_span(close_brace.span)
+                                    .filter(|token| token.token.ty == TokenType::Comma)
+                                    .map_or(last_item_end, |token| token.span.end)
+                            } else {
+                                last_item_end
+                            };
+
+                            if trailing_start >= close_brace.span.start {
+                                if f.context().options.bracket_spacing {
+                                    write!(f, [if_group_fits_on_line(&space())])?;
+                                }
+                            } else {
+                                write_dependency_gap(
+                                    f,
+                                    trailing_start,
+                                    close_brace.span.start,
+                                    true,
+                                )?;
                             }
-                        } else {
-                            write_dependency_gap(f, trailing_start, close_brace.span.start, true)?;
+                        } else if f.context().options.bracket_spacing {
+                            write!(f, [if_group_fits_on_line(&space())])?;
                         }
                     } else if f.context().options.bracket_spacing {
                         write!(f, [if_group_fits_on_line(&space())])?;
@@ -948,6 +978,7 @@ fn write_dependency_items_for_output<'ast>(
     write_dependency_item_collection(
         f,
         node_id,
+        items,
         &sorted_items,
         has_item_annotations || has_separator_signal || has_interior_signal,
     )
@@ -956,7 +987,7 @@ fn write_dependency_items_for_output<'ast>(
 /// Write one quoted dependency source target.
 fn write_dependency_target<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    target: destack_core::StringId,
+    target: StringId,
 ) -> FormatResult<()> {
     write!(f, [token("\""), target, token("\"")])
 }
@@ -965,7 +996,7 @@ fn write_dependency_target<'ast>(
 fn write_dependency_from_target_clause<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    target: destack_core::StringId,
+    target: StringId,
 ) -> FormatResult<()> {
     let Some(target_span) = f.context().tree.get_main_span(node_id) else {
         write!(f, [space(), Keyword::From, space()])?;
@@ -998,7 +1029,7 @@ fn write_dependency_from_target_clause<'ast>(
 fn write_dependency_direct_target_clause<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    target: destack_core::StringId,
+    target: StringId,
 ) -> FormatResult<()> {
     let Some(target_span) = f.context().tree.get_main_span(node_id) else {
         write!(f, [space()])?;
@@ -1115,10 +1146,10 @@ fn write_import_clause<'ast>(
     organize_imports: bool,
     sort_order: ImportSortOrder,
     has_item_annotations: bool,
-    has_item_shell: bool,
+    has_item_clause: bool,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
-    let import_empty_items = has_item_shell && items.is_empty();
+    let import_empty_items = has_item_clause && items.is_empty();
     let first_item = items.first().map(|item| tree.get(*item));
 
     if items.len() == 1
@@ -1167,7 +1198,7 @@ fn write_export_clause<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     items: &[LocalNodeId<DependencyItem>],
-    target: Option<destack_core::StringId>,
+    target: Option<StringId>,
     organize_imports: bool,
     sort_order: ImportSortOrder,
     has_item_annotations: bool,
@@ -1365,7 +1396,7 @@ fn write_import_declaration_expression<'ast>(
     kind: DependencyKind,
     target: StringId,
     items: &[LocalNodeId<DependencyItem>],
-    has_item_shell: bool,
+    has_item_clause: bool,
     attributes: Option<&ImportAttributeClause>,
 ) -> FormatResult<()> {
     let has_item_annotations = dependency_items_have_annotations(f.context(), items);
@@ -1385,10 +1416,10 @@ fn write_import_declaration_expression<'ast>(
         organize_imports,
         sort_order,
         has_item_annotations,
-        has_item_shell,
+        has_item_clause,
     )?;
 
-    if has_item_shell {
+    if has_item_clause {
         write_dependency_from_target_clause(f, node_id, target)?;
     } else {
         write_dependency_direct_target_clause(f, node_id, target)?;
@@ -1410,7 +1441,7 @@ pub(crate) fn format_import_expression<'ast>(
     attributes: Option<&ImportAttributeClause>,
     arguments: Option<&[LocalNodeId<Argument>]>,
 ) -> FormatResult<()> {
-    let has_item_shell = items.is_some();
+    let has_item_clause = items.is_some();
     let items = items.unwrap_or(&[]);
 
     if format_import_call_expression(f, source, target, arguments)? {
@@ -1430,7 +1461,15 @@ pub(crate) fn format_import_expression<'ast>(
         return write_import_equals_expression(f, kind, target, items);
     }
 
-    write_import_declaration_expression(f, node_id, kind, target, items, has_item_shell, attributes)
+    write_import_declaration_expression(
+        f,
+        node_id,
+        kind,
+        target,
+        items,
+        has_item_clause,
+        attributes,
+    )
 }
 
 /// Write one export declaration body.
@@ -1438,7 +1477,7 @@ fn write_export_declaration_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     kind: DependencyKind,
-    target: Option<destack_core::StringId>,
+    target: Option<StringId>,
     items: &[LocalNodeId<DependencyItem>],
     attributes: Option<&ImportAttributeClause>,
 ) -> FormatResult<()> {
@@ -1480,7 +1519,7 @@ pub(crate) fn format_export_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     kind: DependencyKind,
-    target: Option<destack_core::StringId>,
+    target: Option<StringId>,
     items: &[LocalNodeId<DependencyItem>],
     attributes: Option<&ImportAttributeClause>,
 ) -> FormatResult<()> {

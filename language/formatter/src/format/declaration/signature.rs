@@ -3,6 +3,7 @@ use crate::format::annotation::{
     prefix_annotations,
 };
 use crate::format::collection::{TrailingSeparator, separated_entries};
+use crate::format::expression::write_type_expression_node;
 use crate::format::operator::{
     write_colon_prefixed_type_annotation, write_type_annotation_prefix,
     write_type_expression_with_inline_prefix_annotations,
@@ -13,6 +14,7 @@ use destack_ast::{
     GenericParameter, Keyword, LocalNodeId, Node, NodeTree, NodeTreeImpl, Parameter, Pattern,
     TokenType, TypeExpression, VarianceModifier, Visibility, WhereClause,
 };
+use destack_core::StringId;
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
@@ -113,18 +115,10 @@ pub(crate) fn write_type_parameter_constraint_and_default<'ast>(
             .get_side_span(node_id, NodeSpanType::Type)
             .expect("generic parameter constraint should have a type span");
         let group_id = f.group_id("constraint");
-        let separator_start = f
-            .context()
-            .previous_non_trivia_token_before_span(destack_source::Span::new(
-                f.context().file.id,
-                type_span.start,
-                type_span.start,
-            ))
-            .map_or(type_span.start, |token| token.span.end);
         let leading_comments = f
             .context()
             .comments()
-            .comments_in_range(separator_start, type_span.start)
+            .comments_before(type_span.start)
             .to_vec();
 
         if !leading_comments.is_empty() {
@@ -249,8 +243,20 @@ where
     NodeTree: NodeTreeImpl<T>,
 {
     if let Some(type_span) = f.context().tree.get_side_span(node_id, NodeSpanType::Type) {
+        let return_type_span = f.context().span::<TypeExpression>(return_type);
+        let separator_comments = f
+            .context()
+            .comments()
+            .comments_in_range(type_span.start + 1, return_type_span.start);
+
         write_type_annotation_prefix(f, type_span.start)?;
-        write_type_expression_with_inline_prefix_annotations(f, return_type)
+
+        if !separator_comments.is_empty() {
+            write!(f, [FormatLeadingComments::Comments(separator_comments)])?;
+        }
+
+        let return_type_expression = f.context().tree.get::<TypeExpression>(return_type);
+        write_type_expression_node(f, return_type, return_type_expression, true)
     } else {
         write_colon_prefixed_type_annotation(f, return_type)
     }
@@ -410,7 +416,7 @@ fn single_parameter_has_paren_comments(
 fn write_named_parameter<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     parameter_id: LocalNodeId<Parameter>,
-    name: destack_core::StringId,
+    name: StringId,
     visibility: Option<Visibility>,
     is_readonly: bool,
     is_optional: bool,
@@ -486,7 +492,7 @@ fn write_pattern_parameter<'ast>(
 fn write_variadic_named_parameter<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     parameter_id: LocalNodeId<Parameter>,
-    name: destack_core::StringId,
+    name: StringId,
     visibility: Option<Visibility>,
     is_readonly: bool,
     declared_type: Option<LocalNodeId<TypeExpression>>,

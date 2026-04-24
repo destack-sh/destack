@@ -13,6 +13,7 @@ pub(crate) use self::declaration::{
     format_let_else_statement_expression, format_let_statement_expression,
     format_using_statement_expression,
 };
+pub(crate) use self::function::format_function_declaration;
 pub(crate) use self::lambda::{
     FormatLambdaDeclarationOptions, FunctionCacheMode, GroupedCallArgumentLayout,
     format_lambda_declaration, format_lambda_declaration_with_options,

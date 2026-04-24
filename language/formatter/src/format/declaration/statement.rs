@@ -29,10 +29,13 @@ pub fn statement_list<'ast>(
             return Ok(());
         }
 
-        write!(f, [program_statement_sequence(expressions)])?;
-        if !expressions.is_empty() {
-            write!(f, [hard_line_break()])?;
+        // empty file
+        if expressions.is_empty() {
+            return Ok(());
         }
+
+        write!(f, [program_statement_sequence(expressions)])?;
+        write!(f, [hard_line_break()])?;
 
         Ok(())
     })
@@ -232,7 +235,11 @@ fn empty_block_requires_expanded_layout(
         }
 
         if parent_type == NodeType::Expression {
-            return empty_block_expands_in_expression_shell(context, current_block_id, parent_id);
+            return empty_block_expands_in_expression_container(
+                context,
+                current_block_id,
+                parent_id,
+            );
         }
 
         if parent_type != NodeType::Block {
@@ -249,8 +256,8 @@ fn empty_block_requires_expanded_layout(
     }
 }
 
-/// Return whether one empty block should expand inside its immediate expression shell.
-fn empty_block_expands_in_expression_shell(
+/// Return whether one empty block should expand inside its immediate expression container.
+fn empty_block_expands_in_expression_container(
     context: &DestackFormatContext<'_>,
     block_id: LocalNodeId<Block>,
     parent_expression_id: u32,
@@ -263,19 +270,19 @@ fn empty_block_expands_in_expression_shell(
         return false;
     }
 
-    let Some((shell_id, shell_type)) = context.parent_by_id(parent_expression_id.id) else {
+    let Some((container_id, container_type)) = context.parent_by_id(parent_expression_id.id) else {
         return false;
     };
 
-    if shell_type == NodeType::MatchCase {
+    if container_type == NodeType::MatchCase {
         return true;
     }
-    if shell_type != NodeType::Expression {
+    if container_type != NodeType::Expression {
         return false;
     }
 
-    let shell_expression_id = LocalNodeId::<Expression>::new(shell_id);
-    match context.tree.get(shell_expression_id) {
+    let container_expression_id = LocalNodeId::<Expression>::new(container_id);
+    match context.tree.get(container_expression_id) {
         Expression::If {
             then_expression,
             else_expression,
