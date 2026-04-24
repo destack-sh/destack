@@ -1,19 +1,43 @@
-use destack_heap::{Heap, ManagedReference, ReferenceMap, Value};
+use crate::Value;
+use crate::tests::create_empty_test_heap;
+use destack_heap::{Heap, HeapError, HeapReference, Payload};
+use destack_mir::{Layout, LayoutId, LayoutKind, ReferenceMap};
 
-/// Allocate one empty managed cell for tests.
-fn allocate(heap: &mut Heap) -> ManagedReference {
-    heap.allocate_managed_zeroed(0, destack_heap::ReferenceMap::empty(), None)
-        .expect("managed allocation should succeed")
+/// Register one managed test layout.
+fn register_layout(heap: &mut Heap, byte_len: usize, reference_map: ReferenceMap) -> LayoutId {
+    heap.register_layout(Layout {
+        kind: LayoutKind::Struct,
+        size: byte_len as u32,
+        alignment: 1,
+        reference_map,
+        fields: Vec::new(),
+    })
+}
+
+/// Allocate one zero-byte managed cell for tests.
+fn allocate_empty(heap: &mut Heap) -> HeapReference {
+    let layout_id = register_layout(heap, 0, ReferenceMap::empty());
+
+    heap.allocate(layout_id, Payload::Zeroed)
+        .expect("heap allocation should succeed")
+}
+
+/// Allocate one managed cell for tests.
+fn allocate(heap: &mut Heap) -> HeapReference {
+    let layout_id = register_layout(heap, 1, ReferenceMap::empty());
+
+    heap.allocate(layout_id, Payload::Bytes(&[0]))
+        .expect("heap allocation should succeed")
 }
 
 /// Allocate one managed cell with values for tests.
-fn allocate_with_values(heap: &mut Heap, values: Vec<Value>) -> ManagedReference {
+fn allocate_with_values(heap: &mut Heap, values: Vec<Value>) -> HeapReference {
     let mut bytes = Vec::with_capacity(values.len() * Value::BYTE_LEN);
     let mut offsets = Vec::new();
 
     // encode one explicit value-backed payload
     for (index, value) in values.into_iter().enumerate() {
-        if value.as_managed_reference().is_some() {
+        if value.as_heap_reference().is_some() {
             offsets.push((index * Value::BYTE_LEN) as u32);
         }
 
@@ -23,125 +47,194 @@ fn allocate_with_values(heap: &mut Heap, values: Vec<Value>) -> ManagedReference
     let reference_map = if offsets.is_empty() {
         ReferenceMap::empty()
     } else {
-        ReferenceMap::ValueOffsets {
-            offsets: offsets.into_boxed_slice(),
+        ReferenceMap::Reference {
+            local_offsets: offsets.into_boxed_slice(),
+            shared_offsets: Vec::new().into_boxed_slice(),
         }
     };
+    let layout_id = register_layout(heap, bytes.len(), reference_map);
 
-    heap.allocate_managed_bytes(&bytes, reference_map, None)
-        .expect("managed allocation should succeed")
+    heap.allocate(layout_id, Payload::Bytes(&bytes))
+        .expect("heap allocation should succeed")
 }
 
 /// Return whether one managed cell exists.
-fn contains(heap: &Heap, reference: ManagedReference) -> bool {
-    heap.is_managed_allocated(reference)
+fn contains(heap: &Heap, reference: HeapReference) -> bool {
+    heap.is_heap_live(reference)
 }
 
-/// Return the managed allocation count for tests.
+/// Return the heap allocation count for tests.
 fn allocation_count(heap: &Heap) -> usize {
-    heap.managed_allocation_count()
+    heap.heap_allocation_count()
+}
+
+/// Decode one heap reference from the first packed value lane.
+fn decode_first_heap_reference(bytes: &[u8]) -> HeapReference {
+    let bits = u64::from_le_bytes(
+        bytes[..HeapReference::BYTE_LEN]
+            .try_into()
+            .expect("reference payload should fit"),
+    );
+
+    HeapReference::from_bits(bits as usize)
+}
+
+/// Zero-byte heap allocations still use distinct references.
+#[test]
+fn test_zero_byte_heap_allocations_use_distinct_references() {
+    let mut heap = create_empty_test_heap();
+
+    let first = allocate_empty(&mut heap);
+    let second = allocate_empty(&mut heap);
+    let third = allocate_empty(&mut heap);
+
+    assert_ne!(first, second);
+    assert_ne!(first, third);
+    assert_ne!(second, third);
 }
 
 /// Garbage collection removes cells not reachable from roots.
 #[test]
 fn test_gc_collects_unreachable() {
-    let mut heap = Heap::new();
+    let mut heap = create_empty_test_heap();
 
     let handle1 = allocate(&mut heap);
     let handle2 = allocate(&mut heap);
     let _handle3 = allocate(&mut heap);
+    let mut roots = [handle1, handle2];
 
     assert_eq!(allocation_count(&heap), 3);
 
-    heap.collect_managed_references([handle1, handle2])
-        .expect("managed collection should succeed");
+    heap.collect_full(&mut roots)
+        .expect("heap collection should succeed");
 
     assert_eq!(allocation_count(&heap), 2);
-    assert!(contains(&heap, handle1));
-    assert!(contains(&heap, handle2));
+    assert!(contains(&heap, roots[0]));
+    assert!(contains(&heap, roots[1]));
 }
 
 /// Garbage collection preserves all cells directly referenced as roots.
 #[test]
 fn test_gc_preserves_reachable() {
-    let mut heap = Heap::new();
+    let mut heap = create_empty_test_heap();
 
     let handle1 = allocate(&mut heap);
     let handle2 = allocate(&mut heap);
+    let mut roots = [handle1, handle2];
 
-    heap.collect_managed_references([handle1, handle2])
-        .expect("managed collection should succeed");
+    heap.collect_full(&mut roots)
+        .expect("heap collection should succeed");
 
     assert_eq!(allocation_count(&heap), 2);
-    assert!(contains(&heap, handle1));
-    assert!(contains(&heap, handle2));
+    assert!(contains(&heap, roots[0]));
+    assert!(contains(&heap, roots[1]));
 }
 
 /// Garbage collection follows reference chains to preserve indirectly reachable cells.
 #[test]
 fn test_gc_follows_references() {
-    let mut heap = Heap::new();
+    let mut heap = create_empty_test_heap();
 
     let child2 = allocate(&mut heap);
-    let child1 = allocate_with_values(&mut heap, vec![Value::managed_reference(child2)]);
-    let root = allocate_with_values(&mut heap, vec![Value::managed_reference(child1)]);
+    let child1 = allocate_with_values(&mut heap, vec![Value::heap_reference(child2)]);
+    let root = allocate_with_values(&mut heap, vec![Value::heap_reference(child1)]);
     let _unreachable = allocate(&mut heap);
+    let mut roots = [root];
 
     assert_eq!(allocation_count(&heap), 4);
 
-    heap.collect_managed_references([root])
-        .expect("managed collection should succeed");
+    heap.collect_full(&mut roots)
+        .expect("heap collection should succeed");
+
+    // full collection should rewrite young roots into stable storage
+    let rewritten_root = roots[0];
+    let rewritten_child1 = decode_first_heap_reference(
+        &heap
+            .read_heap_bytes(rewritten_root)
+            .expect("rewritten root should read"),
+    );
+    let rewritten_child2 = decode_first_heap_reference(
+        &heap
+            .read_heap_bytes(rewritten_child1)
+            .expect("rewritten child should read"),
+    );
 
     assert_eq!(allocation_count(&heap), 3);
-    assert!(contains(&heap, root));
-    assert!(contains(&heap, child1));
-    assert!(contains(&heap, child2));
+    assert_ne!(rewritten_root, root);
+    assert_ne!(rewritten_child1, child1);
+    assert_ne!(rewritten_child2, child2);
+    assert!(!contains(&heap, root));
+    assert!(!contains(&heap, child1));
+    assert!(!contains(&heap, child2));
+    assert!(contains(&heap, rewritten_root));
+    assert_eq!(
+        heap.read_heap_bytes(rewritten_child2),
+        Ok(vec![0]),
+        "rewritten tail should still decode"
+    );
 }
 
 /// Garbage collection correctly handles cyclic reference structures.
 #[test]
 fn test_gc_handles_cycles() {
-    let mut heap = Heap::new();
+    let mut heap = create_empty_test_heap();
 
+    let layout_id = register_layout(
+        &mut heap,
+        Value::BYTE_LEN,
+        ReferenceMap::Reference {
+            local_offsets: vec![0].into_boxed_slice(),
+            shared_offsets: Vec::new().into_boxed_slice(),
+        },
+    );
     let a = heap
-        .allocate_managed_zeroed(
-            Value::BYTE_LEN,
-            ReferenceMap::ValueOffsets {
-                offsets: vec![0].into_boxed_slice(),
-            },
-            None,
-        )
-        .expect("managed allocation should succeed");
+        .allocate(layout_id, Payload::Zeroed)
+        .expect("heap allocation should succeed");
     let b = heap
-        .allocate_managed_zeroed(
-            Value::BYTE_LEN,
-            ReferenceMap::ValueOffsets {
-                offsets: vec![0].into_boxed_slice(),
-            },
-            None,
-        )
-        .expect("managed allocation should succeed");
+        .allocate(layout_id, Payload::Zeroed)
+        .expect("heap allocation should succeed");
 
-    assert!(heap.set_managed_bytes(a, 0, &Value::managed_reference(b).to_byte_array()));
-    assert!(heap.set_managed_bytes(b, 0, &Value::managed_reference(a).to_byte_array()));
+    heap.write_heap_bytes(a, 0, &Value::heap_reference(b).to_byte_array())
+        .expect("managed byte write should succeed");
+    heap.write_heap_bytes(b, 0, &Value::heap_reference(a).to_byte_array())
+        .expect("managed byte write should succeed");
 
     let _unreachable1 = allocate(&mut heap);
     let _unreachable2 = allocate(&mut heap);
+    let mut roots = [a];
 
     assert_eq!(allocation_count(&heap), 4);
 
-    heap.collect_managed_references([a])
-        .expect("managed collection should succeed");
+    heap.collect_full(&mut roots)
+        .expect("heap collection should succeed");
+
+    // full collection should preserve the rewritten cycle exactly
+    let rewritten_a = roots[0];
+    let rewritten_b = decode_first_heap_reference(
+        &heap
+            .read_heap_bytes(rewritten_a)
+            .expect("rewritten cycle head should read"),
+    );
+    let cycle_back = decode_first_heap_reference(
+        &heap
+            .read_heap_bytes(rewritten_b)
+            .expect("rewritten cycle tail should read"),
+    );
 
     assert_eq!(allocation_count(&heap), 2);
-    assert!(contains(&heap, a));
-    assert!(contains(&heap, b));
+    assert_ne!(rewritten_a, a);
+    assert_ne!(rewritten_b, b);
+    assert!(!contains(&heap, a));
+    assert!(!contains(&heap, b));
+    assert!(contains(&heap, rewritten_a));
+    assert!(contains(&heap, rewritten_b));
+    assert_eq!(cycle_back, rewritten_a);
 }
 
-/// Garbage collection with no roots removes all managed allocations.
+/// Garbage collection with no roots removes all heap allocations.
 #[test]
 fn test_gc_empty_roots() {
-    let mut heap = Heap::new();
+    let mut heap = create_empty_test_heap();
 
     allocate(&mut heap);
     allocate(&mut heap);
@@ -149,8 +242,8 @@ fn test_gc_empty_roots() {
 
     assert_eq!(allocation_count(&heap), 3);
 
-    heap.collect_managed_references([])
-        .expect("managed collection should succeed");
+    heap.collect_full(&mut [])
+        .expect("heap collection should succeed");
 
     assert_eq!(allocation_count(&heap), 0);
 }
@@ -158,61 +251,104 @@ fn test_gc_empty_roots() {
 /// Garbage collection preserves cells referenced by multiple holders.
 #[test]
 fn test_gc_multiple_references_to_same_cell() {
-    let mut heap = Heap::new();
+    let mut heap = create_empty_test_heap();
 
     let shared = allocate(&mut heap);
-    let holder1 = allocate_with_values(&mut heap, vec![Value::managed_reference(shared)]);
-    let holder2 = allocate_with_values(&mut heap, vec![Value::managed_reference(shared)]);
+    let holder1 = allocate_with_values(&mut heap, vec![Value::heap_reference(shared)]);
+    let holder2 = allocate_with_values(&mut heap, vec![Value::heap_reference(shared)]);
+    let mut roots = [holder1, holder2];
 
     assert_eq!(allocation_count(&heap), 3);
 
-    heap.collect_managed_references([holder1, holder2])
-        .expect("managed collection should succeed");
+    heap.collect_full(&mut roots)
+        .expect("heap collection should succeed");
+
+    // both rewritten holders should still agree on one rewritten child
+    let rewritten_child1 = decode_first_heap_reference(
+        &heap
+            .read_heap_bytes(roots[0])
+            .expect("first rewritten holder should read"),
+    );
+    let rewritten_child2 = decode_first_heap_reference(
+        &heap
+            .read_heap_bytes(roots[1])
+            .expect("second rewritten holder should read"),
+    );
 
     assert_eq!(allocation_count(&heap), 3);
-    assert!(contains(&heap, shared));
-    assert!(contains(&heap, holder1));
-    assert!(contains(&heap, holder2));
+    assert!(contains(&heap, roots[0]));
+    assert!(contains(&heap, roots[1]));
+    assert_ne!(rewritten_child1, shared);
+    assert_eq!(rewritten_child1, rewritten_child2);
+    assert!(!contains(&heap, shared));
+    assert_eq!(heap.read_heap_bytes(rewritten_child1), Ok(vec![0]));
 }
 
 /// Garbage collection traces references nested inside aggregate values.
 #[test]
 fn test_gc_handles_aggregates() {
-    let mut heap = Heap::new();
+    let mut heap = create_empty_test_heap();
 
     let child = allocate(&mut heap);
     let inner_agg = allocate_with_values(
         &mut heap,
-        vec![Value::int32(42), Value::managed_reference(child)],
+        vec![Value::int32(42), Value::heap_reference(child)],
     );
-    let parent = allocate_with_values(&mut heap, vec![Value::managed_reference(inner_agg)]);
+    let parent = allocate_with_values(&mut heap, vec![Value::heap_reference(inner_agg)]);
 
     let _unreachable = allocate(&mut heap);
+    let mut roots = [parent];
 
     assert_eq!(allocation_count(&heap), 4);
 
-    heap.collect_managed_references([parent])
-        .expect("managed collection should succeed");
+    heap.collect_full(&mut roots)
+        .expect("heap collection should succeed");
+
+    // rewritten aggregate links should still decode the nested child
+    let rewritten_parent = roots[0];
+    let rewritten_inner = decode_first_heap_reference(
+        &heap
+            .read_heap_bytes(rewritten_parent)
+            .expect("rewritten parent should read"),
+    );
+    let inner_bytes = heap
+        .read_heap_bytes(rewritten_inner)
+        .expect("rewritten aggregate payload should read");
+    let rewritten_child = decode_first_heap_reference(&inner_bytes[Value::BYTE_LEN..]);
 
     assert_eq!(allocation_count(&heap), 3);
-    assert!(contains(&heap, parent));
-    assert!(contains(&heap, inner_agg));
-    assert!(contains(&heap, child));
+    assert_ne!(rewritten_parent, parent);
+    assert_ne!(rewritten_inner, inner_agg);
+    assert_ne!(rewritten_child, child);
+    assert!(!contains(&heap, parent));
+    assert!(!contains(&heap, inner_agg));
+    assert!(!contains(&heap, child));
+    assert!(contains(&heap, rewritten_parent));
+    assert_eq!(
+        Value::from_byte_slice(&inner_bytes[..Value::BYTE_LEN]),
+        Some(Value::int32(42))
+    );
+    assert_eq!(heap.read_heap_bytes(rewritten_child), Ok(vec![0]));
 }
 
-/// Garbage collection ignores invalid references in the roots list.
+/// Garbage collection rejects invalid references in the roots list.
 #[test]
-fn test_gc_invalid_root_ignored() {
-    let mut heap = Heap::new();
+fn test_gc_invalid_root_fails() {
+    let mut heap = create_empty_test_heap();
 
     let valid = allocate(&mut heap);
-    let invalid = ManagedReference::new(9999);
+    let invalid = HeapReference::new(9999);
 
     assert_eq!(allocation_count(&heap), 1);
 
-    heap.collect_managed_references([valid, invalid])
-        .expect("managed collection should succeed");
+    let error = heap
+        .collect_full(&mut [valid, invalid])
+        .expect_err("invalid roots should fail collection");
 
+    assert_eq!(
+        error,
+        HeapError::InvalidHeapReference { reference: invalid }
+    );
     assert_eq!(allocation_count(&heap), 1);
     assert!(contains(&heap, valid));
 }
@@ -220,19 +356,20 @@ fn test_gc_invalid_root_ignored() {
 /// Repeated garbage collections correctly remove newly allocated garbage.
 #[test]
 fn test_gc_repeated_collection() {
-    let mut heap = Heap::new();
+    let mut heap = create_empty_test_heap();
 
     let root = allocate(&mut heap);
     let _garbage = allocate(&mut heap);
+    let mut roots = [root];
 
-    heap.collect_managed_references([root])
-        .expect("managed collection should succeed");
+    heap.collect_full(&mut roots)
+        .expect("heap collection should succeed");
     assert_eq!(allocation_count(&heap), 1);
 
     let _more_garbage = allocate(&mut heap);
     let _even_more = allocate(&mut heap);
 
-    heap.collect_managed_references([root])
-        .expect("managed collection should succeed");
+    heap.collect_full(&mut roots)
+        .expect("heap collection should succeed");
     assert_eq!(allocation_count(&heap), 1);
 }

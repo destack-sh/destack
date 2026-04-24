@@ -1,7 +1,13 @@
 //! Tests for intrinsic execution.
 
-use crate::tests::{run_mir, run_mir_expect, run_mir_ok, run_mir_with_ok};
-use destack_heap::{STRING_TYPE_ALIAS, Value};
+use crate::diagnostic::Error;
+use crate::tests::{
+    assert_materialized_plain, assert_runtime_error_matches, run_mir, run_mir_expect, run_mir_ok,
+    run_mir_with, run_mir_with_ok,
+};
+use crate::{Value, ValueTag};
+use destack_heap::Payload;
+use destack_mir as mir;
 
 // bit manipulation
 
@@ -105,7 +111,7 @@ b0(v0: int32, v1: int32):
     return v3
 }"#;
     let output = run_mir_ok(mir, "testResult", &[Value::int32(10), Value::int32(20)]);
-    assert_eq!(output.value, Value::int32(30));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(30));
 
     // test no overflow flag
     let mir = r#"
@@ -116,7 +122,7 @@ b0(v0: int32, v1: int32):
     return v3
 }"#;
     let output = run_mir_ok(mir, "testFlag", &[Value::int32(10), Value::int32(20)]);
-    assert_eq!(output.value, Value::bool(false));
+    assert_eq!(assert_materialized_plain(&output.value), Value::bool(false));
 }
 
 #[test]
@@ -131,7 +137,7 @@ b0(v0: int32, v1: int32):
 }"#;
     let output = run_mir_ok(mir, "test", &[Value::int32(i32::MAX), Value::int32(1)]);
     assert_eq!(
-        output.value,
+        assert_materialized_plain(&output.value),
         Value::bool(true),
         "expected overflow flag to be true"
     );
@@ -149,7 +155,7 @@ b0(v0: uint32, v1: uint32):
 }"#;
     let output = run_mir_ok(mir, "test", &[Value::uint32(0), Value::uint32(1)]);
     assert_eq!(
-        output.value,
+        assert_materialized_plain(&output.value),
         Value::bool(true),
         "expected overflow flag to be true"
     );
@@ -571,6 +577,117 @@ b0(v0: int32):
     run_mir_expect(mir, "test", &[Value::int32(42)], Value::int32(42));
 }
 
+#[test]
+fn test_intrinsic_write_barrier_local_managed() {
+    let mir = r#"
+function test(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64): boolean {
+b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
+    intrinsic.writeBarrier(v0, v1, v2)
+    v3: boolean = true
+    return v3
+}"#;
+    run_mir_with(mir, "test", |isolate| {
+        let reference_type = isolate.parameter_type("test", 0);
+        let pointee_type = match isolate.isolate.tree().get(reference_type) {
+            mir::Type::Reference { pointee, .. } => pointee
+                .ty()
+                .expect("test parameter pointee should be concrete"),
+            _ => panic!("test parameter should be one heap reference"),
+        };
+        let layout_id = isolate
+            .isolate
+            .layout_id_for_type(pointee_type)
+            .expect("managed pointee should have one layout");
+        let handle = isolate
+            .heap
+            .allocate(layout_id, Payload::Zeroed)
+            .expect("heap allocation should succeed");
+
+        vec![
+            Value::heap_reference(handle),
+            Value::uint64(0),
+            Value::uint64(4),
+        ]
+    })
+    .expect("write barrier should succeed");
+}
+
+#[test]
+fn test_intrinsic_write_barrier_shared_managed() {
+    let mir = r#"
+function test(v0: ref<int32, managed, readonly, addressSpace(shared)>, v1: uint64, v2: uint64): boolean {
+b0(v0: ref<int32, managed, readonly, addressSpace(shared)>, v1: uint64, v2: uint64):
+    intrinsic.writeBarrier(v0, v1, v2)
+    v3: boolean = true
+    return v3
+}"#;
+    let output = run_mir_with_ok(mir, "test", |isolate| {
+        let reference_type = isolate.parameter_type("test", 0);
+        let pointee_type = match isolate.isolate.tree().get(reference_type) {
+            mir::Type::Reference { pointee, .. } => pointee
+                .ty()
+                .expect("test parameter pointee should be concrete"),
+            _ => panic!("test parameter should be one shared heap reference"),
+        };
+        let layout_id = isolate
+            .isolate
+            .layout_id_for_type(pointee_type)
+            .expect("shared managed pointee should have one layout");
+        let handle = isolate
+            .shared
+            .allocate(layout_id, Payload::Zeroed)
+            .expect("shared heap allocation should succeed");
+
+        vec![
+            Value::shared_heap_reference(handle),
+            Value::uint64(0),
+            Value::uint64(4),
+        ]
+    });
+
+    let value = assert_materialized_plain(&output.value);
+    assert_eq!(value.tag(), ValueTag::Bool);
+    assert_eq!(value, Value::bool(true));
+}
+
+#[test]
+fn test_intrinsic_write_barrier_rejects_invalid_range() {
+    let mir = r#"
+function test(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64): void {
+b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
+    intrinsic.writeBarrier(v0, v1, v2)
+    return
+}"#;
+    let result = run_mir_with(mir, "test", |isolate| {
+        let reference_type = isolate.parameter_type("test", 0);
+        let pointee_type = match isolate.isolate.tree().get(reference_type) {
+            mir::Type::Reference { pointee, .. } => pointee
+                .ty()
+                .expect("test parameter pointee should be concrete"),
+            _ => panic!("test parameter should be one heap reference"),
+        };
+        let layout_id = isolate
+            .isolate
+            .layout_id_for_type(pointee_type)
+            .expect("managed pointee should have one layout");
+        let handle = isolate
+            .heap
+            .allocate(layout_id, Payload::Zeroed)
+            .expect("heap allocation should succeed");
+
+        vec![
+            Value::heap_reference(handle),
+            Value::uint64(4),
+            Value::uint64(1),
+        ]
+    });
+
+    assert_runtime_error_matches!(
+        result,
+        Error::Panic { ref message } if message.contains("invalid heap byte range")
+    );
+}
+
 // comparison
 
 #[test]
@@ -643,18 +760,13 @@ b0(v0: int32):
 
 #[test]
 fn test_terminator_trap_panic() {
-    let mir = [
-        STRING_TYPE_ALIAS,
-        r#"
-global message: ref<String, managed, readonly>, readonly = "boom"
+    let mir = r#"
 function test(): void {
 b0:
-    v0: ref<String, managed, readonly> = global.const message
+    v0: ref<int32, managed, readonly> = new int32
     trap.panic v0
 }
-"#,
-    ]
-    .concat();
+"#;
     let result = run_mir(&mir, "test", &[]);
     assert!(result.is_err(), "expected panic error");
 }
@@ -691,7 +803,9 @@ b0:
 }"#;
     // should return non-zero since there's a caller
     let output = run_mir_ok(mir, "test", &[]);
-    let (value, width) = output.value.as_uint_with_width().expect("expected UInt");
+    let (value, width) = assert_materialized_plain(&output.value)
+        .as_uint_with_width()
+        .expect("expected UInt");
     assert_eq!(width, 64);
     assert!(value != 0, "expected non-zero return address");
 }
@@ -723,7 +837,9 @@ b0:
     return v0
 }"#;
     let output = run_mir_ok(mir, "test", &[]);
-    let (value, width) = output.value.as_uint_with_width().expect("expected UInt");
+    let (value, width) = assert_materialized_plain(&output.value)
+        .as_uint_with_width()
+        .expect("expected UInt");
     assert_eq!(width, 64);
     // should have high bits set (0x7FFF_0000_0000_0000) plus frame index
     assert!(
@@ -755,7 +871,7 @@ b0(v0: vector<int32, 4>):
         );
         vec![input]
     });
-    assert_eq!(output.value, Value::int32(10));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(10));
 }
 
 #[test]
@@ -779,7 +895,7 @@ b0(v0: vector<int32, 4>):
         );
         vec![input]
     });
-    assert_eq!(output.value, Value::int32(120));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(120));
 }
 
 #[test]
@@ -803,7 +919,7 @@ b0(v0: vector<int32, 4>):
         );
         vec![input]
     });
-    assert_eq!(output.value, Value::int32(1));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(1));
 }
 
 #[test]
@@ -827,7 +943,7 @@ b0(v0: vector<int32, 4>):
         );
         vec![input]
     });
-    assert_eq!(output.value, Value::int32(8));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(8));
 }
 
 #[test]
@@ -851,7 +967,10 @@ b0(v0: vector<uint32, 4>):
         );
         vec![input]
     });
-    assert_eq!(output.value, Value::uint32(0b1000));
+    assert_eq!(
+        assert_materialized_plain(&output.value),
+        Value::uint32(0b1000)
+    );
 }
 
 #[test]
@@ -875,7 +994,10 @@ b0(v0: vector<uint32, 4>):
         );
         vec![input]
     });
-    assert_eq!(output.value, Value::uint32(0b1111));
+    assert_eq!(
+        assert_materialized_plain(&output.value),
+        Value::uint32(0b1111)
+    );
 }
 
 #[test]
@@ -900,5 +1022,5 @@ b0(v0: vector<uint32, 4>):
         );
         vec![input]
     });
-    assert_eq!(output.value, Value::uint32(4));
+    assert_eq!(assert_materialized_plain(&output.value), Value::uint32(4));
 }

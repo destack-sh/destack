@@ -1,9 +1,9 @@
+use crate::Value;
 use crate::diagnostic::Error;
 use crate::tests::{
-    assert_execution_completed, assert_execution_yielded, assert_runtime_error_matches,
-    create_isolate,
+    assert_execution_completed, assert_execution_yielded, assert_materialized_plain,
+    assert_runtime_error_matches, create_isolate,
 };
-use destack_heap::Value;
 
 /// Yield returns a value and resumes with the provided argument.
 #[test]
@@ -23,17 +23,16 @@ b1(v2: int32, v3: int32):
     let mut isolate = create_isolate(mir);
 
     // start coroutine and capture yield
-    let yielded = assert_execution_yielded(
+    let (continuation, value) = assert_execution_yielded(
         isolate.run_function_by_name_yielding("yieldOnce", &[Value::int32(7)]),
     );
 
     // verify yielded value
-    assert_eq!(yielded.value, Value::int32(5));
-    let continuation = yielded.continuation;
+    assert_eq!(assert_materialized_plain(&value), Value::int32(5));
 
     // resume with a value and verify completion
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(11)));
-    assert_eq!(output.value, Value::int32(18));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(18));
 }
 
 /// Yield ignores the resume value when no slot is available.
@@ -53,17 +52,16 @@ b1(v2: int32, v3: int32):
     let mut isolate = create_isolate(mir);
 
     // start coroutine and capture yield
-    let yielded = assert_execution_yielded(
+    let (continuation, value) = assert_execution_yielded(
         isolate.run_function_by_name_yielding("yieldIgnore", &[Value::int32(9)]),
     );
 
     // verify yielded value
-    assert_eq!(yielded.value, Value::int32(1));
-    let continuation = yielded.continuation;
+    assert_eq!(assert_materialized_plain(&value), Value::int32(1));
 
     // resume and verify the resume value is ignored
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(100)));
-    assert_eq!(output.value, Value::int32(9));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(9));
 }
 
 /// Yield can suspend multiple times and resume with new values.
@@ -87,24 +85,23 @@ b2(v5: int32, v6: int32):
     let mut isolate = create_isolate(mir);
 
     // start coroutine and capture first yield
-    let yielded = assert_execution_yielded(
+    let (continuation, value) = assert_execution_yielded(
         isolate.run_function_by_name_yielding("yieldTwice", &[Value::int32(4)]),
     );
 
     // verify first yielded value
-    assert_eq!(yielded.value, Value::int32(2));
-    let continuation = yielded.continuation;
+    assert_eq!(assert_materialized_plain(&value), Value::int32(2));
 
     // resume for second yield
-    let yielded = assert_execution_yielded(isolate.resume(continuation, Value::int32(3)));
+    let (continuation, value) =
+        assert_execution_yielded(isolate.resume(continuation, Value::int32(3)));
 
     // verify second yielded value
-    assert_eq!(yielded.value, Value::int32(7));
-    let continuation = yielded.continuation;
+    assert_eq!(assert_materialized_plain(&value), Value::int32(7));
 
     // resume for completion
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(10)));
-    assert_eq!(output.value, Value::int32(17));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(17));
 }
 
 /// Yield resumes without explicit resume arguments.
@@ -124,17 +121,16 @@ b1(v2: int32):
     let mut isolate = create_isolate(mir);
 
     // start coroutine and capture yield
-    let yielded = assert_execution_yielded(
+    let (continuation, value) = assert_execution_yielded(
         isolate.run_function_by_name_yielding("yieldNoArgs", &[Value::int32(3)]),
     );
 
     // verify yielded value
-    assert_eq!(yielded.value, Value::int32(4));
-    let continuation = yielded.continuation;
+    assert_eq!(assert_materialized_plain(&value), Value::int32(4));
 
     // resume and verify resumed value is returned
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(9)));
-    assert_eq!(output.value, Value::int32(9));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(9));
 }
 
 /// Yield preserves locals across suspension.
@@ -158,17 +154,16 @@ b1(v2: int32):
     let mut isolate = create_isolate(mir);
 
     // start coroutine and capture yield
-    let yielded = assert_execution_yielded(
+    let (continuation, value) = assert_execution_yielded(
         isolate.run_function_by_name_yielding("yieldWithLocal", &[Value::int32(1)]),
     );
 
     // verify yielded value
-    assert_eq!(yielded.value, Value::int32(4));
-    let continuation = yielded.continuation;
+    assert_eq!(assert_materialized_plain(&value), Value::int32(4));
 
     // resume and verify local survives
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(6)));
-    assert_eq!(output.value, Value::int32(10));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(10));
 }
 
 /// Yield resumes with explicit arguments and a trailing resume value.
@@ -191,17 +186,16 @@ b1(v3: int32, v4: int32, v5: int32):
     let mut isolate = create_isolate(mir);
 
     // start coroutine and capture yield
-    let yielded = assert_execution_yielded(
+    let (continuation, value) = assert_execution_yielded(
         isolate.run_function_by_name_yielding("yieldPrefix", &[Value::int32(5)]),
     );
 
     // verify yielded value
-    assert_eq!(yielded.value, Value::int32(10));
-    let continuation = yielded.continuation;
+    assert_eq!(assert_materialized_plain(&value), Value::int32(10));
 
     // resume and verify argument ordering
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(7)));
-    assert_eq!(output.value, Value::int32(32));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(32));
 }
 
 /// Yield clears trailing resume parameters when no argument is provided.
@@ -229,17 +223,16 @@ b3(v12: int32):
     let mut isolate = create_isolate(mir);
 
     // start coroutine and capture yield
-    let yielded = assert_execution_yielded(
+    let (continuation, value) = assert_execution_yielded(
         isolate.run_function_by_name_yielding("yieldTrailing", &[Value::int32(2)]),
     );
 
     // verify yielded value
-    assert_eq!(yielded.value, Value::int32(3));
-    let continuation = yielded.continuation;
+    assert_eq!(assert_materialized_plain(&value), Value::int32(3));
 
     // resume with a value that triggers the return path
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(0)));
-    assert_eq!(output.value, Value::int32(0));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(0));
 }
 
 /// Yield in a nested call resumes back to the caller.
@@ -266,17 +259,16 @@ b0(v0: int32):
     let mut isolate = create_isolate(mir);
 
     // start coroutine and capture yield
-    let yielded = assert_execution_yielded(
+    let (continuation, value) = assert_execution_yielded(
         isolate.run_function_by_name_yielding("outer", &[Value::int32(5)]),
     );
 
     // verify yielded value
-    assert_eq!(yielded.value, Value::int32(5));
-    let continuation = yielded.continuation;
+    assert_eq!(assert_materialized_plain(&value), Value::int32(5));
 
     // resume and verify completion
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(7)));
-    assert_eq!(output.value, Value::int32(13));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(13));
 }
 
 /// Yield preserves one pending exceptional call continuation across suspension.
@@ -309,17 +301,16 @@ b2(v5: ref<void, managed, readonly>):
     let mut isolate = create_isolate(mir);
 
     // start coroutine and capture the inner yield
-    let yielded = assert_execution_yielded(
+    let (continuation, value) = assert_execution_yielded(
         isolate.run_function_by_name_yielding("caller", &[Value::int32(7)]),
     );
 
     // verify yielded value
-    assert_eq!(yielded.value, Value::int32(5));
-    let continuation = yielded.continuation;
+    assert_eq!(assert_materialized_plain(&value), Value::int32(5));
 
     // resume and verify the outer success continuation still runs
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(3)));
-    assert_eq!(output.value, Value::int32(20));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(20));
 }
 
 /// Yield preserves live frame-local stack storage in the yielded frame.
@@ -340,12 +331,12 @@ b1(v2: int32):
     let mut isolate = create_isolate(mir);
 
     // suspend and resume with live stack-local storage
-    let yielded =
+    let (continuation, value) =
         assert_execution_yielded(isolate.run_function_by_name_yielding("yieldStackLocal", &[]));
-    assert_eq!(yielded.value, Value::int32(1));
+    assert_eq!(assert_materialized_plain(&value), Value::int32(1));
 
-    let output = assert_execution_completed(isolate.resume(yielded.continuation, Value::int32(7)));
-    assert_eq!(output.value, Value::int32(7));
+    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(7)));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(7));
 }
 
 /// Yield accepts stack allocation after the lifetime is explicitly ended.
@@ -367,10 +358,10 @@ b1(v2: int32):
     let mut isolate = create_isolate(mir);
 
     // allow suspension after the stack allocation is retired
-    let yielded = assert_execution_yielded(
+    let (_continuation, value) = assert_execution_yielded(
         isolate.run_function_by_name_yielding("yieldRetiredStackLocal", &[]),
     );
-    assert_eq!(yielded.value, Value::int32(1));
+    assert_eq!(assert_materialized_plain(&value), Value::int32(1));
 }
 
 /// Yield preserves live frame-local stack storage in suspended caller frames.
@@ -395,26 +386,26 @@ b0(v0: int32):
     let mut isolate = create_isolate(mir);
 
     // suspend and resume with caller-owned stack-local storage
-    let yielded = assert_execution_yielded(
+    let (continuation, value) = assert_execution_yielded(
         isolate.run_function_by_name_yielding("outerWithStackLocal", &[Value::int32(5)]),
     );
-    assert_eq!(yielded.value, Value::int32(5));
+    assert_eq!(assert_materialized_plain(&value), Value::int32(5));
 
-    let output = assert_execution_completed(isolate.resume(yielded.continuation, Value::int32(9)));
-    assert_eq!(output.value, Value::int32(9));
+    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(9)));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(9));
 }
 
-/// Yield preserves live frame-local pointers in the yielded frame.
+/// Yield preserves live frame pointers in the yielded frame.
 #[test]
-fn test_yield_preserves_local_pointer_in_current_frame() {
+fn test_yield_preserves_frame_pointer_in_current_frame() {
     // define mir program
     let mir = r#"
-function yieldLocalPointer(): int32 {
+function yieldFramePointer(): int32 {
     local local0: int32, owned
 b0:
     v0: int32 = 1int32
     local.set local0, v0
-    v1: ref<int32, borrowed, addressSpace(stack)> = local.address local0
+    v1: ref<int32, borrowed, addressSpace(frame)> = local.address local0
     v2: int32 = 2int32
     yield v2, b1
 b1(v3: int32):
@@ -425,13 +416,13 @@ b1(v3: int32):
     // create isolate
     let mut isolate = create_isolate(mir);
 
-    // suspend and resume with live frame-local pointers
-    let yielded =
-        assert_execution_yielded(isolate.run_function_by_name_yielding("yieldLocalPointer", &[]));
-    assert_eq!(yielded.value, Value::int32(2));
+    // suspend and resume with live frame pointers
+    let (continuation, value) =
+        assert_execution_yielded(isolate.run_function_by_name_yielding("yieldFramePointer", &[]));
+    assert_eq!(assert_materialized_plain(&value), Value::int32(2));
 
-    let output = assert_execution_completed(isolate.resume(yielded.continuation, Value::int32(11)));
-    assert_eq!(output.value, Value::int32(1));
+    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(11)));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(1));
 }
 
 /// Running a coroutine with the non-yielding entry reports an error.
@@ -476,10 +467,9 @@ b1(v2: int32, v3: int32):
     let mut isolate = create_isolate(mir);
 
     // start coroutine and capture continuation
-    let yielded = assert_execution_yielded(
+    let (continuation, _value) = assert_execution_yielded(
         isolate.run_function_by_name_yielding("yieldOnce", &[Value::int32(7)]),
     );
-    let continuation = yielded.continuation;
 
     // create a different isolate
     let mut other_isolate = create_isolate(mir);
@@ -508,23 +498,23 @@ b1(v1: int32):
     let mut isolate = create_isolate(mir);
 
     // start coroutine and capture continuation
-    let yielded = assert_execution_yielded(isolate.run_function_by_name_yielding("yieldOnce", &[]));
-    assert_eq!(yielded.value, Value::int32(1));
-    let continuation = yielded.continuation;
+    let (continuation, value) =
+        assert_execution_yielded(isolate.run_function_by_name_yielding("yieldOnce", &[]));
+    assert_eq!(assert_materialized_plain(&value), Value::int32(1));
 
     // clone the continuation for a forked resume
     let forked = continuation.clone_for_fork();
 
     // resume the original continuation
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(5)));
-    assert_eq!(output.value, Value::int32(5));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(5));
 
     // resume the forked continuation
     let output = assert_execution_completed(isolate.resume(forked, Value::int32(9)));
-    assert_eq!(output.value, Value::int32(9));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(9));
 }
 
-/// Continuation roots keep managed allocations alive across yields.
+/// Continuation roots keep heap allocations alive across yields.
 #[test]
 fn test_continuation_roots_keep_allocations() {
     // define mir program
@@ -534,7 +524,7 @@ type Pair {
 }
 function yieldAlloc(): int32 {
 b0:
-    v0: ref<int32, managed, readonly> = managed.alloc int32
+    v0: ref<int32, managed, readonly> = new int32
     v1: int32 = 1int32
     store v0, v1
     v2: Pair = struct Pair (v0)
@@ -549,9 +539,8 @@ b1(v3: Pair, v4: int32):
     let mut isolate = create_isolate(mir);
 
     // start coroutine and capture continuation
-    let yielded =
+    let (continuation, _value) =
         assert_execution_yielded(isolate.run_function_by_name_yielding("yieldAlloc", &[]));
-    let continuation = yielded.continuation;
 
     // collect garbage while continuation is suspended
     let stats = isolate.collect_garbage_with_continuations(std::slice::from_ref(&continuation));
@@ -559,9 +548,54 @@ b1(v3: Pair, v4: int32):
 
     // resume and complete the coroutine
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(7)));
-    assert_eq!(output.value, Value::int32(1));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(1));
 
     // collect garbage after completion
     let stats = isolate.collect_garbage();
     assert_eq!(stats.live_allocations, 0);
+}
+
+/// Continuation images keep heap allocations alive across yields.
+#[test]
+fn test_continuation_image_roots_keep_allocations() {
+    let mir = r#"
+type Pair {
+    ref<int32, managed, readonly>;
+}
+function yieldAlloc(): int32 {
+b0:
+    v0: ref<int32, managed, readonly> = new int32
+    v1: int32 = 1int32
+    store v0, v1
+    v2: Pair = struct Pair (v0)
+    yield v1, b1(v2)
+b1(v3: Pair, v4: int32):
+    v5: ref<int32, managed, readonly> = field.get v3, 0
+    v6: int32 = load v5
+    return v6
+}"#;
+
+    let mut isolate = create_isolate(mir);
+    let (mut continuation, _value) =
+        assert_execution_yielded(isolate.run_function_by_name_yielding("yieldAlloc", &[]));
+    isolate
+        .isolate
+        .stabilize_boundary_continuation(&mut isolate.heap, &mut continuation)
+        .expect("continuation image capture should stabilize escaped refs");
+
+    let image = isolate
+        .isolate
+        .continuation_image(&continuation)
+        .expect("continuation image should capture");
+    let roots = isolate
+        .isolate
+        .continuation_image_root_set(&image)
+        .expect("continuation image roots should collect");
+    let mut heap_roots = roots.heap;
+    let stats = isolate
+        .heap
+        .collect_full(&mut heap_roots)
+        .expect("heap should collect");
+
+    assert_eq!(stats.live_allocations, 1);
 }
