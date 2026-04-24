@@ -129,7 +129,9 @@ impl<'a> DestackFormatContext<'a> {
 
     /// Return the first non-trivia token start for one expression.
     pub fn expression_token_start(&self, expression_id: LocalNodeId<Expression>) -> u32 {
-        self.node_token_start(expression_id)
+        self.tree
+            .get_head_span(expression_id)
+            .map_or_else(|| self.node_token_start(expression_id), |span| span.start)
     }
 
     /// Return the token immediately before one token that starts at the given offset.
