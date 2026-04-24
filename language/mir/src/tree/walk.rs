@@ -203,7 +203,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 visitor.visit_type(tree, result, result_ty);
             }
         }
-        Type::FunctionPointer { signature } | Type::Closure { signature } => {
+        Type::FunctionPointer { signature } | Type::Callable { signature } => {
             if let TypeReference::Type(signature) = *signature {
                 let signature_ty = tree.get(signature);
                 visitor.visit_type(tree, signature, signature_ty);

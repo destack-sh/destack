@@ -1,15 +1,15 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{AddressSpace, MemoryRegionSet};
+use crate::{AddressSpace, MemorySpaceSet};
 
 /// Set of address spaces that an operation may access.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct AddressSpaceMask {
+pub struct AddressSpaceSet {
     /// Address spaces included in the set.
     pub spaces: Vec<AddressSpace>,
 }
 
-impl AddressSpaceMask {
+impl AddressSpaceSet {
     /// Create an address space set from the provided entries.
     pub fn new(spaces: Vec<AddressSpace>) -> Self {
         Self { spaces }
@@ -45,10 +45,10 @@ pub struct MemoryEffect {
     pub reads: bool,
     /// Whether the operation may write memory.
     pub writes: bool,
-    /// The memory regions that may be accessed.
-    pub regions: MemoryRegionSet,
+    /// The memory spaces that may be accessed.
+    pub spaces: MemorySpaceSet,
     /// Optional address space restriction for the access set.
-    pub address_spaces: Option<AddressSpaceMask>,
+    pub address_spaces: Option<AddressSpaceSet>,
     /// True when the operation only touches memory reachable from arguments.
     pub argmemonly: bool,
     /// True when the operation only touches inaccessible memory.
@@ -63,7 +63,7 @@ impl MemoryEffect {
         Self {
             reads: false,
             writes: false,
-            regions: MemoryRegionSet::NONE,
+            spaces: MemorySpaceSet::NONE,
             address_spaces: None,
             argmemonly: false,
             inaccessible_mem_only: false,
@@ -71,12 +71,12 @@ impl MemoryEffect {
         }
     }
 
-    /// Create a read only effect over the provided regions.
-    pub const fn read_only(regions: MemoryRegionSet) -> Self {
+    /// Create a read only effect over the provided spaces.
+    pub const fn read_only(spaces: MemorySpaceSet) -> Self {
         Self {
             reads: true,
             writes: false,
-            regions,
+            spaces,
             address_spaces: None,
             argmemonly: false,
             inaccessible_mem_only: false,
@@ -84,12 +84,12 @@ impl MemoryEffect {
         }
     }
 
-    /// Create a write only effect over the provided regions.
-    pub const fn write_only(regions: MemoryRegionSet) -> Self {
+    /// Create a write only effect over the provided spaces.
+    pub const fn write_only(spaces: MemorySpaceSet) -> Self {
         Self {
             reads: false,
             writes: true,
-            regions,
+            spaces,
             address_spaces: None,
             argmemonly: false,
             inaccessible_mem_only: false,
@@ -97,12 +97,12 @@ impl MemoryEffect {
         }
     }
 
-    /// Create a read write effect over the provided regions.
-    pub const fn read_write(regions: MemoryRegionSet) -> Self {
+    /// Create a read write effect over the provided spaces.
+    pub const fn read_write(spaces: MemorySpaceSet) -> Self {
         Self {
             reads: true,
             writes: true,
-            regions,
+            spaces,
             address_spaces: None,
             argmemonly: false,
             inaccessible_mem_only: false,
@@ -115,7 +115,7 @@ impl MemoryEffect {
         Self {
             reads: true,
             writes: true,
-            regions: MemoryRegionSet::ANY,
+            spaces: MemorySpaceSet::ANY,
             address_spaces: None,
             argmemonly: false,
             inaccessible_mem_only: false,
@@ -124,7 +124,7 @@ impl MemoryEffect {
     }
 
     /// Return this effect with a refined address space set.
-    pub fn with_address_spaces(mut self, address_spaces: AddressSpaceMask) -> Self {
+    pub fn with_address_spaces(mut self, address_spaces: AddressSpaceSet) -> Self {
         self.address_spaces = Some(address_spaces);
         self
     }
@@ -232,20 +232,20 @@ impl ReturnBehavior {
     }
 }
 
-/// Region and address-space scope for one allocation side effect.
+/// Memory-space and address-space scope for one allocation side effect.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AllocationAccess {
-    /// The memory regions that may be touched.
-    pub regions: MemoryRegionSet,
+    /// The memory spaces that may be touched.
+    pub spaces: MemorySpaceSet,
     /// The address spaces that may be touched.
-    pub address_spaces: Option<AddressSpaceMask>,
+    pub address_spaces: Option<AddressSpaceSet>,
 }
 
 impl AllocationAccess {
     /// Create one unconstrained access summary.
     pub const fn unknown() -> Self {
         Self {
-            regions: MemoryRegionSet::ANY,
+            spaces: MemorySpaceSet::ANY,
             address_spaces: None,
         }
     }

@@ -4,7 +4,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
     ArgumentSlice, AtomicRmwOperator, AtomicScope, BinaryOperator, Call, CastOperator, Instruction,
-    InterfaceSlotId, LocalNodeId, MemoryOrdering, MemoryRegionSet, MemoryScope, MemorySemantics,
+    InterfaceSlotId, LocalNodeId, MemoryOrdering, MemoryScope, MemorySemantics, MemorySpaceSet,
     TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
     TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorReduceOperator,
     TensorScatterDimensionNumbers, TensorScatterMode, Type, UnaryOperator, ValueReference,
@@ -359,13 +359,6 @@ impl Parser {
                             result_type: destination_type.into(),
                         }
                     }
-                    "global.const" => {
-                        let global = self.parse_global_segment(&mut segment_spans)?;
-                        Instruction::GlobalConst {
-                            destination,
-                            global,
-                        }
-                    }
                     "function.address" => {
                         let function = self.parse_function_segment(&mut segment_spans)?;
                         Instruction::FunctionAddr {
@@ -373,17 +366,17 @@ impl Parser {
                             function,
                         }
                     }
-                    "function.bind" => {
+                    "callable.bind" => {
                         let function = self.parse_function_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let environment = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::FunctionBind {
+                        Instruction::CallableBind {
                             destination,
                             function,
                             environment,
                         }
                     }
-                    "function.environment" => Instruction::FunctionEnvironment { destination },
+                    "callable.environment" => Instruction::CallableEnvironment { destination },
 
                     // memory operations
                     "load" => {
@@ -1886,9 +1879,9 @@ impl Parser {
     /// Parse memory semantics for atomic operations.
     fn parse_memory_semantics(&mut self) -> ParseResult<MemorySemantics> {
         // semantics state
-        let mut locations = MemoryRegionSet::NONE;
-        let mut has_location = false;
-        let mut is_location_locked = false;
+        let mut spaces = MemorySpaceSet::NONE;
+        let mut has_space = false;
+        let mut is_space_locked = false;
         let mut is_volatile = false;
         let mut is_make_available = false;
         let mut is_make_visible = false;
@@ -1914,7 +1907,7 @@ impl Parser {
             let token_start = token.start;
             self.bump();
 
-            // flags and locations
+            // flags and spaces
             match token_text.as_str() {
                 "volatile" => {
                     is_volatile = true;
@@ -1926,32 +1919,32 @@ impl Parser {
                     is_make_visible = true;
                 }
                 _ => {
-                    let location = self.parse_memory_location(&token_text, token_start)?;
-                    if location == MemoryRegionSet::ANY || location == MemoryRegionSet::NONE {
-                        if has_location && !is_location_locked {
+                    let space = self.parse_memory_space(&token_text, token_start)?;
+                    if space == MemorySpaceSet::ANY || space == MemorySpaceSet::NONE {
+                        if has_space && !is_space_locked {
                             return Err(ParseError::new(
-                                "memory semantics cannot mix any/none with other locations",
+                                "memory semantics cannot mix any/none with other spaces",
                                 token_start,
                             ));
                         }
 
-                        locations = location;
-                        has_location = true;
-                        is_location_locked = true;
+                        spaces = space;
+                        has_space = true;
+                        is_space_locked = true;
                     } else {
-                        if is_location_locked {
+                        if is_space_locked {
                             return Err(ParseError::new(
-                                "memory semantics cannot mix any/none with other locations",
+                                "memory semantics cannot mix any/none with other spaces",
                                 token_start,
                             ));
                         }
 
-                        if !has_location {
-                            locations = MemoryRegionSet::NONE;
-                            has_location = true;
+                        if !has_space {
+                            spaces = MemorySpaceSet::NONE;
+                            has_space = true;
                         }
 
-                        locations.insert(location);
+                        spaces.insert(space);
                     }
                 }
             }
@@ -1972,13 +1965,13 @@ impl Parser {
             self.eat_token(TokenType::CloseBracket)?;
         }
 
-        // default the location set when omitted
-        if !has_location {
-            locations = MemoryRegionSet::ANY;
+        // default the space set when omitted
+        if !has_space {
+            spaces = MemorySpaceSet::ANY;
         }
 
         Ok(MemorySemantics::with_flags(
-            locations,
+            spaces,
             is_volatile,
             is_make_available,
             is_make_visible,

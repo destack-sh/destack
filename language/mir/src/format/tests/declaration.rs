@@ -19,9 +19,10 @@ b0(v0: Status):
 
 function checkDefault(): boolean {
 b0:
-    v0: Status = global.const Status.Default
-    v1: boolean = call Status.isActive(v0): (Status) -> boolean
-    return v1
+    v0: ref<Status, raw, readonly> = global.address Status.Default
+    v1: Status = load v0
+    v2: boolean = call Status.isActive(v1): (Status) -> boolean
+    return v2
 }
 "#,
         r#"
@@ -39,9 +40,10 @@ entry0(value0: Status):
 
 function checkDefault(): boolean {
 entry0:
-    value0: Status = global.const Status.Default
-    value1: boolean = call Status.isActive(value0): (Status) -> boolean
-    return value1
+    value0: ref<Status, raw, readonly> = global.address Status.Default
+    value1: Status = load value0
+    value2: boolean = call Status.isActive(value1): (Status) -> boolean
+    return value2
 }
 "#,
     );

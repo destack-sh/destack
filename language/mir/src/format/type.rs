@@ -398,7 +398,7 @@ fn format_type_inner<'a>(
             }
             write!(f, [token(")"), space(), token("->"), space(), result])
         }
-        Type::FunctionPointer { signature } | Type::Closure { signature, .. } => {
+        Type::FunctionPointer { signature } | Type::Callable { signature, .. } => {
             if let TypeReference::Type(signature) = *signature {
                 let signature_type = f.context().tree.get(signature);
                 if let Type::FunctionSignature { parameters, result } = signature_type {
@@ -411,7 +411,7 @@ fn format_type_inner<'a>(
                     }
                     let arrow = match ty {
                         Type::FunctionPointer { .. } => "->",
-                        Type::Closure { .. } => "=>",
+                        Type::Callable { .. } => "=>",
                         _ => unreachable!(),
                     };
                     write!(f, [token(")"), space(), token(arrow), space(), result])?;

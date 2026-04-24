@@ -299,7 +299,7 @@ impl LayoutMetadataCompletion<'_> {
 
                 self.record_slice_layout(type_id, kind, element, &address_space, mutability)
             }
-            Type::Closure { signature } => self.record_closure_layout(type_id, *signature),
+            Type::Callable { signature } => self.record_callable_layout(type_id, *signature),
             _ => Ok(()),
         }
     }
@@ -490,8 +490,8 @@ impl LayoutMetadataCompletion<'_> {
         Ok(())
     }
 
-    /// Record layout metadata for one closure type.
-    fn record_closure_layout(
+    /// Record layout metadata for one callable type.
+    fn record_callable_layout(
         &mut self,
         type_id: LocalNodeId<Type>,
         signature: TypeReference,
@@ -500,7 +500,7 @@ impl LayoutMetadataCompletion<'_> {
             return Ok(());
         };
 
-        let environment = self.tree.ensure_function_value_environment_type();
+        let environment = self.tree.ensure_callable_environment_type();
         let components = [signature, environment];
         let mut layout_fields = Vec::with_capacity(components.len());
         let mut offset = 0u32;
@@ -527,7 +527,7 @@ impl LayoutMetadataCompletion<'_> {
 
         let layout = compute_type_layout(self.tree, type_id, self.tree.pointer_bytes());
         let layout_entry = Layout {
-            kind: LayoutKind::Closure,
+            kind: LayoutKind::Callable,
             size: layout.size,
             alignment,
             reference_map: ReferenceMap::empty(),
@@ -645,7 +645,7 @@ impl LayoutMetadataCompletion<'_> {
             Type::Struct { .. }
             | Type::Tuple { .. }
             | Type::Slice { .. }
-            | Type::Closure { .. } => {
+            | Type::Callable { .. } => {
                 self.record_layout_for_type(type_id)?;
                 let layout_id = self
                     .tree
@@ -882,9 +882,9 @@ pub enum LayoutKind {
         table_offset: u32,
     },
     /// Function environment layout.
-    FunctionEnvironment,
+    CallableEnvironment,
     /// Function value layout.
-    Closure,
+    Callable,
 }
 
 #[cfg(test)]

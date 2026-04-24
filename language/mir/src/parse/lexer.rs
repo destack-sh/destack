@@ -199,7 +199,7 @@ impl<'a> Lexer<'a> {
                     TokenType::TensorView
                 }
             }
-            "space" | "addressSpace" => TokenType::AddressSpace,
+            "space" => TokenType::AddressSpace,
             "struct" => TokenType::Struct,
             "newtype" => TokenType::Newtype,
             "true" | "false" => TokenType::BooleanLiteral,
@@ -209,18 +209,21 @@ impl<'a> Lexer<'a> {
             _ => {
                 // value
                 if let Some(rest) = text.strip_prefix('v')
+                    && !rest.is_empty()
                     && rest.chars().all(|c| c.is_ascii_digit())
                 {
                     TokenType::Value
                 }
                 // block
                 else if let Some(rest) = text.strip_prefix('b')
+                    && !rest.is_empty()
                     && rest.chars().all(|c| c.is_ascii_digit())
                 {
                     TokenType::BlockRefence
                 }
                 // local
                 else if let Some(rest) = text.strip_prefix("local")
+                    && !rest.is_empty()
                     && rest.chars().all(|c| c.is_ascii_digit())
                 {
                     TokenType::LocalReference

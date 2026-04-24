@@ -445,7 +445,7 @@ fn should_alias_type(ty: &Type) -> bool {
     // allow aliasing for common aggregate shapes
     matches!(
         ty,
-        Type::Struct { .. } | Type::Tuple { .. } | Type::Closure { .. }
+        Type::Struct { .. } | Type::Tuple { .. } | Type::Callable { .. }
     )
 }
 
@@ -518,7 +518,7 @@ fn type_alias_prefix(ty: &Type) -> &'static str {
         Type::Slice { .. } => "Slice",
         Type::Reference { .. } => "Ref",
         Type::FunctionPointer { .. } => "Function",
-        Type::Closure { .. } => "Callable",
+        Type::Callable { .. } => "Callable",
         _ => "Type",
     }
 }
@@ -795,7 +795,7 @@ fn type_key_for_alias_inner(
             let result = type_key_for_alias_reference(tree, strings, *result, active_types);
             format!("sig({params}) -> {result}")
         }
-        Type::FunctionPointer { signature } | Type::Closure { signature } => {
+        Type::FunctionPointer { signature } | Type::Callable { signature } => {
             let TypeReference::Type(signature) = *signature else {
                 return type_key_for_alias_reference(tree, strings, *signature, active_types);
             };
@@ -810,7 +810,7 @@ fn type_key_for_alias_inner(
             let result = type_key_for_alias_reference(tree, strings, result, active_types);
             match tree.get(ty) {
                 Type::FunctionPointer { .. } => format!("({params}) -> {result}"),
-                Type::Closure { .. } => format!("({params}) => {result}"),
+                Type::Callable { .. } => format!("({params}) => {result}"),
                 _ => unreachable!(),
             }
         }
@@ -1017,7 +1017,6 @@ fn collect_type_uses(tree: &NodeTree) -> HashMap<LocalNodeId<Type>, u32> {
             | Instruction::Select { .. }
             | Instruction::LocalGet { .. }
             | Instruction::LocalSet { .. }
-            | Instruction::GlobalConst { .. }
             | Instruction::Store { .. }
             | Instruction::FieldGet { .. }
             | Instruction::FieldSet { .. }
@@ -1141,7 +1140,7 @@ fn record_type_use_inner(
             };
             record_type_use_inner(tree, result, counts, visited);
         }
-        Type::FunctionPointer { signature } | Type::Closure { signature } => {
+        Type::FunctionPointer { signature } | Type::Callable { signature } => {
             let TypeReference::Type(signature) = *signature else {
                 return;
             };
@@ -1592,7 +1591,7 @@ fn collect_alias_dependencies(
                 }
                 record_dependency(*result, root, alias_types, &mut dependencies, &mut stack);
             }
-            Type::FunctionPointer { signature } | Type::Closure { signature } => {
+            Type::FunctionPointer { signature } | Type::Callable { signature } => {
                 record_dependency(*signature, root, alias_types, &mut dependencies, &mut stack);
             }
             Type::Void

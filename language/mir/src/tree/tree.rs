@@ -404,7 +404,7 @@ impl NodeTree {
     }
 
     /// Return the canonical storage type for the hidden environment field in one callable.
-    pub fn function_value_environment_type(&self) -> LocalNodeId<Type> {
+    pub fn callable_environment_type(&self) -> LocalNodeId<Type> {
         let void_type = if let Some(type_id) = self.metadata.layout.void_type() {
             type_id
         } else if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) {
@@ -432,7 +432,7 @@ impl NodeTree {
     }
 
     /// Ensure the canonical storage type for the hidden environment field in one callable.
-    pub fn ensure_function_value_environment_type(&mut self) -> LocalNodeId<Type> {
+    pub fn ensure_callable_environment_type(&mut self) -> LocalNodeId<Type> {
         // reuse or create the canonical void type
         let void_type = if let Some(type_id) = self.metadata.layout.void_type() {
             type_id

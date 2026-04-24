@@ -86,13 +86,13 @@ pub enum Intrinsic {
     /// Copy memory from source to destination (non-overlapping).
     /// `(dst: ptr, src: ptr, len: usize) -> ()`
     Memcpy,
-    /// Move memory (handles overlapping regions).
+    /// Move memory, allowing overlapping ranges.
     /// `(dst: ptr, src: ptr, len: usize) -> ()`
     Memmove,
     /// Set memory to a byte value.
     /// `(dst: ptr, val: u8, len: usize) -> ()`
     Memset,
-    /// Compare memory regions, returns comparison result.
+    /// Compare memory ranges.
     /// `(ptr, ptr, len: usize) -> i32`
     Memcmp,
     /// Prefetch memory for reading (hint to CPU cache).

@@ -65,15 +65,14 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::LocalGet { .. }
                 | Instruction::LocalAddr { .. }
                 | Instruction::GlobalAddr { .. }
-                | Instruction::GlobalConst { .. }
                 | Instruction::FunctionAddr { .. }
                 | Instruction::New { .. }
                 | Instruction::RawAlloc { .. }
                 | Instruction::StackAlloc { .. } => {}
-                Instruction::FunctionBind { environment, .. } => {
+                Instruction::CallableBind { environment, .. } => {
                     Self::replace_value_in_slot(environment, from, to);
                 }
-                Instruction::FunctionEnvironment { .. } => {}
+                Instruction::CallableEnvironment { .. } => {}
                 Instruction::Binary { left, right, .. } => {
                     Self::replace_value_in_slot(left, from, to);
                     Self::replace_value_in_slot(right, from, to);

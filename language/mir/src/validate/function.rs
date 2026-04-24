@@ -35,7 +35,7 @@ impl<'tree> Validator<'tree> {
 
         // function metadata
         self.validate_function_metadata(function_id, function)?;
-        self.validate_function_value_types(function_id, function, &defined_values)?;
+        self.validate_callable_types(function_id, function, &defined_values)?;
 
         // block bodies
         for &block_id in &function.blocks {
@@ -335,7 +335,7 @@ impl<'tree> Validator<'tree> {
     }
 
     /// Validate that every defined value has a type.
-    fn validate_function_value_types(
+    fn validate_callable_types(
         &self,
         function_id: LocalNodeId<Function>,
         function: &Function,

@@ -158,7 +158,7 @@ pub enum Instruction {
         value: ValueReference,
     },
 
-    // global variables (global.address, global.const)
+    // global variables (global.address)
     /// Get the address of a mutable global variable.
     /// Returns a raw pointer that can be used with Load/Store.
     GlobalAddr {
@@ -169,14 +169,6 @@ pub enum Instruction {
         /// The result type of the address.
         result_type: TypeReference,
     },
-    /// Load the value of an immutable global constant.
-    /// Returns the constant value directly.
-    GlobalConst {
-        /// The SSA value to define with the constant value.
-        destination: ValueReference,
-        /// The global constant to load.
-        global: GlobalReference,
-    },
     /// Get a function pointer for a function (function.address).
     FunctionAddr {
         /// The SSA value to define with the function pointer.
@@ -184,8 +176,8 @@ pub enum Instruction {
         /// The function to take the address of.
         function: FunctionReference,
     },
-    /// Bind one environment to a function and produce a callable value (function.bind).
-    FunctionBind {
+    /// Bind one environment to a function and produce a callable value (callable.bind).
+    CallableBind {
         /// The SSA value to define with the callable value.
         destination: ValueReference,
         /// The function to pair with the environment.
@@ -193,8 +185,8 @@ pub enum Instruction {
         /// The environment value to capture in the callable.
         environment: ValueReference,
     },
-    /// Load the hidden environment for the current function (function.environment).
-    FunctionEnvironment {
+    /// Load the hidden environment for the current function (callable.environment).
+    CallableEnvironment {
         /// The SSA value to define with the hidden environment pointer.
         destination: ValueReference,
     },
@@ -915,10 +907,9 @@ impl Instruction {
             Instruction::LocalAddr { destination, .. } => Some(*destination),
             Instruction::LocalSet { .. } => None,
             Instruction::GlobalAddr { destination, .. } => Some(*destination),
-            Instruction::GlobalConst { destination, .. } => Some(*destination),
             Instruction::FunctionAddr { destination, .. } => Some(*destination),
-            Instruction::FunctionBind { destination, .. } => Some(*destination),
-            Instruction::FunctionEnvironment { destination, .. } => Some(*destination),
+            Instruction::CallableBind { destination, .. } => Some(*destination),
+            Instruction::CallableEnvironment { destination, .. } => Some(*destination),
             Instruction::Load { destination, .. } => Some(*destination),
             Instruction::Store { .. } => None,
             Instruction::FieldGet { destination, .. } => Some(*destination),
@@ -1006,10 +997,9 @@ impl Instruction {
             Instruction::LocalAddr { .. } => smallvec![],
             Instruction::LocalSet { value, .. } => smallvec![*value],
             Instruction::GlobalAddr { .. } => smallvec![],
-            Instruction::GlobalConst { .. } => smallvec![],
             Instruction::FunctionAddr { .. } => smallvec![],
-            Instruction::FunctionBind { environment, .. } => smallvec![*environment],
-            Instruction::FunctionEnvironment { .. } => smallvec![],
+            Instruction::CallableBind { environment, .. } => smallvec![*environment],
+            Instruction::CallableEnvironment { .. } => smallvec![],
             Instruction::Load { pointer, .. } => smallvec![*pointer],
             Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],
             Instruction::FieldGet { aggregate, .. } => smallvec![*aggregate],

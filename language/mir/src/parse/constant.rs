@@ -1,6 +1,6 @@
 use destack_source::Span;
 
-use crate::{Constant, Intrinsic, LocalNodeId, MemoryRegionSet, Type};
+use crate::{Constant, Intrinsic, LocalNodeId, MemorySpaceSet, Type};
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
@@ -313,26 +313,26 @@ impl Parser {
         })
     }
 
-    /// Parse a memory region keyword into a region set.
-    pub(super) fn parse_memory_location(
+    /// Parse a memory space keyword into a space set.
+    pub(super) fn parse_memory_space(
         &self,
         text: &str,
         start: usize,
-    ) -> ParseResult<MemoryRegionSet> {
+    ) -> ParseResult<MemorySpaceSet> {
         let location = match text {
-            "none" => MemoryRegionSet::NONE,
-            "any" => MemoryRegionSet::ANY,
-            "heap" => MemoryRegionSet::HEAP,
-            "rawHeap" => MemoryRegionSet::RAW_HEAP,
-            "stack" => MemoryRegionSet::STACK,
-            "global" => MemoryRegionSet::GLOBAL,
-            "shared" => MemoryRegionSet::SHARED,
-            "local" => MemoryRegionSet::LOCAL,
-            "constant" => MemoryRegionSet::CONSTANT,
-            "io" => MemoryRegionSet::IO,
+            "none" => MemorySpaceSet::NONE,
+            "any" => MemorySpaceSet::ANY,
+            "heap" => MemorySpaceSet::HEAP,
+            "rawHeap" => MemorySpaceSet::RAW_HEAP,
+            "stack" => MemorySpaceSet::STACK,
+            "static" => MemorySpaceSet::STATIC,
+            "shared" => MemorySpaceSet::SHARED,
+            "local" => MemorySpaceSet::LOCAL,
+            "constant" => MemorySpaceSet::CONSTANT,
+            "io" => MemorySpaceSet::IO,
             _ => {
                 return Err(ParseError::invalid(
-                    &format!("memory region '{text}'"),
+                    &format!("memory space '{text}'"),
                     start,
                 ));
             }

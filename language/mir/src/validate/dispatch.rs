@@ -103,7 +103,7 @@ impl<'a> Validator<'a> {
 
         let signature = match self.tree.get(signature) {
             Type::FunctionSignature { .. } => signature,
-            Type::Closure { signature, .. } => {
+            Type::Callable { signature, .. } => {
                 self.require_type_reference(*signature, anchor, "callable signature")?
             }
             _ => {
