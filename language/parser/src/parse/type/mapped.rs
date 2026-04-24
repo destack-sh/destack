@@ -114,7 +114,8 @@ impl Parser {
 
         // mapped value: `: T`
         self.eat_newlines_maybe()?;
-        let value = if self.peek_is(TokenType::Colon) {
+        let (value, value_type_span) = if self.peek_is(TokenType::Colon) {
+            let value_type_start = self.mark_span();
             self.eat_token(TokenType::Colon)?;
             let value_boundary_start = self.prev_token_end();
             self.eat_newlines_maybe()?;
@@ -126,9 +127,13 @@ impl Parser {
                 NodeType::TypeExpression,
             )?;
             self.set_node_leading_span(value, value_boundary_start);
-            value
+            let value_type_span = self.get_span_from(&value_type_start);
+            (value, Some(value_type_span))
         } else {
-            self.recover_missing_type_expression_here(NodeType::TypeExpression)
+            (
+                self.recover_missing_type_expression_here(NodeType::TypeExpression),
+                None,
+            )
         };
         self.eat_newlines_maybe()?;
         if self.peek_is(TokenType::Semicolon) || self.peek_is(TokenType::Comma) {
@@ -159,6 +164,10 @@ impl Parser {
         );
         self.tree
             .set_side_span(mapped_id, NodeSpanType::Head, mapped_head_span);
+        if let Some(value_type_span) = value_type_span {
+            self.tree
+                .set_side_span(mapped_id, NodeSpanType::Type, value_type_span);
+        }
         self.tree.set_main_span(mapped_id, name_span);
 
         Ok(mapped_id)
