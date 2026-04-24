@@ -293,7 +293,7 @@ fn value_needs_drop(
         mir::Type::Reference {
             kind: mir::ReferenceKind::Owned,
             ..
-        } | mir::Type::TensorReference {
+        } | mir::Type::TensorView {
             kind: mir::ReferenceKind::Owned,
             ..
         } | mir::Type::Struct {

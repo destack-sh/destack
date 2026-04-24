@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use destack_mir as mir;
+use destack_mir::function_signature_parts;
 
 use crate::optimize::common::TypeKey;
 
@@ -37,7 +38,7 @@ impl SignatureKey {
         let signature = signature.into().ty()?;
 
         // resolve the function pointer signature
-        let mir::Type::FunctionPointer { parameters, result } = tree.get(signature) else {
+        let Some((parameters, result)) = function_signature_parts(tree.get(signature)) else {
             return None;
         };
 
@@ -174,7 +175,7 @@ pub fn build_signature_type(
     let parameters = function.parameters.iter().map(|param| param.ty).collect();
 
     // insert the function pointer type
-    tree.insert_type(mir::Type::FunctionPointer {
+    tree.insert_type(mir::Type::FunctionSignature {
         parameters,
         result: function.return_type,
     })

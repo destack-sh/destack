@@ -518,10 +518,22 @@ fn apply_instruction_effects(
         }
 
         // tensor operations
+        Instruction::TensorSplat { destination, value } => {
+            let origins = state.value_origin(*value);
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
         Instruction::TensorLoad {
             destination, view, ..
         } => {
             let origins = state.value_origin(*view);
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+        Instruction::TensorExtract {
+            destination,
+            tensor,
+            ..
+        } => {
+            let origins = state.value_origin(*tensor);
             assign_origin_if_borrowed(state, *destination, origins, tree, types);
         }
         Instruction::TensorReshape {

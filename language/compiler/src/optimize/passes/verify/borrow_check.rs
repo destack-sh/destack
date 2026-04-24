@@ -141,7 +141,7 @@ impl<'a> BorrowCheckContext<'a> {
     fn mutability_from_reference_type(&self, ty_id: mir::LocalNodeId<Type>) -> bool {
         let ty = self.tree.get(ty_id);
         match ty {
-            Type::Reference { mutability, .. } | Type::TensorReference { mutability, .. } => {
+            Type::Reference { mutability, .. } | Type::TensorView { mutability, .. } => {
                 *mutability == Mutability::Mutable
             }
             _ => {
@@ -586,7 +586,7 @@ impl<'a> BorrowCheckContext<'a> {
         let ty_id = self.value_types.require_value_type(value);
         let ty = self.tree.get(ty_id);
         let kind = match ty {
-            Type::Reference { kind, .. } | Type::TensorReference { kind, .. } => kind,
+            Type::Reference { kind, .. } | Type::TensorView { kind, .. } => kind,
             _ => return,
         };
 

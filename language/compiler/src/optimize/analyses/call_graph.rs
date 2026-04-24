@@ -123,7 +123,7 @@ impl SignatureKey {
         let signature = signature.into().ty()?;
 
         // load the function pointer signature
-        let mir::Type::FunctionPointer { parameters, result } = tree.get(signature) else {
+        let mir::Type::FunctionSignature { parameters, result } = tree.get(signature) else {
             return None;
         };
 
@@ -191,6 +191,8 @@ enum SignatureType {
     },
     /// Slice type signature.
     Slice {
+        /// Reference kind for the slice base.
+        kind: mir::ReferenceKind,
         /// Element type signature.
         element: Box<SignatureType>,
         /// Address space for the slice base.
@@ -240,7 +242,7 @@ enum SignatureType {
         copy: mir::Copy,
     },
     /// Tensor view signature.
-    TensorReference {
+    TensorView {
         /// Reference kind for the view.
         kind: mir::ReferenceKind,
         /// Address space for the view.
@@ -256,12 +258,17 @@ enum SignatureType {
         /// Nullability for the view.
         is_nullable: bool,
     },
-    /// Function pointer type signature.
-    FunctionPointer {
+    /// Bare function signature.
+    FunctionSignature {
         /// Parameter type signatures.
         parameters: Vec<SignatureType>,
         /// Result type signature.
         result: Box<SignatureType>,
+    },
+    /// Function pointer type signature.
+    FunctionPointer {
+        /// The bare function signature.
+        signature: Box<SignatureType>,
     },
     /// Callable closure value signature.
     Closure {
@@ -315,10 +322,12 @@ impl SignatureType {
                 copy: *copy,
             },
             mir::Type::Slice {
+                kind,
                 element,
                 address_space,
                 mutability,
             } => SignatureType::Slice {
+                kind: *kind,
                 element: Box::new(SignatureType::from_type(tree, element.ty()?)?),
                 address_space: address_space.clone(),
                 mutability: *mutability,
@@ -371,7 +380,7 @@ impl SignatureType {
                 layout: layout.clone(),
                 copy: *copy,
             },
-            mir::Type::TensorReference {
+            mir::Type::TensorView {
                 kind,
                 address_space,
                 mutability,
@@ -379,7 +388,7 @@ impl SignatureType {
                 shape,
                 layout,
                 is_nullable,
-            } => SignatureType::TensorReference {
+            } => SignatureType::TensorView {
                 kind: *kind,
                 address_space: address_space.clone(),
                 mutability: *mutability,
@@ -388,8 +397,8 @@ impl SignatureType {
                 layout: layout.clone(),
                 is_nullable: *is_nullable,
             },
-            mir::Type::FunctionPointer { parameters, result } => {
-                // convert function pointer types recursively
+            mir::Type::FunctionSignature { parameters, result } => {
+                // convert function signatures recursively
                 let parameters = parameters
                     .iter()
                     .map(|param| SignatureType::from_type(tree, param.ty()?))
@@ -398,8 +407,11 @@ impl SignatureType {
                 // capture the result type signature
                 let result = Box::new(SignatureType::from_type(tree, result.ty()?)?);
 
-                SignatureType::FunctionPointer { parameters, result }
+                SignatureType::FunctionSignature { parameters, result }
             }
+            mir::Type::FunctionPointer { signature } => SignatureType::FunctionPointer {
+                signature: Box::new(SignatureType::from_type(tree, signature.ty()?)?),
+            },
             mir::Type::Closure { signature } => SignatureType::Closure {
                 signature: Box::new(SignatureType::from_type(tree, signature.ty()?)?),
             },

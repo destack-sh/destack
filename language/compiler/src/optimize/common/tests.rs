@@ -474,7 +474,7 @@ impl TestProgram {
         let return_ty = callee_function.return_type;
 
         // insert the function pointer type
-        self.tree.insert_type(mir::Type::FunctionPointer {
+        self.tree.insert_type(mir::Type::FunctionSignature {
             parameters: param_tys,
             result: return_ty,
         })

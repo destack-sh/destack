@@ -725,12 +725,12 @@ mod tests {
     use super::reference_is_borrowed;
     use destack_mir as mir;
 
-    /// Borrow analysis recognizes borrowed tensor references.
+    /// Borrow analysis recognizes borrowed tensor views.
     #[test]
-    fn test_reference_is_borrowed_tensor_reference() {
+    fn test_reference_is_borrowed_tensor_view() {
         let mut tree = mir::NodeTree::new();
         let element = tree.insert_type(mir::Type::Float { width: 32 });
-        let tensor_ref = tree.insert_type(mir::Type::TensorReference {
+        let tensor_ref = tree.insert_type(mir::Type::TensorView {
             kind: mir::ReferenceKind::Borrowed,
             address_space: mir::AddressSpace::Stack,
             mutability: mir::Mutability::Mutable,

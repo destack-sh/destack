@@ -759,7 +759,7 @@ impl BasicAA {
 
             // skip non reference arguments
             match tree.get(arg_type) {
-                mir::Type::Reference { .. } | mir::Type::TensorReference { .. } => {}
+                mir::Type::Reference { .. } | mir::Type::TensorView { .. } => {}
                 _ => continue,
             }
 
@@ -874,7 +874,7 @@ impl BasicAA {
         // use the instruction signature when available
         let signature = inst.call_signature()?.ty()?;
         let signature = tree.get(signature);
-        let mir::Type::FunctionPointer { parameters, .. } = signature else {
+        let mir::Type::FunctionSignature { parameters, .. } = signature else {
             return None;
         };
 
@@ -955,9 +955,7 @@ impl BasicAA {
 
                 match tree.get(ty) {
                     mir::Type::Reference { address_space, .. }
-                    | mir::Type::TensorReference { address_space, .. } => {
-                        Some(address_space.clone())
-                    }
+                    | mir::Type::TensorView { address_space, .. } => Some(address_space.clone()),
                     _ => None,
                 }
             }
