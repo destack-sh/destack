@@ -2,6 +2,7 @@ use destack_ast::{
     Comment, Declaration, DependencyItem, DependencyMode, Expression, FunctionKind, IfKind,
     LocalNodeId, WhileKind,
 };
+use destack_core::StringId;
 use destack_fir::format::{Buffer, FormatResult, hard_line_break};
 use destack_fir::prelude::{block_indent, empty_line, format_with, line_suffix, space, token};
 use destack_fir::write;
@@ -19,6 +20,10 @@ fn statement_terminator_comments_after(
     let comments = context.comments().comments_after(anchor_end);
 
     for (index, comment) in comments.iter().copied().enumerate() {
+        if comment.is_leading() && comment.preceded_by_newline() {
+            break;
+        }
+
         if context
             .source_text()
             .all_bytes_match(anchor_end, comment.span.start, |byte| {
@@ -60,6 +65,10 @@ fn statement_terminator_comments_between(
     let mut collected = Vec::new();
 
     for comment in comments_before_following.iter().copied() {
+        if comment.is_leading() && comment.preceded_by_newline() {
+            break;
+        }
+
         if comment.span.start < anchor_end {
             continue;
         }
@@ -140,7 +149,7 @@ fn write_statement_terminator_comments<'ast>(
 
     let first_comment_span = comments[0].span;
     let comment_is_on_own_line = first_comment_span.start > anchor_end
-        && f.context().has_newline(destack_source::Span::new(
+        && f.context().has_newline(Span::new(
             first_comment_span.file,
             anchor_end,
             first_comment_span.start,
@@ -170,7 +179,7 @@ fn write_statement_terminator_comments<'ast>(
     write_inline_statement_terminator_comments(f, comments)
 }
 
-/// Write same-line statement terminator comments without expanding the parent group.
+/// Write same-line statement terminator comments.
 fn write_inline_statement_terminator_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     comments: &[Comment],
@@ -226,7 +235,7 @@ fn write_inline_statement_terminator_comments<'ast>(
 fn export_expression_needs_statement_terminator(
     context: &DestackFormatContext<'_>,
     items: &[LocalNodeId<DependencyItem>],
-    target: Option<destack_core::StringId>,
+    target: Option<StringId>,
 ) -> bool {
     let first_item = items.first().map(|item_id| context.tree.get(*item_id));
 
@@ -368,7 +377,7 @@ pub(crate) fn statement_trailing_comment_anchor_end(
             ..
         } => expression_trivia_anchor_end(context, *value_id),
         Expression::Throw { value } => expression_trivia_anchor_end(context, *value),
-        _ => context.span(expression_id).end,
+        _ => expression_trivia_anchor_end(context, expression_id),
     }
 }
 

@@ -4,13 +4,14 @@ use crate::format::expression::{
     write_expression_without_trailing_comments, write_type_expression_node,
 };
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Expression, GenericArgument, LocalNodeId, NodeType, TypeExpression};
+use destack_ast::{
+    Expression, GenericArgument, LocalNodeId, NodeType, TypeExpression, TypeLiteral,
+};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
     format_with, group, soft_block_indent, soft_line_break_or_space, space, token,
 };
 use destack_fir::{format_args, write};
-use destack_source::Span;
 
 /// Write one type expression with inline prefix annotations.
 pub(crate) fn write_type_expression_with_inline_prefix_annotations<'ast>(
@@ -24,20 +25,12 @@ pub(crate) fn write_type_expression_with_inline_prefix_annotations<'ast>(
 /// Write one type annotation prefix.
 pub(crate) fn write_type_annotation_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    annotation_start: u32,
+    separator_start: u32,
 ) -> FormatResult<()> {
-    let separator_start = f
-        .context()
-        .previous_non_trivia_token_before_span(Span::new(
-            f.context().file.id,
-            annotation_start,
-            annotation_start,
-        ))
-        .map_or(annotation_start, |token| token.span.end);
     let leading_comments = f
         .context()
         .comments()
-        .comments_in_range(separator_start, annotation_start)
+        .comments_before(separator_start)
         .to_vec();
 
     if !leading_comments.is_empty() {
@@ -55,7 +48,7 @@ pub(crate) fn write_colon_prefixed_type_annotation<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
-    write_type_annotation_prefix(f, f.context().span(node_id).start)?;
+    write!(f, [token(":"), space()])?;
     write_type_expression_with_inline_prefix_annotations(f, node_id)
 }
 
@@ -118,9 +111,7 @@ fn should_hug_single_generic_union_argument(
             matches!(
                 context.tree.get(*element_id),
                 TypeExpression::Literal {
-                    value: destack_ast::TypeLiteral::Void
-                        | destack_ast::TypeLiteral::Null
-                        | destack_ast::TypeLiteral::Undefined
+                    value: TypeLiteral::Void | TypeLiteral::Null | TypeLiteral::Undefined
                 }
             )
         })
@@ -321,6 +312,7 @@ fn format_as_or_satisfies_expression<'ast>(
     let is_callee_or_object = is_callee_or_object_context(f.context(), node_id);
 
     let format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let type_expression = f.context().tree.get(type_annotation_id);
         let type_start = f.context().span(type_annotation_id).start;
         let comments = f
             .context()
@@ -337,15 +329,20 @@ fn format_as_or_satisfies_expression<'ast>(
         };
 
         // const assertions
-        if !comments.is_empty()
-            && matches!(
-                f.context().tree.get(type_annotation_id),
-                TypeExpression::Const
-            )
-        {
+        if !comments.is_empty() && matches!(type_expression, TypeExpression::Const) {
+            let trailing_comments = &comments[block_comments.len()..];
+
             write_expression_without_trailing_comments(f, expression_id)?;
-            write!(f, [FormatTrailingComments::Comments(block_comments)])?;
+
+            if !block_comments.is_empty() {
+                write!(f, [FormatTrailingComments::Comments(block_comments)])?;
+            }
+
             write!(f, [space(), token(operation), space(), token("const")])?;
+
+            if !trailing_comments.is_empty() {
+                write!(f, [FormatTrailingComments::Comments(trailing_comments)])?;
+            }
 
             return Ok(());
         }

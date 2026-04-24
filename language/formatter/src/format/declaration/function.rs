@@ -1,7 +1,5 @@
 use super::lambda::{FunctionCacheMode, write_lambda_arrow_with_infix_annotations};
-use crate::format::annotation::{
-    block_infix_annotations, format_comment, postfix_annotations, write_comment_slice,
-};
+use crate::format::annotation::{block_infix_annotations, postfix_annotations};
 use crate::format::call::expression_is_test_call;
 use crate::format::collection::TrailingSeparator;
 use crate::format::context::MemoizeFormatExt;
@@ -17,9 +15,9 @@ use crate::format::declaration::statement::format_block;
 use crate::format::operator::write_type_expression_with_inline_prefix_annotations;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Ambientness, Argument, Comment, Declaration, ExportMode, Expression, FunctionCardinality,
-    FunctionKind, FunctionMode, FunctionSignature, GenericParameter, Keyword, LocalNodeId, Name,
-    NodeType, Parameter, TypeExpression,
+    Ambientness, Argument, Declaration, ExportMode, Expression, FunctionCardinality, FunctionKind,
+    FunctionSignature, GenericParameter, Keyword, LocalNodeId, Name, NodeType, Parameter,
+    TypeExpression,
 };
 use destack_fir::format::{FormatNodes, FormatResult};
 use destack_fir::prelude::*;
@@ -153,41 +151,15 @@ fn function_declaration_is_test_call_argument(
     expression_is_test_call(context, call_expression_id)
 }
 
-/// Return the parameter shell span for one function-like declaration.
-pub(crate) fn function_parameter_shell_span(
+/// Return the parameter container span for one function-like declaration.
+pub(crate) fn function_parameter_container_span(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
 ) -> Span {
     context
         .tree
         .get_side_span(node_id, NodeSpanType::Parameters)
-        .unwrap_or_else(|| unreachable!("function declaration should own its parameter shell"))
-}
-
-/// Return the body shell span for one function-like declaration body.
-pub(crate) fn function_body_shell_span(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Declaration>,
-    body_id: LocalNodeId<Expression>,
-) -> Span {
-    context
-        .tree
-        .get_side_span(node_id, NodeSpanType::Body)
-        .unwrap_or_else(|| context.span(body_id))
-}
-
-/// Return comments between a constructor `new` head and the parameter list.
-fn constructor_parameter_head_comments(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Declaration>,
-) -> Vec<Comment> {
-    let node_span = context.span(node_id);
-    let parameter_shell_span = function_parameter_shell_span(context, node_id);
-
-    context
-        .comments()
-        .comments_in_range(node_span.start, parameter_shell_span.start)
-        .to_vec()
+        .unwrap_or_else(|| unreachable!("function declaration should own its parameter container"))
 }
 
 /// Collect parameters, including `this`.
@@ -292,7 +264,7 @@ fn function_grouping_generic_parameter_is_plain(
     }
 }
 
-/// Return whether one function-like head should group its parameter shell first.
+/// Return whether one function-like head should group its parameter container first.
 pub(crate) fn should_group_function_parameters(
     f: &mut DestackFormatter<'_, '_>,
     node_id: LocalNodeId<Declaration>,
@@ -416,12 +388,18 @@ fn write_function_parameters_and_return_type<'ast>(
     body: &Option<LocalNodeId<Expression>>,
     parameters: &[LocalNodeId<Parameter>],
     can_omit_parens: bool,
+    cache_mode: FunctionCacheMode,
 ) -> FormatResult<()> {
     let group_parameters =
         should_group_function_parameters(f, node_id, signature, parameters.len())?;
     let format_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write_function_parameters(f, node_id, signature, parameters, can_omit_parens)
     });
+    let format_parameters = FormatContentWithCacheMode::new(
+        function_parameter_container_span(f.context(), node_id),
+        format_parameters,
+        cache_mode,
+    );
 
     if group_parameters {
         write!(f, [group(&format_parameters)])?;
@@ -437,16 +415,22 @@ fn write_function_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     _signature: &FunctionSignature,
     body: LocalNodeId<Expression>,
+    cache_mode: FunctionCacheMode,
 ) -> FormatResult<()> {
-    if expression_body_requires_head_space(f.context(), body) {
-        write!(f, [space()])?;
-    }
+    let body_span = f.context().span(body);
+    let body_content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        if expression_body_requires_head_space(f.context(), body) {
+            write!(f, [space()])?;
+        }
 
-    if let Expression::Block(block_id) = f.context().tree.get(body) {
-        return format_block(f, *block_id);
-    }
+        if let Expression::Block(block_id) = f.context().tree.get(body) {
+            return format_block(f, *block_id);
+        }
 
-    write!(f, [body])
+        write!(f, [body])
+    });
+
+    FormatContentWithCacheMode::new(body_span, body_content, cache_mode).format(f)
 }
 
 /// Write one function body and trailing semicolon.
@@ -455,10 +439,11 @@ fn write_function_body_and_terminator<'ast>(
     node_id: LocalNodeId<Declaration>,
     signature: &FunctionSignature,
     body: &Option<LocalNodeId<Expression>>,
+    cache_mode: FunctionCacheMode,
 ) -> FormatResult<()> {
     // body
     if let Some(body) = body {
-        write_function_body(f, signature, *body)?;
+        write_function_body(f, signature, *body, cache_mode)?;
     }
 
     // terminator
@@ -478,42 +463,44 @@ fn write_function_head<'ast>(
     name: Option<Name>,
     signature: &FunctionSignature,
     body: &Option<LocalNodeId<Expression>>,
+    cache_mode: FunctionCacheMode,
 ) -> FormatResult<()> {
     let parameters = function_parameters(signature);
 
     // head prefix
-    write_function_header_prefix(f, signature, true, name.is_some())?;
+    let head_prefix = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write_function_header_prefix(f, signature, true, name.is_some())?;
 
-    // constructor comments
-    if signature.mode == Some(FunctionMode::New) {
-        let constructor_head_comments = constructor_parameter_head_comments(f.context(), node_id);
-        if let Some((first_comment, remaining_comments)) = constructor_head_comments.split_first() {
-            format_comment(f, *first_comment)?;
-            write_comment_slice(f, remaining_comments)?;
+        if name.is_some() {
+            write!(f, [block_infix_annotations(f.context(), node_id)])?;
         }
 
-        write!(f, [block_infix_annotations(f.context(), node_id)])?;
-    }
+        if let Some(name) = name {
+            write!(f, [name])?;
+        }
 
-    // name separator
-    if name.is_some() {
-        write!(f, [block_infix_annotations(f.context(), node_id)])?;
-    }
+        write_function_generic_parameters(f, signature)?;
 
-    // name
-    if let Some(name) = name {
-        write!(f, [name])?;
-    }
-
-    // generic parameters
-    write_function_generic_parameters(f, signature)?;
+        Ok(())
+    });
+    let head_prefix =
+        FormatContentWithCacheMode::new(f.context().span(node_id), head_prefix, cache_mode);
+    write!(f, [head_prefix])?;
 
     // parameter separator
     write!(f, [block_infix_annotations(f.context(), node_id)])?;
 
     // signature
     let format_signature = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        write_function_parameters_and_return_type(f, node_id, signature, body, &parameters, false)
+        write_function_parameters_and_return_type(
+            f,
+            node_id,
+            signature,
+            body,
+            &parameters,
+            false,
+            cache_mode,
+        )
     });
 
     write!(f, [group(&format_signature)])?;
@@ -528,7 +515,6 @@ fn write_function_head<'ast>(
 }
 
 /// Format one function declaration.
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn format_function_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
@@ -537,11 +523,12 @@ pub(crate) fn format_function_declaration<'ast>(
     name: Option<Name>,
     signature: &FunctionSignature,
     body: &Option<LocalNodeId<Expression>>,
+    cache_mode: FunctionCacheMode,
 ) -> FormatResult<()> {
     debug_assert_eq!(signature.kind, FunctionKind::Function);
 
     write_function_export_prefix(f, node_id, export)?;
     write_function_ambient_prefix(f, ambient)?;
-    write_function_head(f, node_id, name, signature, body)?;
-    write_function_body_and_terminator(f, node_id, signature, body)
+    write_function_head(f, node_id, name, signature, body, cache_mode)?;
+    write_function_body_and_terminator(f, node_id, signature, body, cache_mode)
 }

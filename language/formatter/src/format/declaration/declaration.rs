@@ -1,5 +1,10 @@
-use crate::format::annotation::{format_comment, postfix_annotations, prefix_annotations};
+use crate::format::annotation::{
+    format_comment, format_trailing_comments, infix_or_postfix_annotations, postfix_annotations,
+    prefix_annotations,
+};
+use crate::format::collection::literal::format_scalar_literal;
 use crate::format::collection::member::format_block_of_members;
+use crate::format::context::FormatNodeWithoutTrailingComments;
 use crate::format::declaration::function::format_function_declaration;
 use crate::format::declaration::sequence::format_block_statement_sequence;
 use crate::format::declaration::signature::{
@@ -11,7 +16,7 @@ use crate::format::declaration::r#type::{
     format_struct_declaration,
 };
 use crate::format::declaration::{
-    format_lambda_declaration, write_statement_terminator_after_anchor,
+    FunctionCacheMode, format_lambda_declaration, write_statement_terminator_after_anchor,
 };
 use crate::format::expression::{format_declarator, write_control_branch_after_head};
 use crate::format::operator::{
@@ -22,26 +27,48 @@ use crate::{
     DestackFormatContext, DestackFormatter, FormatNode, empty_block_with_infix_annotations,
 };
 use destack_ast::{
-    Ambientness, Asynchrony, Comment, Declaration, Declarator, ExportMode, Expression,
-    FunctionDeclaration, GenericParameter, GlobalDeclaration, ImportAliasDeclaration,
-    ImportAliasTarget, Keyword, LetKind, LocalNodeId, NamespaceDeclaration, NamespaceKind,
-    NodeType, TypeDeclaration, TypeExpression,
+    Ambientness, Asynchrony, Comment, Declaration, Declarator, DependencyKind, ExportMode,
+    Expression, ExtensionDeclaration, FunctionDeclaration, FunctionKind, GenericParameter,
+    GlobalDeclaration, ImportAliasDeclaration, ImportAliasTarget, Keyword, LetKind, LocalNodeId,
+    Member, Mutability, Name, NamespaceDeclaration, NamespaceKind, NodeType, ScalarLiteral,
+    TokenSpan, TokenType, TypeDeclaration, TypeExpression, WhereClause,
 };
-use destack_fir::format::{FormatNodes, FormatResult, Formatter as FirFormatter, VecBuffer};
+use destack_fir::format::{
+    FormatNode as FirNode, FormatNodes, FormatResult, Formatter as FirFormatter, VecBuffer,
+};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
+use destack_source::Span;
 
 const MIN_OVERLAP_FOR_BREAK: u32 = 3;
 
-/// Return comments between `export` and the declaration head.
-fn declaration_export_head_comments(
+/// Write one declaration name.
+fn write_declaration_name<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    name: Name,
+) -> FormatResult<()> {
+    match name {
+        Name::Identifier(name) | Name::Number(name) => {
+            write!(f, [name])?;
+        }
+        Name::String(name) => {
+            let literal = ScalarLiteral::String(name);
+            let span = Span::empty(f.context().file.id);
+            format_scalar_literal(&literal, span, f)?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Return the `export` token for one declaration, if present.
+pub(crate) fn declaration_export_token(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
-    export: ExportMode,
-) -> Vec<Comment> {
+) -> Option<TokenSpan> {
     let declaration_span = context.span(node_id);
 
-    let export_token = context
+    context
         .tokens
         .iter()
         .copied()
@@ -52,7 +79,17 @@ fn declaration_export_head_comments(
                 && token.span.end <= declaration_span.end
                 && context.token_keyword(*token) == Some(Keyword::Export)
         })
-        .min_by_key(|token| token.span.start);
+        .min_by_key(|token| token.span.start)
+}
+
+/// Return comments between `export` and the declaration head.
+fn declaration_export_head_comments(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Declaration>,
+    export: ExportMode,
+) -> Vec<Comment> {
+    let declaration_span = context.span(node_id);
+    let export_token = declaration_export_token(context, node_id);
     let Some(export_token) = export_token else {
         return Vec::new();
     };
@@ -125,7 +162,7 @@ pub(crate) fn write_declaration_export_head_comments<'ast>(
             .is_some_and(|token_type| {
                 matches!(
                     token_type,
-                    destack_ast::TokenType::LineComment | destack_ast::TokenType::DocLineComment
+                    TokenType::LineComment | TokenType::DocLineComment
                 )
             });
 
@@ -177,7 +214,7 @@ fn write_ambient_prefix<'ast>(
 /// Write one declaration generic parameter list.
 fn write_declaration_generic_parameters<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    generic_parameters: &[LocalNodeId<destack_ast::GenericParameter>],
+    generic_parameters: &[LocalNodeId<GenericParameter>],
 ) -> FormatResult<()> {
     // generic parameters
     if !generic_parameters.is_empty() {
@@ -194,7 +231,7 @@ fn write_declaration_generic_parameters<'ast>(
 /// Write one declaration where clause list.
 fn write_declaration_where_clauses<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    where_clauses: &[LocalNodeId<destack_ast::WhereClause>],
+    where_clauses: &[LocalNodeId<WhereClause>],
 ) -> FormatResult<()> {
     // where clauses
     if !where_clauses.is_empty() {
@@ -209,7 +246,7 @@ fn buffer_type_declaration_left<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     declaration: &TypeDeclaration,
-) -> FormatResult<(Vec<destack_fir::format::FormatNode>, bool, bool)> {
+) -> FormatResult<(Vec<FirNode>, bool, bool)> {
     let mut buffer = VecBuffer::new(f.state_mut());
     let formatter = &mut FirFormatter::new(&mut buffer);
 
@@ -220,12 +257,16 @@ fn buffer_type_declaration_left<'ast>(
     // modifiers
     if declaration.is_nominal {
         write!(formatter, [Keyword::Newtype, space()])?;
-    } else if declaration.mutability == Some(destack_ast::Mutability::Immutable) {
+    } else if declaration.mutability == Some(Mutability::Immutable) {
         write!(formatter, [Keyword::Readonly, space()])?;
     }
 
     // head
-    write!(formatter, [Keyword::Type, space(), declaration.name])?;
+    if !declaration.is_nominal {
+        write!(formatter, [Keyword::Type, space()])?;
+    }
+
+    write!(formatter, [declaration.name])?;
 
     // generic parameters
     write_declaration_generic_parameters(formatter, &declaration.generic_parameters)?;
@@ -258,11 +299,12 @@ fn type_expression_is_assignment_like_generic_condition(
             generic_arguments, ..
         } => !generic_arguments.is_empty(),
 
-        TypeExpression::Declaration { declaration } => matches!(
-            context.tree.get(*declaration),
-            Declaration::Function(FunctionDeclaration { signature, .. })
-                if !signature.generic_parameters.is_empty()
-        ),
+        TypeExpression::FunctionTypeDeclaration(function) => {
+            !function.generic_parameters.is_empty()
+        }
+        TypeExpression::ConstructorTypeDeclaration(function) => {
+            !function.generic_parameters.is_empty()
+        }
 
         _ => false,
     }
@@ -292,45 +334,19 @@ fn type_declaration_should_break_after_operator(
     }
 }
 
-/// Return whether one type declaration should break its left side before `=`.
-fn type_declaration_has_complex_left_side(
-    context: &DestackFormatContext<'_>,
-    declaration: &TypeDeclaration,
-) -> bool {
-    if declaration.generic_parameters.len() <= 1 {
-        return false;
-    }
-
-    declaration
-        .generic_parameters
-        .iter()
-        .copied()
-        .any(|parameter_id| match context.tree.get(parameter_id) {
-            GenericParameter::Type {
-                constraint,
-                default,
-                ..
-            } => constraint.is_some() || default.is_some(),
-            GenericParameter::Value {
-                declared_type,
-                default,
-                ..
-            } => declared_type.is_some() || default.is_some(),
-            GenericParameter::Error => false,
-        })
-}
-
 /// Return one assignment-like layout for one type declaration.
 fn type_declaration_layout(
     context: &DestackFormatContext<'_>,
     declaration: &TypeDeclaration,
+    is_left_short: bool,
+    left_may_break: bool,
 ) -> AssignmentLikeLayout {
     if type_declaration_should_break_after_operator(context, declaration) {
         return AssignmentLikeLayout::BreakAfterOperator;
     }
 
-    if type_declaration_has_complex_left_side(context, declaration) {
-        return AssignmentLikeLayout::BreakLeftHandSide;
+    if !left_may_break && is_left_short {
+        return AssignmentLikeLayout::NeverBreakAfterOperator;
     }
 
     AssignmentLikeLayout::Fluid
@@ -384,7 +400,7 @@ fn write_expression_declaration_body<'ast>(
 fn write_member_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
-    members: &[LocalNodeId<destack_ast::Member>],
+    members: &[LocalNodeId<Member>],
     break_before_body: bool,
 ) -> FormatResult<()> {
     // empty body
@@ -667,7 +683,8 @@ fn format_namespace_declaration<'ast>(
     }
 
     // name
-    write!(f, [space(), declaration.name])?;
+    write!(f, [space()])?;
+    write_declaration_name(f, declaration.name)?;
 
     // generic parameters
     write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
@@ -688,8 +705,9 @@ fn format_type_declaration<'ast>(
     node_id: LocalNodeId<Declaration>,
     declaration: &TypeDeclaration,
 ) -> FormatResult<()> {
-    let (left_nodes, _, left_may_break) = buffer_type_declaration_left(f, node_id, declaration)?;
-    let layout = type_declaration_layout(f.context(), declaration);
+    let (left_nodes, is_left_short, left_may_break) =
+        buffer_type_declaration_left(f, node_id, declaration)?;
+    let layout = type_declaration_layout(f.context(), declaration, is_left_short, left_may_break);
 
     let left = f.intern_vec(left_nodes);
     let left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
@@ -701,7 +719,26 @@ fn format_type_declaration<'ast>(
     });
 
     let right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        write_type_expression_with_inline_prefix_annotations(f, declaration.value)
+        if matches!(
+            f.context().tree.get(declaration.value),
+            TypeExpression::Union { .. }
+        ) {
+            write!(f, [FormatNodeWithoutTrailingComments(declaration.value)])?;
+            write!(
+                f,
+                [infix_or_postfix_annotations(f.context(), declaration.value)]
+            )?;
+            write!(
+                f,
+                [format_trailing_comments(
+                    f.context().span(node_id),
+                    f.context().span(declaration.value),
+                    0
+                )]
+            )
+        } else {
+            write_type_expression_with_inline_prefix_annotations(f, declaration.value)
+        }
     });
 
     let inner_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
@@ -740,7 +777,7 @@ fn format_import_alias_declaration<'ast>(
 
     // head
     write!(f, [Keyword::Import, space()])?;
-    if declaration.kind == destack_ast::DependencyKind::Type {
+    if declaration.kind == DependencyKind::Type {
         write!(f, [Keyword::Type, space()])?;
     }
 
@@ -777,7 +814,7 @@ fn format_import_alias_declaration<'ast>(
 fn format_extension_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
-    declaration: &destack_ast::ExtensionDeclaration,
+    declaration: &ExtensionDeclaration,
 ) -> FormatResult<()> {
     // prefixes
     format_declaration_export_modifier(f, node_id, declaration.export)?;
@@ -813,7 +850,10 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
         node_id: LocalNodeId<Declaration>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [prefix_annotations(f.context(), node_id)])?;
+        // class declarations own their decorator placement relative to `export`
+        if !matches!(self, Declaration::Class(_)) {
+            write!(f, [prefix_annotations(f.context(), node_id)])?;
+        }
 
         // main declaration body
         match self {
@@ -852,13 +892,20 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 signature,
                 body,
             }) => {
-                if signature.kind == destack_ast::FunctionKind::Lambda {
+                if signature.kind == FunctionKind::Lambda {
                     format_lambda_declaration(
                         f, node_id, *export, *ambient, *name, signature, body,
                     )?;
                 } else {
                     format_function_declaration(
-                        f, node_id, *export, *ambient, *name, signature, body,
+                        f,
+                        node_id,
+                        *export,
+                        *ambient,
+                        *name,
+                        signature,
+                        body,
+                        FunctionCacheMode::default(),
                     )?;
                 }
             }

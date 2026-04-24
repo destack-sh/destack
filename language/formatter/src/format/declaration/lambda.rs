@@ -1,11 +1,11 @@
 use super::function::{
-    FormatContentWithCacheMode, function_body_shell_span,
-    function_can_omit_lambda_parameter_parentheses, function_parameter_shell_span,
-    function_parameters, should_group_function_parameters, write_function_ambient_prefix,
-    write_function_export_prefix, write_function_generic_parameters, write_function_return_type,
+    FormatContentWithCacheMode, function_can_omit_lambda_parameter_parentheses,
+    function_parameter_container_span, function_parameters, should_group_function_parameters,
+    write_function_ambient_prefix, write_function_export_prefix, write_function_generic_parameters,
+    write_function_return_type,
 };
 use crate::format::annotation::{
-    FormatTrailingComments, block_infix_annotations, format_leading_comments, postfix_annotations,
+    block_infix_annotations, format_leading_comments, postfix_annotations,
 };
 use crate::format::chain::{is_lambda_expression, transparent_inner_expression};
 use crate::format::declaration::signature::{
@@ -17,13 +17,14 @@ use crate::format::expression::ExpressionLeftSide;
 use crate::format::operator::AssignmentLikeLayout;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Ambientness, Argument, Comment, Declaration, ExportMode, Expression, FunctionDeclaration,
-    FunctionKind, FunctionSignature, IfKind, LocalNodeId, Name, NodeType, TemplateLiteral,
+    Ambientness, Argument, Declaration, ExportMode, Expression, FunctionDeclaration, FunctionKind,
+    FunctionSignature, IfKind, LocalNodeId, Name, NodeType, Parameter, TemplateLiteral,
 };
 use destack_fir::format::{FormatResult, RemoveSoftLinesBuffer};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_source::Span;
+use destack_workspace::TrailingComma;
 
 /// The grouped call-argument layout shared with lambda formatting.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -46,7 +47,7 @@ impl GroupedCallArgumentLayout {
     }
 }
 
-/// The caching mode for lambda signature and body content.
+/// The caching mode for function signature and body content.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) enum FunctionCacheMode {
     /// Format without caching the content.
@@ -56,31 +57,28 @@ pub(crate) enum FunctionCacheMode {
     Cache,
 }
 
-/// The explicit lambda formatting options.
+/// Options for formatting one lambda declaration.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct FormatLambdaDeclarationOptions {
     /// The assignment-like layout, when this lambda sits on one assignment rhs.
     pub assignment_layout: Option<AssignmentLikeLayout>,
     /// The grouped call-argument layout, when this lambda is being formatted as one.
     pub call_argument_layout: Option<GroupedCallArgumentLayout>,
-    /// The signature/body cache mode for grouped call formatting.
+    /// The signature and body cache mode for grouped call formatting.
     pub cache_mode: FunctionCacheMode,
 }
 
-/// The cached lambda body wrapper keyed by the body shell span.
+/// The cached lambda body wrapper keyed by the body container span.
 #[derive(Clone, Copy, Debug)]
 struct FormatMaybeCachedLambdaBody {
-    declaration_id: LocalNodeId<Declaration>,
     body_id: LocalNodeId<Expression>,
     cache_mode: FunctionCacheMode,
 }
 
 impl<'ast> Format<DestackFormatContext<'ast>> for FormatMaybeCachedLambdaBody {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-        // body shell
-        let body_shell_span =
-            function_body_shell_span(f.context(), self.declaration_id, self.body_id);
         let body_id = self.body_id;
+        let body_span = f.context().span(body_id);
 
         // body content
         let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
@@ -94,7 +92,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for FormatMaybeCachedLambdaBody {
             write!(f, [body_id])
         });
 
-        FormatContentWithCacheMode::new(body_shell_span, content, self.cache_mode).format(f)
+        FormatContentWithCacheMode::new(body_span, content, self.cache_mode).format(f)
     }
 }
 
@@ -122,23 +120,8 @@ fn lambda_declaration_is_statement_position(
 pub(crate) fn write_lambda_arrow_with_infix_annotations<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
-    cache_mode: FunctionCacheMode,
+    _cache_mode: FunctionCacheMode,
 ) -> FormatResult<()> {
-    // arrow comments
-    let arrow_comment_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        let arrow_comments = lambda_arrow_comments(f.context(), node_id);
-        write!(f, [FormatTrailingComments::Comments(&arrow_comments)])
-    });
-
-    write!(
-        f,
-        [FormatContentWithCacheMode::new(
-            f.context().span(node_id),
-            arrow_comment_content,
-            cache_mode,
-        )]
-    )?;
-
     // arrow token
     write!(f, [block_infix_annotations(f.context(), node_id)])?;
     if !f.context().has_infix_annotation(node_id) {
@@ -147,27 +130,13 @@ pub(crate) fn write_lambda_arrow_with_infix_annotations<'ast>(
 
     write!(f, [token("=>")])
 }
-
-/// Return comments between the signature close delimiter and one lambda arrow.
-fn lambda_arrow_comments(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Declaration>,
-) -> Vec<Comment> {
-    let parameter_shell_span = function_parameter_shell_span(context, node_id);
-
-    context
-        .comments()
-        .comments_before_character(parameter_shell_span.end, b'=')
-        .to_vec()
-}
-
 /// Write one lambda parameter list and return type.
 fn write_lambda_parameters_and_return_type<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     signature: &FunctionSignature,
     body: &Option<LocalNodeId<Expression>>,
-    parameters: &[LocalNodeId<destack_ast::Parameter>],
+    parameters: &[LocalNodeId<Parameter>],
     can_omit_parens: bool,
 ) -> FormatResult<()> {
     // grouping
@@ -238,11 +207,11 @@ fn lambda_declaration<'ast>(
 /// Return whether one parameter is simple enough for inline arrow chains.
 fn lambda_parameter_is_simple(
     context: &DestackFormatContext<'_>,
-    parameter_id: LocalNodeId<destack_ast::Parameter>,
+    parameter_id: LocalNodeId<Parameter>,
     allow_type_annotations: bool,
 ) -> bool {
     match context.tree.get(parameter_id) {
-        destack_ast::Parameter::Named {
+        Parameter::Named {
             declared_type,
             default,
             ..
@@ -401,10 +370,9 @@ fn lambda_declaration_tree_argument_should_add_soft_line(
 /// Return whether one lambda body has one own-line comment after the arrow.
 fn lambda_body_has_leading_own_line_comment(
     context: &DestackFormatContext<'_>,
-    declaration_id: LocalNodeId<Declaration>,
     body_id: LocalNodeId<Expression>,
 ) -> bool {
-    let body_span = function_body_shell_span(context, declaration_id, body_id);
+    let body_span = context.span(body_id);
     let comment_start = context
         .previous_non_trivia_token_before_span(body_span)
         .map_or(body_span.start, |token| token.span.end);
@@ -421,7 +389,6 @@ fn lambda_body_has_leading_own_line_comment(
 /// Return whether one lambda body should keep its own break strategy.
 fn lambda_body_has_soft_line_break(
     context: &DestackFormatContext<'_>,
-    declaration_id: LocalNodeId<Declaration>,
     body_id: LocalNodeId<Expression>,
     body_expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -429,12 +396,12 @@ fn lambda_body_has_soft_line_break(
 
     match body_expression {
         Expression::ArrayExpression { .. } | Expression::ObjectExpression { .. } => {
-            !lambda_body_has_leading_own_line_comment(context, declaration_id, body_id)
+            !lambda_body_has_leading_own_line_comment(context, body_id)
         }
         Expression::TreeExpression { .. } => true,
         Expression::Declaration(_) => {
             is_lambda_expression(context, body_expression_id)
-                && !lambda_body_has_leading_own_line_comment(context, declaration_id, body_id)
+                && !lambda_body_has_leading_own_line_comment(context, body_id)
         }
         Expression::TemplateExpression {
             value: TemplateLiteral::InterpolatedString { .. },
@@ -444,21 +411,6 @@ fn lambda_body_has_soft_line_break(
             ..
         } => expression_is_multiline_template_starting_on_same_line(context, body_expression_id),
         _ => false,
-    }
-}
-
-/// Return the formatter-visible expression body for one lambda.
-fn lambda_body_expression_id(
-    context: &DestackFormatContext<'_>,
-    mut body_expression_id: LocalNodeId<Expression>,
-) -> LocalNodeId<Expression> {
-    loop {
-        match context.tree.get(body_expression_id) {
-            Expression::Parenthesized { expression } => {
-                body_expression_id = *expression;
-            }
-            _ => return body_expression_id,
-        }
     }
 }
 
@@ -601,10 +553,9 @@ fn write_single_lambda_layout<'ast>(
         return write!(f, [formatted_signature]);
     };
 
-    let body_expression_id = lambda_body_expression_id(f.context(), body_id);
+    let body_expression_id = transparent_inner_expression(f.context(), body_id);
     let body_expression = f.context().tree.get(body_expression_id);
     let format_body = FormatMaybeCachedLambdaBody {
-        declaration_id,
         body_id,
         cache_mode: options.cache_mode,
     };
@@ -621,7 +572,7 @@ fn write_single_lambda_layout<'ast>(
     }
 
     // self-breaking bodies
-    if lambda_body_has_soft_line_break(f.context(), declaration_id, body_id, body_expression_id) {
+    if lambda_body_has_soft_line_break(f.context(), body_id, body_expression_id) {
         return write!(f, [formatted_signature, space(), format_body]);
     }
 
@@ -630,6 +581,8 @@ fn write_single_lambda_layout<'ast>(
     let is_last_call_argument = options
         .call_argument_layout
         .is_some_and(GroupedCallArgumentLayout::is_grouped_last);
+    let should_add_trailing_separator =
+        is_last_call_argument && matches!(f.context().options.trailing_comma, TrailingComma::All);
     let should_add_soft_line = is_last_call_argument
         || lambda_declaration_tree_argument_should_add_soft_line(f.context(), declaration_id);
 
@@ -650,6 +603,7 @@ fn write_single_lambda_layout<'ast>(
 
                 Ok(())
             })),
+            should_add_trailing_separator.then_some(if_group_breaks(&token(","))),
             should_add_soft_line.then_some(soft_line_break())
         ])]
     )
@@ -768,10 +722,9 @@ fn write_lambda_chain_layout<'ast>(
             return Ok(());
         };
 
-        let body_expression_id = lambda_body_expression_id(f.context(), body_id);
+        let body_expression_id = transparent_inner_expression(f.context(), body_id);
         let should_add_parens = lambda_body_needs_parentheses(f.context(), body_expression_id);
         let format_body = FormatMaybeCachedLambdaBody {
-            declaration_id: chain.tail,
             body_id,
             cache_mode: chain.options.cache_mode,
         };
@@ -935,7 +888,7 @@ fn write_lambda_head<'ast>(
     });
 
     let head = group(&head);
-    let cache_key = function_parameter_shell_span(f.context(), node_id);
+    let cache_key = function_parameter_container_span(f.context(), node_id);
     let head = FormatContentWithCacheMode::new(cache_key, head, options.cache_mode);
 
     if options.call_argument_layout.is_some() {
@@ -957,7 +910,6 @@ fn write_lambda_head<'ast>(
 }
 
 /// Format one lambda declaration with explicit options.
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn format_lambda_declaration_with_options<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
@@ -982,7 +934,6 @@ pub(crate) fn format_lambda_declaration_with_options<'ast>(
 }
 
 /// Format one lambda declaration.
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn format_lambda_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,

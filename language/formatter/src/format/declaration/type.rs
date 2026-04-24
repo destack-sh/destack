@@ -1,35 +1,38 @@
 use crate::format::annotation::{
-    FormatLeadingComments, FormatTrailingComments, infix_or_postfix_annotations,
-    postfix_annotations, prefix_annotations,
+    FormatLeadingComments, FormatTrailingComments, decorator_prefix_annotations,
+    format_dangling_comments, infix_or_postfix_annotations, postfix_annotations,
+    prefix_annotations, prefix_comments_before_decorators, write_vertical_prefix_annotations,
 };
 use crate::format::chain::transparent_inner_expression;
 use crate::format::collection::member::format_block_of_members;
+use crate::format::context::FormatNodeWithoutTrailingComments;
 use crate::format::declaration::declaration::{
-    format_declaration_export_modifier, format_super_type_clause,
+    declaration_export_token, format_declaration_export_modifier, format_super_type_clause,
 };
 use crate::format::declaration::signature::{
     default_generic_parameter_trailing_separator, format_where_clause_with_break,
     write_generic_parameter_list,
 };
-use crate::format::expression::{format_expression, format_type_member_list};
+use crate::format::expression::{expression_needs_parentheses_in_parent, format_type_member_list};
 use crate::format::operator::format_generic_argument_list;
 use crate::{
     DestackFormatContext, DestackFormatter, FormatNode, empty_block_with_infix_annotations,
 };
 use destack_ast::{
-    ClassDeclaration, Declaration, EnumDeclaration, EnumField, EnumKind, Expression,
-    GenericArgument, InterfaceDeclaration, Keyword, LocalNodeId, LocalNodeIdAny, Member, Node,
-    NodeTree, NodeTreeImpl, NodeType, StructDeclaration, TypeExpression, TypeMember,
+    ClassDeclaration, Declaration, Decorator, EnumDeclaration, EnumField, EnumKind, Expression,
+    GenericArgument, GenericParameter, InterfaceDeclaration, Keyword, LocalNodeId, LocalNodeIdAny,
+    Member, Node, NodeTree, NodeTreeImpl, NodeType, StructDeclaration, TokenType, TypeExpression,
+    TypeMember, WhereClause,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
-use destack_source::Span;
+use destack_source::{NodeSpanType, Span};
 
 /// Write one declaration generic parameter list.
 fn write_declaration_generic_parameters<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    generic_parameters: &[LocalNodeId<destack_ast::GenericParameter>],
+    generic_parameters: &[LocalNodeId<GenericParameter>],
 ) -> FormatResult<()> {
     // generic parameters
     if !generic_parameters.is_empty() {
@@ -46,7 +49,7 @@ fn write_declaration_generic_parameters<'ast>(
 /// Write one declaration where clause list.
 fn write_declaration_where_clauses<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    where_clauses: &[LocalNodeId<destack_ast::WhereClause>],
+    where_clauses: &[LocalNodeId<WhereClause>],
 ) -> FormatResult<()> {
     // where clauses
     if !where_clauses.is_empty() {
@@ -87,7 +90,7 @@ fn generic_argument_list_span_after_expression(
     let arguments_span = combined_node_span(context, generic_arguments)?;
     let open_token = context.next_non_trivia_token_after_span(expression_span)?;
 
-    if open_token.token.ty != destack_ast::TokenType::LessThan {
+    if open_token.token.ty != TokenType::LessThan {
         return Some(arguments_span);
     }
 
@@ -109,6 +112,19 @@ fn write_member_block<'ast>(
 ) -> FormatResult<()> {
     // empty body
     if members.is_empty() {
+        let node_span = f.context().span(node_id);
+
+        if f.context().comments().has_comment_in_span(node_span) {
+            return write!(
+                f,
+                [
+                    token("{"),
+                    format_dangling_comments(node_span).with_block_indent(),
+                    token("}")
+                ]
+            );
+        }
+
         return write!(f, [empty_block_with_infix_annotations(node_id)]);
     }
 
@@ -147,6 +163,19 @@ fn write_type_member_block<'ast>(
 ) -> FormatResult<()> {
     // empty body
     if members.is_empty() {
+        let node_span = f.context().span(node_id);
+
+        if f.context().comments().has_comment_in_span(node_span) {
+            return write!(
+                f,
+                [
+                    token("{"),
+                    format_dangling_comments(node_span).with_block_indent(),
+                    token("}")
+                ]
+            );
+        }
+
         return write!(f, [empty_block_with_infix_annotations(node_id)]);
     }
 
@@ -241,7 +270,9 @@ fn class_heritage_should_group(
     }
 
     let name_span = context.tree.get_main_span(node_id);
-    let generic_parameters_span = combined_node_span(context, &declaration.generic_parameters);
+    let generic_parameters_span = context
+        .tree
+        .get_side_span(node_id, NodeSpanType::GenericParameters);
     let extends_span = declaration
         .extends_expression
         .map(|expression_id| context.span(expression_id));
@@ -282,6 +313,44 @@ fn class_heritage_should_group(
     false
 }
 
+/// Return class decorators that appear before one export token.
+fn class_decorators_before_export(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Declaration>,
+    export_start: u32,
+) -> Vec<LocalNodeId<Decorator>> {
+    let mut annotation_ids = Vec::new();
+
+    for annotation_id in context.annotation_ids(node_id).iter().copied() {
+        let annotation_span = context.annotation_span(annotation_id);
+
+        if annotation_span.end < export_start {
+            annotation_ids.push(annotation_id);
+        }
+    }
+
+    annotation_ids
+}
+
+/// Return class decorators that appear after one export token.
+fn class_decorators_after_export(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Declaration>,
+    export_start: u32,
+) -> Vec<LocalNodeId<Decorator>> {
+    let mut annotation_ids = Vec::new();
+
+    for annotation_id in context.annotation_ids(node_id).iter().copied() {
+        let annotation_span = context.annotation_span(annotation_id);
+
+        if annotation_span.start > export_start {
+            annotation_ids.push(annotation_id);
+        }
+    }
+
+    annotation_ids
+}
+
 /// Return whether one interface heritage layout should use group mode.
 fn interface_heritage_should_group(
     context: &DestackFormatContext<'_>,
@@ -301,7 +370,9 @@ fn interface_heritage_should_group(
         return true;
     }
 
-    let previous_span = combined_node_span(context, &declaration.generic_parameters)
+    let previous_span = context
+        .tree
+        .get_side_span(node_id, NodeSpanType::GenericParameters)
         .or(context.tree.get_main_span(node_id));
     let extends_span = declaration
         .extends_types
@@ -367,9 +438,36 @@ pub(crate) fn format_class_declaration<'ast>(
                     Expression::Assign { .. }
                 )
         });
+    let export_start = declaration_export_token(f.context(), node_id).map(|token| token.span.start);
+    let decorators_before_export = export_start.map_or_else(Vec::new, |export_start| {
+        class_decorators_before_export(f.context(), node_id, export_start)
+    });
+    let decorators_after_export = export_start.map_or_else(Vec::new, |export_start| {
+        class_decorators_after_export(f.context(), node_id, export_start)
+    });
     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        // prefixes
-        format_declaration_export_modifier(f, node_id, declaration.export)?;
+        // decorator and export prefixes
+        if declaration.export.is_some() {
+            write!(f, [prefix_comments_before_decorators(f.context(), node_id)])?;
+
+            if !decorators_before_export.is_empty() {
+                write_vertical_prefix_annotations(f, &decorators_before_export)?;
+            }
+
+            format_declaration_export_modifier(f, node_id, declaration.export)?;
+
+            if !decorators_after_export.is_empty() {
+                write!(f, [hard_line_break()])?;
+                write_vertical_prefix_annotations(f, &decorators_after_export)?;
+            }
+        } else if f.context().has_annotation(node_id) {
+            write!(f, [prefix_comments_before_decorators(f.context(), node_id)])?;
+            write!(f, [decorator_prefix_annotations(f.context(), node_id)])?;
+        } else {
+            write!(f, [prefix_annotations(f.context(), node_id)])?;
+        }
+
+        // declaration prefixes
         if declaration.ambient.is_ambient() {
             write!(f, [Keyword::Declare, space()])?;
         }
@@ -380,13 +478,46 @@ pub(crate) fn format_class_declaration<'ast>(
 
         // head
         write!(f, [Keyword::Class])?;
-        if let Some(name) = declaration.name {
-            write!(f, [space(), name])?;
-        }
-
-        write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
 
         let head = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            if let Some(name) = declaration.name {
+                write!(f, [space(), name])?;
+            }
+
+            write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
+
+            let following_span_start = declaration
+                .extends_expression
+                .map(|expression_id| f.context().span(expression_id).start)
+                .or_else(|| {
+                    declaration
+                        .implements_types
+                        .first()
+                        .copied()
+                        .map(|type_id| f.context().span(type_id).start)
+                });
+
+            if let (Some(name_span), Some(following_span_start)) = (
+                f.context().tree.get_main_span(node_id),
+                following_span_start,
+            ) {
+                let generic_parameter_comments = {
+                    let comments = f.context().comments();
+                    comments
+                        .comments_in_range(name_span.end, following_span_start)
+                        .to_vec()
+                };
+
+                if !generic_parameter_comments.is_empty() {
+                    write!(
+                        f,
+                        [FormatTrailingComments::Comments(
+                            &generic_parameter_comments
+                        )]
+                    )?;
+                }
+            }
+
             if let Some(extends_expression) = declaration.extends_expression {
                 let comments = f
                     .context()
@@ -409,18 +540,37 @@ pub(crate) fn format_class_declaration<'ast>(
         });
         let heritage = format_with(|f: &mut DestackFormatter<'ast, '_>| {
             if let Some(extends_expression) = declaration.extends_expression {
-                let extends_expression =
-                    transparent_inner_expression(f.context(), extends_expression);
+                let extends_comments = if !declaration.extends_generic_arguments.is_empty()
+                    || !declaration.implements_types.is_empty()
+                {
+                    Vec::new()
+                } else {
+                    f.context()
+                        .comments()
+                        .comments_in_range(
+                            f.context().span(extends_expression).end,
+                            f.context().span(node_id).end,
+                        )
+                        .to_vec()
+                };
+                let has_trailing_line_comments =
+                    extends_comments.iter().any(|comment| comment.is_line());
                 let format_super = format_with(|f: &mut DestackFormatter<'ast, '_>| {
                     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                        let extends_expression_node = f.context().tree.get(extends_expression);
-                        format_expression(f, extends_expression, extends_expression_node, false)?;
-
                         if !declaration.extends_generic_arguments.is_empty() {
+                            write!(f, [extends_expression])?;
                             format_generic_argument_list(
                                 f,
                                 &declaration.extends_generic_arguments,
                             )?;
+                        } else if declaration.implements_types.is_empty() {
+                            write!(f, [FormatNodeWithoutTrailingComments(extends_expression)])?;
+
+                            if !has_trailing_line_comments {
+                                write!(f, [FormatTrailingComments::Comments(&extends_comments)])?;
+                            }
+                        } else {
+                            write!(f, [extends_expression])?;
                         }
 
                         Ok(())
@@ -497,7 +647,14 @@ pub(crate) fn format_class_declaration<'ast>(
                                             write!(f, [token(","), soft_line_break_or_space()])?;
                                         }
 
-                                        write!(f, [type_id])?;
+                                        if index + 1 == declaration.implements_types.len() {
+                                            write!(
+                                                f,
+                                                [FormatNodeWithoutTrailingComments(type_id)]
+                                            )?;
+                                        } else {
+                                            write!(f, [type_id])?;
+                                        }
                                     }
 
                                     Ok(())
@@ -525,7 +682,11 @@ pub(crate) fn format_class_declaration<'ast>(
                                 write!(f, [token(","), soft_line_break_or_space()])?;
                             }
 
-                            write!(f, [type_id])?;
+                            if index + 1 == declaration.implements_types.len() {
+                                write!(f, [FormatNodeWithoutTrailingComments(type_id)])?;
+                            } else {
+                                write!(f, [type_id])?;
+                            }
                         }
 
                         Ok(())
@@ -571,7 +732,17 @@ pub(crate) fn format_class_declaration<'ast>(
         write_member_block(f, node_id, &declaration.members)
     });
 
-    write!(f, [group(&content)])?;
+    // decorated class expressions own their grouped parentheses
+    let class_expression_needs_parentheses =
+        declaration_expression_id.is_some_and(|expression_id| {
+            expression_needs_parentheses_in_parent(f.context(), expression_id)
+        }) && f.context().has_annotation(node_id);
+
+    if declaration_expression_id.is_some() && class_expression_needs_parentheses {
+        write!(f, [soft_block_indent(&content)])?;
+    } else {
+        write!(f, [group(&content)])?;
+    }
 
     // postfix annotations
     write!(f, [postfix_annotations(f.context(), node_id)])
