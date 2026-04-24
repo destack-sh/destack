@@ -1,14 +1,13 @@
 use std::collections::BTreeMap;
 use std::ptr::NonNull;
 
-use destack_core::CowBuffer;
 use destack_mir::ReferenceMap;
 use {destack_engine as engine, destack_mir as mir};
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::module::{Block, Function, FunctionTable, Module, repr_type};
 use crate::snapshot::FrameImage;
-use crate::{RootSink, Value};
+use crate::{RootVisitor, Value};
 use destack_heap::{Heap, HeapReference, SharedHeapReference};
 
 use super::StackAllocation;
@@ -16,11 +15,11 @@ use super::StackAllocation;
 /// Call frame in the interpreter.
 #[derive(Debug)]
 pub struct Frame {
-    /// The logical frame layout for this activation.
+    /// The logical frame layout.
     pub(crate) frame_layout: engine::FrameLayoutId,
     /// The function being executed.
     pub(crate) function: mir::LocalNodeId<mir::Function>,
-    /// Pointer to the lowered function for fast dispatch.
+    /// Pointer to the lowered function.
     pub(crate) function_ptr: NonNull<Function>,
     /// Pointer to the current block.
     pub(crate) block_ptr: NonNull<Block>,
@@ -39,7 +38,7 @@ pub struct Frame {
     /// Count of local variables in this frame.
     pub(crate) local_count: usize,
     /// Frame-owned slot storage.
-    slots: CowBuffer<Value>,
+    slots: Vec<Value>,
     /// Stack-allocated byte buffers, freed when the frame pops.
     pub(crate) stack_allocations: Vec<Option<StackAllocation>>,
     /// Callable environment pointer for this frame.
@@ -79,7 +78,7 @@ impl Frame {
             transfer: None,
             value_count,
             local_count,
-            slots: CowBuffer::from_vec(vec![Value::VOID; slot_count]),
+            slots: vec![Value::VOID; slot_count],
             stack_allocations: Vec::new(),
             environment,
         }
@@ -88,13 +87,13 @@ impl Frame {
     /// Borrow all frame slots mutably.
     #[inline]
     pub(crate) fn slots_mut(&mut self) -> &mut [Value] {
-        self.slots.make_mut().as_mut_slice()
+        self.slots.as_mut_slice()
     }
 
     /// Return one raw mutable pointer to the frame slots.
     #[inline]
     pub(crate) fn slots_mut_ptr(&mut self) -> *mut Value {
-        self.slots.make_mut().as_mut_ptr()
+        self.slots.as_mut_ptr()
     }
 
     /// Reset the frame slot storage for one new layout shape.
@@ -102,11 +101,10 @@ impl Frame {
         let slot_count = value_count + local_count;
 
         // resize storage first
-        let slots = self.slots.make_mut();
-        slots.resize(slot_count, Value::VOID);
+        self.slots.resize(slot_count, Value::VOID);
 
         // clear all live slots
-        slots.fill(Value::VOID);
+        self.slots.fill(Value::VOID);
 
         // store the new frame shape
         self.value_count = value_count;
@@ -152,7 +150,7 @@ impl Frame {
         );
 
         // write value slot
-        self.slots.make_mut()[index] = val;
+        self.slots[index] = val;
     }
 
     /// Get a local variable.
@@ -189,7 +187,7 @@ impl Frame {
         debug_assert!(index < self.local_count, "local out of bounds: {local:?}");
 
         // write local slot
-        self.slots.make_mut()[self.value_count + index] = value;
+        self.slots[self.value_count + index] = value;
     }
 
     /// Check if a value is defined in this frame.
@@ -203,7 +201,7 @@ impl Frame {
     /// Clear all values (but keep locals).
     pub fn clear_values(&mut self) {
         // clear value slots
-        self.slots.make_mut()[..self.value_count].fill(Value::VOID);
+        self.slots[..self.value_count].fill(Value::VOID);
     }
 
     /// Allocate a new stack allocation, returning its slot index.
@@ -270,7 +268,7 @@ impl Frame {
     pub(crate) fn visit_roots(
         &self,
         module: &Module,
-        roots: &mut impl RootSink,
+        roots: &mut impl RootVisitor,
     ) -> Result<(), Error> {
         let layout =
             module
@@ -373,7 +371,7 @@ impl Frame {
         references: &BTreeMap<HeapReference, HeapReference>,
     ) -> Result<(), Error> {
         // slot values
-        for value in self.slots.make_mut() {
+        for value in &mut self.slots {
             rewrite_value_reference(value, references)?;
         }
 
@@ -438,7 +436,8 @@ impl Frame {
             return Ok(());
         }
 
-        let mut bytes = heap.read_heap_bytes(reference)?;
+        let mut bytes = vec![0u8; layout.byte_len];
+        heap.read_heap_bytes_into(reference, 0, &mut bytes)?;
         Self::rewrite_storage_references(module, ty, &mut bytes, references)?;
         heap.write_heap_bytes(reference, 0, &bytes)?;
         heap.write_barrier(reference, 0, bytes.len())?;
@@ -485,7 +484,7 @@ impl Frame {
         module: &Module,
         storage_type: mir::LocalNodeId<mir::Type>,
         bytes: &[u8],
-        roots: &mut impl RootSink,
+        roots: &mut impl RootVisitor,
     ) -> Result<(), Error> {
         let layout = module
             .layout(storage_type)
@@ -542,7 +541,7 @@ impl Frame {
         ty: mir::LocalNodeId<mir::Type>,
         bytes: &[u8],
         base_offset: usize,
-        roots: &mut impl RootSink,
+        roots: &mut impl RootVisitor,
     ) -> Result<(), Error> {
         let layout = module.layout(ty).ok_or_else(|| Error::InvariantViolation {
             context: format!("missing layout for stack root scan: type={ty:?}"),
@@ -832,7 +831,7 @@ impl Frame {
             transfer: image.transfer.clone(),
             value_count: image.value_count,
             local_count: image.local_count,
-            slots: CowBuffer::from_vec(image.slots.clone()),
+            slots: image.slots.clone(),
             stack_allocations: image.stack_allocations.clone(),
             environment: image.environment,
         })

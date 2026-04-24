@@ -1,20 +1,20 @@
 use std::fmt;
 
-use destack_heap::{Heap, HeapError, HeapReference, HeapResult, SharedHeapReference};
+use destack_heap::{
+    AllocationLayout, Heap, HeapError, HeapReference, HeapResult, Payload, SharedHeapReference,
+};
 use destack_mir as mir;
 
 use super::{Frame, Interpreter};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::isolate::GlobalStorage;
-use crate::module::{
-    ArgumentRange, Function, Instruction, Layout, Module, SwitchCase, SwitchRange,
-};
+use crate::module::{ArgumentRange, Function, Instruction, Layout, Module};
 use crate::options::IsolateOptions;
 use crate::{FrameInfo, SharedHeap, Value};
 
-/// Step state for one interpreter instruction step.
-pub(crate) struct StepState<'ctx, 'iso> {
-    /// Immutable module metadata for this step.
+/// Execution state for one interpreter dispatch.
+pub(crate) struct ExecutionState<'ctx, 'iso> {
+    /// Immutable module metadata for this dispatch.
     pub(crate) module: &'iso Module,
     /// Immutable isolate options.
     pub(crate) options: &'iso IsolateOptions,
@@ -24,16 +24,16 @@ pub(crate) struct StepState<'ctx, 'iso> {
     heap: *mut Heap,
     /// The world-shared heap.
     shared: *const SharedHeap,
-    /// Interpreter engine state for this step.
+    /// Interpreter engine state for this dispatch.
     pub(crate) engine: &'ctx mut Interpreter,
 
     /// Index of the current frame in the stack.
     pub frame_index: usize,
-    /// Whether bounds checks are enabled for this step.
+    /// Whether bounds checks are enabled for this dispatch.
     pub bounds_checks: bool,
-    /// Whether null checks are enabled for this step.
+    /// Whether null checks are enabled for this dispatch.
     pub null_checks: bool,
-    /// Whether to collect execution statistics for this step.
+    /// Whether to collect execution statistics for this dispatch.
     pub collect_stats: bool,
 
     /// Pointer to the current frame for fast access.
@@ -50,20 +50,15 @@ pub(crate) struct StepState<'ctx, 'iso> {
     argument_pool: *const mir::Value,
     /// Argument pool length.
     argument_pool_len: usize,
-    /// Switch case pool for the current function.
-    switch_case_pool: *const SwitchCase,
-    /// Switch case pool length.
-    switch_case_pool_len: usize,
 }
 
-impl fmt::Debug for StepState<'_, '_> {
+impl fmt::Debug for ExecutionState<'_, '_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("StepState")
+        f.debug_struct("ExecutionState")
             .field("frame_index", &self.frame_index)
             .field("value_count", &self.value_count)
             .field("local_count", &self.local_count)
             .field("argument_pool_len", &self.argument_pool_len)
-            .field("switch_case_pool_len", &self.switch_case_pool_len)
             .field("bounds_checks", &self.bounds_checks)
             .field("null_checks", &self.null_checks)
             .field("collect_stats", &self.collect_stats)
@@ -71,8 +66,8 @@ impl fmt::Debug for StepState<'_, '_> {
     }
 }
 
-impl<'ctx, 'iso> StepState<'ctx, 'iso> {
-    /// Create step state for the current frame.
+impl<'ctx, 'iso> ExecutionState<'ctx, 'iso> {
+    /// Create execution state for the current frame.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         module: &'iso Module,
@@ -83,7 +78,6 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
         engine: &'ctx mut Interpreter,
         frame_index: usize,
         argument_pool: &[mir::Value],
-        switch_case_pool: &[SwitchCase],
     ) -> Self {
         // resolve check policies
         let mode = options.execution.mode;
@@ -121,8 +115,6 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
             local_count,
             argument_pool: argument_pool.as_ptr(),
             argument_pool_len: argument_pool.len(),
-            switch_case_pool: switch_case_pool.as_ptr(),
-            switch_case_pool_len: switch_case_pool.len(),
         }
     }
 
@@ -210,17 +202,41 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
         self.value_count = value_count;
         self.local_count = local_count;
 
-        // refresh argument and switch pools
+        // refresh argument pool
         self.argument_pool = function.argument_pool.as_ptr();
         self.argument_pool_len = function.argument_pool.len();
-        self.switch_case_pool = function.switch_case_pool.as_ptr();
-        self.switch_case_pool_len = function.switch_case_pool.len();
     }
 
     /// Borrow the heap for the current block.
     #[inline]
     pub(crate) fn heap_mut(&mut self) -> &mut Heap {
         unsafe { &mut *self.heap }
+    }
+
+    /// Allocate one local heap payload from a resolved layout.
+    #[inline]
+    pub(crate) fn allocate_heap(
+        &mut self,
+        layout: AllocationLayout<'_>,
+        payload: Payload<'_>,
+    ) -> Result<HeapReference, Error> {
+        unsafe { &mut *self.heap }
+            .allocate(layout, payload)
+            .map_err(Error::from)
+    }
+
+    /// Allocate one local heap payload from one module layout id.
+    #[inline]
+    pub(crate) fn allocate_heap_layout(
+        &mut self,
+        layout_id: mir::LayoutId,
+        payload: Payload<'_>,
+    ) -> Result<HeapReference, Error> {
+        let layout = self.module.allocation_layout(layout_id)?;
+
+        unsafe { &mut *self.heap }
+            .allocate(layout, payload)
+            .map_err(Error::from)
     }
 
     /// Borrow the heap immutably for the current block.
@@ -416,17 +432,5 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
             "argument pool out of bounds for range"
         );
         unsafe { std::slice::from_raw_parts(self.argument_pool.add(start), len) }
-    }
-
-    /// Get the switch case slice for the given range.
-    #[inline(always)]
-    pub(crate) fn switch_cases(&self, range: SwitchRange) -> &[SwitchCase] {
-        let start = range.start as usize;
-        let len = range.len as usize;
-        debug_assert!(
-            start + len <= self.switch_case_pool_len,
-            "switch case pool out of bounds for range"
-        );
-        unsafe { std::slice::from_raw_parts(self.switch_case_pool.add(start), len) }
     }
 }

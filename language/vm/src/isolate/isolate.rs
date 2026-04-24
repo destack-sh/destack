@@ -508,7 +508,7 @@ impl Isolate {
         self.module.layout_id_for_type(ty)
     }
 
-    /// Return the heap allocation layout for one layout id.
+    /// Return the heap allocation facts for one layout id.
     #[cfg(test)]
     pub(crate) fn allocation_layout(
         &self,

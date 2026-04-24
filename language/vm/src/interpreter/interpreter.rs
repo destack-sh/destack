@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::diagnostic::{Error, FrameInfo, RuntimeError, RuntimeResult};
 use crate::interpreter::Continuation;
-use crate::isolate::{ExternalCallContext, GlobalStorage, RootSink};
+use crate::isolate::{ExternalCallContext, GlobalStorage, RootVisitor};
 use crate::module::{FunctionTable, Module};
 use crate::snapshot::InterpreterImage;
 use crate::telemetry::Statistics;
@@ -126,9 +126,7 @@ impl Interpreter {
     pub(crate) fn make_error(&self, module: &Module, error: Error) -> RuntimeError {
         RuntimeError::new(error).with_call_stack(self.get_call_stack_info(module))
     }
-}
 
-impl Interpreter {
     /// Initialize global variables from the MIR tree.
     pub(crate) fn initialize_globals(
         &mut self,
@@ -239,7 +237,7 @@ impl Interpreter {
             self.make_error(
                 module,
                 Error::TypeMismatch {
-                    expected: "layout-backed composite type".to_string(),
+                    expected: "layout-backed aggregate type".to_string(),
                     actual: format!("{ty:?}"),
                 },
             )
@@ -315,7 +313,7 @@ impl Interpreter {
         shared: &SharedHeap,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> RuntimeResult<Value> {
-        // materialize one zeroed composite through the heap path
+        // materialize one zeroed aggregate through the heap path
         if module.layout(ty).is_some_and(|layout| !layout.is_scalar()) {
             let value_types = self.aggregate_member_types(module, ty)?;
             let values = value_types
@@ -430,7 +428,7 @@ impl Interpreter {
         module: &Module,
         globals: &GlobalStorage,
         continuations: &[Continuation],
-        roots: &mut impl RootSink,
+        roots: &mut impl RootVisitor,
     ) -> RuntimeResult<()> {
         // active frames
         for frame in &self.stack {
