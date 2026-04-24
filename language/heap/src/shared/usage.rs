@@ -18,7 +18,7 @@ pub struct SharedHeapSpaceUsage {
 /// Exact shared raw-space usage for one live shared raw-space store.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SharedRawSpaceUsage {
-    /// The number of live shared raw-space entries.
+    /// The number of live shared raw-space allocations.
     pub allocation_count: usize,
     /// The logical live shared raw-space payload bytes.
     pub allocated_bytes: u64,

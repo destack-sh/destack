@@ -10,8 +10,6 @@ pub struct SharedHeapSmallSpanImage {
     pub class: SmallSpanClass,
     /// The number of slots in this span.
     pub slot_count: usize,
-    /// The exact byte lengths stored in each slot.
-    pub byte_lens: Box<[usize]>,
     /// The occupied slots in this span.
     pub occupied: Bitmap,
     /// The exact local-reference bits for each occupied slot.
@@ -29,8 +27,6 @@ pub(crate) struct SharedSmallSpan {
     pub(crate) class: SmallSpanClass,
     /// The number of slots in this span.
     pub(crate) slot_count: usize,
-    /// The exact byte lengths stored in each slot.
-    pub(crate) byte_lens: Box<[usize]>,
     /// The number of occupied slots in this span.
     pub(crate) occupied_count: usize,
     /// The next likely free-slot search cursor.
@@ -43,13 +39,19 @@ pub(crate) struct SharedSmallSpan {
     pub(crate) shared_reference_bits: Bitmap,
     /// The marked slots in this span.
     pub(crate) marked: Bitmap,
+    /// The marked slots whose payloads have already been scanned.
+    pub(crate) scanned: Bitmap,
+    /// Whether this span already has one queued scan work item.
+    pub(crate) is_queued_for_scan: bool,
     /// The allocator pages for this span.
     pub(crate) pages: PageView,
 }
 
 impl SharedSmallSpan {
-    /// Clear every mark bit in this span.
+    /// Clear every mark and scan bit in this span.
     pub(crate) fn clear_marks(&mut self) {
         self.marked.clear_all();
+        self.scanned.clear_all();
+        self.is_queued_for_scan = false;
     }
 }
