@@ -383,7 +383,7 @@ impl<'a> Validator<'a> {
             Type::TensorView { .. } => "tensorView",
             Type::FunctionSignature { .. } => "signature",
             Type::FunctionPointer { .. } => "fn",
-            Type::Closure { .. } => "callable",
+            Type::Callable { .. } => "callable",
         }
     }
 

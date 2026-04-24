@@ -77,8 +77,8 @@ pub enum AddressSpace {
     Stack,
     /// Frame-slot storage inside one activation.
     Frame,
-    /// Global or module-static memory.
-    Global,
+    /// Static memory.
+    Static,
     /// Named backend-specific storage space.
     Named(String),
 }
@@ -96,7 +96,7 @@ impl AddressSpace {
             "shared" => AddressSpace::Shared,
             "stack" => AddressSpace::Stack,
             "frame" => AddressSpace::Frame,
-            "global" => AddressSpace::Global,
+            "static" => AddressSpace::Static,
             _ => AddressSpace::Named(name.to_string()),
         }
     }
@@ -108,7 +108,7 @@ impl AddressSpace {
             AddressSpace::Shared => "shared",
             AddressSpace::Stack => "stack",
             AddressSpace::Frame => "frame",
-            AddressSpace::Global => "global",
+            AddressSpace::Static => "static",
             AddressSpace::Named(name) => name.as_str(),
         }
     }
@@ -323,8 +323,8 @@ pub enum Type {
         /// The bare function signature.
         signature: TypeReference,
     },
-    /// Callable closure value with code and environment.
-    Closure {
+    /// Opaque callable value with code and environment.
+    Callable {
         /// The bare function signature.
         signature: TypeReference,
     },
@@ -553,7 +553,7 @@ impl Type {
             // callable metadata and values are trivially copyable
             Type::FunctionSignature { .. }
             | Type::FunctionPointer { .. }
-            | Type::Closure { .. } => Copy::Yes,
+            | Type::Callable { .. } => Copy::Yes,
         }
     }
 }
@@ -593,7 +593,7 @@ pub fn slice_header_types(
 /// Return the signature reference carried by one callable type.
 pub fn callable_signature(ty: &Type) -> Option<TypeReference> {
     match ty {
-        Type::FunctionPointer { signature } | Type::Closure { signature } => Some(*signature),
+        Type::FunctionPointer { signature } | Type::Callable { signature } => Some(*signature),
         _ => None,
     }
 }

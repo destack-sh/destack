@@ -29,7 +29,7 @@ function memory(value0: ref<int32, raw>): int32 {
     local local0: int32, owned
 
 entry0(value0: ref<int32, raw>):
-    value1: ref<int32, raw, space(global)> = global.address counter
+    value1: ref<int32, raw> = global.address counter
     value2: ref<int32, borrowed, space(frame)> = local.address local0
     value3: int32 = load value0
     store value0, value3
@@ -50,8 +50,8 @@ fn test_format_atomic_load_store_fence_and_barrier_family() {
         r#"
 function atomics(value0: ref<int32, raw>): int32 {
 entry0(value0: ref<int32, raw>):
-    value1: int32 = atomic.load value0, acquire, device, device, [global, makeVisible]
-    atomic.store value0, value1, release, device, device, global
+    value1: int32 = atomic.load value0, acquire, device, device, [static, makeVisible]
+    atomic.store value0, value1, release, device, device, static
     atomic.fence sequentiallyConsistent, device, device, any
     barrier workgroup, workgroup, any
     return value1

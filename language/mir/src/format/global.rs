@@ -5,8 +5,8 @@ use destack_fir::write;
 use super::attribute::{write_attributes, write_attributes_before_anchor};
 
 use crate::{
-    Constant, FormatMirNode, Global, GlobalInitializer, Linkage, LocalNodeId, MirFormatter,
-    Mutability,
+    AddressSpace, Constant, FormatMirNode, Global, GlobalInitializer, Linkage, LocalNodeId,
+    MirFormatter, Mutability,
 };
 
 impl<'a> FormatMirNode<'a, Global> for Global {
@@ -56,6 +56,16 @@ impl<'a> FormatMirNode<'a, Global> for Global {
             if self.mutability == Mutability::Immutable {
                 write!(f, [token(","), space(), token("readonly")])?;
             }
+            if self.space != AddressSpace::Local {
+                write!(
+                    f,
+                    [
+                        token(","),
+                        space(),
+                        text(&format!("space({})", self.space.label()))
+                    ]
+                )?;
+            }
         } else {
             // linkage prefix for exported globals
             if self.linkage == Linkage::Export {
@@ -78,6 +88,16 @@ impl<'a> FormatMirNode<'a, Global> for Global {
             if self.mutability == Mutability::Immutable {
                 write!(f, [token(","), space(), token("readonly")])?;
             }
+            if self.space != AddressSpace::Local {
+                write!(
+                    f,
+                    [
+                        token(","),
+                        space(),
+                        text(&format!("space({})", self.space.label()))
+                    ]
+                )?;
+            }
 
             write!(f, [space(), token("="), space()])?;
 
@@ -99,7 +119,6 @@ fn format_data_init<'a>(
     match init {
         GlobalInitializer::Zero => write!(f, [token("zeroInit")]),
         GlobalInitializer::Scalar(constant) => format_constant(constant, f),
-        GlobalInitializer::String(value) => format_string_literal(value, f),
         GlobalInitializer::Bytes(bytes) => format_byte_literal(bytes, f),
         GlobalInitializer::Aggregate(elements) => {
             write!(f, [token("{")])?;
@@ -112,29 +131,6 @@ fn format_data_init<'a>(
             write!(f, [token("}")])
         }
     }
-}
-
-/// Format a string literal with escaping.
-fn format_string_literal<'a>(value: &str, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-    write!(f, [token("\"")])?;
-    for ch in value.chars() {
-        if ch == '"' {
-            write!(f, [text("\\\"")])?;
-        } else if ch == '\\' {
-            write!(f, [text("\\\\")])?;
-        } else if ch == '\n' {
-            write!(f, [text("\\n")])?;
-        } else if ch == '\r' {
-            write!(f, [text("\\r")])?;
-        } else if ch == '\t' {
-            write!(f, [text("\\t")])?;
-        } else if ch.is_ascii_graphic() || ch == ' ' {
-            write!(f, [text(&ch.to_string())])?;
-        } else {
-            write!(f, [text(&format!("\\u{{{:x}}}", ch as u32))])?;
-        }
-    }
-    write!(f, [token("\"")])
 }
 
 /// Format a byte literal with escaping.

@@ -89,8 +89,8 @@ Instructions perform "operations" and may produce SSA `Value`s.
 | Type conversion | `cast.*` |
 | Selection | `select` (conditional value without branching) |
 | Local variables | `local.get`, `local.set`, `local.address` |
-| Globals | `global.address`, `global.const` |
-| Functions | `function.address`, `function.bind`, `function.environment` |
+| Globals | `global.address` |
+| Functions | `function.address`, `callable.bind`, `callable.environment` |
 | Memory | `load`, `store`, `raw.free`, `dispose`, `dispose.async`, `pin`, `unpin`, `drop` |
 | Aggregates | `struct`, `tuple`, `array`, `field.get`, `field.set`, `field.address`, `element.get`, `element.set`, `element.address` |
 | Vector | `vector.*` (splat, extract, insert, shuffle, select, reduce, compare, convert) |

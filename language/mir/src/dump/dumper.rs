@@ -1,7 +1,7 @@
 use crate::{
     BinaryOperator, Block, BlockReference, BlockTarget, CastOperator, CheckConstraint, Constant,
     Function, FunctionReference, Global, GlobalInitializer, GlobalReference, Instruction, Local,
-    LocalNodeId, LocalReference, MemoryRegionSet, MemorySemantics, Mutability, NodeTree,
+    LocalNodeId, LocalReference, MemorySemantics, MemorySpaceSet, Mutability, NodeTree,
     NodeVisitor, NodeVisitorOptions, Ownership, ReferenceKind, SwitchCase, Terminator, TrapKind,
     Type, TypeReference, UnaryOperator, ValueReference,
 };
@@ -270,7 +270,7 @@ impl<'a> Dumper<'a> {
                 let signature = self.format_type_id(*signature);
                 format!("fn({signature})")
             }
-            Type::Closure { signature } => {
+            Type::Callable { signature } => {
                 let signature = self.format_type_id(*signature);
                 format!("({signature}) => <?>")
             }
@@ -279,7 +279,7 @@ impl<'a> Dumper<'a> {
 
     fn format_memory_semantics(&self, semantics: MemorySemantics) -> String {
         // collect location names
-        let mut names = self.collect_effect_region_names(semantics.regions);
+        let mut names = self.collect_effect_space_names(semantics.spaces);
 
         // append semantics flags
         if semantics.is_volatile {
@@ -300,29 +300,29 @@ impl<'a> Dumper<'a> {
         }
     }
 
-    fn collect_effect_region_names(&self, regions: MemoryRegionSet) -> Vec<&'static str> {
-        // handle named region sets
-        if regions == MemoryRegionSet::NONE {
+    fn collect_effect_space_names(&self, spaces: MemorySpaceSet) -> Vec<&'static str> {
+        // handle named space sets
+        if spaces == MemorySpaceSet::NONE {
             return vec!["none"];
         }
-        if regions == MemoryRegionSet::ANY {
+        if spaces == MemorySpaceSet::ANY {
             return vec!["any"];
         }
 
-        // collect ordered regions
+        // collect ordered spaces
         let ordered = [
-            ("heap", MemoryRegionSet::HEAP),
-            ("rawHeap", MemoryRegionSet::RAW_HEAP),
-            ("stack", MemoryRegionSet::STACK),
-            ("global", MemoryRegionSet::GLOBAL),
-            ("shared", MemoryRegionSet::SHARED),
-            ("local", MemoryRegionSet::LOCAL),
-            ("constant", MemoryRegionSet::CONSTANT),
-            ("io", MemoryRegionSet::IO),
+            ("heap", MemorySpaceSet::HEAP),
+            ("rawHeap", MemorySpaceSet::RAW_HEAP),
+            ("stack", MemorySpaceSet::STACK),
+            ("static", MemorySpaceSet::STATIC),
+            ("shared", MemorySpaceSet::SHARED),
+            ("local", MemorySpaceSet::LOCAL),
+            ("constant", MemorySpaceSet::CONSTANT),
+            ("io", MemorySpaceSet::IO),
         ];
         let mut names = Vec::new();
         for (name, set) in ordered {
-            if regions.contains(set) {
+            if spaces.contains(set) {
                 names.push(name);
             }
         }
@@ -533,15 +533,6 @@ impl<'a> Dumper<'a> {
                 self.write_colored(&self.format_type_id(*result_type), Color::Magenta);
             }
 
-            Instruction::GlobalConst {
-                destination,
-                global,
-            } => {
-                self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = global.const ");
-                self.write(&self.format_global_id(*global));
-            }
-
             Instruction::FunctionAddr {
                 destination,
                 function,
@@ -550,20 +541,20 @@ impl<'a> Dumper<'a> {
                 self.write(" = function.address ");
                 self.write(&self.format_function_id(*function));
             }
-            Instruction::FunctionBind {
+            Instruction::CallableBind {
                 destination,
                 function,
                 environment,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = function.bind ");
+                self.write(" = callable.bind ");
                 self.write(&self.format_function_id(*function));
                 self.write(", ");
                 self.write(&self.format_value(*environment));
             }
-            Instruction::FunctionEnvironment { destination } => {
+            Instruction::CallableEnvironment { destination } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = function.environment");
+                self.write(" = callable.environment");
             }
 
             Instruction::Load {
@@ -2354,27 +2345,6 @@ impl<'a> Dumper<'a> {
         match init {
             GlobalInitializer::Zero => self.write("zeroInit"),
             GlobalInitializer::Scalar(constant) => self.write(&self.format_constant(constant)),
-            GlobalInitializer::String(value) => {
-                self.write("\"");
-                for ch in value.chars() {
-                    if ch == '"' {
-                        self.write("\\\"");
-                    } else if ch == '\\' {
-                        self.write("\\\\");
-                    } else if ch == '\n' {
-                        self.write("\\n");
-                    } else if ch == '\r' {
-                        self.write("\\r");
-                    } else if ch == '\t' {
-                        self.write("\\t");
-                    } else if ch.is_ascii_graphic() || ch == ' ' {
-                        self.write(&ch.to_string());
-                    } else {
-                        self.write(&format!("\\u{{{:x}}}", ch as u32));
-                    }
-                }
-                self.write("\"");
-            }
             GlobalInitializer::Bytes(bytes) => {
                 self.write("b\"");
                 for byte in bytes {

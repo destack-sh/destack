@@ -524,7 +524,7 @@ impl<'a> Validator<'a> {
 
         let signature = match self.tree.get(signature) {
             Type::FunctionSignature { .. } => signature,
-            Type::Closure { signature, .. } => {
+            Type::Callable { signature, .. } => {
                 self.require_type_reference(*signature, anchor, label)?
             }
             _ => {
@@ -557,7 +557,7 @@ impl<'a> Validator<'a> {
         label: &'static str,
     ) -> ValidateResult<(&[TypeReference], LocalNodeId<Type>)> {
         let signature = self.require_type_reference(signature, anchor, label)?;
-        if matches!(self.tree.get(signature), Type::Closure { .. }) {
+        if matches!(self.tree.get(signature), Type::Callable { .. }) {
             return Err(self.metadata_error(anchor, format!("{label} is not a function pointer")));
         }
 
@@ -580,7 +580,7 @@ impl<'a> Validator<'a> {
             Type::FunctionPointer { signature } => {
                 self.require_type_reference(*signature, anchor, "indirect callee signature")?
             }
-            Type::Closure { signature } => {
+            Type::Callable { signature } => {
                 self.require_type_reference(*signature, anchor, "indirect callee signature")?
             }
             _ => actual_type,

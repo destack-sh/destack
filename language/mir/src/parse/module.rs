@@ -444,7 +444,7 @@ impl Parser {
     }
 
     /// Parse a global definition or declaration.
-    /// Expect `[export|extern] global name: type[, readonly] [ = init]`.
+    /// Expect `[export|extern] global name: type[, readonly][, space(name)] [ = init]`.
     pub(super) fn parse_global(
         &mut self,
         item_start: usize,
@@ -466,10 +466,39 @@ impl Parser {
         self.eat_token(TokenType::Colon)?;
         let (ty, type_span) = self.parse_type_part()?;
 
-        // trailing mutability
+        // trailing qualifiers
         let mut mutability = Mutability::Mutable;
-        if self.eat_token_maybe(TokenType::Comma) && self.eat_token_maybe(TokenType::Readonly) {
-            mutability = Mutability::Immutable;
+        let mut space = crate::AddressSpace::Local;
+        while self.eat_token_maybe(TokenType::Comma) {
+            if self.eat_token_maybe(TokenType::Readonly) {
+                mutability = Mutability::Immutable;
+                continue;
+            }
+
+            if self.eat_token_maybe(TokenType::AddressSpace) {
+                self.eat_token(TokenType::OpenParen)?;
+                let token = self
+                    .peek()
+                    .ok_or_else(|| ParseError::unexpected_end("global space", self.pos()))?;
+                let text = self.tree.source_text(token.span).to_string();
+                space = match token.ty {
+                    TokenType::Identifier | TokenType::Local => {
+                        crate::AddressSpace::from_name(&text)
+                    }
+                    _ => {
+                        return Err(ParseError::unexpected(
+                            "global space",
+                            token.ty,
+                            token.start,
+                        ));
+                    }
+                };
+                self.bump();
+                self.eat_token(TokenType::CloseParen)?;
+                continue;
+            }
+
+            return Err(ParseError::invalid("global qualifier", self.pos()));
         }
 
         // initializer
@@ -486,6 +515,7 @@ impl Parser {
             name: name_id,
             ty: TypeReference::Type(ty),
             mutability,
+            space,
             linkage,
             initializer,
         };
@@ -546,7 +576,7 @@ impl Parser {
                 let value = self.parse_string_literal(&token_text).ok_or_else(|| {
                     ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
                 })?;
-                Ok(GlobalInitializer::String(value))
+                Ok(GlobalInitializer::Bytes(value.into_bytes()))
             }
             // scalar constant
             TokenType::Identifier if self.tree.source_text(token.span) == "null" => {

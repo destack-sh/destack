@@ -58,16 +58,16 @@ impl<'a> Validator<'a> {
             )?;
         }
 
-        // function environment
+        // callable environment
         if let Some(environment) = function.environment {
             let environment =
-                self.require_type_reference(environment, anchor, "function environment type")?;
+                self.require_type_reference(environment, anchor, "callable environment type")?;
             self.ensure_node_type(NodeType::Type, environment.id, anchor)?;
 
             let environment_type = self.tree.get(environment);
             if !matches!(environment_type, Type::Reference { .. }) {
                 return Err(ValidateError::MetadataInvariantViolation {
-                    message: "function environment type must be a reference".to_string(),
+                    message: "callable environment type must be a reference".to_string(),
                     anchor,
                 });
             }
@@ -126,9 +126,9 @@ impl<'a> Validator<'a> {
             return Ok(());
         };
 
-        if !effect.reads && !effect.writes && !effect.regions.is_empty() {
+        if !effect.reads && !effect.writes && !effect.spaces.is_empty() {
             return Err(ValidateError::MetadataInvariantViolation {
-                message: "memory effect has no reads/writes but non empty regions".to_string(),
+                message: "memory effect has no reads/writes but non empty spaces".to_string(),
                 anchor,
             });
         }

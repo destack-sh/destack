@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{Constant, Mutability, Node, NodeType, TypeReference};
+use crate::{AddressSpace, Constant, Mutability, Node, NodeType, TypeReference};
 
 /// Symbol linkage (visibility and definition location).
 ///
@@ -50,6 +50,8 @@ pub struct Global {
     pub ty: TypeReference,
     /// Whether this global is mutable.
     pub mutability: Mutability,
+    /// The address space that owns this global storage.
+    pub space: AddressSpace,
     /// Linkage (local, export, or import).
     pub linkage: Linkage,
     /// Initial value. None for imported globals.
@@ -72,6 +74,7 @@ impl Global {
             name,
             ty,
             mutability,
+            space: AddressSpace::Local,
             linkage: Linkage::Local,
             initializer: Some(init),
         }
@@ -93,6 +96,7 @@ impl Global {
             name,
             ty,
             mutability,
+            space: AddressSpace::Local,
             linkage: Linkage::Import,
             initializer: None,
         }
@@ -122,8 +126,6 @@ pub enum GlobalInitializer {
     Zero,
     /// Scalar constant (bool, int, float).
     Scalar(Constant),
-    /// String literal data (as bytes).
-    String(String),
     /// Raw bytes (blobs).
     Bytes(Vec<u8>),
     /// Aggregate (array/struct fields).
@@ -148,7 +150,7 @@ impl GlobalInitializer {
 
     /// Create from a string literal.
     pub fn string(s: &str) -> Self {
-        Self::String(s.to_string())
+        Self::Bytes(s.as_bytes().to_vec())
     }
 
     /// Create an aggregate initializer.

@@ -245,7 +245,7 @@ fn test_reject_direct_call_to_environment_function() {
     let source = r#"@environment(ref<int32, managed>)
 function callee(): int32 {
 b0:
-    v0: ref<int32, managed> = function.environment
+    v0: ref<int32, managed> = callable.environment
     v1: int32 = load v0
     return v1
 }
@@ -269,7 +269,7 @@ fn test_reject_tail_call_to_environment_function() {
     let source = r#"@environment(ref<int32, managed>)
 function callee(): int32 {
 b0:
-    v0: ref<int32, managed> = function.environment
+    v0: ref<int32, managed> = callable.environment
     v1: int32 = load v0
     return v1
 }
@@ -292,7 +292,7 @@ fn test_reject_function_addr_for_environment_function() {
     let source = r#"@environment(ref<int32, managed>)
 function callee(): int32 {
 b0:
-    v0: ref<int32, managed> = function.environment
+    v0: ref<int32, managed> = callable.environment
     v1: int32 = load v0
     return v1
 }
@@ -310,44 +310,44 @@ b0(v0: ref<int32, managed>):
     );
 }
 
-/// Reject function.bind when the environment operand type mismatches.
+/// Reject callable.bind when the environment operand type mismatches.
 #[test]
-fn test_reject_function_value_environment_type_mismatch() {
+fn test_reject_callable_environment_type_mismatch() {
     let source = r#"@environment(ref<int32, managed>)
 function callee(): int32 {
 b0:
-    v0: ref<int32, managed> = function.environment
+    v0: ref<int32, managed> = callable.environment
     v1: int32 = load v0
     return v1
 }
 
 function caller(v0: ref<int64, managed>): int32 {
 b0(v0: ref<int64, managed>):
-    v1: () => int32 = function.bind callee, v0
+    v1: () => int32 = callable.bind callee, v0
     return v0
 }"#;
 
     let error = assert_validate_error(source);
     assert_eq!(
         error.message,
-        "metadata invariant violation: function.bind environment type mismatch"
+        "metadata invariant violation: callable.bind environment type mismatch"
     );
 }
 
 /// Reject field projection on opaque callable values.
 #[test]
-fn test_reject_field_get_on_function_value() {
+fn test_reject_field_get_on_callable() {
     let source = r#"@environment(ref<int32, managed>)
 function callee(): int32 {
 b0:
-    v0: ref<int32, managed> = function.environment
+    v0: ref<int32, managed> = callable.environment
     v1: int32 = load v0
     return v1
 }
 
 function caller(v0: ref<int32, managed>): () -> int32    {
 b0(v0: ref<int32, managed>):
-    v1: () => int32 = function.bind callee, v0
+    v1: () => int32 = callable.bind callee, v0
     v2: () -> int32 = field.get v1, 0
     return v2
 }"#;
@@ -730,9 +730,9 @@ fn test_reject_function_return_type_wrong_node_kind() {
     );
 }
 
-/// Reject malformed function environment type ids.
+/// Reject malformed callable environment type ids.
 #[test]
-fn test_reject_function_environment_type_wrong_node_kind() {
+fn test_reject_callable_environment_type_wrong_node_kind() {
     let mut tree = NodeTree::new();
     let pool = StringPool::new();
     let name = pool.intern("bad_environment_type");
@@ -1086,7 +1086,7 @@ type B {
 function bad(): void {
 b0:
     v0: ref<A, raw> = stack.alloc A
-    v1: ref<B, raw, space(global)> = intrinsic.space.cast(v0)
+    v1: ref<B, raw, space(local)> = intrinsic.space.cast(v0)
     return
 }"#;
 

@@ -3,15 +3,15 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-/// Set of memory regions that an operation may access.
+/// Set of memory spaces that an operation may access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct MemoryRegionSet(
-    /// Bitset describing accessible memory regions.
+pub struct MemorySpaceSet(
+    /// Bitset describing accessible memory spaces.
     u16,
 );
 
-impl MemoryRegionSet {
-    /// No memory regions.
+impl MemorySpaceSet {
+    /// No memory spaces.
     pub const NONE: Self = Self(0);
     /// Heap allocated memory.
     pub const HEAP: Self = Self(1 << 0);
@@ -19,8 +19,8 @@ impl MemoryRegionSet {
     pub const RAW_HEAP: Self = Self(1 << 1);
     /// Stack memory.
     pub const STACK: Self = Self(1 << 2);
-    /// Global or static memory.
-    pub const GLOBAL: Self = Self(1 << 3);
+    /// Static image memory.
+    pub const STATIC: Self = Self(1 << 3);
     /// Shared or workgroup memory.
     pub const SHARED: Self = Self(1 << 4);
     /// Target local or thread local memory.
@@ -29,12 +29,12 @@ impl MemoryRegionSet {
     pub const CONSTANT: Self = Self(1 << 6);
     /// Memory mapped IO or other side channel memory.
     pub const IO: Self = Self(1 << 7);
-    /// All memory regions.
+    /// All memory spaces.
     pub const ANY: Self = Self(
         Self::HEAP.0
             | Self::RAW_HEAP.0
             | Self::STACK.0
-            | Self::GLOBAL.0
+            | Self::STATIC.0
             | Self::SHARED.0
             | Self::LOCAL.0
             | Self::CONSTANT.0
@@ -51,48 +51,48 @@ impl MemoryRegionSet {
         self.0 & other.0 == other.0
     }
 
-    /// Insert another set of regions.
+    /// Insert another set of spaces.
     pub fn insert(&mut self, other: Self) {
         self.0 |= other.0;
     }
 
-    /// Return the intersection of two region sets.
+    /// Return the intersection of two memory-space sets.
     pub fn intersection(self, other: Self) -> Self {
         Self(self.0 & other.0)
     }
 
-    /// Check whether two region sets intersect.
+    /// Check whether two memory-space sets intersect.
     pub fn intersects(self, other: Self) -> bool {
         self.0 & other.0 != 0
     }
 
-    /// Check whether two region sets are disjoint.
+    /// Check whether two memory-space sets are disjoint.
     pub fn is_disjoint(self, other: Self) -> bool {
         self.0 & other.0 == 0
     }
 }
 
-impl Default for MemoryRegionSet {
+impl Default for MemorySpaceSet {
     fn default() -> Self {
         Self::ANY
     }
 }
 
-impl TryFrom<&str> for MemoryRegionSet {
+impl TryFrom<&str> for MemorySpaceSet {
     type Error = ();
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "None" => Ok(MemoryRegionSet::NONE),
-            "Heap" => Ok(MemoryRegionSet::HEAP),
-            "RawHeap" => Ok(MemoryRegionSet::RAW_HEAP),
-            "Stack" => Ok(MemoryRegionSet::STACK),
-            "Global" => Ok(MemoryRegionSet::GLOBAL),
-            "Shared" => Ok(MemoryRegionSet::SHARED),
-            "Local" => Ok(MemoryRegionSet::LOCAL),
-            "Constant" => Ok(MemoryRegionSet::CONSTANT),
-            "Io" => Ok(MemoryRegionSet::IO),
-            "Any" => Ok(MemoryRegionSet::ANY),
+            "None" => Ok(MemorySpaceSet::NONE),
+            "Heap" => Ok(MemorySpaceSet::HEAP),
+            "RawHeap" => Ok(MemorySpaceSet::RAW_HEAP),
+            "Stack" => Ok(MemorySpaceSet::STACK),
+            "Static" => Ok(MemorySpaceSet::STATIC),
+            "Shared" => Ok(MemorySpaceSet::SHARED),
+            "Local" => Ok(MemorySpaceSet::LOCAL),
+            "Constant" => Ok(MemorySpaceSet::CONSTANT),
+            "Io" => Ok(MemorySpaceSet::IO),
+            "Any" => Ok(MemorySpaceSet::ANY),
             _ => Err(()),
         }
     }
@@ -410,8 +410,8 @@ impl TryFrom<&str> for MemoryScope {
 /// Memory semantics for atomics and barriers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MemorySemantics {
-    /// Effect regions participating in the synchronization.
-    pub regions: MemoryRegionSet,
+    /// Effect spaces participating in the synchronization.
+    pub spaces: MemorySpaceSet,
     /// Whether the access is volatile.
     pub is_volatile: bool,
     /// Whether this makes writes available to other scopes.
@@ -421,10 +421,10 @@ pub struct MemorySemantics {
 }
 
 impl MemorySemantics {
-    /// Create semantics for the provided regions.
-    pub fn new(regions: MemoryRegionSet) -> Self {
+    /// Create semantics for the provided spaces.
+    pub fn new(spaces: MemorySpaceSet) -> Self {
         Self {
-            regions,
+            spaces,
             is_volatile: false,
             is_make_available: false,
             is_make_visible: false,
@@ -433,13 +433,13 @@ impl MemorySemantics {
 
     /// Create semantics with explicit flags.
     pub fn with_flags(
-        regions: MemoryRegionSet,
+        spaces: MemorySpaceSet,
         is_volatile: bool,
         is_make_available: bool,
         is_make_visible: bool,
     ) -> Self {
         Self {
-            regions,
+            spaces,
             is_volatile,
             is_make_available,
             is_make_visible,
@@ -450,7 +450,7 @@ impl MemorySemantics {
 impl Default for MemorySemantics {
     fn default() -> Self {
         Self {
-            regions: MemoryRegionSet::ANY,
+            spaces: MemorySpaceSet::ANY,
             is_volatile: false,
             is_make_available: false,
             is_make_visible: false,

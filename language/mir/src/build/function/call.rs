@@ -158,14 +158,14 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Construct a callable value for one function and environment.
-    pub fn function_bind(
+    pub fn callable_bind(
         &mut self,
         function: LocalNodeId<Function>,
         signature: LocalNodeId<Type>,
         environment: Value,
     ) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::FunctionBind {
+        self.insert_instruction(Instruction::CallableBind {
             destination: destination.into(),
             function: function.into(),
             environment: environment.into(),
@@ -175,13 +175,13 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Load the hidden environment pointer for the current function.
-    pub fn function_environment(&mut self, environment_type: LocalNodeId<Type>) -> Value {
+    pub fn callable_environment(&mut self, environment_type: LocalNodeId<Type>) -> Value {
         // record the hidden environment type on the function metadata
         {
             let function = self.tree.get_mut(self.function_id);
             match function.environment {
                 Some(existing) if existing != environment_type.into() => {
-                    panic!("mismatched environment types for function.environment");
+                    panic!("mismatched environment types for callable.environment");
                 }
                 Some(_) => {}
                 None => {
@@ -191,7 +191,7 @@ impl<'a> FunctionBuilder<'a> {
         }
 
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::FunctionEnvironment {
+        self.insert_instruction(Instruction::CallableEnvironment {
             destination: destination.into(),
         });
         self.define_value(destination, environment_type);

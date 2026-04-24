@@ -86,17 +86,20 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Load the value of an immutable global constant.
-    pub fn global_const(&mut self, global: LocalNodeId<Global>) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::GlobalConst {
-            destination: destination.into(),
-            global: global.into(),
-        });
-        let global_ty =
-            concrete_type_reference(self.tree.get(global).ty, "global.const global type");
-        self.define_value(destination, global_ty);
-        destination
+    /// Load one global value through its address.
+    pub fn load_global(&mut self, global: LocalNodeId<Global>) -> Value {
+        let global_ty = concrete_type_reference(self.tree.get(global).ty, "global load type");
+        let global_space = self.tree.get(global).space.clone();
+        let global_pointer = self.type_reference(
+            ReferenceKind::Raw,
+            global_ty,
+            Mutability::Immutable,
+            global_space,
+            false,
+        );
+        let pointer = self.global_addr(global, global_pointer);
+
+        self.load(pointer, global_ty)
     }
 
     /// Load from a pointer.
@@ -138,7 +141,7 @@ impl<'a> FunctionBuilder<'a> {
                 .copied()
                 .map(|element| concrete_type_reference(element, "tuple field type"))
                 .unwrap_or_else(|| panic!("field index out of bounds")),
-            Type::Closure { .. } => panic!("field access does not support callable"),
+            Type::Callable { .. } => panic!("field access does not support callable"),
             _ => panic!("field access expects struct or tuple"),
         }
     }
@@ -211,7 +214,7 @@ impl<'a> FunctionBuilder<'a> {
             Type::FunctionSignature { result, .. } => {
                 concrete_type_reference(*result, "function result")
             }
-            Type::FunctionPointer { .. } | Type::Closure { .. } => {
+            Type::FunctionPointer { .. } | Type::Callable { .. } => {
                 let signature = callable_signature(signature_type)
                     .and_then(TypeReference::ty)
                     .unwrap_or_else(|| panic!("callable must carry a function signature"));

@@ -79,8 +79,8 @@ pub(crate) fn compute_type_layout(
 
         Type::FunctionSignature { .. } => TypeLayout::new(0, 1),
 
-        Type::Closure { signature } => {
-            let environment = tree.function_value_environment_type();
+        Type::Callable { signature } => {
+            let environment = tree.callable_environment_type();
             let signature = require_type_reference(*signature, "callable signature");
             compute_tuple_layout(tree, &[signature, environment], pointer_bytes)
         }

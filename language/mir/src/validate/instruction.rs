@@ -460,7 +460,7 @@ impl<'a> Validator<'a> {
                 self.ensure_node_type(NodeType::Local, local.id, anchor)?;
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
             }
-            Instruction::GlobalAddr { global, .. } | Instruction::GlobalConst { global, .. } => {
+            Instruction::GlobalAddr { global, .. } => {
                 let global = self.require_global_reference(*global, anchor, "global reference")?;
                 self.ensure_node_type(NodeType::Global, global.id, anchor)?;
             }
@@ -514,7 +514,7 @@ impl<'a> Validator<'a> {
                 let ty = self.require_type_reference(*ty, anchor, "struct type")?;
                 let expected = match self.tree.get(ty) {
                     Type::Struct { fields, .. } => fields.len(),
-                    Type::Closure { .. } => 2,
+                    Type::Callable { .. } => 2,
                     other => {
                         return Err(ValidateError::AggregateTypeMismatch {
                             expected: "struct or callable",
@@ -1319,7 +1319,7 @@ impl<'a> Validator<'a> {
                     });
                 }
             }
-            Instruction::FunctionBind {
+            Instruction::CallableBind {
                 destination,
                 function: target,
                 environment,
@@ -1328,56 +1328,56 @@ impl<'a> Validator<'a> {
                     function,
                     *destination,
                     anchor,
-                    "function.bind result",
+                    "callable.bind result",
                 )?;
                 let destination_type = self.tree.get(destination_type_id);
-                let Type::Closure { signature, .. } = destination_type else {
+                let Type::Callable { signature, .. } = destination_type else {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "function.bind result must be a callable value".to_string(),
+                        message: "callable.bind result must be a callable value".to_string(),
                         anchor,
                     });
                 };
                 let signature =
-                    self.require_type_reference(*signature, anchor, "function bind signature")?;
+                    self.require_type_reference(*signature, anchor, "callable bind signature")?;
                 let Some((parameters, result)) = function_signature_parts(self.tree.get(signature))
                 else {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "function.bind signature must be a function signature".to_string(),
+                        message: "callable.bind signature must be a function signature".to_string(),
                         anchor,
                     });
                 };
 
                 let target =
-                    self.require_function_reference(*target, anchor, "function bind target")?;
+                    self.require_function_reference(*target, anchor, "callable bind target")?;
                 let target_function = self.tree.get(target);
                 let target_environment = target_function.environment.ok_or_else(|| {
                     ValidateError::MetadataInvariantViolation {
-                        message: "function.bind target requires an environment".to_string(),
+                        message: "callable.bind target requires an environment".to_string(),
                         anchor,
                     }
                 })?;
                 let target_environment = self.require_type_reference(
                     target_environment,
                     anchor,
-                    "function bind environment type",
+                    "callable bind environment type",
                 )?;
 
                 let actual_environment_type = self.value_type_or_error(
                     function,
                     *environment,
                     anchor,
-                    "function.bind environment",
+                    "callable.bind environment",
                 )?;
                 if !self.types_equivalent(actual_environment_type, target_environment) {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "function.bind environment type mismatch".to_string(),
+                        message: "callable.bind environment type mismatch".to_string(),
                         anchor,
                     });
                 }
 
                 if target_function.parameters.len() != parameters.len() {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "function.bind result parameter count mismatch".to_string(),
+                        message: "callable.bind result parameter count mismatch".to_string(),
                         anchor,
                     });
                 }
@@ -1387,7 +1387,7 @@ impl<'a> Validator<'a> {
                 {
                     if parameter.ty != *signature_type {
                         return Err(ValidateError::MetadataInvariantViolation {
-                            message: "function.bind result parameter types mismatch".to_string(),
+                            message: "callable.bind result parameter types mismatch".to_string(),
                             anchor,
                         });
                     }
@@ -1395,33 +1395,33 @@ impl<'a> Validator<'a> {
 
                 if target_function.return_type != result {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "function.bind result return type mismatch".to_string(),
+                        message: "callable.bind result return type mismatch".to_string(),
                         anchor,
                     });
                 }
             }
-            Instruction::FunctionEnvironment { destination } => {
+            Instruction::CallableEnvironment { destination } => {
                 let destination_type_id = self.value_type_or_error(
                     function,
                     *destination,
                     anchor,
-                    "function.environment result",
+                    "callable.environment result",
                 )?;
                 self.reference_type(
                     destination_type_id,
                     anchor,
-                    "function.environment result must be a reference type",
+                    "callable.environment result must be a reference type",
                 )?;
 
                 let environment = function.environment.ok_or_else(|| {
                     ValidateError::MetadataInvariantViolation {
-                        message: "function.environment requires an environment".to_string(),
+                        message: "callable.environment requires an environment".to_string(),
                         anchor,
                     }
                 })?;
                 if environment != destination_type_id.into() {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "function.environment type mismatch".to_string(),
+                        message: "callable.environment type mismatch".to_string(),
                         anchor,
                     });
                 }
@@ -2171,7 +2171,7 @@ impl<'a> Validator<'a> {
                     )
                 })
             }
-            Type::Closure { .. } => Err(ValidateError::MetadataInvariantViolation {
+            Type::Callable { .. } => Err(ValidateError::MetadataInvariantViolation {
                 message: format!("{operation} does not support callable"),
                 anchor,
             }),
@@ -2187,7 +2187,7 @@ impl<'a> Validator<'a> {
                 match pointee {
                     Type::Struct { .. } | Type::Tuple { .. } => self
                         .field_type_for_projection_target(pointee_type, index, anchor, operation),
-                    Type::Closure { .. } => Err(ValidateError::MetadataInvariantViolation {
+                    Type::Callable { .. } => Err(ValidateError::MetadataInvariantViolation {
                         message: format!("{operation} does not support callable"),
                         anchor,
                     }),
@@ -2662,10 +2662,10 @@ impl<'a> Validator<'a> {
                 _ => false,
             },
             (
-                Type::Closure {
+                Type::Callable {
                     signature: left_signature,
                 },
-                Type::Closure {
+                Type::Callable {
                     signature: right_signature,
                 },
             ) => match (

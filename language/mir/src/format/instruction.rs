@@ -4,7 +4,7 @@ use destack_fir::write;
 
 use crate::{
     AtomicScope, FormatMirNode, FunctionReference, GlobalReference, Instruction, LocalNodeId,
-    MemoryOrdering, MemoryRegionSet, MemoryScope, MemorySemantics, MirFormatter,
+    MemoryOrdering, MemoryScope, MemorySemantics, MemorySpaceSet, MirFormatter,
     TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
     TensorGatherDimensionNumbers, TensorScatterDimensionNumbers, TypeReference, ValueReference,
 };
@@ -195,18 +195,6 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 Ok(())
             }
 
-            Instruction::GlobalConst {
-                destination,
-                global,
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [space(), token("="), space(), token("global.const"), space()]
-                )?;
-                format_global_reference(*global, f)
-            }
-
             Instruction::FunctionAddr {
                 destination,
                 function,
@@ -224,7 +212,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )?;
                 format_function_reference(*function, f)
             }
-            Instruction::FunctionBind {
+            Instruction::CallableBind {
                 destination,
                 function,
                 environment,
@@ -236,18 +224,18 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("function.bind"),
+                        token("callable.bind"),
                         space()
                     ]
                 )?;
                 format_function_reference(*function, f)?;
                 write!(f, [token(","), space(), environment])
             }
-            Instruction::FunctionEnvironment { destination } => {
+            Instruction::CallableEnvironment { destination } => {
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
-                    [space(), token("="), space(), token("function.environment")]
+                    [space(), token("="), space(), token("callable.environment")]
                 )
             }
 
@@ -2008,7 +1996,7 @@ fn format_memory_semantics<'a>(
 /// Collect memory semantics names in formatting order.
 fn collect_memory_semantics_names(semantics: MemorySemantics) -> Vec<&'static str> {
     // collect location names first
-    let mut names = collect_effect_region_names(semantics.regions);
+    let mut names = collect_effect_space_names(semantics.spaces);
 
     // append semantics flags
     if semantics.is_volatile {
@@ -2024,30 +2012,30 @@ fn collect_memory_semantics_names(semantics: MemorySemantics) -> Vec<&'static st
     names
 }
 
-/// Collect named memory regions in formatting order.
-fn collect_effect_region_names(regions: MemoryRegionSet) -> Vec<&'static str> {
+/// Collect named memory spaces in formatting order.
+fn collect_effect_space_names(spaces: MemorySpaceSet) -> Vec<&'static str> {
     // special cases for named sets
-    if regions == MemoryRegionSet::NONE {
+    if spaces == MemorySpaceSet::NONE {
         return vec!["none"];
     }
-    if regions == MemoryRegionSet::ANY {
+    if spaces == MemorySpaceSet::ANY {
         return vec!["any"];
     }
 
-    // collect named regions in canonical order
+    // collect named spaces in canonical order
     let mut names = Vec::new();
     let ordered = [
-        ("heap", MemoryRegionSet::HEAP),
-        ("rawHeap", MemoryRegionSet::RAW_HEAP),
-        ("stack", MemoryRegionSet::STACK),
-        ("global", MemoryRegionSet::GLOBAL),
-        ("shared", MemoryRegionSet::SHARED),
-        ("local", MemoryRegionSet::LOCAL),
-        ("constant", MemoryRegionSet::CONSTANT),
-        ("io", MemoryRegionSet::IO),
+        ("heap", MemorySpaceSet::HEAP),
+        ("rawHeap", MemorySpaceSet::RAW_HEAP),
+        ("stack", MemorySpaceSet::STACK),
+        ("static", MemorySpaceSet::STATIC),
+        ("shared", MemorySpaceSet::SHARED),
+        ("local", MemorySpaceSet::LOCAL),
+        ("constant", MemorySpaceSet::CONSTANT),
+        ("io", MemorySpaceSet::IO),
     ];
     for (name, set) in ordered {
-        if regions.contains(set) {
+        if spaces.contains(set) {
             names.push(name);
         }
     }

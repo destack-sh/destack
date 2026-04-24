@@ -16,9 +16,10 @@ global Count: int32, readonly = 1int32;
 
 function use(v0: Callable): int32 {
 b0(v0: Callable):
-    v1: int32 = global.const Count
-    v2: int32 = call.indirect v0(v1): (int32) -> int32
-    return v2
+    v1: ref<int32, raw, readonly> = global.address Count
+    v2: int32 = load v1
+    v3: int32 = call.indirect v0(v2): (int32) -> int32
+    return v3
 }"#,
     )
     .assert_format(
@@ -34,9 +35,10 @@ global Count: int32, readonly = 1int32
 
 function use(value0: Callable): int32 {
 entry0(value0: Callable):
-    value1: int32 = global.const Count
-    value2: int32 = call.indirect value0(value1): (int32) -> int32
-    return value2
+    value1: ref<int32, raw, readonly> = global.address Count
+    value2: int32 = load value1
+    value3: int32 = call.indirect value0(value2): (int32) -> int32
+    return value3
 }"#,
     );
 }

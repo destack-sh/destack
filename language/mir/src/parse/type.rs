@@ -208,8 +208,8 @@ impl Parser {
                         parameters,
                         result: result.into(),
                     });
-                    self.tree.ensure_function_value_environment_type();
-                    Type::Closure {
+                    self.tree.ensure_callable_environment_type();
+                    Type::Callable {
                         signature: signature.into(),
                     }
                 } else {
@@ -474,9 +474,7 @@ impl Parser {
                     .ok_or_else(|| ParseError::unexpected_end("address space", self.pos()))?;
                 let text = self.tree.source_text(token.span).to_string();
                 address_space = match token.ty {
-                    TokenType::Identifier | TokenType::Global | TokenType::Local => {
-                        AddressSpace::from_name(&text)
-                    }
+                    TokenType::Identifier | TokenType::Local => AddressSpace::from_name(&text),
                     _ => {
                         return Err(ParseError::unexpected(
                             "address space",
@@ -544,9 +542,7 @@ impl Parser {
                     .ok_or_else(|| ParseError::unexpected_end("address space", self.pos()))?;
                 let text = self.tree.source_text(token.span).to_string();
                 address_space = match token.ty {
-                    TokenType::Identifier | TokenType::Global | TokenType::Local => {
-                        AddressSpace::from_name(&text)
-                    }
+                    TokenType::Identifier | TokenType::Local => AddressSpace::from_name(&text),
                     _ => {
                         return Err(ParseError::unexpected(
                             "address space",

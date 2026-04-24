@@ -82,21 +82,21 @@ entry0:
 
 /// Formats environment functions and callable values canonically.
 #[test]
-fn test_format_function_environment() {
+fn test_format_callable_environment() {
     assert_format(
         r#"
 @environment(ref<void, managed>)
 function callee(value0: int32): int32 {
 entry0(value0: int32):
-    value1: ref<void, managed> = function.environment
+    value1: ref<void, managed> = callable.environment
     return value0
 }
 
 @environment(ref<void, managed>)
 function caller(): int32 {
 entry0:
-    value0: ref<void, managed> = function.environment
-    value1: (int32) => int32 = function.bind callee, value0
+    value0: ref<void, managed> = callable.environment
+    value1: (int32) => int32 = callable.bind callee, value0
     value2: int32 = 1int32
     value3: int32 = call.indirect value1(value2): (int32) -> int32
     return value3
