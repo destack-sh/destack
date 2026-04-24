@@ -3,14 +3,16 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{HostEvent, Session};
 use crate::platform::resource::ResourceRebinders;
-use crate::runtime::engine::{Engine, EngineLayout, Entry, ExecutionOutput};
+use crate::runtime::engine::{Engine, Entry, RunOutput};
+#[cfg(test)]
+use crate::runtime::memory::RootVisitor;
 use crate::runtime::poller::{HostPoller, PollerEvent};
 use crate::runtime::scheduler::Timer;
 use crate::runtime::time::WorldInstant;
 use crate::runtime::world::{RuntimeId, Wake, WorldRef};
 use crate::runtime::{DropCounts, DropReason};
 use destack_core::CaptureMode;
-use destack_heap as heap;
+use destack_vm as vm;
 use destack_workspace::{
     ExecutionMode, PlatformHostOptions, PlatformOsOptions, PollerBackend, RuntimeAppDeclaration,
     RuntimeOptions,
@@ -44,7 +46,7 @@ impl RuntimeHostOptions {
             host_options,
             os_options,
             app_declaration,
-            poller_backend: options.scheduler.poller_backend,
+            poller_backend: options.scheduler_options().poller_backend,
         }
     }
 
@@ -101,6 +103,8 @@ pub struct Runtime {
     workers: BTreeMap<WorkerId, Box<Worker>>,
     /// Default worker used by convenience accessors.
     primary_worker_id: WorkerId,
+    /// The next worker slot to schedule first.
+    next_worker_cursor: usize,
 }
 
 /// Materialized runtime metadata captured in one world image.
@@ -114,6 +118,8 @@ pub struct RuntimeImage {
     pub worker_options: Arc<RuntimeOptions>,
     /// Runtime host reconstruction settings captured for reconstruction.
     pub host_options: RuntimeHostOptions,
+    /// The next worker slot to schedule first.
+    pub next_worker_cursor: usize,
 }
 
 /// Result of one runtime scheduler tick.
@@ -123,6 +129,8 @@ pub enum TickOutcome {
     Progressed,
     /// Virtual time advanced to the next deadline.
     AdvancedTime,
+    /// Concurrent world work is still active on another executor.
+    Concurrent,
     /// No runnable work or future deadlines remained.
     Idle,
 }
@@ -130,7 +138,7 @@ pub enum TickOutcome {
 impl TickOutcome {
     /// Return whether this tick made deterministic progress.
     pub const fn progressed(self) -> bool {
-        !matches!(self, Self::Idle)
+        matches!(self, Self::Progressed | Self::AdvancedTime)
     }
 }
 
@@ -145,6 +153,7 @@ impl std::fmt::Debug for Runtime {
             .field("host", &self.host)
             .field("workers", &self.workers)
             .field("primary_worker_id", &self.primary_worker_id)
+            .field("next_worker_cursor", &self.next_worker_cursor)
             .field("poller", &"<shared platform poller>")
             .finish()
     }
@@ -174,7 +183,7 @@ impl Runtime {
         platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
         world: &WorldRef,
-        engine: impl Engine + EngineLayout + 'static,
+        engine: impl Engine + 'static,
     ) -> RuntimeResult<Self> {
         let platform_args = platform_args.into();
         let primary_worker = Worker::new_in_world(platform_args.clone(), options, world, engine)?;
@@ -239,6 +248,30 @@ impl Runtime {
         self.workers.len()
     }
 
+    /// Visit roots from every worker owned by this runtime.
+    #[cfg(test)]
+    pub(crate) fn visit_roots(&mut self, roots: &mut RootVisitor<'_>) -> RuntimeResult<()> {
+        for worker in self.workers.values_mut() {
+            worker.visit_roots(roots)?;
+        }
+
+        Ok(())
+    }
+
+    /// Start one incremental local-to-shared edge scan across all workers.
+    pub(crate) fn start_shared_edge_scan(&mut self) {
+        for worker in self.workers.values_mut() {
+            worker.start_shared_edge_scan();
+        }
+    }
+
+    /// Finish the current local-to-shared edge scan across all workers.
+    pub(crate) fn finish_shared_edge_scan(&mut self) {
+        for worker in self.workers.values_mut() {
+            worker.finish_shared_edge_scan();
+        }
+    }
+
     /// Return one immutable worker by id.
     pub fn worker(&self, worker_id: WorkerId) -> Option<&Worker> {
         self.workers.get(&worker_id).map(Box::as_ref)
@@ -254,7 +287,7 @@ impl Runtime {
         &mut self,
         world: &WorldRef,
         options: &RuntimeOptions,
-        engine: impl Engine + EngineLayout + 'static,
+        engine: impl Engine + 'static,
     ) -> RuntimeResult<WorkerId> {
         // force runtime identity to stay shared across all workers in this runtime
         let mut options = options.clone();
@@ -304,8 +337,8 @@ impl Runtime {
         &mut self,
         world: &WorldRef,
         entry: &Entry,
-        args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutput> {
+        args: &[vm::Value],
+    ) -> RuntimeResult<RunOutput> {
         self.run_entrypoint_for_worker(world, self.primary_worker_id, entry, args)
     }
 
@@ -315,8 +348,8 @@ impl Runtime {
         world: &WorldRef,
         worker_id: WorkerId,
         entry: &Entry,
-        args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutput> {
+        args: &[vm::Value],
+    ) -> RuntimeResult<RunOutput> {
         let host = &self.host;
         let poller = &mut self.poller;
         let worker = self
@@ -337,11 +370,19 @@ impl Runtime {
         // poll and handle runtime ingress first
         let ingress_handled = self.poll_ingress(world)?;
 
-        // run one local worker tick in stable id order
+        // run one local worker tick in round-robin order
         let worker_ids = self.worker_ids();
+        let worker_count = worker_ids.len();
+        let start_index = if worker_count == 0 {
+            0
+        } else {
+            self.next_worker_cursor % worker_count
+        };
         let host = &self.host;
         let workers = &mut self.workers;
-        for worker_id in worker_ids {
+        for offset in 0..worker_count {
+            let worker_index = (start_index + offset) % worker_count;
+            let worker_id = worker_ids[worker_index];
             let worker = workers
                 .get_mut(&worker_id)
                 .map(Box::as_mut)
@@ -352,6 +393,8 @@ impl Runtime {
                     .boxed()
                 })?;
             if worker.tick(world, host)? {
+                self.next_worker_cursor = (worker_index + 1) % worker_count;
+
                 return Ok(TickOutcome::Progressed);
             }
         }
@@ -396,6 +439,7 @@ impl Runtime {
             drop_counts: DropCounts::default(),
             workers,
             primary_worker_id,
+            next_worker_cursor: 0,
         })
     }
 
@@ -485,6 +529,7 @@ impl Runtime {
         ingress: Vec<RuntimeIngress>,
     ) -> RuntimeResult<bool> {
         let mut handled_any = false;
+        let is_marking_shared = world.shared_gc_marking();
 
         for item in ingress {
             match item {
@@ -517,6 +562,12 @@ impl Runtime {
                         })?;
                         worker.event_loop.enqueue_host_events(vec![event.clone()]);
                         worker.hooks.on_ingress_enqueue(world);
+
+                        // shared mark: ingress can change direct worker roots without a worker tick
+                        if is_marking_shared {
+                            world.queue_shared_root_scan(worker_id);
+                        }
+
                         handled_any = true;
                     }
                 }
@@ -548,6 +599,12 @@ impl Runtime {
                         })?;
                         worker.event_loop.enqueue_events(vec![event]);
                         worker.hooks.on_ingress_enqueue(world);
+
+                        // shared mark: ingress can change direct worker roots without a worker tick
+                        if is_marking_shared {
+                            world.queue_shared_root_scan(worker_id);
+                        }
+
                         handled_any = true;
                     }
                 }
@@ -591,13 +648,10 @@ impl Runtime {
     /// Align world-scoped options for workers spawned in one existing runtime.
     fn align_spawn_options_with_runtime(&self, options: &mut RuntimeOptions) {
         // world scoped settings: all workers in one runtime share one world
-        options.execution = self.worker_options.execution;
-        options.world = self.worker_options.world;
-        options.access = self.worker_options.access;
-        options.replay = self.worker_options.replay.clone();
-        options.time = self.worker_options.time.clone();
-        options.random = self.worker_options.random.clone();
-        options.rules = self.worker_options.rules.clone();
+        options.execution = self.worker_options.execution.clone();
+        options.policy = self.worker_options.policy.clone();
+        options.simulation = self.worker_options.simulation.clone();
+        options.trace = self.worker_options.trace.clone();
     }
 
     /// Capture one materialized runtime image and all owned worker images.
@@ -614,6 +668,7 @@ impl Runtime {
             platform_args: self.platform_args.clone(),
             worker_options: self.worker_options.clone(),
             host_options: self.host_options.clone(),
+            next_worker_cursor: self.next_worker_cursor,
         });
 
         // worker images
@@ -674,6 +729,7 @@ impl Runtime {
             drop_counts: self.drop_counts,
             workers,
             primary_worker_id: self.primary_worker_id,
+            next_worker_cursor: self.next_worker_cursor,
         }))
     }
 
@@ -740,6 +796,132 @@ impl Runtime {
             drop_counts: DropCounts::default(),
             workers,
             primary_worker_id: image.primary_worker_id,
+            next_worker_cursor: image.next_worker_cursor,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Runtime, RuntimeIngress};
+    use crate::host::{
+        HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState,
+    };
+    use crate::runtime::engine::{LiveContinuation, NativeContinuationHandle};
+    use crate::runtime::tests::TestEngine;
+    use crate::runtime::{TickOutcome, Worker, World};
+    use destack_engine::MaterializedValue;
+    use destack_heap::{AllocationLayout, Payload};
+    use destack_mir::ReferenceMap;
+    use destack_workspace::RuntimeOptions;
+
+    /// Allocate one shared byte payload for runtime tests.
+    fn allocate_shared_bytes(
+        heap: &destack_heap::SharedHeap,
+        bytes: &[u8],
+    ) -> destack_heap::HeapResult<destack_heap::SharedHeapReference> {
+        let reference_map = ReferenceMap::empty();
+        let layout = AllocationLayout::new(bytes.len(), &reference_map);
+
+        heap.allocate(layout, Payload::Bytes(bytes))
+    }
+
+    /// Queue one shared direct-root rescan when ingress mutates worker state during marking.
+    #[test]
+    fn test_deliver_ingress_queues_shared_root_rescan_during_mark() {
+        let options = RuntimeOptions::default();
+        let mut world = World::from_options(&options).expect("world should construct");
+        let world_ref = world.world_ref();
+        let mut worker =
+            Worker::new_in_world(Vec::new(), &options, &world_ref, TestEngine::default())
+                .expect("worker should construct");
+        let worker_id = worker.id;
+        let shared_root = allocate_shared_bytes(world_ref.shared(), &[0xA1])
+            .expect("shared allocation should succeed");
+
+        // watched host state: the shared root only lives through the event loop
+        worker
+            .watch_host_event(
+                HostEventKind::Lifecycle,
+                LiveContinuation::Native(NativeContinuationHandle::new(7)),
+                MaterializedValue::SharedHeapReference(shared_root),
+                0,
+            )
+            .expect("host-event watch should register");
+
+        let mut runtime =
+            Runtime::new(Vec::new().into(), &options, worker).expect("runtime should construct");
+
+        // active shared mark
+        world_ref.shared().request_gc();
+        world_ref
+            .shared()
+            .start_gc()
+            .expect("shared gc start should succeed");
+
+        assert!(world_ref.shared_gc_marking());
+        assert!(!world.mark_roots.is_root_scan_pending(worker_id));
+
+        // ingress should requeue the touched worker even before it ticks
+        let handled = runtime
+            .deliver_ingress(
+                &world_ref,
+                vec![RuntimeIngress::Host {
+                    event: HostEvent::Lifecycle(HostLifecycleEvent {
+                        source_kind: HostLifecycleSourceKind::Application,
+                        state: HostLifecycleState::Running,
+                    }),
+                }],
+            )
+            .expect("ingress delivery should succeed");
+
+        assert!(handled);
+        assert!(world.mark_roots.is_root_scan_pending(worker_id));
+    }
+
+    /// Publish direct shared roots from the owning worker checkpoint during marking.
+    #[test]
+    fn test_runtime_tick_publishes_pending_shared_roots_from_worker() {
+        let options = RuntimeOptions::default();
+        let mut world = World::from_options(&options).expect("world should construct");
+        let world_ref = world.world_ref();
+        let mut worker =
+            Worker::new_in_world(Vec::new(), &options, &world_ref, TestEngine::default())
+                .expect("worker should construct");
+        let worker_id = worker.id;
+        let shared_root = allocate_shared_bytes(world_ref.shared(), &[0xB2])
+            .expect("shared allocation should succeed");
+
+        // watched host state: the shared root only lives through the event loop
+        worker
+            .watch_host_event(
+                HostEventKind::Lifecycle,
+                LiveContinuation::Native(NativeContinuationHandle::new(9)),
+                MaterializedValue::SharedHeapReference(shared_root),
+                0,
+            )
+            .expect("host-event watch should register");
+
+        let mut runtime =
+            Runtime::new(Vec::new().into(), &options, worker).expect("runtime should construct");
+
+        // active shared mark
+        world_ref.shared().request_gc();
+        world_ref
+            .shared()
+            .start_gc()
+            .expect("shared gc start should succeed");
+        world.mark_roots.queue_root_scan(worker_id);
+
+        assert!(world.mark_roots.is_root_scan_pending(worker_id));
+
+        // one runtime tick should let the owning worker publish its direct roots
+        let outcome = runtime
+            .tick(&world_ref)
+            .expect("runtime tick should succeed");
+
+        assert_eq!(outcome, TickOutcome::Progressed);
+        assert!(!world.mark_roots.is_root_scan_pending(worker_id));
+        assert_eq!(world.mark_roots.roots_snapshot().as_ref(), &[shared_root]);
     }
 }

@@ -1,8 +1,13 @@
+use super::{
+    BindingCallContext, EventLoopScope, RuntimeScheduledCallbackHandle, Worker,
+    current_event_loop_scope, enter_binding_call_context, enter_current_worker_context,
+    enter_event_loop_scope,
+};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::Session;
 use crate::platform::resource;
 use crate::runtime::DropReason;
-use crate::runtime::engine::{Entry, ExecutionOutcome, ExecutionOutput, LiveContinuation};
+use crate::runtime::engine::{Entry, LiveContinuation, RunOutcome, RunOutput};
 use crate::runtime::poller::HostPoller;
 use crate::runtime::scheduler::{
     Microtask, Runnable, Task, TaskId, TaskStatus, Timer, TimerHandle,
@@ -10,13 +15,13 @@ use crate::runtime::scheduler::{
 use crate::runtime::time::timer::on_event_loop_timer_fire;
 use crate::runtime::world::WorldRef;
 use destack_workspace::TimeMode;
-use {destack_heap as heap, destack_vm as vm};
+use {destack_engine as engine, destack_heap as heap, destack_vm as vm};
 
-use super::{
-    Worker, BindingCallContext, EventLoopScope, RuntimeScheduledCallbackHandle,
-    current_event_loop_scope, enter_binding_call_context, enter_current_worker_context,
-    enter_event_loop_scope,
-};
+/// The extra checkpoint passes donated when one worker is otherwise idle.
+const GC_IDLE_CHECKPOINT_PASSES: usize = 4;
+
+/// The extra checkpoint passes donated while shared mark termination is waiting.
+const GC_TERMINATION_CHECKPOINT_PASSES: usize = 8;
 
 /// Convert one configured runtime limit into a host usize.
 fn host_limit(value: u64, label: &str) -> usize {
@@ -31,8 +36,8 @@ impl Worker {
         world: &WorldRef,
         host: &Session,
         entry: &Entry,
-        args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutput> {
+        args: &[vm::Value],
+    ) -> RuntimeResult<RunOutput> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
         self.run_entrypoint_with_host_and_poller(world, host, entry, args, &mut poller)
     }
@@ -43,9 +48,9 @@ impl Worker {
         world: &WorldRef,
         host: &Session,
         entry: &Entry,
-        args: &[heap::Value],
+        args: &[vm::Value],
         poller: &mut Option<Box<dyn HostPoller>>,
-    ) -> RuntimeResult<ExecutionOutput> {
+    ) -> RuntimeResult<RunOutput> {
         let agent_ptr = self as *const Worker;
         let event_loop = self.event_loop.as_ref() as *const _;
         let host_ptr = host as *const Session;
@@ -60,21 +65,19 @@ impl Worker {
 
         // execute the entrypoint with yielding enabled
         let _guard = enter_event_loop_scope(EventLoopScope::empty());
-        let mut shared = world.shared_mut();
-        let mut memory = vm::MemoryContext::with_shared_raw_limits(
-            &mut self.heap,
-            &mut shared,
-            world.shared_raw_limits,
-        );
-        let outcome = self.engine.run(&mut memory, entry, args)?;
+        let shared = world.shared();
+        let outcome = self.engine.run(&mut self.heap, shared, entry, args)?;
 
         // handle the entry outcome
         let output = match outcome {
-            ExecutionOutcome::Completed { output } => Ok(output),
-            ExecutionOutcome::Yielded { yielded } => {
+            RunOutcome::Completed { output } => Ok(output),
+            RunOutcome::Yielded {
+                continuation,
+                value,
+            } => {
                 // enqueue the yielded continuation
                 let task_id = self.event_loop.next_task_id();
-                self.enqueue_task(world, task_id, yielded.continuation, yielded.value)?;
+                self.enqueue_task(world, task_id, continuation, value)?;
 
                 let output = self.run_until_task_complete(world, host, task_id, None, poller)?;
                 output.ok_or_else(|| {
@@ -96,7 +99,7 @@ impl Worker {
         world: &WorldRef,
         host: &Session,
         target_task: TaskId,
-    ) -> RuntimeResult<ExecutionOutput> {
+    ) -> RuntimeResult<RunOutput> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
         self.run_loop_until_task_complete_with_host_and_poller(
             world,
@@ -114,7 +117,7 @@ impl Worker {
         host: &Session,
         target_task: TaskId,
         poller: &mut Option<Box<dyn HostPoller>>,
-    ) -> RuntimeResult<ExecutionOutput> {
+    ) -> RuntimeResult<RunOutput> {
         let output = self.run_until_task_complete(world, host, target_task, None, poller)?;
         output.ok_or_else(|| {
             RuntimeError::EventLoopIdle {
@@ -132,7 +135,7 @@ impl Worker {
         host: &Session,
         target_task: TaskId,
         timeout_nanos: Option<u64>,
-    ) -> RuntimeResult<Option<ExecutionOutput>> {
+    ) -> RuntimeResult<Option<RunOutput>> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
         self.run_until_task_complete(world, host, target_task, timeout_nanos, &mut poller)
     }
@@ -145,7 +148,7 @@ impl Worker {
         target_task: TaskId,
         timeout_nanos: Option<u64>,
         poller: &mut Option<Box<dyn HostPoller>>,
-    ) -> RuntimeResult<Option<ExecutionOutput>> {
+    ) -> RuntimeResult<Option<RunOutput>> {
         // capture one monotonic start timestamp for timeout accounting
         let start_mono_nanos = world.mono_nanos();
 
@@ -164,6 +167,15 @@ impl Worker {
             if let Some(output) = output {
                 return Ok(Some(output));
             }
+
+            // direct roots: worker execution may reshuffle shared roots
+            if progressed && world.shared_gc_marking() {
+                world.queue_shared_root_scan(self.id);
+            }
+
+            // donate checkpoint work before sleeping or declaring idle
+            let checkpoint_progressed = self.gc_checkpoint(world, true)?;
+            let progressed = progressed || checkpoint_progressed;
 
             // wait for the next wakeup when no work progressed this tick
             if !progressed
@@ -210,13 +222,159 @@ impl Worker {
         // run one event loop tick and capture progress
         let (mut progressed, _) = self.tick_loop(world, host, None)?;
 
-        // run one gc cycle when pacing says a cycle is due
-        if self.should_collect() {
-            let _stats = self.collect()?;
+        // direct roots: worker execution may reshuffle shared roots
+        if progressed && world.shared_gc_marking() {
+            world.queue_shared_root_scan(self.id);
+        }
+
+        // run one explicit gc checkpoint after the ordinary tick
+        if self.gc_checkpoint(world, !progressed)? {
             progressed = true;
         }
 
         Ok(progressed)
+    }
+
+    /// Run one bounded GC checkpoint for this worker.
+    fn gc_checkpoint(&mut self, world: &WorldRef, is_idle: bool) -> RuntimeResult<bool> {
+        let pass_limit = if world.shared_gc_terminating() {
+            GC_TERMINATION_CHECKPOINT_PASSES
+        } else if is_idle {
+            GC_IDLE_CHECKPOINT_PASSES
+        } else {
+            1
+        };
+        let prioritize_shared = world.shared_gc_terminating()
+            || world.is_shared_root_scan_pending(self.id)
+            || (world.shared_gc_marking() && !self.shared_edge_scan_idle());
+        let mut progressed = false;
+
+        // bounded cooperative rendezvous
+        for _ in 0..pass_limit {
+            let pass_progressed = if prioritize_shared {
+                self.run_shared_first_checkpoint_pass(world)?
+            } else {
+                self.run_local_first_checkpoint_pass(world)?
+            };
+
+            if !pass_progressed {
+                break;
+            }
+
+            progressed = true;
+        }
+
+        Ok(progressed)
+    }
+
+    /// Run one checkpoint pass that prioritizes shared publication and assists.
+    fn run_shared_first_checkpoint_pass(&mut self, world: &WorldRef) -> RuntimeResult<bool> {
+        // direct shared roots
+        if self.assist_shared_root_scan(world)? {
+            return Ok(true);
+        }
+
+        // local to shared edges
+        if self.assist_shared_edge_scan(world)? {
+            return Ok(true);
+        }
+
+        // shared mark and sweep work
+        if self.assist_shared_gc(world)? {
+            return Ok(true);
+        }
+
+        // local heap work
+        if self.gc_step()?.is_some() {
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
+    /// Run one checkpoint pass that prioritizes local heap work first.
+    fn run_local_first_checkpoint_pass(&mut self, world: &WorldRef) -> RuntimeResult<bool> {
+        // local heap work
+        if self.gc_step()?.is_some() {
+            return Ok(true);
+        }
+
+        // direct shared roots
+        if self.assist_shared_root_scan(world)? {
+            return Ok(true);
+        }
+
+        // local to shared edges
+        if self.assist_shared_edge_scan(world)? {
+            return Ok(true);
+        }
+
+        // shared mark and sweep work
+        if self.assist_shared_gc(world)? {
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
+    /// Publish one pending direct shared-root scan from this worker safepoint.
+    fn assist_shared_root_scan(&mut self, world: &WorldRef) -> RuntimeResult<bool> {
+        // active pass
+        if !world.shared_gc_marking() || !world.is_shared_root_scan_pending(self.id) {
+            return Ok(false);
+        }
+
+        // owner-local root publication
+        let roots = self.collect_shared_roots()?;
+        world.replace_shared_direct_roots(self.id, roots);
+
+        Ok(true)
+    }
+
+    /// Assist one active shared edge pass from this worker safepoint.
+    fn assist_shared_edge_scan(&mut self, world: &WorldRef) -> RuntimeResult<bool> {
+        if !world.shared_gc_marking() || self.shared_edge_scan_idle() {
+            return Ok(false);
+        }
+
+        let work_items = world.shared_edge_scan_tick_budget();
+        if work_items == 0 {
+            return Ok(false);
+        }
+
+        let mut roots = Vec::new();
+        let work_done = self.scan_shared_edge_step(&mut roots, work_items)?;
+        world.push_shared_edge_roots(self.id, &roots);
+
+        let is_idle = self.shared_edge_scan_idle();
+        if is_idle {
+            world.leave_shared_edge_scan(self.id);
+        }
+
+        Ok(work_done > 0 || is_idle)
+    }
+
+    /// Assist one active shared collection from this worker safepoint.
+    fn assist_shared_gc(&mut self, world: &WorldRef) -> RuntimeResult<bool> {
+        let shared = world.shared();
+        let work_items = shared.take_assist_budget();
+        if work_items == 0 || shared.gc_phase() == heap::SharedGcPhase::Idle {
+            return Ok(false);
+        }
+
+        let shared_roots = world.mark_roots();
+        let roots = shared_roots.roots_snapshot();
+        let roots_complete = shared_roots.roots_complete();
+        let stats = shared
+            .gc_step_for_worker(
+                Some(&self.shared_gc_worker),
+                &roots,
+                roots_complete,
+                work_items,
+            )
+            .map_err(Box::<RuntimeError>::from)?;
+
+        Ok(stats.is_some() || work_items > 0)
     }
 
     /// Tick the loop once and return progress and optional target output.
@@ -225,7 +383,7 @@ impl Worker {
         world: &WorldRef,
         host: &Session,
         target_task: Option<TaskId>,
-    ) -> RuntimeResult<(bool, Option<ExecutionOutput>)> {
+    ) -> RuntimeResult<(bool, Option<RunOutput>)> {
         let agent_ptr = self as *const Worker;
         let event_loop = self.event_loop.as_ref() as *const _;
         let host_ptr = host as *const Session;
@@ -391,9 +549,11 @@ impl Worker {
         &mut self,
         world: &WorldRef,
         task_id: TaskId,
-        runnable: LiveContinuation,
-        resume_value: heap::Value,
+        mut runnable: LiveContinuation,
+        mut resume_value: engine::MaterializedValue,
     ) -> RuntimeResult<()> {
+        self.stabilize_boundary_payload(Some(&mut runnable), &mut resume_value)?;
+
         // build the task metadata
         let task = Task {
             id: task_id,
@@ -412,7 +572,7 @@ impl Worker {
         world: &WorldRef,
         task: Task,
         target_task: Option<TaskId>,
-    ) -> RuntimeResult<Option<ExecutionOutput>> {
+    ) -> RuntimeResult<Option<RunOutput>> {
         self.hooks.on_scheduler_dequeue(world);
         self.execute_task(world, task, target_task)
     }
@@ -423,7 +583,7 @@ impl Worker {
         world: &WorldRef,
         mut task: Task,
         target_task: Option<TaskId>,
-    ) -> RuntimeResult<Option<ExecutionOutput>> {
+    ) -> RuntimeResult<Option<RunOutput>> {
         // run the task runnable
         task.status = TaskStatus::Waiting;
         let _guard = enter_event_loop_scope(EventLoopScope::for_task(task.id));
@@ -431,15 +591,18 @@ impl Worker {
 
         // handle the task outcome
         match outcome {
-            ExecutionOutcome::Completed { output } => {
+            RunOutcome::Completed { output } => {
                 task.status = TaskStatus::Completed;
                 if target_task == Some(task.id) {
                     return Ok(Some(output));
                 }
             }
-            ExecutionOutcome::Yielded { yielded } => {
+            RunOutcome::Yielded {
+                continuation,
+                value,
+            } => {
                 task.status = TaskStatus::Waiting;
-                self.enqueue_task(world, task.id, yielded.continuation, yielded.value)?;
+                self.enqueue_task(world, task.id, continuation, value)?;
             }
         }
 
@@ -482,8 +645,8 @@ impl Worker {
 
         // ensure microtasks run to completion
         match outcome {
-            ExecutionOutcome::Completed { .. } => Ok(()),
-            ExecutionOutcome::Yielded { .. } => Err(RuntimeError::Internal {
+            RunOutcome::Completed { .. } => Ok(()),
+            RunOutcome::Yielded { .. } => Err(RuntimeError::Internal {
                 message: "microtask yielded while running to completion".to_string(),
             }
             .boxed()),
@@ -532,15 +695,11 @@ impl Worker {
         &mut self,
         world: &WorldRef,
         runnable: LiveContinuation,
-        resume_value: heap::Value,
-    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
-        let mut shared = world.shared_mut();
-        let mut memory = vm::MemoryContext::with_shared_raw_limits(
-            &mut self.heap,
-            &mut shared,
-            world.shared_raw_limits,
-        );
-        self.engine.resume(&mut memory, runnable, resume_value)
+        resume_value: engine::MaterializedValue,
+    ) -> RuntimeResult<RunOutcome<LiveContinuation>> {
+        let shared = world.shared();
+        self.engine
+            .resume(&mut self.heap, shared, runnable, resume_value)
     }
 
     /// Wait for one scheduler wakeup when the loop has pending but not-ready work.
