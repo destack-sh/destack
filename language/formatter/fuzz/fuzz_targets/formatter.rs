@@ -3,11 +3,10 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use destack_ast::NodeParentIndex;
 use destack_fir::format as fir_format;
-use destack_formatter::{
-    DestackFormatContext, DestackFormatOptions, build_formatter_tree_and_parents, statement_list,
-};
-use destack_parser::Parser;
+use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
+use destack_parser::{Parser, ParserSettings};
 use destack_source::{DiagnosticSeverity, File, FileId, FileType, LanguageType, Uri};
 use libfuzzer_sys::fuzz_target;
 
@@ -29,7 +28,14 @@ fuzz_target!(|data: &[u8]| {
     ));
 
     // parse the input
-    let mut parser = Parser::lex_file(file.clone(), LanguageType::Destack);
+    let mut parser = Parser::lex_file_with_settings(
+        file.clone(),
+        LanguageType::Destack,
+        ParserSettings {
+            preserve_parenthesized_wrappers: false,
+            ..ParserSettings::default()
+        },
+    );
     let expressions = parser.parse();
 
     // skip parse failures
@@ -43,14 +49,14 @@ fuzz_target!(|data: &[u8]| {
     // format without panicking
     let side_span = parser.compute_side_span();
     let strings = parser.strings.clone().into_immutable();
-    let (tree, parents) = build_formatter_tree_and_parents(&parser.tree, &expressions);
+    let parents = NodeParentIndex::from_expression_roots(&parser.tree, &expressions);
     let (tokens, side_tokens) = parser.take_tokens();
     let format_options = DestackFormatOptions::default();
 
     let context = DestackFormatContext::new(
         format_options,
         file.as_ref(),
-        &tree,
+        &parser.tree,
         &tokens,
         &side_tokens,
         &side_span,
