@@ -41,11 +41,11 @@ entry0:
 fn test_format_string_constant() {
     assert_format(
         r#"
-global stringLiteralHelloWorldNl: ref<void, managed>, readonly = "hello\nworld"
+global stringLiteralHelloWorldNl: uint8[11], readonly = "hello\nworld"
 
 function escapeTest(): void {
 entry0:
-    value0: ref<void, managed> = global.const stringLiteralHelloWorldNl
+    value0: uint8[11] = global.const stringLiteralHelloWorldNl
     return
 }
 "#,

@@ -117,39 +117,39 @@ pub(super) fn format_function_attributes<'a>(
     }
 
     // derived metadata
-    if !has_attribute(attributes, "executionModel", f) {
-        if let Some(model) = function.execution_model {
-            write_simple_attribute("executionModel", model.to_str(), f)?;
-        }
+    if !has_attribute(attributes, "executionModel", f)
+        && let Some(model) = function.execution_model
+    {
+        write_simple_attribute("executionModel", model.to_str(), f)?;
     }
 
-    if !has_attribute(attributes, "executionStage", f) {
-        if let Some(stage) = function.execution_stage {
-            write_simple_attribute("executionStage", stage.to_str(), f)?;
-        }
+    if !has_attribute(attributes, "executionStage", f)
+        && let Some(stage) = function.execution_stage
+    {
+        write_simple_attribute("executionStage", stage.to_str(), f)?;
     }
 
     // derived workgroup size
-    if !has_attribute(attributes, "workgroupSize", f) {
-        if let Some(size) = function.workgroup_size {
-            write_workgroup_size_attribute(size, f)?;
-        }
+    if !has_attribute(attributes, "workgroupSize", f)
+        && let Some(size) = function.workgroup_size
+    {
+        write_workgroup_size_attribute(size, f)?;
     }
 
-    if !has_attribute(attributes, "environment", f) {
-        if let Some(environment) = function.environment {
-            write!(
-                f,
-                [
-                    token("@"),
-                    token("environment"),
-                    token("("),
-                    environment,
-                    token(")"),
-                    hard_line_break()
-                ]
-            )?;
-        }
+    if !has_attribute(attributes, "environment", f)
+        && let Some(environment) = function.environment
+    {
+        write!(
+            f,
+            [
+                token("@"),
+                token("environment"),
+                token("("),
+                environment,
+                token(")"),
+                hard_line_break()
+            ]
+        )?;
     }
 
     // comments before the function head

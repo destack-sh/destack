@@ -434,10 +434,10 @@ impl FunctionLiveness {
         for instruction_id in block.instructions.iter().skip(instruction_offset) {
             let instruction = tree.get(*instruction_id);
 
-            if let Some(destination) = instruction.destination() {
-                if let Some(destination) = concrete_value(destination) {
-                    live.remove(&destination);
-                }
+            if let Some(destination) = instruction.destination()
+                && let Some(destination) = concrete_value(destination)
+            {
+                live.remove(&destination);
             }
 
             for used in instruction.uses() {

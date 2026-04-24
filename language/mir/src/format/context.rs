@@ -585,9 +585,10 @@ fn type_key_for_alias_reference(
     tree: &NodeTree,
     strings: &ImmutableStringPool,
     ty: TypeReference,
+    active_types: &mut HashSet<LocalNodeId<Type>>,
 ) -> String {
     match ty {
-        TypeReference::Type(ty) => type_key_for_alias(tree, strings, ty),
+        TypeReference::Type(ty) => type_key_for_alias_inner(tree, strings, ty, active_types),
         TypeReference::Missing => "<missing>".to_string(),
         TypeReference::Error => "<error>".to_string(),
     }
@@ -638,7 +639,7 @@ fn type_key_for_alias_inner(
                 result.push_str("ref<");
             }
             // append the pointee key first
-            let pointee_key = type_key_for_alias_reference(tree, strings, *pointee);
+            let pointee_key = type_key_for_alias_reference(tree, strings, *pointee, active_types);
             result.push_str(&pointee_key);
 
             // append the reference kind
@@ -668,7 +669,7 @@ fn type_key_for_alias_inner(
             element, length, ..
         } => {
             // format array keys with element and length
-            let element_key = type_key_for_alias_reference(tree, strings, *element);
+            let element_key = type_key_for_alias_reference(tree, strings, *element, active_types);
             format!("{element_key}[{length}]")
         }
         Type::Slice {
@@ -678,7 +679,7 @@ fn type_key_for_alias_inner(
             mutability,
         } => {
             // format slice keys with element type and qualifiers
-            let element_key = type_key_for_alias_reference(tree, strings, *element);
+            let element_key = type_key_for_alias_reference(tree, strings, *element, active_types);
             let mut result = format!("slice<{element_key}");
             match kind {
                 ReferenceKind::Managed => {}
@@ -701,7 +702,7 @@ fn type_key_for_alias_inner(
             // join tuple element keys
             let elements = elements
                 .iter()
-                .map(|element| type_key_for_alias_reference(tree, strings, *element))
+                .map(|element| type_key_for_alias_reference(tree, strings, *element, active_types))
                 .collect::<Vec<_>>()
                 .join(", ");
             format!("({elements})")
@@ -712,7 +713,8 @@ fn type_key_for_alias_inner(
                 .iter()
                 .map(|field_id| {
                     let field = tree.get(*field_id);
-                    let field_type = type_key_for_alias_reference(tree, strings, field.ty);
+                    let field_type =
+                        type_key_for_alias_reference(tree, strings, field.ty, active_types);
                     match field.name {
                         Some(name) => format!("{}: {field_type}", strings.get(name)),
                         None => field_type,
@@ -723,12 +725,12 @@ fn type_key_for_alias_inner(
             format!("{{ {fields} }}")
         }
         Type::Newtype { inner, .. } => {
-            let inner_key = type_key_for_alias_reference(tree, strings, *inner);
+            let inner_key = type_key_for_alias_reference(tree, strings, *inner, active_types);
             format!("newtype<{inner_key}>")
         }
         Type::Vector { element, lanes, .. } => {
             // format vector keys with element and lane count
-            let element_key = type_key_for_alias_reference(tree, strings, *element);
+            let element_key = type_key_for_alias_reference(tree, strings, *element, active_types);
             format!("vector<{element_key}, {lanes}>")
         }
         Type::Tensor {
@@ -738,7 +740,7 @@ fn type_key_for_alias_inner(
             ..
         } => {
             // format tensor keys with element, shape, and layout
-            let element_key = type_key_for_alias_reference(tree, strings, *element);
+            let element_key = type_key_for_alias_reference(tree, strings, *element, active_types);
             let shape_key = format_shape_key(shape);
             let layout_key = format_tensor_layout_key(layout);
             format!("tensor<{element_key}, {shape_key}, {layout_key}>")
@@ -759,7 +761,7 @@ fn type_key_for_alias_inner(
             } else {
                 result.push_str("tensorView<");
             }
-            let element_key = type_key_for_alias_reference(tree, strings, *element);
+            let element_key = type_key_for_alias_reference(tree, strings, *element, active_types);
             result.push_str(&element_key);
             result.push_str(", ");
             result.push_str(match kind {
@@ -787,25 +789,25 @@ fn type_key_for_alias_inner(
             // join parameter and result keys
             let params = parameters
                 .iter()
-                .map(|param| type_key_for_alias_reference(tree, strings, *param))
+                .map(|param| type_key_for_alias_reference(tree, strings, *param, active_types))
                 .collect::<Vec<_>>()
                 .join(", ");
-            let result = type_key_for_alias_reference(tree, strings, *result);
+            let result = type_key_for_alias_reference(tree, strings, *result, active_types);
             format!("sig({params}) -> {result}")
         }
         Type::FunctionPointer { signature } | Type::Closure { signature } => {
             let TypeReference::Type(signature) = *signature else {
-                return type_key_for_alias_reference(tree, strings, *signature);
+                return type_key_for_alias_reference(tree, strings, *signature, active_types);
             };
             let Some((parameters, result)) = function_signature_parts(tree.get(signature)) else {
                 panic!("callable type key expects a function signature");
             };
             let params = parameters
                 .iter()
-                .map(|param| type_key_for_alias_reference(tree, strings, *param))
+                .map(|param| type_key_for_alias_reference(tree, strings, *param, active_types))
                 .collect::<Vec<_>>()
                 .join(", ");
-            let result = type_key_for_alias_reference(tree, strings, result);
+            let result = type_key_for_alias_reference(tree, strings, result, active_types);
             match tree.get(ty) {
                 Type::FunctionPointer { .. } => format!("({params}) -> {result}"),
                 Type::Closure { .. } => format!("({params}) => {result}"),

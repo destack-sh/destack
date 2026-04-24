@@ -314,24 +314,6 @@ impl NodeTree {
         Some(self.metadata.layout.layout_table.layout(layout_id))
     }
 
-    /// Return the canonical well known string reference type.
-    pub fn string_type(&self) -> Option<LocalNodeId<Type>> {
-        self.metadata.layout.string_type()
-    }
-
-    /// Return the canonical well known string layout id.
-    pub fn string_layout_id(&self) -> Option<LayoutId> {
-        let string_type = self.string_type()?;
-
-        match self.get(string_type) {
-            Type::Reference {
-                pointee: TypeReference::Type(pointee),
-                ..
-            } => self.type_layout_id(*pointee),
-            _ => self.type_layout_id(string_type),
-        }
-    }
-
     /// Return the type descriptor global for a type when present.
     pub fn type_descriptor_global(&self, ty: LocalNodeId<Type>) -> Option<LocalNodeId<Global>> {
         self.metadata.layout.descriptor_global(ty)
