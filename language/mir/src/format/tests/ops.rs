@@ -35,6 +35,7 @@ entry0(value0: vector<int32, 4>, value1: int32, value2: tensor<int32, (2, 2)>, v
     value26: tensor<int32, (2, 2)> = tensor.gather value2, value2, dims(offsetDims(0), collapsedSliceDims(1), startIndexMap(0), indexVectorDim(1)), sliceSizes(1, 1)
     value27: tensor<int32, (2, 2)> = tensor.scatter value2, value2, value2, dims(updateWindowDims(0), insertedWindowDims(1), scatterDimsToOperandDims(0), indexVectorDim(1)), mode(replace)
     value28: tensor<float32, (2, 2)> = tensor.convert exact, value2
+    value29: tensor<int32, (2, 2)> = tensor.splat value1
     return value14
 }
 "#,

@@ -54,10 +54,7 @@ impl Parser {
                     && self.tree.source_text(token.span) == "null"))
             {
                 let value = self.parse_constant_for_type(destination_type)?;
-                let instruction = Instruction::Const {
-                    destination: destination.into(),
-                    value,
-                };
+                let instruction = Instruction::Const { destination, value };
                 let id = self.tree.insert(instruction);
                 self.apply_instruction_spans(
                     id,

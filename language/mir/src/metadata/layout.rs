@@ -8,7 +8,7 @@ use destack_core::StringId;
 use crate::tree::compute_type_layout;
 use crate::{
     AddressSpace, Global, LocalNodeId, NodeTree, PrimitiveTypeIndex, ReferenceKind, Type,
-    TypeLineage, TypeReference, UnionLayout, WellKnownTypes, slice_header_types,
+    TypeLineage, TypeReference, UnionLayout, slice_header_types,
 };
 
 /// Heap-reference metadata for one runtime payload.
@@ -104,7 +104,7 @@ impl Storage {
 }
 
 /// Canonical layout facts for one MIR module.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct LayoutMetadata {
     /// Canonical module storage metadata.
     pub storage: Storage,
@@ -123,24 +123,6 @@ pub struct LayoutMetadata {
     pub descriptor_by_type: HashMap<LocalNodeId<Type>, LocalNodeId<Global>>,
     /// Canonical display names keyed by type id.
     pub display_name_by_type: HashMap<LocalNodeId<Type>, StringId>,
-    /// Canonical well known MIR type identities.
-    pub well_known_types: WellKnownTypes,
-}
-
-impl Default for LayoutMetadata {
-    fn default() -> Self {
-        Self {
-            storage: Storage::default(),
-            primitive_type_index: PrimitiveTypeIndex::default(),
-            layout_table: LayoutTable::default(),
-            layout_by_type: HashMap::default(),
-            lineage_by_type: HashMap::default(),
-            union_layout_by_type: HashMap::default(),
-            descriptor_by_type: HashMap::default(),
-            display_name_by_type: HashMap::default(),
-            well_known_types: WellKnownTypes::default(),
-        }
-    }
 }
 
 impl LayoutMetadata {
@@ -218,8 +200,6 @@ impl LayoutMetadata {
         if let Some(display_name) = self.display_name(from) {
             self.set_display_name(to, display_name);
         }
-
-        self.well_known_types.remap_type(from, to);
     }
 }
 
@@ -662,7 +642,10 @@ impl LayoutMetadataCompletion<'_> {
 
                 Ok(())
             }
-            Type::Struct { .. } | Type::Tuple { .. } | Type::Closure { .. } => {
+            Type::Struct { .. }
+            | Type::Tuple { .. }
+            | Type::Slice { .. }
+            | Type::Closure { .. } => {
                 self.record_layout_for_type(type_id)?;
                 let layout_id = self
                     .tree

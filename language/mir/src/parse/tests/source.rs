@@ -185,24 +185,6 @@ entry0:
     );
 }
 
-/// Parsing a raw alias named String does not implicitly bless a well known string type.
-#[test]
-fn test_parse_string_alias_does_not_mark_well_known_string_type() {
-    let source = r#"
-type String {
-    lengthUtf16: uint32;
-    lengthBytes: uint32;
-    hash: uint64;
-    flags: uint32;
-    data: ref<uint8, raw>;
-}"#;
-
-    let (tree, _) = TestParser::new(source).parse();
-
-    assert_eq!(tree.string_type(), None);
-    assert_eq!(tree.string_layout_id(), None);
-}
-
 #[test]
 fn test_type_alias_carries_layout_metadata() {
     let source = r#"

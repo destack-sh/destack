@@ -282,9 +282,9 @@ impl Parser {
         let tokens = self.tree.tokens();
 
         // find the token we just consumed
-        for i in pos..self.pos {
-            if !tokens[i].ty.is_trivia() {
-                return Ok(tokens[i].clone());
+        for token in tokens.iter().take(self.pos).skip(pos) {
+            if !token.ty.is_trivia() {
+                return Ok(token.clone());
             }
         }
         Ok(tokens[pos].clone())

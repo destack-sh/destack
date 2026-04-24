@@ -69,11 +69,8 @@ block2(value2: ref<int32, managed, readonly>):
 fn test_format_trap() {
     assert_format(
         r#"
-global message: ref<void, managed, readonly>, readonly = "boom"
-
-function trapper(): void {
-entry0:
-    value0: ref<void, managed, readonly> = global.const message
+function trapper(value0: ref<void, managed, readonly>): void {
+entry0(value0: ref<void, managed, readonly>):
     trap.panic value0
 }
 "#,

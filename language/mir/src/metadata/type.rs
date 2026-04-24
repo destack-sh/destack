@@ -23,22 +23,6 @@ pub struct TypeLineage {
     pub is_interface: bool,
 }
 
-/// Table of canonical well known MIR types.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct WellKnownTypes {
-    /// Canonical well known string reference type.
-    pub string: Option<LocalNodeId<Type>>,
-}
-
-impl WellKnownTypes {
-    /// Copy one canonical identity when the type id is remapped.
-    pub fn remap_type(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
-        if self.string == Some(from) {
-            self.string = Some(to);
-        }
-    }
-}
-
 /// Primitive type index for fast lookups.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct PrimitiveTypeIndex {
@@ -215,15 +199,5 @@ impl LayoutMetadata {
     /// Return the existing display name for a type or insert the provided one.
     pub fn ensure_display_name(&mut self, ty: LocalNodeId<Type>, name: StringId) -> StringId {
         *self.display_name_by_type.entry(ty).or_insert(name)
-    }
-
-    /// Return the canonical well known string type.
-    pub fn string_type(&self) -> Option<LocalNodeId<Type>> {
-        self.well_known_types.string
-    }
-
-    /// Record the canonical well known string type.
-    pub fn set_string_type(&mut self, type_id: LocalNodeId<Type>) -> Option<LocalNodeId<Type>> {
-        self.well_known_types.string.replace(type_id)
     }
 }

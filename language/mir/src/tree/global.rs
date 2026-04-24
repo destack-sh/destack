@@ -122,7 +122,7 @@ pub enum GlobalInitializer {
     Zero,
     /// Scalar constant (bool, int, float).
     Scalar(Constant),
-    /// String literal data for the canonical builtin `String` object.
+    /// String literal data (as bytes).
     String(String),
     /// Raw bytes (blobs).
     Bytes(Vec<u8>),
