@@ -1,80 +1,70 @@
-use crate::IsolateOptions;
 use crate::diagnostic::Error;
 use crate::tests::{
-    TestIsolate, assert_runtime_error_matches, create_isolate, run_mir, run_mir_expect, run_mir_ok,
-    run_mir_with, run_mir_with_ok, stamp_well_known_string_type_for_tests,
+    assert_materialized_plain, assert_runtime_error, assert_runtime_error_matches, create_isolate,
+    create_isolate_with_storage, run_mir, run_mir_expect, run_mir_ok, run_mir_with,
+    run_mir_with_ok,
 };
+use crate::{SharedHeap, Value, ValueTag};
+use destack_engine::MaterializedValue;
 use destack_heap::{
-    Heap, HeapLayout, HeapLimits, LayoutId, MemoryContext, RawPointer, ReferenceMap,
-    STRING_TYPE_ALIAS, SharedSpace, StringLayout, Value, ValueTag,
+    AccountingRegion, Allocator, HeapError, HeapReference, Payload, RawPointer,
+    SharedHeapReference, SharedRawBudget, SharedRawLimits,
 };
 use destack_mir::parse::{ParseOptions, Parser};
-use destack_mir::{ManagedReferenceLayout, ManagedReferenceRepresentation, Storage, TypeAlias};
+use destack_mir::{LayoutTable, ReferenceMap, Storage};
 use destack_source::FileId;
 
-/// Build one test isolate with explicit MIR storage metadata.
-fn create_isolate_with_storage(mir_text: &str, storage: Storage) -> TestIsolate {
-    let (mut tree, strings) = Parser::parse(
-        FileId::new(0),
-        mir_text,
-        ParseOptions {
-            pointer_bytes: storage.native_pointer_bytes,
-        },
-    )
-    .validate()
-    .expect("failed to parse MIR");
+/// Return the aggregate payload bytes for one materialized value.
+fn aggregate_bytes(value: &MaterializedValue) -> &[u8] {
+    let MaterializedValue::Aggregate { bytes, .. } = value else {
+        panic!("expected aggregate value, got {value:?}");
+    };
 
-    // keep the helper honest: parse must produce the requested layout directly
-    assert_eq!(tree.metadata.layout.storage, storage);
-
-    // keep raw MIR tests explicit about the well known String contract
-    stamp_well_known_string_type_for_tests(&mut tree, &strings);
-
-    let mut isolate = crate::Isolate::build_with_options(tree, strings, IsolateOptions::test())
-        .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
-    let mut heap = Heap::with_limits_and_layout(
-        HeapLimits::default(),
-        HeapLayout {
-            managed_reference_bytes: storage.managed_reference_layout.bytes,
-            ..Default::default()
-        },
-    );
-    let mut shared = SharedSpace::new();
-    let mut memory = MemoryContext::new(&mut heap, &mut shared);
-
-    // initialize isolate globals against the authoritative heap
-    isolate
-        .initialize(&mut memory)
-        .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
-
-    TestIsolate {
-        isolate,
-        heap,
-        shared,
-    }
+    bytes
 }
 
-/// Managed allocation creates one managed allocation and returns a reference.
+/// Decode one native-width heap reference from materialized bytes.
+fn decode_heap_reference(bytes: &[u8], offset: usize) -> HeapReference {
+    let mut raw = [0u8; 8];
+    raw[..HeapReference::BYTE_LEN]
+        .copy_from_slice(&bytes[offset..offset + HeapReference::BYTE_LEN]);
+
+    HeapReference::from_bits(u64::from_le_bytes(raw) as usize)
+}
+
+/// Decode one native-width usize value from materialized bytes.
+fn decode_usize_value(bytes: &[u8], offset: usize) -> Value {
+    let mut raw = [0u8; 8];
+    let byte_len = std::mem::size_of::<usize>();
+    raw[..byte_len].copy_from_slice(&bytes[offset..offset + byte_len]);
+
+    Value::uint(u64::from_le_bytes(raw), usize::BITS as u8)
+}
+
+/// Heap allocation creates one heap allocation and returns a reference.
 #[test]
-fn test_managed_allocate() {
+fn test_new_allocates_heap_reference() {
     let mir = r#"
 function alloc(): ref<int32, managed, readonly> {
 b0:
-    v0: ref<int32, managed, readonly> = managed.alloc int32
+    v0: ref<int32, managed, readonly> = new int32
     return v0
 }"#;
     let output = run_mir_ok(mir, "alloc", &[]);
-    assert!(output.value.is_managed_reference());
-    assert_eq!(output.managed_allocation_count, 1);
+    assert!(matches!(
+        output.value,
+        destack_engine::MaterializedValue::HeapReference(_)
+    ));
+    assert_eq!(output.heap_allocation_count, 1);
 }
 
-/// Load and store instructions read and write managed allocations.
+/// Load and store instructions read and write heap allocations.
 #[test]
 fn test_load_store() {
     let mir = r#"
 function loadStore(): int32 {
 b0:
-    v0: ref<int32, managed, readonly> = managed.alloc int32
+    v0: ref<int32, managed, readonly> = new int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = load v0
@@ -83,9 +73,9 @@ b0:
     run_mir_expect(mir, "loadStore", &[], Value::int32(42));
 }
 
-/// Store rejects unsupported address spaces in the VM.
+/// Store rejects mismatched shared address space pointers.
 #[test]
-fn test_store_unsupported_address_space() {
+fn test_store_shared_invalid_address_space() {
     // define a shared address space store
     let mir = r#"
 function storeShared(v0: ref<int32, raw, addressSpace(shared)>): void {
@@ -99,8 +89,8 @@ b0(v0: ref<int32, raw, addressSpace(shared)>):
     let pointer = Value::raw_pointer(RawPointer::new(1));
     let result = run_mir(mir, "storeShared", &[pointer]);
 
-    // confirm the address space is rejected
-    assert_runtime_error_matches!(result, Error::UnsupportedAddressSpace { .. });
+    // confirm the address space mismatch
+    assert_runtime_error_matches!(result, Error::InvalidAddressSpace { .. });
 }
 
 /// Store rejects mismatched address space pointers.
@@ -123,7 +113,7 @@ b0(v0: ref<int32, raw, addressSpace(stack)>):
     assert_runtime_error_matches!(result, Error::InvalidAddressSpace { .. });
 }
 
-/// External VM contexts can allocate and mutate explicit shared-memory regions.
+/// External VM contexts can allocate and mutate explicit shared raw-space allocations.
 #[test]
 fn test_external_context_shared_bytes_roundtrip() {
     let mut isolate = create_isolate(
@@ -134,18 +124,18 @@ b0:
 }"#,
     );
 
-    let pointer = isolate.with_memory(|isolate, memory| {
-        isolate.with_runtime_context(memory, |context| {
+    let pointer = isolate.with_heaps(|isolate, heap, shared| {
+        isolate.with_runtime_context(heap, shared, Default::default(), |context| {
             let pointer = context
                 .allocate_shared_bytes(&[1, 2, 3])
                 .expect("shared allocation should succeed");
             let initial = context
-                .shared_bytes(pointer)
+                .read_shared_bytes(pointer)
                 .expect("shared bytes should decode");
 
             assert_eq!(initial, vec![1, 2, 3]);
 
-            context
+            let pointer = context
                 .write_shared_bytes(pointer, &[7, 8, 9, 10])
                 .expect("shared bytes should write");
 
@@ -154,35 +144,165 @@ b0:
     });
 
     assert_eq!(
-        Value::shared_pointer(pointer).tag(),
-        ValueTag::SharedPointer
+        Value::shared_raw_pointer(pointer).tag(),
+        ValueTag::SharedRawPointer
     );
     assert_eq!(
-        Value::shared_pointer(pointer).as_shared_pointer(),
+        Value::shared_raw_pointer(pointer).as_shared_raw_pointer(),
         Some(pointer)
     );
     assert_eq!(
-        isolate.shared.bytes_to_vec(pointer),
-        Some(vec![7, 8, 9, 10])
+        isolate.shared.read_raw_bytes(pointer),
+        Ok(vec![7, 8, 9, 10])
     );
 }
 
-/// Array allocation creates one managed allocation with multiple elements.
+/// Encode shared heap references as first-class runtime values.
 #[test]
-fn test_managed_allocate_array() {
-    let mir = r#"
-function allocArray(): ref<int32, managed, readonly> {
-b0:
-    v0: int64 = 10int64
-    v1: ref<int32, managed, readonly> = managed.allocArray int32, v0
-    return v1
-}"#;
-    let output = run_mir_ok(mir, "allocArray", &[]);
-    assert!(output.value.is_managed_reference());
-    assert_eq!(output.managed_allocation_count, 1);
+fn test_shared_heap_reference_value_roundtrip() {
+    let reference = SharedHeapReference::new(7);
+
+    assert_eq!(
+        Value::shared_heap_reference(reference).tag(),
+        ValueTag::SharedHeapReference
+    );
+    assert_eq!(
+        Value::shared_heap_reference(reference).as_shared_heap_reference(),
+        Some(reference)
+    );
 }
 
-/// Extract field reads a component from a tuple value.
+/// Share unchanged shared allocations across image roundtrips and detach only touched allocations.
+#[test]
+fn test_roundtrip_shared_memory_image() {
+    let options = destack_heap::HeapOptions::shared();
+    let allocator = std::sync::Arc::new(
+        Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+            .expect("valid explicit allocator options should build"),
+    );
+    let shared = SharedHeap::with_allocator_limits_layouts_and_options(
+        allocator.clone(),
+        std::sync::Arc::new(LayoutTable::new()),
+        destack_heap::SharedHeapLimits::default(),
+        options.clone(),
+    )
+    .expect("shared heap should build");
+
+    // capture two allocations so only one has to detach later
+    let first = shared
+        .allocate_raw(6, Payload::Bytes(&[1, 2, 3, 4, 5, 6]))
+        .expect("shared allocation should succeed");
+    let second = shared
+        .allocate_raw(6, Payload::Bytes(&[7, 8, 9, 10, 11, 12]))
+        .expect("shared allocation should succeed");
+    let image = shared.image();
+    let restored = SharedHeap::from_image_with_allocator_limits_and_options(
+        allocator,
+        &image,
+        destack_heap::SharedHeapLimits::default(),
+        options,
+    )
+    .expect("shared image restore should succeed");
+    let restored_image = restored.image();
+
+    // untouched pages should still share after restore
+    assert_eq!(
+        image.raw.entry(0).unwrap().pages,
+        restored_image.raw.entry(0).unwrap().pages
+    );
+    assert_eq!(
+        image.raw.entry(1).unwrap().pages,
+        restored_image.raw.entry(1).unwrap().pages
+    );
+
+    // mutating one allocation should detach only that allocation
+    let first = restored
+        .replace_raw_bytes(first, &[9, 2, 3, 4, 5, 6])
+        .expect("shared replace should succeed");
+    let mutated_image = restored.image();
+
+    assert_ne!(
+        image.raw.entry(0).unwrap().pages,
+        mutated_image.raw.entry(0).unwrap().pages
+    );
+    assert_eq!(
+        image.raw.entry(1).unwrap().pages,
+        mutated_image.raw.entry(1).unwrap().pages
+    );
+    assert_eq!(restored.read_raw_bytes(first), Ok(vec![9, 2, 3, 4, 5, 6]));
+    assert_eq!(
+        restored.read_raw_bytes(second),
+        Ok(vec![7, 8, 9, 10, 11, 12])
+    );
+}
+
+/// Shared raw-space budgeting counts committed page bytes.
+#[test]
+fn test_shared_raw_budget_tracks_committed_usage() {
+    let options = destack_heap::HeapOptions::shared();
+    let allocator = std::sync::Arc::new(
+        Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+            .expect("valid explicit allocator options should build"),
+    );
+    let shared = SharedHeap::with_allocator_limits_layouts_and_options(
+        allocator,
+        std::sync::Arc::new(LayoutTable::new()),
+        destack_heap::SharedHeapLimits::default(),
+        options,
+    )
+    .expect("shared heap should build");
+    let limits = SharedRawLimits { max_bytes: Some(8) };
+
+    // commit one shared allocation first
+    shared
+        .allocate_raw(4, Payload::Bytes(&[1, 2, 3, 4]))
+        .expect("nested shared allocation should succeed");
+
+    // the next allocation must see the committed usage immediately
+    let mapped_delta = shared.raw_alloc_mapped_byte_delta(5);
+    let mapped_bytes = u64::try_from(mapped_delta).expect("allocation should map more bytes");
+    let used_bytes = shared.raw_active_bytes() + mapped_bytes;
+    let budget = SharedRawBudget::new(limits, shared.raw_active_bytes());
+    let error = budget
+        .check_mapped_byte_delta(mapped_delta)
+        .expect_err("outer shared allocation should honor nested usage");
+
+    assert_eq!(
+        error,
+        HeapError::LimitExceeded {
+            region: AccountingRegion::SharedRaw,
+            used_bytes,
+            max_bytes: 8,
+        }
+    );
+}
+
+/// Array allocation creates one slice value over one heap allocation.
+#[test]
+fn test_new_slice_allocates_slice_value() {
+    let mir = r#"
+function allocArray(): slice<int32> {
+b0:
+    v0: int64 = 10int64
+    v1: slice<int32> = new.slice int32, v0
+    return v1
+}"#;
+    let mut isolate = create_isolate(mir);
+    let output = isolate
+        .run_function_by_name("allocArray", &[])
+        .expect("execution failed");
+    let bytes = aggregate_bytes(&output.value);
+    let data = Value::heap_reference(decode_heap_reference(bytes, 0));
+    let len = decode_usize_value(bytes, HeapReference::BYTE_LEN);
+
+    assert!(data.is_heap_reference());
+    assert_eq!(len.as_uint(), Some(10));
+    assert_eq!(len.as_uint_with_width(), Some((10, usize::BITS as u8)));
+
+    assert_eq!(output.heap_allocation_count, 1);
+}
+
+/// Extract field reads a field from a tuple value.
 #[test]
 fn test_extract_field() {
     let mir = r#"
@@ -196,10 +316,10 @@ b0(v0: (int32, int32)):
         let agg = interp.materialize_value_for_type(ty, vec![Value::int32(10), Value::int32(20)]);
         vec![agg]
     });
-    assert_eq!(output.value, Value::int32(10));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(10));
 }
 
-/// Insert field creates a new tuple with one component replaced.
+/// Insert field creates a new tuple with one field replaced.
 #[test]
 fn test_insert_field() {
     // test that field.set modifies field 0 correctly
@@ -215,7 +335,7 @@ b0(v0: (int32, int32), v1: int32):
         let agg = interp.materialize_value_for_type(ty, vec![Value::int32(10), Value::int32(20)]);
         vec![agg, Value::int32(99)]
     });
-    assert_eq!(output.value, Value::int32(99));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(99));
 }
 
 /// Field set returns one fresh tuple value instead of mutating the original.
@@ -237,7 +357,7 @@ b0(v0: (int32, int32), v1: int32):
         vec![tuple, Value::int32(99)]
     });
 
-    assert_eq!(output.value, Value::int32(109));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(109));
 }
 
 /// Extract element reads from an array at a dynamic index.
@@ -258,7 +378,7 @@ b0(v0: int32[3], v1: int64):
         );
         vec![arr, Value::uint64(0)]
     });
-    assert_eq!(output.value, Value::int32(10));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(10));
 
     // test element 1
     let output = run_mir_with_ok(mir, "getElem", |interp| {
@@ -269,7 +389,7 @@ b0(v0: int32[3], v1: int64):
         );
         vec![arr, Value::uint64(1)]
     });
-    assert_eq!(output.value, Value::int32(20));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(20));
 
     // test element 2
     let output = run_mir_with_ok(mir, "getElem", |interp| {
@@ -280,7 +400,7 @@ b0(v0: int32[3], v1: int64):
         );
         vec![arr, Value::uint64(2)]
     });
-    assert_eq!(output.value, Value::int32(30));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(30));
 }
 
 /// Dynamic element.get on one locally constructed array stays correct.
@@ -324,7 +444,7 @@ b0(v0: int32[3], v1: int64, v2: int32):
         vec![array, Value::uint64(1), Value::int32(99)]
     });
 
-    assert_eq!(output.value, Value::int32(119));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(119));
 }
 
 /// Insert element creates a new array with one element replaced.
@@ -346,7 +466,7 @@ b0(v0: int32[3], v1: int64, v2: int32):
         );
         vec![arr, Value::uint64(1), Value::int32(99)]
     });
-    assert_eq!(output.value, Value::int32(99));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(99));
 }
 
 /// Dynamic element.set on one locally constructed array stays correct.
@@ -380,7 +500,7 @@ fn test_heap_field_access() {
     let mir = r#"
 function heapField(): int32 {
 b0:
-    v0: ref<(int32, int32), managed, readonly> = managed.alloc (int32, int32)
+    v0: ref<(int32, int32), managed, readonly> = new (int32, int32)
     v1: int32 = 42int32
     v2: ref<int32, managed, readonly> = field.address v0, 0
     store v2, v1
@@ -388,6 +508,22 @@ b0:
     return v3
 }"#;
     run_mir_expect(mir, "heapField", &[], Value::int32(42));
+}
+
+/// Borrowed field addresses preserve heap storage.
+#[test]
+fn test_heap_borrowed_field_access() {
+    let mir = r#"
+function heapBorrowedField(): int32 {
+b0:
+    v0: ref<(int32, int32), managed, readonly> = new (int32, int32)
+    v1: int32 = 42int32
+    v2: ref<int32, borrowed, readonly> = field.address v0, 0
+    store v2, v1
+    v3: int32 = load v2
+    return v3
+}"#;
+    run_mir_expect(mir, "heapBorrowedField", &[], Value::int32(42));
 }
 
 /// Single field aggregates expose the stored field value.
@@ -418,7 +554,7 @@ type Box {
 
 function allocBox(): ref<Box, managed, readonly> {
 b0:
-    v0: ref<Box, managed, readonly> = managed.alloc Box
+    v0: ref<Box, managed, readonly> = new Box
     return v0
 }"#;
 
@@ -426,16 +562,13 @@ b0:
     let output = isolate
         .run_function_by_name("allocBox", &[])
         .expect("execution failed");
-    let reference = output
-        .value
-        .as_managed_reference()
-        .expect("managed allocation should return a managed reference");
+    let value = assert_materialized_plain(&output.value);
+    let reference = value
+        .as_heap_reference()
+        .expect("heap allocation should return a heap reference");
 
     // layout backed objects should keep byte storage and ref offsets
-    assert_eq!(
-        isolate.heap.reference_map(reference).cloned(),
-        Some(ReferenceMap::empty())
-    );
+    assert_eq!(isolate.heap.scan(reference), Ok(ReferenceMap::empty()));
 }
 
 /// Managed nominal stores roundtrip full aggregate payloads.
@@ -449,7 +582,7 @@ type Box {
 function makeBox(v0: int32): ref<Box, managed, readonly> {
 b0(v0: int32):
     v1: Box = struct Box (v0)
-    v2: ref<Box, managed, readonly> = managed.alloc Box
+    v2: ref<Box, managed, readonly> = new Box
     store v2, v1
     return v2
 }"#;
@@ -458,13 +591,13 @@ b0(v0: int32):
     let output = isolate
         .run_function_by_name("makeBox", &[Value::int32(9)])
         .expect("execution failed");
-    let reference = output
-        .value
-        .as_managed_reference()
-        .expect("managed allocation should return a managed reference");
+    let value = assert_materialized_plain(&output.value);
+    let reference = value
+        .as_heap_reference()
+        .expect("heap allocation should return a heap reference");
     let bytes = isolate
         .heap
-        .managed_bytes_to_vec(reference)
+        .read_heap_bytes(reference)
         .expect("managed object bytes should be readable");
 
     // the payload should be stored as raw layout bytes, not a boxed aggregate reference
@@ -482,73 +615,63 @@ type Packed {
 }
 function allocPacked(): ref<Packed, managed, readonly> {
 b0:
-    v0: ref<Packed, managed, readonly> = managed.alloc Packed
+    v0: ref<Packed, managed, readonly> = new Packed
     return v0
 }"#;
     let storage = Storage {
         native_pointer_bytes: 8,
-        managed_reference_layout: ManagedReferenceLayout {
-            bytes: 8,
-            alignment: 8,
-            representation: ManagedReferenceRepresentation::NativePointer,
-        },
     };
 
     let mut isolate = create_isolate_with_storage(mir, storage);
     let output = isolate
         .run_function_by_name("allocPacked", &[])
         .expect("execution failed");
-    let reference = output
-        .value
-        .as_managed_reference()
-        .expect("managed allocation should return a managed reference");
+    let value = assert_materialized_plain(&output.value);
+    let reference = value
+        .as_heap_reference()
+        .expect("heap allocation should return a heap reference");
 
-    // pointer-shaped managed refs should follow the canonical aggregate layout
-    assert_eq!(isolate.heap.managed_byte_len(reference), Some(24));
+    // pointer-shaped heap references should follow the canonical aggregate layout
+    assert_eq!(isolate.heap.heap_byte_len(reference), Ok(24));
     assert_eq!(
-        isolate.heap.reference_map(reference).cloned(),
-        Some(ReferenceMap::ReferenceOffsets {
-            offsets: vec![8].into_boxed_slice(),
+        isolate.heap.scan(reference),
+        Ok(ReferenceMap::Reference {
+            local_offsets: vec![8].into_boxed_slice(),
+            shared_offsets: Vec::new().into_boxed_slice(),
         })
     );
 }
 
-/// Managed reference arrays use pointer-shaped element stride.
+/// Slices of heap references use pointer-shaped element stride.
 #[test]
-fn test_managed_alloc_array_uses_pointer_stride() {
+fn test_new_slice_uses_pointer_stride_for_heap_references() {
     let mir = r#"
-function allocArray(): ref<ref<int32, managed, readonly>, managed, readonly> {
+function allocArray(): slice<ref<int32, managed, readonly>> {
 b0:
     v0: int64 = 2int64
-    v1: ref<ref<int32, managed, readonly>, managed, readonly> = managed.allocArray ref<int32, managed, readonly>, v0
+    v1: slice<ref<int32, managed, readonly>> = new.slice ref<int32, managed, readonly>, v0
     return v1
 }"#;
     let storage = Storage {
         native_pointer_bytes: 8,
-        managed_reference_layout: ManagedReferenceLayout {
-            bytes: 8,
-            alignment: 8,
-            representation: ManagedReferenceRepresentation::NativePointer,
-        },
     };
 
     let mut isolate = create_isolate_with_storage(mir, storage);
     let output = isolate
         .run_function_by_name("allocArray", &[])
         .expect("execution failed");
-    let reference = output
-        .value
-        .as_managed_reference()
-        .expect("managed allocation should return a managed reference");
+    let bytes = aggregate_bytes(&output.value);
+    let reference = decode_heap_reference(bytes, 0);
 
-    // pointer-shaped managed refs should use pointer-sized repeated elements
-    assert_eq!(isolate.heap.managed_byte_len(reference), Some(16));
+    // pointer-shaped heap refs should use pointer-sized repeated elements
+    assert_eq!(isolate.heap.heap_byte_len(reference), Ok(16));
     assert_eq!(
-        isolate.heap.reference_map(reference).cloned(),
-        Some(ReferenceMap::RepeatedReferenceOffsets {
+        isolate.heap.scan(reference),
+        Ok(ReferenceMap::RepeatedReference {
             count: 2,
-            element_size: 8,
-            offsets: vec![0].into_boxed_slice(),
+            stride: 8,
+            local_offsets: vec![0].into_boxed_slice(),
+            shared_offsets: Vec::new().into_boxed_slice(),
         })
     );
 }
@@ -563,11 +686,11 @@ type Holder {
 
 function comparePaths(): int32 {
 b0:
-    v0: ref<int32, managed, readonly> = managed.alloc int32
+    v0: ref<int32, managed, readonly> = new int32
     v1: int32 = 41int32
     store v0, v1
     v2: Holder = struct Holder (v0)
-    v3: ref<Holder, managed, readonly> = managed.alloc Holder
+    v3: ref<Holder, managed, readonly> = new Holder
     store v3, v2
     v4: ref<ref<int32, managed, readonly>, managed, readonly> = field.address v3, 0
     v5: ref<int32, managed, readonly> = load v4
@@ -584,7 +707,7 @@ b0:
         .expect("execution failed");
 
     // both paths should recover the same referenced payload
-    assert_eq!(output.value, Value::int32(82));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(82));
 }
 
 /// Out-of-bounds field access produces an error.
@@ -624,10 +747,16 @@ b0(v0: int32[3], v1: int64):
         );
         vec![arr, Value::uint64(100)]
     });
-    assert_runtime_error_matches!(result, Error::InvalidArrayAccess { .. });
+    assert_runtime_error(
+        result,
+        Error::InvalidArrayAccess {
+            index: 100,
+            length: 3,
+        },
+    );
 }
 
-/// Exceeding the managed allocation limit produces an allocation error.
+/// Exceeding the heap allocation limit produces an allocation error.
 #[test]
 fn test_allocation_limit() {
     let mir = r#"
@@ -636,7 +765,7 @@ b0:
     v0: int32 = 0int32
     jump b1(v0)
 b1(v1: int32):
-    v2: ref<int32, managed, readonly> = managed.alloc int32
+    v2: ref<int32, managed, readonly> = new int32
     v3: int32 = 1int32
     v4: int32 = int.add v1, v3
     v5: int32 = 2000int32
@@ -659,7 +788,11 @@ b0:
     return v0
 }"#;
     let output = run_mir_ok(mir, "rawAlloc", &[]);
-    assert!(output.value.as_raw_pointer().is_some());
+    assert!(
+        assert_materialized_plain(&output.value)
+            .as_raw_pointer()
+            .is_some()
+    );
     assert_eq!(output.raw_allocation_count, 1);
 }
 
@@ -677,7 +810,7 @@ b0:
     return v2
 }"#;
     let output = run_mir_ok(mir, "rawAllocFree", &[]);
-    assert_eq!(output.value, Value::int32(42));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(42));
     // after free, raw heap should be empty
     assert_eq!(output.raw_allocation_count, 0);
 }
@@ -694,257 +827,7 @@ b0:
     return
 }"#;
     let result = run_mir(mir, "doubleFree", &[]);
-    assert_runtime_error_matches!(result, Error::InvalidManagedReference);
-}
-
-/// String header fields expose UTF-16 and UTF-8 lengths.
-#[test]
-fn test_string_header_lengths() {
-    let mir = [
-        STRING_TYPE_ALIAS,
-        r#"
-global stringLiteralUnicodeHe: ref<String, managed, readonly>, readonly = "h\u{00E9}"
-
-function lenUtf16(): uint32 {
-b0:
-    v0: ref<String, managed, readonly> = global.const stringLiteralUnicodeHe
-    v1: uint32 = field.get v0, 0
-    return v1
-}
-
-function lenBytes(): uint32 {
-b0:
-    v0: ref<String, managed, readonly> = global.const stringLiteralUnicodeHe
-    v1: uint32 = field.get v0, 1
-    return v1
-}"#,
-    ]
-    .concat();
-    run_mir_expect(&mir, "lenUtf16", &[], Value::uint32(2));
-    run_mir_expect(&mir, "lenBytes", &[], Value::uint32(3));
-}
-
-/// String data pointers expose raw bytes for mem intrinsics.
-#[test]
-fn test_string_payload_bytes() {
-    let mir = [
-        STRING_TYPE_ALIAS,
-        r#"
-global stringLiteralHi: ref<String, managed, readonly>, readonly = "Hi"
-global stringLiteralAbc: ref<String, managed, readonly>, readonly = "abc"
-
-function firstByte(): uint8 {
-b0:
-    v0: ref<String, managed, readonly> = global.const stringLiteralHi
-    v1: ref<uint8, raw> = field.get v0, 2
-    v2: uint8 = load v1
-    return v2
-}
-
-function memcmpSelf(): int32 {
-b0:
-    v0: ref<String, managed, readonly> = global.const stringLiteralAbc
-    v1: ref<uint8, raw> = field.get v0, 2
-    v2: uint64 = 3uint64
-    v3: int32 = intrinsic.memcmp(v1, v1, v2)
-    return v3
-}"#,
-    ]
-    .concat();
-    run_mir_expect(&mir, "firstByte", &[], Value::uint(72, 8));
-    run_mir_expect(&mir, "memcmpSelf", &[], Value::int32(0));
-}
-
-/// String header pointers follow the active native pointer width.
-#[test]
-fn test_string_payload_bytes_under_pointer32_layout() {
-    let mir = [
-        STRING_TYPE_ALIAS,
-        r#"
-global stringLiteralHi: ref<String, managed, readonly>, readonly = "Hi"
-
-function firstByte(): uint8 {
-b0:
-    v0: ref<String, managed, readonly> = global.const stringLiteralHi
-    v1: ref<uint8, raw> = field.get v0, 2
-    v2: uint8 = load v1
-    return v2
-}"#,
-    ]
-    .concat();
-    let storage = Storage {
-        native_pointer_bytes: 4,
-        managed_reference_layout: ManagedReferenceLayout {
-            bytes: 4,
-            alignment: 4,
-            representation: ManagedReferenceRepresentation::NativePointer,
-        },
-    };
-
-    let mut isolate = create_isolate_with_storage(&mir, storage);
-    let output = isolate
-        .run_function_by_name("firstByte", &[])
-        .expect("execution failed");
-
-    // pointer-sized raw pointers should still roundtrip through the string header
-    assert_eq!(output.value, Value::uint(72, 8));
-}
-
-/// Reject non-string managed allocations when decoding runtime strings.
-#[test]
-fn test_string_value_rejects_non_string_managed_reference() {
-    let mir = [
-        STRING_TYPE_ALIAS,
-        r#"
-function noop(): void {
-b0:
-    return
-}"#,
-    ]
-    .concat();
-    let mut isolate = create_isolate(&mir);
-    let byte_len = StringLayout::new(8).byte_len();
-    let bytes = vec![0u8; byte_len];
-    let reference = isolate
-        .heap
-        .allocate_managed_bytes(&bytes, ReferenceMap::empty(), Some(LayoutId::new(99)))
-        .expect("managed allocation should succeed");
-    let value = Value::managed_reference(reference);
-    let error = isolate
-        .isolate
-        .string_value(&isolate.heap, value)
-        .expect_err("non-string managed allocation should not decode as string");
-
-    assert_eq!(
-        error,
-        Error::TypeMismatch {
-            expected: "string".to_string(),
-            actual: "managed reference".to_string(),
-        }
-    );
-}
-
-/// Decode one canonical String object without requiring literal interning.
-#[test]
-fn test_string_value_accepts_canonical_string_layout_without_interner_entry() {
-    let mir = [
-        STRING_TYPE_ALIAS,
-        "\nfunction noop(): void {\nb0:\n    return\n}",
-    ]
-    .concat();
-    let (mut tree, strings) = Parser::parse(FileId::new(0), &mir, ParseOptions::default())
-        .validate()
-        .expect("failed to parse MIR");
-
-    // keep raw MIR tests explicit about the well known String contract
-    stamp_well_known_string_type_for_tests(&mut tree, &strings);
-
-    let layout_id = tree
-        .string_layout_id()
-        .expect("missing canonical well known string layout id");
-    let string_type_id = tree
-        .string_type()
-        .map(|type_id| type_id.id)
-        .expect("missing canonical well known string type id");
-    let layout = StringLayout::new(tree.metadata.layout.storage.native_pointer_bytes);
-    let isolate = crate::Isolate::build_with_options(tree, strings, IsolateOptions::test())
-        .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
-    let mut heap = Heap::new();
-    let payload = heap
-        .allocate_raw_bytes(b"Hi")
-        .expect("raw string payload should allocate");
-    let mut header = vec![0u8; layout.byte_len()];
-
-    let wrote_length_utf16 = layout.write_field(
-        &mut header,
-        StringLayout::LENGTH_UTF16_FIELD as u32,
-        Value::uint32(2),
-    );
-    let wrote_length_bytes = layout.write_field(
-        &mut header,
-        StringLayout::LENGTH_BYTES_FIELD as u32,
-        Value::uint32(2),
-    );
-    let wrote_data = layout.write_field(
-        &mut header,
-        StringLayout::DATA_FIELD as u32,
-        Value::raw_pointer(payload),
-    );
-
-    assert!(wrote_length_utf16 && wrote_length_bytes && wrote_data);
-
-    let reference = heap
-        .allocate_managed_bytes(&header, ReferenceMap::empty(), Some(layout_id))
-        .expect("canonical string allocation should succeed");
-    assert!(heap.set_managed_type_id(reference, string_type_id));
-    let value = Value::managed_reference(reference);
-
-    // canonical String layout objects should decode even outside the literal interner
-    assert_eq!(
-        isolate
-            .string_value(&heap, value)
-            .expect("canonical string object should decode"),
-        "Hi"
-    );
-}
-
-/// Reject a user type that only matches the string header structurally.
-#[test]
-fn test_string_value_rejects_structurally_matching_non_builtin_layout() {
-    let mir = [
-        r#"
-type Other {
-    lengthUtf16: uint32;
-    lengthBytes: uint32;
-    data: ref<uint8, raw>;
-}"#,
-        STRING_TYPE_ALIAS,
-        r#"
-function noop(): void {
-b0:
-    return
-}"#,
-    ]
-    .concat();
-    let (mut tree, strings) = Parser::parse(FileId::new(0), &mir, ParseOptions::default())
-        .validate()
-        .expect("failed to parse MIR");
-    stamp_well_known_string_type_for_tests(&mut tree, &strings);
-    let other_layout_id = tree
-        .iter_nodes::<TypeAlias>()
-        .find_map(|(_, alias)| {
-            if strings.get(alias.name) != "Other" {
-                return None;
-            }
-
-            let ty = alias
-                .ty
-                .ty()
-                .expect("type alias should be concrete after validation");
-
-            tree.type_layout_id(ty)
-        })
-        .expect("missing Other layout id");
-    let isolate = crate::Isolate::build_with_options(tree, strings, IsolateOptions::test())
-        .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
-    let mut heap = Heap::new();
-    let byte_len = StringLayout::new(8).byte_len();
-    let bytes = vec![0u8; byte_len];
-    let reference = heap
-        .allocate_managed_bytes(&bytes, ReferenceMap::empty(), Some(other_layout_id))
-        .expect("managed allocation should succeed");
-    let value = Value::managed_reference(reference);
-    let error = isolate
-        .string_value(&heap, value)
-        .expect_err("structurally matching non-builtin layout should not decode as string");
-
-    assert_eq!(
-        error,
-        Error::TypeMismatch {
-            expected: "string".to_string(),
-            actual: "managed reference".to_string(),
-        }
-    );
+    assert_runtime_error_matches!(result, Error::InvalidRawPointer);
 }
 
 /// Stack allocation creates frame-local storage.
@@ -970,7 +853,7 @@ function stackStruct(): int32 {
 b0:
     v0: ref<(int32, int32), raw, readonly, addressSpace(stack)> = stack.alloc (int32, int32)
     v1: int32 = 10int32
-    v2: ref<int32, borrowed, readonly> = field.address v0, 0
+    v2: ref<int32, borrowed, readonly, addressSpace(stack)> = field.address v0, 0
     store v2, v1
     v3: int32 = load v2
     return v3
@@ -978,9 +861,9 @@ b0:
     run_mir_expect(mir, "stackStruct", &[], Value::int32(10));
 }
 
-/// Stack allocation stores managed references under a 32 bit pointer layout.
+/// Stack allocation rejects heap-reference storage narrower than the host heap.
 #[test]
-fn test_stack_allocate_pointer32_managed_reference_field() {
+fn test_stack_allocate_pointer32_heap_reference_field() {
     let mir = r#"
 type Packed {
     first: uint8;
@@ -989,11 +872,11 @@ type Packed {
 }
 function stackPacked(): int32 {
 b0:
-    v0: ref<int32, managed, readonly> = managed.alloc int32
+    v0: ref<int32, managed, readonly> = new int32
     v1: int32 = 77int32
     store v0, v1
     v2: ref<Packed, raw, readonly, addressSpace(stack)> = stack.alloc Packed
-    v3: ref<ref<int32, managed, readonly>, borrowed, readonly> = field.address v2, 1
+    v3: ref<ref<int32, managed, readonly>, borrowed, readonly, addressSpace(stack)> = field.address v2, 1
     store v3, v0
     v4: ref<int32, managed, readonly> = load v3
     v5: int32 = load v4
@@ -1001,20 +884,23 @@ b0:
 }"#;
     let storage = Storage {
         native_pointer_bytes: 4,
-        managed_reference_layout: ManagedReferenceLayout {
-            bytes: 4,
-            alignment: 4,
-            representation: ManagedReferenceRepresentation::NativePointer,
-        },
+    };
+    let error = match std::panic::catch_unwind(|| create_isolate_with_storage(mir, storage)) {
+        Ok(_) => panic!("narrow heap reference storage should be rejected loudly"),
+        Err(error) => error,
+    };
+    let message = if let Some(message) = error.downcast_ref::<String>() {
+        message.as_str()
+    } else if let Some(message) = error.downcast_ref::<&str>() {
+        message
+    } else {
+        panic!("unexpected panic payload");
     };
 
-    let mut isolate = create_isolate_with_storage(mir, storage);
-    let output = isolate
-        .run_function_by_name("stackPacked", &[])
-        .expect("execution failed");
-
-    // stack storage should preserve managed reference payloads on 32 bit targets
-    assert_eq!(output.value, Value::int32(77));
+    assert_eq!(
+        message,
+        "failed to initialize isolate: EM040: incompatible pointer width: module 4 bytes, host 8"
+    );
 }
 
 /// Null raw pointer dereference produces an error.
@@ -1047,7 +933,7 @@ b0(v0: ref<int32, raw>, v1: int32):
     assert_runtime_error_matches!(result, Error::NullPointerDereference);
 }
 
-/// Use-after-free on raw pointer produces an error.
+/// Use-after-free on raw pointer surfaces the underlying heap error.
 #[test]
 fn test_use_after_free() {
     let mir = r#"
@@ -1061,5 +947,5 @@ b0:
     return v2
 }"#;
     let result = run_mir(mir, "useAfterFree", &[]);
-    assert_runtime_error_matches!(result, Error::InvalidManagedReference);
+    assert_runtime_error_matches!(result, Error::InvalidRawPointer);
 }

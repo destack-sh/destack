@@ -1,5 +1,5 @@
-use crate::tests::{create_isolate, run_mir_expect};
-use destack_heap::Value;
+use crate::Value;
+use crate::tests::{assert_materialized_plain, create_isolate, run_mir_expect};
 
 /// Function environment state is preserved across repeated calls in one isolate.
 #[test]
@@ -28,10 +28,10 @@ b0:
 
 function makeEnv(): ref<Env, managed> {
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     v1: int32 = 0int32
     store v0, v1
-    v2: ref<Env, managed> = managed.alloc Env
+    v2: ref<Env, managed> = new Env
     v3: ref<ref<int32, managed>, managed> = field.address v2, 0
     store v3, v0
     v4: ref<int32, managed> = field.address v2, 1
@@ -50,17 +50,17 @@ b0(v0: ref<Env, managed>):
     let mut isolate = create_isolate(mir);
     let env = isolate
         .run_function_by_name("makeEnv", &[])
-        .expect("execution failed")
-        .value;
+        .expect("execution failed");
+    let env = assert_materialized_plain(&env.value);
 
     let first = isolate
         .run_function_by_name("callOnce", &[env])
-        .expect("execution failed")
-        .value;
+        .expect("execution failed");
+    let first = assert_materialized_plain(&first.value);
     let second = isolate
         .run_function_by_name("callOnce", &[env])
-        .expect("execution failed")
-        .value;
+        .expect("execution failed");
+    let second = assert_materialized_plain(&second.value);
 
     assert_eq!(first, Value::int32(11));
     assert_eq!(second, Value::int32(12));
@@ -106,7 +106,7 @@ b0:
 
 function caller(): int32 {
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     v1: int32 = 99int32
     store v0, v1
     v2: () => int32 = function.bind readEnv, v0
@@ -118,7 +118,7 @@ b0:
 
 /// Managed function environments hold by-reference capture cells.
 #[test]
-fn test_environment_managed_reference_cell() {
+fn test_environment_heap_reference_cell() {
     let mir = r#"
 type Env { cell: ref<int32, managed> }
 
@@ -137,10 +137,10 @@ b0:
 
 function caller(): int32 {
 b0:
-    v0: ref<int32, managed> = managed.alloc int32
+    v0: ref<int32, managed> = new int32
     v1: int32 = 0int32
     store v0, v1
-    v2: ref<Env, managed> = managed.alloc Env
+    v2: ref<Env, managed> = new Env
     v3: ref<ref<int32, managed>, managed> = field.address v2, 0
     store v3, v0
     v4: () => int32 = function.bind increment, v2
@@ -171,7 +171,7 @@ b0:
 
 function caller(): int32 {
 b0:
-    v0: ref<Env, managed> = managed.alloc Env
+    v0: ref<Env, managed> = new Env
     v1: ref<int32, managed> = field.address v0, 0
     v2: int32 = 40int32
     store v1, v2
@@ -200,8 +200,8 @@ b0:
 
 function caller(): int32 {
 b0:
-    v0: ref<Env, managed> = managed.alloc Env
-    v1: ref<Env, managed> = managed.alloc Env
+    v0: ref<Env, managed> = new Env
+    v1: ref<Env, managed> = new Env
     v2: ref<int32, managed> = field.address v0, 0
     v3: ref<int32, managed> = field.address v1, 0
     v4: int32 = 10int32
@@ -236,7 +236,7 @@ b0:
 
 function makeEnv(v0: int32): ref<Env, managed> {
 b0(v0: int32):
-    v1: ref<Env, managed> = managed.alloc Env
+    v1: ref<Env, managed> = new Env
     v2: ref<int32, managed> = field.address v1, 0
     store v2, v0
     return v1
@@ -252,25 +252,25 @@ b0(v0: ref<Env, managed>):
     let mut isolate = create_isolate(mir);
     let env_a = isolate
         .run_function_by_name("makeEnv", &[Value::int32(7)])
-        .expect("execution failed")
-        .value;
+        .expect("execution failed");
+    let env_a = assert_materialized_plain(&env_a.value);
     let env_b = isolate
         .run_function_by_name("makeEnv", &[Value::int32(13)])
-        .expect("execution failed")
-        .value;
+        .expect("execution failed");
+    let env_b = assert_materialized_plain(&env_b.value);
 
     let first = isolate
         .run_function_by_name("callOnce", &[env_a])
-        .expect("execution failed")
-        .value;
+        .expect("execution failed");
+    let first = assert_materialized_plain(&first.value);
     let second = isolate
         .run_function_by_name("callOnce", &[env_b])
-        .expect("execution failed")
-        .value;
+        .expect("execution failed");
+    let second = assert_materialized_plain(&second.value);
     let third = isolate
         .run_function_by_name("callOnce", &[env_a])
-        .expect("execution failed")
-        .value;
+        .expect("execution failed");
+    let third = assert_materialized_plain(&third.value);
 
     assert_eq!(first, Value::int32(7));
     assert_eq!(second, Value::int32(13));
@@ -298,7 +298,7 @@ b0:
 
 function makeEnv(v0: int32): ref<Env, managed> {
 b0(v0: int32):
-    v1: ref<Env, managed> = managed.alloc Env
+    v1: ref<Env, managed> = new Env
     v2: ref<int32, managed> = field.address v1, 0
     store v2, v0
     return v1
@@ -307,7 +307,7 @@ b0(v0: int32):
 function caller(v0: int32): int32 {
 b0(v0: int32):
     v1: ref<Env, managed> = call makeEnv(v0): (int32) -> ref<Env, managed>
-    v2: ref<Holder, managed> = managed.alloc Holder
+    v2: ref<Holder, managed> = new Holder
     v3: ref<() => int32, managed> = field.address v2, 0
     v4: () => int32 = function.bind readEnv, v1
     store v3, v4
@@ -347,7 +347,7 @@ b0:
 
 function makeInner(v0: int32): ref<InnerEnv, managed> {
 b0(v0: int32):
-    v1: ref<InnerEnv, managed> = managed.alloc InnerEnv
+    v1: ref<InnerEnv, managed> = new InnerEnv
     v2: ref<int32, managed> = field.address v1, 0
     store v2, v0
     return v1
@@ -356,7 +356,7 @@ b0(v0: int32):
 function makeOuter(v0: int32): ref<OuterEnv, managed> {
 b0(v0: int32):
     v1: ref<InnerEnv, managed> = call makeInner(v0): (int32) -> ref<InnerEnv, managed>
-    v2: ref<OuterEnv, managed> = managed.alloc OuterEnv
+    v2: ref<OuterEnv, managed> = new OuterEnv
     v3: ref<() => int32, managed> = field.address v2, 0
     v4: () => int32 = function.bind inner, v1
     store v3, v4
@@ -388,7 +388,7 @@ b0(v0: int32):
 
 function caller(v0: int32): int32 {
 b0(v0: int32):
-    v1: ref<Holder, managed> = managed.alloc Holder
+    v1: ref<Holder, managed> = new Holder
     v2: ref<(int32) -> int32, managed> = field.address v1, 0
     v3: (int32) -> int32 = function.address double
     store v2, v3
@@ -453,7 +453,7 @@ b0:
 
 function makeEnv(v0: int32): ref<Env, managed> {
 b0(v0: int32):
-    v1: ref<Env, managed> = managed.alloc Env
+    v1: ref<Env, managed> = new Env
     v2: ref<int32, managed> = field.address v1, 0
     store v2, v0
     return v1

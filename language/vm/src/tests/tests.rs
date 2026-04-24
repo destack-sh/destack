@@ -1,13 +1,15 @@
-use destack_core::ImmutableStringPool;
-use destack_heap::{GcStats, Heap, MemoryContext, SharedSpace, Value};
+use std::sync::Arc;
+
+use destack_engine::MaterializedValue;
+use destack_heap::{Allocator, GcStats, Heap, HeapLimits, HeapOptions, SharedHeapLimits};
+
+use crate::SharedHeap;
 use destack_mir::parse::{ParseOptions, Parser};
-use destack_mir::{NodeTree, TypeAlias};
+use destack_mir::{LayoutTable, Storage};
 use destack_source::FileId;
 
 use crate::diagnostic::{Error, RuntimeResult};
-use crate::{
-    Continuation, ExecutionOutcome, ExecutionOutput, ExecutionYield, Isolate, IsolateOptions,
-};
+use crate::{Continuation, Isolate, IsolateOptions, RunOutcome, RunOutput, Value};
 
 /// The isolate and authoritative heap used by one test runtime.
 pub(crate) struct TestIsolate {
@@ -15,28 +17,70 @@ pub(crate) struct TestIsolate {
     pub isolate: Isolate,
     /// The authoritative heap for the isolate.
     pub heap: Heap,
-    /// The world-shared memory for the isolate.
-    pub shared: SharedSpace,
+    /// The world-shared heap for the isolate.
+    pub shared: SharedHeap,
+}
+
+/// Create one local test heap over explicit layouts.
+pub(crate) fn create_test_heap(layouts: Arc<LayoutTable>) -> Heap {
+    let options = HeapOptions::local();
+    let allocator = Arc::new(
+        Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+            .expect("test allocator should build"),
+    );
+
+    Heap::with_allocator_limits_layouts_and_options(
+        allocator,
+        layouts,
+        HeapLimits::default(),
+        options,
+    )
+    .expect("test heap should build")
+}
+
+/// Create one shared test heap over explicit layouts.
+pub(crate) fn create_test_shared_heap(layouts: Arc<LayoutTable>) -> SharedHeap {
+    let options = HeapOptions::shared();
+    let allocator = Arc::new(
+        Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+            .expect("test allocator should build"),
+    );
+
+    SharedHeap::with_allocator_limits_layouts_and_options(
+        allocator,
+        layouts,
+        SharedHeapLimits::default(),
+        options,
+    )
+    .expect("test shared heap should build")
+}
+
+/// Create one empty local test heap.
+pub(crate) fn create_empty_test_heap() -> Heap {
+    create_test_heap(Arc::new(LayoutTable::new()))
+}
+
+/// Create one empty shared test heap.
+pub(crate) fn create_empty_test_shared_heap() -> SharedHeap {
+    create_test_shared_heap(Arc::new(LayoutTable::new()))
 }
 
 impl TestIsolate {
     /// Build one test isolate from MIR text.
     pub(crate) fn new(mir_text: &str) -> Self {
-        let (mut tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
+        let (tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
             .validate()
             .expect("failed to parse MIR");
 
-        // keep raw MIR tests explicit about the well known String contract
-        stamp_well_known_string_type_for_tests(&mut tree, &strings);
         let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
             .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
-        let mut heap = Heap::new();
-        let mut shared = SharedSpace::new();
-        let mut memory = MemoryContext::new(&mut heap, &mut shared);
+        let layouts = Arc::new(isolate.layout_table().clone());
+        let mut heap = create_test_heap(layouts.clone());
+        let mut shared = create_test_shared_heap(layouts);
 
         // initialize isolate state against the authoritative heap
         isolate
-            .initialize(&mut memory)
+            .initialize(&mut heap, &mut shared)
             .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
         Self {
@@ -54,8 +98,8 @@ impl TestIsolate {
     ) -> destack_mir::LocalNodeId<destack_mir::Type> {
         let function_id = self
             .isolate
-            .lookup_function_id(function)
-            .unwrap_or_else(|| panic!("missing function '{function}'"));
+            .function_id_by_name(function)
+            .unwrap_or_else(|_| panic!("missing function '{function}'"));
         let function_node = self.isolate.tree().get(function_id);
         function_node
             .parameters
@@ -66,16 +110,16 @@ impl TestIsolate {
             .expect("function parameter type should be concrete after validation")
     }
 
-    /// Materialize one typed value for the given MIR type.
+    /// Materialize one value for the given MIR type.
     pub(crate) fn materialize_value_for_type(
         &mut self,
         ty: destack_mir::LocalNodeId<destack_mir::Type>,
         values: Vec<Value>,
     ) -> Value {
-        self.with_memory(|vm, memory| {
-            vm.with_runtime_context(memory, |context| {
+        self.with_heaps(|vm, heap, shared| {
+            vm.with_runtime_context(heap, shared, Default::default(), |context| {
                 context
-                    .materialize_storage_value_for_type(ty, values)
+                    .materialize_storage_value(ty, values)
                     .unwrap_or_else(|error| {
                         panic!("failed to materialize typed composite: {error}")
                     })
@@ -83,13 +127,12 @@ impl TestIsolate {
         })
     }
 
-    /// Run one callback with the isolate execution memory.
-    pub(crate) fn with_memory<R>(
+    /// Run one callback with the isolate heaps.
+    pub(crate) fn with_heaps<R>(
         &mut self,
-        run: impl FnOnce(&mut Isolate, &mut MemoryContext<'_>) -> R,
+        run: impl FnOnce(&mut Isolate, &mut Heap, &SharedHeap) -> R,
     ) -> R {
-        let mut memory = MemoryContext::new(&mut self.heap, &mut self.shared);
-        run(&mut self.isolate, &mut memory)
+        run(&mut self.isolate, &mut self.heap, &mut self.shared)
     }
 
     /// Run one MIR function by name with the given arguments.
@@ -97,10 +140,9 @@ impl TestIsolate {
         &mut self,
         function: &str,
         arguments: &[Value],
-    ) -> RuntimeResult<ExecutionOutput> {
-        let mut memory = MemoryContext::new(&mut self.heap, &mut self.shared);
+    ) -> RuntimeResult<RunOutput> {
         self.isolate
-            .run_function_by_name(&mut memory, function, arguments)
+            .run_function_by_name(&mut self.heap, &mut self.shared, function, arguments)
     }
 
     /// Run one MIR function by name with yield support.
@@ -108,10 +150,13 @@ impl TestIsolate {
         &mut self,
         function: &str,
         arguments: &[Value],
-    ) -> RuntimeResult<crate::ExecutionOutcome> {
-        let mut memory = MemoryContext::new(&mut self.heap, &mut self.shared);
-        self.isolate
-            .run_function_by_name_yielding(&mut memory, function, arguments)
+    ) -> RuntimeResult<crate::RunOutcome> {
+        self.isolate.run_function_by_name_yielding(
+            &mut self.heap,
+            &mut self.shared,
+            function,
+            arguments,
+        )
     }
 
     /// Resume one yielded continuation.
@@ -119,16 +164,18 @@ impl TestIsolate {
         &mut self,
         continuation: Continuation,
         resume_value: Value,
-    ) -> RuntimeResult<crate::ExecutionOutcome> {
-        let mut memory = MemoryContext::new(&mut self.heap, &mut self.shared);
-        self.isolate.resume(&mut memory, continuation, resume_value)
+    ) -> RuntimeResult<crate::RunOutcome> {
+        let resume_value = resume_value
+            .try_into()
+            .expect("test resume value should materialize");
+
+        self.isolate
+            .resume(&mut self.heap, &mut self.shared, continuation, resume_value)
     }
 
     /// Collect garbage and return one GC summary.
     pub(crate) fn collect_garbage(&mut self) -> GcStats {
-        self.isolate
-            .collect_garbage(&mut self.heap, &mut self.shared)
-            .expect("failed to collect garbage")
+        self.collect_garbage_with_continuations(&[])
     }
 
     /// Collect garbage with continuation roots and return one GC summary.
@@ -136,28 +183,27 @@ impl TestIsolate {
         &mut self,
         continuations: &[Continuation],
     ) -> GcStats {
-        self.isolate
-            .collect_garbage_with_continuations(&mut self.heap, &mut self.shared, continuations)
-            .expect("failed to collect garbage")
-    }
-}
+        let roots = self
+            .isolate
+            .root_set(continuations)
+            .expect("failed to collect root set");
+        let mut heap_roots = roots.heap;
+        let mut stats = self
+            .heap
+            .collect_full(&mut heap_roots)
+            .expect("failed to collect heap");
+        let shared_stats = self
+            .shared
+            .collect_full(roots.shared.iter().copied())
+            .expect("failed to collect shared heap");
 
-/// Stamp the canonical well known string type for raw MIR test modules when present.
-pub(crate) fn stamp_well_known_string_type_for_tests(
-    tree: &mut NodeTree,
-    strings: &ImmutableStringPool,
-) {
-    // find the explicit String alias used by VM test MIR fixtures
-    let string_type = tree.iter_nodes::<TypeAlias>().find_map(|(_, type_alias)| {
-        if strings.get(type_alias.name) == "String" {
-            type_alias.ty.ty()
-        } else {
-            None
-        }
-    });
+        stats.freed_allocations += shared_stats.freed_allocations;
+        stats.live_allocations += shared_stats.live_allocations;
+        stats.freed_bytes += shared_stats.freed_bytes;
+        stats.allocated_bytes += shared_stats.allocated_bytes;
+        stats.active_bytes += shared_stats.active_bytes;
 
-    if let Some(string_type) = string_type {
-        tree.metadata.layout.set_string_type(string_type);
+        stats
     }
 }
 
@@ -166,23 +212,48 @@ pub(crate) fn create_isolate(mir_text: &str) -> TestIsolate {
     TestIsolate::new(mir_text)
 }
 
+/// Parse MIR text and create one test isolate with explicit storage metadata.
+pub(crate) fn create_isolate_with_storage(mir_text: &str, storage: Storage) -> TestIsolate {
+    let (tree, strings) = Parser::parse(
+        FileId::new(0),
+        mir_text,
+        ParseOptions {
+            pointer_bytes: storage.native_pointer_bytes,
+        },
+    )
+    .validate()
+    .expect("failed to parse MIR");
+
+    // keep the helper honest: parse must produce the requested layout directly
+    assert_eq!(tree.metadata.layout.storage, storage);
+
+    let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
+        .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
+    let layouts = Arc::new(isolate.layout_table().clone());
+    let mut heap = create_test_heap(layouts.clone());
+    let mut shared = create_test_shared_heap(layouts);
+
+    // initialize isolate state against the authoritative heap
+    isolate
+        .initialize(&mut heap, &mut shared)
+        .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
+
+    TestIsolate {
+        isolate,
+        heap,
+        shared,
+    }
+}
+
 /// Run one MIR function by name with the given arguments.
-pub(crate) fn run_mir(
-    mir: &str,
-    function: &str,
-    arguments: &[Value],
-) -> RuntimeResult<ExecutionOutput> {
+pub(crate) fn run_mir(mir: &str, function: &str, arguments: &[Value]) -> RuntimeResult<RunOutput> {
     let mut isolate = create_isolate(mir);
 
     isolate.run_function_by_name(function, arguments)
 }
 
 /// Run MIR with access to one heap-owning isolate before execution.
-pub(crate) fn run_mir_with<F>(
-    mir_text: &str,
-    function: &str,
-    setup: F,
-) -> RuntimeResult<ExecutionOutput>
+pub(crate) fn run_mir_with<F>(mir_text: &str, function: &str, setup: F) -> RuntimeResult<RunOutput>
 where
     F: FnOnce(&mut TestIsolate) -> Vec<Value>,
 {
@@ -193,7 +264,7 @@ where
 }
 
 /// Run MIR with setup, expecting success.
-pub(crate) fn run_mir_with_ok<F>(mir_text: &str, function: &str, setup: F) -> ExecutionOutput
+pub(crate) fn run_mir_with_ok<F>(mir_text: &str, function: &str, setup: F) -> RunOutput
 where
     F: FnOnce(&mut TestIsolate) -> Vec<Value>,
 {
@@ -201,7 +272,7 @@ where
 }
 
 /// Run MIR and expect success, returning the output.
-pub(crate) fn run_mir_ok(mir_text: &str, function: &str, args: &[Value]) -> ExecutionOutput {
+pub(crate) fn run_mir_ok(mir_text: &str, function: &str, args: &[Value]) -> RunOutput {
     run_mir(mir_text, function, args).expect("execution failed")
 }
 
@@ -209,7 +280,7 @@ pub(crate) fn run_mir_ok(mir_text: &str, function: &str, args: &[Value]) -> Exec
 pub(crate) fn run_mir_expect(mir_text: &str, function: &str, args: &[Value], expected: Value) {
     let output = run_mir_ok(mir_text, function, args);
 
-    assert_eq!(output.value, expected, "unexpected return value");
+    assert_materialized_plain_eq(&output.value, expected);
 }
 
 /// Run MIR and expect one specific runtime error.
@@ -254,24 +325,61 @@ macro_rules! assert_runtime_error_matches {
 pub(crate) use assert_runtime_error_matches;
 
 /// Assert that one execution result yielded.
-pub(crate) fn assert_execution_yielded(result: RuntimeResult<ExecutionOutcome>) -> ExecutionYield {
+pub(crate) fn assert_execution_yielded(
+    result: RuntimeResult<RunOutcome>,
+) -> (Continuation, MaterializedValue) {
     let outcome = result.expect("execution failed");
 
     match outcome {
-        ExecutionOutcome::Yielded { yielded } => yielded,
-        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
+        RunOutcome::Yielded {
+            continuation,
+            value,
+        } => (continuation, value),
+        RunOutcome::Completed { .. } => panic!("expected yield"),
     }
 }
 
+/// Return one plain runtime value from one materialized boundary value.
+pub(crate) fn assert_materialized_plain(value: &MaterializedValue) -> Value {
+    match value {
+        MaterializedValue::Void => Value::VOID,
+        MaterializedValue::Bool(value) => Value::bool(*value),
+        MaterializedValue::Int { value, width } => Value::int(*value, *width),
+        MaterializedValue::UInt { value, width } => Value::uint(*value, *width),
+        MaterializedValue::Float32 { bits } => Value::float32(f32::from_bits(*bits)),
+        MaterializedValue::Float64 { bits } => Value::float64(f64::from_bits(*bits)),
+        MaterializedValue::Char(value) => Value::char(*value),
+        MaterializedValue::HeapReference(reference) => Value::heap_reference(*reference),
+        MaterializedValue::SharedHeapReference(reference) => {
+            Value::shared_heap_reference(*reference)
+        }
+        MaterializedValue::RawPointer(pointer) => Value::raw_pointer(*pointer),
+        MaterializedValue::SharedRawPointer(pointer) => Value::shared_raw_pointer(*pointer),
+
+        MaterializedValue::Undefined
+        | MaterializedValue::Aggregate { .. }
+        | MaterializedValue::FrameAddress(_)
+        | MaterializedValue::GlobalAddress(_)
+        | MaterializedValue::Function(_) => {
+            panic!("expected plain materialized value, got {value:?}")
+        }
+    }
+}
+
+/// Assert one materialized boundary value equals one plain runtime value.
+pub(crate) fn assert_materialized_plain_eq(value: &MaterializedValue, expected: Value) {
+    let value = assert_materialized_plain(value);
+
+    assert_eq!(value, expected, "unexpected materialized value");
+}
+
 /// Assert that one execution result completed.
-pub(crate) fn assert_execution_completed(
-    result: RuntimeResult<ExecutionOutcome>,
-) -> ExecutionOutput {
+pub(crate) fn assert_execution_completed(result: RuntimeResult<RunOutcome>) -> RunOutput {
     let outcome = result.expect("execution failed");
 
     match outcome {
-        ExecutionOutcome::Completed { output } => output,
-        ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
+        RunOutcome::Completed { output } => output,
+        RunOutcome::Yielded { .. } => panic!("expected completion"),
     }
 }
 
@@ -286,7 +394,7 @@ type Box {
 function sumBox(v0: int32): int32 {
 b0(v0: int32):
     v1: Box = struct Box (v0)
-    v2: ref<Box, managed, readonly> = managed.alloc Box
+    v2: ref<Box, managed, readonly> = new Box
     store v2, v1
     v3: Box = load v2
     v4: int32 = field.get v3, 0
@@ -297,7 +405,7 @@ b0(v0: int32):
 
     let output = run_mir_ok(mir_text, "sumBox", &[Value::int32(9)]);
 
-    assert_eq!(output.value, Value::int32(10));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(10));
 }
 
 /// Direct calls preserve managed receiver storage for callee loads.
@@ -311,7 +419,7 @@ type Box {
 function readValueClass(v0: int32): int32 {
 b0(v0: int32):
     v1: Box = struct Box (v0)
-    v2: ref<Box, managed, readonly> = managed.alloc Box
+    v2: ref<Box, managed, readonly> = new Box
     store v2, v1
     v3: int32 = call Box.get(v2): (ref<Box, managed, readonly>) -> int32
     return v3
@@ -326,7 +434,7 @@ b0(v0: ref<Box, managed, readonly>):
 
     let output = run_mir_ok(mir_text, "readValueClass", &[Value::int32(9)]);
 
-    assert_eq!(output.value, Value::int32(9));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(9));
 }
 
 /// Stored function values preserve their function pointer payload through nominal storage.
@@ -347,7 +455,7 @@ b0:
 function run(): int32 {
 b0:
     v0: Fn = function.address target
-    v1: ref<Holder, managed, readonly> = managed.alloc Holder
+    v1: ref<Holder, managed, readonly> = new Holder
     v2: Holder = struct Holder (v0)
     store v1, v2
     v3: Holder = load v1
@@ -358,7 +466,7 @@ b0:
 
     let output = run_mir_ok(mir_text, "run", &[]);
 
-    assert_eq!(output.value, Value::int32(7));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(7));
 }
 
 /// Interface dispatch forwards the concrete object receiver to the selected method.
@@ -403,7 +511,7 @@ b0:
 
 function GreeterImpl.constructor(v0: int32): ref<GreeterImpl, managed, readonly> {
 b0(v0: int32):
-    v1: ref<GreeterImpl, managed, readonly> = managed.alloc GreeterImpl
+    v1: ref<GreeterImpl, managed, readonly> = new GreeterImpl
     v2: ref<ref?<void, raw, readonly, addressSpace(global)>[3], raw, readonly, addressSpace(global)> = global.address GreeterImpl#vtable
     v3: ref<void, raw, readonly, addressSpace(global)> = cast.bit v2 -> ref<void, raw, readonly, addressSpace(global)>
     v4: int32 = 0int32
@@ -426,5 +534,5 @@ b0(v0: ref<GreeterImpl, managed, readonly>):
 
     let output = run_mir_ok(mir_text, "runInterface", &[]);
 
-    assert_eq!(output.value, Value::int32(42));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(42));
 }

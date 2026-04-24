@@ -1,6 +1,8 @@
+use crate::Value;
 use crate::diagnostic::Error;
-use crate::tests::{assert_runtime_error_matches, run_mir, run_mir_expect, run_mir_ok};
-use destack_heap::Value;
+use crate::tests::{
+    assert_materialized_plain, assert_runtime_error_matches, run_mir, run_mir_expect, run_mir_ok,
+};
 
 /// Global constant can be read.
 #[test]
@@ -145,6 +147,22 @@ b0:
     run_mir_expect(mir, "getSecond", &[], Value::int32(20));
 }
 
+/// String global initializer materializes as typed UTF-8 byte storage.
+#[test]
+fn test_global_string_bytes() {
+    let mir = r#"
+global message: uint8[4], readonly = "boom"
+
+function readSecond(): uint8 {
+b0:
+    v0: uint8[4] = global.const message
+    v1: uint64 = 1uint64
+    v2: uint8 = element.get v0, v1
+    return v2
+}"#;
+    run_mir_expect(mir, "readSecond", &[], Value::uint8(b'o'));
+}
+
 /// Multiple globals can coexist.
 #[test]
 fn test_multiple_globals() {
@@ -214,7 +232,9 @@ b0:
     return v0
 }"#;
     let output = run_mir_ok(mir, "read", &[]);
-    let f = output.value.as_float64().expect("expected Float64");
+    let f = assert_materialized_plain(&output.value)
+        .as_float64()
+        .expect("expected Float64");
     assert!((f - 3.14159).abs() < 0.0001);
 }
 

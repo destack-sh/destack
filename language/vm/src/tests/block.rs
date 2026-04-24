@@ -4,11 +4,11 @@ use destack_source::FileId;
 
 use crate::diagnostic::Error;
 use crate::tests::{
-    assert_runtime_error, assert_runtime_error_matches, create_isolate, run_mir, run_mir_expect,
+    assert_materialized_plain, assert_runtime_error, assert_runtime_error_matches,
+    create_empty_test_heap, create_empty_test_shared_heap, create_isolate, run_mir, run_mir_expect,
     run_mir_ok,
 };
-use crate::{Isolate, IsolateOptions};
-use destack_heap::{Heap, MemoryContext, SharedSpace, Value};
+use crate::{Isolate, IsolateOptions, Value};
 
 /// Branch instruction takes the true path when condition is true.
 #[test]
@@ -230,24 +230,24 @@ b0(v0: (int32) -> int32, v1: int32):
     // create isolate and run
     let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
         .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
-    let mut heap = Heap::new();
-    let mut shared = SharedSpace::new();
-    let mut memory = MemoryContext::new(&mut heap, &mut shared);
+    let mut heap = create_empty_test_heap();
+    let mut shared = create_empty_test_shared_heap();
 
     // initialize isolate state against the authoritative heap
     isolate
-        .initialize(&mut memory)
+        .initialize(&mut heap, &mut shared)
         .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
     let result = isolate
         .run_function_by_name(
-            &mut memory,
+            &mut heap,
+            &mut shared,
             "caller",
             &[Value::function_pointer(double_id), Value::int32(21)],
         )
         .expect("execution failed");
 
-    assert_eq!(result.value, Value::int32(42));
+    assert_eq!(assert_materialized_plain(&result.value), Value::int32(42));
 }
 
 /// CallIndirect with wrong type produces an error.
@@ -264,18 +264,18 @@ b0(v0: (int32) -> int32, v1: int32):
         .expect("failed to parse MIR");
     let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
         .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
-    let mut heap = Heap::new();
-    let mut shared = SharedSpace::new();
-    let mut memory = MemoryContext::new(&mut heap, &mut shared);
+    let mut heap = create_empty_test_heap();
+    let mut shared = create_empty_test_shared_heap();
 
     // initialize isolate state against the authoritative heap
     isolate
-        .initialize(&mut memory)
+        .initialize(&mut heap, &mut shared)
         .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
     // pass an integer instead of a function pointer
     let result = isolate.run_function_by_name(
-        &mut memory,
+        &mut heap,
+        &mut shared,
         "caller",
         &[Value::int32(999), Value::int32(21)],
     );
@@ -309,7 +309,7 @@ b0(v0: int32):
 
     // run tail call with depth beyond the test stack limit
     let output = run_mir_ok(mir, "entry", &[Value::int32(200)]);
-    assert_eq!(output.value, Value::int32(200));
+    assert_eq!(assert_materialized_plain(&output.value), Value::int32(200));
     assert_eq!(output.stats.max_stack_depth, 1);
 }
 
@@ -358,7 +358,7 @@ b0(v0: int32, v1: (int32, int32) -> int32):
         )
         .expect("execution failed");
 
-    assert_eq!(result.value, Value::int32(200));
+    assert_eq!(assert_materialized_plain(&result.value), Value::int32(200));
     assert_eq!(result.stats.max_stack_depth, 1);
 }
 

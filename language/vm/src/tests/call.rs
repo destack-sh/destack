@@ -1,5 +1,5 @@
+use crate::Value;
 use crate::tests::run_mir_expect;
-use destack_heap::Value;
 
 /// function.address produces a callable pointer for call.indirect.
 #[test]
@@ -54,7 +54,7 @@ function thrower(): int32 {
 b0:
     v0: int32 = 1int32
     v1: Error = struct Error (v0)
-    v2: ref<Error, managed, readonly> = managed.alloc Error
+    v2: ref<Error, managed, readonly> = new Error
     store v2, v1
     throw v2
 }
@@ -82,7 +82,7 @@ function thrower(): int32 {
 b0:
     v0: int32 = 1int32
     v1: Error = struct Error (v0)
-    v2: ref<Error, managed, readonly> = managed.alloc Error
+    v2: ref<Error, managed, readonly> = new Error
     store v2, v1
     throw v2
 }

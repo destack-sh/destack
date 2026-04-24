@@ -1,5 +1,5 @@
+use crate::Value;
 use crate::tests::run_mir_expect;
-use destack_heap::Value;
 
 /// Vector splat and extract return the selected lane value.
 #[test]
