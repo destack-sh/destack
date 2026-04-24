@@ -2,9 +2,7 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 
-use crate::module::{
-    ArgumentRange, CallTarget, CopyPair, CopyRange, INVALID_VALUE_ID, SwitchCase, SwitchRange,
-};
+use crate::module::{ArgumentRange, CallTarget, CopyPair, CopyRange, INVALID_VALUE_ID, SwitchCase};
 use crate::{Error, Result};
 
 // switch table density threshold
@@ -24,8 +22,6 @@ fn copy_source(arguments: &[mir::Value], index: usize) -> u32 {
 pub(super) struct Pool {
     /// The pooled argument values.
     argument: Vec<mir::Value>,
-    /// The pooled switch cases.
-    switch_case: Vec<SwitchCase>,
     /// The pooled copy pairs.
     copy: Vec<CopyPair>,
 }
@@ -35,14 +31,13 @@ impl Pool {
     pub(super) fn new() -> Self {
         Self {
             argument: Vec::new(),
-            switch_case: Vec::new(),
             copy: Vec::new(),
         }
     }
 
     /// Return the finished pool parts.
-    pub(super) fn into_parts(self) -> (Vec<mir::Value>, Vec<SwitchCase>, Vec<CopyPair>) {
-        (self.argument, self.switch_case, self.copy)
+    pub(super) fn into_parts(self) -> (Vec<mir::Value>, Vec<CopyPair>) {
+        (self.argument, self.copy)
     }
 
     /// Return one argument range from the pool.
@@ -103,14 +98,8 @@ impl Pool {
         block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
         block_parameter: &[Vec<mir::Value>],
         cases: &[mir::SwitchCase],
-    ) -> Result<SwitchRange> {
-        switch_case_range(
-            &mut self.switch_case,
-            &mut self.copy,
-            block_index_map,
-            block_parameter,
-            cases,
-        )
+    ) -> Result<Box<[SwitchCase]>> {
+        switch_case_range(&mut self.copy, block_index_map, block_parameter, cases)
     }
 
     /// Return one switch-table range from the pool.
@@ -121,9 +110,8 @@ impl Pool {
         cases: &[mir::SwitchCase],
         default_target: u32,
         default_copies: CopyRange,
-    ) -> Result<Option<(i64, SwitchRange)>> {
+    ) -> Result<Option<(i64, Box<[SwitchCase]>)>> {
         switch_table_range(
-            &mut self.switch_case,
             &mut self.copy,
             block_index_map,
             block_parameter,
@@ -299,25 +287,12 @@ pub(super) fn lookup_call_target(
 
 /// Return one switch-case range from the pool.
 fn switch_case_range(
-    switch_case_pool: &mut Vec<SwitchCase>,
     copy_pool: &mut Vec<CopyPair>,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
     block_parameters: &[Vec<mir::Value>],
     cases: &[mir::SwitchCase],
-) -> Result<SwitchRange> {
-    // fast path: no cases
-    if cases.is_empty() {
-        return Ok(SwitchRange::empty());
-    }
-
-    // compute range start
-    let start = switch_case_pool.len();
-
-    // validate bounds in debug builds
-    debug_assert!(
-        start + cases.len() <= u32::MAX as usize,
-        "switch case pool overflow"
-    );
+) -> Result<Box<[SwitchCase]>> {
+    let mut lowered_cases = Vec::with_capacity(cases.len());
 
     // append cases
     for case in cases {
@@ -344,7 +319,7 @@ fn switch_case_range(
             })
             .collect::<Result<Vec<_>>>()?;
         let copies = copy_range(copy_pool, target_parameters, &arguments);
-        switch_case_pool.push(SwitchCase {
+        lowered_cases.push(SwitchCase {
             value: (case.value)
                 .integer()
                 .ok_or_else(|| Error::ConcreteMirRequired {
@@ -355,23 +330,18 @@ fn switch_case_range(
         });
     }
 
-    // return range
-    Ok(SwitchRange {
-        start: start as u32,
-        len: cases.len() as u32,
-    })
+    Ok(lowered_cases.into_boxed_slice())
 }
 
 /// Return one switch-table range when density is high enough.
 fn switch_table_range(
-    switch_case_pool: &mut Vec<SwitchCase>,
     copy_pool: &mut Vec<CopyPair>,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
     block_parameters: &[Vec<mir::Value>],
     cases: &[mir::SwitchCase],
     default_target: u32,
     default_copies: CopyRange,
-) -> Result<Option<(i64, SwitchRange)>> {
+) -> Result<Option<(i64, Box<[SwitchCase]>)>> {
     // bail if there are no cases
     if cases.is_empty() {
         return Ok(None);
@@ -413,17 +383,12 @@ fn switch_table_range(
         return Ok(None);
     }
 
-    // reserve table slots
-    let start = switch_case_pool.len();
-    debug_assert!(
-        start + range_len <= u32::MAX as usize,
-        "switch case pool overflow"
-    );
+    let mut table = Vec::with_capacity(range_len);
 
     // seed with default targets
     for offset in 0..range_len {
         let value = min_value + offset as i64;
-        switch_case_pool.push(SwitchCase {
+        table.push(SwitchCase {
             value,
             target: default_target,
             copies: default_copies,
@@ -461,18 +426,12 @@ fn switch_table_range(
             .collect::<Result<Vec<_>>>()?;
         let copies = copy_range(copy_pool, target_parameters, &arguments);
         let offset = (case_value - min_value) as usize;
-        let slot = &mut switch_case_pool[start + offset];
+        let slot = &mut table[offset];
         slot.value = case_value;
         slot.target = target_index as u32;
         slot.copies = copies;
     }
 
     // return table range
-    Ok(Some((
-        min_value,
-        SwitchRange {
-            start: start as u32,
-            len: range_len as u32,
-        },
-    )))
+    Ok(Some((min_value, table.into_boxed_slice())))
 }

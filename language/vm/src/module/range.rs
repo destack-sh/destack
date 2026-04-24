@@ -45,22 +45,6 @@ impl ArgumentRange {
     }
 }
 
-/// Switch case range within one function switch pool.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct SwitchRange {
-    /// Start offset into the switch case pool.
-    pub start: u32,
-    /// Number of cases in the range.
-    pub len: u32,
-}
-
-impl SwitchRange {
-    /// Create an empty switch range.
-    pub(crate) const fn empty() -> Self {
-        Self { start: 0, len: 0 }
-    }
-}
-
 /// Copy pair for parameter binding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct CopyPair {

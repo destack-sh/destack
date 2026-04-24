@@ -42,8 +42,6 @@ pub(crate) struct Function {
     pub blocks: Vec<Block>,
     /// Pool of argument values referenced by ranges.
     pub argument_pool: Vec<mir::Value>,
-    /// Pool of switch cases referenced by ranges.
-    pub switch_case_pool: Vec<SwitchCase>,
     /// Pool of value copy pairs referenced by ranges.
     pub copy_pool: Vec<CopyPair>,
     /// Count of SSA values used by the function.

@@ -47,8 +47,8 @@ pub enum MaterializeValueError {
     StackPointer,
     /// The VM value is one frame pointer.
     FramePointer,
-    /// The VM value is one global pointer.
-    GlobalPointer,
+    /// The VM value is one static pointer.
+    StaticPointer,
     /// The VM value is one function pointer.
     FunctionPointer,
 }
@@ -68,8 +68,8 @@ impl std::fmt::Display for MaterializeValueError {
             MaterializeValueError::FramePointer => {
                 write!(f, "frame-pointer value is not materialized")
             }
-            MaterializeValueError::GlobalPointer => {
-                write!(f, "global-pointer value is not materialized")
+            MaterializeValueError::StaticPointer => {
+                write!(f, "static-pointer value is not materialized")
             }
             MaterializeValueError::FunctionPointer => {
                 write!(f, "function-pointer value is not materialized")
@@ -198,7 +198,7 @@ impl TryFrom<Value> for MaterializedValue {
             }
             ValueTag::StackPointer => Err(MaterializeValueError::StackPointer),
             ValueTag::FramePointer => Err(MaterializeValueError::FramePointer),
-            ValueTag::GlobalPointer => Err(MaterializeValueError::GlobalPointer),
+            ValueTag::StaticPointer => Err(MaterializeValueError::StaticPointer),
             ValueTag::FunctionPointer => Err(MaterializeValueError::FunctionPointer),
         }
     }

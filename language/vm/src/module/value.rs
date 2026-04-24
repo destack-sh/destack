@@ -16,13 +16,13 @@ pub(crate) enum PointerClass {
     Stack,
     /// Frame pointer.
     Frame,
-    /// Global pointer.
-    Global,
+    /// Static pointer.
+    Static,
     /// Unknown pointer class.
     Unknown,
 }
 
-/// Scalar and composite kinds used for typed dispatch selection.
+/// Scalar and aggregate kinds used for typed dispatch selection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ValueKind {
     /// Void value.
@@ -45,8 +45,8 @@ pub(crate) enum ValueKind {
     FunctionPointer { result: mir::LocalNodeId<mir::Type> },
     /// Opaque callable value.
     Callable { ty: mir::LocalNodeId<mir::Type> },
-    /// Composite value with concrete type.
-    Composite { ty: mir::LocalNodeId<mir::Type> },
+    /// Aggregate value with concrete type.
+    Aggregate { ty: mir::LocalNodeId<mir::Type> },
     /// Fixed-size array value with element type.
     Array {
         element: mir::LocalNodeId<mir::Type>,
@@ -125,7 +125,7 @@ pub(crate) fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Typ
             },
             None => ValueKind::Unknown,
         },
-        mir::Type::Slice { .. } => ValueKind::Composite { ty },
+        mir::Type::Slice { .. } => ValueKind::Aggregate { ty },
         mir::Type::Newtype { inner, .. } => match inner.ty() {
             Some(inner) => kind_from_type(tree, inner),
             None => ValueKind::Unknown,
@@ -134,7 +134,7 @@ pub(crate) fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Typ
         mir::Type::Tuple { .. }
         | mir::Type::Struct { .. }
         | mir::Type::Vector { .. }
-        | mir::Type::Tensor { .. } => ValueKind::Composite { ty },
+        | mir::Type::Tensor { .. } => ValueKind::Aggregate { ty },
         mir::Type::TensorView {
             kind,
             address_space,
@@ -176,7 +176,7 @@ pub(crate) fn pointer_class_from_reference(
         },
         mir::AddressSpace::Stack => PointerClass::Stack,
         mir::AddressSpace::Frame => PointerClass::Frame,
-        mir::AddressSpace::Static => PointerClass::Global,
+        mir::AddressSpace::Static => PointerClass::Static,
         mir::AddressSpace::Named(_) => PointerClass::Unknown,
     }
 }

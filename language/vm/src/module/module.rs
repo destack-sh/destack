@@ -3,7 +3,7 @@ use std::fmt;
 
 use destack_core::ImmutableStringPool;
 use destack_mir::{LayoutId, LayoutKind, LayoutTable, ReferenceMap};
-use {destack_engine as engine, destack_mir as mir};
+use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
 
 use super::layout::{Layout, build_layouts};
 use super::{CallTarget, Function, FunctionTable};
@@ -20,11 +20,11 @@ pub struct Module {
     pub(crate) functions: FunctionTable,
     /// Lookup table for function ids by name.
     pub(crate) function_id_by_name: HashMap<String, mir::LocalNodeId<mir::Function>>,
-    /// Compiled layouts keyed by MIR type id.
-    pub(crate) layouts: HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    /// Heap layouts keyed by layout id.
-    pub(crate) heap_layouts: LayoutTable,
-    /// Heap layout ids keyed by MIR type id.
+    /// MIR layouts keyed by layout id.
+    pub(crate) layouts: LayoutTable,
+    /// Compiled type layouts keyed by MIR type id.
+    pub(crate) type_layouts: HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    /// Layout ids keyed by MIR type id.
     pub(crate) layout_id_by_type: HashMap<mir::LocalNodeId<mir::Type>, LayoutId>,
     /// Lookup table for vtables keyed by vtable globals.
     pub(crate) vtable_id_by_global: HashMap<mir::LocalNodeId<mir::Global>, mir::VtableId>,
@@ -139,15 +139,32 @@ impl Module {
 
     /// Return the compiled layout for one MIR type.
     pub(crate) fn layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<&Layout> {
-        self.layouts.get(&ty)
+        self.type_layouts.get(&ty)
     }
 
-    /// Return the heap-facing layout table for this module.
-    pub(crate) fn heap_layouts(&self) -> &LayoutTable {
-        &self.heap_layouts
+    /// Return the MIR layouts for this module.
+    pub(crate) fn layouts(&self) -> &LayoutTable {
+        &self.layouts
     }
 
-    /// Return the heap layout id for one MIR type.
+    /// Return the heap allocation facts for one layout id.
+    pub(crate) fn allocation_layout(
+        &self,
+        layout_id: LayoutId,
+    ) -> Result<heap::AllocationLayout<'_>> {
+        let Some(layout) = self.layouts.layouts.get(layout_id.index()) else {
+            return Err(Error::InvariantViolation {
+                context: format!("missing allocation layout {layout_id:?}"),
+            });
+        };
+
+        Ok(heap::AllocationLayout::new(
+            layout.size as usize,
+            &layout.reference_map,
+        ))
+    }
+
+    /// Return the layout id for one MIR type.
     pub(crate) fn layout_id_for_type(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<LayoutId> {
         self.layout_id_by_type.get(&ty).copied()
     }
@@ -291,10 +308,10 @@ impl ModuleBuilder {
         let function_id_by_name = self.build_function_id_by_name();
         let vtable_id_by_global = self.build_vtable_id_by_global();
         let (function_ids, target_by_id) = self.build_function_targets();
-        let layouts = build_layouts(&self.tree)?;
-        let layout_id_by_type = self.build_layout_id_map(&layouts)?;
-        let heap_layouts = self.build_heap_layouts(&layouts, &layout_id_by_type)?;
-        let functions = self.build_functions(&function_ids, &target_by_id, &layouts)?;
+        let type_layouts = build_layouts(&self.tree)?;
+        let layout_id_by_type = self.build_layout_id_map(&type_layouts)?;
+        let layouts = self.build_layout_table(&type_layouts, &layout_id_by_type)?;
+        let functions = self.build_functions(&function_ids, &target_by_id, &type_layouts)?;
         let functions = FunctionTable::new(functions, target_by_id);
 
         Ok(Module {
@@ -302,7 +319,7 @@ impl ModuleBuilder {
             strings: self.strings,
             function_id_by_name,
             vtable_id_by_global,
-            heap_layouts,
+            layouts,
             layout_id_by_type,
             frame_layouts: self.frame_layouts,
             frame_layout_id_by_function: self.frame_layout_id_by_function,
@@ -311,7 +328,7 @@ impl ModuleBuilder {
             safepoints: self.safepoints,
             safepoint_id_by_resume_point: self.safepoint_id_by_resume_point,
             materialization_maps: self.materialization_maps,
-            layouts,
+            type_layouts,
             resume_point_id_by_position: self.resume_point_id_by_position,
             functions,
         })
@@ -341,7 +358,7 @@ impl ModuleBuilder {
         map
     }
 
-    /// Build the heap layout id map for all compiled MIR types.
+    /// Build the layout id map for all compiled MIR types.
     fn build_layout_id_map(
         &self,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
@@ -364,7 +381,7 @@ impl ModuleBuilder {
                     next_layout_id
                         .checked_add(1)
                         .ok_or_else(|| Error::InvariantViolation {
-                            context: "module heap layout id space exhausted".to_string(),
+                            context: "module layout id space exhausted".to_string(),
                         })?;
 
                 layout_id
@@ -376,8 +393,8 @@ impl ModuleBuilder {
         Ok(layout_id_by_type)
     }
 
-    /// Build the heap layout table from the module layouts.
-    fn build_heap_layouts(
+    /// Build the MIR layout table from the module type layouts.
+    fn build_layout_table(
         &self,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
         layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, LayoutId>,
@@ -387,16 +404,14 @@ impl ModuleBuilder {
             .map(|layout_id| layout_id.raw() as usize)
             .max()
             .unwrap_or(0);
-        let mut heap_layouts = LayoutTable::new();
-        heap_layouts
-            .layouts
-            .resize_with(max_layout_id, || mir::Layout {
-                kind: LayoutKind::Struct,
-                size: 0,
-                alignment: 1,
-                reference_map: ReferenceMap::empty(),
-                fields: Vec::new(),
-            });
+        let mut table = LayoutTable::new();
+        table.layouts.resize_with(max_layout_id, || mir::Layout {
+            kind: LayoutKind::Struct,
+            size: 0,
+            alignment: 1,
+            reference_map: ReferenceMap::empty(),
+            fields: Vec::new(),
+        });
 
         // module types
         for (type_id, layout_id) in layout_id_by_type {
@@ -405,8 +420,8 @@ impl ModuleBuilder {
                 .ok_or_else(|| Error::InvariantViolation {
                     context: format!("missing module layout for heap type {type_id:?}"),
                 })?;
-            let heap_layout = match self.tree.get(*type_id) {
-                mir::Type::Callable { .. } => self.build_callable_heap_layout(),
+            let module_layout = match self.tree.get(*type_id) {
+                mir::Type::Callable { .. } => self.build_callable_layout(),
                 _ => mir::Layout {
                     kind: LayoutKind::Struct,
                     size: layout.byte_len as u32,
@@ -417,20 +432,20 @@ impl ModuleBuilder {
             };
             let layout_index = layout_id.index();
 
-            if layout_index >= heap_layouts.layouts.len() {
+            if layout_index >= table.layouts.len() {
                 return Err(Error::InvariantViolation {
-                    context: format!("heap layout id out of range: {layout_id:?}"),
+                    context: format!("layout id out of range: {layout_id:?}"),
                 });
             }
 
-            heap_layouts.layouts[layout_index] = heap_layout;
+            table.layouts[layout_index] = module_layout;
         }
 
-        Ok(heap_layouts)
+        Ok(table)
     }
 
-    /// Build the heap layout for one boxed callable payload.
-    fn build_callable_heap_layout(&self) -> mir::Layout {
+    /// Build the layout for one boxed callable payload.
+    fn build_callable_layout(&self) -> mir::Layout {
         let pointer_bytes = self.tree.pointer_bytes();
 
         mir::Layout {

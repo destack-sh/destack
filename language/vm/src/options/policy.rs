@@ -89,7 +89,7 @@ impl CheckPolicy {
 /// Runtime check configuration for a VM isolate.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CheckOptions {
-    /// The bounds check policy for composite and array access.
+    /// The bounds check policy for aggregate and array access.
     pub bounds: CheckPolicy,
     /// The null check policy for pointer dereferences.
     pub null: CheckPolicy,

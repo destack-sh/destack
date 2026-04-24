@@ -108,7 +108,7 @@ impl<'a> FunctionLowerer<'a> {
             block.push(self.lower_block(mir_block)?);
         }
 
-        let (argument_pool, switch_case_pool, copy_pool) = self.pool.into_parts();
+        let (argument_pool, copy_pool) = self.pool.into_parts();
 
         Ok(Function {
             frame_layout: self.frame_layout,
@@ -116,7 +116,6 @@ impl<'a> FunctionLowerer<'a> {
             entry: self.context.entry_block,
             blocks: block,
             argument_pool,
-            switch_case_pool,
             copy_pool,
             value_count: self.context.value_type.len(),
             local_count: self.func.locals.len(),

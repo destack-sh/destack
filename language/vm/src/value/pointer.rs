@@ -67,11 +67,11 @@ impl FramePointer {
     }
 }
 
-/// Pointer to one global value.
+/// Pointer to one static value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct GlobalPointer {
-    /// The global identifier.
+pub struct StaticPointer {
+    /// The static identifier.
     pub id: mir::LocalNodeId<mir::Global>,
-    /// The byte offset inside the global value.
+    /// The byte offset inside the static value.
     pub byte_offset: usize,
 }
