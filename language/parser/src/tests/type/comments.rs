@@ -894,6 +894,108 @@ fn test_parse_without_parenthesized_wrappers_preserves_type_head_span() {
 }
 
 #[test]
+fn test_parse_without_parenthesized_wrappers_keeps_leading_union_chain_head() {
+    let source = "type Value = | (A | B);";
+    let test = TestParser::new_with_options(source, LanguageType::TypeScript);
+    let mut parser = Parser::lex_file_with_settings(
+        test.file.clone(),
+        test.language,
+        ParserSettings {
+            preserve_parenthesized_wrappers: false,
+            ..ParserSettings::default()
+        },
+    );
+    let expressions = parser.parse();
+
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
+                assert_eq!(elements.len(), 1);
+
+                let outer_span = parser.tree.get_span(*value);
+                let outer_head_span = parser
+                    .tree
+                    .get_head_span(*value)
+                    .expect("missing outer union head span");
+                let leading_span = parser
+                    .tree
+                    .get_side_span(*value, NodeSpanType::Leading)
+                    .expect("missing leading union container span");
+                let leading_operator_span = parser
+                    .tree
+                    .get_side_span(*value, NodeSpanType::LeadingOperator)
+                    .expect("missing leading union operator span");
+
+                assert_eq!(parser.get_span_str(outer_span), "(A | B)");
+                assert_eq!(parser.get_span_str(outer_head_span), "A");
+                assert_eq!(parser.get_span_str(leading_span), "| ");
+                assert_eq!(parser.get_span_str(leading_operator_span), "|");
+
+                assert_node!(parser.tree, elements[0], TypeExpression::Union { elements } => {
+                    assert_eq!(elements.len(), 2);
+                    assert_expression_path!(parser, parser.tree.get(elements[0]), "A");
+                    assert_expression_path!(parser, parser.tree.get(elements[1]), "B");
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_without_parenthesized_wrappers_keeps_leading_intersection_chain_head() {
+    let source = "type Value = & (A & B);";
+    let test = TestParser::new_with_options(source, LanguageType::TypeScript);
+    let mut parser = Parser::lex_file_with_settings(
+        test.file.clone(),
+        test.language,
+        ParserSettings {
+            preserve_parenthesized_wrappers: false,
+            ..ParserSettings::default()
+        },
+    );
+    let expressions = parser.parse();
+
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Intersection { elements } => {
+                assert_eq!(elements.len(), 1);
+
+                let outer_span = parser.tree.get_span(*value);
+                let outer_head_span = parser
+                    .tree
+                    .get_head_span(*value)
+                    .expect("missing outer intersection head span");
+                let leading_span = parser
+                    .tree
+                    .get_side_span(*value, NodeSpanType::Leading)
+                    .expect("missing leading intersection container span");
+                let leading_operator_span = parser
+                    .tree
+                    .get_side_span(*value, NodeSpanType::LeadingOperator)
+                    .expect("missing leading intersection operator span");
+
+                assert_eq!(parser.get_span_str(outer_span), "(A & B)");
+                assert_eq!(parser.get_span_str(outer_head_span), "A");
+                assert_eq!(parser.get_span_str(leading_span), "& ");
+                assert_eq!(parser.get_span_str(leading_operator_span), "&");
+
+                assert_node!(parser.tree, elements[0], TypeExpression::Intersection { elements } => {
+                    assert_eq!(elements.len(), 2);
+                    assert_expression_path!(parser, parser.tree.get(elements[0]), "A");
+                    assert_expression_path!(parser, parser.tree.get(elements[1]), "B");
+                });
+            });
+        });
+    });
+}
+
+#[test]
 fn test_parse_union_doc_block_comment_attaches_to_first_union_arm() {
     let mut test = TestParser::new_with_options(
         "export type Value = /** union-doc\n */\n| { ok: true }\n| { ok: false; value: bigint | null };",
