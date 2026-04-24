@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use destack_heap::Value;
 use destack_mir as mir;
 
 /// One frame-local stack allocation owned by the interpreter.
@@ -53,27 +52,4 @@ impl StackAllocation {
     pub(crate) fn clone_bytes(&self) -> Vec<u8> {
         self.bytes.clone()
     }
-}
-
-/// Resize a stack and clear the active range.
-#[allow(clippy::uninit_vec)]
-pub(crate) fn resize_and_clear_stack(stack: &mut Vec<Value>, base: usize, end: usize) {
-    // validate bounds
-    debug_assert!(base <= end, "stack range out of bounds: {base}..{end}");
-
-    // resize without redundant initialization
-    if end > stack.len() {
-        let additional = end - stack.len();
-        stack.reserve(additional);
-
-        // safety: fill the new range immediately
-        unsafe {
-            stack.set_len(end);
-        }
-    } else {
-        stack.truncate(end);
-    }
-
-    // clear active stack slots
-    stack[base..end].fill(Value::VOID);
 }

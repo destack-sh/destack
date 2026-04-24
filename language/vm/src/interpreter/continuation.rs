@@ -1,36 +1,31 @@
-use destack_engine as engine;
+use {destack_engine as engine, destack_mir as mir};
 
 use super::Frame;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::executable::{Executable, FunctionTable};
+use crate::execute::{
+    frame_pointer_value, frame_pointer_value_with_meta, global_pointer_value,
+    global_pointer_value_with_meta, stack_pointer_value, stack_pointer_value_with_meta,
+};
+use crate::interpreter::StackAllocation;
+use crate::module::{FunctionTable, Module, repr_type};
 use crate::snapshot::ContinuationImage;
 #[cfg(feature = "stats")]
 use crate::telemetry::InstructionProfile;
 use crate::telemetry::Statistics;
-use destack_heap::{ManagedReference, Value, ValueTag};
-
-/// Resume state captured at a yield terminator.
-#[derive(Debug, Clone)]
-pub(crate) struct YieldState {
-    /// Frame index to resume execution in.
-    pub frame_index: usize,
-    /// The semantic resume point for this yield.
-    pub resume_point: engine::ResumePointId,
-}
+use crate::{FramePointer, ReferenceMeta, RootSink, StackPointer, Value, ValueTag};
+use destack_heap::Heap;
 
 /// Continuation snapshot captured at a yield terminator.
 #[derive(Debug)]
 pub struct Continuation {
     /// The isolate id used to validate the continuation.
-    pub(crate) isolate_id: u64,
-    /// The call stack for the suspended execution.
-    pub(crate) call_stack: Vec<Frame>,
-    /// The SSA value stack for the suspended execution.
-    pub(crate) value_stack: Vec<Value>,
-    /// The local variable stack for the suspended execution.
-    pub(crate) local_stack: Vec<Value>,
-    /// The resume state captured at the yield point.
-    pub(crate) yield_state: YieldState,
+    pub(crate) isolate_id: engine::IsolateId,
+    /// The frame stack for the suspended execution.
+    pub(crate) stack: Vec<Frame>,
+    /// The frame index to resume execution in.
+    pub(crate) resume_frame_index: usize,
+    /// The resume point for this continuation.
+    pub(crate) resume_point: engine::ResumePointId,
     /// The statistics captured for the suspended execution.
     pub(crate) statistics: Statistics,
     /// The instruction profile state for the suspended execution.
@@ -42,20 +37,16 @@ impl Continuation {
     /// Clone this continuation for multi-shot resumption.
     pub fn clone_for_fork(&self) -> Self {
         // clone all stack state for the fork
-        let call_stack = self.call_stack.iter().map(Frame::clone_for_fork).collect();
-        let value_stack = self.value_stack.clone();
-        let local_stack = self.local_stack.clone();
-        let yield_state = self.yield_state.clone();
+        let stack = self.stack.iter().map(Frame::clone_for_fork).collect();
         let statistics = self.statistics.clone();
         #[cfg(feature = "stats")]
         let instruction_profile = self.instruction_profile.clone();
 
         Self {
             isolate_id: self.isolate_id,
-            call_stack,
-            value_stack,
-            local_stack,
-            yield_state,
+            stack,
+            resume_frame_index: self.resume_frame_index,
+            resume_point: self.resume_point,
             statistics,
             #[cfg(feature = "stats")]
             instruction_profile,
@@ -63,20 +54,19 @@ impl Continuation {
     }
 
     /// Capture one immutable continuation image.
-    pub fn image(&self, executable: &Executable) -> RuntimeResult<ContinuationImage> {
+    pub fn image(&self, module: &Module) -> RuntimeResult<ContinuationImage> {
         // capture the current stack state
         let frames = self
-            .call_stack
+            .stack
             .iter()
             .enumerate()
             .map(|(frame_index, frame)| {
                 capture_continuation_frame(
-                    executable,
+                    module,
                     frame,
-                    &self.value_stack,
-                    &self.local_stack,
                     frame_index,
-                    &self.yield_state,
+                    self.resume_frame_index,
+                    self.resume_point,
                 )
             })
             .collect::<RuntimeResult<Vec<_>>>()?;
@@ -88,15 +78,60 @@ impl Continuation {
         })
     }
 
-    /// Collect managed heap roots referenced by this continuation.
-    pub fn collect_roots(
+    /// Visit heap roots referenced by this continuation.
+    pub(crate) fn visit_roots(
         &self,
-        executable: &Executable,
-        roots: &mut Vec<ManagedReference>,
+        module: &Module,
+        roots: &mut impl RootSink,
     ) -> Result<(), Error> {
         // collect roots from captured frames
-        for frame in &self.call_stack {
-            frame.collect_roots(executable, &self.value_stack, &self.local_stack, roots)?;
+        for frame in &self.stack {
+            frame.visit_roots(module, roots)?;
+        }
+
+        Ok(())
+    }
+
+    /// Stabilize every local heap reference before this continuation escapes.
+    pub(crate) fn stabilize(&mut self, module: &Module, heap: &mut Heap) -> RuntimeResult<()> {
+        let mut references = Vec::new();
+
+        for frame in &mut self.stack {
+            frame
+                .collect_escape_heap_references(module, &mut references)
+                .map_err(RuntimeError::new)?;
+        }
+
+        references.sort_unstable();
+        references.dedup();
+
+        let mut replacements = std::collections::BTreeMap::new();
+
+        for reference in references {
+            let stabilized = heap
+                .stabilize_heap(reference)
+                .map_err(|error| RuntimeError::new(Error::from(error)))?;
+            replacements.insert(reference, stabilized);
+        }
+
+        for frame in &mut self.stack {
+            frame
+                .rewrite_escape_heap_references(module, heap, &replacements)
+                .map_err(RuntimeError::new)?;
+        }
+
+        Ok(())
+    }
+
+    /// Visit heap roots from one captured continuation image.
+    pub(crate) fn visit_image_roots(
+        image: &ContinuationImage,
+        module: &Module,
+        roots: &mut impl RootSink,
+    ) -> Result<(), Error> {
+        // captured frames
+        for frame in &image.frames {
+            visit_frame_image_roots(frame, module, roots)?;
         }
 
         Ok(())
@@ -105,7 +140,7 @@ impl Continuation {
     /// Rebuild one continuation from an immutable image.
     pub(crate) fn from_image(
         image: &ContinuationImage,
-        executable: &Executable,
+        module: &Module,
         functions: &FunctionTable,
     ) -> RuntimeResult<Self> {
         // reject empty continuations
@@ -114,36 +149,25 @@ impl Continuation {
         }
 
         // rebuild the captured stack state
-        let mut call_stack = Vec::with_capacity(image.frames.len());
-        let mut value_stack = Vec::new();
-        let mut local_stack = Vec::new();
+        let mut stack = Vec::with_capacity(image.frames.len());
         for frame in &image.frames {
-            let frame = restore_frame_image(
-                frame,
-                executable,
-                functions,
-                &mut value_stack,
-                &mut local_stack,
-            )?;
-            call_stack.push(frame);
+            let frame = restore_frame_image(frame, module, functions, stack.len())?;
+            stack.push(frame);
         }
 
         // rebuild the yield metadata from the innermost frame image
-        let yield_state = YieldState {
-            frame_index: image.frames.len() - 1,
-            resume_point: image
-                .frames
-                .last()
-                .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?
-                .resume_point,
-        };
+        let resume_frame_index = image.frames.len() - 1;
+        let resume_point = image
+            .frames
+            .last()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?
+            .resume_point;
 
         Ok(Self {
             isolate_id: image.isolate_id,
-            call_stack,
-            value_stack,
-            local_stack,
-            yield_state,
+            stack,
+            resume_frame_index,
+            resume_point,
             statistics: image.stats.clone().into(),
             #[cfg(feature = "stats")]
             instruction_profile: None,
@@ -151,18 +175,90 @@ impl Continuation {
     }
 }
 
+/// Visit heap roots from one captured frame image.
+fn visit_frame_image_roots(
+    image: &engine::FrameImage,
+    module: &Module,
+    roots: &mut impl RootSink,
+) -> Result<(), Error> {
+    // captured slots
+    for value in &image.slots {
+        match value {
+            engine::MaterializedValue::HeapReference(reference) => {
+                roots.push_heap(*reference);
+            }
+            engine::MaterializedValue::SharedHeapReference(reference) => {
+                roots.push_shared(*reference);
+            }
+            _ => {}
+        }
+    }
+
+    // captured frame-owned storage
+    for allocation in image.allocations.iter().flatten() {
+        Frame::visit_storage_roots(module, allocation.storage_type, &allocation.bytes, roots)?;
+    }
+
+    Ok(())
+}
+
+/// Visit heap roots from one materialized boundary value.
+pub(crate) fn visit_materialized_value_roots(
+    value: &engine::MaterializedValue,
+    _module: &Module,
+    roots: &mut impl RootSink,
+) -> Result<(), Error> {
+    match value {
+        engine::MaterializedValue::HeapReference(reference) => {
+            roots.push_heap(*reference);
+        }
+        engine::MaterializedValue::SharedHeapReference(reference) => {
+            roots.push_shared(*reference);
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
+/// Stabilize every local heap reference in one materialized boundary value.
+pub(crate) fn stabilize_materialized_value(
+    _module: &Module,
+    heap: &mut Heap,
+    value: &mut engine::MaterializedValue,
+) -> RuntimeResult<()> {
+    match value {
+        engine::MaterializedValue::HeapReference(reference) => {
+            if !reference.is_null() {
+                *reference = heap
+                    .stabilize_heap(*reference)
+                    .map_err(|error| RuntimeError::new(Error::from(error)))?;
+            }
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
 /// Resolve the captured resume point and materialization frame for one suspended frame.
 pub(crate) fn frame_capture_materialization<'a>(
-    executable: &'a Executable,
+    module: &'a Module,
     frame: &Frame,
     frame_index: usize,
-    yield_state: &YieldState,
+    resume_frame_index: usize,
+    resume_point: engine::ResumePointId,
 ) -> RuntimeResult<(engine::ResumePointId, &'a engine::MaterializationFrame)> {
     // resolve the captured resume point first
-    let resume_point = captured_resume_point(executable, frame, frame_index, yield_state)?;
+    let resume_point =
+        captured_resume_point(module, frame, frame_index, resume_frame_index, resume_point)?;
 
     // resolve the corresponding materialization frame
-    let materialization_frame = materialization_frame_for_resume_point(executable, resume_point)?;
+    let materialization_frame = module.materialization_frame(resume_point).ok_or_else(|| {
+        RuntimeError::new(Error::InvariantViolation {
+            context: format!("missing materialization frame for resume point: {resume_point:?}"),
+        })
+    })?;
 
     // validate the current fixed-slot VM contract
     debug_assert_eq!(
@@ -177,65 +273,21 @@ pub(crate) fn frame_capture_materialization<'a>(
     Ok((resume_point, materialization_frame))
 }
 
-/// Resolve the materialization frame for one resume point.
-pub(crate) fn materialization_frame_for_resume_point(
-    executable: &Executable,
-    resume_point: engine::ResumePointId,
-) -> RuntimeResult<&engine::MaterializationFrame> {
-    // resolve the safepoint materialization metadata for this resume point
-    let safepoint = executable
-        .safepoint_for_resume_point(resume_point)
-        .ok_or_else(|| {
-            RuntimeError::new(Error::InvariantViolation {
-                context: format!("missing safepoint for resume point: {resume_point:?}"),
-            })
-        })?;
-    let safepoint = executable.safepoint(safepoint).ok_or_else(|| {
-        RuntimeError::new(Error::InvariantViolation {
-            context: format!("missing safepoint entry for id: {safepoint:?}"),
-        })
-    })?;
-    let materialization_map = safepoint.materialization_map.ok_or_else(|| {
-        RuntimeError::new(Error::InvariantViolation {
-            context: format!(
-                "missing materialization map for safepoint: {:?}",
-                safepoint.id
-            ),
-        })
-    })?;
-    let materialization_map = executable
-        .materialization_map(materialization_map)
-        .ok_or_else(|| {
-            RuntimeError::new(Error::InvariantViolation {
-                context: format!(
-                    "missing materialization map entry for id: {materialization_map:?}"
-                ),
-            })
-        })?;
-
-    debug_assert_eq!(
-        materialization_map.frames.len(),
-        1,
-        "vm safepoints should materialize one frame today"
-    );
-
-    Ok(&materialization_map.frames[0])
-}
-
 /// Resolve the captured resume point for one suspended frame.
 fn captured_resume_point(
-    executable: &Executable,
+    module: &Module,
     frame: &Frame,
     frame_index: usize,
-    yield_state: &YieldState,
+    resume_frame_index: usize,
+    resume_point: engine::ResumePointId,
 ) -> RuntimeResult<engine::ResumePointId> {
     // the yielded frame already carries the exact captured resume point
-    if frame_index == yield_state.frame_index {
-        return Ok(yield_state.resume_point);
+    if frame_index == resume_frame_index {
+        return Ok(resume_point);
     }
 
     // older frames resume from their current lowered position
-    executable
+    module
         .resume_point_for_position(frame.function, frame.current_block, frame.resume_pc as u32)
         .ok_or_else(|| {
             RuntimeError::new(Error::InvariantViolation {
@@ -249,14 +301,13 @@ fn captured_resume_point(
 
 /// Capture one durable frame from one live frame.
 fn capture_continuation_frame(
-    executable: &Executable,
+    module: &Module,
     frame: &Frame,
-    value_stack: &[Value],
-    local_stack: &[Value],
     frame_index: usize,
-    yield_state: &YieldState,
+    resume_frame_index: usize,
+    resume_point: engine::ResumePointId,
 ) -> RuntimeResult<engine::FrameImage> {
-    let layout = executable
+    let layout = module
         .frame_layout_by_id(frame.frame_layout)
         .ok_or_else(|| {
             RuntimeError::new(Error::InvariantViolation {
@@ -264,31 +315,28 @@ fn capture_continuation_frame(
             })
         })?;
 
-    let (resume_point, materialization_frame) =
-        frame_capture_materialization(executable, frame, frame_index, yield_state)?;
-
-    let value_slice = &value_stack[frame.value_base..frame.value_base + frame.value_count];
-    let local_slice = &local_stack[frame.local_base..frame.local_base + frame.local_count];
-    let slots = capture_materialized_slots(
-        layout,
-        materialization_frame,
+    let (resume_point, materialization_frame) = frame_capture_materialization(
+        module,
         frame,
-        value_slice,
-        local_slice,
+        frame_index,
+        resume_frame_index,
+        resume_point,
     )?;
+
+    let slots = capture_materialized_slots(layout, materialization_frame, frame, frame_index)?;
 
     Ok(engine::FrameImage {
         frame_layout: frame.frame_layout,
         resume_point,
         transfer: frame.transfer.clone(),
         slots,
-        stack_allocations: frame
+        allocations: frame
             .stack_allocations
             .iter()
             .map(|allocation| {
                 allocation
                     .as_ref()
-                    .map(|allocation| engine::FrameStackAllocation {
+                    .map(|allocation| engine::AllocationImage {
                         bytes: allocation.clone_bytes(),
                         storage_type: allocation.storage_type(),
                     })
@@ -300,19 +348,19 @@ fn capture_continuation_frame(
 /// Restore one live frame from one logical frame image.
 fn restore_frame_image(
     image: &engine::FrameImage,
-    executable: &Executable,
+    module: &Module,
     functions: &FunctionTable,
-    value_stack: &mut Vec<Value>,
-    local_stack: &mut Vec<Value>,
+    frame_index: usize,
 ) -> RuntimeResult<Frame> {
-    let layout = executable
+    let layout = module
         .frame_layout_by_id(image.frame_layout)
         .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
-    let resume_point = executable
+    let resume_point = module
         .resume_point(image.resume_point)
         .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
-    let materialization_frame =
-        materialization_frame_for_resume_point(executable, image.resume_point)?;
+    let materialization_frame = module
+        .materialization_frame(image.resume_point)
+        .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
 
     if resume_point.frame_layout != image.frame_layout || resume_point.function != layout.function {
         return Err(RuntimeError::new(Error::InvalidContinuation));
@@ -328,8 +376,8 @@ fn restore_frame_image(
         return Err(RuntimeError::new(Error::InvalidContinuation));
     }
 
-    for (slot, materialization_slot) in image.slots.iter().zip(&materialization_frame.slots) {
-        if !slot_matches_materialization(slot, &materialization_slot.value) {
+    for (slot, materialization) in image.slots.iter().zip(&materialization_frame.slots) {
+        if !slot_matches_materialization(slot, materialization) {
             return Err(RuntimeError::new(Error::InvalidContinuation));
         }
     }
@@ -352,26 +400,9 @@ fn restore_frame_image(
         .get(block_index)
         .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
 
-    let value_base = value_stack.len();
-    let value_slice =
-        &image.slots[layout.value_slots.start as usize..layout.value_slots.end as usize];
-    for slot in value_slice {
-        value_stack.push(restore_slot_value(slot)?);
-    }
-
-    let local_base = local_stack.len();
-    let local_slice =
-        &image.slots[layout.local_slots.start as usize..layout.local_slots.end as usize];
-    for slot in local_slice {
-        local_stack.push(restore_slot_value(slot)?);
-    }
-
+    // restore the environment slot
     let environment = if let Some(slot) = layout.environment_slot {
-        let slot = image
-            .slots
-            .get(slot as usize)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
-        restore_slot_value(slot)?
+        restore_image_slot(module, layout, image, slot, frame_index)?
     } else {
         Value::VOID
     };
@@ -383,12 +414,28 @@ fn restore_frame_image(
         std::ptr::NonNull::from(block),
         entry_block_id,
         block_index,
-        value_base,
-        value_slice.len(),
-        local_base,
-        local_slice.len(),
+        layout.value_slots.len(),
+        layout.local_slots.len(),
         environment,
     );
+
+    restore_slot_range(
+        module,
+        layout,
+        image,
+        layout.value_slots.clone(),
+        frame_index,
+        frame.slots_mut(),
+    )?;
+
+    restore_slot_range(
+        module,
+        layout,
+        image,
+        layout.local_slots.clone(),
+        frame_index,
+        frame.slots_mut(),
+    )?;
 
     frame.current_block = resume_point.block;
     frame.block_index = block_index;
@@ -396,14 +443,11 @@ fn restore_frame_image(
     frame.resume_pc = resume_point.instruction_offset as usize;
     frame.transfer = image.transfer.clone();
     frame.stack_allocations = image
-        .stack_allocations
+        .allocations
         .iter()
         .map(|allocation| {
             allocation.as_ref().map(|allocation| {
-                crate::interpreter::StackAllocation::from_bytes(
-                    allocation.bytes.clone(),
-                    allocation.storage_type,
-                )
+                StackAllocation::from_bytes(allocation.bytes.clone(), allocation.storage_type)
             })
         })
         .collect();
@@ -411,11 +455,51 @@ fn restore_frame_image(
     Ok(frame)
 }
 
+/// Restore one logical slot range into one live stack.
+fn restore_slot_range(
+    module: &Module,
+    layout: &engine::FrameLayout,
+    image: &engine::FrameImage,
+    slots: std::ops::Range<u32>,
+    frame_index: usize,
+    frame_slots: &mut [Value],
+) -> RuntimeResult<()> {
+    for slot in slots {
+        let value = restore_image_slot(module, layout, image, slot, frame_index)?;
+        frame_slots[slot as usize] = value;
+    }
+
+    Ok(())
+}
+
+/// Restore one logical slot by layout index.
+fn restore_image_slot(
+    module: &Module,
+    layout: &engine::FrameLayout,
+    image: &engine::FrameImage,
+    slot: u32,
+    frame_index: usize,
+) -> RuntimeResult<Value> {
+    let value = image
+        .slots
+        .get(slot as usize)
+        .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
+    let layout_slot = layout
+        .slots
+        .get(slot as usize)
+        .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
+
+    restore_slot_value(module, layout_slot.ty, value, frame_index)
+}
+
 /// Capture one logical slot value from one runtime value.
-fn capture_slot_value(value: Value) -> RuntimeResult<engine::FrameValue> {
+fn capture_slot_value(
+    value: Value,
+    frame_index: usize,
+) -> RuntimeResult<engine::MaterializedValue> {
     Ok(match value.tag() {
-        ValueTag::Void => engine::FrameValue::Void,
-        ValueTag::Bool => engine::FrameValue::Bool(
+        ValueTag::Void => engine::MaterializedValue::Void,
+        ValueTag::Bool => engine::MaterializedValue::Bool(
             value
                 .as_bool()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?,
@@ -424,80 +508,127 @@ fn capture_slot_value(value: Value) -> RuntimeResult<engine::FrameValue> {
             let (value, width) = value
                 .as_int_with_width()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
-            engine::FrameValue::Int { value, width }
+            engine::MaterializedValue::Int { value, width }
         }
         ValueTag::UInt => {
             let (value, width) = value
                 .as_uint_with_width()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
-            engine::FrameValue::UInt { value, width }
+            engine::MaterializedValue::UInt { value, width }
         }
-        ValueTag::Float32 => engine::FrameValue::Float32 {
+        ValueTag::Float32 => engine::MaterializedValue::Float32 {
             bits: value
                 .as_float32()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?
                 .to_bits(),
         },
-        ValueTag::Float64 => engine::FrameValue::Float64 {
+        ValueTag::Float64 => engine::MaterializedValue::Float64 {
             bits: value
                 .as_float64()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?
                 .to_bits(),
         },
-        ValueTag::Char => engine::FrameValue::Char(
+        ValueTag::Char => engine::MaterializedValue::Char(
             value
                 .as_char()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?,
         ),
-        ValueTag::ManagedReference => engine::FrameValue::ManagedReference {
-            reference: value
-                .as_managed_reference()
+        ValueTag::HeapReference => engine::MaterializedValue::HeapReference(
+            value
+                .as_heap_reference()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?,
-            meta: value.reference_meta(),
-        },
-        ValueTag::RawPointer => engine::FrameValue::RawPointer {
-            pointer: value
+        ),
+        ValueTag::SharedHeapReference => engine::MaterializedValue::SharedHeapReference(
+            value
+                .as_shared_heap_reference()
+                .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?,
+        ),
+        ValueTag::RawPointer => engine::MaterializedValue::RawPointer(
+            value
                 .as_raw_pointer()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?,
-            meta: value.reference_meta(),
-        },
-        ValueTag::SharedPointer => engine::FrameValue::SharedPointer {
-            pointer: value
-                .as_shared_pointer()
+        ),
+        ValueTag::SharedRawPointer => engine::MaterializedValue::SharedRawPointer(
+            value
+                .as_shared_raw_pointer()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?,
-            meta: value.reference_meta(),
-        },
-        ValueTag::StackPointer => engine::FrameValue::StackPointer {
-            pointer: value
+        ),
+        ValueTag::StackPointer => {
+            let pointer = value
                 .as_stack_pointer()
-                .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?,
-            meta: value.reference_meta(),
-        },
-        ValueTag::LocalPointer => engine::FrameValue::LocalPointer {
-            pointer: value
-                .as_local_pointer()
-                .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?,
-            meta: value.reference_meta(),
-        },
+                .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
+
+            if pointer.frame_idx != frame_index {
+                return Err(RuntimeError::new(Error::InvariantViolation {
+                    context: format!(
+                        "captured stack pointer escapes its frame: pointer_frame={}, frame_index={frame_index}",
+                        pointer.frame_idx,
+                    ),
+                }));
+            }
+
+            let allocation = u32::try_from(pointer.slot).map_err(|_| {
+                RuntimeError::new(Error::InvariantViolation {
+                    context: "stack allocation index exceeds uint32".to_string(),
+                })
+            })?;
+            let byte_offset = u32::try_from(pointer.byte_offset).map_err(|_| {
+                RuntimeError::new(Error::InvariantViolation {
+                    context: "stack allocation offset exceeds uint32".to_string(),
+                })
+            })?;
+
+            engine::MaterializedValue::FrameAddress(engine::FrameAddress::Allocation {
+                allocation,
+                byte_offset,
+            })
+        }
+        ValueTag::FramePointer => {
+            let pointer = value
+                .as_frame_pointer()
+                .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
+
+            if pointer.frame_idx != frame_index {
+                return Err(RuntimeError::new(Error::InvariantViolation {
+                    context: format!(
+                        "captured frame pointer escapes its frame: pointer_frame={}, frame_index={frame_index}",
+                        pointer.frame_idx,
+                    ),
+                }));
+            }
+
+            let local = u32::try_from(pointer.slot).map_err(|_| {
+                RuntimeError::new(Error::InvariantViolation {
+                    context: "frame pointer index exceeds uint32".to_string(),
+                })
+            })?;
+            let byte_offset = u32::try_from(pointer.byte_offset).map_err(|_| {
+                RuntimeError::new(Error::InvariantViolation {
+                    context: "frame pointer offset exceeds uint32".to_string(),
+                })
+            })?;
+
+            engine::MaterializedValue::FrameAddress(engine::FrameAddress::Local {
+                local,
+                byte_offset,
+            })
+        }
         ValueTag::GlobalPointer => {
             let pointer = value
                 .as_global_pointer()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
-            let slot_offset = u32::try_from(pointer.slot_offset).map_err(|_| {
+            let byte_offset = u32::try_from(pointer.byte_offset).map_err(|_| {
                 RuntimeError::new(Error::InvariantViolation {
                     context: "global pointer offset exceeds uint32".to_string(),
                 })
             })?;
 
-            engine::FrameValue::GlobalPointer {
-                pointer: engine::GlobalPointer {
-                    global: pointer.id,
-                    slot_offset,
-                },
-                meta: value.reference_meta(),
-            }
+            engine::MaterializedValue::StaticAddress(engine::StaticAddress {
+                global: pointer.id,
+                byte_offset,
+            })
         }
-        ValueTag::FunctionPointer => engine::FrameValue::Function(
+        ValueTag::FunctionPointer => engine::MaterializedValue::Function(
             value
                 .as_function_pointer()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?,
@@ -506,38 +637,123 @@ fn capture_slot_value(value: Value) -> RuntimeResult<engine::FrameValue> {
 }
 
 /// Restore one runtime value from one logical slot value.
-fn restore_slot_value(value: &engine::FrameValue) -> RuntimeResult<Value> {
+fn restore_slot_value(
+    module: &Module,
+    slot_type: mir::LocalNodeId<mir::Type>,
+    value: &engine::MaterializedValue,
+    frame_index: usize,
+) -> RuntimeResult<Value> {
+    let reference_meta = reference_meta_for_slot(module, slot_type)?;
+
     Ok(match value {
-        engine::FrameValue::Undefined => Value::VOID,
-        engine::FrameValue::Void => Value::VOID,
-        engine::FrameValue::Bool(value) => Value::bool(*value),
-        engine::FrameValue::Int { value, width } => Value::int(*value, *width),
-        engine::FrameValue::UInt { value, width } => Value::uint(*value, *width),
-        engine::FrameValue::Float32 { bits } => Value::float32(f32::from_bits(*bits)),
-        engine::FrameValue::Float64 { bits } => Value::float64(f64::from_bits(*bits)),
-        engine::FrameValue::Char(value) => Value::char(*value),
-        engine::FrameValue::ManagedReference { reference, meta } => {
-            Value::managed_reference(*reference).with_reference_meta(*meta)
+        engine::MaterializedValue::Undefined => Value::VOID,
+        engine::MaterializedValue::Void => Value::VOID,
+        engine::MaterializedValue::Bool(value) => Value::bool(*value),
+        engine::MaterializedValue::Int { value, width } => Value::int(*value, *width),
+        engine::MaterializedValue::UInt { value, width } => Value::uint(*value, *width),
+        engine::MaterializedValue::Float32 { bits } => Value::float32(f32::from_bits(*bits)),
+        engine::MaterializedValue::Float64 { bits } => Value::float64(f64::from_bits(*bits)),
+        engine::MaterializedValue::Char(value) => Value::char(*value),
+        engine::MaterializedValue::HeapReference(reference) => {
+            if let Some(reference_meta) = reference_meta {
+                Value::heap_reference_with_meta(*reference, reference_meta)
+            } else {
+                Value::heap_reference(*reference)
+            }
         }
-        engine::FrameValue::RawPointer { pointer, meta } => {
-            Value::raw_pointer(*pointer).with_reference_meta(*meta)
+        engine::MaterializedValue::SharedHeapReference(reference) => {
+            if let Some(reference_meta) = reference_meta {
+                Value::shared_heap_reference_with_meta(*reference, reference_meta)
+            } else {
+                Value::shared_heap_reference(*reference)
+            }
         }
-        engine::FrameValue::SharedPointer { pointer, meta } => {
-            Value::shared_pointer(*pointer).with_reference_meta(*meta)
+        engine::MaterializedValue::RawPointer(pointer) => {
+            if let Some(reference_meta) = reference_meta {
+                Value::raw_pointer_with_meta(*pointer, reference_meta)
+            } else {
+                Value::raw_pointer(*pointer)
+            }
         }
-        engine::FrameValue::StackPointer { pointer, meta } => {
-            Value::stack_pointer_with_meta(*pointer, *meta)
+        engine::MaterializedValue::SharedRawPointer(pointer) => {
+            if let Some(reference_meta) = reference_meta {
+                Value::shared_raw_pointer_with_meta(*pointer, reference_meta)
+            } else {
+                Value::shared_raw_pointer(*pointer)
+            }
         }
-        engine::FrameValue::LocalPointer { pointer, meta } => {
-            Value::local_pointer_with_meta(*pointer, *meta)
+        engine::MaterializedValue::FrameAddress(engine::FrameAddress::Allocation {
+            allocation,
+            byte_offset,
+        }) => {
+            let pointer =
+                StackPointer::with_offset(frame_index, *allocation as usize, *byte_offset as usize);
+
+            if let Some(reference_meta) = reference_meta {
+                stack_pointer_value_with_meta(pointer, reference_meta).map_err(RuntimeError::new)?
+            } else {
+                stack_pointer_value(pointer).map_err(RuntimeError::new)?
+            }
         }
-        engine::FrameValue::GlobalPointer { pointer, meta } => {
-            let slot_offset = usize::try_from(pointer.slot_offset)
+        engine::MaterializedValue::FrameAddress(engine::FrameAddress::Local {
+            local,
+            byte_offset,
+        }) => {
+            let pointer =
+                FramePointer::with_offset(frame_index, *local as usize, *byte_offset as usize);
+
+            if let Some(reference_meta) = reference_meta {
+                frame_pointer_value_with_meta(pointer, reference_meta).map_err(RuntimeError::new)?
+            } else {
+                frame_pointer_value(pointer).map_err(RuntimeError::new)?
+            }
+        }
+        engine::MaterializedValue::StaticAddress(pointer) => {
+            let byte_offset = usize::try_from(pointer.byte_offset)
                 .map_err(|_| RuntimeError::new(Error::InvalidContinuation))?;
-            Value::global_pointer_with_offset(pointer.global, slot_offset)
-                .with_reference_meta(*meta)
+
+            if let Some(reference_meta) = reference_meta {
+                global_pointer_value_with_meta(pointer.global, byte_offset, reference_meta)
+                    .map_err(RuntimeError::new)?
+            } else {
+                global_pointer_value(pointer.global, byte_offset).map_err(RuntimeError::new)?
+            }
         }
-        engine::FrameValue::Function(function) => Value::function_pointer(*function),
+        engine::MaterializedValue::Function(function) => Value::function_pointer(*function),
+    })
+}
+
+/// Return the reference metadata implied by one logical slot type.
+fn reference_meta_for_slot(
+    module: &Module,
+    slot_type: mir::LocalNodeId<mir::Type>,
+) -> RuntimeResult<Option<ReferenceMeta>> {
+    let repr_ty = repr_type(&module.tree, slot_type);
+
+    Ok(match module.tree.get(repr_ty) {
+        mir::Type::Reference {
+            kind,
+            address_space,
+            mutability,
+            is_nullable,
+            ..
+        }
+        | mir::Type::TensorView {
+            kind,
+            address_space,
+            mutability,
+            is_nullable,
+            ..
+        } => Some(ReferenceMeta::new(
+            *kind,
+            address_space.clone(),
+            *mutability,
+            *is_nullable,
+        )),
+
+        // callables stay boxed in the vm without extra packed reference metadata
+        mir::Type::Callable { .. } => None,
+        _ => None,
     })
 }
 
@@ -546,32 +762,30 @@ fn capture_materialized_slots(
     layout: &engine::FrameLayout,
     materialization_frame: &engine::MaterializationFrame,
     frame: &Frame,
-    value_slice: &[Value],
-    local_slice: &[Value],
-) -> RuntimeResult<Vec<engine::FrameValue>> {
+    frame_index: usize,
+) -> RuntimeResult<Vec<engine::MaterializedValue>> {
     let mut slots = Vec::with_capacity(layout.slots.len());
 
-    for materialization_slot in &materialization_frame.slots {
-        let slot =
-            match &materialization_slot.value {
-                engine::MaterializationValue::FrameSlot(slot_index) => {
-                    let value = frame
-                    .slot_value(value_slice, local_slice, *slot_index)
-                    .ok_or_else(|| RuntimeError::new(Error::InvariantViolation {
+    for (slot_index, materialization) in materialization_frame.slots.iter().enumerate() {
+        let slot = match materialization {
+            engine::MaterializationValue::FrameSlot(layout_slot) => {
+                let value = frame.slot_value(*layout_slot).ok_or_else(|| {
+                    RuntimeError::new(Error::InvariantViolation {
                         context: format!(
                             "missing frame slot during continuation capture: {:?} {slot_index}",
-                            frame.function
+                            frame.function,
                         ),
-                    }))?;
-                    capture_slot_value(value)?
-                }
-                engine::MaterializationValue::Undefined => engine::FrameValue::Undefined,
-                engine::MaterializationValue::Location(location) => {
-                    return Err(RuntimeError::new(Error::InvariantViolation {
-                        context: format!("vm should not materialize native location: {location:?}"),
-                    }));
-                }
-            };
+                    })
+                })?;
+                capture_slot_value(value, frame_index)?
+            }
+            engine::MaterializationValue::Undefined => engine::MaterializedValue::Undefined,
+            engine::MaterializationValue::Location(location) => {
+                return Err(RuntimeError::new(Error::InvariantViolation {
+                    context: format!("vm should not materialize native location: {location:?}"),
+                }));
+            }
+        };
 
         slots.push(slot);
     }
@@ -581,13 +795,15 @@ fn capture_materialized_slots(
 
 /// Return whether one captured slot is valid for one materialization recipe.
 fn slot_matches_materialization(
-    slot: &engine::FrameValue,
+    slot: &engine::MaterializedValue,
     materialization: &engine::MaterializationValue,
 ) -> bool {
     match materialization {
-        engine::MaterializationValue::Undefined => matches!(slot, engine::FrameValue::Undefined),
+        engine::MaterializationValue::Undefined => {
+            matches!(slot, engine::MaterializedValue::Undefined)
+        }
         engine::MaterializationValue::FrameSlot(_) | engine::MaterializationValue::Location(_) => {
-            !matches!(slot, engine::FrameValue::Undefined)
+            !matches!(slot, engine::MaterializedValue::Undefined)
         }
     }
 }
