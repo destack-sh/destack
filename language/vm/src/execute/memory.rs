@@ -4,7 +4,7 @@ use destack_heap::{HeapError, Payload};
 
 /// Record one load in the VM statistics.
 #[inline(always)]
-fn record_load(state: &mut StepState<'_, '_>) {
+fn record_load(state: &mut ExecutionState<'_, '_>) {
     if state.collect_stats {
         stat_inc!(state.engine.statistics, loads);
     }
@@ -12,7 +12,7 @@ fn record_load(state: &mut StepState<'_, '_>) {
 
 /// Record one store in the VM statistics.
 #[inline(always)]
-fn record_store(state: &mut StepState<'_, '_>) {
+fn record_store(state: &mut ExecutionState<'_, '_>) {
     if state.collect_stats {
         stat_inc!(state.engine.statistics, stores);
     }
@@ -20,7 +20,10 @@ fn record_store(state: &mut StepState<'_, '_>) {
 
 /// Load one heap array length operand as a host usize.
 #[inline(always)]
-fn load_heap_array_length(state: &StepState<'_, '_>, value: mir::Value) -> Result<usize, Error> {
+fn load_heap_array_length(
+    state: &ExecutionState<'_, '_>,
+    value: mir::Value,
+) -> Result<usize, Error> {
     let value = state.get(value);
     let length = value.as_uint().ok_or_else(|| Error::TypeMismatch {
         expected: "unsigned integer".to_string(),
@@ -30,10 +33,10 @@ fn load_heap_array_length(state: &StepState<'_, '_>, value: mir::Value) -> Resul
     usize::try_from(length).map_err(|_| Error::AllocationFailed)
 }
 
-/// Load one global value directly from isolate storage.
+/// Load one static value directly from isolate storage.
 #[inline(always)]
-fn load_global_value(
-    state: &StepState<'_, '_>,
+fn load_static_value(
+    state: &ExecutionState<'_, '_>,
     global: u32,
 ) -> Result<(mir::LocalNodeId<mir::Global>, Value), Error> {
     let global_id = global_id(global);
@@ -46,10 +49,10 @@ fn load_global_value(
     Ok((global_id, value))
 }
 
-/// Step local variable load.
+/// Execute local variable load.
 #[inline(always)]
-pub(crate) fn step_local_get(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_local_get(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -68,10 +71,10 @@ pub(crate) fn step_local_get(
     next!(state, block, pc)
 }
 
-/// Step local variable store.
+/// Execute local variable store.
 #[inline(always)]
-pub(crate) fn step_local_set(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_local_set(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -90,10 +93,10 @@ pub(crate) fn step_local_set(
     next!(state, block, pc)
 }
 
-/// Step local address.
+/// Execute local address.
 #[inline(always)]
-pub(crate) fn step_local_addr(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_local_addr(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -126,14 +129,14 @@ pub(crate) fn step_local_addr(
     next!(state, block, pc)
 }
 
-/// Step global address.
-pub(crate) fn step_global_addr(
-    state: &mut StepState<'_, '_>,
+/// Execute static address.
+pub(crate) fn execute_static_addr(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
-    let Immediate::GlobalAddr {
+    let Immediate::StaticAddr {
         dest,
         global,
         reference,
@@ -142,8 +145,8 @@ pub(crate) fn step_global_addr(
         unreachable!()
     };
 
-    // build global pointer
-    let pointer = match global_pointer_value_with_meta(global_id(*global), 0, *reference) {
+    // build static pointer
+    let pointer = match static_pointer_value_with_meta(global_id(*global), 0, *reference) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
@@ -160,23 +163,23 @@ pub(crate) fn step_global_addr(
     next!(state, block, pc)
 }
 
-/// Step fused global address + load.
+/// Execute fused static address and load.
 #[inline(always)]
-pub(crate) fn step_global_load(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_static_load(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
-    let Immediate::GlobalLoad { dest, global } = &block[pc].immediate else {
+    let Immediate::StaticLoad { dest, global } = &block[pc].immediate else {
         unreachable!()
     };
 
     // track loads
     record_load(state);
 
-    // load global value directly
-    let value = match load_global_value(state, *global) {
+    // load static value directly
+    let value = match load_static_value(state, *global) {
         Ok((_global_id, value)) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -188,15 +191,15 @@ pub(crate) fn step_global_load(
     next!(state, block, pc)
 }
 
-/// Step fused global address + store.
+/// Execute fused static address and store.
 #[inline(always)]
-pub(crate) fn step_global_store(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_static_store(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
-    let Immediate::GlobalStore {
+    let Immediate::StaticStore {
         global,
         value,
         reference,
@@ -217,16 +220,16 @@ pub(crate) fn step_global_store(
         return Transfer::Error(Error::ImmutableGlobalWrite { global: global_id });
     }
 
-    // store to global directly
+    // store to static directly
     state.globals.set(global_id, value);
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
-/// Step pointer load.
-pub(crate) fn step_load(
-    state: &mut StepState<'_, '_>,
+/// Execute pointer load.
+pub(crate) fn execute_load(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -256,9 +259,9 @@ pub(crate) fn step_load(
     next!(state, block, pc)
 }
 
-/// Step pointer store.
-pub(crate) fn step_store(
-    state: &mut StepState<'_, '_>,
+/// Execute pointer store.
+pub(crate) fn execute_store(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -291,9 +294,9 @@ pub(crate) fn step_store(
     next!(state, block, pc)
 }
 
-/// Step atomic load.
-pub(crate) fn step_atomic_load(
-    state: &mut StepState<'_, '_>,
+/// Execute atomic load.
+pub(crate) fn execute_atomic_load(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -331,9 +334,9 @@ pub(crate) fn step_atomic_load(
     next!(state, block, pc)
 }
 
-/// Step atomic store.
-pub(crate) fn step_atomic_store(
-    state: &mut StepState<'_, '_>,
+/// Execute atomic store.
+pub(crate) fn execute_atomic_store(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -369,9 +372,9 @@ pub(crate) fn step_atomic_store(
     next!(state, block, pc)
 }
 
-/// Step atomic compare exchange.
-pub(crate) fn step_atomic_compare_exchange(
-    state: &mut StepState<'_, '_>,
+/// Execute atomic compare exchange.
+pub(crate) fn execute_atomic_compare_exchange(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -417,9 +420,9 @@ pub(crate) fn step_atomic_compare_exchange(
     next!(state, block, pc)
 }
 
-/// Step atomic read modify write.
-pub(crate) fn step_atomic_rmw(
-    state: &mut StepState<'_, '_>,
+/// Execute atomic read modify write.
+pub(crate) fn execute_atomic_rmw(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -462,9 +465,9 @@ pub(crate) fn step_atomic_rmw(
     next!(state, block, pc)
 }
 
-/// Step atomic fence.
-pub(crate) fn step_atomic_fence(
-    state: &mut StepState<'_, '_>,
+/// Execute atomic fence.
+pub(crate) fn execute_atomic_fence(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -487,9 +490,9 @@ pub(crate) fn step_atomic_fence(
     next!(state, block, pc)
 }
 
-/// Step one execution and memory synchronization barrier.
-pub(crate) fn step_barrier(
-    state: &mut StepState<'_, '_>,
+/// Execute one execution and memory synchronization barrier.
+pub(crate) fn execute_barrier(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -511,10 +514,10 @@ pub(crate) fn step_barrier(
     next!(state, block, pc)
 }
 
-/// Step heap reference load.
+/// Execute heap reference load.
 #[inline(always)]
-pub(crate) fn step_load_heap(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_load_heap(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -547,10 +550,10 @@ pub(crate) fn step_load_heap(
     next!(state, block, pc)
 }
 
-/// Step raw pointer load.
+/// Execute raw pointer load.
 #[inline(always)]
-pub(crate) fn step_load_raw(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_load_raw(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -583,10 +586,10 @@ pub(crate) fn step_load_raw(
     next!(state, block, pc)
 }
 
-/// Step stack pointer load.
+/// Execute stack pointer load.
 #[inline(always)]
-pub(crate) fn step_load_stack(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_load_stack(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -627,10 +630,10 @@ pub(crate) fn step_load_stack(
     next!(state, block, pc)
 }
 
-/// Step frame pointer load.
+/// Execute frame pointer load.
 #[inline(always)]
-pub(crate) fn step_load_frame(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_load_frame(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -660,10 +663,10 @@ pub(crate) fn step_load_frame(
     next!(state, block, pc)
 }
 
-/// Step global pointer load.
+/// Execute static pointer load.
 #[inline(always)]
-pub(crate) fn step_load_global(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_load_static(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -680,8 +683,8 @@ pub(crate) fn step_load_global(
     // load pointer value
     let ptr = state.get(*pointer);
 
-    // load from global pointer
-    let value = match access::load_from_global_pointer(state, ptr) {
+    // load from static pointer
+    let value = match access::load_from_static_pointer(state, ptr) {
         Ok(v) => v,
         Err(e) => return Transfer::Error(e),
     };
@@ -693,10 +696,10 @@ pub(crate) fn step_load_global(
     next!(state, block, pc)
 }
 
-/// Step heap reference store.
+/// Execute heap reference store.
 #[inline(always)]
-pub(crate) fn step_store_heap(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_store_heap(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -732,10 +735,10 @@ pub(crate) fn step_store_heap(
     next!(state, block, pc)
 }
 
-/// Step raw pointer store.
+/// Execute raw pointer store.
 #[inline(always)]
-pub(crate) fn step_store_raw(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_store_raw(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -771,10 +774,10 @@ pub(crate) fn step_store_raw(
     next!(state, block, pc)
 }
 
-/// Step stack pointer store.
+/// Execute stack pointer store.
 #[inline(always)]
-pub(crate) fn step_store_stack(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_store_stack(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -818,10 +821,10 @@ pub(crate) fn step_store_stack(
     next!(state, block, pc)
 }
 
-/// Step frame pointer store.
+/// Execute frame pointer store.
 #[inline(always)]
-pub(crate) fn step_store_frame(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_store_frame(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -854,10 +857,10 @@ pub(crate) fn step_store_frame(
     next!(state, block, pc)
 }
 
-/// Step global pointer store.
+/// Execute static pointer store.
 #[inline(always)]
-pub(crate) fn step_store_global(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_store_static(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -881,8 +884,8 @@ pub(crate) fn step_store_global(
         return Transfer::Error(error);
     }
 
-    // write through global pointer
-    if let Err(e) = access::store_to_global_pointer(state, ptr, val) {
+    // write through static pointer
+    if let Err(e) = access::store_to_static_pointer(state, ptr, val) {
         return Transfer::Error(e);
     }
 
@@ -890,9 +893,9 @@ pub(crate) fn step_store_global(
     next!(state, block, pc)
 }
 
-/// Step typed allocation.
-pub(crate) fn step_new(
-    state: &mut StepState<'_, '_>,
+/// Execute typed allocation.
+pub(crate) fn execute_new(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -914,19 +917,17 @@ pub(crate) fn step_new(
     let Some(layout_id) = layout_id else {
         return Transfer::Error(Error::InvalidInstruction);
     };
-
     // allocate heap storage
     let heap_reference = {
-        let heap = state.heap_mut();
-        if heap.heap_allocation_count() >= max_heap_allocations {
+        if state.heap().heap_allocation_count() >= max_heap_allocations {
             return Transfer::Error(Error::AllocationFailed);
         }
 
-        heap.allocate(layout_id, Payload::Zeroed)
+        state.allocate_heap_layout(layout_id, Payload::Zeroed)
     };
     let heap_reference = match heap_reference {
         Ok(reference) => reference,
-        Err(error) => return Transfer::Error(Error::from(error)),
+        Err(error) => return Transfer::Error(error),
     };
 
     if state.collect_stats {
@@ -945,9 +946,9 @@ pub(crate) fn step_new(
     next!(state, block, pc)
 }
 
-/// Step slice allocation.
-pub(crate) fn step_new_slice(
-    state: &mut StepState<'_, '_>,
+/// Execute slice allocation.
+pub(crate) fn execute_new_slice(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -995,59 +996,78 @@ pub(crate) fn step_new_slice(
                 actual: format!("{element_type:?}"),
             });
         };
-        let heap = state.heap_mut();
-        if heap.heap_allocation_count() >= max_heap_allocations {
+        let element_layout = match state.module.allocation_layout(element_layout_id) {
+            Ok(layout) => layout,
+            Err(error) => return Transfer::Error(error),
+        };
+        let element_alignment = match state.layout(element_type) {
+            Ok(layout) => layout.alignment(),
+            Err(error) => return Transfer::Error(error),
+        };
+        let (byte_len, reference_map) = match destack_heap::repeated_layout(
+            element_layout.byte_len,
+            element_alignment,
+            element_layout.reference_map,
+            length,
+        ) {
+            Ok(layout) => layout,
+            Err(error) => return Transfer::Error(Error::from(error)),
+        };
+        let layout = destack_heap::AllocationLayout::new(byte_len, &reference_map);
+        if state.heap().heap_allocation_count() >= max_heap_allocations {
             return Transfer::Error(Error::AllocationFailed);
         }
 
-        heap.allocate_slice(element_layout_id, length, Payload::Zeroed)
+        state.allocate_heap(layout, Payload::Zeroed)
     };
     let heap_reference = match heap_reference {
         Ok(reference) => reference,
-        Err(error) => return Transfer::Error(Error::from(error)),
+        Err(error) => return Transfer::Error(error),
     };
     if state.collect_stats {
         state.engine.statistics.heap_allocations += 1;
     }
-    let result = match super::value::materialize_composite_by_index(
-        state,
-        *dest,
-        |state, index, value_type| match index {
-            0 => {
-                let reference = match state.tree().get(value_type) {
-                    mir::Type::Reference {
-                        kind,
-                        address_space,
-                        mutability,
-                        is_nullable,
-                        ..
-                    } => {
-                        ReferenceMeta::new(*kind, address_space.clone(), *mutability, *is_nullable)
-                    }
-                    _ => ReferenceMeta::NONE,
-                };
-                let value = Value::heap_reference_with_meta(heap_reference, reference);
+    let result =
+        match super::value::allocate_payload_by_index(state, *dest, |state, index, value_type| {
+            match index {
+                0 => {
+                    let reference = match state.tree().get(value_type) {
+                        mir::Type::Reference {
+                            kind,
+                            address_space,
+                            mutability,
+                            is_nullable,
+                            ..
+                        } => ReferenceMeta::new(
+                            *kind,
+                            address_space.clone(),
+                            *mutability,
+                            *is_nullable,
+                        ),
+                        _ => ReferenceMeta::NONE,
+                    };
+                    let value = Value::heap_reference_with_meta(heap_reference, reference);
 
-                check_reference_kind(state, reference, value)?;
+                    check_reference_kind(state, reference, value)?;
 
-                Ok(value)
-            }
-            1 => match state.tree().get(value_type) {
-                mir::Type::Usize => Ok(Value::uint(length as u64, usize::BITS as u8)),
-                _ => Err(Error::TypeMismatch {
-                    expected: "slice length usize".to_string(),
-                    actual: format!("{value_type:?}"),
+                    Ok(value)
+                }
+                1 => match state.tree().get(value_type) {
+                    mir::Type::Usize => Ok(Value::uint(length as u64, usize::BITS as u8)),
+                    _ => Err(Error::TypeMismatch {
+                        expected: "slice length usize".to_string(),
+                        actual: format!("{value_type:?}"),
+                    }),
+                },
+                _ => Err(Error::InvalidFieldAccess {
+                    index,
+                    field_count: 2,
                 }),
-            },
-            _ => Err(Error::InvalidFieldAccess {
-                index,
-                field_count: 2,
-            }),
-        },
-    ) {
-        Ok(result) => result,
-        Err(error) => return Transfer::Error(error),
-    };
+            }
+        }) {
+            Ok(result) => result,
+            Err(error) => return Transfer::Error(error),
+        };
 
     state.set(*dest, result);
 
@@ -1055,9 +1075,9 @@ pub(crate) fn step_new_slice(
     next!(state, block, pc)
 }
 
-/// Step raw allocation.
-pub(crate) fn step_raw_alloc(
-    state: &mut StepState<'_, '_>,
+/// Execute raw allocation.
+pub(crate) fn execute_raw_alloc(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1102,9 +1122,9 @@ pub(crate) fn step_raw_alloc(
     next!(state, block, pc)
 }
 
-/// Step raw free.
-pub(crate) fn step_raw_free(
-    state: &mut StepState<'_, '_>,
+/// Execute raw free.
+pub(crate) fn execute_raw_free(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1141,9 +1161,9 @@ pub(crate) fn step_raw_free(
     next!(state, block, pc)
 }
 
-/// Step explicit synchronous cleanup.
-pub(crate) fn step_dispose(
-    state: &mut StepState<'_, '_>,
+/// Execute explicit synchronous cleanup.
+pub(crate) fn execute_dispose(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1158,9 +1178,9 @@ pub(crate) fn step_dispose(
     next!(state, block, pc)
 }
 
-/// Step explicit asynchronous cleanup.
-pub(crate) fn step_async_dispose(
-    state: &mut StepState<'_, '_>,
+/// Execute explicit asynchronous cleanup.
+pub(crate) fn execute_async_dispose(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1175,9 +1195,9 @@ pub(crate) fn step_async_dispose(
     next!(state, block, pc)
 }
 
-/// Step local heap pin.
-pub(crate) fn step_pin(
-    state: &mut StepState<'_, '_>,
+/// Execute local heap pin.
+pub(crate) fn execute_pin(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1212,9 +1232,9 @@ pub(crate) fn step_pin(
     next!(state, block, pc)
 }
 
-/// Step local heap unpin.
-pub(crate) fn step_unpin(
-    state: &mut StepState<'_, '_>,
+/// Execute local heap unpin.
+pub(crate) fn execute_unpin(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1249,8 +1269,8 @@ pub(crate) fn step_unpin(
     next!(state, block, pc)
 }
 
-/// Drop one runtime value according to its storage class.
-fn drop_value(state: &mut StepState<'_, '_>, value: Value) -> Result<(), Error> {
+/// Drop one runtime value according to its value kind.
+fn drop_value(state: &mut ExecutionState<'_, '_>, value: Value) -> Result<(), Error> {
     // raw owners free their backing storage
     if let Some(pointer) = value.as_raw_pointer() {
         let heap = state.heap_mut();
@@ -1295,9 +1315,9 @@ fn drop_value(state: &mut StepState<'_, '_>, value: Value) -> Result<(), Error> 
     })
 }
 
-/// Step ownership end.
-pub(crate) fn step_drop(
-    state: &mut StepState<'_, '_>,
+/// Execute ownership end.
+pub(crate) fn execute_drop(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1317,9 +1337,9 @@ pub(crate) fn step_drop(
     next!(state, block, pc)
 }
 
-/// Step stack allocation.
-pub(crate) fn step_stack_alloc(
-    state: &mut StepState<'_, '_>,
+/// Execute stack allocation.
+pub(crate) fn execute_stack_alloc(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {

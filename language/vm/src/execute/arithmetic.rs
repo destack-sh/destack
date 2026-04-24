@@ -1,7 +1,7 @@
 use super::prelude::*;
 
 /// Return the lane count for one vector value id.
-fn vector_lane_count(state: &StepState<'_, '_>, value_id: mir::Value) -> Result<usize, Error> {
+fn vector_lane_count(state: &ExecutionState<'_, '_>, value_id: mir::Value) -> Result<usize, Error> {
     let vector_type = state.value_type(value_id)?;
 
     match state.tree().get(vector_type) {
@@ -13,9 +13,9 @@ fn vector_lane_count(state: &StepState<'_, '_>, value_id: mir::Value) -> Result<
     }
 }
 
-/// Load one vector lane through indexed storage.
+/// Load one vector lane through indexed access.
 fn vector_lane_value(
-    state: &mut StepState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     vector: Value,
     vector_type: mir::LocalNodeId<mir::Type>,
     lane_index: usize,
@@ -30,9 +30,9 @@ fn vector_lane_value(
     access::get_element(state, vector, index.into(), element_count, Some(element))
 }
 
-/// Load one tensor storage slot through indexed storage.
-fn tensor_slot_value(
-    state: &mut StepState<'_, '_>,
+/// Load one tensor element through indexed access.
+fn tensor_element_value(
+    state: &mut ExecutionState<'_, '_>,
     tensor: Value,
     tensor_type: mir::LocalNodeId<mir::Type>,
     slot_index: usize,
@@ -47,9 +47,9 @@ fn tensor_slot_value(
     access::get_element(state, tensor, index.into(), element_count, Some(element))
 }
 
-/// Step constant load.
-pub(crate) fn step_const(
-    state: &mut StepState<'_, '_>,
+/// Execute constant load.
+pub(crate) fn execute_const(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -69,9 +69,9 @@ pub(crate) fn step_const(
     next!(state, block, pc)
 }
 
-/// Step binary opcode.
-pub(crate) fn step_binary(
-    state: &mut StepState<'_, '_>,
+/// Execute binary opcode.
+pub(crate) fn execute_binary(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -103,10 +103,10 @@ pub(crate) fn step_binary(
     next!(state, block, pc)
 }
 
-/// Step signed integer binary opcode.
+/// Execute signed integer binary opcode.
 #[inline(always)]
-pub(crate) fn step_binary_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_binary_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -138,10 +138,10 @@ pub(crate) fn step_binary_int(
     next!(state, block, pc)
 }
 
-/// Step unsigned integer binary opcode.
+/// Execute unsigned integer binary opcode.
 #[inline(always)]
-pub(crate) fn step_binary_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_binary_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -173,10 +173,10 @@ pub(crate) fn step_binary_uint(
     next!(state, block, pc)
 }
 
-/// Step float32 binary opcode.
+/// Execute float32 binary opcode.
 #[inline(always)]
-pub(crate) fn step_binary_float32(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_binary_float32(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -208,10 +208,10 @@ pub(crate) fn step_binary_float32(
     next!(state, block, pc)
 }
 
-/// Step float64 binary opcode.
+/// Execute float64 binary opcode.
 #[inline(always)]
-pub(crate) fn step_binary_float64(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_binary_float64(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -243,9 +243,9 @@ pub(crate) fn step_binary_float64(
     next!(state, block, pc)
 }
 
-/// Step boolean binary opcode.
-pub(crate) fn step_binary_bool(
-    state: &mut StepState<'_, '_>,
+/// Execute boolean binary opcode.
+pub(crate) fn execute_binary_bool(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -283,8 +283,8 @@ pub(crate) fn step_binary_bool(
 
 /// Execute integer addition without operator dispatch.
 #[inline(always)]
-pub(crate) fn step_add_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_add_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -300,8 +300,8 @@ pub(crate) fn step_add_int(
 
 /// Execute integer subtraction without operator dispatch.
 #[inline(always)]
-pub(crate) fn step_sub_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_sub_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -317,8 +317,8 @@ pub(crate) fn step_sub_int(
 
 /// Execute integer multiplication without operator dispatch.
 #[inline(always)]
-pub(crate) fn step_mul_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_mul_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -334,8 +334,8 @@ pub(crate) fn step_mul_int(
 
 /// Execute integer bitwise AND without operator dispatch.
 #[inline(always)]
-pub(crate) fn step_and_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_and_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -351,8 +351,8 @@ pub(crate) fn step_and_int(
 
 /// Execute integer bitwise OR without operator dispatch.
 #[inline(always)]
-pub(crate) fn step_or_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_or_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -368,8 +368,8 @@ pub(crate) fn step_or_int(
 
 /// Execute integer bitwise XOR without operator dispatch.
 #[inline(always)]
-pub(crate) fn step_xor_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_xor_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -385,8 +385,8 @@ pub(crate) fn step_xor_int(
 
 /// Execute shift left without operator dispatch.
 #[inline(always)]
-pub(crate) fn step_shl_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_shl_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -402,8 +402,8 @@ pub(crate) fn step_shl_int(
 
 /// Execute arithmetic shift right without operator dispatch.
 #[inline(always)]
-pub(crate) fn step_shr_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_shr_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -423,8 +423,8 @@ pub(crate) fn step_shr_int(
 
 /// Execute unsigned integer addition without operator dispatch.
 #[inline(always)]
-pub(crate) fn step_add_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_add_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -440,8 +440,8 @@ pub(crate) fn step_add_uint(
 
 /// Execute unsigned integer subtraction without operator dispatch.
 #[inline(always)]
-pub(crate) fn step_sub_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_sub_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -457,8 +457,8 @@ pub(crate) fn step_sub_uint(
 
 /// Execute unsigned integer multiplication without operator dispatch.
 #[inline(always)]
-pub(crate) fn step_mul_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_mul_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -474,8 +474,8 @@ pub(crate) fn step_mul_uint(
 
 /// Execute unsigned bitwise AND without operator dispatch.
 #[inline(always)]
-pub(crate) fn step_and_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_and_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -491,8 +491,8 @@ pub(crate) fn step_and_uint(
 
 /// Execute unsigned bitwise OR without operator dispatch.
 #[inline(always)]
-pub(crate) fn step_or_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_or_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -508,8 +508,8 @@ pub(crate) fn step_or_uint(
 
 /// Execute unsigned bitwise XOR without operator dispatch.
 #[inline(always)]
-pub(crate) fn step_xor_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_xor_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -525,8 +525,8 @@ pub(crate) fn step_xor_uint(
 
 /// Execute unsigned shift left without operator dispatch.
 #[inline(always)]
-pub(crate) fn step_shl_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_shl_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -542,8 +542,8 @@ pub(crate) fn step_shl_uint(
 
 /// Execute logical shift right for unsigned values.
 #[inline(always)]
-pub(crate) fn step_shr_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_shr_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -563,8 +563,8 @@ pub(crate) fn step_shr_uint(
 
 /// Execute integer equality comparison.
 #[inline(always)]
-pub(crate) fn step_eq_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_eq_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -579,8 +579,8 @@ pub(crate) fn step_eq_int(
 
 /// Execute integer inequality comparison.
 #[inline(always)]
-pub(crate) fn step_ne_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_ne_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -595,8 +595,8 @@ pub(crate) fn step_ne_int(
 
 /// Execute signed less than comparison.
 #[inline(always)]
-pub(crate) fn step_lt_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_lt_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -611,8 +611,8 @@ pub(crate) fn step_lt_int(
 
 /// Execute signed less than or equal comparison.
 #[inline(always)]
-pub(crate) fn step_le_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_le_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -627,8 +627,8 @@ pub(crate) fn step_le_int(
 
 /// Execute signed greater than comparison.
 #[inline(always)]
-pub(crate) fn step_gt_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_gt_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -643,8 +643,8 @@ pub(crate) fn step_gt_int(
 
 /// Execute signed greater than or equal comparison.
 #[inline(always)]
-pub(crate) fn step_ge_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_ge_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -659,8 +659,8 @@ pub(crate) fn step_ge_int(
 
 /// Execute unsigned less than comparison.
 #[inline(always)]
-pub(crate) fn step_lt_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_lt_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -675,8 +675,8 @@ pub(crate) fn step_lt_uint(
 
 /// Execute unsigned less than or equal comparison.
 #[inline(always)]
-pub(crate) fn step_le_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_le_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -691,8 +691,8 @@ pub(crate) fn step_le_uint(
 
 /// Execute unsigned greater than comparison.
 #[inline(always)]
-pub(crate) fn step_gt_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_gt_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -707,8 +707,8 @@ pub(crate) fn step_gt_uint(
 
 /// Execute unsigned greater than or equal comparison.
 #[inline(always)]
-pub(crate) fn step_ge_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_ge_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -727,8 +727,8 @@ pub(crate) fn step_ge_uint(
 
 /// Execute integer addition with constant right operand.
 #[inline(always)]
-pub(crate) fn step_add_const_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_add_const_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -749,8 +749,8 @@ pub(crate) fn step_add_const_int(
 
 /// Execute integer subtraction with constant right operand.
 #[inline(always)]
-pub(crate) fn step_sub_const_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_sub_const_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -771,8 +771,8 @@ pub(crate) fn step_sub_const_int(
 
 /// Execute integer multiplication with constant right operand.
 #[inline(always)]
-pub(crate) fn step_mul_const_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_mul_const_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -793,8 +793,8 @@ pub(crate) fn step_mul_const_int(
 
 /// Execute equality comparison with constant right operand.
 #[inline(always)]
-pub(crate) fn step_eq_const_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_eq_const_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -814,8 +814,8 @@ pub(crate) fn step_eq_const_int(
 
 /// Execute inequality comparison with constant right operand.
 #[inline(always)]
-pub(crate) fn step_ne_const_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_ne_const_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -835,8 +835,8 @@ pub(crate) fn step_ne_const_int(
 
 /// Execute signed less than with constant right operand.
 #[inline(always)]
-pub(crate) fn step_lt_const_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_lt_const_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -856,8 +856,8 @@ pub(crate) fn step_lt_const_int(
 
 /// Execute signed less equal with constant right operand.
 #[inline(always)]
-pub(crate) fn step_le_const_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_le_const_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -877,8 +877,8 @@ pub(crate) fn step_le_const_int(
 
 /// Execute signed greater than with constant right operand.
 #[inline(always)]
-pub(crate) fn step_gt_const_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_gt_const_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -898,8 +898,8 @@ pub(crate) fn step_gt_const_int(
 
 /// Execute signed greater equal with constant right operand.
 #[inline(always)]
-pub(crate) fn step_ge_const_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_ge_const_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -923,8 +923,8 @@ pub(crate) fn step_ge_const_int(
 
 /// Execute unsigned addition with constant right operand.
 #[inline(always)]
-pub(crate) fn step_add_const_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_add_const_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -945,8 +945,8 @@ pub(crate) fn step_add_const_uint(
 
 /// Execute unsigned subtraction with constant right operand.
 #[inline(always)]
-pub(crate) fn step_sub_const_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_sub_const_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -967,8 +967,8 @@ pub(crate) fn step_sub_const_uint(
 
 /// Execute unsigned multiplication with constant right operand.
 #[inline(always)]
-pub(crate) fn step_mul_const_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_mul_const_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -989,8 +989,8 @@ pub(crate) fn step_mul_const_uint(
 
 /// Execute unsigned less than with constant right operand.
 #[inline(always)]
-pub(crate) fn step_lt_const_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_lt_const_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1010,8 +1010,8 @@ pub(crate) fn step_lt_const_uint(
 
 /// Execute unsigned less equal with constant right operand.
 #[inline(always)]
-pub(crate) fn step_le_const_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_le_const_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1031,8 +1031,8 @@ pub(crate) fn step_le_const_uint(
 
 /// Execute unsigned greater than with constant right operand.
 #[inline(always)]
-pub(crate) fn step_gt_const_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_gt_const_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1052,8 +1052,8 @@ pub(crate) fn step_gt_const_uint(
 
 /// Execute unsigned greater equal with constant right operand.
 #[inline(always)]
-pub(crate) fn step_ge_const_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_ge_const_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1077,8 +1077,8 @@ pub(crate) fn step_ge_const_uint(
 
 /// Execute generic binary opcode with constant right operand.
 #[inline(always)]
-pub(crate) fn step_binary_const_right(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_binary_const_right(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1103,8 +1103,8 @@ pub(crate) fn step_binary_const_right(
 }
 
 /// Execute elementwise binary opcode on vector or tensor values.
-pub(crate) fn step_binary_elementwise(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_binary_elementwise(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1141,10 +1141,8 @@ pub(crate) fn step_binary_elementwise(
                 });
             }
 
-            let result = match materialize_composite_by_index(
-                state,
-                *dest,
-                |state, lane_index, _value_type| {
+            let result =
+                match allocate_payload_by_index(state, *dest, |state, lane_index, _value_type| {
                     let lane_index =
                         usize::try_from(lane_index).map_err(|_| Error::TypeMismatch {
                             expected: "vector lane index".to_string(),
@@ -1156,11 +1154,10 @@ pub(crate) fn step_binary_elementwise(
                     let rhs = vector_lane_value(state, right_value, right_type, lane_index)?;
 
                     operator::execute_binary(*op, lhs, rhs)
-                },
-            ) {
-                Ok(result) => result,
-                Err(error) => return Transfer::Error(error),
-            };
+                }) {
+                    Ok(result) => result,
+                    Err(error) => return Transfer::Error(error),
+                };
             state.set(*dest, result);
             next!(state, block, pc)
         }
@@ -1171,10 +1168,8 @@ pub(crate) fn step_binary_elementwise(
             };
             let left_value = state.get(*left);
             let right_value = state.get(*right);
-            let result = match materialize_composite_by_index(
-                state,
-                *dest,
-                |state, slot_index, _value_type| {
+            let result =
+                match allocate_payload_by_index(state, *dest, |state, slot_index, _value_type| {
                     let slot_index =
                         usize::try_from(slot_index).map_err(|_| Error::TypeMismatch {
                             expected: "tensor storage slot".to_string(),
@@ -1189,15 +1184,14 @@ pub(crate) fn step_binary_elementwise(
 
                     let left_type = state.value_type(*left)?;
                     let right_type = state.value_type(*right)?;
-                    let lhs = tensor_slot_value(state, left_value, left_type, slot_index)?;
-                    let rhs = tensor_slot_value(state, right_value, right_type, slot_index)?;
+                    let lhs = tensor_element_value(state, left_value, left_type, slot_index)?;
+                    let rhs = tensor_element_value(state, right_value, right_type, slot_index)?;
 
                     operator::execute_binary(*op, lhs, rhs)
-                },
-            ) {
-                Ok(result) => result,
-                Err(error) => return Transfer::Error(error),
-            };
+                }) {
+                    Ok(result) => result,
+                    Err(error) => return Transfer::Error(error),
+                };
             state.set(*dest, result);
             next!(state, block, pc)
         }
@@ -1205,9 +1199,9 @@ pub(crate) fn step_binary_elementwise(
     }
 }
 
-/// Step unary opcode.
-pub(crate) fn step_unary(
-    state: &mut StepState<'_, '_>,
+/// Execute unary opcode.
+pub(crate) fn execute_unary(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1233,8 +1227,8 @@ pub(crate) fn step_unary(
 }
 
 /// Execute elementwise unary opcode on vector or tensor values.
-pub(crate) fn step_unary_elementwise(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_unary_elementwise(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1265,10 +1259,8 @@ pub(crate) fn step_unary_elementwise(
                 });
             }
 
-            let result = match materialize_composite_by_index(
-                state,
-                *dest,
-                |state, lane_index, _value_type| {
+            let result =
+                match allocate_payload_by_index(state, *dest, |state, lane_index, _value_type| {
                     let lane_index =
                         usize::try_from(lane_index).map_err(|_| Error::TypeMismatch {
                             expected: "vector lane index".to_string(),
@@ -1278,11 +1270,10 @@ pub(crate) fn step_unary_elementwise(
                     let value = vector_lane_value(state, argument, argument_type, lane_index)?;
 
                     operator::execute_unary(*op, value)
-                },
-            ) {
-                Ok(result) => result,
-                Err(error) => return Transfer::Error(error),
-            };
+                }) {
+                    Ok(result) => result,
+                    Err(error) => return Transfer::Error(error),
+                };
             state.set(*dest, result);
             next!(state, block, pc)
         }
@@ -1292,10 +1283,8 @@ pub(crate) fn step_unary_elementwise(
                 Err(error) => return Transfer::Error(error),
             };
             let argument = state.get(*arg);
-            let result = match materialize_composite_by_index(
-                state,
-                *dest,
-                |state, slot_index, _value_type| {
+            let result =
+                match allocate_payload_by_index(state, *dest, |state, slot_index, _value_type| {
                     let slot_index =
                         usize::try_from(slot_index).map_err(|_| Error::TypeMismatch {
                             expected: "tensor storage slot".to_string(),
@@ -1309,14 +1298,13 @@ pub(crate) fn step_unary_elementwise(
                     }
 
                     let argument_type = state.value_type(*arg)?;
-                    let value = tensor_slot_value(state, argument, argument_type, slot_index)?;
+                    let value = tensor_element_value(state, argument, argument_type, slot_index)?;
 
                     operator::execute_unary(*op, value)
-                },
-            ) {
-                Ok(result) => result,
-                Err(error) => return Transfer::Error(error),
-            };
+                }) {
+                    Ok(result) => result,
+                    Err(error) => return Transfer::Error(error),
+                };
             state.set(*dest, result);
             next!(state, block, pc)
         }
@@ -1324,10 +1312,10 @@ pub(crate) fn step_unary_elementwise(
     }
 }
 
-/// Step signed integer unary opcode.
+/// Execute signed integer unary opcode.
 #[inline(always)]
-pub(crate) fn step_unary_int(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_unary_int(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1352,10 +1340,10 @@ pub(crate) fn step_unary_int(
     next!(state, block, pc)
 }
 
-/// Step unsigned integer unary opcode.
+/// Execute unsigned integer unary opcode.
 #[inline(always)]
-pub(crate) fn step_unary_uint(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_unary_uint(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1380,10 +1368,10 @@ pub(crate) fn step_unary_uint(
     next!(state, block, pc)
 }
 
-/// Step float32 unary opcode.
+/// Execute float32 unary opcode.
 #[inline(always)]
-pub(crate) fn step_unary_float32(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_unary_float32(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1408,10 +1396,10 @@ pub(crate) fn step_unary_float32(
     next!(state, block, pc)
 }
 
-/// Step float64 unary opcode.
+/// Execute float64 unary opcode.
 #[inline(always)]
-pub(crate) fn step_unary_float64(
-    state: &mut StepState<'_, '_>,
+pub(crate) fn execute_unary_float64(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1436,9 +1424,9 @@ pub(crate) fn step_unary_float64(
     next!(state, block, pc)
 }
 
-/// Step boolean unary opcode.
-pub(crate) fn step_unary_bool(
-    state: &mut StepState<'_, '_>,
+/// Execute boolean unary opcode.
+pub(crate) fn execute_unary_bool(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {

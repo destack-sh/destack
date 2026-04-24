@@ -37,25 +37,25 @@ pub(crate) fn frame_pointer_value_with_meta(
     Value::frame_pointer_with_meta(pointer, meta).ok_or_else(|| pointer_encoding_error("frame"))
 }
 
-/// Build one global pointer value.
+/// Build one static pointer value.
 #[inline]
-pub(crate) fn global_pointer_value(
+pub(crate) fn static_pointer_value(
     pointer: mir::LocalNodeId<mir::Global>,
     byte_offset: usize,
 ) -> Result<Value, Error> {
-    Value::global_pointer_with_offset(pointer, byte_offset)
-        .ok_or_else(|| pointer_encoding_error("global"))
+    Value::static_pointer_with_offset(pointer, byte_offset)
+        .ok_or_else(|| pointer_encoding_error("static"))
 }
 
-/// Build one global pointer value with reference metadata.
+/// Build one static pointer value with reference metadata.
 #[inline]
-pub(crate) fn global_pointer_value_with_meta(
+pub(crate) fn static_pointer_value_with_meta(
     pointer: mir::LocalNodeId<mir::Global>,
     byte_offset: usize,
     meta: ReferenceMeta,
 ) -> Result<Value, Error> {
-    Value::global_pointer_with_meta(pointer, byte_offset, meta)
-        .ok_or_else(|| pointer_encoding_error("global"))
+    Value::static_pointer_with_meta(pointer, byte_offset, meta)
+        .ok_or_else(|| pointer_encoding_error("static"))
 }
 
 /// Build a global id from a raw value.
@@ -73,7 +73,7 @@ pub(crate) fn type_id(raw: u32) -> mir::LocalNodeId<mir::Type> {
 /// Collect argument values into a smallvec.
 #[inline]
 pub(crate) fn collect_values(
-    state: &mut StepState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     arguments: ArgumentRange,
 ) -> SmallVec<[Value; 16]> {
     // load argument slice
@@ -124,28 +124,28 @@ pub(crate) fn value_to_usize(value: Value) -> Result<usize, Error> {
     })
 }
 
-/// Materialize one composite result for the destination slot type by value index.
-pub(crate) fn materialize_composite_by_index<F>(
-    state: &mut StepState<'_, '_>,
+/// Allocate one heap payload for the destination type by value index.
+pub(crate) fn allocate_payload_by_index<F>(
+    state: &mut ExecutionState<'_, '_>,
     destination: mir::Value,
     mut value_at_index: F,
 ) -> Result<Value, Error>
 where
-    F: FnMut(&mut StepState<'_, '_>, u32, mir::LocalNodeId<mir::Type>) -> Result<Value, Error>,
+    F: FnMut(&mut ExecutionState<'_, '_>, u32, mir::LocalNodeId<mir::Type>) -> Result<Value, Error>,
 {
-    let composite_type = state.value_type(destination)?;
-    let repr_composite_type = crate::module::repr_type(state.tree(), composite_type);
+    let payload_type = state.value_type(destination)?;
+    let repr_payload_type = crate::module::repr_type(state.tree(), payload_type);
 
-    // callable stays boxed in the vm so nested payload only carries one heap reference
+    // callables stay boxed so nested payloads carry one heap reference
     if matches!(
-        state.tree().get(repr_composite_type),
+        state.tree().get(repr_payload_type),
         mir::Type::Callable { .. }
     ) {
-        let function = value_at_index(state, 0, composite_type)?;
-        let environment = value_at_index(state, 1, composite_type)?;
+        let function = value_at_index(state, 0, payload_type)?;
+        let environment = value_at_index(state, 1, payload_type)?;
 
-        return access::allocate_callable(state, composite_type, function, environment);
+        return access::allocate_callable(state, payload_type, function, environment);
     }
 
-    access::allocate_heap_value_by_index(state, composite_type, value_at_index)
+    access::allocate_heap_payload_by_index(state, payload_type, value_at_index)
 }

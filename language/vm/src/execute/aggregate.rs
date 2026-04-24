@@ -5,7 +5,7 @@ use crate::module::TypedAccess;
 /// Apply reference metadata and validate the resulting pointer value.
 #[inline(always)]
 fn build_reference_result(
-    state: &mut StepState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     reference: crate::ReferenceMeta,
     value: Value,
 ) -> Result<Value, Error> {
@@ -20,7 +20,7 @@ fn build_reference_result(
 
 /// Load one array index operand as an unsigned value.
 #[inline(always)]
-fn load_array_index(state: &StepState<'_, '_>, index: mir::Value) -> Result<u64, Error> {
+fn load_array_index(state: &ExecutionState<'_, '_>, index: mir::Value) -> Result<u64, Error> {
     let value = state.get(index);
 
     value.as_uint().ok_or_else(|| Error::TypeMismatch {
@@ -29,65 +29,65 @@ fn load_array_index(state: &StepState<'_, '_>, index: mir::Value) -> Result<u64,
     })
 }
 
-/// Build one composite type mismatch.
+/// Build one aggregate type mismatch.
 #[inline(always)]
-fn invalid_composite(value: Value) -> Error {
+fn invalid_aggregate(value: Value) -> Error {
     Error::TypeMismatch {
-        expected: "composite".to_string(),
+        expected: "aggregate".to_string(),
         actual: format!("{value:?}"),
     }
 }
 
-/// Require one heap composite value.
+/// Require one heap aggregate value.
 #[inline(always)]
-fn heap_composite(value: Value) -> Result<HeapReference, Error> {
+fn heap_aggregate(value: Value) -> Result<HeapReference, Error> {
     value
         .as_heap_reference()
-        .ok_or_else(|| invalid_composite(value))
+        .ok_or_else(|| invalid_aggregate(value))
 }
 
-/// Require one shared heap composite value.
+/// Require one shared heap aggregate value.
 #[inline(always)]
-fn shared_heap_composite(value: Value) -> Result<destack_heap::SharedHeapReference, Error> {
+fn shared_heap_aggregate(value: Value) -> Result<destack_heap::SharedHeapReference, Error> {
     value
         .as_shared_heap_reference()
-        .ok_or_else(|| invalid_composite(value))
+        .ok_or_else(|| invalid_aggregate(value))
 }
 
-/// Require one raw composite pointer.
+/// Require one raw aggregate pointer.
 #[inline(always)]
-fn raw_composite(value: Value) -> Result<RawPointer, Error> {
+fn raw_aggregate(value: Value) -> Result<RawPointer, Error> {
     value
         .as_raw_pointer()
-        .ok_or_else(|| invalid_composite(value))
+        .ok_or_else(|| invalid_aggregate(value))
 }
 
-/// Require one stack composite pointer.
+/// Require one stack aggregate pointer.
 #[inline(always)]
-fn stack_composite(value: Value) -> Result<StackPointer, Error> {
+fn stack_aggregate(value: Value) -> Result<StackPointer, Error> {
     value
         .as_stack_pointer()
-        .ok_or_else(|| invalid_composite(value))
+        .ok_or_else(|| invalid_aggregate(value))
 }
 
-/// Require one global composite pointer.
+/// Require one static aggregate pointer.
 #[inline(always)]
-fn global_composite(value: Value) -> Result<GlobalPointer, Error> {
+fn static_aggregate(value: Value) -> Result<StaticPointer, Error> {
     value
-        .as_global_pointer()
-        .ok_or_else(|| invalid_composite(value))
+        .as_static_pointer()
+        .ok_or_else(|| invalid_aggregate(value))
 }
 
-/// Step field get.
-pub(crate) fn step_field_get(
-    state: &mut StepState<'_, '_>,
+/// Execute field get.
+pub(crate) fn execute_field_get(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
     let Immediate::FieldGet {
         dest,
-        composite,
+        aggregate,
         index,
         field_count,
         field,
@@ -96,8 +96,8 @@ pub(crate) fn step_field_get(
         unreachable!()
     };
 
-    // load composite
-    let agg = state.get(*composite);
+    // load aggregate
+    let agg = state.get(*aggregate);
 
     // load field value
     let value = match access::get_field(state, agg, *index, *field_count, *field) {
@@ -112,16 +112,16 @@ pub(crate) fn step_field_get(
     next!(state, block, pc)
 }
 
-/// Step field addr.
-pub(crate) fn step_field_addr(
-    state: &mut StepState<'_, '_>,
+/// Execute field addr.
+pub(crate) fn execute_field_addr(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
     let Immediate::FieldAddr {
         dest,
-        composite,
+        aggregate,
         index,
         reference,
         field_count,
@@ -131,34 +131,34 @@ pub(crate) fn step_field_addr(
         unreachable!()
     };
 
-    // load composite
-    let agg = state.get(*composite);
+    // load aggregate
+    let agg = state.get(*aggregate);
 
     // compute field address
     let value = match (agg.tag(), *field) {
         (ValueTag::HeapReference, Some(field)) => {
-            let handle = match heap_composite(agg) {
+            let handle = match heap_aggregate(agg) {
                 Ok(handle) => handle,
                 Err(error) => return Transfer::Error(error),
             };
             access::field_addr_heap(state, handle, field, *index, *field_count)
         }
         (ValueTag::SharedHeapReference, Some(field)) => {
-            let handle = match shared_heap_composite(agg) {
+            let handle = match shared_heap_aggregate(agg) {
                 Ok(handle) => handle,
                 Err(error) => return Transfer::Error(error),
             };
             access::field_addr_shared_heap(state, handle, field, *index, *field_count)
         }
         (ValueTag::RawPointer, Some(field)) => {
-            let pointer = match raw_composite(agg) {
+            let pointer = match raw_aggregate(agg) {
                 Ok(pointer) => pointer,
                 Err(error) => return Transfer::Error(error),
             };
             access::field_addr_raw(state, pointer, field, *index, *field_count)
         }
         (ValueTag::StackPointer, Some(field)) => {
-            let pointer = match stack_composite(agg) {
+            let pointer = match stack_aggregate(agg) {
                 Ok(pointer) => pointer,
                 Err(error) => return Transfer::Error(error),
             };
@@ -183,16 +183,16 @@ pub(crate) fn step_field_addr(
     next!(state, block, pc)
 }
 
-/// Step field addr on heap references.
-pub(crate) fn step_field_addr_heap(
-    state: &mut StepState<'_, '_>,
+/// Execute field addr on heap references.
+pub(crate) fn execute_field_addr_heap(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
     let Immediate::FieldAddr {
         dest,
-        composite,
+        aggregate,
         index,
         reference,
         field_count,
@@ -202,8 +202,8 @@ pub(crate) fn step_field_addr_heap(
         unreachable!()
     };
 
-    // load composite
-    let agg = state.get(*composite);
+    // load aggregate
+    let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::HeapReference {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -211,7 +211,7 @@ pub(crate) fn step_field_addr_heap(
     }
 
     // compute field address
-    let handle = match heap_composite(agg) {
+    let handle = match heap_aggregate(agg) {
         Ok(handle) => handle,
         Err(error) => return Transfer::Error(error),
     };
@@ -232,16 +232,16 @@ pub(crate) fn step_field_addr_heap(
     next!(state, block, pc)
 }
 
-/// Step field addr on raw pointers.
-pub(crate) fn step_field_addr_raw(
-    state: &mut StepState<'_, '_>,
+/// Execute field addr on raw pointers.
+pub(crate) fn execute_field_addr_raw(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
     let Immediate::FieldAddr {
         dest,
-        composite,
+        aggregate,
         index,
         reference,
         field_count,
@@ -251,8 +251,8 @@ pub(crate) fn step_field_addr_raw(
         unreachable!()
     };
 
-    // load composite
-    let agg = state.get(*composite);
+    // load aggregate
+    let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::RawPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -260,7 +260,7 @@ pub(crate) fn step_field_addr_raw(
     }
 
     // compute field address
-    let pointer = match raw_composite(agg) {
+    let pointer = match raw_aggregate(agg) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
@@ -281,16 +281,16 @@ pub(crate) fn step_field_addr_raw(
     next!(state, block, pc)
 }
 
-/// Step field addr on stack pointers.
-pub(crate) fn step_field_addr_stack(
-    state: &mut StepState<'_, '_>,
+/// Execute field addr on stack pointers.
+pub(crate) fn execute_field_addr_stack(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
     let Immediate::FieldAddr {
         dest,
-        composite,
+        aggregate,
         index,
         reference,
         field_count,
@@ -300,8 +300,8 @@ pub(crate) fn step_field_addr_stack(
         unreachable!()
     };
 
-    // load composite
-    let agg = state.get(*composite);
+    // load aggregate
+    let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::StackPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -309,7 +309,7 @@ pub(crate) fn step_field_addr_stack(
     }
 
     // compute field address
-    let pointer = match stack_composite(agg) {
+    let pointer = match stack_aggregate(agg) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
@@ -330,16 +330,16 @@ pub(crate) fn step_field_addr_stack(
     next!(state, block, pc)
 }
 
-/// Step field addr on global pointers.
-pub(crate) fn step_field_addr_global(
-    state: &mut StepState<'_, '_>,
+/// Execute field addr on static pointers.
+pub(crate) fn execute_field_addr_static(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
     let Immediate::FieldAddr {
         dest,
-        composite,
+        aggregate,
         index,
         reference,
         field_count,
@@ -349,23 +349,23 @@ pub(crate) fn step_field_addr_global(
         unreachable!()
     };
 
-    // load composite
-    let agg = state.get(*composite);
-    if agg.tag() != ValueTag::GlobalPointer {
+    // load aggregate
+    let agg = state.get(*aggregate);
+    if agg.tag() != ValueTag::StaticPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
         });
     }
 
     // compute field address
-    let pointer = match global_composite(agg) {
+    let pointer = match static_aggregate(agg) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
     let Some(field) = *field else {
         return Transfer::Error(Error::InvalidHeapReference);
     };
-    let value = match access::field_addr_global(state, pointer, field, *index, *field_count) {
+    let value = match access::field_addr_static(state, pointer, field, *index, *field_count) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -379,16 +379,16 @@ pub(crate) fn step_field_addr_global(
     next!(state, block, pc)
 }
 
-/// Step field load.
-pub(crate) fn step_field_load(
-    state: &mut StepState<'_, '_>,
+/// Execute field load.
+pub(crate) fn execute_field_load(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
     let Immediate::FieldLoad {
         dest,
-        composite,
+        aggregate,
         index,
         field_count,
         field,
@@ -397,34 +397,34 @@ pub(crate) fn step_field_load(
         unreachable!()
     };
 
-    // load composite
-    let agg = state.get(*composite);
+    // load aggregate
+    let agg = state.get(*aggregate);
 
-    // load the selected field through the runtime storage class
+    // load the selected field through the pointer class
     let value = match (agg.tag(), *field) {
         (ValueTag::HeapReference, Some(field)) => {
-            let handle = match heap_composite(agg) {
+            let handle = match heap_aggregate(agg) {
                 Ok(handle) => handle,
                 Err(error) => return Transfer::Error(error),
             };
             access::load_field_heap(state, handle, field, *index, *field_count)
         }
         (ValueTag::SharedHeapReference, Some(field)) => {
-            let handle = match shared_heap_composite(agg) {
+            let handle = match shared_heap_aggregate(agg) {
                 Ok(handle) => handle,
                 Err(error) => return Transfer::Error(error),
             };
             access::load_field_shared_heap(state, handle, field, *index, *field_count)
         }
         (ValueTag::RawPointer, Some(field)) => {
-            let pointer = match raw_composite(agg) {
+            let pointer = match raw_aggregate(agg) {
                 Ok(pointer) => pointer,
                 Err(error) => return Transfer::Error(error),
             };
             access::load_field_raw(state, pointer, field, *index, *field_count)
         }
         (ValueTag::StackPointer, Some(field)) => {
-            let pointer = match stack_composite(agg) {
+            let pointer = match stack_aggregate(agg) {
                 Ok(pointer) => pointer,
                 Err(error) => return Transfer::Error(error),
             };
@@ -452,16 +452,16 @@ pub(crate) fn step_field_load(
     next!(state, block, pc)
 }
 
-/// Step field load on heap references.
-pub(crate) fn step_field_load_heap(
-    state: &mut StepState<'_, '_>,
+/// Execute field load on heap references.
+pub(crate) fn execute_field_load_heap(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
     let Immediate::FieldLoad {
         dest,
-        composite,
+        aggregate,
         index,
         field_count,
         field,
@@ -470,8 +470,8 @@ pub(crate) fn step_field_load_heap(
         unreachable!()
     };
 
-    // load composite
-    let agg = state.get(*composite);
+    // load aggregate
+    let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::HeapReference {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -479,7 +479,7 @@ pub(crate) fn step_field_load_heap(
     }
 
     // load field value
-    let handle = match heap_composite(agg) {
+    let handle = match heap_aggregate(agg) {
         Ok(handle) => handle,
         Err(error) => return Transfer::Error(error),
     };
@@ -498,16 +498,16 @@ pub(crate) fn step_field_load_heap(
     next!(state, block, pc)
 }
 
-/// Step field load on raw pointers.
-pub(crate) fn step_field_load_raw(
-    state: &mut StepState<'_, '_>,
+/// Execute field load on raw pointers.
+pub(crate) fn execute_field_load_raw(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
     let Immediate::FieldLoad {
         dest,
-        composite,
+        aggregate,
         index,
         field_count,
         field,
@@ -516,8 +516,8 @@ pub(crate) fn step_field_load_raw(
         unreachable!()
     };
 
-    // load composite
-    let agg = state.get(*composite);
+    // load aggregate
+    let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::RawPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -525,7 +525,7 @@ pub(crate) fn step_field_load_raw(
     }
 
     // load field value
-    let pointer = match raw_composite(agg) {
+    let pointer = match raw_aggregate(agg) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
@@ -544,16 +544,16 @@ pub(crate) fn step_field_load_raw(
     next!(state, block, pc)
 }
 
-/// Step field load on stack pointers.
-pub(crate) fn step_field_load_stack(
-    state: &mut StepState<'_, '_>,
+/// Execute field load on stack pointers.
+pub(crate) fn execute_field_load_stack(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
     let Immediate::FieldLoad {
         dest,
-        composite,
+        aggregate,
         index,
         field_count,
         field,
@@ -562,8 +562,8 @@ pub(crate) fn step_field_load_stack(
         unreachable!()
     };
 
-    // load composite
-    let agg = state.get(*composite);
+    // load aggregate
+    let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::StackPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -571,7 +571,7 @@ pub(crate) fn step_field_load_stack(
     }
 
     // load field value
-    let pointer = match stack_composite(agg) {
+    let pointer = match stack_aggregate(agg) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
@@ -590,16 +590,16 @@ pub(crate) fn step_field_load_stack(
     next!(state, block, pc)
 }
 
-/// Step field load on global pointers.
-pub(crate) fn step_field_load_global(
-    state: &mut StepState<'_, '_>,
+/// Execute field load on static pointers.
+pub(crate) fn execute_field_load_static(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
     let Immediate::FieldLoad {
         dest,
-        composite,
+        aggregate,
         index,
         field_count,
         field,
@@ -608,23 +608,23 @@ pub(crate) fn step_field_load_global(
         unreachable!()
     };
 
-    // load composite
-    let agg = state.get(*composite);
-    if agg.tag() != ValueTag::GlobalPointer {
+    // load aggregate
+    let agg = state.get(*aggregate);
+    if agg.tag() != ValueTag::StaticPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
         });
     }
 
     // load field value
-    let pointer = match global_composite(agg) {
+    let pointer = match static_aggregate(agg) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
     let Some(field) = *field else {
         return Transfer::Error(Error::InvalidHeapReference);
     };
-    let value = match access::load_field_global(state, pointer, field, *index, *field_count) {
+    let value = match access::load_field_static(state, pointer, field, *index, *field_count) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -636,16 +636,16 @@ pub(crate) fn step_field_load_global(
     next!(state, block, pc)
 }
 
-/// Step field set.
-pub(crate) fn step_field_set(
-    state: &mut StepState<'_, '_>,
+/// Execute field set.
+pub(crate) fn execute_field_set(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
     let Immediate::FieldSet {
         dest,
-        composite,
+        aggregate,
         index,
         value,
         field_count,
@@ -656,7 +656,7 @@ pub(crate) fn step_field_set(
     };
 
     // load values
-    let agg = state.get(*composite);
+    let agg = state.get(*aggregate);
     let val = state.get(*value);
 
     // write field
@@ -685,15 +685,15 @@ pub(crate) fn step_field_set(
     next!(state, block, pc)
 }
 
-/// Step field store.
-pub(crate) fn step_field_store(
-    state: &mut StepState<'_, '_>,
+/// Execute field store.
+pub(crate) fn execute_field_store(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
     let Immediate::FieldStore {
-        composite,
+        aggregate,
         index,
         value,
         reference,
@@ -705,13 +705,13 @@ pub(crate) fn step_field_store(
     };
 
     // load values
-    let agg = state.get(*composite);
+    let agg = state.get(*aggregate);
     let val = state.get(*value);
 
-    // store the selected field through the runtime storage class
+    // store the selected field through the pointer class
     let result = match (agg.tag(), *field) {
         (ValueTag::HeapReference, Some(field)) => {
-            let handle = match heap_composite(agg) {
+            let handle = match heap_aggregate(agg) {
                 Ok(handle) => handle,
                 Err(error) => return Transfer::Error(error),
             };
@@ -729,7 +729,7 @@ pub(crate) fn step_field_store(
             access::store_field_heap(state, handle, field, *index, *field_count, val)
         }
         (ValueTag::SharedHeapReference, Some(field)) => {
-            let handle = match shared_heap_composite(agg) {
+            let handle = match shared_heap_aggregate(agg) {
                 Ok(handle) => handle,
                 Err(error) => return Transfer::Error(error),
             };
@@ -747,7 +747,7 @@ pub(crate) fn step_field_store(
             access::store_field_shared_heap(state, handle, field, *index, *field_count, val)
         }
         (ValueTag::RawPointer, Some(field)) => {
-            let pointer = match raw_composite(agg) {
+            let pointer = match raw_aggregate(agg) {
                 Ok(pointer) => Value::raw_pointer_with_meta(pointer, *reference),
                 Err(error) => return Transfer::Error(error),
             };
@@ -763,7 +763,7 @@ pub(crate) fn step_field_store(
 
             access::store_field_raw(
                 state,
-                match raw_composite(agg) {
+                match raw_aggregate(agg) {
                     Ok(pointer) => pointer,
                     Err(error) => return Transfer::Error(error),
                 },
@@ -800,15 +800,15 @@ pub(crate) fn step_field_store(
     next!(state, block, pc)
 }
 
-/// Step field store on heap references.
-pub(crate) fn step_field_store_heap(
-    state: &mut StepState<'_, '_>,
+/// Execute field store on heap references.
+pub(crate) fn execute_field_store_heap(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
     let Immediate::FieldStore {
-        composite,
+        aggregate,
         index,
         value,
         reference,
@@ -820,7 +820,7 @@ pub(crate) fn step_field_store_heap(
     };
 
     // load values
-    let agg = state.get(*composite);
+    let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::HeapReference {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -829,7 +829,7 @@ pub(crate) fn step_field_store_heap(
     let val = state.get(*value);
 
     // validate reference kind
-    let handle = match heap_composite(agg) {
+    let handle = match heap_aggregate(agg) {
         Ok(handle) => handle,
         Err(error) => return Transfer::Error(error),
     };
@@ -850,15 +850,15 @@ pub(crate) fn step_field_store_heap(
     next!(state, block, pc)
 }
 
-/// Step field store on raw pointers.
-pub(crate) fn step_field_store_raw(
-    state: &mut StepState<'_, '_>,
+/// Execute field store on raw pointers.
+pub(crate) fn execute_field_store_raw(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
     let Immediate::FieldStore {
-        composite,
+        aggregate,
         index,
         value,
         reference,
@@ -870,7 +870,7 @@ pub(crate) fn step_field_store_raw(
     };
 
     // load values
-    let agg = state.get(*composite);
+    let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::RawPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -879,7 +879,7 @@ pub(crate) fn step_field_store_raw(
     let val = state.get(*value);
 
     // validate reference kind
-    let raw_pointer = match raw_composite(agg) {
+    let raw_pointer = match raw_aggregate(agg) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
@@ -902,15 +902,15 @@ pub(crate) fn step_field_store_raw(
     next!(state, block, pc)
 }
 
-/// Step field store on stack pointers.
-pub(crate) fn step_field_store_stack(
-    state: &mut StepState<'_, '_>,
+/// Execute field store on stack pointers.
+pub(crate) fn execute_field_store_stack(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
     let Immediate::FieldStore {
-        composite,
+        aggregate,
         index,
         value,
         reference,
@@ -922,7 +922,7 @@ pub(crate) fn step_field_store_stack(
     };
 
     // load values
-    let agg = state.get(*composite);
+    let agg = state.get(*aggregate);
     if agg.tag() != ValueTag::StackPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -931,7 +931,7 @@ pub(crate) fn step_field_store_stack(
     let val = state.get(*value);
 
     // validate reference semantics
-    let stack_pointer = match stack_composite(agg) {
+    let stack_pointer = match stack_aggregate(agg) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
@@ -960,15 +960,15 @@ pub(crate) fn step_field_store_stack(
     next!(state, block, pc)
 }
 
-/// Step field store on global pointers.
-pub(crate) fn step_field_store_global(
-    state: &mut StepState<'_, '_>,
+/// Execute field store on static pointers.
+pub(crate) fn execute_field_store_static(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
     let Immediate::FieldStore {
-        composite,
+        aggregate,
         index,
         value,
         reference,
@@ -980,8 +980,8 @@ pub(crate) fn step_field_store_global(
     };
 
     // load values
-    let agg = state.get(*composite);
-    if agg.tag() != ValueTag::GlobalPointer {
+    let agg = state.get(*aggregate);
+    if agg.tag() != ValueTag::StaticPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
         });
@@ -989,13 +989,13 @@ pub(crate) fn step_field_store_global(
     let val = state.get(*value);
 
     // validate reference semantics
-    let global_pointer = match global_composite(agg) {
+    let static_pointer = match static_aggregate(agg) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
-    let pointer = match global_pointer_value_with_meta(
-        global_pointer.id,
-        global_pointer.byte_offset,
+    let pointer = match static_pointer_value_with_meta(
+        static_pointer.id,
+        static_pointer.byte_offset,
         *reference,
     ) {
         Ok(pointer) => pointer,
@@ -1013,7 +1013,7 @@ pub(crate) fn step_field_store_global(
         return Transfer::Error(Error::InvalidHeapReference);
     };
     if let Err(error) =
-        access::store_field_global(state, global_pointer, field, *index, *field_count, val)
+        access::store_field_static(state, static_pointer, field, *index, *field_count, val)
     {
         return Transfer::Error(error);
     }
@@ -1022,9 +1022,9 @@ pub(crate) fn step_field_store_global(
     next!(state, block, pc)
 }
 
-/// Step element get.
-pub(crate) fn step_element_get(
-    state: &mut StepState<'_, '_>,
+/// Execute element get.
+pub(crate) fn execute_element_get(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1060,9 +1060,9 @@ pub(crate) fn step_element_get(
     next!(state, block, pc)
 }
 
-/// Step element addr.
-pub(crate) fn step_element_addr(
-    state: &mut StepState<'_, '_>,
+/// Execute element addr.
+pub(crate) fn execute_element_addr(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1089,28 +1089,28 @@ pub(crate) fn step_element_addr(
     // compute element address
     let value = match (arr.tag(), *element) {
         (ValueTag::HeapReference, Some(element)) => {
-            let handle = match heap_composite(arr) {
+            let handle = match heap_aggregate(arr) {
                 Ok(handle) => handle,
                 Err(error) => return Transfer::Error(error),
             };
             access::element_addr_heap(state, handle, element, idx_val, *array_length)
         }
         (ValueTag::SharedHeapReference, Some(element)) => {
-            let handle = match shared_heap_composite(arr) {
+            let handle = match shared_heap_aggregate(arr) {
                 Ok(handle) => handle,
                 Err(error) => return Transfer::Error(error),
             };
             access::element_addr_shared_heap(state, handle, element, idx_val, *array_length)
         }
         (ValueTag::RawPointer, Some(element)) => {
-            let pointer = match raw_composite(arr) {
+            let pointer = match raw_aggregate(arr) {
                 Ok(pointer) => pointer,
                 Err(error) => return Transfer::Error(error),
             };
             access::element_addr_raw(state, pointer, element, idx_val, *array_length)
         }
         (ValueTag::StackPointer, Some(element)) => {
-            let pointer = match stack_composite(arr) {
+            let pointer = match stack_aggregate(arr) {
                 Ok(pointer) => pointer,
                 Err(error) => return Transfer::Error(error),
             };
@@ -1132,9 +1132,9 @@ pub(crate) fn step_element_addr(
     next!(state, block, pc)
 }
 
-/// Step element addr on heap references.
-pub(crate) fn step_element_addr_heap(
-    state: &mut StepState<'_, '_>,
+/// Execute element addr on heap references.
+pub(crate) fn execute_element_addr_heap(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1164,7 +1164,7 @@ pub(crate) fn step_element_addr_heap(
     };
 
     // compute element address
-    let handle = match heap_composite(arr) {
+    let handle = match heap_aggregate(arr) {
         Ok(handle) => handle,
         Err(error) => return Transfer::Error(error),
     };
@@ -1185,9 +1185,9 @@ pub(crate) fn step_element_addr_heap(
     next!(state, block, pc)
 }
 
-/// Step element addr on raw pointers.
-pub(crate) fn step_element_addr_raw(
-    state: &mut StepState<'_, '_>,
+/// Execute element addr on raw pointers.
+pub(crate) fn execute_element_addr_raw(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1217,7 +1217,7 @@ pub(crate) fn step_element_addr_raw(
     };
 
     // compute element address
-    let pointer = match raw_composite(arr) {
+    let pointer = match raw_aggregate(arr) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
@@ -1238,9 +1238,9 @@ pub(crate) fn step_element_addr_raw(
     next!(state, block, pc)
 }
 
-/// Step element addr on stack pointers.
-pub(crate) fn step_element_addr_stack(
-    state: &mut StepState<'_, '_>,
+/// Execute element addr on stack pointers.
+pub(crate) fn execute_element_addr_stack(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1270,7 +1270,7 @@ pub(crate) fn step_element_addr_stack(
     };
 
     // compute element address
-    let pointer = match stack_composite(arr) {
+    let pointer = match stack_aggregate(arr) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
@@ -1291,9 +1291,9 @@ pub(crate) fn step_element_addr_stack(
     next!(state, block, pc)
 }
 
-/// Step element addr on global pointers.
-pub(crate) fn step_element_addr_global(
-    state: &mut StepState<'_, '_>,
+/// Execute element addr on static pointers.
+pub(crate) fn execute_element_addr_static(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1312,7 +1312,7 @@ pub(crate) fn step_element_addr_global(
 
     // load array and index
     let arr = state.get(*array);
-    if arr.tag() != ValueTag::GlobalPointer {
+    if arr.tag() != ValueTag::StaticPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{arr:?}"),
         });
@@ -1323,14 +1323,14 @@ pub(crate) fn step_element_addr_global(
     };
 
     // compute element address
-    let pointer = match global_composite(arr) {
+    let pointer = match static_aggregate(arr) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
     let Some(element) = *element else {
         return Transfer::Error(Error::InvalidHeapReference);
     };
-    let value = match access::element_addr_global(state, pointer, element, idx_val, *array_length) {
+    let value = match access::element_addr_static(state, pointer, element, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -1344,9 +1344,9 @@ pub(crate) fn step_element_addr_global(
     next!(state, block, pc)
 }
 
-/// Step element load.
-pub(crate) fn step_element_load(
-    state: &mut StepState<'_, '_>,
+/// Execute element load.
+pub(crate) fn execute_element_load(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1369,31 +1369,31 @@ pub(crate) fn step_element_load(
         Err(error) => return Transfer::Error(error),
     };
 
-    // load the selected element through the runtime storage class
+    // load the selected element through the pointer class
     let value = match (arr.tag(), *element) {
         (ValueTag::HeapReference, Some(element)) => {
-            let handle = match heap_composite(arr) {
+            let handle = match heap_aggregate(arr) {
                 Ok(handle) => handle,
                 Err(error) => return Transfer::Error(error),
             };
             access::load_element_heap(state, handle, element, idx_val, *array_length)
         }
         (ValueTag::SharedHeapReference, Some(element)) => {
-            let handle = match shared_heap_composite(arr) {
+            let handle = match shared_heap_aggregate(arr) {
                 Ok(handle) => handle,
                 Err(error) => return Transfer::Error(error),
             };
             access::load_element_shared_heap(state, handle, element, idx_val, *array_length)
         }
         (ValueTag::RawPointer, Some(element)) => {
-            let pointer = match raw_composite(arr) {
+            let pointer = match raw_aggregate(arr) {
                 Ok(pointer) => pointer,
                 Err(error) => return Transfer::Error(error),
             };
             access::load_element_raw(state, pointer, element, idx_val, *array_length)
         }
         (ValueTag::StackPointer, Some(element)) => {
-            let pointer = match stack_composite(arr) {
+            let pointer = match stack_aggregate(arr) {
                 Ok(pointer) => pointer,
                 Err(error) => return Transfer::Error(error),
             };
@@ -1421,9 +1421,9 @@ pub(crate) fn step_element_load(
     next!(state, block, pc)
 }
 
-/// Step element load on heap references.
-pub(crate) fn step_element_load_heap(
-    state: &mut StepState<'_, '_>,
+/// Execute element load on heap references.
+pub(crate) fn execute_element_load_heap(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1452,7 +1452,7 @@ pub(crate) fn step_element_load_heap(
     };
 
     // load element value
-    let handle = match heap_composite(arr) {
+    let handle = match heap_aggregate(arr) {
         Ok(handle) => handle,
         Err(error) => return Transfer::Error(error),
     };
@@ -1471,9 +1471,9 @@ pub(crate) fn step_element_load_heap(
     next!(state, block, pc)
 }
 
-/// Step element load on raw pointers.
-pub(crate) fn step_element_load_raw(
-    state: &mut StepState<'_, '_>,
+/// Execute element load on raw pointers.
+pub(crate) fn execute_element_load_raw(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1502,7 +1502,7 @@ pub(crate) fn step_element_load_raw(
     };
 
     // load element value
-    let pointer = match raw_composite(arr) {
+    let pointer = match raw_aggregate(arr) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
@@ -1521,9 +1521,9 @@ pub(crate) fn step_element_load_raw(
     next!(state, block, pc)
 }
 
-/// Step element load on stack pointers.
-pub(crate) fn step_element_load_stack(
-    state: &mut StepState<'_, '_>,
+/// Execute element load on stack pointers.
+pub(crate) fn execute_element_load_stack(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1552,7 +1552,7 @@ pub(crate) fn step_element_load_stack(
     };
 
     // load element value
-    let pointer = match stack_composite(arr) {
+    let pointer = match stack_aggregate(arr) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
@@ -1571,9 +1571,9 @@ pub(crate) fn step_element_load_stack(
     next!(state, block, pc)
 }
 
-/// Step element load on global pointers.
-pub(crate) fn step_element_load_global(
-    state: &mut StepState<'_, '_>,
+/// Execute element load on static pointers.
+pub(crate) fn execute_element_load_static(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1591,7 +1591,7 @@ pub(crate) fn step_element_load_global(
 
     // load array and index
     let arr = state.get(*array);
-    if arr.tag() != ValueTag::GlobalPointer {
+    if arr.tag() != ValueTag::StaticPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{arr:?}"),
         });
@@ -1602,14 +1602,14 @@ pub(crate) fn step_element_load_global(
     };
 
     // load element value
-    let pointer = match global_composite(arr) {
+    let pointer = match static_aggregate(arr) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
     let Some(element) = *element else {
         return Transfer::Error(Error::InvalidHeapReference);
     };
-    let value = match access::load_element_global(state, pointer, element, idx_val, *array_length) {
+    let value = match access::load_element_static(state, pointer, element, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -1621,9 +1621,9 @@ pub(crate) fn step_element_load_global(
     next!(state, block, pc)
 }
 
-/// Step element set.
-pub(crate) fn step_element_set(
-    state: &mut StepState<'_, '_>,
+/// Execute element set.
+pub(crate) fn execute_element_set(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1674,9 +1674,9 @@ pub(crate) fn step_element_set(
     next!(state, block, pc)
 }
 
-/// Step element store.
-pub(crate) fn step_element_store(
-    state: &mut StepState<'_, '_>,
+/// Execute element store.
+pub(crate) fn execute_element_store(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1701,10 +1701,10 @@ pub(crate) fn step_element_store(
         Err(error) => return Transfer::Error(error),
     };
 
-    // store the selected element through the runtime storage class
+    // store the selected element through the pointer class
     let result = match (arr.tag(), *element) {
         (ValueTag::HeapReference, Some(element)) => {
-            let handle = match heap_composite(arr) {
+            let handle = match heap_aggregate(arr) {
                 Ok(handle) => handle,
                 Err(error) => return Transfer::Error(error),
             };
@@ -1722,7 +1722,7 @@ pub(crate) fn step_element_store(
             access::store_element_heap(state, handle, element, idx_val, *array_length, val)
         }
         (ValueTag::SharedHeapReference, Some(element)) => {
-            let handle = match shared_heap_composite(arr) {
+            let handle = match shared_heap_aggregate(arr) {
                 Ok(handle) => handle,
                 Err(error) => return Transfer::Error(error),
             };
@@ -1740,7 +1740,7 @@ pub(crate) fn step_element_store(
             access::store_element_shared_heap(state, handle, element, idx_val, *array_length, val)
         }
         (ValueTag::RawPointer, Some(element)) => {
-            let pointer = match raw_composite(arr) {
+            let pointer = match raw_aggregate(arr) {
                 Ok(pointer) => Value::raw_pointer_with_meta(pointer, *reference),
                 Err(error) => return Transfer::Error(error),
             };
@@ -1756,7 +1756,7 @@ pub(crate) fn step_element_store(
 
             access::store_element_raw(
                 state,
-                match raw_composite(arr) {
+                match raw_aggregate(arr) {
                     Ok(pointer) => pointer,
                     Err(error) => return Transfer::Error(error),
                 },
@@ -1798,9 +1798,9 @@ pub(crate) fn step_element_store(
     next!(state, block, pc)
 }
 
-/// Step element store on heap references.
-pub(crate) fn step_element_store_heap(
-    state: &mut StepState<'_, '_>,
+/// Execute element store on heap references.
+pub(crate) fn execute_element_store_heap(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1831,7 +1831,7 @@ pub(crate) fn step_element_store_heap(
     };
 
     // validate reference semantics
-    let handle = match heap_composite(arr) {
+    let handle = match heap_aggregate(arr) {
         Ok(handle) => handle,
         Err(error) => return Transfer::Error(error),
     };
@@ -1857,9 +1857,9 @@ pub(crate) fn step_element_store_heap(
     next!(state, block, pc)
 }
 
-/// Step element store on raw pointers.
-pub(crate) fn step_element_store_raw(
-    state: &mut StepState<'_, '_>,
+/// Execute element store on raw pointers.
+pub(crate) fn execute_element_store_raw(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1890,7 +1890,7 @@ pub(crate) fn step_element_store_raw(
     };
 
     // validate reference semantics
-    let raw_pointer = match raw_composite(arr) {
+    let raw_pointer = match raw_aggregate(arr) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
@@ -1916,9 +1916,9 @@ pub(crate) fn step_element_store_raw(
     next!(state, block, pc)
 }
 
-/// Step element store on stack pointers.
-pub(crate) fn step_element_store_stack(
-    state: &mut StepState<'_, '_>,
+/// Execute element store on stack pointers.
+pub(crate) fn execute_element_store_stack(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1949,7 +1949,7 @@ pub(crate) fn step_element_store_stack(
     };
 
     // validate reference semantics
-    let stack_pointer = match stack_composite(arr) {
+    let stack_pointer = match stack_aggregate(arr) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
@@ -1978,9 +1978,9 @@ pub(crate) fn step_element_store_stack(
     next!(state, block, pc)
 }
 
-/// Step element store on global pointers.
-pub(crate) fn step_element_store_global(
-    state: &mut StepState<'_, '_>,
+/// Execute element store on static pointers.
+pub(crate) fn execute_element_store_static(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -1999,7 +1999,7 @@ pub(crate) fn step_element_store_global(
 
     // load values
     let arr = state.get(*array);
-    if arr.tag() != ValueTag::GlobalPointer {
+    if arr.tag() != ValueTag::StaticPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{arr:?}"),
         });
@@ -2011,13 +2011,13 @@ pub(crate) fn step_element_store_global(
     };
 
     // validate reference semantics
-    let global_pointer = match global_composite(arr) {
+    let static_pointer = match static_aggregate(arr) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
-    let pointer = match global_pointer_value_with_meta(
-        global_pointer.id,
-        global_pointer.byte_offset,
+    let pointer = match static_pointer_value_with_meta(
+        static_pointer.id,
+        static_pointer.byte_offset,
         *reference,
     ) {
         Ok(pointer) => pointer,
@@ -2035,7 +2035,7 @@ pub(crate) fn step_element_store_global(
         return Transfer::Error(Error::InvalidHeapReference);
     };
     if let Err(error) =
-        access::store_element_global(state, global_pointer, element, idx_val, *array_length, val)
+        access::store_element_static(state, static_pointer, element, idx_val, *array_length, val)
     {
         return Transfer::Error(error);
     }
@@ -2044,34 +2044,31 @@ pub(crate) fn step_element_store_global(
     next!(state, block, pc)
 }
 
-/// Step composite construction.
-pub(crate) fn step_composite(
-    state: &mut StepState<'_, '_>,
+/// Execute aggregate construction.
+pub(crate) fn execute_aggregate(
+    state: &mut ExecutionState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction immediate
-    let Immediate::Composite { dest, elements } = &block[pc].immediate else {
+    let Immediate::Aggregate { dest, elements } = &block[pc].immediate else {
         unreachable!()
     };
 
-    // materialize the composite with the destination storage policy
+    // allocate the aggregate payload with the destination type
     let element_slice = state.argument_slice(*elements).to_vec();
-    let result = match super::value::materialize_composite_by_index(
-        state,
-        *dest,
-        |state, index, _value_type| {
+    let result =
+        match super::value::allocate_payload_by_index(state, *dest, |state, index, _value_type| {
             let element = element_slice
                 .get(index as usize)
                 .copied()
                 .ok_or(Error::InvalidInstruction)?;
 
             Ok(state.get(element))
-        },
-    ) {
-        Ok(result) => result,
-        Err(error) => return Transfer::Error(error),
-    };
+        }) {
+            Ok(result) => result,
+            Err(error) => return Transfer::Error(error),
+        };
 
     // store result
     state.set(*dest, result);

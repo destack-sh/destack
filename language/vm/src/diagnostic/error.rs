@@ -131,7 +131,7 @@ pub enum Error {
     /// Attempted to write through an immutable reference.
     ImmutableReferenceWrite { reference: String } = 26,
 
-    /// Reference kind is incompatible with the pointer storage.
+    /// Reference kind is incompatible with the pointer value.
     InvalidReferenceKind { reference: String, actual: String } = 27,
 
     /// Yielded during a non-yielding execution.
@@ -146,7 +146,7 @@ pub enum Error {
     /// Reference address space is not supported by the VM.
     UnsupportedAddressSpace { address_space: String } = 31,
 
-    /// Reference address space does not match the pointer storage.
+    /// Reference address space does not match the pointer value.
     InvalidAddressSpace { expected: String, actual: String } = 33,
 
     /// Unsupported zero initialization for a MIR type.

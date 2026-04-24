@@ -5,8 +5,8 @@ use destack_heap::{HeapReference, Payload, RawPointer};
 use destack_mir as mir;
 
 use super::access::{decode_pointer_bits, invalid_pointer_type};
-use super::{frame_pointer_value, global_pointer_value, stack_pointer_value};
-use crate::interpreter::StepState;
+use super::{frame_pointer_value, stack_pointer_value, static_pointer_value};
+use crate::interpreter::ExecutionState;
 
 /// Align one byte offset up to the requested alignment.
 #[inline(always)]
@@ -25,7 +25,7 @@ fn align_offset(offset: usize, alignment: usize) -> usize {
 
 /// Read one exact raw byte range into owned storage.
 fn read_raw_bytes(
-    state: &StepState<'_, '_>,
+    state: &ExecutionState<'_, '_>,
     pointer: RawPointer,
     start: usize,
     byte_len: usize,
@@ -71,9 +71,9 @@ fn callable_environment_type(
     })
 }
 
-/// Decode one callable object into function and environment values.
+/// Decode one callable payload into function and environment values.
 fn decode_callable_payload(
-    state: &mut StepState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     handle: HeapReference,
 ) -> Result<(Value, Value), Error> {
     let (function_offset, environment_offset, byte_len) = callable_payload_layout(state.tree());
@@ -119,9 +119,9 @@ fn decode_callable_payload(
     Ok((function, environment_value))
 }
 
-/// Encode one typed value into one owned byte buffer.
-pub(crate) fn encode_value_bytes(
-    state: &mut StepState<'_, '_>,
+/// Encode one typed value into one heap or raw payload byte buffer.
+pub(crate) fn encode_payload_bytes(
+    state: &mut ExecutionState<'_, '_>,
     ty: mir::LocalNodeId<mir::Type>,
     value: Value,
 ) -> Result<Vec<u8>, Error> {
@@ -129,35 +129,33 @@ pub(crate) fn encode_value_bytes(
 
     // scalars
     if layout.is_scalar() {
-        return encode_storage_value(state, ty, value);
+        return encode_scalar_bytes(state, ty, value);
     }
 
     let mut bytes = vec![0u8; layout.byte_len];
-    write_storage_value_into(state, ty, value, &mut bytes)?;
+    write_payload_value(state, ty, value, &mut bytes)?;
 
     Ok(bytes)
 }
 
 /// Encode one callable environment slot.
 fn encode_callable_environment(
-    state: &mut StepState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     function_id: mir::LocalNodeId<mir::Function>,
     environment_value: Value,
 ) -> Result<Vec<u8>, Error> {
     let environment_type = callable_environment_type(state.tree(), function_id)?;
     if state.layout(environment_type)?.is_scalar() {
-        return encode_storage_value(state, environment_type, environment_value);
+        return encode_scalar_bytes(state, environment_type, environment_value);
     }
 
     let environment_layout_id = state
         .module
         .layout_id_for_type(environment_type)
         .ok_or(Error::InvalidInstruction)?;
-    let environment_bytes = encode_value_bytes(state, environment_type, environment_value)?;
-    let environment_handle = state
-        .heap_mut()
-        .allocate(environment_layout_id, Payload::Bytes(&environment_bytes))
-        .map_err(Error::from)?;
+    let environment_bytes = encode_payload_bytes(state, environment_type, environment_value)?;
+    let environment_handle =
+        state.allocate_heap_layout(environment_layout_id, Payload::Bytes(&environment_bytes))?;
 
     Ok(
         (environment_handle.bits() as u64).to_le_bytes()[..state.tree().pointer_bytes() as usize]
@@ -165,9 +163,9 @@ fn encode_callable_environment(
     )
 }
 
-/// Allocate one callable object from function and environment values.
+/// Allocate one callable payload from function and environment values.
 pub(crate) fn allocate_callable(
-    state: &mut StepState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     ty: mir::LocalNodeId<mir::Type>,
     function: Value,
     environment_value: Value,
@@ -201,10 +199,7 @@ pub(crate) fn allocate_callable(
         .module
         .layout_id_for_type(ty)
         .ok_or(Error::InvalidInstruction)?;
-    let handle = state
-        .heap_mut()
-        .allocate(layout_id, Payload::Bytes(&bytes))
-        .map_err(Error::from)?;
+    let handle = state.allocate_heap_layout(layout_id, Payload::Bytes(&bytes))?;
 
     Ok(Value::heap_reference(handle))
 }
@@ -212,7 +207,7 @@ pub(crate) fn allocate_callable(
 /// Validate a field index against a known field count.
 #[inline(always)]
 pub(super) fn check_field_index(
-    state: &StepState<'_, '_>,
+    state: &ExecutionState<'_, '_>,
     index: u32,
     field_count: Option<u32>,
 ) -> Result<(), Error> {
@@ -240,7 +235,7 @@ pub(super) fn check_field_index(
 /// Validate an array index against a known length.
 #[inline(always)]
 pub(super) fn check_array_index(
-    state: &StepState<'_, '_>,
+    state: &ExecutionState<'_, '_>,
     index: u64,
     array_length: Option<u64>,
 ) -> Result<(), Error> {
@@ -310,7 +305,7 @@ pub(crate) fn raw_type_size(
 
 /// Write one raw byte range from the given buffer.
 fn write_raw_bytes(
-    state: &mut StepState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     pointer: RawPointer,
     byte_offset: usize,
     bytes: &[u8],
@@ -434,17 +429,17 @@ pub(crate) fn decode_raw_value(
     }
 }
 
-/// Allocate one heap object from indexed aggregate values.
-pub(crate) fn allocate_heap_value_by_index<F>(
-    state: &mut StepState<'_, '_>,
+/// Allocate one heap payload from indexed values.
+pub(crate) fn allocate_heap_payload_by_index<F>(
+    state: &mut ExecutionState<'_, '_>,
     ty: mir::LocalNodeId<mir::Type>,
     mut value_at_index: F,
 ) -> Result<Value, Error>
 where
-    F: FnMut(&mut StepState<'_, '_>, u32, mir::LocalNodeId<mir::Type>) -> Result<Value, Error>,
+    F: FnMut(&mut ExecutionState<'_, '_>, u32, mir::LocalNodeId<mir::Type>) -> Result<Value, Error>,
 {
     let layout = state.layout(ty)?.clone();
-    let value_specs = storage_index_layouts(state, ty)?;
+    let value_specs = payload_index_layouts(state, ty)?;
     let mut bytes = vec![0u8; layout.byte_len];
 
     // encode each value into its physical byte range
@@ -471,24 +466,21 @@ where
                 field_count: layout.byte_len,
             })?;
 
-        write_storage_value_into(state, value_type, value, value_window)?;
+        write_payload_value(state, value_type, value, value_window)?;
     }
 
     let layout_id = state
         .module
         .layout_id_for_type(ty)
         .ok_or(Error::InvalidInstruction)?;
-    let reference = state
-        .heap_mut()
-        .allocate(layout_id, Payload::Bytes(&bytes))
-        .map_err(Error::from)?;
+    let reference = state.allocate_heap_layout(layout_id, Payload::Bytes(&bytes))?;
 
     Ok(Value::heap_reference(reference))
 }
 
 /// Return all indexed value byte ranges for one aggregate layout.
-fn storage_index_layouts(
-    state: &StepState<'_, '_>,
+fn payload_index_layouts(
+    state: &ExecutionState<'_, '_>,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<Vec<(u32, mir::LocalNodeId<mir::Type>, usize, usize)>, Error> {
     let layout = state.layout(ty)?;
@@ -531,19 +523,16 @@ fn storage_index_layouts(
         .collect()
 }
 
-/// Allocate one zeroed heap object.
+/// Allocate one zeroed heap payload.
 pub(crate) fn allocate_zeroed_heap_value(
-    state: &mut StepState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<Value, Error> {
     let layout_id = state
         .module
         .layout_id_for_type(ty)
         .ok_or(Error::InvalidInstruction)?;
-    let reference = state
-        .heap_mut()
-        .allocate(layout_id, Payload::Zeroed)
-        .map_err(Error::from)?;
+    let reference = state.allocate_heap_layout(layout_id, Payload::Zeroed)?;
 
     Ok(Value::heap_reference(reference))
 }
@@ -668,13 +657,13 @@ pub(crate) fn encode_raw_value(
                 }
                 (_, mir::AddressSpace::Static) => {
                     let pointer = value
-                        .as_global_pointer()
+                        .as_static_pointer()
                         .ok_or_else(|| Error::TypeMismatch {
-                            expected: "global pointer".to_string(),
+                            expected: "static pointer".to_string(),
                             actual: format!("{value:?}"),
                         })?;
 
-                    global_pointer_value(pointer.id, pointer.byte_offset)?.raw_data()
+                    static_pointer_value(pointer.id, pointer.byte_offset)?.raw_data()
                 }
                 (mir::ReferenceKind::Borrowed, _) => value
                     .as_heap_reference()
@@ -731,9 +720,9 @@ pub(crate) fn encode_raw_value(
     Ok(bytes)
 }
 
-/// Encode one VM value into storage bytes for the given type.
-pub(crate) fn encode_storage_value(
-    state: &mut StepState<'_, '_>,
+/// Encode one scalar VM value into payload bytes for the given type.
+pub(crate) fn encode_scalar_bytes(
+    state: &mut ExecutionState<'_, '_>,
     ty: mir::LocalNodeId<mir::Type>,
     value: Value,
 ) -> Result<Vec<u8>, Error> {
@@ -748,15 +737,15 @@ pub(crate) fn encode_storage_value(
     encode_raw_value(state.tree(), ty, value)
 }
 
-/// Write one value into one destination byte range.
-pub(crate) fn write_storage_value_into(
-    state: &mut StepState<'_, '_>,
+/// Write one value into one payload byte range.
+pub(crate) fn write_payload_value(
+    state: &mut ExecutionState<'_, '_>,
     ty: mir::LocalNodeId<mir::Type>,
     value: Value,
     destination: &mut [u8],
 ) -> Result<(), Error> {
     if state.layout(ty)?.is_scalar() {
-        let bytes = encode_storage_value(state, ty, value)?;
+        let bytes = encode_scalar_bytes(state, ty, value)?;
         if bytes.len() != destination.len() {
             return Err(Error::InvalidHeapReference);
         }
@@ -766,11 +755,6 @@ pub(crate) fn write_storage_value_into(
     }
 
     if let Some(handle) = value.as_heap_reference() {
-        let source_len = state.heap().heap_byte_len(handle)?;
-        if source_len != destination.len() {
-            return Err(Error::InvalidHeapReference);
-        }
-
         state
             .heap()
             .read_heap_bytes_into(handle, 0, destination)
@@ -780,11 +764,6 @@ pub(crate) fn write_storage_value_into(
     }
 
     if let Some(handle) = value.as_shared_heap_reference() {
-        let source_len = state.shared().heap_byte_len(handle).map_err(Error::from)?;
-        if source_len != destination.len() {
-            return Err(Error::InvalidHeapReference);
-        }
-
         state
             .shared()
             .read_heap_bytes_into(handle, 0, destination)
@@ -793,33 +772,15 @@ pub(crate) fn write_storage_value_into(
         return Ok(());
     }
 
-    if let Some(pointer) = value.as_stack_pointer() {
-        if pointer.byte_offset != 0 {
-            return Err(Error::InvalidHeapReference);
-        }
-
-        let frame = state.frame_by_index(pointer.frame_idx)?;
-        let allocation = frame
-            .stack_allocation(pointer.slot)
-            .ok_or(Error::InvalidHeapReference)?;
-        if allocation.len() != destination.len() {
-            return Err(Error::InvalidHeapReference);
-        }
-
-        destination.copy_from_slice(allocation.bytes());
-
-        return Ok(());
-    }
-
     Err(Error::TypeMismatch {
-        expected: "typed aggregate value".to_string(),
+        expected: "scalar or heap payload value".to_string(),
         actual: format!("{value:?}"),
     })
 }
 
-/// Decode one callable object into function and environment values.
+/// Decode one callable payload into function and environment values.
 pub(crate) fn decode_callable(
-    state: &mut StepState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     value: Value,
 ) -> Result<(Value, Value), Error> {
     if let Some(handle) = value.as_heap_reference() {
@@ -834,7 +795,7 @@ pub(crate) fn decode_callable(
 
 /// Load one value from raw heap bytes.
 pub(crate) fn load_from_raw_pointer_typed(
-    state: &mut StepState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     ptr: Value,
     access: TypedAccess,
 ) -> Result<Value, Error> {
@@ -875,7 +836,7 @@ pub(crate) fn load_from_raw_pointer_typed(
 
 /// Store one value into raw heap bytes.
 pub(crate) fn store_to_raw_pointer_typed(
-    state: &mut StepState<'_, '_>,
+    state: &mut ExecutionState<'_, '_>,
     ptr: Value,
     access: TypedAccess,
     value: Value,
@@ -891,7 +852,7 @@ pub(crate) fn store_to_raw_pointer_typed(
         return Err(Error::NullPointerDereference);
     }
 
-    let bytes = encode_value_bytes(state, access.value_type, value)?;
+    let bytes = encode_payload_bytes(state, access.value_type, value)?;
 
     write_raw_bytes(state, pointer, 0, &bytes)
 }

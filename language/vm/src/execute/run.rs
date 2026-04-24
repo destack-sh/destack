@@ -3,9 +3,9 @@ use std::ptr::NonNull;
 use {destack_engine as engine, destack_mir as mir};
 
 use super::bind::{materialize_plain_value, transferred_value_from_materialized};
-use super::step_instruction;
+use super::dispatch_instruction;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::interpreter::{Continuation, Frame, Interpreter, RunOutcome, RunOutput, StepState};
+use crate::interpreter::{Continuation, ExecutionState, Frame, Interpreter, RunOutcome, RunOutput};
 use crate::isolate::{ExternalCallContext, ExternalFn, GlobalStorage};
 use crate::module::{Block, CallTarget, Function, Module};
 use crate::options::IsolateOptions;
@@ -383,10 +383,10 @@ impl Interpreter {
             let block: &Block = unsafe { block_ptr.as_ref() };
             let block_len = block.instructions.len();
 
-            // step the current lowered block from the chosen instruction offset
+            // dispatch the current lowered block from the chosen instruction offset
             let transfer = {
                 let frame_index = self.stack.len() - 1;
-                let mut state = StepState::new(
+                let mut state = ExecutionState::new(
                     module,
                     options,
                     globals,
@@ -395,12 +395,11 @@ impl Interpreter {
                     self,
                     frame_index,
                     current_func.argument_pool.as_slice(),
-                    current_func.switch_case_pool.as_slice(),
                 );
-                step_instruction(&mut state, &block.instructions, start_pc)
+                dispatch_instruction(&mut state, &block.instructions, start_pc)
             };
 
-            // record the instructions covered by this step
+            // record the instructions covered by this dispatch
             if track_instructions {
                 self.statistics.lowered_instructions_executed += (block_len - start_pc) as u64;
             }
