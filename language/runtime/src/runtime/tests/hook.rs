@@ -9,7 +9,7 @@ use crate::diagnostic::RuntimeError;
 use crate::host::Session;
 use crate::runtime::bindings::BindingDescriptor;
 use crate::runtime::policy::{CustomEffect, Rule, Trigger};
-use crate::runtime::{Worker, BindingCallContext, Hook, HookDecision, HookSelector, World};
+use crate::runtime::{BindingCallContext, Hook, HookDecision, HookSelector, Worker, World};
 
 /// Ensures before-binding callbacks can deny one matching binding call.
 #[test]

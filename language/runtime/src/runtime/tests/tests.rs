@@ -2,8 +2,10 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use destack_core::{CaptureMode, LocalStringPool};
-use destack_engine::{Continuation, FrameImage, FrameLayoutId, MaterializedValue, ResumePointId};
-use destack_mir::NodeTree;
+use destack_engine::{
+    Continuation, FrameImage, FrameLayoutId, IsolateId, MaterializedValue, ResumePointId,
+};
+use destack_mir::{NodeTree, ReferenceMap};
 use destack_workspace::{RuntimeOptions, SchedulerOptions};
 use {destack_heap as heap, destack_vm as vm};
 
@@ -15,9 +17,9 @@ use crate::host::{
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
 use crate::runtime::engine::{
-    Engine, EngineImage, EngineLayout, Entry, ExecutionOutcome, ExecutionOutput, LiveContinuation,
-    NativeContinuationHandle,
+    Engine, EngineImage, Entry, LiveContinuation, NativeContinuationHandle, RunOutcome, RunOutput,
 };
+use crate::runtime::memory::RootVisitor;
 use crate::runtime::poller::{
     HostPoller, HostPollerFlags, PlatformHandle, PlatformInterest, PollerEvent, PollerEventFlags,
     PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
@@ -27,7 +29,7 @@ use crate::runtime::scheduler::{
 };
 use crate::runtime::time::{HostClockSource, Nanos};
 use crate::runtime::world::{Branch, CheckpointId, Revision, WorldEntityKindDefinition};
-use crate::runtime::{Worker, WorkerId, DropCounts, RuntimeId, TickOutcome, World, WorldRef};
+use crate::runtime::{DropCounts, RuntimeId, TickOutcome, Worker, WorkerId, World, WorldRef};
 
 /// Scripted host clock source for deterministic host-time runtime tests.
 #[derive(Debug, Default)]
@@ -115,7 +117,7 @@ pub(super) fn validate_native_capture_mode(
 
 /// Test engine that yields once, then completes.
 #[derive(Debug, Clone, Default)]
-pub(super) struct TestEngine {
+pub(crate) struct TestEngine {
     /// Number of resume calls executed.
     pub(super) resume_calls: usize,
 }
@@ -123,8 +125,8 @@ pub(super) struct TestEngine {
 /// Engine that allocates into the heap when it runs or resumes.
 #[derive(Debug, Clone, Copy, Default)]
 pub(super) struct AllocatingEngine {
-    /// The number of managed values to allocate into one managed allocation.
-    pub(super) managed_values: usize,
+    /// The number of heap values to allocate into one heap allocation.
+    pub(super) heap_values: usize,
     /// The number of raw bytes to allocate into one raw allocation.
     pub(super) raw_bytes: usize,
 }
@@ -133,11 +135,12 @@ impl Engine for TestEngine {
     /// Run one entrypoint without yielding.
     fn run(
         &mut self,
-        _memory: &mut vm::MemoryContext<'_>,
+        _heap: &mut heap::Heap,
+        _shared: &heap::SharedHeap,
         _entry: &Entry,
-        _args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
-        Ok(ExecutionOutcome::Completed {
+        _args: &[vm::Value],
+    ) -> RuntimeResult<RunOutcome<LiveContinuation>> {
+        Ok(RunOutcome::Completed {
             output: void_output(),
         })
     }
@@ -145,26 +148,48 @@ impl Engine for TestEngine {
     /// Resume one continuation and yield once before completion.
     fn resume(
         &mut self,
-        _memory: &mut vm::MemoryContext<'_>,
+        _heap: &mut heap::Heap,
+        _shared: &heap::SharedHeap,
         _continuation: LiveContinuation,
-        _value: heap::Value,
-    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
+        _value: MaterializedValue,
+    ) -> RuntimeResult<RunOutcome<LiveContinuation>> {
         // return one yielded continuation on the first resume
         if self.resume_calls == 0 {
             self.resume_calls += 1;
-            return Ok(ExecutionOutcome::Yielded {
-                yielded: destack_engine::ExecutionYield {
-                    continuation: LiveContinuation::Native(NativeContinuationHandle::new(2)),
-                    value: heap::Value::VOID,
-                },
+            return Ok(RunOutcome::Yielded {
+                continuation: LiveContinuation::Native(NativeContinuationHandle::new(2)),
+                value: MaterializedValue::Void,
             });
         }
 
         // complete all later resumes
         self.resume_calls += 1;
-        Ok(ExecutionOutcome::Completed {
+        Ok(RunOutcome::Completed {
             output: void_output(),
         })
+    }
+
+    /// Test engines retain no heap roots.
+    fn visit_roots(&mut self, _roots: &mut RootVisitor<'_>) -> RuntimeResult<()> {
+        Ok(())
+    }
+
+    /// Test native continuations retain no heap roots.
+    fn visit_live_continuation_roots(
+        &mut self,
+        _continuation: &LiveContinuation,
+        _roots: &mut RootVisitor<'_>,
+    ) -> RuntimeResult<()> {
+        Ok(())
+    }
+
+    /// Test continuation images retain no heap roots.
+    fn visit_continuation_image_roots(
+        &mut self,
+        _continuation: &Continuation,
+        _roots: &mut RootVisitor<'_>,
+    ) -> RuntimeResult<()> {
+        Ok(())
     }
 
     /// Capture one immutable engine image for tests.
@@ -238,24 +263,18 @@ impl Engine for TestEngine {
     }
 }
 
-impl EngineLayout for TestEngine {
-    /// Return the managed-reference width required by this test engine.
-    fn managed_reference_bytes(&self) -> u8 {
-        8
-    }
-}
-
 impl Engine for AllocatingEngine {
     /// Run one entrypoint after allocating into the heap.
     fn run(
         &mut self,
-        memory: &mut vm::MemoryContext<'_>,
+        heap: &mut heap::Heap,
+        _shared: &heap::SharedHeap,
         _entry: &Entry,
-        _args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
-        self.allocate(memory.heap())?;
+        _args: &[vm::Value],
+    ) -> RuntimeResult<RunOutcome<LiveContinuation>> {
+        self.allocate(heap)?;
 
-        Ok(ExecutionOutcome::Completed {
+        Ok(RunOutcome::Completed {
             output: void_output(),
         })
     }
@@ -263,15 +282,39 @@ impl Engine for AllocatingEngine {
     /// Resume one continuation after allocating into the heap.
     fn resume(
         &mut self,
-        memory: &mut vm::MemoryContext<'_>,
+        heap: &mut heap::Heap,
+        _shared: &heap::SharedHeap,
         _continuation: LiveContinuation,
-        _value: heap::Value,
-    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
-        self.allocate(memory.heap())?;
+        _value: MaterializedValue,
+    ) -> RuntimeResult<RunOutcome<LiveContinuation>> {
+        self.allocate(heap)?;
 
-        Ok(ExecutionOutcome::Completed {
+        Ok(RunOutcome::Completed {
             output: void_output(),
         })
+    }
+
+    /// Allocating test engines retain no heap roots.
+    fn visit_roots(&mut self, _roots: &mut RootVisitor<'_>) -> RuntimeResult<()> {
+        Ok(())
+    }
+
+    /// Allocating test continuations retain no heap roots.
+    fn visit_live_continuation_roots(
+        &mut self,
+        _continuation: &LiveContinuation,
+        _roots: &mut RootVisitor<'_>,
+    ) -> RuntimeResult<()> {
+        Ok(())
+    }
+
+    /// Allocating test continuation images retain no heap roots.
+    fn visit_continuation_image_roots(
+        &mut self,
+        _continuation: &Continuation,
+        _roots: &mut RootVisitor<'_>,
+    ) -> RuntimeResult<()> {
+        Ok(())
     }
 
     /// Capture one immutable engine image for tests.
@@ -346,26 +389,21 @@ impl Engine for AllocatingEngine {
     }
 }
 
-impl EngineLayout for AllocatingEngine {
-    /// Return the managed-reference width required by this test engine.
-    fn managed_reference_bytes(&self) -> u8 {
-        8
-    }
-}
-
 impl AllocatingEngine {
-    /// Allocate the configured managed and raw payload into the heap.
+    /// Allocate the configured heap and raw payload into the heap.
     fn allocate(&self, heap: &mut heap::Heap) -> RuntimeResult<()> {
-        // managed payload
-        if self.managed_values > 0 {
-            let bytes = vec![0; self.managed_values * heap::Value::BYTE_LEN];
-            let _ = heap.allocate_managed_bytes(&bytes, heap::EdgeMap::empty(), None)?;
+        // heap payload
+        if self.heap_values > 0 {
+            let bytes = vec![0; self.heap_values * vm::Value::BYTE_LEN];
+            let reference_map = ReferenceMap::empty();
+            let layout = heap::AllocationLayout::new(bytes.len(), &reference_map);
+            let _ = heap.allocate(layout, heap::Payload::Bytes(&bytes))?;
         }
 
         // raw payload
         if self.raw_bytes > 0 {
             let bytes = vec![0xAB; self.raw_bytes];
-            let _ = heap.allocate_raw_bytes(&bytes)?;
+            let _ = heap.allocate_raw(bytes.len(), heap::Payload::Bytes(&bytes))?;
         }
 
         Ok(())
@@ -454,14 +492,14 @@ impl TestWorld {
         let tree = NodeTree::new();
         let strings = LocalStringPool::new().into_immutable();
 
-        vm::Isolate::build(tree, strings).expect("vm engine should build")
+        vm::Isolate::build(vm::IsolateId::new(1), tree, strings).expect("vm engine should build")
     }
 
     /// Spawn one runtime with one explicit engine.
     pub(super) fn spawn_runtime(
         &mut self,
         options: &RuntimeOptions,
-        engine: impl Engine + EngineLayout + 'static,
+        engine: impl Engine + 'static,
     ) -> RuntimeId {
         self.world_mut()
             .spawn_runtime(Vec::new(), options, engine)
@@ -481,12 +519,12 @@ impl TestWorld {
             .primary_worker_id()
     }
 
-    /// Allocate one managed heap value in the primary worker VM isolate.
+    /// Allocate one heap value in the primary worker VM isolate.
     pub(super) fn allocate_vm_managed_value(
         &mut self,
         runtime_id: RuntimeId,
-        value: heap::Value,
-    ) -> heap::ManagedReference {
+        value: vm::Value,
+    ) -> heap::HeapReference {
         let runtime = self
             .world_mut()
             .runtime_mut(runtime_id)
@@ -500,21 +538,23 @@ impl TestWorld {
             .downcast_mut::<vm::Isolate>()
             .expect("worker should use a vm engine");
         let bytes = value.to_byte_array();
+        let reference_map = ReferenceMap::empty();
+        let layout = heap::AllocationLayout::new(bytes.len(), &reference_map);
         worker
             .heap
-            .allocate_managed_bytes(&bytes, heap::EdgeMap::empty(), None)
-            .expect("managed allocation should succeed")
+            .allocate(layout, heap::Payload::Bytes(&bytes))
+            .expect("heap allocation should succeed")
     }
 
-    /// Allocate one managed heap value in the primary worker VM isolate.
+    /// Allocate one heap value in the primary worker VM isolate.
     pub(super) fn allocate_vm_heap_allocation(
         &mut self,
         runtime_id: RuntimeId,
-    ) -> heap::ManagedReference {
-        self.allocate_vm_managed_value(runtime_id, heap::Value::int32(7))
+    ) -> heap::HeapReference {
+        self.allocate_vm_managed_value(runtime_id, vm::Value::int32(7))
     }
 
-    /// Return the managed heap allocation count for the primary worker VM isolate.
+    /// Return the heap allocation count for the primary worker VM isolate.
     pub(super) fn vm_heap_allocation_count(&mut self, runtime_id: RuntimeId) -> usize {
         let runtime = self
             .world_mut()
@@ -525,7 +565,7 @@ impl TestWorld {
             .worker_mut(worker_id)
             .expect("runtime should keep its primary worker");
 
-        worker.heap.managed_allocation_count()
+        worker.heap.heap_allocation_count()
     }
 
     /// Allocate one raw span in the primary worker heap.
@@ -545,8 +585,36 @@ impl TestWorld {
 
         worker
             .heap
-            .allocate_raw_bytes(bytes)
+            .allocate_raw(bytes.len(), heap::Payload::Bytes(bytes))
             .expect("raw heap allocation should succeed")
+    }
+
+    /// Return the bytes for one raw allocation in the primary worker heap.
+    pub(super) fn read_vm_raw_bytes_result(
+        &mut self,
+        runtime_id: RuntimeId,
+        pointer: heap::RawPointer,
+    ) -> heap::HeapResult<Vec<u8>> {
+        let runtime = self
+            .world_mut()
+            .runtime_mut(runtime_id)
+            .expect("runtime should exist");
+        let worker_id = runtime.primary_worker_id();
+        let worker = runtime
+            .worker_mut(worker_id)
+            .expect("runtime should keep its primary worker");
+
+        worker.heap.read_raw_bytes(pointer)
+    }
+
+    /// Return the bytes for one raw allocation in the primary worker heap.
+    pub(super) fn read_vm_raw_bytes(
+        &mut self,
+        runtime_id: RuntimeId,
+        pointer: heap::RawPointer,
+    ) -> Vec<u8> {
+        self.read_vm_raw_bytes_result(runtime_id, pointer)
+            .expect("raw byte read should succeed")
     }
 
     /// Mutate one raw byte in the primary worker heap.
@@ -557,6 +625,18 @@ impl TestWorld {
         index: usize,
         byte: u8,
     ) {
+        self.mutate_vm_raw_byte_result(runtime_id, pointer, index, byte)
+            .expect("raw byte write should succeed");
+    }
+
+    /// Mutate one raw byte in the primary worker heap.
+    pub(super) fn mutate_vm_raw_byte_result(
+        &mut self,
+        runtime_id: RuntimeId,
+        pointer: heap::RawPointer,
+        index: usize,
+        byte: u8,
+    ) -> heap::HeapResult<()> {
         let runtime = self
             .world_mut()
             .runtime_mut(runtime_id)
@@ -566,10 +646,7 @@ impl TestWorld {
             .worker_mut(worker_id)
             .expect("runtime should keep its primary worker");
 
-        worker
-            .heap
-            .set_raw_byte(pointer, index, byte)
-            .expect("raw byte write should succeed");
+        worker.heap.set_raw_byte(pointer, index, byte)
     }
 
     /// Capture the primary worker heap image for one runtime.
@@ -682,7 +759,11 @@ impl TestRuntime {
         let (world, worker, host) =
             agent_for_options_with_engine(&RuntimeOptions::default(), TestEngine::default());
 
-        Self { world, worker, host }
+        Self {
+            world,
+            worker,
+            host,
+        }
     }
 
     /// Create one test worker with explicit runtime options.
@@ -690,17 +771,25 @@ impl TestRuntime {
     pub(super) fn with_options(options: &RuntimeOptions) -> Self {
         let (world, worker, host) = agent_for_options_with_engine(options, TestEngine::default());
 
-        Self { world, worker, host }
+        Self {
+            world,
+            worker,
+            host,
+        }
     }
 
     /// Create one test worker with explicit options and one explicit engine.
     pub(super) fn with_options_and_engine(
         options: &RuntimeOptions,
-        engine: impl Engine + EngineLayout + 'static,
+        engine: impl Engine + 'static,
     ) -> Self {
         let (world, worker, host) = agent_for_options_with_engine(options, engine);
 
-        Self { world, worker, host }
+        Self {
+            world,
+            worker,
+            host,
+        }
     }
 
     /// Create one test worker with explicit options and one host clock source.
@@ -712,13 +801,17 @@ impl TestRuntime {
         let (world, worker, host) =
             agent_for_options_with_host_clock_source(options, Some(host_clock_source));
 
-        Self { world, worker, host }
+        Self {
+            world,
+            worker,
+            host,
+        }
     }
 
     /// Create one test worker with explicit options, one explicit engine, and one host clock source.
     pub(super) fn with_options_engine_and_host_clock_source(
         options: &RuntimeOptions,
-        engine: impl Engine + EngineLayout + 'static,
+        engine: impl Engine + 'static,
         host_clock_source: Arc<dyn HostClockSource>,
     ) -> Self {
         let (world, worker, host) = agent_for_options_with_engine_and_host_clock_source(
@@ -727,7 +820,11 @@ impl TestRuntime {
             Some(host_clock_source),
         );
 
-        Self { world, worker, host }
+        Self {
+            world,
+            worker,
+            host,
+        }
     }
 
     /// Enqueue one native task with explicit identifiers.
@@ -737,7 +834,7 @@ impl TestRuntime {
             runnable: LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(
                 continuation_id,
             ))),
-            resume_value: heap::Value::VOID,
+            resume_value: MaterializedValue::Void,
             status: TaskStatus::Ready,
             priority,
         });
@@ -750,7 +847,7 @@ impl TestRuntime {
             continuation: LiveContinuation::Native(NativeContinuationHandle::new(
                 continuation_handle(continuation_id),
             )),
-            resume_value: heap::Value::VOID,
+            resume_value: MaterializedValue::Void,
             status: TaskStatus::Ready,
         });
     }
@@ -770,15 +867,7 @@ impl TestRuntime {
 
     /// Return the exact live heap usage for this test worker.
     pub(super) fn heap_usage(&self) -> heap::HeapUsage {
-        self.worker
-            .heap
-            .usage()
-            .expect("test heap usage should resolve")
-    }
-
-    /// Return the heap managed-reference width for this test worker.
-    pub(super) fn heap_managed_reference_bytes(&self) -> u8 {
-        self.worker.heap.managed_reference_bytes()
+        self.worker.heap.usage()
     }
 
     /// Replace the hard heap limits for this test worker.
@@ -797,7 +886,7 @@ impl TestRuntime {
                 LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(
                     continuation_id,
                 ))),
-                heap::Value::VOID,
+                MaterializedValue::Void,
                 priority,
             )
             .expect("timer watch should register");
@@ -847,7 +936,7 @@ impl TestRuntime {
                 LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(
                     continuation_id,
                 ))),
-                heap::Value::VOID,
+                MaterializedValue::Void,
                 priority,
             )
             .expect("event watch should register");
@@ -866,7 +955,7 @@ impl TestRuntime {
                 LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(
                     continuation_id,
                 ))),
-                heap::Value::VOID,
+                MaterializedValue::Void,
                 priority,
             )
             .expect("host event watch should register");
@@ -913,7 +1002,7 @@ impl TestRuntime {
     }
 
     /// Run one synthetic entrypoint and return the engine output.
-    pub(super) fn run_entrypoint(&mut self) -> RuntimeResult<ExecutionOutput> {
+    pub(super) fn run_entrypoint(&mut self) -> RuntimeResult<RunOutput> {
         let world = self.world_ref();
 
         self.worker
@@ -924,7 +1013,7 @@ impl TestRuntime {
     pub(super) fn run_loop_until_task_complete(
         &mut self,
         task_id: u64,
-    ) -> RuntimeResult<ExecutionOutput> {
+    ) -> RuntimeResult<RunOutput> {
         let world = self.world_ref();
 
         self.worker
@@ -936,7 +1025,7 @@ impl TestRuntime {
         &mut self,
         task_id: u64,
         timeout_nanos: Option<u64>,
-    ) -> RuntimeResult<Option<ExecutionOutput>> {
+    ) -> RuntimeResult<Option<RunOutput>> {
         let world = self.world_ref();
 
         self.worker.run_loop_until_task_complete_with_timeout(
@@ -987,7 +1076,7 @@ impl TestMultiAgentRuntime {
     /// Create one runtime with explicit options and one explicit engine.
     pub(super) fn with_options_and_engine(
         options: &RuntimeOptions,
-        engine: impl Engine + EngineLayout + 'static,
+        engine: impl Engine + 'static,
     ) -> Self {
         let mut world = World::from_options(options).expect("world should build");
         let runtime_id = world
@@ -1012,7 +1101,7 @@ impl TestMultiAgentRuntime {
     }
 
     /// Spawn one additional worker with one explicit engine and return its id.
-    pub(super) fn spawn_worker(&mut self, engine: impl Engine + EngineLayout + 'static) -> WorkerId {
+    pub(super) fn spawn_worker(&mut self, engine: impl Engine + 'static) -> WorkerId {
         self.world
             .spawn_worker(self.runtime_id, engine)
             .expect("worker should spawn")
@@ -1145,7 +1234,7 @@ fn agent_for_options_with_host_clock_source(
 /// Build one worker configured for runtime tests with one explicit engine.
 fn agent_for_options_with_engine(
     options: &RuntimeOptions,
-    engine: impl Engine + EngineLayout + 'static,
+    engine: impl Engine + 'static,
 ) -> (World, Worker, Session) {
     agent_for_options_with_engine_and_host_clock_source(options, engine, None)
 }
@@ -1153,7 +1242,7 @@ fn agent_for_options_with_engine(
 /// Build one worker configured for runtime tests with one explicit engine and one optional host clock source.
 fn agent_for_options_with_engine_and_host_clock_source(
     options: &RuntimeOptions,
-    engine: impl Engine + EngineLayout + 'static,
+    engine: impl Engine + 'static,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
 ) -> (World, Worker, Session) {
     let mut world = if let Some(host_clock_source) = host_clock_source.clone() {
@@ -1170,7 +1259,7 @@ fn agent_for_options_with_engine_and_host_clock_source(
     // configure scheduler options for deterministic tests
     worker
         .event_loop
-        .configure(options.scheduler.clone())
+        .configure(options.scheduler_options().clone())
         .expect("scheduler options should configure");
 
     // apply runtime options to binding policy state
@@ -1187,11 +1276,11 @@ fn agent_for_options_with_engine_and_host_clock_source(
 }
 
 /// Build one void runtime output.
-fn void_output() -> ExecutionOutput {
-    ExecutionOutput {
-        value: heap::Value::VOID,
+fn void_output() -> RunOutput {
+    RunOutput {
+        value: MaterializedValue::Void,
         stats: Default::default(),
-        managed_allocation_count: 0,
+        heap_allocation_count: 0,
         raw_allocation_count: 0,
     }
 }
@@ -1199,7 +1288,7 @@ fn void_output() -> ExecutionOutput {
 /// Build one durable continuation image for one synthetic native handle.
 pub(super) fn native_continuation_image(continuation: NativeContinuationHandle) -> Continuation {
     Continuation {
-        isolate_id: 0,
+        isolate_id: IsolateId::new(0),
         frames: vec![FrameImage {
             frame_layout: FrameLayoutId(0),
             resume_point: ResumePointId(0),

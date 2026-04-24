@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_core::{Capture, CaptureMode};
-use destack_engine::Continuation;
-use destack_workspace::{RuntimeOptions, SchedulerOptions, TimeMode, TimeOptions};
+use destack_engine::{Continuation, MaterializedValue};
+use destack_workspace::{RuntimeOptions, SchedulerOptions, TimeMode};
 use {destack_heap as heap, destack_vm as vm};
 
 use crate::diagnostic::RuntimeResult;
@@ -10,9 +10,9 @@ use crate::host::{HostEventKind, HostLifecycleState, Session};
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
 use crate::runtime::engine::{
-    Engine, EngineImage, EngineLayout, Entry, ExecutionOutcome, ExecutionOutput, LiveContinuation,
-    NativeContinuationHandle,
+    Engine, EngineImage, Entry, LiveContinuation, NativeContinuationHandle, RunOutcome, RunOutput,
 };
+use crate::runtime::memory::RootVisitor;
 use crate::runtime::poller::{
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
     PollerToken,
@@ -28,6 +28,14 @@ use super::tests::{
     continuation_from_image, native_continuation_image, validate_native_capture_mode,
 };
 
+/// Build runtime options with one explicit time mode.
+fn runtime_options_with_time_mode(mode: TimeMode) -> RuntimeOptions {
+    let mut options = RuntimeOptions::default();
+    options.set_time_mode(mode);
+
+    options
+}
+
 /// Engine that always completes on resume for microtask tests.
 #[derive(Debug, Clone, Default)]
 struct CompleteEngine {
@@ -41,15 +49,16 @@ impl Engine for CompleteEngine {
     /// Run one entrypoint without yielding.
     fn run(
         &mut self,
-        _memory: &mut vm::MemoryContext<'_>,
+        _heap: &mut heap::Heap,
+        _shared: &heap::SharedHeap,
         _entry: &Entry,
-        _args: &[heap::Value],
-    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
-        Ok(ExecutionOutcome::Completed {
-            output: ExecutionOutput {
-                value: heap::Value::VOID,
+        _args: &[vm::Value],
+    ) -> RuntimeResult<RunOutcome<LiveContinuation>> {
+        Ok(RunOutcome::Completed {
+            output: RunOutput {
+                value: MaterializedValue::Void,
                 stats: Default::default(),
-                managed_allocation_count: 0,
+                heap_allocation_count: 0,
                 raw_allocation_count: 0,
             },
         })
@@ -58,24 +67,48 @@ impl Engine for CompleteEngine {
     /// Resume one continuation and complete immediately.
     fn resume(
         &mut self,
-        _memory: &mut vm::MemoryContext<'_>,
+        _heap: &mut heap::Heap,
+        _shared: &heap::SharedHeap,
         continuation: LiveContinuation,
-        _value: heap::Value,
-    ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
+        _value: MaterializedValue,
+    ) -> RuntimeResult<RunOutcome<LiveContinuation>> {
         // record native continuation ids for ordering assertions
         if let LiveContinuation::Native(continuation) = continuation {
             self.resumed_native_ids.push(continuation.get());
         }
 
         self.resume_calls = self.resume_calls.saturating_add(1);
-        Ok(ExecutionOutcome::Completed {
-            output: ExecutionOutput {
-                value: heap::Value::VOID,
+        Ok(RunOutcome::Completed {
+            output: RunOutput {
+                value: MaterializedValue::Void,
                 stats: Default::default(),
-                managed_allocation_count: 0,
+                heap_allocation_count: 0,
                 raw_allocation_count: 0,
             },
         })
+    }
+
+    /// Scheduler test engines retain no heap roots.
+    fn visit_roots(&mut self, _roots: &mut RootVisitor<'_>) -> RuntimeResult<()> {
+        Ok(())
+    }
+
+    /// Scheduler test continuations retain no heap roots.
+    fn visit_live_continuation_roots(
+        &mut self,
+        _continuation: &LiveContinuation,
+        _roots: &mut RootVisitor<'_>,
+    ) -> RuntimeResult<()> {
+        Ok(())
+    }
+
+    /// Scheduler test continuation images retain no heap roots.
+    fn visit_continuation_image_roots(
+        &mut self,
+        _continuation: &Continuation,
+        _roots: &mut RootVisitor<'_>,
+    ) -> RuntimeResult<()> {
+        Ok(())
     }
 
     /// Capture one immutable engine image for scheduler tests.
@@ -147,13 +180,6 @@ impl Engine for CompleteEngine {
             message: "scheduler test engine snapshot restore is not implemented".to_string(),
         }
         .boxed())
-    }
-}
-
-impl EngineLayout for CompleteEngine {
-    /// Return the managed-reference width required by this scheduler test engine.
-    fn managed_reference_bytes(&self) -> u8 {
-        8
     }
 }
 
@@ -451,14 +477,14 @@ fn test_event_loop_next_runnable_prioritizes_microtasks() {
     event_loop.enqueue_task(Task {
         id: TaskId::new(501),
         runnable: LiveContinuation::Native(NativeContinuationHandle::new(601)),
-        resume_value: heap::Value::VOID,
+        resume_value: MaterializedValue::Void,
         status: TaskStatus::Ready,
         priority: 0,
     });
     event_loop.enqueue_microtask(Microtask {
         id: MicrotaskId::new(502),
         continuation: LiveContinuation::Native(NativeContinuationHandle::new(602)),
-        resume_value: heap::Value::VOID,
+        resume_value: MaterializedValue::Void,
         status: TaskStatus::Ready,
     });
 
@@ -482,14 +508,14 @@ fn test_event_loop_next_runnable_prioritizes_higher_task_priority() {
     event_loop.enqueue_task(Task {
         id: TaskId::new(503),
         runnable: LiveContinuation::Native(NativeContinuationHandle::new(603)),
-        resume_value: heap::Value::VOID,
+        resume_value: MaterializedValue::Void,
         status: TaskStatus::Ready,
         priority: 1,
     });
     event_loop.enqueue_task(Task {
         id: TaskId::new(504),
         runnable: LiveContinuation::Native(NativeContinuationHandle::new(604)),
-        resume_value: heap::Value::VOID,
+        resume_value: MaterializedValue::Void,
         status: TaskStatus::Ready,
         priority: 200,
     });
@@ -512,7 +538,7 @@ fn test_event_loop_suspend_rejects_native_continuations() {
     event_loop.enqueue_task(Task {
         id: TaskId::new(601),
         runnable: LiveContinuation::Native(NativeContinuationHandle::new(701)),
-        resume_value: heap::Value::VOID,
+        resume_value: MaterializedValue::Void,
         status: TaskStatus::Ready,
         priority: 0,
     });
@@ -624,13 +650,7 @@ fn test_event_loop_cancel_timer_drops_ready_timer_before_dispatch() {
 #[test]
 fn test_run_loop_until_task_complete_returns_idle_for_virtual_time_waits() {
     // build one runtime in virtual-time mode
-    let options = RuntimeOptions {
-        time: destack_workspace::TimeOptions {
-            mode: TimeMode::Virtual,
-            ..destack_workspace::TimeOptions::default()
-        },
-        ..RuntimeOptions::default()
-    };
+    let options = runtime_options_with_time_mode(TimeMode::Virtual);
     let mut runtime = TestRuntime::with_options_and_engine(&options, CompleteEngine::default());
 
     // enqueue one timer that is not yet ready
@@ -653,13 +673,7 @@ fn test_run_loop_until_task_complete_returns_idle_for_virtual_time_waits() {
 fn test_run_loop_until_task_complete_with_timeout_returns_none() {
     // configure one scripted host clock source for deterministic host mode waits
     let host_clock_source = Arc::new(ScriptedHostClockSource::new(1_000_000, 0));
-    let options = RuntimeOptions {
-        time: TimeOptions {
-            mode: TimeMode::Host,
-            ..TimeOptions::default()
-        },
-        ..RuntimeOptions::default()
-    };
+    let options = runtime_options_with_time_mode(TimeMode::Host);
     let mut runtime = TestRuntime::with_options_engine_and_host_clock_source(
         &options,
         CompleteEngine::default(),
@@ -687,13 +701,7 @@ fn test_run_loop_until_task_complete_with_timeout_returns_none() {
 fn test_run_loop_until_task_complete_waits_for_host_timer() {
     // configure one scripted host clock source for deterministic host mode waits
     let host_clock_source = Arc::new(ScriptedHostClockSource::new(2_000_000, 0));
-    let options = RuntimeOptions {
-        time: TimeOptions {
-            mode: TimeMode::Host,
-            ..TimeOptions::default()
-        },
-        ..RuntimeOptions::default()
-    };
+    let options = runtime_options_with_time_mode(TimeMode::Host);
     let mut runtime = TestRuntime::with_options_engine_and_host_clock_source(
         &options,
         CompleteEngine::default(),
@@ -709,7 +717,10 @@ fn test_run_loop_until_task_complete_waits_for_host_timer() {
     let output = runtime
         .run_loop_until_task_complete(0)
         .expect("host mode should wait for the timer and complete the task");
-    assert_eq!(output.value, heap::Value::VOID);
+    assert!(matches!(
+        output.value,
+        destack_engine::MaterializedValue::Void
+    ));
     runtime.with_engine::<CompleteEngine, _>(|engine| {
         assert_eq!(
             engine.resume_calls, 1,
@@ -727,13 +738,7 @@ fn test_run_loop_until_task_complete_waits_for_host_timer() {
 fn test_wall_clock_jump_fires_wall_timer() {
     // configure one host-mode runtime with one scripted clock source
     let host_clock_source = Arc::new(ScriptedHostClockSource::new(10_000, 500));
-    let options = RuntimeOptions {
-        time: TimeOptions {
-            mode: TimeMode::Host,
-            ..TimeOptions::default()
-        },
-        ..RuntimeOptions::default()
-    };
+    let options = runtime_options_with_time_mode(TimeMode::Host);
     let mut runtime = TestRuntime::with_options_engine_and_host_clock_source(
         &options,
         CompleteEngine::default(),
@@ -767,13 +772,7 @@ fn test_wall_clock_jump_fires_wall_timer() {
 fn test_wall_clock_jump_does_not_fire_monotonic_timer() {
     // configure one host-mode runtime with one scripted clock source
     let host_clock_source = Arc::new(ScriptedHostClockSource::new(20_000, 900));
-    let options = RuntimeOptions {
-        time: TimeOptions {
-            mode: TimeMode::Host,
-            ..TimeOptions::default()
-        },
-        ..RuntimeOptions::default()
-    };
+    let options = runtime_options_with_time_mode(TimeMode::Host);
     let mut runtime = TestRuntime::with_options_engine_and_host_clock_source(
         &options,
         CompleteEngine::default(),
@@ -818,13 +817,7 @@ fn test_wall_clock_jump_does_not_fire_monotonic_timer() {
 #[test]
 fn test_runtime_tick_advances_virtual_time_before_dispatch() {
     // configure one virtual runtime with one future timer
-    let options = RuntimeOptions {
-        time: TimeOptions {
-            mode: TimeMode::Virtual,
-            ..TimeOptions::default()
-        },
-        ..RuntimeOptions::default()
-    };
+    let options = runtime_options_with_time_mode(TimeMode::Virtual);
     let mut runtime =
         TestMultiAgentRuntime::with_options_and_engine(&options, CompleteEngine::default());
     let primary_worker_id = runtime.primary_worker_id();
@@ -883,7 +876,7 @@ fn test_world_tick_drives_runtime() {
     worker.event_loop.enqueue_task(Task {
         id: TaskId::new(1),
         runnable: LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(211))),
-        resume_value: heap::Value::VOID,
+        resume_value: MaterializedValue::Void,
         status: TaskStatus::Ready,
         priority: 0,
     });
@@ -903,13 +896,7 @@ fn test_world_tick_drives_runtime() {
 #[test]
 fn test_runtime_tick_orders_equal_deadline_timers_by_worker_id() {
     // configure one virtual runtime with two workers and one equal deadline
-    let options = RuntimeOptions {
-        time: TimeOptions {
-            mode: TimeMode::Virtual,
-            ..TimeOptions::default()
-        },
-        ..RuntimeOptions::default()
-    };
+    let options = runtime_options_with_time_mode(TimeMode::Virtual);
     let mut runtime =
         TestMultiAgentRuntime::with_options_and_engine(&options, CompleteEngine::default());
     let primary_worker_id = runtime.primary_worker_id();
@@ -946,13 +933,7 @@ fn test_runtime_tick_orders_equal_deadline_timers_by_worker_id() {
 #[test]
 fn test_runtime_tick_advances_to_simulation_deadline() {
     // configure one virtual runtime with one simulated wakeup
-    let options = RuntimeOptions {
-        time: TimeOptions {
-            mode: TimeMode::Virtual,
-            ..TimeOptions::default()
-        },
-        ..RuntimeOptions::default()
-    };
+    let options = runtime_options_with_time_mode(TimeMode::Virtual);
     let runtime =
         TestMultiAgentRuntime::with_options_and_engine(&options, CompleteEngine::default());
     let mut runtime = runtime;
@@ -982,13 +963,7 @@ fn test_runtime_tick_advances_to_simulation_deadline() {
 #[test]
 fn test_virtual_sleep_binding_fails_loudly() {
     // build one virtual-time binding context
-    let options = RuntimeOptions {
-        time: TimeOptions {
-            mode: TimeMode::Virtual,
-            ..TimeOptions::default()
-        },
-        ..RuntimeOptions::default()
-    };
+    let options = runtime_options_with_time_mode(TimeMode::Virtual);
     let mut world = World::from_options(&options).expect("world");
     let world_ref = world.world_ref();
     let worker = Worker::new_in_world(
@@ -1024,7 +999,7 @@ fn register_timer_watch(worker: &mut Worker, handle: u64, continuation_id: u64, 
             LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(
                 continuation_id,
             ))),
-            heap::Value::VOID,
+            MaterializedValue::Void,
             priority,
         )
         .expect("timer watch should register");
