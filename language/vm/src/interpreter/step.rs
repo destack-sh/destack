@@ -1,34 +1,33 @@
 use std::fmt;
 
+use destack_heap::{Heap, HeapError, HeapReference, HeapResult, SharedHeapReference};
 use destack_mir as mir;
 
 use super::{Frame, Interpreter};
-use crate::FrameInfo;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::executable::{
-    ArgumentRange, ComponentLayout, Executable, Function, FunctionTable, Instruction, Layout,
-    SwitchCase, SwitchRange,
+use crate::isolate::GlobalStorage;
+use crate::module::{
+    ArgumentRange, Function, Instruction, Layout, Module, SwitchCase, SwitchRange,
 };
-use crate::isolate::{GlobalStorage, StringInterner};
 use crate::options::IsolateOptions;
-use destack_heap::{Heap, MemoryContext, Value};
+use crate::{FrameInfo, SharedHeap, Value};
 
 /// Step state for one interpreter instruction step.
 pub(crate) struct StepState<'ctx, 'iso> {
-    /// Immutable executable metadata for this step.
-    pub(crate) executable: &'iso Executable,
+    /// Immutable module metadata for this step.
+    pub(crate) module: &'iso Module,
     /// Immutable isolate options.
     pub(crate) options: &'iso IsolateOptions,
-    /// Mutable isolate string interner.
-    pub(crate) string_interner: &'iso mut StringInterner,
     /// Mutable global variable storage.
     pub(crate) globals: &'iso mut GlobalStorage,
-    /// Execution memory for this step.
-    pub(crate) memory: MemoryContext<'iso>,
+    /// The worker-local heap.
+    heap: *mut Heap,
+    /// The world-shared heap.
+    shared: *const SharedHeap,
     /// Interpreter engine state for this step.
     pub(crate) engine: &'ctx mut Interpreter,
 
-    /// Index of the current frame in the call stack.
+    /// Index of the current frame in the stack.
     pub frame_index: usize,
     /// Whether bounds checks are enabled for this step.
     pub bounds_checks: bool,
@@ -76,11 +75,11 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
     /// Create step state for the current frame.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
-        executable: &'iso Executable,
+        module: &'iso Module,
         options: &'iso IsolateOptions,
-        string_interner: &'iso mut StringInterner,
         globals: &'iso mut GlobalStorage,
-        memory: MemoryContext<'iso>,
+        heap: &'iso mut Heap,
+        shared: &'iso SharedHeap,
         engine: &'ctx mut Interpreter,
         frame_index: usize,
         argument_pool: &[mir::Value],
@@ -94,43 +93,31 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
 
         // get frame pointer
         // #Safety: frame_index always points at the current frame
-        let frame = unsafe { engine.call_stack.get_unchecked_mut(frame_index) as *mut Frame };
+        let frame = unsafe { engine.stack.get_unchecked_mut(frame_index) as *mut Frame };
 
         // load frame bounds
-        let value_base = unsafe { (*frame).value_base };
         let value_count = unsafe { (*frame).value_count };
-        let local_base = unsafe { (*frame).local_base };
         let local_count = unsafe { (*frame).local_count };
 
-        // validate stack bounds in debug builds
-        debug_assert!(
-            value_base + value_count <= engine.value_stack.len(),
-            "value stack out of bounds for frame"
-        );
-        debug_assert!(
-            local_base + local_count <= engine.local_stack.len(),
-            "local stack out of bounds for frame"
-        );
-
         // cache stack pointers
-        let values_ptr = engine.value_stack.as_mut_ptr();
-        let locals_ptr = engine.local_stack.as_mut_ptr();
+        let values_ptr = unsafe { (*frame).slots_mut_ptr() };
+        let locals_ptr = unsafe { values_ptr.add(value_count) };
 
         Self {
-            executable,
+            module,
             options,
-            string_interner,
             globals,
-            memory,
+            heap: heap as *mut Heap,
+            shared: shared as *const SharedHeap,
             engine,
             frame_index,
             bounds_checks,
             null_checks,
             collect_stats,
             frame,
-            values: unsafe { values_ptr.add(value_base) },
+            values: values_ptr,
             value_count,
-            locals: unsafe { locals_ptr.add(local_base) },
+            locals: locals_ptr,
             local_count,
             argument_pool: argument_pool.as_ptr(),
             argument_pool_len: argument_pool.len(),
@@ -139,66 +126,25 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
         }
     }
 
-    /// Borrow the executable MIR tree.
+    /// Borrow the module MIR tree.
     #[inline]
     pub(crate) fn tree(&self) -> &mir::NodeTree {
-        &self.executable.tree
+        &self.module.tree
     }
 
     /// Return the compiled layout for one MIR type.
     #[inline]
     pub(crate) fn layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Result<&Layout, Error> {
-        self.executable
-            .layout(ty)
-            .ok_or_else(|| Error::TypeMismatch {
-                expected: "compiled layout".to_string(),
-                actual: format!("{ty:?}"),
-            })
+        self.module.layout(ty).ok_or_else(|| Error::TypeMismatch {
+            expected: "compiled layout".to_string(),
+            actual: format!("{ty:?}"),
+        })
     }
 
     /// Return the storage byte width for one MIR type.
     #[inline]
     pub(crate) fn storage_byte_len(&self, ty: mir::LocalNodeId<mir::Type>) -> Result<usize, Error> {
         Ok(self.layout(ty)?.byte_len)
-    }
-
-    /// Return the storage stride for one MIR type.
-    #[inline]
-    pub(crate) fn storage_stride(&self, ty: mir::LocalNodeId<mir::Type>) -> Result<usize, Error> {
-        Ok(self.layout(ty)?.stride())
-    }
-
-    /// Return the semantic component count for one type.
-    #[inline]
-    pub(crate) fn storage_component_count(
-        &self,
-        ty: mir::LocalNodeId<mir::Type>,
-    ) -> Result<usize, Error> {
-        self.layout(ty)?
-            .component_count()
-            .ok_or_else(|| Error::TypeMismatch {
-                expected: "aggregate type".to_string(),
-                actual: format!("{ty:?}"),
-            })
-    }
-
-    /// Return one semantic component layout by index.
-    #[inline]
-    pub(crate) fn storage_component_layout(
-        &self,
-        ty: mir::LocalNodeId<mir::Type>,
-        index: u32,
-    ) -> Result<ComponentLayout, Error> {
-        self.layout(ty)?
-            .component(index)
-            .ok_or_else(|| Error::InvalidFieldAccess {
-                index,
-                field_count: self
-                    .layout(ty)
-                    .ok()
-                    .and_then(Layout::component_count)
-                    .unwrap_or(0),
-            })
     }
 
     /// Return the MIR type stored in one SSA value slot.
@@ -209,7 +155,7 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
     ) -> Result<mir::LocalNodeId<mir::Type>, Error> {
         let frame_layout = unsafe { (*self.frame).frame_layout };
         let frame_layout = self
-            .executable
+            .module
             .frame_layout_by_id(frame_layout)
             .ok_or(Error::InvalidInstruction)?;
         let slot_index = frame_layout
@@ -230,31 +176,16 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
         self.options
     }
 
-    /// Borrow the lowered function table.
-    #[inline]
-    pub(crate) fn functions(&self) -> &FunctionTable {
-        Interpreter::functions(self.executable)
-    }
-
-    /// Resolve a vtable id for a vtable global.
-    #[inline]
-    pub(crate) fn vtable_for_global(
-        &self,
-        global: mir::LocalNodeId<mir::Global>,
-    ) -> Option<mir::VtableId> {
-        Interpreter::vtable_for_global(self.executable, global)
-    }
-
     /// Create an error with current call stack.
     #[cold]
     pub(crate) fn make_error(&self, error: Error) -> RuntimeError {
         RuntimeError::new(error).with_call_stack(
             self.engine
-                .call_stack
+                .stack
                 .iter()
                 .map(|frame| {
-                    let func = self.executable.tree.get(frame.function);
-                    let name = self.executable.strings.get(func.name).to_string();
+                    let func = self.module.tree.get(frame.function);
+                    let name = self.module.strings.get(func.name).to_string();
                     FrameInfo {
                         function: frame.function,
                         block: frame.current_block,
@@ -268,31 +199,14 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
     /// Refresh cached pointers for the current frame and function.
     pub(crate) fn refresh_for_function(&mut self, function: &Function) {
         // load frame bounds
-        let (value_base, value_count, local_base, local_count) = {
+        let (values_ptr, value_count, local_count) = {
             let frame = self.current_frame_mut();
-            (
-                frame.value_base,
-                frame.value_count,
-                frame.local_base,
-                frame.local_count,
-            )
+            (frame.slots_mut_ptr(), frame.value_count, frame.local_count)
         };
 
-        // validate stack bounds in debug builds
-        debug_assert!(
-            value_base + value_count <= self.engine.value_stack.len(),
-            "value stack out of bounds for frame"
-        );
-        debug_assert!(
-            local_base + local_count <= self.engine.local_stack.len(),
-            "local stack out of bounds for frame"
-        );
-
         // cache stack pointers
-        let values_ptr = self.engine.value_stack.as_mut_ptr();
-        let locals_ptr = self.engine.local_stack.as_mut_ptr();
-        self.values = unsafe { values_ptr.add(value_base) };
-        self.locals = unsafe { locals_ptr.add(local_base) };
+        self.values = values_ptr;
+        self.locals = unsafe { values_ptr.add(value_count) };
         self.value_count = value_count;
         self.local_count = local_count;
 
@@ -306,13 +220,84 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
     /// Borrow the heap for the current block.
     #[inline]
     pub(crate) fn heap_mut(&mut self) -> &mut Heap {
-        self.memory.heap()
+        unsafe { &mut *self.heap }
     }
 
     /// Borrow the heap immutably for the current block.
     #[inline]
     pub(crate) fn heap(&self) -> &Heap {
-        self.memory.heap_ref()
+        unsafe { &*self.heap }
+    }
+
+    /// Borrow the shared heap immutably for the current block.
+    #[inline]
+    pub(crate) fn shared(&self) -> &SharedHeap {
+        unsafe { &*self.shared }
+    }
+
+    /// Borrow the shared heap immutably for the current block.
+    #[inline]
+    pub(crate) fn shared_ref(&self) -> &SharedHeap {
+        self.shared()
+    }
+
+    /// Read one exact local heap byte range into owned storage.
+    pub(crate) fn read_heap_bytes(
+        &self,
+        reference: HeapReference,
+        start: usize,
+        byte_len: usize,
+    ) -> HeapResult<Vec<u8>> {
+        let available_len = self.heap().heap_byte_len(reference)?;
+        let end = start
+            .checked_add(byte_len)
+            .ok_or(HeapError::InvariantOverflow {
+                context: "vm heap read bytes",
+            })?;
+        if end > available_len {
+            return Err(HeapError::InvalidHeapReference { reference });
+        }
+
+        let mut bytes = vec![0u8; byte_len];
+        self.heap()
+            .read_heap_bytes_into(reference, start, &mut bytes)?;
+
+        Ok(bytes)
+    }
+
+    /// Read one exact shared heap byte range into owned storage.
+    pub(crate) fn read_shared_heap_bytes(
+        &self,
+        reference: SharedHeapReference,
+        start: usize,
+        byte_len: usize,
+    ) -> HeapResult<Vec<u8>> {
+        let available_len = self.shared().heap_byte_len(reference)?;
+        let end = start
+            .checked_add(byte_len)
+            .ok_or(HeapError::InvariantOverflow {
+                context: "vm shared heap read bytes",
+            })?;
+        if end > available_len {
+            return Err(HeapError::InvalidSharedHeapReference { reference });
+        }
+
+        let mut bytes = vec![0u8; byte_len];
+        self.shared()
+            .read_heap_bytes_into(reference, start, &mut bytes)?;
+
+        Ok(bytes)
+    }
+
+    /// Write one managed byte range through the interpreter mutator path.
+    pub(crate) fn write_heap_bytes(
+        &mut self,
+        reference: HeapReference,
+        start: usize,
+        bytes: &[u8],
+    ) -> HeapResult<()> {
+        self.heap_mut().write_heap_bytes(reference, start, bytes)?;
+        self.heap_mut().write_barrier(reference, start, bytes.len())
     }
 
     /// Execute one intrinsic against the current interpreter and heap state.
@@ -329,12 +314,12 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
     pub(crate) fn enter_frame(&mut self, frame_index: usize, function: &Function) {
         // validate frame index in debug builds
         debug_assert!(
-            frame_index < self.engine.call_stack.len(),
+            frame_index < self.engine.stack.len(),
             "frame index out of bounds"
         );
 
         // update cached frame pointer
-        let frame = unsafe { self.engine.call_stack.get_unchecked_mut(frame_index) };
+        let frame = unsafe { self.engine.stack.get_unchecked_mut(frame_index) };
         self.frame_index = frame_index;
         self.frame = frame as *mut Frame;
 
@@ -347,7 +332,7 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
     pub(crate) fn maybe_profile_instruction(&mut self, instruction: &Instruction) {
         #[cfg(feature = "stats")]
         if let Some(profile) = self.engine.instruction_profile.as_mut() {
-            profile.maybe_sample(instruction.data.opcode_name());
+            profile.maybe_sample(instruction.opcode.name());
         }
         #[cfg(not(feature = "stats"))]
         {
@@ -365,18 +350,18 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
     #[inline(always)]
     pub(crate) fn frame_by_index(&self, frame_index: usize) -> Result<&Frame, Error> {
         self.engine
-            .call_stack
+            .stack
             .get(frame_index)
-            .ok_or(Error::InvalidManagedReference)
+            .ok_or(Error::InvalidHeapReference)
     }
 
     /// Get a frame by index mutably.
     #[inline(always)]
     pub(crate) fn frame_by_index_mut(&mut self, frame_index: usize) -> Result<&mut Frame, Error> {
         self.engine
-            .call_stack
+            .stack
             .get_mut(frame_index)
-            .ok_or(Error::InvalidManagedReference)
+            .ok_or(Error::InvalidHeapReference)
     }
 
     /// Get value by SSA id.
