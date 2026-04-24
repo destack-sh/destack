@@ -1,8 +1,8 @@
 use std::collections::VecDeque;
 use std::sync::OnceLock;
 
+use destack_engine as engine;
 use destack_engine::Continuation;
-use destack_heap as heap;
 use destack_workspace::{SchedulerOptions, SchedulerPolicy};
 use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -12,6 +12,8 @@ use super::{Microtask, MicrotaskId, Task, TaskId, Timer, TimerHandle, TimerQueue
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{HostEvent, HostEventKind};
 use crate::platform::{PlatformError, ResourceId};
+use crate::runtime::engine::Engine;
+use crate::runtime::memory::RootVisitor;
 use crate::runtime::poller::{PollerEvent, PollerToken};
 use crate::runtime::{DropCounts, ExecutionContext, ExecutionContextId};
 
@@ -21,7 +23,7 @@ pub struct EventLoopWatch {
     /// Runnable continuation image to restore when dispatched.
     pub runnable: Continuation,
     /// Resume value passed into the continuation.
-    pub resume_value: heap::Value,
+    pub resume_value: engine::MaterializedValue,
     /// Task priority used when queueing watched tasks.
     pub priority: u8,
 }
@@ -180,43 +182,58 @@ impl EventLoop {
         !self.microtasks.is_empty()
     }
 
-    // fork capture barrier
-    pub(super) fn fork_capture_barrier(&self) -> RuntimeResult<()> {
-        // require empty runnable queues
+    /// Return whether this event loop currently retains any queued or watched work.
+    pub(super) fn is_quiescent(&self) -> bool {
         if !self.tasks.is_empty()
             || !self.microtasks.is_empty()
             || !self.events.is_empty()
             || !self.host_events.is_empty()
             || !self.ready_timers.lock().is_empty()
         {
-            return Err(RuntimeError::Internal {
-                message: "event loop cannot capture for Fork: runnable queues are not empty"
-                    .to_string(),
-            }
-            .boxed());
+            return false;
         }
 
-        // require no scheduled or canceled timers
         let timers = self.timers.lock();
         if timers.has_pending_timers() || !self.canceled_timers.lock().is_empty() {
-            return Err(RuntimeError::Internal {
-                message: "event loop cannot capture for Fork: timers are still registered"
-                    .to_string(),
-            }
-            .boxed());
+            return false;
         }
         drop(timers);
 
-        // require no active watches
-        if !self.timer_watches.is_empty()
-            || !self.poller_event_watches.is_empty()
-            || !self.host_event_watches.is_empty()
-        {
-            return Err(RuntimeError::Internal {
-                message: "event loop cannot capture for Fork: watches are still registered"
-                    .to_string(),
-            }
-            .boxed());
+        self.timer_watches.is_empty()
+            && self.poller_event_watches.is_empty()
+            && self.host_event_watches.is_empty()
+    }
+
+    /// Visit GC roots retained by queued and watched event-loop state.
+    pub(crate) fn visit_roots(
+        &mut self,
+        engine: &mut dyn Engine,
+        roots: &mut RootVisitor<'_>,
+    ) -> RuntimeResult<()> {
+        // queued tasks
+        for task in &self.tasks {
+            engine.visit_live_continuation_roots(&task.runnable, roots)?;
+            visit_materialized_value_roots(&task.resume_value, engine, roots)?;
+        }
+
+        // queued microtasks
+        for microtask in &self.microtasks {
+            engine.visit_live_continuation_roots(&microtask.continuation, roots)?;
+            visit_materialized_value_roots(&microtask.resume_value, engine, roots)?;
+        }
+
+        // watched continuations
+        for watch in self.timer_watches.values() {
+            engine.visit_continuation_image_roots(&watch.runnable, roots)?;
+            visit_materialized_value_roots(&watch.resume_value, engine, roots)?;
+        }
+        for watch in self.poller_event_watches.values() {
+            engine.visit_continuation_image_roots(&watch.runnable, roots)?;
+            visit_materialized_value_roots(&watch.resume_value, engine, roots)?;
+        }
+        for watch in self.host_event_watches.values() {
+            engine.visit_continuation_image_roots(&watch.runnable, roots)?;
+            visit_materialized_value_roots(&watch.resume_value, engine, roots)?;
         }
 
         Ok(())
@@ -272,4 +289,42 @@ impl EventLoop {
 
         Ok(())
     }
+}
+
+/// Visit heap roots embedded in one materialized resume payload.
+fn visit_materialized_value_roots(
+    value: &engine::MaterializedValue,
+    engine: &mut dyn Engine,
+    roots: &mut RootVisitor<'_>,
+) -> RuntimeResult<()> {
+    // direct heap roots
+    match value {
+        engine::MaterializedValue::HeapReference(reference) => {
+            roots.push_heap(*reference);
+        }
+        engine::MaterializedValue::SharedHeapReference(reference) => {
+            roots.push_shared(*reference);
+        }
+
+        // delegate engine specific addresses
+        engine::MaterializedValue::FrameAddress(_)
+        | engine::MaterializedValue::StaticAddress(_) => {
+            engine.visit_materialized_value_roots(value, roots)?;
+        }
+
+        // non root payloads
+        engine::MaterializedValue::Undefined
+        | engine::MaterializedValue::Void
+        | engine::MaterializedValue::Bool(_)
+        | engine::MaterializedValue::Int { .. }
+        | engine::MaterializedValue::UInt { .. }
+        | engine::MaterializedValue::Float32 { .. }
+        | engine::MaterializedValue::Float64 { .. }
+        | engine::MaterializedValue::Char(_)
+        | engine::MaterializedValue::RawPointer(_)
+        | engine::MaterializedValue::SharedRawPointer(_)
+        | engine::MaterializedValue::Function(_) => {}
+    }
+
+    Ok(())
 }

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::platform::{ResourceBacking, ResourceCapture, ResourcePortability};
 use crate::runtime::time::WorldInstant;
 use crate::runtime::world::{Moment, WorldResourceId};
-use crate::runtime::{WorkerId, RuntimeId};
+use crate::runtime::{RuntimeId, WorkerId};
 
 /// Stable sequence number for one observation entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

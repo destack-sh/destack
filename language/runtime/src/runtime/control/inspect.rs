@@ -5,7 +5,7 @@ use crate::runtime::world::{
     BranchId, Revision, RuntimeId, WorldEdge, WorldEntity, WorldImage, WorldResource,
     WorldResourceId,
 };
-use crate::runtime::{WorkerId, WorkerImage, RuntimeImage};
+use crate::runtime::{RuntimeImage, WorkerId, WorkerImage};
 
 /// Runtime list filter decoded from one low-level ABI surface.
 #[derive(Debug, Clone, Default)]
@@ -216,7 +216,10 @@ pub(crate) fn list_workers<'a>(
 }
 
 /// Resolve one worker from one pinned image.
-pub(crate) fn worker_in_image(image: &WorldImage, worker_id: WorkerId) -> RuntimeResult<&WorkerImage> {
+pub(crate) fn worker_in_image(
+    image: &WorldImage,
+    worker_id: WorkerId,
+) -> RuntimeResult<&WorkerImage> {
     let worker = image.workers.get(&worker_id).ok_or_else(|| {
         RuntimeError::WorkerNotFound {
             worker_id: worker_id.0,

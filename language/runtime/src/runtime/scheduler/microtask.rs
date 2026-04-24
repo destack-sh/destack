@@ -1,4 +1,4 @@
-use destack_heap as heap;
+use destack_engine as engine;
 use serde::{Deserialize, Serialize};
 
 use super::task::TaskStatus;
@@ -28,7 +28,7 @@ pub struct Microtask {
     /// Runnable continuation for this microtask.
     pub continuation: LiveContinuation,
     /// Resume payload passed back into the executor.
-    pub resume_value: heap::Value,
+    pub resume_value: engine::MaterializedValue,
     /// Current scheduling status.
     pub status: TaskStatus,
 }

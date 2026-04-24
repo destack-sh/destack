@@ -7,7 +7,7 @@ use crate::runtime::random::RandomStreamId;
 use crate::runtime::scheduler::{MicrotaskId, TaskId};
 use crate::runtime::time::WorldInstant;
 use crate::runtime::world::Command;
-use crate::runtime::{WorkerId, WorkerImage, RuntimeId, RuntimeImage};
+use crate::runtime::{RuntimeId, RuntimeImage, WorkerId, WorkerImage};
 use destack_vm as vm;
 use std::collections::BTreeMap;
 use std::sync::Arc;
