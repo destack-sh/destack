@@ -11,8 +11,6 @@ pub struct FrameLayoutId(pub u32);
 pub enum FrameSlotSource {
     /// One SSA value slot.
     Value(mir::Value),
-    /// One disaggregated hidden slot owned by one semantic value.
-    DisaggregatedValue(mir::Value),
     /// One mutable local slot.
     Local(mir::LocalNodeId<mir::Local>),
     /// The function environment slot.
