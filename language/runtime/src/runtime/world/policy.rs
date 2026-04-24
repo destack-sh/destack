@@ -1,7 +1,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::WorkerId;
 use crate::runtime::bindings::{BindingDescriptor, BindingEngine, BindingReplayPayload};
 use crate::runtime::policy::{BindingDispatchDecision, HookEvent, PolicyDecision, RuleSubject};
+use crate::runtime::{Topology, WorkerId};
 use destack_workspace::{ExecutionMode, RuntimeAccess, RuntimeWorld};
 
 use super::{RuntimeId, WorldRef};
@@ -83,7 +83,7 @@ impl WorldRef {
 
     /// Resolve one rule subject from world topology metadata.
     fn resolve_rule_subject<'a>(
-        topology: &'a super::topology::Topology,
+        topology: &'a Topology,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
         mode: ExecutionMode,

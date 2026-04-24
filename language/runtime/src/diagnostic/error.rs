@@ -514,16 +514,13 @@ impl From<heap::HeapError> for Box<RuntimeError> {
     /// Convert one heap failure into one runtime error.
     fn from(error: heap::HeapError) -> Self {
         match error {
-            heap::HeapError::UnsupportedManagedReferenceWidth { .. }
-            | heap::HeapError::InvalidPageBytes { .. }
-            | heap::HeapError::InvalidArenaSegmentBytes { .. }
-            | heap::HeapError::MisalignedArenaSegmentBytes { .. }
-            | heap::HeapError::ArenaPageBytesMismatch { .. }
-            | heap::HeapError::ArenaSegmentBytesMismatch { .. }
-            | heap::HeapError::ManagedYoungThresholdExceedsCapacity { .. }
-            | heap::HeapError::InvalidCardBytes { .. }
+            heap::HeapError::InvalidPageBytes { .. }
+            | heap::HeapError::InvalidAllocatorArenaBytes { .. }
+            | heap::HeapError::MisalignedAllocatorArenaBytes { .. }
+            | heap::HeapError::AllocatorPageBytesMismatch { .. }
+            | heap::HeapError::AllocatorArenaBytesMismatch { .. }
+            | heap::HeapError::HeapYoungThresholdExceedsCapacity { .. }
             | heap::HeapError::InvalidSmallAllocationAlignmentBytes { .. }
-            | heap::HeapError::InvalidTableChunkLen { .. }
             | heap::HeapError::InvalidSizeClass { .. }
             | heap::HeapError::MisalignedSizeClass { .. } => RuntimeError::ConfigurationInvalid {
                 scope: "heap".into(),
@@ -532,11 +529,21 @@ impl From<heap::HeapError> for Box<RuntimeError> {
             .boxed(),
 
             heap::HeapError::LimitExceeded {
-                domain,
+                region,
                 used_bytes,
                 max_bytes,
             } => RuntimeError::HeapLimitExceeded {
-                scope: domain.to_string().into(),
+                scope: region.to_string().into(),
+                used_bytes,
+                max_bytes,
+            }
+            .boxed(),
+
+            heap::HeapError::TotalLimitExceeded {
+                used_bytes,
+                max_bytes,
+            } => RuntimeError::HeapLimitExceeded {
+                scope: "total".into(),
                 used_bytes,
                 max_bytes,
             }

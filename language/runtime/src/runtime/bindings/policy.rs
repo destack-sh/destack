@@ -42,10 +42,10 @@ impl BindingPolicy {
     /// Apply runtime defaults to this policy.
     pub fn apply_runtime_defaults(&mut self, options: &RuntimeOptions) {
         self.apply_image_defaults(
-            options.execution,
-            options.access,
-            options.world,
-            options.replay.payload,
+            options.execution_mode(),
+            options.policy.access,
+            options.policy.world,
+            options.trace.payload,
         );
     }
 
