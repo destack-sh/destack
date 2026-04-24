@@ -2994,35 +2994,27 @@ b0(v0: boolean):
         test.assert_output(expected);
     }
 
-    /// Branch on a global const folds to the selected target.
+    /// Branches on readonly global loads are not folded.
     #[test]
-    fn test_fold_global_const_branch() {
+    fn test_preserve_readonly_global_load_branch() {
         let input = r#"
 global flag: boolean, readonly = true
 function test(): int32 {
 b0:
-    v0: boolean = global.const flag
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    branch v0, b1, b2
+    v0: ref<boolean, raw, readonly> = global.address flag
+    v1: boolean = load v0
+    v2: int32 = 1int32
+    v3: int32 = 2int32
+    branch v1, b1, b2
 b1:
-    return v1
-b2:
     return v2
-}"#;
-        let expected = r#"
-global flag: boolean, readonly = true
-function test(): int32 {
-b0:
-    v0: boolean = global.const flag
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    return v1
+b2:
+    return v3
 }"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
-        test.assert_output(expected);
+        test.assert_unchanged(input);
     }
 
     /// Branch on non constant condition is preserved.

@@ -409,10 +409,10 @@ impl TypeLowerer {
                 let total_size = self.align_up(current_offset, max_align);
                 Some((total_size, max_align))
             }
-            mir::Type::Closure { signature } => {
+            mir::Type::Callable { signature } => {
                 let mut max_align: u32 = 1;
                 let mut current_offset: u32 = 0;
-                let environment = tree.function_value_environment_type();
+                let environment = tree.callable_environment_type();
 
                 let signature_ty = tree.get(signature.ty()?);
                 let (signature_size, signature_align) =

@@ -26,7 +26,7 @@ global ${string_name}: ref<String, managed, readonly>, readonly = "Hello, VM"
 
 function greet(): ref<String, managed, readonly> {
 entry0:
-    value0: ref<String, managed, readonly> = global.const ${string_name}
+    value0: ref<String, managed, readonly> = global.address ${string_name}
     return value0
 }"#;
     let expected = expected.replace("${string_alias}", string_alias);

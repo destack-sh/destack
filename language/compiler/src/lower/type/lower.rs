@@ -1001,9 +1001,9 @@ impl TypeLowerer {
             },
         ];
 
-        let mir_type = builder.type_closure(signature);
-        let function_value_environment_type = builder.tree().function_value_environment_type();
-        fields[1].ty = function_value_environment_type;
+        let mir_type = builder.type_callable(signature);
+        let callable_environment_type = builder.tree().callable_environment_type();
+        fields[1].ty = callable_environment_type;
 
         let layout = self.compute_struct_layout(fields, LayoutPolicy::Optimized);
         self.set_layout(mir_type, layout);

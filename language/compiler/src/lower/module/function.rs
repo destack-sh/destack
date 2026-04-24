@@ -634,7 +634,7 @@ impl ModuleLowerer<'_> {
             let env_value = function_lowerer
                 .state
                 .builder
-                .function_environment(env_ref_type);
+                .callable_environment(env_ref_type);
             function_lowerer.state.bindings.environment = Some(env_value);
         }
 

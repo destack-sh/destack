@@ -129,7 +129,9 @@ impl FunctionLowerer<'_> {
                     };
                 }
 
-                Ok(mir::AddressSpace::Global)
+                let global = self.global_binding_for_symbol(expression_id, *target_symbol)?;
+
+                Ok(global.space)
             }
 
             // field and element borrows preserve the aggregate storage space

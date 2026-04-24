@@ -392,7 +392,7 @@ impl OwnershipAnalysis {
             // callable metadata and values are copy
             Type::FunctionSignature { .. }
             | Type::FunctionPointer { .. }
-            | Type::Closure { .. } => true,
+            | Type::Callable { .. } => true,
             // raw and borrowed references are copy
             Type::Reference {
                 kind: ReferenceKind::Raw | ReferenceKind::Borrowed,
@@ -537,8 +537,8 @@ impl OwnershipAnalysis {
                 state.mark_owned(*destination);
                 self.set_origin_for_destination(state, *destination, Some(*local), tree);
             }
-            // function.environment reads the hidden environment pointer
-            Instruction::FunctionEnvironment { destination } => {
+            // callable.environment reads the hidden environment pointer
+            Instruction::CallableEnvironment { destination } => {
                 state.mark_owned(*destination);
                 self.set_origin_for_destination(state, *destination, None, tree);
             }
@@ -614,7 +614,7 @@ impl OwnershipAnalysis {
                 state.mark_owned(*destination);
                 self.set_origin_for_destination(state, *destination, None, tree);
             }
-            Instruction::FunctionBind {
+            Instruction::CallableBind {
                 destination,
                 environment,
                 ..
@@ -863,7 +863,6 @@ impl OwnershipAnalysis {
             Instruction::Const { destination, .. }
             | Instruction::GlobalAddr { destination, .. }
             | Instruction::LocalAddr { destination, .. }
-            | Instruction::GlobalConst { destination, .. }
             | Instruction::FunctionAddr { destination, .. }
             | Instruction::New { destination, .. }
             | Instruction::RawAlloc { destination, .. }
@@ -1272,7 +1271,7 @@ fn value_is_copy(
         | Type::Float { .. }
         | Type::TypeDescriptor
         | Type::TypeId => true,
-        Type::FunctionSignature { .. } | Type::FunctionPointer { .. } | Type::Closure { .. } => {
+        Type::FunctionSignature { .. } | Type::FunctionPointer { .. } | Type::Callable { .. } => {
             true
         }
         Type::Reference {
@@ -1386,8 +1385,8 @@ fn process_instruction(
         | Instruction::AtomicFence { .. }
         | Instruction::Barrier { .. } => {}
 
-        // function.environment reads the hidden environment pointer
-        Instruction::FunctionEnvironment { destination } => {
+        // callable.environment reads the hidden environment pointer
+        Instruction::CallableEnvironment { destination } => {
             state.mark_owned(*destination);
             set_origin_if_move_only(state, *destination, None, tree, value_types);
         }
@@ -1459,7 +1458,7 @@ fn process_instruction(
             state.mark_owned(*destination);
             set_origin_if_move_only(state, *destination, None, tree, value_types);
         }
-        Instruction::FunctionBind {
+        Instruction::CallableBind {
             destination,
             environment,
             ..
@@ -1700,7 +1699,6 @@ fn process_instruction(
         Instruction::Const { destination, .. }
         | Instruction::GlobalAddr { destination, .. }
         | Instruction::LocalAddr { destination, .. }
-        | Instruction::GlobalConst { destination, .. }
         | Instruction::FunctionAddr { destination, .. }
         | Instruction::New { destination, .. }
         | Instruction::RawAlloc { destination, .. }

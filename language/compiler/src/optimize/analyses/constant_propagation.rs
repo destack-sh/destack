@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use destack_mir as mir;
 
 use crate::optimize::common::{
-    ConstantLookup, SuccessorArguments, constant_from_global, fold_binary, fold_cast, fold_unary,
+    ConstantLookup, SuccessorArguments, fold_binary, fold_cast, fold_unary,
     terminator_arguments_for_successor_checked,
 };
 use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, TypeContext};
@@ -459,10 +459,6 @@ fn constant_for_instruction(
     // evaluate known constant producing instructions
     match instruction {
         mir::Instruction::Const { value, .. } => Some(value.clone()),
-        mir::Instruction::GlobalConst { global, .. } => {
-            // check immutable scalar global
-            constant_from_global(*global, tree)
-        }
         mir::Instruction::Binary {
             operator,
             left,
@@ -513,16 +509,17 @@ mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
 
-    /// Constant from global.const is propagated.
+    /// Readonly global loads are not represented as scalar constants.
     #[test]
-    fn test_constant_from_global_const() {
+    fn test_readonly_global_load_not_constant() {
         let test = TestProgram::new(
             r#"
 global flag: boolean, readonly = true
 function test(): boolean {
 b0:
-    v0: boolean = global.const flag
-    return v0
+    v0: ref<boolean, raw, readonly> = global.address flag
+    v1: boolean = load v0
+    return v1
 }"#,
         );
 
@@ -533,9 +530,9 @@ b0:
 
         let block0 = function.blocks[0];
         let constant = analysis
-            .constant_at_exit(block0, mir::Value::new(0))
+            .constant_at_exit(block0, mir::Value::new(1))
             .cloned();
-        assert_eq!(constant, Some(mir::Constant::Boolean { value: true }));
+        assert_eq!(constant, None);
     }
 
     /// Mutable globals are not treated as constants.
@@ -546,8 +543,9 @@ b0:
 global flag: boolean = true
 function test(): boolean {
 b0:
-    v0: boolean = global.const flag
-    return v0
+    v0: ref<boolean, raw> = global.address flag
+    v1: boolean = load v0
+    return v1
 }"#,
         );
 
@@ -558,7 +556,7 @@ b0:
 
         let block0 = function.blocks[0];
         let constant = analysis
-            .constant_at_exit(block0, mir::Value::new(0))
+            .constant_at_exit(block0, mir::Value::new(1))
             .cloned();
         assert_eq!(constant, None);
     }
@@ -571,8 +569,9 @@ b0:
 global flag: boolean, readonly = zeroInit
 function test(): boolean {
 b0:
-    v0: boolean = global.const flag
-    return v0
+    v0: ref<boolean, raw, readonly> = global.address flag
+    v1: boolean = load v0
+    return v1
 }"#,
         );
 
@@ -583,7 +582,7 @@ b0:
 
         let block0 = function.blocks[0];
         let constant = analysis
-            .constant_at_exit(block0, mir::Value::new(0))
+            .constant_at_exit(block0, mir::Value::new(1))
             .cloned();
         assert_eq!(constant, None);
     }

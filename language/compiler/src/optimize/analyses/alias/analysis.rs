@@ -329,8 +329,8 @@ global g1: int32 = 0int32
 global g2: int32 = 0int32
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(global)> = global.address g1
-    v1: ref<int32, raw, space(global)> = global.address g2
+    v0: ref<int32, raw, space(static)> = global.address g1
+    v1: ref<int32, raw, space(static)> = global.address g2
     v2: ref<int32, raw, space(stack)> = stack.alloc int32
     return
 }"#,
@@ -445,7 +445,7 @@ b0:
         };
 
         call.memory_effect =
-            Some(mir::MemoryEffect::read_only(mir::MemoryRegionSet::NONE).with_argmemonly());
+            Some(mir::MemoryEffect::read_only(mir::MemorySpaceSet::NONE).with_argmemonly());
         call.argument_attributes = vec![arg0, arg1];
 
         let function = program.tree.get(function_id);

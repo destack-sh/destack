@@ -427,7 +427,7 @@ impl BasicAA {
                 self.get_intrinsic_mod_ref(intrinsic, loc)
             }
 
-            // allocations don't alias existing regions
+            // allocations don't alias existing spaces
             mir::Instruction::New { .. }
             | mir::Instruction::NewSlice { .. }
             | mir::Instruction::RawAlloc { .. }
@@ -508,7 +508,7 @@ impl BasicAA {
         query_type_alias_tag: Option<mir::TypeAliasTagId>,
         tree: &mir::NodeTree,
     ) -> bool {
-        if !self.region_sets_overlap(access, loc, tree) {
+        if !self.space_sets_overlap(access, loc, tree) {
             return false;
         }
 
@@ -571,17 +571,17 @@ impl BasicAA {
     }
 
     /// Check location set overlap for metadata.
-    fn region_sets_overlap(
+    fn space_sets_overlap(
         &self,
         access: &mir::MemoryAccessMetadata,
         loc: &MemoryLocation,
         tree: &mir::NodeTree,
     ) -> bool {
-        let Some(loc_set) = self.region_set_for_location(loc, tree) else {
+        let Some(loc_set) = self.space_set_for_location(loc, tree) else {
             return true;
         };
 
-        let access_set = self.region_set_for_access(access, tree);
+        let access_set = self.space_set_for_access(access, tree);
         access_set.intersects(loc_set)
     }
 
@@ -604,24 +604,26 @@ impl BasicAA {
     }
 
     /// Resolve the coarse location set for a metadata access.
-    fn region_set_for_access(
+    fn space_set_for_access(
         &self,
         access: &mir::MemoryAccessMetadata,
         tree: &mir::NodeTree,
-    ) -> mir::MemoryRegionSet {
+    ) -> mir::MemorySpaceSet {
         if let Some(address_space) = access.address_space.clone() {
-            return self.region_set_for_address_space(address_space);
+            return self.space_set_for_address_space(address_space);
         }
 
         match access.target {
             mir::MemoryAccessTarget::Pointer(pointer) => {
                 let access_loc = MemoryLocation::from_ptr(pointer);
-                self.region_set_for_location(&access_loc, tree)
-                    .unwrap_or(mir::MemoryRegionSet::ANY)
+                self.space_set_for_location(&access_loc, tree)
+                    .unwrap_or(mir::MemorySpaceSet::ANY)
             }
-            mir::MemoryAccessTarget::Local(_) => mir::MemoryRegionSet::STACK,
-            mir::MemoryAccessTarget::Global(_) => mir::MemoryRegionSet::GLOBAL,
-            mir::MemoryAccessTarget::Unknown => mir::MemoryRegionSet::ANY,
+            mir::MemoryAccessTarget::Local(_) => mir::MemorySpaceSet::STACK,
+            mir::MemoryAccessTarget::Global(global) => {
+                self.space_set_for_address_space(tree.get(global).space.clone())
+            }
+            mir::MemoryAccessTarget::Unknown => mir::MemorySpaceSet::ANY,
         }
     }
 
@@ -641,23 +643,20 @@ impl BasicAA {
                 self.location_address_space(&access_loc, tree)
             }
             mir::MemoryAccessTarget::Local(_) => Some(mir::AddressSpace::Stack),
-            mir::MemoryAccessTarget::Global(_) => Some(mir::AddressSpace::Global),
+            mir::MemoryAccessTarget::Global(global) => Some(tree.get(global).space.clone()),
             mir::MemoryAccessTarget::Unknown => None,
         }
     }
 
     /// Map address spaces to coarse location sets.
-    fn region_set_for_address_space(
-        &self,
-        address_space: mir::AddressSpace,
-    ) -> mir::MemoryRegionSet {
+    fn space_set_for_address_space(&self, address_space: mir::AddressSpace) -> mir::MemorySpaceSet {
         match address_space {
-            mir::AddressSpace::Stack => mir::MemoryRegionSet::STACK,
-            mir::AddressSpace::Frame => mir::MemoryRegionSet::STACK,
-            mir::AddressSpace::Global => mir::MemoryRegionSet::GLOBAL,
-            mir::AddressSpace::Shared => mir::MemoryRegionSet::SHARED,
-            mir::AddressSpace::Local => mir::MemoryRegionSet::LOCAL,
-            mir::AddressSpace::Named(_) => mir::MemoryRegionSet::ANY,
+            mir::AddressSpace::Stack => mir::MemorySpaceSet::STACK,
+            mir::AddressSpace::Frame => mir::MemorySpaceSet::STACK,
+            mir::AddressSpace::Static => mir::MemorySpaceSet::STATIC,
+            mir::AddressSpace::Shared => mir::MemorySpaceSet::SHARED,
+            mir::AddressSpace::Local => mir::MemorySpaceSet::LOCAL,
+            mir::AddressSpace::Named(_) => mir::MemorySpaceSet::ANY,
         }
     }
 
@@ -686,7 +685,7 @@ impl BasicAA {
             return ModRefInfo::NO_MOD_REF;
         }
 
-        // inaccessible memory does not alias normal regions
+        // inaccessible memory does not alias normal spaces
         if effects.inaccessible_mem_only {
             return ModRefInfo::NO_MOD_REF;
         }
@@ -705,8 +704,8 @@ impl BasicAA {
         }
 
         // honor coarse location set restrictions when possible
-        if let Some(region_set) = self.region_set_for_location(loc, tree)
-            && !effects.regions.contains(region_set)
+        if let Some(space_set) = self.space_set_for_location(loc, tree)
+            && !effects.spaces.contains(space_set)
         {
             return ModRefInfo::NO_MOD_REF;
         }
@@ -724,9 +723,9 @@ impl BasicAA {
         effects: &mir::MemoryEffect,
     ) -> ModRefInfo {
         // honor coarse location sets when a real region restriction exists
-        if !effects.regions.is_empty()
-            && let Some(region_set) = self.region_set_for_location(loc, tree)
-            && !effects.regions.contains(region_set)
+        if !effects.spaces.is_empty()
+            && let Some(space_set) = self.space_set_for_location(loc, tree)
+            && !effects.spaces.contains(space_set)
         {
             return ModRefInfo::NO_MOD_REF;
         }
@@ -897,13 +896,13 @@ impl BasicAA {
         Some(callee.memory_effect.clone())
     }
 
-    /// Resolve a coarse effect region set for a pointer location.
-    fn region_set_for_location(
+    /// Resolve a coarse memory space set for a pointer location.
+    fn space_set_for_location(
         &self,
         loc: &MemoryLocation,
         tree: &mir::NodeTree,
-    ) -> Option<mir::MemoryRegionSet> {
-        // compute pointer base for region classification
+    ) -> Option<mir::MemorySpaceSet> {
+        // compute pointer base for space classification
         let mut decomposer = PointerDecomposer::new(
             &self.function.constants,
             &self.function.definitions,
@@ -915,12 +914,14 @@ impl BasicAA {
         );
         let decomposed = decomposer.decompose(loc.ptr);
 
-        // map known bases to effect region sets
+        // map known bases to memory space sets
         match decomposed.base {
-            PointerBase::StackAlloc(_) | PointerBase::Local(_) => Some(mir::MemoryRegionSet::STACK),
-            PointerBase::HeapAlloc(_) => Some(mir::MemoryRegionSet::HEAP),
-            PointerBase::RawAlloc(_) => Some(mir::MemoryRegionSet::RAW_HEAP),
-            PointerBase::Global(_) => Some(mir::MemoryRegionSet::GLOBAL),
+            PointerBase::StackAlloc(_) | PointerBase::Local(_) => Some(mir::MemorySpaceSet::STACK),
+            PointerBase::HeapAlloc(_) => Some(mir::MemorySpaceSet::HEAP),
+            PointerBase::RawAlloc(_) => Some(mir::MemorySpaceSet::RAW_HEAP),
+            PointerBase::Global(global) => {
+                Some(self.space_set_for_address_space(tree.get(global).space.clone()))
+            }
             _ => None,
         }
     }
@@ -947,7 +948,7 @@ impl BasicAA {
         match decomposed.base {
             PointerBase::StackAlloc(_) | PointerBase::Local(_) => Some(mir::AddressSpace::Stack),
             PointerBase::HeapAlloc(_) | PointerBase::RawAlloc(_) => Some(mir::AddressSpace::Local),
-            PointerBase::Global(_) => Some(mir::AddressSpace::Global),
+            PointerBase::Global(global) => Some(tree.get(global).space.clone()),
             PointerBase::Parameter { index, .. } => {
                 // extract address space from parameter type when possible
                 let parameter = self.function.parameters.get(index as usize)?;
@@ -1352,7 +1353,7 @@ b0:
 global g: int32 = 0int32
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(global)> = global.address g
+    v0: ref<int32, raw, space(static)> = global.address g
     v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 1int32
     store v0, v2

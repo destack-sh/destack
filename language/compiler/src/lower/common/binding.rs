@@ -1,7 +1,7 @@
 use destack_mir as mir;
 
 /// Track a lowered global binding for value expressions.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(crate) struct GlobalBinding {
     /// The MIR global holding the binding value.
     pub(crate) global: mir::LocalNodeId<mir::Global>,
@@ -9,6 +9,8 @@ pub(crate) struct GlobalBinding {
     pub(crate) ty: mir::LocalNodeId<mir::Type>,
     /// The mutability of the global.
     pub(crate) mutability: mir::Mutability,
+    /// The address space of the global.
+    pub(crate) space: mir::AddressSpace,
 }
 
 /// Storage for a lowered local binding.

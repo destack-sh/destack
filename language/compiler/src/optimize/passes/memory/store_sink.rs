@@ -561,8 +561,8 @@ b2:
     #[test]
     fn test_store_sink_skips_escaping_store() {
         let input = r#"
-function test(v0: boolean, v1: ref<int32, raw, space(global)>): void {
-b0(v0: boolean, v1: ref<int32, raw, space(global)>):
+function test(v0: boolean, v1: ref<int32, raw, space(static)>): void {
+b0(v0: boolean, v1: ref<int32, raw, space(static)>):
     v2: int32 = 1int32
     store v1, v2
     branch v0, b1, b2

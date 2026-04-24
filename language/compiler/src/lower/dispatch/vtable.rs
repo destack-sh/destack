@@ -203,7 +203,7 @@ impl ModuleLowerer<'_> {
             mir::ReferenceKind::Raw,
             self.type_lowerer.ty_void,
             mir::Mutability::Immutable,
-            mir::AddressSpace::Global,
+            mir::AddressSpace::Static,
             true,
         );
         let vtable_type = self
@@ -216,9 +216,10 @@ impl ModuleLowerer<'_> {
             mir::ReferenceKind::Raw,
             vtable_type,
             mir::Mutability::Immutable,
-            mir::AddressSpace::Global,
+            mir::AddressSpace::Static,
             false,
         );
+        self.builder.tree_mut().get_mut(global_id).space = mir::AddressSpace::Static;
 
         Ok(VtableGlobal {
             global_id,

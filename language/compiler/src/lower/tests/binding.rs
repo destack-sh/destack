@@ -261,7 +261,7 @@ entry0(value0: int32[4]):
     value7: boolean = int.and value5, value6
     check bounds.s value2, value3, value1 -> block2, block1
 block1:
-    value8: ref<String, managed, readonly> = global.const ${bounds_check_failed}
+    value8: ref<String, managed, readonly> = global.address ${bounds_check_failed}
     trap.panic value8
 block2:
     value9: ref<int32, borrowed> = element.address value1, value2
@@ -341,7 +341,7 @@ entry0(value0: ref<int32[4], borrowed>):
     value6: boolean = int.and value4, value5
     check bounds.s value1, value2, value0 -> block2, block1
 block1:
-    value7: ref<String, managed, readonly> = global.const ${bounds_check_failed}
+    value7: ref<String, managed, readonly> = global.address ${bounds_check_failed}
     trap.panic value7
 block2:
     value8: ref<int32, borrowed> = element.address value0, value1
@@ -383,7 +383,7 @@ type Greeter {
     itab: usize;
 }
 
-extern function Greeter.greet({ greet: closure() -> int32 }): int32
+extern function Greeter.greet({ greet: () => int32 }): int32
 
 function borrowGreeter(value0: Greeter): ref<Greeter, borrowed> {
     local local0: Greeter, owned, readonly
@@ -423,11 +423,11 @@ class Counter {
         "native",
         r#"
 type Counter {
-    vtable: ref<void, raw, readonly, space(global)>;
+    vtable: ref<void, raw, readonly, space(static)>;
     value: int32;
 }
 
-global Counter#vtable: ref?<void, raw, readonly, space(global)>[3], readonly = zeroInit
+global Counter#vtable: ref?<void, raw, readonly, space(static)>[3], readonly = zeroInit
 
 function Counter.borrowValue(value0: ref<Counter, managed, readonly>): ref<int32, borrowed> {
 entry0(value0: ref<Counter, managed, readonly>):

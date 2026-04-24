@@ -28,12 +28,12 @@ function applyIdentity(input: int32): int32 {
         module_id,
         "native",
         r#"
-type makeIdentity.return#function = closure(int32) -> int32;
+type makeIdentity.return#function = (int32) => int32;
 
 function makeIdentity(): makeIdentity.return#function {
 entry0:
     value0: ref<EmptyFunctionEnvironment, managed> = null
-    value1: closure(int32) -> int32 = function.bind makeIdentity.lambda#7, value0
+    value1: (int32) => int32 = callable.bind makeIdentity.lambda#7, value0
     return value1
 }
 
@@ -91,7 +91,7 @@ function applyAdder(input: int32): int32 {
         module_id,
         "native",
         r#"
-type makeAdder.return#function = closure(int32) -> int32;
+type makeAdder.return#function = (int32) => int32;
 type makeAdder.lambda#9#env {
     base: int32;
 }
@@ -102,14 +102,14 @@ entry0:
     value1: ref<makeAdder.lambda#9#env, managed> = new makeAdder.lambda#9#env
     value2: ref<int32, managed> = field.address value1, 0
     store value2, value0
-    value3: closure(int32) -> int32 = function.bind makeAdder.lambda#9, value1
+    value3: (int32) => int32 = callable.bind makeAdder.lambda#9, value1
     return value3
 }
 
 @environment(ref<makeAdder.lambda#9#env, managed>)
 function makeAdder.lambda#9(value0: int32): int32 {
 entry0(value0: int32):
-    value1: ref<makeAdder.lambda#9#env, managed> = function.environment
+    value1: ref<makeAdder.lambda#9#env, managed> = callable.environment
     value2: ref<int32, managed> = field.address value1, 0
     value3: int32 = load value2
     value4: int32 = cast.truncate value3 -> int32
@@ -165,7 +165,7 @@ function runCounter(): int32 {
         module_id,
         "native",
         r#"
-type makeCounter.return#function = closure() -> int32;
+type makeCounter.return#function = () => int32;
 type makeCounter.lambda#8#env {
     count: ref<int32, managed>;
 }
@@ -179,14 +179,14 @@ entry0:
     value3: ref<ref<int32, managed>, managed> = field.address value2, 0
     value4: ref<int32, managed> = cast.bit value1 -> ref<int32, managed>
     store value3, value4
-    value5: closure() -> int32 = function.bind makeCounter.lambda#8, value2
+    value5: () => int32 = callable.bind makeCounter.lambda#8, value2
     return value5
 }
 
 @environment(ref<makeCounter.lambda#8#env, managed>)
 function makeCounter.lambda#8(): int32 {
 entry0:
-    value0: ref<makeCounter.lambda#8#env, managed> = function.environment
+    value0: ref<makeCounter.lambda#8#env, managed> = callable.environment
     value1: ref<ref<int32, managed>, managed> = field.address value0, 0
     value2: ref<int32, managed> = load value1
     value3: int32 = load value2

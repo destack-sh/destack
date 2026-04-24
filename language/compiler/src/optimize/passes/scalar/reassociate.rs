@@ -6,7 +6,7 @@ use destack_workspace::FloatMathPolicy;
 
 use crate::optimize::analyses::{ConstantMap, ConstantPropagation};
 use crate::optimize::common::{
-    InstructionRef, ValueTypeMap, build_value_instruction_refs, constant_from_global, fold_binary,
+    InstructionRef, ValueTypeMap, build_value_instruction_refs, fold_binary,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -222,21 +222,6 @@ fn run_reassociate(
                 mir::Instruction::Const { destination, value } => {
                     if let Some(destination) = destination.value() {
                         block_constants.insert(destination, value);
-                    }
-                }
-                mir::Instruction::GlobalConst {
-                    destination,
-                    global,
-                } => {
-                    if let Some(destination) = destination.value() {
-                        let constant = global
-                            .global()
-                            .and_then(|global| constant_from_global(global, tree));
-                        if let Some(constant) = constant {
-                            block_constants.insert(destination, constant);
-                        } else {
-                            block_constants.remove(&destination);
-                        }
                     }
                 }
                 _ => {

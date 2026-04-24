@@ -50,10 +50,6 @@ pub enum ExpressionKey {
         array: mir::Value,
         index: mir::Value,
     },
-    /// Load from an immutable global constant.
-    GlobalConst {
-        global: mir::LocalNodeId<mir::Global>,
-    },
 }
 
 /// Cached value equivalence for pure expressions.
@@ -169,16 +165,6 @@ impl<'a> ValueEquivalence<'a> {
                 },
             ) => left_value == right_value,
             (
-                mir::Instruction::GlobalConst {
-                    global: left_global,
-                    ..
-                },
-                mir::Instruction::GlobalConst {
-                    global: right_global,
-                    ..
-                },
-            )
-            | (
                 mir::Instruction::GlobalAddr {
                     global: left_global,
                     ..
@@ -601,11 +587,6 @@ pub fn expression_key_from_instruction(
             index: index.value()?,
         }),
 
-        // global constant (immutable, pure)
-        mir::Instruction::GlobalConst { global, .. } => Some(ExpressionKey::GlobalConst {
-            global: global.global()?,
-        }),
-
         // constants are not CSE'd by expression keys (handled by constant folding)
         // mir::Constant doesn't implement Hash/Eq, and constant deduplication
         // is better handled by dedicated constant merging passes
@@ -672,8 +653,8 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::ElementSet { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
-        | mir::Instruction::FunctionBind { .. }
-        | mir::Instruction::FunctionEnvironment { .. }
+        | mir::Instruction::CallableBind { .. }
+        | mir::Instruction::CallableEnvironment { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::FieldAddr { .. }
         | mir::Instruction::ElementAddr { .. }
@@ -776,9 +757,6 @@ pub fn expression_key_substitute(
             let index = *substitutions.get(&index).unwrap_or(&index);
             ExpressionKey::ElementGet { array, index }
         }
-
-        // global constant has no value operands
-        ExpressionKey::GlobalConst { global } => ExpressionKey::GlobalConst { global },
     }
 }
 

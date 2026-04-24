@@ -453,9 +453,9 @@ b0(v0: fn(int32) -> int32, v1: int32) -> v2: int32 = call.indirect v0(v1): (int3
         test.assert_output(input);
     }
 
-    /// Globals constants can be propagated across calls.
+    /// Readonly global loads are not propagated as call constants.
     #[test]
-    fn test_ip_constant_prop_propagates_global_const() {
+    fn test_ip_constant_prop_skips_global_load() {
         let input = r#"
 global value: int32, readonly = 7int32
 function callee(v0: int32): int32 {
@@ -464,23 +464,24 @@ b0(v0: int32):
 }
 function root(): int32 {
 b0:
-    v0: int32 = global.const value
-    v1: int32 = call callee(v0): (int32) -> int32
-    return v1
+    v0: ref<int32, raw, readonly> = global.address value
+    v1: int32 = load v0
+    v2: int32 = call callee(v1): (int32) -> int32
+    return v2
 }"#;
 
         let expected = r#"
 global value: int32, readonly = 7int32
 function callee(v0: int32): int32 {
 b0(v0: int32):
-    v1: int32 = 7int32
-    return v1
+    return v0
 }
 function root(): int32 {
 b0:
-    v0: int32 = global.const value
-    v1: int32 = call callee(v0): (int32) -> int32
-    return v1
+    v0: ref<int32, raw, readonly> = global.address value
+    v1: int32 = load v0
+    v2: int32 = call callee(v1): (int32) -> int32
+    return v2
 }"#;
 
         let mut test = TestProgram::new(input);

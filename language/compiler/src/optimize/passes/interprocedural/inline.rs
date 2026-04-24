@@ -1398,10 +1398,9 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::NodeTree) -> u64
         | mir::Instruction::LocalSet { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
-        | mir::Instruction::FunctionBind { .. }
-        | mir::Instruction::FunctionEnvironment { .. }
+        | mir::Instruction::CallableBind { .. }
+        | mir::Instruction::CallableEnvironment { .. }
         | mir::Instruction::LocalAddr { .. }
-        | mir::Instruction::GlobalConst { .. }
         | mir::Instruction::Assume { .. } => INLINE_COST_SIMPLE,
         mir::Instruction::VectorSplat { .. }
         | mir::Instruction::VectorExtract { .. }

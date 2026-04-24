@@ -38,7 +38,7 @@ impl FunctionLowerer<'_> {
             mir::ReferenceKind::Raw,
             global.ty,
             global.mutability,
-            mir::AddressSpace::Global,
+            global.space.clone(),
             false,
         );
         let addr = self.state.builder.global_addr(global.global, addr_type);

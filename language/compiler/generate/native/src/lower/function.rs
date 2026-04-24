@@ -37,9 +37,9 @@ pub(crate) struct FunctionLowerer<'a> {
     global_map: HashMap<mir::LocalNodeId<mir::Global>, cir::GlobalValue>,
     /// Pointer size in bytes for this target.
     pointer_bytes: u8,
-    /// Function environment type when function.environment is used.
+    /// Function environment type when callable.environment is used.
     environment_type: Option<mir::LocalNodeId<mir::Type>>,
-    /// Cranelift value for the function environment parameter.
+    /// Cranelift value for the callable environment parameter.
     environment_param: Option<cir::Value>,
 }
 
@@ -81,9 +81,9 @@ impl<'a> FunctionLowerer<'a> {
         let mut block_map: HashMap<mir::LocalNodeId<mir::Block>, cir::Block> = HashMap::new();
         let mut local_map: HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot> = HashMap::new();
 
-        // capture function environment type before lowering
+        // capture callable environment type before lowering
         self.environment_type =
-            self.optional_type_id(self.function.environment, "function environment type")?;
+            self.optional_type_id(self.function.environment, "callable environment type")?;
 
         // phase 0.5: pre-declare all referenced functions in the current function
         // (must be done before creating the FunctionBuilder)
@@ -140,11 +140,11 @@ impl<'a> FunctionLowerer<'a> {
                         self.declare_function_ref(function, target)?;
                     }
                 }
-                // function value declarations
+                // callable declarations
                 if let mir::Instruction::FunctionAddr { function, .. }
-                | mir::Instruction::FunctionBind { function, .. } = inst
+                | mir::Instruction::CallableBind { function, .. } = inst
                 {
-                    let function = self.function_id(*function, "function value callee")?;
+                    let function = self.function_id(*function, "callable callee")?;
                     if !self.function_ref_map.contains_key(&function) {
                         self.declare_function_ref(function, target)?;
                     }
@@ -252,7 +252,7 @@ impl<'a> FunctionLowerer<'a> {
             value_map.insert(parameter, value);
         }
 
-        // append the function environment parameter when present
+        // append the callable environment parameter when present
         if self.environment_type.is_some() {
             let environment_param = builder.append_block_param(entry_block, self.pointer_type());
             self.environment_param = Some(environment_param);
@@ -484,35 +484,6 @@ impl<'a> FunctionLowerer<'a> {
                 )?;
             }
 
-            // global_const: symbol_value + load (for immutable globals)
-            mir::Instruction::GlobalConst {
-                destination,
-                global,
-            } => {
-                let global = self.global_id(*global, "global const global")?;
-                let global_data = self.tree.get(global);
-                let global_value = self.get_or_declare_global(global, builder)?;
-                let ptr = builder
-                    .ins()
-                    .global_value(self.pointer_type(), global_value);
-
-                // load the value from the global
-                let result_type = lower_type(
-                    self.tree,
-                    self.type_id(global_data.ty, "global const type")?,
-                    self.pointer_bytes,
-                )?;
-                let result = builder
-                    .ins()
-                    .load(result_type, cir::MemFlags::trusted(), ptr, 0);
-                self.insert_lowered_value(
-                    value_map,
-                    *destination,
-                    result,
-                    "global const destination",
-                )?;
-            }
-
             // function_addr: get a function pointer for indirect calls
             mir::Instruction::FunctionAddr {
                 destination,
@@ -532,21 +503,21 @@ impl<'a> FunctionLowerer<'a> {
                     "function address destination",
                 )?;
             }
-            mir::Instruction::FunctionBind {
+            mir::Instruction::CallableBind {
                 destination,
                 function,
                 environment,
             } => {
-                let destination = self.value_id(*destination, "function bind destination")?;
+                let destination = self.value_id(*destination, "callable bind destination")?;
                 let destination_type =
                     self.value_type_or_error(destination, instruction_id.into_any())?;
-                let mir::Type::Closure { .. } = self.tree.get(destination_type) else {
+                let mir::Type::Callable { .. } = self.tree.get(destination_type) else {
                     return Err(CodegenCraneliftError::Internal {
-                        message: "function.bind result must be a callable value".into(),
+                        message: "callable.bind result must be a callable value".into(),
                     });
                 };
 
-                let function = self.function_id(*function, "function bind callee")?;
+                let function = self.function_id(*function, "callable bind callee")?;
                 let function_ref = self.function_ref_map.get(&function).ok_or_else(|| {
                     CodegenCraneliftError::Internal {
                         message: format!("function {function:?} not declared"),
@@ -554,7 +525,7 @@ impl<'a> FunctionLowerer<'a> {
                 })?;
                 let code_value = builder.ins().func_addr(self.pointer_type(), *function_ref);
                 let environment_value =
-                    self.lowered_value(*environment, value_map, "function bind environment")?;
+                    self.lowered_value(*environment, value_map, "callable bind environment")?;
                 let environment_value =
                     if builder.func.dfg.value_type(environment_value) == self.pointer_type() {
                         environment_value
@@ -597,16 +568,16 @@ impl<'a> FunctionLowerer<'a> {
                 value_map.insert(destination, slot_addr);
             }
 
-            // function.environment: load the hidden environment parameter
-            mir::Instruction::FunctionEnvironment { destination } => {
+            // callable.environment: load the hidden environment parameter
+            mir::Instruction::CallableEnvironment { destination } => {
                 let environment_param =
                     self.environment_param
                         .ok_or_else(|| CodegenCraneliftError::Internal {
-                            message: "function.environment used without environment parameter"
+                            message: "callable.environment used without environment parameter"
                                 .to_string(),
                         })?;
                 let destination =
-                    self.value_id(*destination, "function environment destination")?;
+                    self.value_id(*destination, "callable environment destination")?;
                 let destination_type =
                     self.value_type_or_error(destination, instruction_id.into_any())?;
                 let destination_ty = lower_type(self.tree, destination_type, self.pointer_bytes)?;
@@ -1065,7 +1036,7 @@ impl<'a> FunctionLowerer<'a> {
                 ));
             }
 
-            // struct/function value: allocate stack slot and store each field at its offset
+            // struct/callable: allocate stack slot and store each field at its offset
             mir::Instruction::Struct {
                 destination,
                 ty,
@@ -1076,7 +1047,7 @@ impl<'a> FunctionLowerer<'a> {
                 let field_values = self.tree.get_arguments(*fields);
                 let field_count = match self.tree.get(ty) {
                     mir::Type::Struct { fields, .. } => fields.len(),
-                    mir::Type::Closure { .. } => 2,
+                    mir::Type::Callable { .. } => 2,
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
                             message: "Struct instruction with non-aggregate type".into(),
@@ -1619,8 +1590,8 @@ impl<'a> FunctionLowerer<'a> {
                 self.type_id(*signature, "function pointer signature")?,
                 false,
             ),
-            mir::Type::Closure { signature } => {
-                (self.type_id(*signature, "closure signature")?, true)
+            mir::Type::Callable { signature } => {
+                (self.type_id(*signature, "callable signature")?, true)
             }
             _ => {
                 return Err(CodegenCraneliftError::Internal {
@@ -1676,8 +1647,8 @@ impl<'a> FunctionLowerer<'a> {
             return Ok((callee_value, None));
         }
 
-        // closure callable aggregate
-        let mir::Type::Closure {
+        // callable aggregate
+        let mir::Type::Callable {
             signature: function_type,
         } = self.tree.get(signature)
         else {
@@ -1685,7 +1656,7 @@ impl<'a> FunctionLowerer<'a> {
                 message: "indirect call signature is not a function type".into(),
             });
         };
-        let environment = self.tree.function_value_environment_type();
+        let environment = self.tree.callable_environment_type();
 
         let callee_value = value_map[&callee];
         let signature_node = signature.into_any();
@@ -1694,17 +1665,17 @@ impl<'a> FunctionLowerer<'a> {
         let (environment_offset, environment_field_type) =
             self.aggregate_field_offset_and_type(signature, 1, signature_node)?;
 
-        let function_type = self.type_id(*function_type, "function value code type")?;
+        let function_type = self.type_id(*function_type, "callable code type")?;
 
         if function_field_type != function_type {
             return Err(CodegenCraneliftError::Internal {
-                message: "function value code field type mismatch".into(),
+                message: "callable code field type mismatch".into(),
             });
         }
 
         if environment_field_type != environment {
             return Err(CodegenCraneliftError::Internal {
-                message: "function value environment field type mismatch".into(),
+                message: "callable environment field type mismatch".into(),
             });
         }
 
@@ -1988,9 +1959,9 @@ impl<'a> FunctionLowerer<'a> {
             mir::Type::Tuple { elements, .. } => *elements
                 .get(index as usize)
                 .ok_or_else(|| CodegenCraneliftError::out_of_bounds(node, index, elements.len()))?,
-            mir::Type::Closure { signature } => match index {
+            mir::Type::Callable { signature } => match index {
                 0 => *signature,
-                1 => mir::TypeReference::Type(self.tree.function_value_environment_type()),
+                1 => mir::TypeReference::Type(self.tree.callable_environment_type()),
                 _ => return Err(CodegenCraneliftError::out_of_bounds(node, index, 2)),
             },
             _ => {

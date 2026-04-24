@@ -200,14 +200,14 @@ bb2:
     assert_eq!(clif, expected);
 }
 
-/// function.environment adds a hidden environment parameter to the signature.
+/// callable.environment adds a hidden environment parameter to the signature.
 #[test]
-fn test_function_environment_signature_param() {
+fn test_callable_environment_signature_param() {
     let mir = r#"
 @environment(ref<int32, raw, space(stack)>)
 function read_env(): int32 {
 bb0:
-    v0: ref<int32, raw, space(stack)> = function.environment
+    v0: ref<int32, raw, space(stack)> = callable.environment
     v1: int32 = load v0
     return v1
 }"#;
@@ -230,7 +230,7 @@ fn test_call_indirect_with_env_param() {
 @environment(ref<int32, raw, space(stack)>)
 function read_env(): int32 {
 bb0:
-    v0: ref<int32, raw, space(stack)> = function.environment
+    v0: ref<int32, raw, space(stack)> = callable.environment
     v1: int32 = load v0
     return v1
 }
@@ -240,7 +240,7 @@ bb0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = const 7int32
     store v0, v1
-    v2: closure() -> int32 = function.bind read_env, v0
+    v2: () => int32 = callable.bind read_env, v0
     v3: int32 = call.indirect v2()
     return v3
 }"#;

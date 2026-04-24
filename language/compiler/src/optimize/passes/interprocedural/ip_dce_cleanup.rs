@@ -127,8 +127,9 @@ global live: int32, readonly = 1int32
 global dead: int32, readonly = 2int32
 export function root(): int32 {
 b0:
-    v0: int32 = global.const live
-    return v0
+    v0: ref<int32, raw, readonly> = global.address live
+    v1: int32 = load v0
+    return v1
 }"#;
 
         let expected = r#"
@@ -136,8 +137,9 @@ global live: int32, readonly = 1int32
 extern global dead: int32, readonly
 export function root(): int32 {
 b0:
-    v0: int32 = global.const live
-    return v0
+    v0: ref<int32, raw, readonly> = global.address live
+    v1: int32 = load v0
+    return v1
 }"#;
 
         let mut test = TestProgram::new(input);

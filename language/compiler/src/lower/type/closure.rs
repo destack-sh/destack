@@ -111,7 +111,7 @@ impl ModuleLowerer<'_> {
             .ensure_display_name(env_type, metadata_name);
 
         // record layout metadata for the env type
-        self.insert_layout_entry(env_type, mir::LayoutKind::FunctionEnvironment, &layout);
+        self.insert_layout_entry(env_type, mir::LayoutKind::CallableEnvironment, &layout);
         self.type_lowerer.set_layout(env_type, layout);
 
         // build the managed env pointer type

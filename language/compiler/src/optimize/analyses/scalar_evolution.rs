@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 use destack_mir as mir;
 
 use crate::optimize::common::{
-    BlockParamForwarding, constant_from_global, constant_is_one, constant_is_zero,
-    constant_zero_for_type, constant_zero_like, fold_binary, fold_cast, instruction_is_pure,
+    BlockParamForwarding, constant_is_one, constant_is_zero, constant_zero_for_type,
+    constant_zero_like, fold_binary, fold_cast, instruction_is_pure,
     terminator_arguments_for_successor,
 };
 use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, TypeContext};
@@ -922,10 +922,6 @@ fn constant_for_value(
     let instruction_data = tree.get(instruction);
     match instruction_data {
         mir::Instruction::Const { value, .. } => Some(value.clone()),
-        mir::Instruction::GlobalConst { global, .. } => {
-            let global = global.global()?;
-            constant_from_global(global, tree)
-        }
         _ => None,
     }
 }

@@ -302,7 +302,7 @@ impl ModuleLowerer<'_> {
         else if type_id.is_some_and(|type_id| {
             matches!(self.types.get_type(type_id), dir::Type::Function { .. })
         }) {
-            mir::LayoutKind::Closure
+            mir::LayoutKind::Callable
         }
         // mark function environments explicitly when present
         else if self
@@ -310,7 +310,7 @@ impl ModuleLowerer<'_> {
             .values()
             .any(|env_layout| env_layout.env_type == mir_type)
         {
-            mir::LayoutKind::FunctionEnvironment
+            mir::LayoutKind::CallableEnvironment
         }
         // default to plain struct layout
         else {

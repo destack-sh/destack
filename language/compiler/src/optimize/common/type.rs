@@ -101,7 +101,7 @@ pub enum TypeKey {
     /// Function pointer type.
     FunctionPointer { signature: Box<TypeKey> },
     /// Callable closure value type.
-    Closure { signature: Box<TypeKey> },
+    Callable { signature: Box<TypeKey> },
     /// Recursive reference to a previously visited type id.
     Recursive { id: mir::LocalNodeId<mir::Type> },
 }
@@ -269,7 +269,7 @@ impl TypeKey {
             mir::Type::FunctionPointer { signature } => TypeKey::FunctionPointer {
                 signature: Box::new(Self::from_type_reference(*signature, tree)),
             },
-            mir::Type::Closure { signature } => TypeKey::Closure {
+            mir::Type::Callable { signature } => TypeKey::Callable {
                 signature: Box::new(Self::from_type_reference(*signature, tree)),
             },
         };
@@ -545,7 +545,7 @@ fn types_are_equal_inner(
         ) => type_references_are_equal(*s1, *s2, tree, visiting),
 
         // function values: compare signatures
-        (mir::Type::Closure { signature: s1 }, mir::Type::Closure { signature: s2 }) => {
+        (mir::Type::Callable { signature: s1 }, mir::Type::Callable { signature: s2 }) => {
             type_references_are_equal(*s1, *s2, tree, visiting)
         }
 

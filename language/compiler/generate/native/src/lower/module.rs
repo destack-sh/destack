@@ -161,11 +161,6 @@ impl<'a> ModuleLowerer<'a> {
 
             mir::GlobalInitializer::Scalar(constant) => self.lower_scalar_constant(constant, ty),
 
-            mir::GlobalInitializer::String(_) => Err(CodegenCraneliftError::unsupported_type(
-                "string globals must be lowered by the runtime".to_string(),
-                ty.into_any(),
-            )),
-
             mir::GlobalInitializer::Bytes(bytes) => Ok(bytes.clone()),
 
             mir::GlobalInitializer::Aggregate(elements) => {
@@ -331,7 +326,7 @@ impl<'a> ModuleLowerer<'a> {
 
         // function environment parameter when used
         if let Some(environment) =
-            self.optional_type_id(function.environment, "function environment type")?
+            self.optional_type_id(function.environment, "callable environment type")?
         {
             let ty = lower_type(tree, environment, pointer_bytes)?;
             signature.params.push(cir::AbiParam::new(ty));

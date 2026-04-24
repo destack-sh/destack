@@ -317,8 +317,8 @@ impl<'a> FunctionLowerer<'a> {
                 message: format!("missing string literal global for {literal_id:?}"),
             })?;
 
-        // materialize the global constant value
-        let value = self.state.builder.global_const(global);
+        // load the string value from its static global
+        let value = self.state.builder.load_global(global);
 
         // resolve the string type for the literal
         let ty = self.context.type_lowerer.string_type().ok_or_else(|| {
@@ -579,14 +579,13 @@ impl<'a> FunctionLowerer<'a> {
             return Ok((value, binding.ty));
         }
 
-        // use global_const for immutable, global_addr + load for mutable
         let global_binding = self.global_binding_for_symbol(expression_id, target_symbol)?;
         if global_binding.mutability == mir::Mutability::Mutable {
             let addr_type = self.state.builder.type_reference(
                 mir::ReferenceKind::Raw,
                 global_binding.ty,
                 global_binding.mutability,
-                mir::AddressSpace::Global,
+                global_binding.space.clone(),
                 false,
             );
             let addr = self
@@ -596,7 +595,7 @@ impl<'a> FunctionLowerer<'a> {
             let value = self.state.builder.load(addr, global_binding.ty);
             Ok((value, global_binding.ty))
         } else {
-            let value = self.state.builder.global_const(global_binding.global);
+            let value = self.state.builder.load_global(global_binding.global);
             Ok((value, global_binding.ty))
         }
     }
@@ -624,7 +623,7 @@ impl<'a> FunctionLowerer<'a> {
         let closure_value =
             self.state
                 .builder
-                .function_bind(target_function, closure_type, env_value);
+                .callable_bind(target_function, closure_type, env_value);
 
         Ok((closure_value, closure_type))
     }

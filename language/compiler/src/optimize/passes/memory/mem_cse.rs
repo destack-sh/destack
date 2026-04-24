@@ -10,7 +10,7 @@ use crate::optimize::analyses::{
 use crate::optimize::common::{
     ValueEquivalence, address_spaces_may_alias, alias_scopes_may_alias,
     build_instruction_block_map, build_value_definition_map, effect_is_trackable,
-    effects_match_location, instruction_has_atomic_ordering, region_sets_may_alias,
+    effects_match_location, instruction_has_atomic_ordering, space_sets_may_alias,
     type_alias_tags_may_alias,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
@@ -559,7 +559,7 @@ fn memop_alias_result(
     }
 
     // apply location sets
-    if !region_sets_may_alias(dest_effect.region_set, source_effect.region_set) {
+    if !space_sets_may_alias(dest_effect.space_set, source_effect.space_set) {
         return AliasResult::NoAlias;
     }
 
@@ -788,7 +788,7 @@ b0:
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
         test.tree.get_mut(callee).memory_effect =
-            mir::MemoryEffect::read_only(mir::MemoryRegionSet::ANY);
+            mir::MemoryEffect::read_only(mir::MemorySpaceSet::ANY);
 
         test.run_pass(&MemCse);
         test.assert_output(expected);
@@ -817,7 +817,7 @@ b0:
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
         test.tree.get_mut(callee).memory_effect =
-            mir::MemoryEffect::read_write(mir::MemoryRegionSet::ANY);
+            mir::MemoryEffect::read_write(mir::MemorySpaceSet::ANY);
 
         test.run_pass(&MemCse);
         test.assert_unchanged(input);
@@ -860,7 +860,7 @@ b0:
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
         test.tree.get_mut(callee).memory_effect =
-            mir::MemoryEffect::write_only(mir::MemoryRegionSet::RAW_HEAP);
+            mir::MemoryEffect::write_only(mir::MemorySpaceSet::RAW_HEAP);
 
         test.run_pass(&MemCse);
         test.assert_output(expected);
@@ -903,8 +903,8 @@ b0:
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
         test.tree.get_mut(callee).memory_effect =
-            mir::MemoryEffect::write_only(mir::MemoryRegionSet::ANY)
-                .with_address_spaces(mir::AddressSpaceMask::new(vec![mir::AddressSpace::Shared]));
+            mir::MemoryEffect::write_only(mir::MemorySpaceSet::ANY)
+                .with_address_spaces(mir::AddressSpaceSet::new(vec![mir::AddressSpace::Shared]));
 
         test.run_pass(&MemCse);
         test.assert_output(expected);
@@ -1253,7 +1253,7 @@ b0:
         test.assert_output(expected);
     }
 
-    /// Memmove with overlapping regions is preserved.
+    /// Memmove with overlapping spaces is preserved.
     #[test]
     fn test_preserve_overlapping_memmove() {
         let input = r#"

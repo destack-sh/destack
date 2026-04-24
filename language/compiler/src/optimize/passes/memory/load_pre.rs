@@ -693,7 +693,7 @@ extern function readOnly(): void"#;
             panic!("expected call instruction");
         };
 
-        call.memory_effect = Some(mir::MemoryEffect::read_only(mir::MemoryRegionSet::ANY));
+        call.memory_effect = Some(mir::MemoryEffect::read_only(mir::MemorySpaceSet::ANY));
         call.behavior = Some(mir::CallBehavior::none());
 
         test.run_pass(&LoadPre);
