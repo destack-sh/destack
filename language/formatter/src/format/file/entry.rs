@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt::{self, Display};
 use std::sync::Arc;
 
-use destack_ast::{Expression, LocalNodeId, NodeParentIndex, NodeTree};
+use destack_ast::{Expression, LocalNodeId, NodeParentIndex};
 use destack_css::{CssFormatOptions, format_stylesheet, parse_css};
 use destack_fir::format as fir_format;
 use destack_html::{HtmlFormatOptions, format_document, parse_html};
@@ -26,18 +26,6 @@ impl Display for FormatFileError {
 }
 
 impl Error for FormatFileError {}
-
-/// Build the formatter tree and parents from parsed expression roots.
-pub fn build_formatter_tree_and_parents(
-    tree: &NodeTree,
-    expressions: &[LocalNodeId<Expression>],
-) -> (NodeTree, NodeParentIndex) {
-    // reachable parents on formatter roots
-    let tree = tree.clone();
-    let parents = NodeParentIndex::from_expression_roots(&tree, expressions);
-
-    (tree, parents)
-}
 
 /// Format one full source file from authored text.
 pub fn format_file_source(
@@ -148,12 +136,12 @@ fn format_parser_file_source(
     let (tokens, side_tokens) = parser.take_tokens();
     let side_span = parser.compute_side_span();
     let strings = parser.strings.into_immutable();
-    let (tree, parents) = build_formatter_tree_and_parents(&parser.tree, &expressions);
+    let parents = NodeParentIndex::from_expression_roots(&parser.tree, &expressions);
     let options = DestackFormatOptions::from_formatter_options(options, language_type);
     let context = DestackFormatContext::new(
         options,
         parser_file.as_ref(),
-        &tree,
+        &parser.tree,
         &tokens,
         &side_tokens,
         &side_span,
@@ -170,21 +158,16 @@ fn render_program_roots<'a>(
     expressions: &'a [LocalNodeId<Expression>],
 ) -> Result<String, FormatFileError> {
     // format the parsed roots
-    let mut result = if expressions.is_empty() {
-        String::new()
-    } else {
-        let formatted =
-            fir_format!(context.clone(), [statement_list(expressions)]).map_err(|error| {
-                FormatFileError {
-                    message: error.to_string(),
-                }
-            })?;
-        let printed = formatted.print().map_err(|error| FormatFileError {
-            message: error.to_string(),
+    let formatted =
+        fir_format!(context.clone(), [statement_list(expressions)]).map_err(|error| {
+            FormatFileError {
+                message: error.to_string(),
+            }
         })?;
-
-        printed.as_str().to_string()
-    };
+    let printed = formatted.print().map_err(|error| FormatFileError {
+        message: error.to_string(),
+    })?;
+    let mut result = printed.as_str().to_string();
 
     // keep text outputs newline terminated
     if !result.is_empty() && !result.ends_with('\n') {
