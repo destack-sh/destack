@@ -1,7 +1,7 @@
 use destack_heap::{HeapReference, SharedHeapReference};
 
-/// Sink for VM roots discovered during one scan.
-pub trait RootSink {
+/// Visitor for VM roots discovered during one scan.
+pub trait RootVisitor {
     /// Record one local heap root.
     fn push_heap(&mut self, reference: HeapReference);
 
@@ -18,7 +18,7 @@ pub struct RootSet {
     pub shared: Vec<SharedHeapReference>,
 }
 
-impl RootSink for RootSet {
+impl RootVisitor for RootSet {
     fn push_heap(&mut self, reference: HeapReference) {
         if reference.is_null() {
             return;
