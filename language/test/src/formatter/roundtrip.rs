@@ -115,13 +115,9 @@ fn format_expressions(
     );
 
     // ensure a trailing newline
-    let mut result = if expressions.is_empty() {
-        String::new()
-    } else {
-        let formatted = fir_format!(context.clone(), [statement_list(expressions)]).unwrap();
-        let printed = formatted.print().unwrap();
-        printed.as_str().to_string()
-    };
+    let formatted = fir_format!(context.clone(), [statement_list(expressions)]).unwrap();
+    let printed = formatted.print().unwrap();
+    let mut result = printed.as_str().to_string();
 
     if !result.is_empty() && !result.ends_with('\n') {
         result.push('\n');

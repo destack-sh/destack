@@ -49,7 +49,7 @@ LOCAL_OR_EXTENDED_PATTERNS: tuple[tuple[str, str], ...] = (
     (r"type\s+[_$A-Za-z][\w$]*\s*=\s*\([^)]*,[^)]*\)", "paren-tuple-type"),
     (r":\s*@[_$A-Za-z]", "decorated-type-annotation"),
     (r"[(,]\s*@[_$A-Za-z]", "annotated-parameter"),
-    (r"\bwhere\b", "where-clause"),
+    (r"(?<!\.)\bwhere\b", "where-clause"),
 )
 
 REFERENCE_INVALID_INPUT_PATTERNS: tuple[str, ...] = (

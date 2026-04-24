@@ -48,6 +48,12 @@
             "status": "ignore",
             "reason": "scope",
             "note": "unsupported inline JSDoc cast width behavior and JSDoc tag formatting semantics"
+        },
+        {
+            "patterns": ["ts/static-members/non-null-expression.ts"],
+            "status": "ignore",
+            "reason": "scope",
+            "note": "unsupported legacy TypeScript angle-bracket assertion syntax"
         }
     ]
 }
