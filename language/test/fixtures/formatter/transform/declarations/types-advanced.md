@@ -187,11 +187,11 @@ type Point = (int32, int32);
 
 Nested conditional types preserve parentheses.
 
-```ds
+```ts:main.ts
 type Nested<T> = T extends string ? (T extends "a" ? 1 : 2) : 3
 ```
 
-```ds expected
+```ts expected
 type Nested<T> = T extends string ? (T extends "a" ? 1 : 2) : 3;
 ```
 

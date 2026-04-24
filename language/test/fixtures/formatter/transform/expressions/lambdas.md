@@ -94,11 +94,11 @@ const f = (x: number): number => x * 2;
 
 Union types and multiple typed parameters are supported.
 
-```ds
+```ts:main.ts
 const f = (a: string, b: number): string | number => a || b
 ```
 
-```ds expected
+```ts expected
 const f = (a: string, b: number): string | number => a || b;
 ```
 

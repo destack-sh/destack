@@ -152,6 +152,18 @@ const value = maybe!.nested!.value
 const value = maybe!.nested!.value;
 ```
 
+### static members after non-null assertions stay tight
+
+Non-null assertions inside static-member chains keep the following supported member path intact.
+
+```ts:main.ts
+compoundConfigurationsSchema.items.oneOf![1].properties!.folder.enum = folderNames
+```
+
+```ts expected
+compoundConfigurationsSchema.items.oneOf![1].properties!.folder.enum = folderNames;
+```
+
 ## Computed Access
 
 ### computed access stays inline
