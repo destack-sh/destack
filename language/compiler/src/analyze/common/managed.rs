@@ -58,7 +58,28 @@ impl Compiler {
         match tree.get(expression_id) {
             Expression::ValueOf { .. }
             | Expression::ReferenceOf { .. }
-            | Expression::PointerOf { .. } => true,
+            | Expression::PointerOf { .. }
+            | Expression::OwnershipCast { .. } => true,
+            Expression::UnresolvedPath { path, .. }
+            | Expression::LocalReference { path, .. }
+            | Expression::ModuleReference { path, .. }
+            | Expression::GlobalReference { path, .. } => path
+                .first_segment()
+                .map(|name| {
+                    matches!(
+                        self.repository.strings.get(name).as_ref(),
+                        "Managed"
+                            | "Owned"
+                            | "Borrowed"
+                            | "Raw"
+                            | "Shared"
+                            | "AsManaged"
+                            | "AsOwned"
+                            | "AsBorrowed"
+                            | "AsRaw"
+                    )
+                })
+                .unwrap_or(false),
             Expression::Parenthesized { expression } => {
                 self.expression_has_explicit_ownership(tree, *expression)
             }

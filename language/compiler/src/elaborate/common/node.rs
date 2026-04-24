@@ -41,6 +41,7 @@ impl Compiler {
     }
 
     /// Clone an expression node and copy node-level analysis metadata.
+    /// TODO #Performance: revisit clone_expression_with_analysis
     pub(crate) fn clone_expression_with_analysis(
         &self,
         state: &mut ElaborateState<'_>,
@@ -48,9 +49,6 @@ impl Compiler {
         expression: &Expression,
         scope: dir::LocalScope,
     ) -> LocalNodeId<Expression> {
-        // FUGU #Performance #Architecture: slice 3 still clones whole expression nodes
-        // during elaborate rewrites, slice 4 should replace this with finer-grained builders
-
         // clone the expression node in the requested scope
         let cloned_id = state.tree.reserve_from(
             NodeType::Expression,

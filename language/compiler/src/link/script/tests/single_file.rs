@@ -1166,7 +1166,6 @@ const localFunction = function LocalFunction() {};
 const returnFunction = function ReturnFunction() { return 1; };
 const localClass = class LocalClass {};
 
-// FUGU #Incomplete: self-referential class expressions still fail before linker minify runs
 export const appValue = [localFunction, returnFunction, localClass];
 "#),
     );
@@ -1215,7 +1214,6 @@ const returnFunction = function ReturnFunction() { return 1; };
 const recursiveFunction = function RecursiveFunction() { return RecursiveFunction(); };
 const localClass = class LocalClass {};
 
-// FUGU #Incomplete: self-referential class expressions still fail before linker minify runs
 export const appValue = [localFunction, returnFunction, recursiveFunction, localClass];
 "#),
     );

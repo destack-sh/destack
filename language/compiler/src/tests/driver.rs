@@ -54,13 +54,13 @@ pub(crate) fn provide_artifacts_to_completion(
                     compiler.clear_artifact_run();
                 }
 
+                pending_artifact_keys.push(artifact_key);
+
                 if !requirements.has_source_requirements() {
                     requirements.for_each_artifact(|requirement| {
                         pending_artifact_keys.push(requirement.version.key);
                     });
                 }
-
-                pending_artifact_keys.push(artifact_key);
             }
             Err(ProvideError::Failed(error)) => {
                 panic!("failed to provide compiler artifact {artifact_key:?}: {error:?}");
@@ -99,13 +99,13 @@ fn satisfy_compiler_requirements(
                     compiler.clear_artifact_run();
                 }
 
+                pending_artifact_keys.push(artifact_key);
+
                 if !requirements.has_source_requirements() {
                     requirements.for_each_artifact(|requirement| {
                         pending_artifact_keys.push(requirement.version.key);
                     });
                 }
-
-                pending_artifact_keys.push(artifact_key);
             }
             Err(ProvideError::Failed(..)) => continue,
         }

@@ -102,6 +102,7 @@ impl Compiler {
                 TypeLiteral::Primitive(source_primitive),
             ) => {
                 if target_primitive == source_primitive
+                    || self.is_primitive_exactly_equivalent(target_primitive, source_primitive)
                     || (!options.no_implicit_conversions
                         && self.is_primitive_numeric_assignable(target_primitive, source_primitive))
                 {
@@ -122,6 +123,23 @@ impl Compiler {
 
             // everything else: not assignable
             _ => Assignability::NotAssignable,
+        }
+    }
+
+    /// Check whether primitive type variants describe the same concrete type.
+    pub(super) fn is_primitive_exactly_equivalent(
+        &self,
+        target: &PrimitiveType,
+        source: &PrimitiveType,
+    ) -> bool {
+        match (target, source) {
+            (PrimitiveType::Int(target_int), PrimitiveType::Int(source_int)) => {
+                target_int.simplify() == source_int.simplify()
+            }
+            (PrimitiveType::Float(target_float), PrimitiveType::Float(source_float)) => {
+                target_float.simplify() == source_float.simplify()
+            }
+            _ => false,
         }
     }
 
