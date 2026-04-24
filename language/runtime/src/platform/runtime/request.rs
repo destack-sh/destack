@@ -13,7 +13,7 @@ use crate::runtime::control::inspect::{
 };
 use crate::runtime::observe::ObservationOptions;
 use destack_workspace::{
-    ExecutionMode, RuntimeOptions, RuntimeWorkerOptions, RuntimeWorld, TimeMode,
+    ExecutionMode, RuntimeAuthority, RuntimeOptions, RuntimeWorkerOptions, RuntimeWorld,
 };
 
 use super::RuntimeHandleCodec;
@@ -86,25 +86,27 @@ impl RuntimeRequestCodec {
 
         // optional execution mode
         if let Some(execution) = options.execution {
-            runtime_options.execution = match execution {
+            let execution = match execution {
                 RuntimeExecutionMode::Fast => ExecutionMode::Fast,
                 RuntimeExecutionMode::Deterministic => ExecutionMode::Deterministic,
                 RuntimeExecutionMode::Record => ExecutionMode::Record,
                 RuntimeExecutionMode::Replay => ExecutionMode::Replay,
             };
+            runtime_options.set_execution_mode(execution);
         }
 
         // optional world kind
         if let Some(world) = options.world {
-            runtime_options.world = match world {
+            runtime_options.policy.world = match world {
                 RuntimeWorldKind::Host => RuntimeWorld::Host,
                 RuntimeWorldKind::Simulation => RuntimeWorld::Simulation,
             };
         }
 
         // simulation worlds default to virtual time
-        if runtime_options.world == RuntimeWorld::Simulation {
-            runtime_options.time.mode = TimeMode::Virtual;
+        if runtime_options.policy.world == RuntimeWorld::Simulation {
+            runtime_options.policy.time.authority = RuntimeAuthority::Simulation;
+            runtime_options.policy.random.authority = RuntimeAuthority::Simulation;
         }
 
         let labels = Self::labels_from_value(options.labels);

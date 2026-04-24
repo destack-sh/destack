@@ -389,8 +389,8 @@ impl VmAggregateCodec for ClockMetadata {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -398,14 +398,13 @@ impl VmAggregateCodec for ClockMetadata {
             .boxed());
         }
         let field_id =
-            <ClockId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
-        let field_source = <ClockSource as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
+            <ClockId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_source =
+            <ClockSource as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_resolution_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_is_monotonic =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             id: field_id,
             source: field_source,
@@ -419,26 +418,26 @@ impl VmAggregateCodec for ClockMetadata {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("time::ClockMetadata")
+            .begin_named_aggregate_builder("time::ClockMetadata")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <ClockId as VmAggregateCodec>::encode_with_context(self.id, context)?;
+        let field_value = <ClockId as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <ClockSource as VmAggregateCodec>::encode_with_context(self.source, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.resolution_ns, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_monotonic, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -506,8 +505,8 @@ impl VmAggregateCodec for TimerOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -515,9 +514,9 @@ impl VmAggregateCodec for TimerOptions {
             .boxed());
         }
         let field_clock =
-            <TimerClock as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <TimerClock as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_flags =
-            <TimerFlags as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <TimerFlags as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             clock: field_clock,
             flags: field_flags,
@@ -529,17 +528,17 @@ impl VmAggregateCodec for TimerOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("time::TimerOptions")
+            .begin_named_aggregate_builder("time::TimerOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <TimerClock as VmAggregateCodec>::encode_with_context(self.clock, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <TimerFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -580,10 +579,10 @@ impl VmAbiCodec for TimerOptions {
 
 impl VmCollectionElement for TimerOptions {}
 
-/// Register VM storage schemas for time.
-pub(crate) fn register_time_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
-    isolate.register_named_storage_type("time::ClockMetadata", 4)?;
-    isolate.register_named_storage_type("time::TimerOptions", 2)?;
+/// Register VM aggregate schemas for time.
+pub(crate) fn register_time_vm_aggregate_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_aggregate_type("time::ClockMetadata", 4)?;
+    isolate.register_named_aggregate_type("time::TimerOptions", 2)?;
 
     Ok(())
 }

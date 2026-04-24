@@ -401,13 +401,13 @@ fn encode_destack_crypto_certificate_descriptor_result(
                 let field_1: RuntimeResult<vm::Value> =
                     Ok(vm::Value::uint(value.validity.not_after_unix_seconds, 64));
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoCertificateValidity")
+                    .begin_named_aggregate_builder("crypto::CryptoCertificateValidity")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
@@ -432,56 +432,56 @@ fn encode_destack_crypto_certificate_descriptor_result(
                             None => Ok(vm::Value::VOID),
                         };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                        .begin_named_aggregate_builder("crypto::CryptoStoreIdentity")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 };
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                    .begin_named_aggregate_builder("crypto::CryptoStoreProvenance")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("crypto::CryptoCertificateDescriptor")
+                .begin_named_aggregate_builder("crypto::CryptoCertificateDescriptor")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -617,28 +617,28 @@ fn encode_destack_crypto_certificate_verify_result(
             let field_6: RuntimeResult<vm::Value> =
                 Ok(vm::Value::bool(value.used_system_trust_anchor));
             let mut value_builder = context
-                .begin_named_storage_value_builder("crypto::CryptoCertificateVerifyResult")
+                .begin_named_aggregate_builder("crypto::CryptoCertificateVerifyResult")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -752,13 +752,13 @@ fn encode_destack_crypto_cipher_encrypt_result(
             let field_0: RuntimeResult<vm::Value> = value.bytes.to_value(context);
             let field_1: RuntimeResult<vm::Value> = value.tag.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("crypto::CryptoCipherOutput")
+                .begin_named_aggregate_builder("crypto::CryptoCipherOutput")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -795,13 +795,13 @@ fn encode_destack_crypto_cipher_finish_result(
             let field_0: RuntimeResult<vm::Value> = value.bytes.to_value(context);
             let field_1: RuntimeResult<vm::Value> = value.tag.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("crypto::CryptoCipherOutput")
+                .begin_named_aggregate_builder("crypto::CryptoCipherOutput")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -1373,70 +1373,70 @@ fn encode_destack_crypto_key_descriptor_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                                .begin_named_aggregate_builder("crypto::CryptoStoreIdentity")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                            .begin_named_aggregate_builder("crypto::CryptoStoreProvenance")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorAes")
+                        .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorAes")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(5, field_5?)
+                        .write_field(5, field_5?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(6, field_6?)
+                        .write_field(6, field_6?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(7, field_7?)
+                        .write_field(7, field_7?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(8, field_8?)
+                        .write_field(8, field_8?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(9, field_9?)
+                        .write_field(9, field_9?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1476,70 +1476,70 @@ fn encode_destack_crypto_key_descriptor_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                                .begin_named_aggregate_builder("crypto::CryptoStoreIdentity")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                            .begin_named_aggregate_builder("crypto::CryptoStoreProvenance")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorChaCha20")
+                        .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorChaCha20")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(5, field_5?)
+                        .write_field(5, field_5?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(6, field_6?)
+                        .write_field(6, field_6?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(7, field_7?)
+                        .write_field(7, field_7?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(8, field_8?)
+                        .write_field(8, field_8?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(9, field_9?)
+                        .write_field(9, field_9?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1579,70 +1579,70 @@ fn encode_destack_crypto_key_descriptor_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                                .begin_named_aggregate_builder("crypto::CryptoStoreIdentity")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                            .begin_named_aggregate_builder("crypto::CryptoStoreProvenance")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorEc")
+                        .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorEc")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(5, field_5?)
+                        .write_field(5, field_5?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(6, field_6?)
+                        .write_field(6, field_6?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(7, field_7?)
+                        .write_field(7, field_7?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(8, field_8?)
+                        .write_field(8, field_8?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(9, field_9?)
+                        .write_field(9, field_9?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1678,67 +1678,67 @@ fn encode_destack_crypto_key_descriptor_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                                .begin_named_aggregate_builder("crypto::CryptoStoreIdentity")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                            .begin_named_aggregate_builder("crypto::CryptoStoreProvenance")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorEd25519")
+                        .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorEd25519")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(5, field_5?)
+                        .write_field(5, field_5?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(6, field_6?)
+                        .write_field(6, field_6?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(7, field_7?)
+                        .write_field(7, field_7?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(8, field_8?)
+                        .write_field(8, field_8?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1774,67 +1774,67 @@ fn encode_destack_crypto_key_descriptor_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                                .begin_named_aggregate_builder("crypto::CryptoStoreIdentity")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                            .begin_named_aggregate_builder("crypto::CryptoStoreProvenance")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorEd448")
+                        .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorEd448")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(5, field_5?)
+                        .write_field(5, field_5?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(6, field_6?)
+                        .write_field(6, field_6?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(7, field_7?)
+                        .write_field(7, field_7?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(8, field_8?)
+                        .write_field(8, field_8?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1878,73 +1878,73 @@ fn encode_destack_crypto_key_descriptor_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                                .begin_named_aggregate_builder("crypto::CryptoStoreIdentity")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                            .begin_named_aggregate_builder("crypto::CryptoStoreProvenance")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorHmac")
+                        .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorHmac")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(5, field_5?)
+                        .write_field(5, field_5?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(6, field_6?)
+                        .write_field(6, field_6?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(7, field_7?)
+                        .write_field(7, field_7?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(8, field_8?)
+                        .write_field(8, field_8?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(9, field_9?)
+                        .write_field(9, field_9?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(10, field_10?)
+                        .write_field(10, field_10?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1992,76 +1992,76 @@ fn encode_destack_crypto_key_descriptor_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                                .begin_named_aggregate_builder("crypto::CryptoStoreIdentity")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                            .begin_named_aggregate_builder("crypto::CryptoStoreProvenance")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorRsa")
+                        .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorRsa")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(5, field_5?)
+                        .write_field(5, field_5?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(6, field_6?)
+                        .write_field(6, field_6?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(7, field_7?)
+                        .write_field(7, field_7?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(8, field_8?)
+                        .write_field(8, field_8?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(9, field_9?)
+                        .write_field(9, field_9?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(10, field_10?)
+                        .write_field(10, field_10?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(11, field_11?)
+                        .write_field(11, field_11?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2097,67 +2097,67 @@ fn encode_destack_crypto_key_descriptor_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                                .begin_named_aggregate_builder("crypto::CryptoStoreIdentity")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                            .begin_named_aggregate_builder("crypto::CryptoStoreProvenance")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorX25519")
+                        .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorX25519")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(5, field_5?)
+                        .write_field(5, field_5?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(6, field_6?)
+                        .write_field(6, field_6?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(7, field_7?)
+                        .write_field(7, field_7?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(8, field_8?)
+                        .write_field(8, field_8?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2193,67 +2193,67 @@ fn encode_destack_crypto_key_descriptor_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                                .begin_named_aggregate_builder("crypto::CryptoStoreIdentity")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+                            .begin_named_aggregate_builder("crypto::CryptoStoreProvenance")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorX448")
+                        .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorX448")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(5, field_5?)
+                        .write_field(5, field_5?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(6, field_6?)
+                        .write_field(6, field_6?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(7, field_7?)
+                        .write_field(7, field_7?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(8, field_8?)
+                        .write_field(8, field_8?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2465,13 +2465,13 @@ fn encode_destack_crypto_key_generate_pair_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.public_key.0.0, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.private_key.0.0, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("crypto::CryptoKeyPair")
+                .begin_named_aggregate_builder("crypto::CryptoKeyPair")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -3189,13 +3189,13 @@ fn encode_destack_crypto_store_list_certificates_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("crypto::CryptoCertificateListPage")
+                .begin_named_aggregate_builder("crypto::CryptoCertificateListPage")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -3234,13 +3234,13 @@ fn encode_destack_crypto_store_list_keys_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("crypto::CryptoKeyListPage")
+                .begin_named_aggregate_builder("crypto::CryptoKeyListPage")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -3335,16 +3335,16 @@ fn encode_destack_crypto_store_probe_capability_result(
                     None => Ok(vm::Value::VOID),
                 };
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+                    .begin_named_aggregate_builder("crypto::CryptoStoreIdentity")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
@@ -3386,78 +3386,78 @@ fn encode_destack_crypto_store_probe_capability_result(
                     value.certificate_capabilities.supports_system_trust_anchors,
                 ));
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoStoreCertificateCapability")
+                    .begin_named_aggregate_builder("crypto::CryptoStoreCertificateCapability")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(3, field_3?)
+                    .write_field(3, field_3?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(4, field_4?)
+                    .write_field(4, field_4?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(5, field_5?)
+                    .write_field(5, field_5?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("crypto::CryptoStoreCapability")
+                .begin_named_aggregate_builder("crypto::CryptoStoreCapability")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(14, field_14?)
+                .write_field(14, field_14?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(15, field_15?)
+                .write_field(15, field_15?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -7976,7 +7976,7 @@ fn destack_crypto_probe_agreement_algorithms_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoKeyAgreementAlgorithm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item_raw = decode_int32(
@@ -8060,7 +8060,7 @@ fn destack_crypto_probe_cipher_algorithms_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoCipherAlgorithm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item_raw = decode_int32(
@@ -8145,7 +8145,7 @@ fn destack_crypto_probe_digest_algorithms_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoDigestAlgorithm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item_raw = decode_int32(
@@ -8236,7 +8236,7 @@ fn destack_crypto_probe_kdf_algorithms_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoKdfAlgorithm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item_raw = decode_int32(
@@ -8321,7 +8321,7 @@ fn destack_crypto_probe_key_algorithms_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoKeyAlgorithm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item_raw = decode_int32(
@@ -8409,7 +8409,7 @@ fn destack_crypto_probe_key_formats_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoKeyFormat> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item_raw = decode_int32(
@@ -8500,7 +8500,7 @@ fn destack_crypto_probe_key_residencies_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoKeyResidency> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item_raw = decode_int32(
@@ -8584,7 +8584,7 @@ fn destack_crypto_probe_key_wrap_algorithms_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoKeyWrapAlgorithm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item_raw = decode_int32(
@@ -8668,7 +8668,7 @@ fn destack_crypto_probe_mac_algorithms_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoMacAlgorithm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item_raw = decode_int32(
@@ -8748,7 +8748,7 @@ fn destack_crypto_probe_named_curves_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoNamedCurve> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item_raw = decode_int32(
@@ -8837,7 +8837,7 @@ fn destack_crypto_probe_signature_algorithms_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CryptoSignatureAlgorithm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item_raw = decode_int32(
@@ -8948,7 +8948,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                 let result_recorded_supports_hardware_backed = result_value.supports_hardware_backed;
                 let result_recorded_supports_persistent = result_value.supports_persistent;
                 let result_recorded_supports_key_export = result_value.supports_key_export;
-                let result_recorded_supported_key_algorithms_raw = result_value.supported_key_algorithms.raw_values(context)?;
+                let result_recorded_supported_key_algorithms_raw = result_value.supported_key_algorithms.values(context)?;
                 let mut result_recorded_supported_key_algorithms = Vec::with_capacity(result_recorded_supported_key_algorithms_raw.len());
                 for result_recorded_supported_key_algorithms_item_value in result_recorded_supported_key_algorithms_raw {
                     let result_recorded_supported_key_algorithms_item_raw = decode_int32(result_recorded_supported_key_algorithms_item_value, "result_recorded_supported_key_algorithms_item_raw", "item")?;
@@ -8956,7 +8956,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     let result_recorded_supported_key_algorithms_item_recorded = result_recorded_supported_key_algorithms_item;
                     result_recorded_supported_key_algorithms.push(result_recorded_supported_key_algorithms_item_recorded);
                 }
-                let result_recorded_supported_key_formats_raw = result_value.supported_key_formats.raw_values(context)?;
+                let result_recorded_supported_key_formats_raw = result_value.supported_key_formats.values(context)?;
                 let mut result_recorded_supported_key_formats = Vec::with_capacity(result_recorded_supported_key_formats_raw.len());
                 for result_recorded_supported_key_formats_item_value in result_recorded_supported_key_formats_raw {
                     let result_recorded_supported_key_formats_item_raw = decode_int32(result_recorded_supported_key_formats_item_value, "result_recorded_supported_key_formats_item_raw", "item")?;
@@ -8964,7 +8964,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     let result_recorded_supported_key_formats_item_recorded = result_recorded_supported_key_formats_item;
                     result_recorded_supported_key_formats.push(result_recorded_supported_key_formats_item_recorded);
                 }
-                let result_recorded_supported_key_residencies_raw = result_value.supported_key_residencies.raw_values(context)?;
+                let result_recorded_supported_key_residencies_raw = result_value.supported_key_residencies.values(context)?;
                 let mut result_recorded_supported_key_residencies = Vec::with_capacity(result_recorded_supported_key_residencies_raw.len());
                 for result_recorded_supported_key_residencies_item_value in result_recorded_supported_key_residencies_raw {
                     let result_recorded_supported_key_residencies_item_raw = decode_int32(result_recorded_supported_key_residencies_item_value, "result_recorded_supported_key_residencies_item_raw", "item")?;
@@ -8972,7 +8972,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     let result_recorded_supported_key_residencies_item_recorded = result_recorded_supported_key_residencies_item;
                     result_recorded_supported_key_residencies.push(result_recorded_supported_key_residencies_item_recorded);
                 }
-                let result_recorded_key_capabilities_raw = result_value.key_capabilities.raw_values(context)?;
+                let result_recorded_key_capabilities_raw = result_value.key_capabilities.values(context)?;
                 let mut result_recorded_key_capabilities = Vec::with_capacity(result_recorded_key_capabilities_raw.len());
                 for result_recorded_key_capabilities_item_value in result_recorded_key_capabilities_raw {
                     let result_recorded_key_capabilities_item = <CryptoStoreKeyCapabilityVm as VmAggregateCodec>::decode_with_context(context, result_recorded_key_capabilities_item_value)?;
@@ -8985,7 +8985,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     let result_recorded_key_capabilities_item_recorded_supports_export_private = result_recorded_key_capabilities_item.supports_export_private;
                     let result_recorded_key_capabilities_item_recorded_supports_export_secret = result_recorded_key_capabilities_item.supports_export_secret;
                     let result_recorded_key_capabilities_item_recorded_supported_usage_mask = result_recorded_key_capabilities_item.supported_usage_mask;
-                    let result_recorded_key_capabilities_item_recorded_supported_import_formats_raw = result_recorded_key_capabilities_item.supported_import_formats.raw_values(context)?;
+                    let result_recorded_key_capabilities_item_recorded_supported_import_formats_raw = result_recorded_key_capabilities_item.supported_import_formats.values(context)?;
                     let mut result_recorded_key_capabilities_item_recorded_supported_import_formats = Vec::with_capacity(result_recorded_key_capabilities_item_recorded_supported_import_formats_raw.len());
                     for result_recorded_key_capabilities_item_recorded_supported_import_formats_item_value in result_recorded_key_capabilities_item_recorded_supported_import_formats_raw {
                         let result_recorded_key_capabilities_item_recorded_supported_import_formats_item_raw = decode_int32(result_recorded_key_capabilities_item_recorded_supported_import_formats_item_value, "result_recorded_key_capabilities_item_recorded_supported_import_formats_item_raw", "item")?;
@@ -8993,7 +8993,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                         let result_recorded_key_capabilities_item_recorded_supported_import_formats_item_recorded = result_recorded_key_capabilities_item_recorded_supported_import_formats_item;
                         result_recorded_key_capabilities_item_recorded_supported_import_formats.push(result_recorded_key_capabilities_item_recorded_supported_import_formats_item_recorded);
                     }
-                    let result_recorded_key_capabilities_item_recorded_supported_export_formats_raw = result_recorded_key_capabilities_item.supported_export_formats.raw_values(context)?;
+                    let result_recorded_key_capabilities_item_recorded_supported_export_formats_raw = result_recorded_key_capabilities_item.supported_export_formats.values(context)?;
                     let mut result_recorded_key_capabilities_item_recorded_supported_export_formats = Vec::with_capacity(result_recorded_key_capabilities_item_recorded_supported_export_formats_raw.len());
                     for result_recorded_key_capabilities_item_recorded_supported_export_formats_item_value in result_recorded_key_capabilities_item_recorded_supported_export_formats_raw {
                         let result_recorded_key_capabilities_item_recorded_supported_export_formats_item_raw = decode_int32(result_recorded_key_capabilities_item_recorded_supported_export_formats_item_value, "result_recorded_key_capabilities_item_recorded_supported_export_formats_item_raw", "item")?;
@@ -9016,7 +9016,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     };
                     result_recorded_key_capabilities.push(result_recorded_key_capabilities_item_recorded);
                 }
-                let result_recorded_signature_capabilities_raw = result_value.signature_capabilities.raw_values(context)?;
+                let result_recorded_signature_capabilities_raw = result_value.signature_capabilities.values(context)?;
                 let mut result_recorded_signature_capabilities = Vec::with_capacity(result_recorded_signature_capabilities_raw.len());
                 for result_recorded_signature_capabilities_item_value in result_recorded_signature_capabilities_raw {
                     let result_recorded_signature_capabilities_item = <CryptoStoreSignatureCapabilityVm as VmAggregateCodec>::decode_with_context(context, result_recorded_signature_capabilities_item_value)?;
@@ -9024,7 +9024,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     let result_recorded_signature_capabilities_item_recorded_signature_algorithm = result_recorded_signature_capabilities_item.signature_algorithm;
                     let result_recorded_signature_capabilities_item_recorded_supports_sign = result_recorded_signature_capabilities_item.supports_sign;
                     let result_recorded_signature_capabilities_item_recorded_supports_verify = result_recorded_signature_capabilities_item.supports_verify;
-                    let result_recorded_signature_capabilities_item_recorded_supported_digests_raw = result_recorded_signature_capabilities_item.supported_digests.raw_values(context)?;
+                    let result_recorded_signature_capabilities_item_recorded_supported_digests_raw = result_recorded_signature_capabilities_item.supported_digests.values(context)?;
                     let mut result_recorded_signature_capabilities_item_recorded_supported_digests = Vec::with_capacity(result_recorded_signature_capabilities_item_recorded_supported_digests_raw.len());
                     for result_recorded_signature_capabilities_item_recorded_supported_digests_item_value in result_recorded_signature_capabilities_item_recorded_supported_digests_raw {
                         let result_recorded_signature_capabilities_item_recorded_supported_digests_item_raw = decode_int32(result_recorded_signature_capabilities_item_recorded_supported_digests_item_value, "result_recorded_signature_capabilities_item_recorded_supported_digests_item_raw", "item")?;
@@ -9041,7 +9041,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     };
                     result_recorded_signature_capabilities.push(result_recorded_signature_capabilities_item_recorded);
                 }
-                let result_recorded_asymmetric_encryption_capabilities_raw = result_value.asymmetric_encryption_capabilities.raw_values(context)?;
+                let result_recorded_asymmetric_encryption_capabilities_raw = result_value.asymmetric_encryption_capabilities.values(context)?;
                 let mut result_recorded_asymmetric_encryption_capabilities = Vec::with_capacity(result_recorded_asymmetric_encryption_capabilities_raw.len());
                 for result_recorded_asymmetric_encryption_capabilities_item_value in result_recorded_asymmetric_encryption_capabilities_raw {
                     let result_recorded_asymmetric_encryption_capabilities_item = <CryptoStoreAsymmetricEncryptionCapabilityVm as VmAggregateCodec>::decode_with_context(context, result_recorded_asymmetric_encryption_capabilities_item_value)?;
@@ -9049,7 +9049,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     let result_recorded_asymmetric_encryption_capabilities_item_recorded_algorithm = result_recorded_asymmetric_encryption_capabilities_item.algorithm;
                     let result_recorded_asymmetric_encryption_capabilities_item_recorded_supports_encrypt = result_recorded_asymmetric_encryption_capabilities_item.supports_encrypt;
                     let result_recorded_asymmetric_encryption_capabilities_item_recorded_supports_decrypt = result_recorded_asymmetric_encryption_capabilities_item.supports_decrypt;
-                    let result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_raw = result_recorded_asymmetric_encryption_capabilities_item.supported_digests.raw_values(context)?;
+                    let result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_raw = result_recorded_asymmetric_encryption_capabilities_item.supported_digests.values(context)?;
                     let mut result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests = Vec::with_capacity(result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_raw.len());
                     for result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item_value in result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_raw {
                         let result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item_raw = decode_int32(result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item_value, "result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item_raw", "item")?;
@@ -9066,7 +9066,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     };
                     result_recorded_asymmetric_encryption_capabilities.push(result_recorded_asymmetric_encryption_capabilities_item_recorded);
                 }
-                let result_recorded_key_wrap_capabilities_raw = result_value.key_wrap_capabilities.raw_values(context)?;
+                let result_recorded_key_wrap_capabilities_raw = result_value.key_wrap_capabilities.values(context)?;
                 let mut result_recorded_key_wrap_capabilities = Vec::with_capacity(result_recorded_key_wrap_capabilities_raw.len());
                 for result_recorded_key_wrap_capabilities_item_value in result_recorded_key_wrap_capabilities_raw {
                     let result_recorded_key_wrap_capabilities_item = <CryptoStoreKeyWrapCapabilityVm as VmAggregateCodec>::decode_with_context(context, result_recorded_key_wrap_capabilities_item_value)?;
@@ -9074,7 +9074,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     let result_recorded_key_wrap_capabilities_item_recorded_algorithm = result_recorded_key_wrap_capabilities_item.algorithm;
                     let result_recorded_key_wrap_capabilities_item_recorded_supports_wrap = result_recorded_key_wrap_capabilities_item.supports_wrap;
                     let result_recorded_key_wrap_capabilities_item_recorded_supports_unwrap = result_recorded_key_wrap_capabilities_item.supports_unwrap;
-                    let result_recorded_key_wrap_capabilities_item_recorded_supported_digests_raw = result_recorded_key_wrap_capabilities_item.supported_digests.raw_values(context)?;
+                    let result_recorded_key_wrap_capabilities_item_recorded_supported_digests_raw = result_recorded_key_wrap_capabilities_item.supported_digests.values(context)?;
                     let mut result_recorded_key_wrap_capabilities_item_recorded_supported_digests = Vec::with_capacity(result_recorded_key_wrap_capabilities_item_recorded_supported_digests_raw.len());
                     for result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item_value in result_recorded_key_wrap_capabilities_item_recorded_supported_digests_raw {
                         let result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item_raw = decode_int32(result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item_value, "result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item_raw", "item")?;
@@ -9091,7 +9091,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     };
                     result_recorded_key_wrap_capabilities.push(result_recorded_key_wrap_capabilities_item_recorded);
                 }
-                let result_recorded_cipher_capabilities_raw = result_value.cipher_capabilities.raw_values(context)?;
+                let result_recorded_cipher_capabilities_raw = result_value.cipher_capabilities.values(context)?;
                 let mut result_recorded_cipher_capabilities = Vec::with_capacity(result_recorded_cipher_capabilities_raw.len());
                 for result_recorded_cipher_capabilities_item_value in result_recorded_cipher_capabilities_raw {
                     let result_recorded_cipher_capabilities_item = <CryptoStoreCipherCapabilityVm as VmAggregateCodec>::decode_with_context(context, result_recorded_cipher_capabilities_item_value)?;
@@ -9115,7 +9115,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     };
                     result_recorded_cipher_capabilities.push(result_recorded_cipher_capabilities_item_recorded);
                 }
-                let result_recorded_mac_capabilities_raw = result_value.mac_capabilities.raw_values(context)?;
+                let result_recorded_mac_capabilities_raw = result_value.mac_capabilities.values(context)?;
                 let mut result_recorded_mac_capabilities = Vec::with_capacity(result_recorded_mac_capabilities_raw.len());
                 for result_recorded_mac_capabilities_item_value in result_recorded_mac_capabilities_raw {
                     let result_recorded_mac_capabilities_item = <CryptoStoreMacCapabilityVm as VmAggregateCodec>::decode_with_context(context, result_recorded_mac_capabilities_item_value)?;
@@ -9123,7 +9123,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     let result_recorded_mac_capabilities_item_recorded_algorithm = result_recorded_mac_capabilities_item.algorithm;
                     let result_recorded_mac_capabilities_item_recorded_supports_one_shot = result_recorded_mac_capabilities_item.supports_one_shot;
                     let result_recorded_mac_capabilities_item_recorded_supports_streaming = result_recorded_mac_capabilities_item.supports_streaming;
-                    let result_recorded_mac_capabilities_item_recorded_supported_digests_raw = result_recorded_mac_capabilities_item.supported_digests.raw_values(context)?;
+                    let result_recorded_mac_capabilities_item_recorded_supported_digests_raw = result_recorded_mac_capabilities_item.supported_digests.values(context)?;
                     let mut result_recorded_mac_capabilities_item_recorded_supported_digests = Vec::with_capacity(result_recorded_mac_capabilities_item_recorded_supported_digests_raw.len());
                     for result_recorded_mac_capabilities_item_recorded_supported_digests_item_value in result_recorded_mac_capabilities_item_recorded_supported_digests_raw {
                         let result_recorded_mac_capabilities_item_recorded_supported_digests_item_raw = decode_int32(result_recorded_mac_capabilities_item_recorded_supported_digests_item_value, "result_recorded_mac_capabilities_item_recorded_supported_digests_item_raw", "item")?;
@@ -9144,7 +9144,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     };
                     result_recorded_mac_capabilities.push(result_recorded_mac_capabilities_item_recorded);
                 }
-                let result_recorded_agreement_capabilities_raw = result_value.agreement_capabilities.raw_values(context)?;
+                let result_recorded_agreement_capabilities_raw = result_value.agreement_capabilities.values(context)?;
                 let mut result_recorded_agreement_capabilities = Vec::with_capacity(result_recorded_agreement_capabilities_raw.len());
                 for result_recorded_agreement_capabilities_item_value in result_recorded_agreement_capabilities_raw {
                     let result_recorded_agreement_capabilities_item = <CryptoStoreAgreementCapabilityVm as VmAggregateCodec>::decode_with_context(context, result_recorded_agreement_capabilities_item_value)?;
@@ -9490,7 +9490,7 @@ fn destack_crypto_store_probe_kinds_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<CryptoStoreKind> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item_raw = decode_int32(
@@ -11512,7 +11512,7 @@ pub(crate) fn install_crypto_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) -> vm::Result<()> {
-    super::abi_generated::register_crypto_vm_storage_types(isolate)?;
+    super::abi_generated::register_crypto_vm_aggregate_types(isolate)?;
     register_crypto_vm_bindings(registry, isolate);
 
     Ok(())

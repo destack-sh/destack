@@ -833,7 +833,7 @@ impl<'call> CryptoHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let entries = value.entries.raw_values(&context.read())?;
+                let entries = value.entries.values(&context.read())?;
                 Ok(entries.len())
             }
         }
@@ -895,7 +895,7 @@ impl<'call> CryptoHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let entries = value.entries.raw_values(&context.read())?;
+                let entries = value.entries.values(&context.read())?;
                 Ok(entries.len())
             }
         }

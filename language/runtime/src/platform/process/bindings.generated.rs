@@ -252,24 +252,24 @@ fn encode_destack_process_cwd_get_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = value.bytes.0.to_value(context);
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("fs::OsPathBytes")
+                        .begin_named_aggregate_builder("fs::OsPathBytes")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("fs::OsPath")
+                    .begin_named_aggregate_builder("fs::OsPath")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -279,24 +279,24 @@ fn encode_destack_process_cwd_get_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = value.utf16.0.to_value(context);
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("fs::OsPathUtf16")
+                        .begin_named_aggregate_builder("fs::OsPathUtf16")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("fs::OsPath")
+                    .begin_named_aggregate_builder("fs::OsPath")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -687,24 +687,24 @@ fn encode_destack_process_fd_process_fd_try_wait_result(
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitContinuedStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitContinuedStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -717,27 +717,27 @@ fn encode_destack_process_fd_process_fd_try_wait_result(
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.exit_code as i64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitExitedStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitExitedStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -748,24 +748,24 @@ fn encode_destack_process_fd_process_fd_try_wait_result(
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitRunningStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitRunningStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -779,30 +779,30 @@ fn encode_destack_process_fd_process_fd_try_wait_result(
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitSignaledStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitSignaledStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -815,27 +815,27 @@ fn encode_destack_process_fd_process_fd_try_wait_result(
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitStoppedStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitStoppedStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -874,24 +874,24 @@ fn encode_destack_process_fd_process_fd_wait_result(
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitContinuedStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitContinuedStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -904,27 +904,27 @@ fn encode_destack_process_fd_process_fd_wait_result(
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.exit_code as i64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitExitedStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitExitedStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -935,24 +935,24 @@ fn encode_destack_process_fd_process_fd_wait_result(
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitRunningStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitRunningStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -966,30 +966,30 @@ fn encode_destack_process_fd_process_fd_wait_result(
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitSignaledStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitSignaledStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1002,27 +1002,27 @@ fn encode_destack_process_fd_process_fd_wait_result(
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitStoppedStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitStoppedStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1103,13 +1103,13 @@ fn encode_destack_process_fd_signal_fd_read_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("process::SignalEvent")
+                .begin_named_aggregate_builder("process::SignalEvent")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -1166,13 +1166,13 @@ fn encode_destack_process_fd_signal_fd_try_read_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("process::SignalEvent")
+                .begin_named_aggregate_builder("process::SignalEvent")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -1239,13 +1239,13 @@ fn encode_destack_process_group_cgroup_get_limit_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.soft, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.hard, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("process::ProcessLimit")
+                .begin_named_aggregate_builder("process::ProcessLimit")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -1395,16 +1395,16 @@ fn encode_destack_process_ids_group_ids_result(
                 Ok(vm::Value::uint(value.effective.0 as u64, 32));
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.saved.0 as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("process::ProcessGroupIds")
+                .begin_named_aggregate_builder("process::ProcessGroupIds")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -1617,16 +1617,16 @@ fn encode_destack_process_ids_user_ids_result(
                 Ok(vm::Value::uint(value.effective.0 as u64, 32));
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.saved.0 as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("process::ProcessUserIds")
+                .begin_named_aggregate_builder("process::ProcessUserIds")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -1805,13 +1805,13 @@ fn encode_destack_process_limits_get_limit_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.soft, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.hard, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("process::ProcessLimit")
+                .begin_named_aggregate_builder("process::ProcessLimit")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -1865,10 +1865,10 @@ fn encode_destack_process_sched_get_affinity_result(
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = value.cpus.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("thread::ThreadCpuSet")
+                .begin_named_aggregate_builder("thread::ThreadCpuSet")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -1924,16 +1924,16 @@ fn encode_destack_process_sched_get_scheduler_result(
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.priority as i64, 32));
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("process::ProcessSchedulerConfig")
+                .begin_named_aggregate_builder("process::ProcessSchedulerConfig")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -2176,13 +2176,13 @@ fn encode_destack_process_signals_signal_receive_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("process::SignalEvent")
+                .begin_named_aggregate_builder("process::SignalEvent")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -2237,13 +2237,13 @@ fn encode_destack_process_signals_signal_try_receive_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("process::SignalEvent")
+                .begin_named_aggregate_builder("process::SignalEvent")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -2274,13 +2274,13 @@ fn encode_destack_process_signals_signal_try_wait_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("process::SignalEvent")
+                .begin_named_aggregate_builder("process::SignalEvent")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -2333,13 +2333,13 @@ fn encode_destack_process_signals_signal_wait_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("process::SignalEvent")
+                .begin_named_aggregate_builder("process::SignalEvent")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -2494,24 +2494,24 @@ fn encode_destack_process_wait_handle_result(
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitContinuedStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitContinuedStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2524,27 +2524,27 @@ fn encode_destack_process_wait_handle_result(
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.exit_code as i64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitExitedStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitExitedStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2555,24 +2555,24 @@ fn encode_destack_process_wait_handle_result(
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitRunningStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitRunningStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2586,30 +2586,30 @@ fn encode_destack_process_wait_handle_result(
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitSignaledStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitSignaledStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2622,27 +2622,27 @@ fn encode_destack_process_wait_handle_result(
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitStoppedStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitStoppedStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2681,24 +2681,24 @@ fn encode_destack_process_wait_pid_result(
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitContinuedStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitContinuedStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2711,27 +2711,27 @@ fn encode_destack_process_wait_pid_result(
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.exit_code as i64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitExitedStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitExitedStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2742,24 +2742,24 @@ fn encode_destack_process_wait_pid_result(
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitRunningStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitRunningStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2773,30 +2773,30 @@ fn encode_destack_process_wait_pid_result(
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitSignaledStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitSignaledStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2809,27 +2809,27 @@ fn encode_destack_process_wait_pid_result(
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitStoppedStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitStoppedStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2866,24 +2866,24 @@ fn encode_destack_process_wait_try_wait_result(
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitContinuedStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitContinuedStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2896,27 +2896,27 @@ fn encode_destack_process_wait_try_wait_result(
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.exit_code as i64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitExitedStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitExitedStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2927,24 +2927,24 @@ fn encode_destack_process_wait_try_wait_result(
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.pid.0 as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitRunningStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitRunningStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2958,30 +2958,30 @@ fn encode_destack_process_wait_try_wait_result(
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitSignaledStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitSignaledStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2994,27 +2994,27 @@ fn encode_destack_process_wait_try_wait_result(
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.signal.0 as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("process::ProcessWaitStoppedStatus")
+                        .begin_named_aggregate_builder("process::ProcessWaitStoppedStatus")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("process::ProcessWaitStatus")
+                    .begin_named_aggregate_builder("process::ProcessWaitStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -11068,7 +11068,7 @@ fn destack_process_args_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<vm::StringHandle> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = decode_string(
@@ -11219,7 +11219,7 @@ fn destack_process_cwd_get_vm_replay(
                             result_recorded_os_path_utf16_kind_ref.as_str().to_string()
                         };
                         let result_recorded_os_path_utf16_utf16_inner_raw =
-                            value.utf16.0.raw_values(context)?;
+                            value.utf16.0.values(context)?;
                         let mut result_recorded_os_path_utf16_utf16_inner =
                             Vec::with_capacity(result_recorded_os_path_utf16_utf16_inner_raw.len());
                         for result_recorded_os_path_utf16_utf16_inner_item_value in
@@ -13191,7 +13191,7 @@ fn destack_process_ids_groups_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<GroupId> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item_inner = decode_uint32(
@@ -13930,7 +13930,7 @@ fn destack_process_sched_get_affinity_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: thread::ThreadCpuSetVm = value.clone();
-                let result_recorded_cpus_raw = result_value.cpus.raw_values(context)?;
+                let result_recorded_cpus_raw = result_value.cpus.values(context)?;
                 let mut result_recorded_cpus = Vec::with_capacity(result_recorded_cpus_raw.len());
                 for result_recorded_cpus_item_value in result_recorded_cpus_raw {
                     let result_recorded_cpus_item =
@@ -14534,7 +14534,7 @@ fn destack_process_signals_signal_mask_read_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<Signal> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item_inner = decode_uint32(
@@ -17602,7 +17602,7 @@ pub(crate) fn install_process_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) -> vm::Result<()> {
-    super::abi_generated::register_process_vm_storage_types(isolate)?;
+    super::abi_generated::register_process_vm_aggregate_types(isolate)?;
     register_process_vm_bindings(registry, isolate);
 
     Ok(())

@@ -1904,58 +1904,58 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
             3329037564u32 => Self::CryptoKeyDescriptorAes(
-                <CryptoKeyDescriptorAesVm as VmAggregateCodec>::decode_component_with_context(
+                <CryptoKeyDescriptorAesVm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
             2610676967u32 => Self::CryptoKeyDescriptorChaCha20(
-                <CryptoKeyDescriptorChaCha20Vm as VmAggregateCodec>::decode_component_with_context(
+                <CryptoKeyDescriptorChaCha20Vm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
             4256206084u32 => Self::CryptoKeyDescriptorEc(
-                <CryptoKeyDescriptorEcVm as VmAggregateCodec>::decode_component_with_context(
+                <CryptoKeyDescriptorEcVm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
             2715380390u32 => Self::CryptoKeyDescriptorEd25519(
-                <CryptoKeyDescriptorEd25519Vm as VmAggregateCodec>::decode_component_with_context(
+                <CryptoKeyDescriptorEd25519Vm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
             1419371965u32 => Self::CryptoKeyDescriptorEd448(
-                <CryptoKeyDescriptorEd448Vm as VmAggregateCodec>::decode_component_with_context(
+                <CryptoKeyDescriptorEd448Vm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
             2590550128u32 => Self::CryptoKeyDescriptorHmac(
-                <CryptoKeyDescriptorHmacVm as VmAggregateCodec>::decode_component_with_context(
+                <CryptoKeyDescriptorHmacVm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
             3734490529u32 => Self::CryptoKeyDescriptorRsa(
-                <CryptoKeyDescriptorRsaVm as VmAggregateCodec>::decode_component_with_context(
+                <CryptoKeyDescriptorRsaVm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
             2316288397u32 => Self::CryptoKeyDescriptorX25519(
-                <CryptoKeyDescriptorX25519Vm as VmAggregateCodec>::decode_component_with_context(
+                <CryptoKeyDescriptorX25519Vm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
             1911697504u32 => Self::CryptoKeyDescriptorX448(
-                <CryptoKeyDescriptorX448Vm as VmAggregateCodec>::decode_component_with_context(
+                <CryptoKeyDescriptorX448Vm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
@@ -1983,13 +1983,13 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2001,13 +2001,13 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2019,13 +2019,13 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2037,13 +2037,13 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2055,13 +2055,13 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2073,13 +2073,13 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2091,13 +2091,13 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2109,13 +2109,13 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2127,13 +2127,13 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyDescriptor")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2439,25 +2439,25 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
-            2412662589u32 => Self::CryptoKeyGenerationRequestAes(<CryptoKeyGenerationRequestAesVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1084101563u32 => Self::CryptoKeyGenerationRequestChaCha20(<CryptoKeyGenerationRequestChaCha20Vm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1418993118u32 => Self::CryptoKeyGenerationRequestEc(<CryptoKeyGenerationRequestEcVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2638947906u32 => Self::CryptoKeyGenerationRequestEd25519(<CryptoKeyGenerationRequestEd25519Vm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3992006330u32 => Self::CryptoKeyGenerationRequestEd448(<CryptoKeyGenerationRequestEd448Vm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            4228027449u32 => Self::CryptoKeyGenerationRequestHmac(<CryptoKeyGenerationRequestHmacVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2398334879u32 => Self::CryptoKeyGenerationRequestRsa(<CryptoKeyGenerationRequestRsaVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3178176136u32 => Self::CryptoKeyGenerationRequestX25519(<CryptoKeyGenerationRequestX25519Vm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1314374258u32 => Self::CryptoKeyGenerationRequestX448(<CryptoKeyGenerationRequestX448Vm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
+            2412662589u32 => Self::CryptoKeyGenerationRequestAes(<CryptoKeyGenerationRequestAesVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1084101563u32 => Self::CryptoKeyGenerationRequestChaCha20(<CryptoKeyGenerationRequestChaCha20Vm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1418993118u32 => Self::CryptoKeyGenerationRequestEc(<CryptoKeyGenerationRequestEcVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2638947906u32 => Self::CryptoKeyGenerationRequestEd25519(<CryptoKeyGenerationRequestEd25519Vm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3992006330u32 => Self::CryptoKeyGenerationRequestEd448(<CryptoKeyGenerationRequestEd448Vm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            4228027449u32 => Self::CryptoKeyGenerationRequestHmac(<CryptoKeyGenerationRequestHmacVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2398334879u32 => Self::CryptoKeyGenerationRequestRsa(<CryptoKeyGenerationRequestRsaVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3178176136u32 => Self::CryptoKeyGenerationRequestX25519(<CryptoKeyGenerationRequestX25519Vm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1314374258u32 => Self::CryptoKeyGenerationRequestX448(<CryptoKeyGenerationRequestX448Vm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
             _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown CryptoKeyGenerationRequest tag")).boxed()),
         };
         Ok(decoded)
@@ -2476,13 +2476,13 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyGenerationRequest")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequest")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2491,13 +2491,13 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(1084101563u32, context)?;
                 let payload_value = <CryptoKeyGenerationRequestChaCha20Vm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyGenerationRequest")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequest")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2509,13 +2509,13 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyGenerationRequest")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequest")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2527,13 +2527,13 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyGenerationRequest")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequest")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2545,13 +2545,13 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyGenerationRequest")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequest")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2563,13 +2563,13 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyGenerationRequest")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequest")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2581,13 +2581,13 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyGenerationRequest")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequest")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2599,13 +2599,13 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyGenerationRequest")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequest")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2617,13 +2617,13 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyGenerationRequest")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequest")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2945,26 +2945,68 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
-            159468872u32 => Self::CryptoKeyImportRequestAes(<CryptoKeyImportRequestAesVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1210133643u32 => Self::CryptoKeyImportRequestChaCha20(<CryptoKeyImportRequestChaCha20Vm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3271515127u32 => Self::CryptoKeyImportRequestEc(<CryptoKeyImportRequestEcVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2534027201u32 => Self::CryptoKeyImportRequestEd25519(<CryptoKeyImportRequestEd25519Vm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            4187992389u32 => Self::CryptoKeyImportRequestEd448(<CryptoKeyImportRequestEd448Vm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1108717825u32 => Self::CryptoKeyImportRequestHmac(<CryptoKeyImportRequestHmacVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1513219457u32 => Self::CryptoKeyImportRequestRsa(<CryptoKeyImportRequestRsaVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            923707562u32 => Self::CryptoKeyImportRequestX25519(<CryptoKeyImportRequestX25519Vm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1722209188u32 => Self::CryptoKeyImportRequestX448(<CryptoKeyImportRequestX448Vm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown CryptoKeyImportRequest tag")).boxed()),
+            159468872u32 => Self::CryptoKeyImportRequestAes(
+                <CryptoKeyImportRequestAesVm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            1210133643u32 => Self::CryptoKeyImportRequestChaCha20(
+                <CryptoKeyImportRequestChaCha20Vm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            3271515127u32 => Self::CryptoKeyImportRequestEc(
+                <CryptoKeyImportRequestEcVm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            2534027201u32 => Self::CryptoKeyImportRequestEd25519(
+                <CryptoKeyImportRequestEd25519Vm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            4187992389u32 => Self::CryptoKeyImportRequestEd448(
+                <CryptoKeyImportRequestEd448Vm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            1108717825u32 => Self::CryptoKeyImportRequestHmac(
+                <CryptoKeyImportRequestHmacVm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            1513219457u32 => Self::CryptoKeyImportRequestRsa(
+                <CryptoKeyImportRequestRsaVm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            923707562u32 => Self::CryptoKeyImportRequestX25519(
+                <CryptoKeyImportRequestX25519Vm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            1722209188u32 => Self::CryptoKeyImportRequestX448(
+                <CryptoKeyImportRequestX448Vm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CryptoKeyImportRequest tag",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -2982,13 +3024,13 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyImportRequest")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyImportRequest")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3000,13 +3042,13 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyImportRequest")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyImportRequest")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3018,13 +3060,13 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyImportRequest")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyImportRequest")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3036,13 +3078,13 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyImportRequest")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyImportRequest")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3054,13 +3096,13 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyImportRequest")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyImportRequest")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3072,13 +3114,13 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyImportRequest")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyImportRequest")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3090,13 +3132,13 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyImportRequest")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyImportRequest")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3108,13 +3150,13 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyImportRequest")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyImportRequest")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3126,13 +3168,13 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("crypto::CryptoKeyImportRequest")
+                    .begin_named_aggregate_builder("crypto::CryptoKeyImportRequest")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3435,8 +3477,8 @@ impl VmAggregateCodec for CryptoAgreementDeriveKeyRequestAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -3444,21 +3486,18 @@ impl VmAggregateCodec for CryptoAgreementDeriveKeyRequestAbi<VmAbi> {
             .boxed());
         }
         let field_algorithm =
-            <CryptoKeyAgreementAlgorithm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoKeyAgreementAlgorithm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_digest =
-            <CryptoDigestAlgorithm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
-        let field_salt = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
+        let field_digest = <CryptoDigestAlgorithm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
         )?;
-        let field_info = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
+        let field_salt =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_info =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_output_length =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             algorithm: field_algorithm,
             digest: field_digest,
@@ -3473,35 +3512,34 @@ impl VmAggregateCodec for CryptoAgreementDeriveKeyRequestAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoAgreementDeriveKeyRequest")
+            .begin_named_aggregate_builder("crypto::CryptoAgreementDeriveKeyRequest")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <CryptoKeyAgreementAlgorithm as VmAggregateCodec>::encode_with_context(
-                self.algorithm,
-                context,
-            )?;
+        let field_value = <CryptoKeyAgreementAlgorithm as VmAggregateCodec>::encode_with_context(
+            self.algorithm,
+            context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoDigestAlgorithm as VmAggregateCodec>::encode_with_context(self.digest, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.salt, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.info, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.output_length, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -3649,35 +3687,30 @@ impl VmAggregateCodec for CryptoArgon2idRequestAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 8 {
+        let field_count = value_ref.field_count();
+        if field_count != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 8 fields",
             ))
             .boxed());
         }
-        let field_password = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
-        let field_salt = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
+        let field_password =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_salt =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_associated_data =
-            <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_secret = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_secret =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_iterations =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_memory_ki_b =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_parallelism =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_length =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         Ok(Self {
             password: field_password,
             salt: field_salt,
@@ -3695,46 +3728,45 @@ impl VmAggregateCodec for CryptoArgon2idRequestAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoArgon2idRequest")
+            .begin_named_aggregate_builder("crypto::CryptoArgon2idRequest")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.password, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.salt, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.associated_data, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.secret, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.iterations, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.iterations, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.memory_ki_b, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.parallelism, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -3891,22 +3923,24 @@ impl VmAggregateCodec for CryptoAsymmetricEncryptionParametersAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_algorithm = <CryptoAsymmetricEncryptionAlgorithm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_algorithm =
+            <CryptoAsymmetricEncryptionAlgorithm as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 0,
+            )?;
         let field_digest =
-            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_label = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
+        let field_label =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             algorithm: field_algorithm,
             digest: field_digest,
@@ -3919,28 +3953,27 @@ impl VmAggregateCodec for CryptoAsymmetricEncryptionParametersAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoAsymmetricEncryptionParameters")
+            .begin_named_aggregate_builder("crypto::CryptoAsymmetricEncryptionParameters")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoAsymmetricEncryptionAlgorithm as VmAggregateCodec>::encode_with_context(
                 self.algorithm,
                 context,
             )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
-                self.digest,
-                context,
-            )?;
+        let field_value = <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
+            self.digest,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4090,42 +4123,40 @@ impl VmAggregateCodec for CryptoCertificateDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 9 {
+        let field_count = value_ref.field_count();
+        if field_count != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 9 fields",
             ))
             .boxed());
         }
-        let field_subject = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_subject = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_issuer = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_issuer = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         let field_serial_number =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_subject_alternative_names =
-            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_fingerprint_sha256 =
-            <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 4,
-            )?;
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_validity =
-            <CryptoCertificateValidityVm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoCertificateValidityVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         let field_is_certificate_authority =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_key_usage_mask =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_store_provenance =
-            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 8,
             )?;
         Ok(Self {
@@ -4146,65 +4177,64 @@ impl VmAggregateCodec for CryptoCertificateDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoCertificateDescriptor")
+            .begin_named_aggregate_builder("crypto::CryptoCertificateDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.subject, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.issuer, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.serial_number,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.subject_alternative_names,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmSlice<u8> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmSlice<u8> as VmAggregateCodec>::encode_with_context(
             self.fingerprint_sha256,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <CryptoCertificateValidityVm as VmAggregateCodec>::encode_with_context(
-                self.validity,
-                context,
-            )?;
+        let field_value = <CryptoCertificateValidityVm as VmAggregateCodec>::encode_with_context(
+            self.validity,
+            context,
+        )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.is_certificate_authority,
             context,
         )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.key_usage_mask, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
             self.store_provenance,
             context,
         )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4425,8 +4455,8 @@ impl VmAggregateCodec for CryptoCertificateListEntryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -4434,17 +4464,17 @@ impl VmAggregateCodec for CryptoCertificateListEntryAbi<VmAbi> {
             .boxed());
         }
         let field_handle =
-            <resource::CryptoCertificateHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::CryptoCertificateHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_subject = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_subject = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_issuer = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_issuer = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         let field_serial_number =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -4460,32 +4490,32 @@ impl VmAggregateCodec for CryptoCertificateListEntryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoCertificateListEntry")
+            .begin_named_aggregate_builder("crypto::CryptoCertificateListEntry")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <resource::CryptoCertificateHandle as VmAggregateCodec>::encode_with_context(
                 self.handle,
                 context,
             )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.subject, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.issuer, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.serial_number,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4627,17 +4657,20 @@ impl VmAggregateCodec for CryptoCertificateListPageAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_entries = <VmArray<CryptoCertificateListEntryVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_entries =
+            <VmArray<CryptoCertificateListEntryVm> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 0,
+            )?;
         let field_next_cursor =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -4651,22 +4684,22 @@ impl VmAggregateCodec for CryptoCertificateListPageAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoCertificateListPage")
+            .begin_named_aggregate_builder("crypto::CryptoCertificateListPage")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<CryptoCertificateListEntryVm> as VmAggregateCodec>::encode_with_context(
                 self.entries,
                 context,
             )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.next_cursor,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4804,8 +4837,8 @@ impl VmAggregateCodec for CryptoCertificateQueryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -4813,24 +4846,23 @@ impl VmAggregateCodec for CryptoCertificateQueryAbi<VmAbi> {
             .boxed());
         }
         let field_subject_contains =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_issuer_contains =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_subject_alternative_name =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_cursor =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
-        let field_limit = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 4,
-        )?;
+        let field_limit =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             subject_contains: field_subject_contains,
             issuer_contains: field_issuer_contains,
@@ -4845,40 +4877,40 @@ impl VmAggregateCodec for CryptoCertificateQueryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoCertificateQuery")
+            .begin_named_aggregate_builder("crypto::CryptoCertificateQuery")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.subject_contains,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.issuer_contains,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.subject_alternative_name,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.cursor,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.limit, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5017,8 +5049,8 @@ impl VmAggregateCodec for CryptoCertificateValidity {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -5026,9 +5058,9 @@ impl VmAggregateCodec for CryptoCertificateValidity {
             .boxed());
         }
         let field_not_before_unix_seconds =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_not_after_unix_seconds =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             not_before_unix_seconds: field_not_before_unix_seconds,
             not_after_unix_seconds: field_not_after_unix_seconds,
@@ -5040,17 +5072,17 @@ impl VmAggregateCodec for CryptoCertificateValidity {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoCertificateValidity")
+            .begin_named_aggregate_builder("crypto::CryptoCertificateValidity")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.not_before_unix_seconds, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.not_after_unix_seconds, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5139,8 +5171,8 @@ impl VmAggregateCodec for CryptoCertificateVerifyIdentityAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -5148,10 +5180,10 @@ impl VmAggregateCodec for CryptoCertificateVerifyIdentityAbi<VmAbi> {
             .boxed());
         }
         let field_kind =
-            <CryptoCertificateIdentityKind as VmAggregateCodec>::decode_component_with_context(
+            <CryptoCertificateIdentityKind as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_value = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_value = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         Ok(Self {
@@ -5165,19 +5197,18 @@ impl VmAggregateCodec for CryptoCertificateVerifyIdentityAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoCertificateVerifyIdentity")
+            .begin_named_aggregate_builder("crypto::CryptoCertificateVerifyIdentity")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <CryptoCertificateIdentityKind as VmAggregateCodec>::encode_with_context(
-                self.kind, context,
-            )?;
+        let field_value = <CryptoCertificateIdentityKind as VmAggregateCodec>::encode_with_context(
+            self.kind, context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.value, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5302,8 +5333,8 @@ impl VmAggregateCodec for CryptoCertificateVerifyRequestAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 8 {
+        let field_count = value_ref.field_count();
+        if field_count != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 8 fields",
@@ -5311,24 +5342,22 @@ impl VmAggregateCodec for CryptoCertificateVerifyRequestAbi<VmAbi> {
             .boxed());
         }
         let field_leaf =
-            <resource::CryptoCertificateHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::CryptoCertificateHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_intermediates = <VmSlice<resource::CryptoCertificateHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_trust_anchors = <VmSlice<resource::CryptoCertificateHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_intermediates = <VmSlice<resource::CryptoCertificateHandle> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_trust_anchors = <VmSlice<resource::CryptoCertificateHandle> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_use_system_trust_anchors =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_purpose =
-            <CryptoCertificatePurpose as VmAggregateCodec>::decode_component_with_context(
+            <CryptoCertificatePurpose as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
-        let field_identity = <Option<CryptoCertificateVerifyIdentityVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+        let field_identity = <Option<CryptoCertificateVerifyIdentityVm> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_verification_unix_seconds =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 6,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_revocation_mode =
-            <CryptoCertificateRevocationMode as VmAggregateCodec>::decode_component_with_context(
+            <CryptoCertificateRevocationMode as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         Ok(Self {
@@ -5348,67 +5377,67 @@ impl VmAggregateCodec for CryptoCertificateVerifyRequestAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoCertificateVerifyRequest")
+            .begin_named_aggregate_builder("crypto::CryptoCertificateVerifyRequest")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <resource::CryptoCertificateHandle as VmAggregateCodec>::encode_with_context(
                 self.leaf, context,
             )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<resource::CryptoCertificateHandle> as VmAggregateCodec>::encode_with_context(
                 self.intermediates,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<resource::CryptoCertificateHandle> as VmAggregateCodec>::encode_with_context(
                 self.trust_anchors,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.use_system_trust_anchors,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoCertificatePurpose as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoCertificatePurpose as VmAggregateCodec>::encode_with_context(
             self.purpose,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<CryptoCertificateVerifyIdentityVm> as VmAggregateCodec>::encode_with_context(
                 self.identity,
                 context,
             )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.verification_unix_seconds,
             context,
         )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoCertificateRevocationMode as VmAggregateCodec>::encode_with_context(
                 self.revocation_mode,
                 context,
             )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5652,8 +5681,8 @@ impl VmAggregateCodec for CryptoCertificateVerifyResultAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
@@ -5661,25 +5690,23 @@ impl VmAggregateCodec for CryptoCertificateVerifyResultAbi<VmAbi> {
             .boxed());
         }
         let field_valid =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_error =
-            <CryptoCertificateVerifyError as VmAggregateCodec>::decode_component_with_context(
+            <CryptoCertificateVerifyError as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_error_code =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_failed_certificate_index =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_failed_certificate_subject =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         let field_chain_length =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_used_system_trust_anchor =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         Ok(Self {
             valid: field_valid,
             error: field_error,
@@ -5696,49 +5723,47 @@ impl VmAggregateCodec for CryptoCertificateVerifyResultAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoCertificateVerifyResult")
+            .begin_named_aggregate_builder("crypto::CryptoCertificateVerifyResult")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(self.valid, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.valid, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <CryptoCertificateVerifyError as VmAggregateCodec>::encode_with_context(
-                self.error, context,
-            )?;
+        let field_value = <CryptoCertificateVerifyError as VmAggregateCodec>::encode_with_context(
+            self.error, context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.error_code, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.error_code, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
             self.failed_certificate_index,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.failed_certificate_subject,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.chain_length, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.used_system_trust_anchor,
             context,
         )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5916,20 +5941,18 @@ impl VmAggregateCodec for CryptoCipherOutputAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_bytes = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
-        let field_tag = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
+        let field_bytes =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_tag =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             bytes: field_bytes,
             tag: field_tag,
@@ -5941,17 +5964,17 @@ impl VmAggregateCodec for CryptoCipherOutputAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoCipherOutput")
+            .begin_named_aggregate_builder("crypto::CryptoCipherOutput")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.tag, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6067,8 +6090,8 @@ impl VmAggregateCodec for CryptoCipherParametersAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -6076,23 +6099,17 @@ impl VmAggregateCodec for CryptoCipherParametersAbi<VmAbi> {
             .boxed());
         }
         let field_algorithm =
-            <CryptoCipherAlgorithm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoCipherAlgorithm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_nonce = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
+        let field_nonce =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_additional_data =
-            <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_tag = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_tag =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_tag_length_bytes =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 4,
-            )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             algorithm: field_algorithm,
             nonce: field_nonce,
@@ -6107,34 +6124,34 @@ impl VmAggregateCodec for CryptoCipherParametersAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoCipherParameters")
+            .begin_named_aggregate_builder("crypto::CryptoCipherParameters")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoCipherAlgorithm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoCipherAlgorithm as VmAggregateCodec>::encode_with_context(
             self.algorithm,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.nonce, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.additional_data, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.tag, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.tag_length_bytes, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6294,30 +6311,25 @@ impl VmAggregateCodec for CryptoHkdfRequestAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_digest =
-            <CryptoDigestAlgorithm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
+        let field_digest = <CryptoDigestAlgorithm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
         let field_input_key_material =
-            <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
-        let field_salt = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
-        let field_info = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_salt =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_info =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_length =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             digest: field_digest,
             input_key_material: field_input_key_material,
@@ -6332,33 +6344,33 @@ impl VmAggregateCodec for CryptoHkdfRequestAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoHkdfRequest")
+            .begin_named_aggregate_builder("crypto::CryptoHkdfRequest")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoDigestAlgorithm as VmAggregateCodec>::encode_with_context(self.digest, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmSlice<u8> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmSlice<u8> as VmAggregateCodec>::encode_with_context(
             self.input_key_material,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.salt, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.info, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6511,43 +6523,38 @@ impl VmAggregateCodec for CryptoKeyDescriptorAesAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 10 {
+        let field_count = value_ref.field_count();
+        if field_count != 10 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 10 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_key_kind = <CryptoKeyKind as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
         )?;
-        let field_size_bits = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
+        let field_key_kind =
+            <CryptoKeyKind as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_size_bits =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
         )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 4,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
-        let field_residency =
-            <CryptoKeyResidency as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 6,
-            )?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
+        let field_residency = <CryptoKeyResidency as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 6,
+        )?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_store_provenance =
-            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 9,
             )?;
         Ok(Self {
@@ -6569,61 +6576,61 @@ impl VmAggregateCodec for CryptoKeyDescriptorAesAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorAes")
+            .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorAes")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyKind as VmAggregateCodec>::encode_with_context(self.key_kind, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.size_bits, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyResidency as VmAggregateCodec>::encode_with_context(self.residency, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
             self.store_provenance,
             context,
         )?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6814,43 +6821,38 @@ impl VmAggregateCodec for CryptoKeyDescriptorChaCha20Abi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 10 {
+        let field_count = value_ref.field_count();
+        if field_count != 10 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 10 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_key_kind = <CryptoKeyKind as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
         )?;
-        let field_size_bits = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
+        let field_key_kind =
+            <CryptoKeyKind as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_size_bits =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
         )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 4,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
-        let field_residency =
-            <CryptoKeyResidency as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 6,
-            )?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
+        let field_residency = <CryptoKeyResidency as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 6,
+        )?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_store_provenance =
-            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 9,
             )?;
         Ok(Self {
@@ -6872,61 +6874,61 @@ impl VmAggregateCodec for CryptoKeyDescriptorChaCha20Abi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorChaCha20")
+            .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorChaCha20")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyKind as VmAggregateCodec>::encode_with_context(self.key_kind, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.size_bits, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyResidency as VmAggregateCodec>::encode_with_context(self.residency, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
             self.store_provenance,
             context,
         )?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7117,44 +7119,40 @@ impl VmAggregateCodec for CryptoKeyDescriptorEcAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 10 {
+        let field_count = value_ref.field_count();
+        if field_count != 10 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 10 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_key_kind = <CryptoKeyKind as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
         )?;
+        let field_key_kind =
+            <CryptoKeyKind as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_named_curve =
-            <Option<CryptoNamedCurve> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoNamedCurve> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 4,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
-        let field_residency =
-            <CryptoKeyResidency as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 6,
-            )?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
+        let field_residency = <CryptoKeyResidency as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 6,
+        )?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_store_provenance =
-            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 9,
             )?;
         Ok(Self {
@@ -7176,63 +7174,63 @@ impl VmAggregateCodec for CryptoKeyDescriptorEcAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorEc")
+            .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorEc")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyKind as VmAggregateCodec>::encode_with_context(self.key_kind, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<CryptoNamedCurve> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<CryptoNamedCurve> as VmAggregateCodec>::encode_with_context(
             self.named_curve,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyResidency as VmAggregateCodec>::encode_with_context(self.residency, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
             self.store_provenance,
             context,
         )?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7432,40 +7430,36 @@ impl VmAggregateCodec for CryptoKeyDescriptorEd25519Abi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 9 {
+        let field_count = value_ref.field_count();
+        if field_count != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 9 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_key_kind = <CryptoKeyKind as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
         )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_key_kind =
+            <CryptoKeyKind as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 3,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
-        let field_residency =
-            <CryptoKeyResidency as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 5,
-            )?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
+        let field_residency = <CryptoKeyResidency as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 5,
+        )?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_store_provenance =
-            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 8,
             )?;
         Ok(Self {
@@ -7486,56 +7480,56 @@ impl VmAggregateCodec for CryptoKeyDescriptorEd25519Abi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorEd25519")
+            .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorEd25519")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyKind as VmAggregateCodec>::encode_with_context(self.key_kind, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyResidency as VmAggregateCodec>::encode_with_context(self.residency, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
             self.store_provenance,
             context,
         )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7718,40 +7712,36 @@ impl VmAggregateCodec for CryptoKeyDescriptorEd448Abi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 9 {
+        let field_count = value_ref.field_count();
+        if field_count != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 9 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_key_kind = <CryptoKeyKind as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
         )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_key_kind =
+            <CryptoKeyKind as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 3,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
-        let field_residency =
-            <CryptoKeyResidency as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 5,
-            )?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
+        let field_residency = <CryptoKeyResidency as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 5,
+        )?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_store_provenance =
-            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 8,
             )?;
         Ok(Self {
@@ -7772,56 +7762,56 @@ impl VmAggregateCodec for CryptoKeyDescriptorEd448Abi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorEd448")
+            .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorEd448")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyKind as VmAggregateCodec>::encode_with_context(self.key_kind, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyResidency as VmAggregateCodec>::encode_with_context(self.residency, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
             self.store_provenance,
             context,
         )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8008,47 +7998,42 @@ impl VmAggregateCodec for CryptoKeyDescriptorHmacAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 11 {
+        let field_count = value_ref.field_count();
+        if field_count != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 11 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_key_kind = <CryptoKeyKind as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
         )?;
-        let field_size_bits = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
+        let field_key_kind =
+            <CryptoKeyKind as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_size_bits =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_digest =
-            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 4,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 4,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 5,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
-        let field_residency =
-            <CryptoKeyResidency as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 7,
-            )?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
+        let field_residency = <CryptoKeyResidency as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 7,
+        )?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         let field_store_provenance =
-            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 10,
             )?;
         Ok(Self {
@@ -8071,69 +8056,68 @@ impl VmAggregateCodec for CryptoKeyDescriptorHmacAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorHmac")
+            .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorHmac")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyKind as VmAggregateCodec>::encode_with_context(self.key_kind, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.size_bits, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
-                self.digest,
-                context,
-            )?;
+        let field_value = <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
+            self.digest,
+            context,
+        )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyResidency as VmAggregateCodec>::encode_with_context(self.residency, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
             self.store_provenance,
             context,
         )?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8345,51 +8329,44 @@ impl VmAggregateCodec for CryptoKeyDescriptorRsaAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 12 {
+        let field_count = value_ref.field_count();
+        if field_count != 12 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 12 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_key_kind = <CryptoKeyKind as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
         )?;
-        let field_modulus_bits = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
+        let field_key_kind =
+            <CryptoKeyKind as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_modulus_bits =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_public_exponent =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_digest =
-            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 5,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 5,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 6,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
-        let field_residency =
-            <CryptoKeyResidency as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 8,
-            )?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
+        let field_residency = <CryptoKeyResidency as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 8,
+        )?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         let field_store_provenance =
-            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 11,
             )?;
         Ok(Self {
@@ -8413,74 +8390,73 @@ impl VmAggregateCodec for CryptoKeyDescriptorRsaAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorRsa")
+            .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorRsa")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyKind as VmAggregateCodec>::encode_with_context(self.key_kind, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.modulus_bits, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.public_exponent, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
-                self.digest,
-                context,
-            )?;
+        let field_value = <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
+            self.digest,
+            context,
+        )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyResidency as VmAggregateCodec>::encode_with_context(self.residency, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
             self.store_provenance,
             context,
         )?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8705,40 +8681,36 @@ impl VmAggregateCodec for CryptoKeyDescriptorX25519Abi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 9 {
+        let field_count = value_ref.field_count();
+        if field_count != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 9 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_key_kind = <CryptoKeyKind as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
         )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_key_kind =
+            <CryptoKeyKind as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 3,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
-        let field_residency =
-            <CryptoKeyResidency as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 5,
-            )?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
+        let field_residency = <CryptoKeyResidency as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 5,
+        )?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_store_provenance =
-            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 8,
             )?;
         Ok(Self {
@@ -8759,56 +8731,56 @@ impl VmAggregateCodec for CryptoKeyDescriptorX25519Abi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorX25519")
+            .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorX25519")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyKind as VmAggregateCodec>::encode_with_context(self.key_kind, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyResidency as VmAggregateCodec>::encode_with_context(self.residency, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
             self.store_provenance,
             context,
         )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8991,40 +8963,36 @@ impl VmAggregateCodec for CryptoKeyDescriptorX448Abi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 9 {
+        let field_count = value_ref.field_count();
+        if field_count != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 9 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_key_kind = <CryptoKeyKind as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
         )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_key_kind =
+            <CryptoKeyKind as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 3,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
-        let field_residency =
-            <CryptoKeyResidency as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 5,
-            )?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
+        let field_residency = <CryptoKeyResidency as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 5,
+        )?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_store_provenance =
-            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 8,
             )?;
         Ok(Self {
@@ -9045,56 +9013,56 @@ impl VmAggregateCodec for CryptoKeyDescriptorX448Abi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyDescriptorX448")
+            .begin_named_aggregate_builder("crypto::CryptoKeyDescriptorX448")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyKind as VmAggregateCodec>::encode_with_context(self.key_kind, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyResidency as VmAggregateCodec>::encode_with_context(self.residency, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
             self.store_provenance,
             context,
         )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9275,37 +9243,35 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAesAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 8 {
+        let field_count = value_ref.field_count();
+        if field_count != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 8 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
         let field_size_bits =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 3,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_residency =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         Ok(Self {
             algorithm: field_algorithm,
             size_bits: field_size_bits,
@@ -9323,52 +9289,50 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAesAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyGenerationRequestAes")
+            .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequestAes")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.size_bits, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.size_bits, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.residency,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.residency,
+            context,
+        )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9541,37 +9505,35 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestChaCha20Abi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 8 {
+        let field_count = value_ref.field_count();
+        if field_count != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 8 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
         let field_size_bits =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 3,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_residency =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         Ok(Self {
             algorithm: field_algorithm,
             size_bits: field_size_bits,
@@ -9589,52 +9551,50 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestChaCha20Abi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyGenerationRequestChaCha20")
+            .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequestChaCha20")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.size_bits, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.size_bits, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.residency,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.residency,
+            context,
+        )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9807,39 +9767,36 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEcAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 8 {
+        let field_count = value_ref.field_count();
+        if field_count != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 8 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_named_curve =
-            <CryptoNamedCurve as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_named_curve = <CryptoNamedCurve as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 3,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_residency =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         Ok(Self {
             algorithm: field_algorithm,
             named_curve: field_named_curve,
@@ -9857,52 +9814,51 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEcAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyGenerationRequestEc")
+            .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequestEc")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoNamedCurve as VmAggregateCodec>::encode_with_context(self.named_curve, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.residency,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.residency,
+            context,
+        )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10078,35 +10034,33 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEd25519Abi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_residency =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         Ok(Self {
             algorithm: field_algorithm,
             usage_mask: field_usage_mask,
@@ -10123,47 +10077,46 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEd25519Abi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyGenerationRequestEd25519")
+            .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequestEd25519")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.residency,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.residency,
+            context,
+        )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10328,35 +10281,33 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEd448Abi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_residency =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         Ok(Self {
             algorithm: field_algorithm,
             usage_mask: field_usage_mask,
@@ -10373,47 +10324,46 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEd448Abi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyGenerationRequestEd448")
+            .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequestEd448")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.residency,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.residency,
+            context,
+        )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10582,41 +10532,38 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestHmacAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 9 {
+        let field_count = value_ref.field_count();
+        if field_count != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 9 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
         let field_size_bits =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_digest =
-            <CryptoDigestAlgorithm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_digest = <CryptoDigestAlgorithm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 4,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_residency =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         Ok(Self {
             algorithm: field_algorithm,
             size_bits: field_size_bits,
@@ -10635,57 +10582,55 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestHmacAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyGenerationRequestHmac")
+            .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequestHmac")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.size_bits, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.size_bits, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoDigestAlgorithm as VmAggregateCodec>::encode_with_context(self.digest, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.residency,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.residency,
+            context,
+        )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10868,43 +10813,41 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestRsaAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 10 {
+        let field_count = value_ref.field_count();
+        if field_count != 10 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 10 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
         let field_modulus_bits =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_public_exponent =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_digest =
-            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 4,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 4,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 5,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_residency =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         Ok(Self {
             algorithm: field_algorithm,
             modulus_bits: field_modulus_bits,
@@ -10924,65 +10867,63 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestRsaAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyGenerationRequestRsa")
+            .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequestRsa")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.modulus_bits, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.public_exponent, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
-                self.digest,
-                context,
-            )?;
+        let field_value = <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
+            self.digest,
+            context,
+        )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.residency,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.residency,
+            context,
+        )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11176,35 +11117,33 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestX25519Abi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_residency =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         Ok(Self {
             algorithm: field_algorithm,
             usage_mask: field_usage_mask,
@@ -11221,47 +11160,46 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestX25519Abi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyGenerationRequestX25519")
+            .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequestX25519")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.residency,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.residency,
+            context,
+        )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11426,35 +11364,33 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestX448Abi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_residency =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         Ok(Self {
             algorithm: field_algorithm,
             usage_mask: field_usage_mask,
@@ -11471,47 +11407,46 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestX448Abi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyGenerationRequestX448")
+            .begin_named_aggregate_builder("crypto::CryptoKeyGenerationRequestX448")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.residency,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.residency,
+            context,
+        )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11681,43 +11616,40 @@ impl VmAggregateCodec for CryptoKeyImportRequestAesAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 9 {
+        let field_count = value_ref.field_count();
+        if field_count != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 9 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_component_with_context(
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_bytes = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
+        let field_bytes =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
         )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 4,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_residency =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
         let field_passphrase =
-            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         Ok(Self {
             algorithm: field_algorithm,
             format: field_format,
@@ -11736,59 +11668,58 @@ impl VmAggregateCodec for CryptoKeyImportRequestAesAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyImportRequestAes")
+            .begin_named_aggregate_builder("crypto::CryptoKeyImportRequestAes")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.residency,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.residency,
+            context,
+        )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
             self.passphrase,
             context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11976,43 +11907,40 @@ impl VmAggregateCodec for CryptoKeyImportRequestChaCha20Abi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 9 {
+        let field_count = value_ref.field_count();
+        if field_count != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 9 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_component_with_context(
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_bytes = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
+        let field_bytes =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
         )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 4,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_residency =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
         let field_passphrase =
-            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         Ok(Self {
             algorithm: field_algorithm,
             format: field_format,
@@ -12031,59 +11959,58 @@ impl VmAggregateCodec for CryptoKeyImportRequestChaCha20Abi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyImportRequestChaCha20")
+            .begin_named_aggregate_builder("crypto::CryptoKeyImportRequestChaCha20")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.residency,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.residency,
+            context,
+        )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
             self.passphrase,
             context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12273,47 +12200,44 @@ impl VmAggregateCodec for CryptoKeyImportRequestEcAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 10 {
+        let field_count = value_ref.field_count();
+        if field_count != 10 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 10 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_component_with_context(
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_bytes = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
+        let field_bytes =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_named_curve =
-            <Option<CryptoNamedCurve> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoNamedCurve> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 4,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 4,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 5,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_residency =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         let field_passphrase =
-            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 8,
             )?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         Ok(Self {
             algorithm: field_algorithm,
             format: field_format,
@@ -12333,66 +12257,65 @@ impl VmAggregateCodec for CryptoKeyImportRequestEcAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyImportRequestEc")
+            .begin_named_aggregate_builder("crypto::CryptoKeyImportRequestEc")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<CryptoNamedCurve> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<CryptoNamedCurve> as VmAggregateCodec>::encode_with_context(
             self.named_curve,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.residency,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.residency,
+            context,
+        )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
             self.passphrase,
             context,
         )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12597,43 +12520,40 @@ impl VmAggregateCodec for CryptoKeyImportRequestEd25519Abi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 9 {
+        let field_count = value_ref.field_count();
+        if field_count != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 9 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_component_with_context(
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_bytes = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
+        let field_bytes =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
         )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 4,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_residency =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
         let field_passphrase =
-            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         Ok(Self {
             algorithm: field_algorithm,
             format: field_format,
@@ -12652,59 +12572,58 @@ impl VmAggregateCodec for CryptoKeyImportRequestEd25519Abi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyImportRequestEd25519")
+            .begin_named_aggregate_builder("crypto::CryptoKeyImportRequestEd25519")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.residency,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.residency,
+            context,
+        )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
             self.passphrase,
             context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12892,43 +12811,40 @@ impl VmAggregateCodec for CryptoKeyImportRequestEd448Abi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 9 {
+        let field_count = value_ref.field_count();
+        if field_count != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 9 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_component_with_context(
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_bytes = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
+        let field_bytes =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
         )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 4,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_residency =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
         let field_passphrase =
-            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         Ok(Self {
             algorithm: field_algorithm,
             format: field_format,
@@ -12947,59 +12863,58 @@ impl VmAggregateCodec for CryptoKeyImportRequestEd448Abi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyImportRequestEd448")
+            .begin_named_aggregate_builder("crypto::CryptoKeyImportRequestEd448")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.residency,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.residency,
+            context,
+        )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
             self.passphrase,
             context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13189,47 +13104,43 @@ impl VmAggregateCodec for CryptoKeyImportRequestHmacAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 10 {
+        let field_count = value_ref.field_count();
+        if field_count != 10 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 10 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_component_with_context(
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_bytes = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
+        let field_bytes =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_digest = <CryptoDigestAlgorithm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
         )?;
-        let field_digest =
-            <CryptoDigestAlgorithm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 4,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 4,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 5,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_residency =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         let field_passphrase =
-            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 8,
             )?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         Ok(Self {
             algorithm: field_algorithm,
             format: field_format,
@@ -13249,64 +13160,63 @@ impl VmAggregateCodec for CryptoKeyImportRequestHmacAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyImportRequestHmac")
+            .begin_named_aggregate_builder("crypto::CryptoKeyImportRequestHmac")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoDigestAlgorithm as VmAggregateCodec>::encode_with_context(self.digest, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.residency,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.residency,
+            context,
+        )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
             self.passphrase,
             context,
         )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13502,47 +13412,44 @@ impl VmAggregateCodec for CryptoKeyImportRequestRsaAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 10 {
+        let field_count = value_ref.field_count();
+        if field_count != 10 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 10 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_component_with_context(
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_bytes = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
+        let field_bytes =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_digest =
-            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 4,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 4,
+        )?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 5,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_residency =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         let field_passphrase =
-            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 8,
             )?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         Ok(Self {
             algorithm: field_algorithm,
             format: field_format,
@@ -13562,67 +13469,65 @@ impl VmAggregateCodec for CryptoKeyImportRequestRsaAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyImportRequestRsa")
+            .begin_named_aggregate_builder("crypto::CryptoKeyImportRequestRsa")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
-                self.digest,
-                context,
-            )?;
+        let field_value = <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
+            self.digest,
+            context,
+        )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.residency,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.residency,
+            context,
+        )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
             self.passphrase,
             context,
         )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13827,43 +13732,40 @@ impl VmAggregateCodec for CryptoKeyImportRequestX25519Abi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 9 {
+        let field_count = value_ref.field_count();
+        if field_count != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 9 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_component_with_context(
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_bytes = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
+        let field_bytes =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
         )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 4,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_residency =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
         let field_passphrase =
-            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         Ok(Self {
             algorithm: field_algorithm,
             format: field_format,
@@ -13882,59 +13784,58 @@ impl VmAggregateCodec for CryptoKeyImportRequestX25519Abi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyImportRequestX25519")
+            .begin_named_aggregate_builder("crypto::CryptoKeyImportRequestX25519")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.residency,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.residency,
+            context,
+        )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
             self.passphrase,
             context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14122,43 +14023,40 @@ impl VmAggregateCodec for CryptoKeyImportRequestX448Abi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 9 {
+        let field_count = value_ref.field_count();
+        if field_count != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 9 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_component_with_context(
+        let field_algorithm = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_bytes = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
+        let field_bytes =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
         )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 4,
         )?;
         let field_extractable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_residency =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
         let field_passphrase =
-            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         let field_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         Ok(Self {
             algorithm: field_algorithm,
             format: field_format,
@@ -14177,59 +14075,58 @@ impl VmAggregateCodec for CryptoKeyImportRequestX448Abi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyImportRequestX448")
+            .begin_named_aggregate_builder("crypto::CryptoKeyImportRequestX448")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.residency,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.residency,
+            context,
+        )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
             self.passphrase,
             context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14405,8 +14302,8 @@ impl VmAggregateCodec for CryptoKeyListEntryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -14414,20 +14311,18 @@ impl VmAggregateCodec for CryptoKeyListEntryAbi<VmAbi> {
             .boxed());
         }
         let field_handle =
-            <resource::CryptoKeyHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::CryptoKeyHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_algorithm =
-            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
+        let field_algorithm = <CryptoKeyAlgorithm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
+        let field_usage_mask = <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
+        )?;
         Ok(Self {
             handle: field_handle,
             label: field_label,
@@ -14441,31 +14336,31 @@ impl VmAggregateCodec for CryptoKeyListEntryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyListEntry")
+            .begin_named_aggregate_builder("crypto::CryptoKeyListEntry")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <resource::CryptoKeyHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <resource::CryptoKeyHandle as VmAggregateCodec>::encode_with_context(
             self.handle,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.usage_mask,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14597,8 +14492,8 @@ impl VmAggregateCodec for CryptoKeyListPageAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -14606,11 +14501,11 @@ impl VmAggregateCodec for CryptoKeyListPageAbi<VmAbi> {
             .boxed());
         }
         let field_entries =
-            <VmArray<CryptoKeyListEntryVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmArray<CryptoKeyListEntryVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_next_cursor =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -14624,22 +14519,21 @@ impl VmAggregateCodec for CryptoKeyListPageAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyListPage")
+            .begin_named_aggregate_builder("crypto::CryptoKeyListPage")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <VmArray<CryptoKeyListEntryVm> as VmAggregateCodec>::encode_with_context(
-                self.entries,
-                context,
-            )?;
+        let field_value = <VmArray<CryptoKeyListEntryVm> as VmAggregateCodec>::encode_with_context(
+            self.entries,
+            context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.next_cursor,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14748,8 +14642,8 @@ impl VmAggregateCodec for CryptoKeyPair {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -14757,11 +14651,11 @@ impl VmAggregateCodec for CryptoKeyPair {
             .boxed());
         }
         let field_public_key =
-            <resource::CryptoKeyHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::CryptoKeyHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_private_key =
-            <resource::CryptoKeyHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::CryptoKeyHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -14775,21 +14669,21 @@ impl VmAggregateCodec for CryptoKeyPair {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyPair")
+            .begin_named_aggregate_builder("crypto::CryptoKeyPair")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <resource::CryptoKeyHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <resource::CryptoKeyHandle as VmAggregateCodec>::encode_with_context(
             self.public_key,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <resource::CryptoKeyHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <resource::CryptoKeyHandle as VmAggregateCodec>::encode_with_context(
             self.private_key,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14884,33 +14778,31 @@ impl VmAggregateCodec for CryptoKeyQueryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_label_prefix =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
+        let field_label_prefix = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
         let field_algorithm =
-            <Option<CryptoKeyAlgorithm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyAlgorithm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_usage_mask =
-            <Option<CryptoKeyUsageMask> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoKeyUsageMask> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_cursor =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
-        let field_limit = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 4,
-        )?;
+        let field_limit =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             label_prefix: field_label_prefix,
             algorithm: field_algorithm,
@@ -14925,42 +14817,40 @@ impl VmAggregateCodec for CryptoKeyQueryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyQuery")
+            .begin_named_aggregate_builder("crypto::CryptoKeyQuery")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.label_prefix,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyAlgorithm> as VmAggregateCodec>::encode_with_context(
-                self.algorithm,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyAlgorithm> as VmAggregateCodec>::encode_with_context(
+            self.algorithm,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoKeyUsageMask> as VmAggregateCodec>::encode_with_context(
-                self.usage_mask,
-                context,
-            )?;
+        let field_value = <Option<CryptoKeyUsageMask> as VmAggregateCodec>::encode_with_context(
+            self.usage_mask,
+            context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.cursor,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.limit, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15120,8 +15010,8 @@ impl VmAggregateCodec for CryptoKeyWrapParametersAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -15129,16 +15019,15 @@ impl VmAggregateCodec for CryptoKeyWrapParametersAbi<VmAbi> {
             .boxed());
         }
         let field_algorithm =
-            <CryptoKeyWrapAlgorithm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoKeyWrapAlgorithm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_digest =
-            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_label = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
+        let field_label =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             algorithm: field_algorithm,
             digest: field_digest,
@@ -15151,27 +15040,26 @@ impl VmAggregateCodec for CryptoKeyWrapParametersAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoKeyWrapParameters")
+            .begin_named_aggregate_builder("crypto::CryptoKeyWrapParameters")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyWrapAlgorithm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyWrapAlgorithm as VmAggregateCodec>::encode_with_context(
             self.algorithm,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
-                self.digest,
-                context,
-            )?;
+        let field_value = <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
+            self.digest,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15286,26 +15174,22 @@ impl VmAggregateCodec for CryptoMacParameters {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <CryptoMacAlgorithm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_digest =
-            <CryptoDigestAlgorithm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_algorithm = <CryptoMacAlgorithm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_digest = <CryptoDigestAlgorithm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_tag_length_bytes =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             algorithm: field_algorithm,
             digest: field_digest,
@@ -15318,22 +15202,22 @@ impl VmAggregateCodec for CryptoMacParameters {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoMacParameters")
+            .begin_named_aggregate_builder("crypto::CryptoMacParameters")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoMacAlgorithm as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoDigestAlgorithm as VmAggregateCodec>::encode_with_context(self.digest, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.tag_length_bytes, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15428,28 +15312,25 @@ impl VmAggregateCodec for CryptoPbkdf2RequestAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_digest =
-            <CryptoDigestAlgorithm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_password = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
+        let field_digest = <CryptoDigestAlgorithm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
         )?;
-        let field_salt = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
+        let field_password =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_salt =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_iterations =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_length =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             digest: field_digest,
             password: field_password,
@@ -15464,31 +15345,30 @@ impl VmAggregateCodec for CryptoPbkdf2RequestAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoPbkdf2Request")
+            .begin_named_aggregate_builder("crypto::CryptoPbkdf2Request")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoDigestAlgorithm as VmAggregateCodec>::encode_with_context(self.digest, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.password, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.salt, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.iterations, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.iterations, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15615,20 +15495,19 @@ impl VmAggregateCodec for CryptoPrivateKeyExportRequestAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_component_with_context(
+        let field_format = <CryptoKeyFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_passphrase = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
+        let field_passphrase =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             format: field_format,
             passphrase: field_passphrase,
@@ -15640,17 +15519,17 @@ impl VmAggregateCodec for CryptoPrivateKeyExportRequestAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoPrivateKeyExportRequest")
+            .begin_named_aggregate_builder("crypto::CryptoPrivateKeyExportRequest")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.passphrase, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15771,30 +15650,28 @@ impl VmAggregateCodec for CryptoScryptRequestAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_password = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
-        let field_salt = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
+        let field_password =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_salt =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_cost =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_block_size =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_parallelization =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_max_memory_bytes =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_length =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         Ok(Self {
             password: field_password,
             salt: field_salt,
@@ -15811,40 +15688,39 @@ impl VmAggregateCodec for CryptoScryptRequestAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoScryptRequest")
+            .begin_named_aggregate_builder("crypto::CryptoScryptRequest")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.password, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.salt, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.cost, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.cost, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.block_size, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.block_size, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.parallelization, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.max_memory_bytes, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15965,8 +15841,8 @@ impl VmAggregateCodec for CryptoSignatureParameters {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -15974,17 +15850,15 @@ impl VmAggregateCodec for CryptoSignatureParameters {
             .boxed());
         }
         let field_algorithm =
-            <CryptoSignatureAlgorithm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoSignatureAlgorithm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_digest =
-            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_salt_length_bytes =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             algorithm: field_algorithm,
             digest: field_digest,
@@ -15997,29 +15871,28 @@ impl VmAggregateCodec for CryptoSignatureParameters {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoSignatureParameters")
+            .begin_named_aggregate_builder("crypto::CryptoSignatureParameters")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoSignatureAlgorithm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoSignatureAlgorithm as VmAggregateCodec>::encode_with_context(
             self.algorithm,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
-                self.digest,
-                context,
-            )?;
+        let field_value = <Option<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
+            self.digest,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
             self.salt_length_bytes,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -16093,8 +15966,8 @@ impl VmAggregateCodec for CryptoStoreAgreementCapability {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -16102,21 +15975,21 @@ impl VmAggregateCodec for CryptoStoreAgreementCapability {
             .boxed());
         }
         let field_private_key_algorithm =
-            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_peer_public_key_algorithm =
-            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_algorithm =
-            <CryptoKeyAgreementAlgorithm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoKeyAgreementAlgorithm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_supports_derive_shared_secret =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_supports_derive_key =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             private_key_algorithm: field_private_key_algorithm,
             peer_public_key_algorithm: field_peer_public_key_algorithm,
@@ -16131,41 +16004,40 @@ impl VmAggregateCodec for CryptoStoreAgreementCapability {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoStoreAgreementCapability")
+            .begin_named_aggregate_builder("crypto::CryptoStoreAgreementCapability")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
             self.private_key_algorithm,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
             self.peer_public_key_algorithm,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <CryptoKeyAgreementAlgorithm as VmAggregateCodec>::encode_with_context(
-                self.algorithm,
-                context,
-            )?;
+        let field_value = <CryptoKeyAgreementAlgorithm as VmAggregateCodec>::encode_with_context(
+            self.algorithm,
+            context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.supports_derive_shared_secret,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_derive_key, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -16262,8 +16134,8 @@ impl VmAggregateCodec for CryptoStoreAsymmetricEncryptionCapabilityAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -16271,16 +16143,19 @@ impl VmAggregateCodec for CryptoStoreAsymmetricEncryptionCapabilityAbi<VmAbi> {
             .boxed());
         }
         let field_key_algorithm =
-            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_algorithm = <CryptoAsymmetricEncryptionAlgorithm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_algorithm =
+            <CryptoAsymmetricEncryptionAlgorithm as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 1,
+            )?;
         let field_supports_encrypt =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_supports_decrypt =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_supported_digests =
-            <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         Ok(Self {
@@ -16297,40 +16172,40 @@ impl VmAggregateCodec for CryptoStoreAsymmetricEncryptionCapabilityAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoStoreAsymmetricEncryptionCapability")
+            .begin_named_aggregate_builder("crypto::CryptoStoreAsymmetricEncryptionCapability")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
             self.key_algorithm,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoAsymmetricEncryptionAlgorithm as VmAggregateCodec>::encode_with_context(
                 self.algorithm,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_encrypt, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_decrypt, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
                 self.supported_digests,
                 context,
             )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -16523,8 +16398,8 @@ impl VmAggregateCodec for CryptoStoreCapabilityAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 16 {
+        let field_count = value_ref.field_count();
+        if field_count != 16 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 16 fields",
@@ -16532,41 +16407,50 @@ impl VmAggregateCodec for CryptoStoreCapabilityAbi<VmAbi> {
             .boxed());
         }
         let field_identity =
-            <CryptoStoreIdentityVm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoStoreIdentityVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_is_available =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_supports_hardware_backed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_supports_persistent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_supports_key_export =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_supported_key_algorithms =
-            <VmArray<CryptoKeyAlgorithm> as VmAggregateCodec>::decode_component_with_context(
+            <VmArray<CryptoKeyAlgorithm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         let field_supported_key_formats =
-            <VmArray<CryptoKeyFormat> as VmAggregateCodec>::decode_component_with_context(
+            <VmArray<CryptoKeyFormat> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
         let field_supported_key_residencies =
-            <VmArray<CryptoKeyResidency> as VmAggregateCodec>::decode_component_with_context(
+            <VmArray<CryptoKeyResidency> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
-        let field_key_capabilities = <VmArray<CryptoStoreKeyCapabilityVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
-        let field_signature_capabilities = <VmArray<CryptoStoreSignatureCapabilityVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+        let field_key_capabilities =
+            <VmArray<CryptoStoreKeyCapabilityVm> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 8,
+            )?;
+        let field_signature_capabilities = <VmArray<CryptoStoreSignatureCapabilityVm> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         let field_asymmetric_encryption_capabilities = <VmArray<
             CryptoStoreAsymmetricEncryptionCapabilityVm,
-        > as VmAggregateCodec>::decode_component_with_context(
+        > as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 10
         )?;
-        let field_key_wrap_capabilities = <VmArray<CryptoStoreKeyWrapCapabilityVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 11)?;
-        let field_cipher_capabilities = <VmArray<CryptoStoreCipherCapabilityVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 12)?;
-        let field_mac_capabilities = <VmArray<CryptoStoreMacCapabilityVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 13)?;
-        let field_agreement_capabilities = <VmArray<CryptoStoreAgreementCapabilityVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 14)?;
-        let field_certificate_capabilities = <CryptoStoreCertificateCapabilityVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 15)?;
+        let field_key_wrap_capabilities = <VmArray<CryptoStoreKeyWrapCapabilityVm> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 11)?;
+        let field_cipher_capabilities = <VmArray<CryptoStoreCipherCapabilityVm> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 12)?;
+        let field_mac_capabilities =
+            <VmArray<CryptoStoreMacCapabilityVm> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 13,
+            )?;
+        let field_agreement_capabilities = <VmArray<CryptoStoreAgreementCapabilityVm> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 14)?;
+        let field_certificate_capabilities =
+            <CryptoStoreCertificateCapabilityVm as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 15,
+            )?;
         Ok(Self {
             identity: field_identity,
             is_available: field_is_available,
@@ -16592,119 +16476,117 @@ impl VmAggregateCodec for CryptoStoreCapabilityAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoStoreCapability")
+            .begin_named_aggregate_builder("crypto::CryptoStoreCapability")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoStoreIdentityVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoStoreIdentityVm as VmAggregateCodec>::encode_with_context(
             self.identity,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_available, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.supports_hardware_backed,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_persistent, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_key_export, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <VmArray<CryptoKeyAlgorithm> as VmAggregateCodec>::encode_with_context(
-                self.supported_key_algorithms,
-                context,
-            )?;
+        let field_value = <VmArray<CryptoKeyAlgorithm> as VmAggregateCodec>::encode_with_context(
+            self.supported_key_algorithms,
+            context,
+        )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmArray<CryptoKeyFormat> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmArray<CryptoKeyFormat> as VmAggregateCodec>::encode_with_context(
             self.supported_key_formats,
             context,
         )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <VmArray<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
-                self.supported_key_residencies,
-                context,
-            )?;
+        let field_value = <VmArray<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(
+            self.supported_key_residencies,
+            context,
+        )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<CryptoStoreKeyCapabilityVm> as VmAggregateCodec>::encode_with_context(
                 self.key_capabilities,
                 context,
             )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<CryptoStoreSignatureCapabilityVm> as VmAggregateCodec>::encode_with_context(
                 self.signature_capabilities,
                 context,
             )?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmArray<CryptoStoreAsymmetricEncryptionCapabilityVm> as VmAggregateCodec>::encode_with_context(self.asymmetric_encryption_capabilities, context)?;
+        let field_value = <VmArray<CryptoStoreAsymmetricEncryptionCapabilityVm> as VmAggregateCodec>::encode_with_context(self.asymmetric_encryption_capabilities, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<CryptoStoreKeyWrapCapabilityVm> as VmAggregateCodec>::encode_with_context(
                 self.key_wrap_capabilities,
                 context,
             )?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<CryptoStoreCipherCapabilityVm> as VmAggregateCodec>::encode_with_context(
                 self.cipher_capabilities,
                 context,
             )?;
         value_builder
-            .write_component(12, component_value)
+            .write_field(12, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<CryptoStoreMacCapabilityVm> as VmAggregateCodec>::encode_with_context(
                 self.mac_capabilities,
                 context,
             )?;
         value_builder
-            .write_component(13, component_value)
+            .write_field(13, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<CryptoStoreAgreementCapabilityVm> as VmAggregateCodec>::encode_with_context(
                 self.agreement_capabilities,
                 context,
             )?;
         value_builder
-            .write_component(14, component_value)
+            .write_field(14, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoStoreCertificateCapabilityVm as VmAggregateCodec>::encode_with_context(
                 self.certificate_capabilities,
                 context,
             )?;
         value_builder
-            .write_component(15, component_value)
+            .write_field(15, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17079,8 +16961,8 @@ impl VmAggregateCodec for CryptoStoreCertificateCapability {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 6 {
+        let field_count = value_ref.field_count();
+        if field_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
@@ -17088,17 +16970,17 @@ impl VmAggregateCodec for CryptoStoreCertificateCapability {
             .boxed());
         }
         let field_supports_import =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_supports_export =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_supports_descriptor =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_supports_verify =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_supports_delete =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_supports_system_trust_anchors =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         Ok(Self {
             supports_import: field_supports_import,
             supports_export: field_supports_export,
@@ -17114,39 +16996,39 @@ impl VmAggregateCodec for CryptoStoreCertificateCapability {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoStoreCertificateCapability")
+            .begin_named_aggregate_builder("crypto::CryptoStoreCertificateCapability")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_import, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_export, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_descriptor, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_verify, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_delete, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.supports_system_trust_anchors,
             context,
         )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17226,8 +17108,8 @@ impl VmAggregateCodec for CryptoStoreCipherCapability {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 8 {
+        let field_count = value_ref.field_count();
+        if field_count != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 8 fields",
@@ -17235,25 +17117,25 @@ impl VmAggregateCodec for CryptoStoreCipherCapability {
             .boxed());
         }
         let field_key_algorithm =
-            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_algorithm =
-            <CryptoCipherAlgorithm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoCipherAlgorithm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_supports_one_shot =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_supports_streaming =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_supports_additional_data =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_supports_detached_tag =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_min_tag_length_bytes =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_max_tag_length_bytes =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         Ok(Self {
             key_algorithm: field_key_algorithm,
             algorithm: field_algorithm,
@@ -17271,53 +17153,53 @@ impl VmAggregateCodec for CryptoStoreCipherCapability {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoStoreCipherCapability")
+            .begin_named_aggregate_builder("crypto::CryptoStoreCipherCapability")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
             self.key_algorithm,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoCipherAlgorithm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoCipherAlgorithm as VmAggregateCodec>::encode_with_context(
             self.algorithm,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_one_shot, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_streaming, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.supports_additional_data,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_detached_tag, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.min_tag_length_bytes, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_tag_length_bytes, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17408,23 +17290,23 @@ impl VmAggregateCodec for CryptoStoreIdentityAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <CryptoStoreKind as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <CryptoStoreKind as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_provider =
-            <Option<CryptoStoreProvider> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoStoreProvider> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_namespace =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -17439,27 +17321,26 @@ impl VmAggregateCodec for CryptoStoreIdentityAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoStoreIdentity")
+            .begin_named_aggregate_builder("crypto::CryptoStoreIdentity")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoStoreKind as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoStoreProvider> as VmAggregateCodec>::encode_with_context(
-                self.provider,
-                context,
-            )?;
+        let field_value = <Option<CryptoStoreProvider> as VmAggregateCodec>::encode_with_context(
+            self.provider,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.namespace,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17612,44 +17493,42 @@ impl VmAggregateCodec for CryptoStoreKeyCapabilityAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 11 {
+        let field_count = value_ref.field_count();
+        if field_count != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 11 fields",
             ))
             .boxed());
         }
-        let field_algorithm =
-            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_residency =
-            <CryptoKeyResidency as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_algorithm = <CryptoKeyAlgorithm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_residency = <CryptoKeyResidency as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_supports_generate_secret =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_supports_generate_pair =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_supports_import =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_supports_export_public =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_supports_export_private =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_supports_export_secret =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_supported_usage_mask =
-            <CryptoKeyUsageMask as VmAggregateCodec>::decode_component_with_context(
+            <CryptoKeyUsageMask as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 8,
             )?;
         let field_supported_import_formats =
-            <VmSlice<CryptoKeyFormat> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<CryptoKeyFormat> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 9,
             )?;
         let field_supported_export_formats =
-            <VmSlice<CryptoKeyFormat> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<CryptoKeyFormat> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 10,
             )?;
         Ok(Self {
@@ -17672,70 +17551,70 @@ impl VmAggregateCodec for CryptoStoreKeyCapabilityAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoStoreKeyCapability")
+            .begin_named_aggregate_builder("crypto::CryptoStoreKeyCapability")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoKeyResidency as VmAggregateCodec>::encode_with_context(self.residency, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.supports_generate_secret,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_generate_pair, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_import, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_export_public, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_export_private, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_export_secret, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
             self.supported_usage_mask,
             context,
         )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmSlice<CryptoKeyFormat> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmSlice<CryptoKeyFormat> as VmAggregateCodec>::encode_with_context(
             self.supported_import_formats,
             context,
         )?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmSlice<CryptoKeyFormat> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmSlice<CryptoKeyFormat> as VmAggregateCodec>::encode_with_context(
             self.supported_export_formats,
             context,
         )?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17998,8 +17877,8 @@ impl VmAggregateCodec for CryptoStoreKeyWrapCapabilityAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -18007,19 +17886,19 @@ impl VmAggregateCodec for CryptoStoreKeyWrapCapabilityAbi<VmAbi> {
             .boxed());
         }
         let field_wrapping_key_algorithm =
-            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_algorithm =
-            <CryptoKeyWrapAlgorithm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoKeyWrapAlgorithm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_supports_wrap =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_supports_unwrap =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_supported_digests =
-            <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         Ok(Self {
@@ -18036,39 +17915,39 @@ impl VmAggregateCodec for CryptoStoreKeyWrapCapabilityAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoStoreKeyWrapCapability")
+            .begin_named_aggregate_builder("crypto::CryptoStoreKeyWrapCapability")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
             self.wrapping_key_algorithm,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyWrapAlgorithm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyWrapAlgorithm as VmAggregateCodec>::encode_with_context(
             self.algorithm,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_wrap, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_unwrap, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
                 self.supported_digests,
                 context,
             )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18235,8 +18114,8 @@ impl VmAggregateCodec for CryptoStoreMacCapabilityAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
@@ -18244,25 +18123,24 @@ impl VmAggregateCodec for CryptoStoreMacCapabilityAbi<VmAbi> {
             .boxed());
         }
         let field_key_algorithm =
-            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_algorithm =
-            <CryptoMacAlgorithm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_algorithm = <CryptoMacAlgorithm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_supports_one_shot =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_supports_streaming =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_supported_digests =
-            <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         let field_min_tag_length_bytes =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_max_tag_length_bytes =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         Ok(Self {
             key_algorithm: field_key_algorithm,
             algorithm: field_algorithm,
@@ -18279,47 +18157,47 @@ impl VmAggregateCodec for CryptoStoreMacCapabilityAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoStoreMacCapability")
+            .begin_named_aggregate_builder("crypto::CryptoStoreMacCapability")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
             self.key_algorithm,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoMacAlgorithm as VmAggregateCodec>::encode_with_context(self.algorithm, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_one_shot, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_streaming, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
                 self.supported_digests,
                 context,
             )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.min_tag_length_bytes, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_tag_length_bytes, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18519,23 +18397,23 @@ impl VmAggregateCodec for CryptoStoreOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <CryptoStoreKind as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <CryptoStoreKind as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_provider =
-            <Option<CryptoStoreProvider> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CryptoStoreProvider> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_namespace =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -18550,27 +18428,26 @@ impl VmAggregateCodec for CryptoStoreOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoStoreOptions")
+            .begin_named_aggregate_builder("crypto::CryptoStoreOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CryptoStoreKind as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<CryptoStoreProvider> as VmAggregateCodec>::encode_with_context(
-                self.provider,
-                context,
-            )?;
+        let field_value = <Option<CryptoStoreProvider> as VmAggregateCodec>::encode_with_context(
+            self.provider,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.namespace,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18703,8 +18580,8 @@ impl VmAggregateCodec for CryptoStoreProvenanceAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
@@ -18712,7 +18589,7 @@ impl VmAggregateCodec for CryptoStoreProvenanceAbi<VmAbi> {
             .boxed());
         }
         let field_identity =
-            <CryptoStoreIdentityVm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoStoreIdentityVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         Ok(Self {
@@ -18725,14 +18602,14 @@ impl VmAggregateCodec for CryptoStoreProvenanceAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoStoreProvenance")
+            .begin_named_aggregate_builder("crypto::CryptoStoreProvenance")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoStoreIdentityVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoStoreIdentityVm as VmAggregateCodec>::encode_with_context(
             self.identity,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18841,8 +18718,8 @@ impl VmAggregateCodec for CryptoStoreSignatureCapabilityAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -18850,19 +18727,19 @@ impl VmAggregateCodec for CryptoStoreSignatureCapabilityAbi<VmAbi> {
             .boxed());
         }
         let field_key_algorithm =
-            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_signature_algorithm =
-            <CryptoSignatureAlgorithm as VmAggregateCodec>::decode_component_with_context(
+            <CryptoSignatureAlgorithm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_supports_sign =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_supports_verify =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_supported_digests =
-            <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         Ok(Self {
@@ -18879,39 +18756,39 @@ impl VmAggregateCodec for CryptoStoreSignatureCapabilityAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("crypto::CryptoStoreSignatureCapability")
+            .begin_named_aggregate_builder("crypto::CryptoStoreSignatureCapability")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
             self.key_algorithm,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CryptoSignatureAlgorithm as VmAggregateCodec>::encode_with_context(
+        let field_value = <CryptoSignatureAlgorithm as VmAggregateCodec>::encode_with_context(
             self.signature_algorithm,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_sign, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_verify, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
                 self.supported_digests,
                 context,
             )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -20260,74 +20137,75 @@ pub const CRYPTO_KEY_USAGE_VERIFY: CryptoKeyUsageMask = CryptoKeyUsageMask(2u32)
 /// Key usage: wrap.
 pub const CRYPTO_KEY_USAGE_WRAP: CryptoKeyUsageMask = CryptoKeyUsageMask(16u32);
 
-/// Register VM storage schemas for crypto.
-pub(crate) fn register_crypto_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
-    isolate.register_named_storage_type("crypto::CryptoAgreementDeriveKeyRequest", 5)?;
-    isolate.register_named_storage_type("crypto::CryptoArgon2idRequest", 8)?;
-    isolate.register_named_storage_type("crypto::CryptoAsymmetricEncryptionParameters", 3)?;
-    isolate.register_named_storage_type("crypto::CryptoCertificateDescriptor", 9)?;
-    isolate.register_named_storage_type("crypto::CryptoCertificateListEntry", 4)?;
-    isolate.register_named_storage_type("crypto::CryptoCertificateListPage", 2)?;
-    isolate.register_named_storage_type("crypto::CryptoCertificateQuery", 5)?;
-    isolate.register_named_storage_type("crypto::CryptoCertificateValidity", 2)?;
-    isolate.register_named_storage_type("crypto::CryptoCertificateVerifyIdentity", 2)?;
-    isolate.register_named_storage_type("crypto::CryptoCertificateVerifyRequest", 8)?;
-    isolate.register_named_storage_type("crypto::CryptoCertificateVerifyResult", 7)?;
-    isolate.register_named_storage_type("crypto::CryptoCipherOutput", 2)?;
-    isolate.register_named_storage_type("crypto::CryptoCipherParameters", 5)?;
-    isolate.register_named_storage_type("crypto::CryptoHkdfRequest", 5)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyDescriptorAes", 10)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyDescriptorChaCha20", 10)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyDescriptorEc", 10)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyDescriptorEd25519", 9)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyDescriptorEd448", 9)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyDescriptorHmac", 11)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyDescriptorRsa", 12)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyDescriptorX25519", 9)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyDescriptorX448", 9)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyGenerationRequestAes", 8)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyGenerationRequestChaCha20", 8)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyGenerationRequestEc", 8)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyGenerationRequestEd25519", 7)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyGenerationRequestEd448", 7)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyGenerationRequestHmac", 9)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyGenerationRequestRsa", 10)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyGenerationRequestX25519", 7)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyGenerationRequestX448", 7)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyImportRequestAes", 9)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyImportRequestChaCha20", 9)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyImportRequestEc", 10)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyImportRequestEd25519", 9)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyImportRequestEd448", 9)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyImportRequestHmac", 10)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyImportRequestRsa", 10)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyImportRequestX25519", 9)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyImportRequestX448", 9)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyListEntry", 4)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyListPage", 2)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyPair", 2)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyQuery", 5)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyWrapParameters", 3)?;
-    isolate.register_named_storage_type("crypto::CryptoMacParameters", 3)?;
-    isolate.register_named_storage_type("crypto::CryptoPbkdf2Request", 5)?;
-    isolate.register_named_storage_type("crypto::CryptoPrivateKeyExportRequest", 2)?;
-    isolate.register_named_storage_type("crypto::CryptoScryptRequest", 7)?;
-    isolate.register_named_storage_type("crypto::CryptoSignatureParameters", 3)?;
-    isolate.register_named_storage_type("crypto::CryptoStoreAgreementCapability", 5)?;
-    isolate.register_named_storage_type("crypto::CryptoStoreAsymmetricEncryptionCapability", 5)?;
-    isolate.register_named_storage_type("crypto::CryptoStoreCapability", 16)?;
-    isolate.register_named_storage_type("crypto::CryptoStoreCertificateCapability", 6)?;
-    isolate.register_named_storage_type("crypto::CryptoStoreCipherCapability", 8)?;
-    isolate.register_named_storage_type("crypto::CryptoStoreIdentity", 3)?;
-    isolate.register_named_storage_type("crypto::CryptoStoreKeyCapability", 11)?;
-    isolate.register_named_storage_type("crypto::CryptoStoreKeyWrapCapability", 5)?;
-    isolate.register_named_storage_type("crypto::CryptoStoreMacCapability", 7)?;
-    isolate.register_named_storage_type("crypto::CryptoStoreOptions", 3)?;
-    isolate.register_named_storage_type("crypto::CryptoStoreProvenance", 1)?;
-    isolate.register_named_storage_type("crypto::CryptoStoreSignatureCapability", 5)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyDescriptor", 2)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyGenerationRequest", 2)?;
-    isolate.register_named_storage_type("crypto::CryptoKeyImportRequest", 2)?;
+/// Register VM aggregate schemas for crypto.
+pub(crate) fn register_crypto_vm_aggregate_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_aggregate_type("crypto::CryptoAgreementDeriveKeyRequest", 5)?;
+    isolate.register_named_aggregate_type("crypto::CryptoArgon2idRequest", 8)?;
+    isolate.register_named_aggregate_type("crypto::CryptoAsymmetricEncryptionParameters", 3)?;
+    isolate.register_named_aggregate_type("crypto::CryptoCertificateDescriptor", 9)?;
+    isolate.register_named_aggregate_type("crypto::CryptoCertificateListEntry", 4)?;
+    isolate.register_named_aggregate_type("crypto::CryptoCertificateListPage", 2)?;
+    isolate.register_named_aggregate_type("crypto::CryptoCertificateQuery", 5)?;
+    isolate.register_named_aggregate_type("crypto::CryptoCertificateValidity", 2)?;
+    isolate.register_named_aggregate_type("crypto::CryptoCertificateVerifyIdentity", 2)?;
+    isolate.register_named_aggregate_type("crypto::CryptoCertificateVerifyRequest", 8)?;
+    isolate.register_named_aggregate_type("crypto::CryptoCertificateVerifyResult", 7)?;
+    isolate.register_named_aggregate_type("crypto::CryptoCipherOutput", 2)?;
+    isolate.register_named_aggregate_type("crypto::CryptoCipherParameters", 5)?;
+    isolate.register_named_aggregate_type("crypto::CryptoHkdfRequest", 5)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyDescriptorAes", 10)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyDescriptorChaCha20", 10)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyDescriptorEc", 10)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyDescriptorEd25519", 9)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyDescriptorEd448", 9)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyDescriptorHmac", 11)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyDescriptorRsa", 12)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyDescriptorX25519", 9)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyDescriptorX448", 9)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyGenerationRequestAes", 8)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyGenerationRequestChaCha20", 8)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyGenerationRequestEc", 8)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyGenerationRequestEd25519", 7)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyGenerationRequestEd448", 7)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyGenerationRequestHmac", 9)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyGenerationRequestRsa", 10)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyGenerationRequestX25519", 7)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyGenerationRequestX448", 7)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyImportRequestAes", 9)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyImportRequestChaCha20", 9)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyImportRequestEc", 10)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyImportRequestEd25519", 9)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyImportRequestEd448", 9)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyImportRequestHmac", 10)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyImportRequestRsa", 10)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyImportRequestX25519", 9)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyImportRequestX448", 9)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyListEntry", 4)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyListPage", 2)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyPair", 2)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyQuery", 5)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyWrapParameters", 3)?;
+    isolate.register_named_aggregate_type("crypto::CryptoMacParameters", 3)?;
+    isolate.register_named_aggregate_type("crypto::CryptoPbkdf2Request", 5)?;
+    isolate.register_named_aggregate_type("crypto::CryptoPrivateKeyExportRequest", 2)?;
+    isolate.register_named_aggregate_type("crypto::CryptoScryptRequest", 7)?;
+    isolate.register_named_aggregate_type("crypto::CryptoSignatureParameters", 3)?;
+    isolate.register_named_aggregate_type("crypto::CryptoStoreAgreementCapability", 5)?;
+    isolate
+        .register_named_aggregate_type("crypto::CryptoStoreAsymmetricEncryptionCapability", 5)?;
+    isolate.register_named_aggregate_type("crypto::CryptoStoreCapability", 16)?;
+    isolate.register_named_aggregate_type("crypto::CryptoStoreCertificateCapability", 6)?;
+    isolate.register_named_aggregate_type("crypto::CryptoStoreCipherCapability", 8)?;
+    isolate.register_named_aggregate_type("crypto::CryptoStoreIdentity", 3)?;
+    isolate.register_named_aggregate_type("crypto::CryptoStoreKeyCapability", 11)?;
+    isolate.register_named_aggregate_type("crypto::CryptoStoreKeyWrapCapability", 5)?;
+    isolate.register_named_aggregate_type("crypto::CryptoStoreMacCapability", 7)?;
+    isolate.register_named_aggregate_type("crypto::CryptoStoreOptions", 3)?;
+    isolate.register_named_aggregate_type("crypto::CryptoStoreProvenance", 1)?;
+    isolate.register_named_aggregate_type("crypto::CryptoStoreSignatureCapability", 5)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyDescriptor", 2)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyGenerationRequest", 2)?;
+    isolate.register_named_aggregate_type("crypto::CryptoKeyImportRequest", 2)?;
 
     Ok(())
 }

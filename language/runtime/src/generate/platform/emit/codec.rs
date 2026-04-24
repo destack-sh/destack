@@ -152,12 +152,12 @@ impl<'a> ModuleCodegen<'a> {
                 }
 
                 lines.push(format!(
-                    "let mut value_builder = context.begin_named_storage_value_builder(\"{}\").map_err(Box::<RuntimeError>::from)?;",
+                    "let mut value_builder = context.begin_named_aggregate_builder(\"{}\").map_err(Box::<RuntimeError>::from)?;",
                     self.escape_rust_string(&metadata_name)
                 ));
                 for (index, local_name) in encoded_fields.iter().enumerate() {
                     lines.push(format!(
-                        "value_builder.write_component({index}, {local_name}).map_err(Box::<RuntimeError>::from)?;"
+                        "value_builder.write_field({index}, {local_name}).map_err(Box::<RuntimeError>::from)?;"
                     ));
                 }
                 lines.push("value_builder.finish().map_err(Box::<RuntimeError>::from)".to_string());
@@ -175,7 +175,7 @@ impl<'a> ModuleCodegen<'a> {
                     let tag = Self::tagged_union_variant_tag(name, variant.name.as_str());
                     let payload_expr = self.render_encode_expr(&variant.binding_type, "value");
                     arms.push(format!(
-                        "{union_type}::{}(value) => {{ let tag_value = vm::Value::uint({tag}u64, 32); let payload_value = {payload_expr}?; let mut value_builder = context.begin_named_storage_value_builder(\"{}\").map_err(Box::<RuntimeError>::from)?; value_builder.write_component(0, tag_value).map_err(Box::<RuntimeError>::from)?; value_builder.write_component(1, payload_value).map_err(Box::<RuntimeError>::from)?; value_builder.finish().map_err(Box::<RuntimeError>::from) }}",
+                        "{union_type}::{}(value) => {{ let tag_value = vm::Value::uint({tag}u64, 32); let payload_value = {payload_expr}?; let mut value_builder = context.begin_named_aggregate_builder(\"{}\").map_err(Box::<RuntimeError>::from)?; value_builder.write_field(0, tag_value).map_err(Box::<RuntimeError>::from)?; value_builder.write_field(1, payload_value).map_err(Box::<RuntimeError>::from)?; value_builder.finish().map_err(Box::<RuntimeError>::from) }}",
                         variant.name
                         ,
                         self.escape_rust_string(&metadata_name)

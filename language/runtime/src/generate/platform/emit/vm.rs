@@ -579,7 +579,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
         let register_fn = codegen.register_fn_name();
         let set_name = codegen.vm_set_name();
         let install_fn = codegen.install_fn_name();
-        let register_storage_types_fn = codegen.register_storage_types_fn_name();
+        let register_aggregate_types_fn = codegen.register_aggregate_types_fn_name();
 
         output.push_str(&format!("/// Install VM bindings for {domain}.\n"));
         output.push_str(&format!("pub(crate) fn {install_fn}(\n"));
@@ -587,7 +587,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
         output.push_str("    isolate: &mut Isolate,\n");
         output.push_str(") -> vm::Result<()> {\n");
         output.push_str(&format!(
-            "    super::abi_generated::{register_storage_types_fn}(isolate)?;\n"
+            "    super::abi_generated::{register_aggregate_types_fn}(isolate)?;\n"
         ));
         output.push_str(&format!("    {register_fn}(registry, isolate);\n"));
         output.push_str("    Ok(())\n");

@@ -663,24 +663,24 @@ fn encode_destack_fs_dir_mkdtemp_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = value.bytes.0.to_value(context);
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("fs::OsPathBytes")
+                        .begin_named_aggregate_builder("fs::OsPathBytes")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("fs::OsPath")
+                    .begin_named_aggregate_builder("fs::OsPath")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -690,24 +690,24 @@ fn encode_destack_fs_dir_mkdtemp_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = value.utf16.0.to_value(context);
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("fs::OsPathUtf16")
+                        .begin_named_aggregate_builder("fs::OsPathUtf16")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("fs::OsPath")
+                    .begin_named_aggregate_builder("fs::OsPath")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -790,21 +790,21 @@ fn encode_destack_fs_dir_readdir_next_result(
                 let payload_value = {
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("fs::DirentNextEnd")
+                        .begin_named_aggregate_builder("fs::DirentNextEnd")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("fs::DirentNext")
+                    .begin_named_aggregate_builder("fs::DirentNext")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -821,24 +821,24 @@ fn encode_destack_fs_dir_readdir_next_result(
                                     let field_1: RuntimeResult<vm::Value> =
                                         value.bytes.0.to_value(context);
                                     let mut value_builder = context
-                                        .begin_named_storage_value_builder("fs::OsPathBytes")
+                                        .begin_named_aggregate_builder("fs::OsPathBytes")
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(0, field_0?)
+                                        .write_field(0, field_0?)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(1, field_1?)
+                                        .write_field(1, field_1?)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }?;
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder("fs::OsPath")
+                                    .begin_named_aggregate_builder("fs::OsPath")
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, tag_value)
+                                    .write_field(0, tag_value)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, payload_value)
+                                    .write_field(1, payload_value)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
@@ -849,24 +849,24 @@ fn encode_destack_fs_dir_readdir_next_result(
                                     let field_1: RuntimeResult<vm::Value> =
                                         value.utf16.0.to_value(context);
                                     let mut value_builder = context
-                                        .begin_named_storage_value_builder("fs::OsPathUtf16")
+                                        .begin_named_aggregate_builder("fs::OsPathUtf16")
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(0, field_0?)
+                                        .write_field(0, field_0?)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(1, field_1?)
+                                        .write_field(1, field_1?)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }?;
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder("fs::OsPath")
+                                    .begin_named_aggregate_builder("fs::OsPath")
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, tag_value)
+                                    .write_field(0, tag_value)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, payload_value)
+                                    .write_field(1, payload_value)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
@@ -874,35 +874,35 @@ fn encode_destack_fs_dir_readdir_next_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::int(value.entry.kind as i32 as i64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("fs::Dirent")
+                            .begin_named_aggregate_builder("fs::Dirent")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("fs::DirentNextEntry")
+                        .begin_named_aggregate_builder("fs::DirentNextEntry")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("fs::DirentNext")
+                    .begin_named_aggregate_builder("fs::DirentNext")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2456,24 +2456,24 @@ fn encode_destack_fs_path_readlink_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = value.bytes.0.to_value(context);
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("fs::OsPathBytes")
+                        .begin_named_aggregate_builder("fs::OsPathBytes")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("fs::OsPath")
+                    .begin_named_aggregate_builder("fs::OsPath")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2483,24 +2483,24 @@ fn encode_destack_fs_path_readlink_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = value.utf16.0.to_value(context);
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("fs::OsPathUtf16")
+                        .begin_named_aggregate_builder("fs::OsPathUtf16")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("fs::OsPath")
+                    .begin_named_aggregate_builder("fs::OsPath")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2539,24 +2539,24 @@ fn encode_destack_fs_path_readlinkat_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = value.bytes.0.to_value(context);
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("fs::OsPathBytes")
+                        .begin_named_aggregate_builder("fs::OsPathBytes")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("fs::OsPath")
+                    .begin_named_aggregate_builder("fs::OsPath")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2566,24 +2566,24 @@ fn encode_destack_fs_path_readlinkat_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = value.utf16.0.to_value(context);
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("fs::OsPathUtf16")
+                        .begin_named_aggregate_builder("fs::OsPathUtf16")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("fs::OsPath")
+                    .begin_named_aggregate_builder("fs::OsPath")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2618,24 +2618,24 @@ fn encode_destack_fs_path_realpath_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = value.bytes.0.to_value(context);
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("fs::OsPathBytes")
+                        .begin_named_aggregate_builder("fs::OsPathBytes")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("fs::OsPath")
+                    .begin_named_aggregate_builder("fs::OsPath")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2645,24 +2645,24 @@ fn encode_destack_fs_path_realpath_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = value.utf16.0.to_value(context);
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("fs::OsPathUtf16")
+                        .begin_named_aggregate_builder("fs::OsPathUtf16")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("fs::OsPath")
+                    .begin_named_aggregate_builder("fs::OsPath")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2935,49 +2935,49 @@ fn encode_destack_fs_stat_fstat_result(
             let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.ctime_ns, 64));
             let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.birthtime_ns, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("fs::Stat")
+                .begin_named_aggregate_builder("fs::Stat")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -3017,37 +3017,37 @@ fn encode_destack_fs_stat_fstatfs_result(
             let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags.0, 64));
             let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.namelen, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("fs::StatFs")
+                .begin_named_aggregate_builder("fs::StatFs")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -3090,49 +3090,49 @@ fn encode_destack_fs_stat_lstat_result(
             let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.ctime_ns, 64));
             let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.birthtime_ns, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("fs::Stat")
+                .begin_named_aggregate_builder("fs::Stat")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -3175,49 +3175,49 @@ fn encode_destack_fs_stat_path_result(
             let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.ctime_ns, 64));
             let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.birthtime_ns, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("fs::Stat")
+                .begin_named_aggregate_builder("fs::Stat")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -3267,49 +3267,49 @@ fn encode_destack_fs_stat_pathat_result(
             let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.ctime_ns, 64));
             let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.birthtime_ns, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("fs::Stat")
+                .begin_named_aggregate_builder("fs::Stat")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -3348,37 +3348,37 @@ fn encode_destack_fs_stat_pathfs_result(
             let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags.0, 64));
             let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.namelen, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("fs::StatFs")
+                .begin_named_aggregate_builder("fs::StatFs")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -3437,61 +3437,61 @@ fn encode_destack_fs_stat_pathx_result(
             let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.ctime_ns, 64));
             let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mtime_ns, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("fs::Statx")
+                .begin_named_aggregate_builder("fs::Statx")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(14, field_14?)
+                .write_field(14, field_14?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(15, field_15?)
+                .write_field(15, field_15?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(16, field_16?)
+                .write_field(16, field_16?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(17, field_17?)
+                .write_field(17, field_17?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -3571,13 +3571,13 @@ fn encode_destack_fs_watch_open_read_result(
             let field_0: RuntimeResult<vm::Value> = value.events.to_value(context);
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.overflowed));
             let mut value_builder = context
-                .begin_named_storage_value_builder("fs::WatchBatch")
+                .begin_named_aggregate_builder("fs::WatchBatch")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -18060,7 +18060,7 @@ fn destack_fs_dir_mkdtemp_vm_replay(
                             result_recorded_os_path_utf16_kind_ref.as_str().to_string()
                         };
                         let result_recorded_os_path_utf16_utf16_inner_raw =
-                            value.utf16.0.raw_values(context)?;
+                            value.utf16.0.values(context)?;
                         let mut result_recorded_os_path_utf16_utf16_inner =
                             Vec::with_capacity(result_recorded_os_path_utf16_utf16_inner_raw.len());
                         for result_recorded_os_path_utf16_utf16_inner_item_value in
@@ -18233,7 +18233,7 @@ fn destack_fs_dir_readdir_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<DirentVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = <DirentVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
@@ -18256,7 +18256,7 @@ fn destack_fs_dir_readdir_vm_replay(
                                 let result_recorded_item_recorded_name_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_name_os_path_utf16_kind_ref.as_str().to_string()
                             };
-                            let result_recorded_item_recorded_name_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                            let result_recorded_item_recorded_name_os_path_utf16_utf16_inner_raw = value.utf16.0.values(context)?;
                             let mut result_recorded_item_recorded_name_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_item_recorded_name_os_path_utf16_utf16_inner_raw.len());
                             for result_recorded_item_recorded_name_os_path_utf16_utf16_inner_item_value in result_recorded_item_recorded_name_os_path_utf16_utf16_inner_raw {
                                 let result_recorded_item_recorded_name_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_item_recorded_name_os_path_utf16_utf16_inner_item_value, "result_recorded_item_recorded_name_os_path_utf16_utf16_inner_item", "item")?;
@@ -18404,7 +18404,7 @@ fn destack_fs_dir_readdir_next_vm_replay(
                                     let result_recorded_dirent_next_entry_entry_name_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                     result_recorded_dirent_next_entry_entry_name_os_path_utf16_kind_ref.as_str().to_string()
                                 };
-                                let result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                let result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_raw = value.utf16.0.values(context)?;
                                 let mut result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_raw.len());
                                 for result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item_value in result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_raw {
                                     let result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item_value, "result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item", "item")?;
@@ -21285,7 +21285,7 @@ fn destack_fs_path_readlink_vm_replay(
                             result_recorded_os_path_utf16_kind_ref.as_str().to_string()
                         };
                         let result_recorded_os_path_utf16_utf16_inner_raw =
-                            value.utf16.0.raw_values(context)?;
+                            value.utf16.0.values(context)?;
                         let mut result_recorded_os_path_utf16_utf16_inner =
                             Vec::with_capacity(result_recorded_os_path_utf16_utf16_inner_raw.len());
                         for result_recorded_os_path_utf16_utf16_inner_item_value in
@@ -21433,7 +21433,7 @@ fn destack_fs_path_readlinkat_vm_replay(
                             result_recorded_os_path_utf16_kind_ref.as_str().to_string()
                         };
                         let result_recorded_os_path_utf16_utf16_inner_raw =
-                            value.utf16.0.raw_values(context)?;
+                            value.utf16.0.values(context)?;
                         let mut result_recorded_os_path_utf16_utf16_inner =
                             Vec::with_capacity(result_recorded_os_path_utf16_utf16_inner_raw.len());
                         for result_recorded_os_path_utf16_utf16_inner_item_value in
@@ -21580,7 +21580,7 @@ fn destack_fs_path_realpath_vm_replay(
                             result_recorded_os_path_utf16_kind_ref.as_str().to_string()
                         };
                         let result_recorded_os_path_utf16_utf16_inner_raw =
-                            value.utf16.0.raw_values(context)?;
+                            value.utf16.0.values(context)?;
                         let mut result_recorded_os_path_utf16_utf16_inner =
                             Vec::with_capacity(result_recorded_os_path_utf16_utf16_inner_raw.len());
                         for result_recorded_os_path_utf16_utf16_inner_item_value in
@@ -22926,7 +22926,7 @@ fn destack_fs_watch_open_read_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: WatchBatchVm = value.clone();
-                let result_recorded_events_raw = result_value.events.raw_values(context)?;
+                let result_recorded_events_raw = result_value.events.values(context)?;
                 let mut result_recorded_events = Vec::with_capacity(result_recorded_events_raw.len());
                 for result_recorded_events_item_value in result_recorded_events_raw {
                     let result_recorded_events_item = <WatchEventVm as VmAggregateCodec>::decode_with_context(context, result_recorded_events_item_value)?;
@@ -22959,7 +22959,7 @@ fn destack_fs_watch_open_read_vm_replay(
                                         let result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                         result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_kind_ref.as_str().to_string()
                                     };
-                                    let result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                    let result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner_raw = value.utf16.0.values(context)?;
                                     let mut result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner_raw.len());
                                     for result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner_item_value in result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner_raw {
                                         let result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner_item_value, "result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner_item", "item")?;
@@ -23009,7 +23009,7 @@ fn destack_fs_watch_open_read_vm_replay(
                                         let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                         result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_kind_ref.as_str().to_string()
                                     };
-                                    let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                    let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner_raw = value.utf16.0.values(context)?;
                                     let mut result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner_raw.len());
                                     for result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner_item_value in result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner_raw {
                                         let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner_item_value, "result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner_item", "item")?;
@@ -23059,7 +23059,7 @@ fn destack_fs_watch_open_read_vm_replay(
                                         let result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                         result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_kind_ref.as_str().to_string()
                                     };
-                                    let result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                    let result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner_raw = value.utf16.0.values(context)?;
                                     let mut result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner_raw.len());
                                     for result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner_item_value in result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner_raw {
                                         let result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner_item_value, "result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner_item", "item")?;
@@ -23124,7 +23124,7 @@ fn destack_fs_watch_open_read_vm_replay(
                                         let result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                         result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_kind_ref.as_str().to_string()
                                     };
-                                    let result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                    let result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner_raw = value.utf16.0.values(context)?;
                                     let mut result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner_raw.len());
                                     for result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner_item_value in result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner_raw {
                                         let result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner_item_value, "result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner_item", "item")?;
@@ -23174,7 +23174,7 @@ fn destack_fs_watch_open_read_vm_replay(
                                         let result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                         result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_kind_ref.as_str().to_string()
                                     };
-                                    let result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                    let result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner_raw = value.utf16.0.values(context)?;
                                     let mut result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner_raw.len());
                                     for result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner_item_value in result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner_raw {
                                         let result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner_item_value, "result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner_item", "item")?;
@@ -23208,7 +23208,7 @@ fn destack_fs_watch_open_read_vm_replay(
                                         let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                         result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_kind_ref.as_str().to_string()
                                     };
-                                    let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                    let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner_raw = value.utf16.0.values(context)?;
                                     let mut result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner_raw.len());
                                     for result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner_item_value in result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner_raw {
                                         let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner_item_value, "result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner_item", "item")?;
@@ -23713,7 +23713,7 @@ fn destack_fs_xattr_flistxattr_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<vm::StringHandle> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = decode_string(
@@ -23793,7 +23793,7 @@ fn destack_fs_xattr_flistxattr_bytes_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<VmArray<u8>> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = decode_array::<u8>(
@@ -24317,7 +24317,7 @@ fn destack_fs_xattr_listxattr_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<vm::StringHandle> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = decode_string(
@@ -24395,7 +24395,7 @@ fn destack_fs_xattr_listxattr_bytes_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<VmArray<u8>> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = decode_array::<u8>(
@@ -24467,7 +24467,7 @@ fn destack_fs_xattr_llistxattr_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<vm::StringHandle> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = decode_string(
@@ -24545,7 +24545,7 @@ fn destack_fs_xattr_llistxattr_bytes_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<VmArray<u8>> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = decode_array::<u8>(
@@ -27053,7 +27053,7 @@ pub(crate) fn install_fs_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) -> vm::Result<()> {
-    super::abi_generated::register_fs_vm_storage_types(isolate)?;
+    super::abi_generated::register_fs_vm_aggregate_types(isolate)?;
     register_fs_vm_bindings(registry, isolate);
 
     Ok(())

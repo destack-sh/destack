@@ -1764,20 +1764,19 @@ impl VmAggregateCodec for WorkerCreateOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
+        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
         let field_labels =
-            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -1791,21 +1790,21 @@ impl VmAggregateCodec for WorkerCreateOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::WorkerCreateOptions")
+            .begin_named_aggregate_builder("runtime::WorkerCreateOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.name, context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::encode_with_context(
                 self.labels,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -1931,8 +1930,8 @@ impl VmAggregateCodec for WorkerDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 6 {
+        let field_count = value_ref.field_count();
+        if field_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
@@ -1940,19 +1939,18 @@ impl VmAggregateCodec for WorkerDescriptorAbi<VmAbi> {
             .boxed());
         }
         let field_id =
-            <WorkerId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <WorkerId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_runtime_id =
-            <RuntimeId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <RuntimeId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         let field_has_pending_work =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_resource_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_labels =
-            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         Ok(Self {
@@ -1970,41 +1968,40 @@ impl VmAggregateCodec for WorkerDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::WorkerDescriptor")
+            .begin_named_aggregate_builder("runtime::WorkerDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <WorkerId as VmAggregateCodec>::encode_with_context(self.id, context)?;
+        let field_value = <WorkerId as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <RuntimeId as VmAggregateCodec>::encode_with_context(self.runtime_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.name, context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.has_pending_work, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.resource_count, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::encode_with_context(
                 self.labels,
                 context,
             )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -2152,27 +2149,23 @@ impl VmAggregateCodec for WorkerFilterAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_runtime_id =
-            <Option<RuntimeId> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_runtime_id = <Option<RuntimeId> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_has_pending_work =
-            <Option<bool> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_labels = <Option<VmArray<RuntimeLabelSelectorVm>> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <Option<bool> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_labels = <Option<VmArray<RuntimeLabelSelectorVm>> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             runtime_id: field_runtime_id,
             name: field_name,
@@ -2186,33 +2179,33 @@ impl VmAggregateCodec for WorkerFilterAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::WorkerFilter")
+            .begin_named_aggregate_builder("runtime::WorkerFilter")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<RuntimeId> as VmAggregateCodec>::encode_with_context(self.runtime_id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.name, context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<bool> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<bool> as VmAggregateCodec>::encode_with_context(
             self.has_pending_work,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<RuntimeLabelSelectorVm>> as VmAggregateCodec>::encode_with_context(
                 self.labels,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -2364,8 +2357,8 @@ impl VmAggregateCodec for BranchDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -2373,15 +2366,14 @@ impl VmAggregateCodec for BranchDescriptorAbi<VmAbi> {
             .boxed());
         }
         let field_id =
-            <BranchId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <BranchId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_head_revision =
-            <RevisionId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <RevisionId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         let field_labels =
-            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -2397,31 +2389,30 @@ impl VmAggregateCodec for BranchDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::BranchDescriptor")
+            .begin_named_aggregate_builder("runtime::BranchDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <BranchId as VmAggregateCodec>::encode_with_context(self.id, context)?;
+        let field_value = <BranchId as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <RevisionId as VmAggregateCodec>::encode_with_context(self.head_revision, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.name, context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::encode_with_context(
                 self.labels,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -2553,19 +2544,18 @@ impl VmAggregateCodec for BranchFilterAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_labels = <Option<VmArray<RuntimeLabelSelectorVm>> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_labels = <Option<VmArray<RuntimeLabelSelectorVm>> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             name: field_name,
             labels: field_labels,
@@ -2577,21 +2567,21 @@ impl VmAggregateCodec for BranchFilterAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::BranchFilter")
+            .begin_named_aggregate_builder("runtime::BranchFilter")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.name, context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<RuntimeLabelSelectorVm>> as VmAggregateCodec>::encode_with_context(
                 self.labels,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -2715,25 +2705,23 @@ impl VmAggregateCodec for CheckpointDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_id = <CheckpointId as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
+        let field_id =
+            <CheckpointId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_revision_id =
-            <RevisionId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <RevisionId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         let field_labels =
-            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -2749,31 +2737,31 @@ impl VmAggregateCodec for CheckpointDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::CheckpointDescriptor")
+            .begin_named_aggregate_builder("runtime::CheckpointDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CheckpointId as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <RevisionId as VmAggregateCodec>::encode_with_context(self.revision_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.name, context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::encode_with_context(
                 self.labels,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -2905,8 +2893,8 @@ impl VmAggregateCodec for CheckpointFilterAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -2914,14 +2902,13 @@ impl VmAggregateCodec for CheckpointFilterAbi<VmAbi> {
             .boxed());
         }
         let field_revision_id =
-            <Option<RevisionId> as VmAggregateCodec>::decode_component_with_context(
+            <Option<RevisionId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
-        let field_labels = <Option<VmArray<RuntimeLabelSelectorVm>> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_labels = <Option<VmArray<RuntimeLabelSelectorVm>> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             revision_id: field_revision_id,
             name: field_name,
@@ -2934,28 +2921,28 @@ impl VmAggregateCodec for CheckpointFilterAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::CheckpointFilter")
+            .begin_named_aggregate_builder("runtime::CheckpointFilter")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<RevisionId> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<RevisionId> as VmAggregateCodec>::encode_with_context(
             self.revision_id,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.name, context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<RuntimeLabelSelectorVm>> as VmAggregateCodec>::encode_with_context(
                 self.labels,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -3074,32 +3061,25 @@ impl VmAggregateCodec for EngineDescriptor {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_kind = <EngineDescriptorKind as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <EngineDescriptorKind as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_call_stack_depth =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_value_stack_depth =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_local_stack_depth =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
-        let field_image_bytes = <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 4,
-        )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
+        let field_image_bytes =
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             kind: field_kind,
             call_stack_depth: field_call_stack_depth,
@@ -3114,36 +3094,36 @@ impl VmAggregateCodec for EngineDescriptor {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::EngineDescriptor")
+            .begin_named_aggregate_builder("runtime::EngineDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <EngineDescriptorKind as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.call_stack_depth, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
             self.value_stack_depth,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
             self.local_stack_depth,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.image_bytes, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -3217,8 +3197,8 @@ impl VmAggregateCodec for EventLoopDescriptor {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -3226,15 +3206,15 @@ impl VmAggregateCodec for EventLoopDescriptor {
             .boxed());
         }
         let field_task_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_microtask_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_timer_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_watch_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_has_pending_work =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             task_count: field_task_count,
             microtask_count: field_microtask_count,
@@ -3249,32 +3229,31 @@ impl VmAggregateCodec for EventLoopDescriptor {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::EventLoopDescriptor")
+            .begin_named_aggregate_builder("runtime::EventLoopDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.task_count, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.task_count, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.microtask_count, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.timer_count, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.watch_count, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.has_pending_work, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -3323,8 +3302,6 @@ pub struct HeapDescriptor {
     pub heap_bytes: u64,
     /// Total captured page count.
     pub page_count: u32,
-    /// Shared page count.
-    pub shared_page_count: u32,
     /// Completed GC cycle count.
     pub gc_cycles: u64,
 }
@@ -3346,26 +3323,23 @@ impl VmAggregateCodec for HeapDescriptor {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 3 fields",
             ))
             .boxed());
         }
         let field_heap_bytes =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_page_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_shared_page_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_gc_cycles =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             heap_bytes: field_heap_bytes,
             page_count: field_page_count,
-            shared_page_count: field_shared_page_count,
             gc_cycles: field_gc_cycles,
         })
     }
@@ -3375,27 +3349,19 @@ impl VmAggregateCodec for HeapDescriptor {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::HeapDescriptor")
+            .begin_named_aggregate_builder("runtime::HeapDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.heap_bytes, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.heap_bytes, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.page_count, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.page_count, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.shared_page_count, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.gc_cycles, context)?;
         value_builder
-            .write_component(2, component_value)
-            .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.gc_cycles, context)?;
-        value_builder
-            .write_component(3, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -3465,8 +3431,8 @@ impl VmAggregateCodec for ImageDescriptor {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -3474,12 +3440,11 @@ impl VmAggregateCodec for ImageDescriptor {
             .boxed());
         }
         let field_id =
-            <ImageId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <ImageId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_revision_id =
-            <RevisionId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_shared_bytes = <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
+            <RevisionId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_shared_bytes =
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             id: field_id,
             revision_id: field_revision_id,
@@ -3492,21 +3457,21 @@ impl VmAggregateCodec for ImageDescriptor {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::ImageDescriptor")
+            .begin_named_aggregate_builder("runtime::ImageDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <ImageId as VmAggregateCodec>::encode_with_context(self.id, context)?;
+        let field_value = <ImageId as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <RevisionId as VmAggregateCodec>::encode_with_context(self.revision_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.shared_bytes, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -3572,8 +3537,8 @@ impl VmAggregateCodec for ImageFilter {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
@@ -3581,7 +3546,7 @@ impl VmAggregateCodec for ImageFilter {
             .boxed());
         }
         let field_revision_id =
-            <Option<RevisionId> as VmAggregateCodec>::decode_component_with_context(
+            <Option<RevisionId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         Ok(Self {
@@ -3594,14 +3559,14 @@ impl VmAggregateCodec for ImageFilter {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::ImageFilter")
+            .begin_named_aggregate_builder("runtime::ImageFilter")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<RevisionId> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<RevisionId> as VmAggregateCodec>::encode_with_context(
             self.revision_id,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -3677,32 +3642,26 @@ impl VmAggregateCodec for ObservationOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 6 {
+        let field_count = value_ref.field_count();
+        if field_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
             ))
             .boxed());
         }
-        let field_trace = <Option<bool> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
-        let field_topology = <Option<bool> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
-        let field_resources = <Option<bool> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
-        let field_scheduler = <Option<bool> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
-        let field_diagnostics = <Option<bool> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 4,
-        )?;
-        let field_profiles = <Option<bool> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 5,
-        )?;
+        let field_trace =
+            <Option<bool> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_topology =
+            <Option<bool> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_resources =
+            <Option<bool> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_scheduler =
+            <Option<bool> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
+        let field_diagnostics =
+            <Option<bool> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
+        let field_profiles =
+            <Option<bool> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         Ok(Self {
             trace: field_trace,
             topology: field_topology,
@@ -3718,37 +3677,37 @@ impl VmAggregateCodec for ObservationOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::ObservationOptions")
+            .begin_named_aggregate_builder("runtime::ObservationOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<bool> as VmAggregateCodec>::encode_with_context(self.trace, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<bool> as VmAggregateCodec>::encode_with_context(self.topology, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<bool> as VmAggregateCodec>::encode_with_context(self.resources, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<bool> as VmAggregateCodec>::encode_with_context(self.scheduler, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<bool> as VmAggregateCodec>::encode_with_context(self.diagnostics, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<bool> as VmAggregateCodec>::encode_with_context(self.profiles, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -3839,25 +3798,24 @@ impl VmAggregateCodec for ObservationRecordAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <ObservationEventKind as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <ObservationEventKind as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_sequence =
-            <Option<TraceSequence> as VmAggregateCodec>::decode_component_with_context(
+            <Option<TraceSequence> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_payload =
-            <Option<VmArray<u8>> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_payload = <Option<VmArray<u8>> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         Ok(Self {
             kind: field_kind,
             sequence: field_sequence,
@@ -3870,24 +3828,24 @@ impl VmAggregateCodec for ObservationRecordAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::ObservationRecord")
+            .begin_named_aggregate_builder("runtime::ObservationRecord")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <ObservationEventKind as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<TraceSequence> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<TraceSequence> as VmAggregateCodec>::encode_with_context(
             self.sequence,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<u8>> as VmAggregateCodec>::encode_with_context(self.payload, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4014,26 +3972,25 @@ impl VmAggregateCodec for ResourceDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_id = <WorldResourceIdVm as VmAggregateCodec>::decode_component_with_context(
+        let field_id = <WorldResourceIdVm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_entity_id =
-            <TopologyEntityIdVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_entity_id = <TopologyEntityIdVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         let field_label =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -4049,28 +4006,28 @@ impl VmAggregateCodec for ResourceDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::ResourceDescriptor")
+            .begin_named_aggregate_builder("runtime::ResourceDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WorldResourceIdVm as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <TopologyEntityIdVm as VmAggregateCodec>::encode_with_context(self.entity_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.label, context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4193,28 +4150,25 @@ impl VmAggregateCodec for ResourceFilterAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_runtime_id =
-            <Option<RuntimeId> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_worker_id =
-            <Option<WorkerId> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
-        let field_kind =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_runtime_id = <Option<RuntimeId> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_worker_id = <Option<WorkerId> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_kind = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         let field_label =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -4230,29 +4184,29 @@ impl VmAggregateCodec for ResourceFilterAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::ResourceFilter")
+            .begin_named_aggregate_builder("runtime::ResourceFilter")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<RuntimeId> as VmAggregateCodec>::encode_with_context(self.runtime_id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<WorkerId> as VmAggregateCodec>::encode_with_context(self.worker_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.kind, context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.label, context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4367,8 +4321,8 @@ impl VmAggregateCodec for RevisionDescriptor {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 8 {
+        let field_count = value_ref.field_count();
+        if field_count != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 8 fields",
@@ -4376,24 +4330,23 @@ impl VmAggregateCodec for RevisionDescriptor {
             .boxed());
         }
         let field_id =
-            <RevisionId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <RevisionId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_branch_id =
-            <BranchId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <BranchId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_parent_revision =
-            <Option<RevisionId> as VmAggregateCodec>::decode_component_with_context(
+            <Option<RevisionId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
-        let field_sequence = <TraceSequence as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
+        let field_sequence =
+            <TraceSequence as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_wall_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_mono_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_virtual_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_image_id =
-            <ImageId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <ImageId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         Ok(Self {
             id: field_id,
             branch_id: field_branch_id,
@@ -4411,49 +4364,45 @@ impl VmAggregateCodec for RevisionDescriptor {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::RevisionDescriptor")
+            .begin_named_aggregate_builder("runtime::RevisionDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <RevisionId as VmAggregateCodec>::encode_with_context(self.id, context)?;
+        let field_value = <RevisionId as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <BranchId as VmAggregateCodec>::encode_with_context(self.branch_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<RevisionId> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<RevisionId> as VmAggregateCodec>::encode_with_context(
             self.parent_revision,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <TraceSequence as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.wall_ns, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.wall_ns, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.mono_ns, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.mono_ns, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.virtual_ns, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.virtual_ns, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <ImageId as VmAggregateCodec>::encode_with_context(self.image_id, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4519,18 +4468,17 @@ impl VmAggregateCodec for RevisionFilter {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
             ))
             .boxed());
         }
-        let field_branch_id =
-            <Option<BranchId> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
+        let field_branch_id = <Option<BranchId> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
         Ok(Self {
             branch_id: field_branch_id,
         })
@@ -4541,12 +4489,12 @@ impl VmAggregateCodec for RevisionFilter {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::RevisionFilter")
+            .begin_named_aggregate_builder("runtime::RevisionFilter")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<BranchId> as VmAggregateCodec>::encode_with_context(self.branch_id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4635,20 +4583,19 @@ impl VmAggregateCodec for RuntimeCreateOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
+        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
         let field_labels =
-            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -4662,21 +4609,21 @@ impl VmAggregateCodec for RuntimeCreateOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::RuntimeCreateOptions")
+            .begin_named_aggregate_builder("runtime::RuntimeCreateOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.name, context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::encode_with_context(
                 self.labels,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4800,8 +4747,8 @@ impl VmAggregateCodec for RuntimeDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -4809,17 +4756,16 @@ impl VmAggregateCodec for RuntimeDescriptorAbi<VmAbi> {
             .boxed());
         }
         let field_id =
-            <RuntimeId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <RuntimeId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_primary_worker_id =
-            <WorkerId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <WorkerId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         let field_worker_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_labels =
-            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         Ok(Self {
@@ -4836,36 +4782,35 @@ impl VmAggregateCodec for RuntimeDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::RuntimeDescriptor")
+            .begin_named_aggregate_builder("runtime::RuntimeDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <RuntimeId as VmAggregateCodec>::encode_with_context(self.id, context)?;
+        let field_value = <RuntimeId as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WorkerId as VmAggregateCodec>::encode_with_context(self.primary_worker_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.name, context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.worker_count, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::encode_with_context(
                 self.labels,
                 context,
             )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5012,19 +4957,18 @@ impl VmAggregateCodec for RuntimeFilterAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_labels = <Option<VmArray<RuntimeLabelSelectorVm>> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_labels = <Option<VmArray<RuntimeLabelSelectorVm>> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             name: field_name,
             labels: field_labels,
@@ -5036,21 +4980,21 @@ impl VmAggregateCodec for RuntimeFilterAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::RuntimeFilter")
+            .begin_named_aggregate_builder("runtime::RuntimeFilter")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.name, context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<RuntimeLabelSelectorVm>> as VmAggregateCodec>::encode_with_context(
                 self.labels,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5170,18 +5114,18 @@ impl VmAggregateCodec for RuntimeLabelAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_key = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_key = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_value = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_value = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         Ok(Self {
@@ -5195,17 +5139,17 @@ impl VmAggregateCodec for RuntimeLabelAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::RuntimeLabel")
+            .begin_named_aggregate_builder("runtime::RuntimeLabel")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.key, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.value, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5312,19 +5256,19 @@ impl VmAggregateCodec for RuntimeLabelSelectorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_key = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_key = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_value =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -5338,18 +5282,18 @@ impl VmAggregateCodec for RuntimeLabelSelectorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::RuntimeLabelSelector")
+            .begin_named_aggregate_builder("runtime::RuntimeLabelSelector")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.key, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.value, context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5439,8 +5383,8 @@ impl VmAggregateCodec for SnapshotDescriptor {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -5448,15 +5392,13 @@ impl VmAggregateCodec for SnapshotDescriptor {
             .boxed());
         }
         let field_id =
-            <SnapshotId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <SnapshotId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_image_id =
-            <ImageId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_format = <SnapshotFormat as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
-        let field_size_bytes = <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
+            <ImageId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_format =
+            <SnapshotFormat as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_size_bytes =
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             id: field_id,
             image_id: field_image_id,
@@ -5470,27 +5412,26 @@ impl VmAggregateCodec for SnapshotDescriptor {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::SnapshotDescriptor")
+            .begin_named_aggregate_builder("runtime::SnapshotDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <SnapshotId as VmAggregateCodec>::encode_with_context(self.id, context)?;
+        let field_value = <SnapshotId as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <ImageId as VmAggregateCodec>::encode_with_context(self.image_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <SnapshotFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.size_bytes, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5585,28 +5526,28 @@ impl VmAggregateCodec for TopologyEdgeAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_id = <TopologyEdgeIdVm as VmAggregateCodec>::decode_component_with_context(
+        let field_id = <TopologyEdgeIdVm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_kind = <TopologyEdgeKindVm as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <TopologyEdgeKindVm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_from = <TopologyEntityIdVm as VmAggregateCodec>::decode_component_with_context(
+        let field_from = <TopologyEntityIdVm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
-        let field_to = <TopologyEntityIdVm as VmAggregateCodec>::decode_component_with_context(
+        let field_to = <TopologyEntityIdVm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 3,
         )?;
         let field_labels =
-            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         Ok(Self {
@@ -5623,35 +5564,35 @@ impl VmAggregateCodec for TopologyEdgeAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::TopologyEdge")
+            .begin_named_aggregate_builder("runtime::TopologyEdge")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <TopologyEdgeIdVm as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <TopologyEdgeKindVm as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <TopologyEntityIdVm as VmAggregateCodec>::encode_with_context(self.from, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <TopologyEntityIdVm as VmAggregateCodec>::encode_with_context(self.to, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::encode_with_context(
                 self.labels,
                 context,
             )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5791,8 +5732,8 @@ impl VmAggregateCodec for TopologyEdgeFilterAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -5800,18 +5741,17 @@ impl VmAggregateCodec for TopologyEdgeFilterAbi<VmAbi> {
             .boxed());
         }
         let field_kind =
-            <Option<TopologyEdgeKindVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<TopologyEdgeKindVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_from =
-            <Option<TopologyEntityIdVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<TopologyEntityIdVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_to =
-            <Option<TopologyEntityIdVm> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_labels = <Option<VmArray<RuntimeLabelSelectorVm>> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_to = <Option<TopologyEntityIdVm> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
+        let field_labels = <Option<VmArray<RuntimeLabelSelectorVm>> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             kind: field_kind,
             from: field_from,
@@ -5825,36 +5765,33 @@ impl VmAggregateCodec for TopologyEdgeFilterAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::TopologyEdgeFilter")
+            .begin_named_aggregate_builder("runtime::TopologyEdgeFilter")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<TopologyEdgeKindVm> as VmAggregateCodec>::encode_with_context(
-                self.kind, context,
-            )?;
+        let field_value = <Option<TopologyEdgeKindVm> as VmAggregateCodec>::encode_with_context(
+            self.kind, context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<TopologyEntityIdVm> as VmAggregateCodec>::encode_with_context(
-                self.from, context,
-            )?;
+        let field_value = <Option<TopologyEntityIdVm> as VmAggregateCodec>::encode_with_context(
+            self.from, context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<TopologyEntityIdVm> as VmAggregateCodec>::encode_with_context(
-                self.to, context,
-            )?;
+        let field_value = <Option<TopologyEntityIdVm> as VmAggregateCodec>::encode_with_context(
+            self.to, context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<RuntimeLabelSelectorVm>> as VmAggregateCodec>::encode_with_context(
                 self.labels,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5988,22 +5925,22 @@ impl VmAggregateCodec for TopologyEntityAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_id = <TopologyEntityIdVm as VmAggregateCodec>::decode_component_with_context(
+        let field_id = <TopologyEntityIdVm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_kind = <TopologyEntityKindVm as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <TopologyEntityKindVm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         let field_labels =
-            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -6018,25 +5955,25 @@ impl VmAggregateCodec for TopologyEntityAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::TopologyEntity")
+            .begin_named_aggregate_builder("runtime::TopologyEntity")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <TopologyEntityIdVm as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <TopologyEntityKindVm as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::encode_with_context(
                 self.labels,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6160,8 +6097,8 @@ impl VmAggregateCodec for TopologyEntityFilterAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -6169,10 +6106,10 @@ impl VmAggregateCodec for TopologyEntityFilterAbi<VmAbi> {
             .boxed());
         }
         let field_kind =
-            <Option<TopologyEntityKindVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<TopologyEntityKindVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_labels = <Option<VmArray<RuntimeLabelSelectorVm>> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_labels = <Option<VmArray<RuntimeLabelSelectorVm>> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             kind: field_kind,
             labels: field_labels,
@@ -6184,22 +6121,21 @@ impl VmAggregateCodec for TopologyEntityFilterAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::TopologyEntityFilter")
+            .begin_named_aggregate_builder("runtime::TopologyEntityFilter")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<TopologyEntityKindVm> as VmAggregateCodec>::encode_with_context(
-                self.kind, context,
-            )?;
+        let field_value = <Option<TopologyEntityKindVm> as VmAggregateCodec>::encode_with_context(
+            self.kind, context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<RuntimeLabelSelectorVm>> as VmAggregateCodec>::encode_with_context(
                 self.labels,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6296,8 +6232,8 @@ impl VmAggregateCodec for TraceCursorOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
@@ -6305,7 +6241,7 @@ impl VmAggregateCodec for TraceCursorOptions {
             .boxed());
         }
         let field_start_sequence =
-            <Option<TraceSequence> as VmAggregateCodec>::decode_component_with_context(
+            <Option<TraceSequence> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         Ok(Self {
@@ -6318,14 +6254,14 @@ impl VmAggregateCodec for TraceCursorOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::TraceCursorOptions")
+            .begin_named_aggregate_builder("runtime::TraceCursorOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<TraceSequence> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<TraceSequence> as VmAggregateCodec>::encode_with_context(
             self.start_sequence,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6393,8 +6329,8 @@ impl VmAggregateCodec for TraceDescriptor {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -6402,10 +6338,9 @@ impl VmAggregateCodec for TraceDescriptor {
             .boxed());
         }
         let field_branch_id =
-            <BranchId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
-        let field_sequence = <TraceSequence as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
+            <BranchId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_sequence =
+            <TraceSequence as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             branch_id: field_branch_id,
             sequence: field_sequence,
@@ -6417,17 +6352,17 @@ impl VmAggregateCodec for TraceDescriptor {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::TraceDescriptor")
+            .begin_named_aggregate_builder("runtime::TraceDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <BranchId as VmAggregateCodec>::encode_with_context(self.branch_id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <TraceSequence as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6518,24 +6453,21 @@ impl VmAggregateCodec for TraceRecordAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_sequence = <TraceSequence as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
+        let field_sequence =
+            <TraceSequence as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_kind =
+            <TraceEventKind as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_payload = <Option<VmArray<u8>> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
         )?;
-        let field_kind = <TraceEventKind as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
-        let field_payload =
-            <Option<VmArray<u8>> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
         Ok(Self {
             sequence: field_sequence,
             kind: field_kind,
@@ -6548,22 +6480,22 @@ impl VmAggregateCodec for TraceRecordAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::TraceRecord")
+            .begin_named_aggregate_builder("runtime::TraceRecord")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <TraceSequence as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <TraceEventKind as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<u8>> as VmAggregateCodec>::encode_with_context(self.payload, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6685,8 +6617,8 @@ impl VmAggregateCodec for WorldCreateOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -6694,19 +6626,19 @@ impl VmAggregateCodec for WorldCreateOptionsAbi<VmAbi> {
             .boxed());
         }
         let field_engine =
-            <Option<RuntimeEngineKind> as VmAggregateCodec>::decode_component_with_context(
+            <Option<RuntimeEngineKind> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_execution =
-            <Option<RuntimeExecutionMode> as VmAggregateCodec>::decode_component_with_context(
+            <Option<RuntimeExecutionMode> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_world =
-            <Option<RuntimeWorldKind> as VmAggregateCodec>::decode_component_with_context(
+            <Option<RuntimeWorldKind> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_labels =
-            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -6722,36 +6654,35 @@ impl VmAggregateCodec for WorldCreateOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::WorldCreateOptions")
+            .begin_named_aggregate_builder("runtime::WorldCreateOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<RuntimeEngineKind> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<RuntimeEngineKind> as VmAggregateCodec>::encode_with_context(
             self.engine,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<RuntimeExecutionMode> as VmAggregateCodec>::encode_with_context(
-                self.execution,
-                context,
-            )?;
+        let field_value = <Option<RuntimeExecutionMode> as VmAggregateCodec>::encode_with_context(
+            self.execution,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<RuntimeWorldKind> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<RuntimeWorldKind> as VmAggregateCodec>::encode_with_context(
             self.world, context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::encode_with_context(
                 self.labels,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6909,31 +6840,30 @@ impl VmAggregateCodec for WorldDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 8 {
+        let field_count = value_ref.field_count();
+        if field_count != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 8 fields",
             ))
             .boxed());
         }
-        let field_handle = <WorldHandle as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
+        let field_handle =
+            <WorldHandle as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_branch_id =
-            <BranchId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <BranchId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_revision_id =
-            <RevisionId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <RevisionId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_wall_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_mono_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_virtual_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_runtime_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_labels =
-            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         Ok(Self {
@@ -6953,50 +6883,47 @@ impl VmAggregateCodec for WorldDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::WorldDescriptor")
+            .begin_named_aggregate_builder("runtime::WorldDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WorldHandle as VmAggregateCodec>::encode_with_context(self.handle, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <BranchId as VmAggregateCodec>::encode_with_context(self.branch_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <RevisionId as VmAggregateCodec>::encode_with_context(self.revision_id, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.wall_ns, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.wall_ns, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.mono_ns, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.mono_ns, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.virtual_ns, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.virtual_ns, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.runtime_count, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<RuntimeLabelVm>> as VmAggregateCodec>::encode_with_context(
                 self.labels,
                 context,
             )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7129,8 +7056,8 @@ impl VmAggregateCodec for WorldResourceId {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -7138,9 +7065,9 @@ impl VmAggregateCodec for WorldResourceId {
             .boxed());
         }
         let field_worker_id =
-            <WorkerId as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <WorkerId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_resource_id =
-            <resource::ResourceId as VmAggregateCodec>::decode_component_with_context(
+            <resource::ResourceId as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -7154,19 +7081,19 @@ impl VmAggregateCodec for WorldResourceId {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::WorldResourceId")
+            .begin_named_aggregate_builder("runtime::WorldResourceId")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WorkerId as VmAggregateCodec>::encode_with_context(self.worker_id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <resource::ResourceId as VmAggregateCodec>::encode_with_context(
+        let field_value = <resource::ResourceId as VmAggregateCodec>::encode_with_context(
             self.resource_id,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7232,8 +7159,8 @@ impl VmAggregateCodec for WorldViewOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
@@ -7241,7 +7168,7 @@ impl VmAggregateCodec for WorldViewOptions {
             .boxed());
         }
         let field_revision_id =
-            <Option<RevisionId> as VmAggregateCodec>::decode_component_with_context(
+            <Option<RevisionId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         Ok(Self {
@@ -7254,14 +7181,14 @@ impl VmAggregateCodec for WorldViewOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("runtime::WorldViewOptions")
+            .begin_named_aggregate_builder("runtime::WorldViewOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<RevisionId> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<RevisionId> as VmAggregateCodec>::encode_with_context(
             self.revision_id,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7568,47 +7495,47 @@ pub struct WorlddescriptorReplayRecord {
     pub labels: Option<Vec<RuntimelabelReplayRecord>>,
 }
 
-/// Register VM storage schemas for runtime.
-pub(crate) fn register_runtime_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
-    isolate.register_named_storage_type("runtime::TopologyEdgeId", 1)?;
-    isolate.register_named_storage_type("runtime::TopologyEdgeKind", 1)?;
-    isolate.register_named_storage_type("runtime::TopologyEntityId", 1)?;
-    isolate.register_named_storage_type("runtime::TopologyEntityKind", 1)?;
-    isolate.register_named_storage_type("runtime::WorkerCreateOptions", 2)?;
-    isolate.register_named_storage_type("runtime::WorkerDescriptor", 6)?;
-    isolate.register_named_storage_type("runtime::WorkerFilter", 4)?;
-    isolate.register_named_storage_type("runtime::BranchDescriptor", 4)?;
-    isolate.register_named_storage_type("runtime::BranchFilter", 2)?;
-    isolate.register_named_storage_type("runtime::CheckpointDescriptor", 4)?;
-    isolate.register_named_storage_type("runtime::CheckpointFilter", 3)?;
-    isolate.register_named_storage_type("runtime::EngineDescriptor", 5)?;
-    isolate.register_named_storage_type("runtime::EventLoopDescriptor", 5)?;
-    isolate.register_named_storage_type("runtime::HeapDescriptor", 4)?;
-    isolate.register_named_storage_type("runtime::ImageDescriptor", 3)?;
-    isolate.register_named_storage_type("runtime::ImageFilter", 1)?;
-    isolate.register_named_storage_type("runtime::ObservationOptions", 6)?;
-    isolate.register_named_storage_type("runtime::ObservationRecord", 3)?;
-    isolate.register_named_storage_type("runtime::ResourceDescriptor", 4)?;
-    isolate.register_named_storage_type("runtime::ResourceFilter", 4)?;
-    isolate.register_named_storage_type("runtime::RevisionDescriptor", 8)?;
-    isolate.register_named_storage_type("runtime::RevisionFilter", 1)?;
-    isolate.register_named_storage_type("runtime::RuntimeCreateOptions", 2)?;
-    isolate.register_named_storage_type("runtime::RuntimeDescriptor", 5)?;
-    isolate.register_named_storage_type("runtime::RuntimeFilter", 2)?;
-    isolate.register_named_storage_type("runtime::RuntimeLabel", 2)?;
-    isolate.register_named_storage_type("runtime::RuntimeLabelSelector", 2)?;
-    isolate.register_named_storage_type("runtime::SnapshotDescriptor", 4)?;
-    isolate.register_named_storage_type("runtime::TopologyEdge", 5)?;
-    isolate.register_named_storage_type("runtime::TopologyEdgeFilter", 4)?;
-    isolate.register_named_storage_type("runtime::TopologyEntity", 3)?;
-    isolate.register_named_storage_type("runtime::TopologyEntityFilter", 2)?;
-    isolate.register_named_storage_type("runtime::TraceCursorOptions", 1)?;
-    isolate.register_named_storage_type("runtime::TraceDescriptor", 2)?;
-    isolate.register_named_storage_type("runtime::TraceRecord", 3)?;
-    isolate.register_named_storage_type("runtime::WorldCreateOptions", 4)?;
-    isolate.register_named_storage_type("runtime::WorldDescriptor", 8)?;
-    isolate.register_named_storage_type("runtime::WorldResourceId", 2)?;
-    isolate.register_named_storage_type("runtime::WorldViewOptions", 1)?;
+/// Register VM aggregate schemas for runtime.
+pub(crate) fn register_runtime_vm_aggregate_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_aggregate_type("runtime::TopologyEdgeId", 1)?;
+    isolate.register_named_aggregate_type("runtime::TopologyEdgeKind", 1)?;
+    isolate.register_named_aggregate_type("runtime::TopologyEntityId", 1)?;
+    isolate.register_named_aggregate_type("runtime::TopologyEntityKind", 1)?;
+    isolate.register_named_aggregate_type("runtime::WorkerCreateOptions", 2)?;
+    isolate.register_named_aggregate_type("runtime::WorkerDescriptor", 6)?;
+    isolate.register_named_aggregate_type("runtime::WorkerFilter", 4)?;
+    isolate.register_named_aggregate_type("runtime::BranchDescriptor", 4)?;
+    isolate.register_named_aggregate_type("runtime::BranchFilter", 2)?;
+    isolate.register_named_aggregate_type("runtime::CheckpointDescriptor", 4)?;
+    isolate.register_named_aggregate_type("runtime::CheckpointFilter", 3)?;
+    isolate.register_named_aggregate_type("runtime::EngineDescriptor", 5)?;
+    isolate.register_named_aggregate_type("runtime::EventLoopDescriptor", 5)?;
+    isolate.register_named_aggregate_type("runtime::HeapDescriptor", 3)?;
+    isolate.register_named_aggregate_type("runtime::ImageDescriptor", 3)?;
+    isolate.register_named_aggregate_type("runtime::ImageFilter", 1)?;
+    isolate.register_named_aggregate_type("runtime::ObservationOptions", 6)?;
+    isolate.register_named_aggregate_type("runtime::ObservationRecord", 3)?;
+    isolate.register_named_aggregate_type("runtime::ResourceDescriptor", 4)?;
+    isolate.register_named_aggregate_type("runtime::ResourceFilter", 4)?;
+    isolate.register_named_aggregate_type("runtime::RevisionDescriptor", 8)?;
+    isolate.register_named_aggregate_type("runtime::RevisionFilter", 1)?;
+    isolate.register_named_aggregate_type("runtime::RuntimeCreateOptions", 2)?;
+    isolate.register_named_aggregate_type("runtime::RuntimeDescriptor", 5)?;
+    isolate.register_named_aggregate_type("runtime::RuntimeFilter", 2)?;
+    isolate.register_named_aggregate_type("runtime::RuntimeLabel", 2)?;
+    isolate.register_named_aggregate_type("runtime::RuntimeLabelSelector", 2)?;
+    isolate.register_named_aggregate_type("runtime::SnapshotDescriptor", 4)?;
+    isolate.register_named_aggregate_type("runtime::TopologyEdge", 5)?;
+    isolate.register_named_aggregate_type("runtime::TopologyEdgeFilter", 4)?;
+    isolate.register_named_aggregate_type("runtime::TopologyEntity", 3)?;
+    isolate.register_named_aggregate_type("runtime::TopologyEntityFilter", 2)?;
+    isolate.register_named_aggregate_type("runtime::TraceCursorOptions", 1)?;
+    isolate.register_named_aggregate_type("runtime::TraceDescriptor", 2)?;
+    isolate.register_named_aggregate_type("runtime::TraceRecord", 3)?;
+    isolate.register_named_aggregate_type("runtime::WorldCreateOptions", 4)?;
+    isolate.register_named_aggregate_type("runtime::WorldDescriptor", 8)?;
+    isolate.register_named_aggregate_type("runtime::WorldResourceId", 2)?;
+    isolate.register_named_aggregate_type("runtime::WorldViewOptions", 1)?;
 
     Ok(())
 }

@@ -336,7 +336,7 @@ fn vm_process_stdio_slice(
 ) -> RuntimeResult<VmSlice<ProcessStdioVm>> {
     if values.is_empty() {
         return Ok(VmSlice {
-            data: vm::RawPointer::NULL,
+            data: vm::Value::VOID,
             len: 0,
             _marker: std::marker::PhantomData,
         });
@@ -413,7 +413,7 @@ fn vm_process_fd_action_slice(
 ) -> RuntimeResult<VmSlice<ProcessFdActionVm>> {
     if values.is_empty() {
         return Ok(VmSlice {
-            data: vm::RawPointer::NULL,
+            data: vm::Value::VOID,
             len: 0,
             _marker: std::marker::PhantomData,
         });

@@ -509,9 +509,7 @@ impl<'a> ModuleCodegen<'a> {
         let item_var = format!("{name}_item");
         let item_recorded_var = format!("{name}_item_recorded");
 
-        lines.push(format!(
-            "let {raw_var} = {value_expr}.raw_values(context)?;"
-        ));
+        lines.push(format!("let {raw_var} = {value_expr}.values(context)?;"));
         lines.push(format!(
             "let mut {name} = Vec::with_capacity({raw_var}.len());"
         ));

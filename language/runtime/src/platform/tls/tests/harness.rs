@@ -8,7 +8,7 @@ use crate::platform::net::{SocketFamily, SocketProtocol};
 use crate::platform::net::{SocketPair, SocketType, native as net_native, vm as net_vm};
 use crate::platform::tls::{TlsContextOptions, TlsContextOptionsVm, TlsRole, TlsVersion};
 use crate::platform::{ResourceId, VmSlice, resource};
-use crate::tests::platform::{vm_test_raw_values, vm_test_string};
+use crate::tests::platform::{vm_test_string, vm_test_values};
 
 #[path = "harness.generated.rs"]
 mod generated;
@@ -304,7 +304,7 @@ fn vm_slice_of_slices(
         .map(|slice| slice.to_value(&mut context.write()))
         .collect::<RuntimeResult<Vec<_>>>()
         .expect("vm test slice values should encode");
-    let data = vm_test_raw_values(context, values);
+    let data = vm_test_values(context, values);
 
     VmSlice {
         data,

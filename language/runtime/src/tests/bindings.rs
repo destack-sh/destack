@@ -18,7 +18,7 @@ fn build_random_call_module(
     let param_types = stream_arg.map(|_| vec![u64_type]).unwrap_or_default();
     let extern_name = format!("destack.{extern_name}");
     let extern_id = module.extern_function(&extern_name, &param_types, u64_type);
-    let signature = module.type_function_pointer(param_types.clone(), u64_type);
+    let signature = module.type_function_signature(param_types.clone(), u64_type);
 
     // entry function
     let mut builder = module.function("main", &[], u64_type);
@@ -52,19 +52,43 @@ fn run_vm_random_call(
     let (tree, strings) = build_random_call_module(extern_name, stream_arg);
 
     // runtime and isolate setup
-    let mut isolate = Isolate::build(tree, strings).expect("isolate init");
-    let mut heap = destack_vm::Heap::new().expect("default heap should build");
-    let mut shared = destack_vm::SharedHeap::default();
+    let mut isolate =
+        Isolate::build(destack_vm::IsolateId::new(1), tree, strings).expect("isolate init");
+    let mut heap = destack_vm::Heap::with_allocator_limits_and_options(
+        std::sync::Arc::new(
+            destack_vm::Allocator::try_new(
+                destack_vm::HeapOptions::local().page_bytes,
+                destack_vm::HeapOptions::local().allocator_arena_bytes,
+            )
+            .expect("test vm allocator should build"),
+        ),
+        destack_vm::HeapLimits::default(),
+        destack_vm::HeapOptions::local(),
+    )
+    .expect("test vm heap should build");
+    let mut shared = destack_vm::SharedHeap::with_allocator_limits_and_options(
+        std::sync::Arc::new(
+            destack_vm::Allocator::try_new(
+                destack_vm::HeapOptions::shared().page_bytes,
+                destack_vm::HeapOptions::shared().allocator_arena_bytes,
+            )
+            .expect("test shared allocator should build"),
+        ),
+        destack_vm::SharedHeapLimits::default(),
+        destack_vm::HeapOptions::shared(),
+    )
+    .expect("test vm shared heap should build");
     runtime.install_vm_defaults(&mut isolate);
 
     // execute entry function
     let output = runtime
         .with_native_call_context(|_| {
-            let mut memory = destack_vm::MemoryContext::new(&mut heap, &mut shared);
-            isolate.run_function_by_name(&mut memory, "main", &[])
+            isolate.run_function_by_name(&mut heap, &mut shared, "main", &[])
         })
         .expect("vm execution");
-    let (value, width) = output.value.as_uint_with_width().expect("u64 result");
+    let destack_engine::MaterializedValue::UInt { value, width } = output.value else {
+        panic!("u64 result")
+    };
     assert_eq!(width, 64);
 
     value

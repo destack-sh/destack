@@ -4972,21 +4972,21 @@ impl VmAggregateCodec for GpuBindGroupLayoutResourceAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
-            3882186069u32 => Self::GpuBindGroupLayoutBufferResource(<GpuBindGroupLayoutBufferResourceVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1550882686u32 => Self::GpuBindGroupLayoutExternalTextureResource(<GpuBindGroupLayoutExternalTextureResourceVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2019827610u32 => Self::GpuBindGroupLayoutSampledTextureResource(<GpuBindGroupLayoutSampledTextureResourceVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2111813354u32 => Self::GpuBindGroupLayoutSamplerResource(<GpuBindGroupLayoutSamplerResourceVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3821007978u32 => Self::GpuBindGroupLayoutStorageTextureResource(<GpuBindGroupLayoutStorageTextureResourceVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
+            3882186069u32 => Self::GpuBindGroupLayoutBufferResource(<GpuBindGroupLayoutBufferResourceVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1550882686u32 => Self::GpuBindGroupLayoutExternalTextureResource(<GpuBindGroupLayoutExternalTextureResourceVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2019827610u32 => Self::GpuBindGroupLayoutSampledTextureResource(<GpuBindGroupLayoutSampledTextureResourceVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2111813354u32 => Self::GpuBindGroupLayoutSamplerResource(<GpuBindGroupLayoutSamplerResourceVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3821007978u32 => Self::GpuBindGroupLayoutStorageTextureResource(<GpuBindGroupLayoutStorageTextureResourceVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
             _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown GpuBindGroupLayoutResource tag")).boxed()),
         };
         Ok(decoded)
@@ -5005,13 +5005,13 @@ impl VmAggregateCodec for GpuBindGroupLayoutResourceAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("gpu::GpuBindGroupLayoutResource")
+                    .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutResource")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -5020,13 +5020,13 @@ impl VmAggregateCodec for GpuBindGroupLayoutResourceAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(1550882686u32, context)?;
                 let payload_value = <GpuBindGroupLayoutExternalTextureResourceVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("gpu::GpuBindGroupLayoutResource")
+                    .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutResource")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -5035,13 +5035,13 @@ impl VmAggregateCodec for GpuBindGroupLayoutResourceAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(2019827610u32, context)?;
                 let payload_value = <GpuBindGroupLayoutSampledTextureResourceVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("gpu::GpuBindGroupLayoutResource")
+                    .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutResource")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -5053,13 +5053,13 @@ impl VmAggregateCodec for GpuBindGroupLayoutResourceAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("gpu::GpuBindGroupLayoutResource")
+                    .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutResource")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -5068,13 +5068,13 @@ impl VmAggregateCodec for GpuBindGroupLayoutResourceAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(3821007978u32, context)?;
                 let payload_value = <GpuBindGroupLayoutStorageTextureResourceVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("gpu::GpuBindGroupLayoutResource")
+                    .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutResource")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -5312,20 +5312,20 @@ impl VmAggregateCodec for GpuBindGroupResourceAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
-            794085965u32 => Self::GpuBindGroupBufferResource(<GpuBindGroupBufferResourceVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3639531745u32 => Self::GpuBindGroupExternalTextureResource(<GpuBindGroupExternalTextureResourceVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            228650387u32 => Self::GpuBindGroupSamplerResource(<GpuBindGroupSamplerResourceVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2482060392u32 => Self::GpuBindGroupTextureResource(<GpuBindGroupTextureResourceVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
+            794085965u32 => Self::GpuBindGroupBufferResource(<GpuBindGroupBufferResourceVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3639531745u32 => Self::GpuBindGroupExternalTextureResource(<GpuBindGroupExternalTextureResourceVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            228650387u32 => Self::GpuBindGroupSamplerResource(<GpuBindGroupSamplerResourceVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2482060392u32 => Self::GpuBindGroupTextureResource(<GpuBindGroupTextureResourceVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
             _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown GpuBindGroupResource tag")).boxed()),
         };
         Ok(decoded)
@@ -5344,13 +5344,13 @@ impl VmAggregateCodec for GpuBindGroupResourceAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("gpu::GpuBindGroupResource")
+                    .begin_named_aggregate_builder("gpu::GpuBindGroupResource")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -5359,13 +5359,13 @@ impl VmAggregateCodec for GpuBindGroupResourceAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(3639531745u32, context)?;
                 let payload_value = <GpuBindGroupExternalTextureResourceVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("gpu::GpuBindGroupResource")
+                    .begin_named_aggregate_builder("gpu::GpuBindGroupResource")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -5377,13 +5377,13 @@ impl VmAggregateCodec for GpuBindGroupResourceAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("gpu::GpuBindGroupResource")
+                    .begin_named_aggregate_builder("gpu::GpuBindGroupResource")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -5395,13 +5395,13 @@ impl VmAggregateCodec for GpuBindGroupResourceAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("gpu::GpuBindGroupResource")
+                    .begin_named_aggregate_builder("gpu::GpuBindGroupResource")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -5593,20 +5593,38 @@ impl VmAggregateCodec for GpuQuerySetTypeAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
-            4165457230u32 => Self::GpuOcclusionQueryType(<GpuOcclusionQueryTypeVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2511694722u32 => Self::GpuPipelineStatisticsQueryType(<GpuPipelineStatisticsQueryTypeVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1021655369u32 => Self::GpuTimestampQueryType(<GpuTimestampQueryTypeVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown GpuQuerySetType tag")).boxed()),
+            4165457230u32 => Self::GpuOcclusionQueryType(
+                <GpuOcclusionQueryTypeVm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            2511694722u32 => Self::GpuPipelineStatisticsQueryType(
+                <GpuPipelineStatisticsQueryTypeVm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            1021655369u32 => Self::GpuTimestampQueryType(
+                <GpuTimestampQueryTypeVm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuQuerySetType tag",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -5624,13 +5642,13 @@ impl VmAggregateCodec for GpuQuerySetTypeAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("gpu::GpuQuerySetType")
+                    .begin_named_aggregate_builder("gpu::GpuQuerySetType")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -5642,13 +5660,13 @@ impl VmAggregateCodec for GpuQuerySetTypeAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("gpu::GpuQuerySetType")
+                    .begin_named_aggregate_builder("gpu::GpuQuerySetType")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -5660,13 +5678,13 @@ impl VmAggregateCodec for GpuQuerySetTypeAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("gpu::GpuQuerySetType")
+                    .begin_named_aggregate_builder("gpu::GpuQuerySetType")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -5800,23 +5818,23 @@ impl VmAggregateCodec for GpuAdapterFormatCapabilities {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_format = <GpuTextureFormat as VmAggregateCodec>::decode_component_with_context(
+        let field_format = <GpuTextureFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_allowed_usages =
-            <GpuTextureUsageMask as VmAggregateCodec>::decode_component_with_context(
+            <GpuTextureUsageMask as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_flags =
-            <GpuTextureFormatFeatureFlags as VmAggregateCodec>::decode_component_with_context(
+            <GpuTextureFormatFeatureFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -5831,26 +5849,25 @@ impl VmAggregateCodec for GpuAdapterFormatCapabilities {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuAdapterFormatCapabilities")
+            .begin_named_aggregate_builder("gpu::GpuAdapterFormatCapabilities")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuTextureFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuTextureUsageMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuTextureUsageMask as VmAggregateCodec>::encode_with_context(
             self.allowed_usages,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <GpuTextureFormatFeatureFlags as VmAggregateCodec>::encode_with_context(
-                self.flags, context,
-            )?;
+        let field_value = <GpuTextureFormatFeatureFlags as VmAggregateCodec>::encode_with_context(
+            self.flags, context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5969,61 +5986,57 @@ impl VmAggregateCodec for GpuAdapterInfoAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 17 {
+        let field_count = value_ref.field_count();
+        if field_count != 17 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 17 fields",
             ))
             .boxed());
         }
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_vendor = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_vendor = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
-        let field_driver = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_driver = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 3,
         )?;
         let field_driver_version =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
-        let field_driver_info =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 5,
-            )?;
+        let field_driver_info = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 5,
+        )?;
         let field_backend =
-            <GpuBackend as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <GpuBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_adapter_type =
-            <GpuAdapterType as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 7,
-            )?;
+            <GpuAdapterType as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_vendor_id =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_device_id =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
-        let field_pci_bus_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 10,
-            )?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
+        let field_pci_bus_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 10,
+        )?;
         let field_subgroup_min_size =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 11)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 11)?;
         let field_subgroup_max_size =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 12)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 12)?;
         let field_transient_saves_memory =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 13)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 13)?;
         let field_is_fallback =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 14)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 14)?;
         let field_features =
-            <VmSlice<GpuFeatureId> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<GpuFeatureId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 15,
             )?;
-        let field_limits = <GpuAdapterLimitsVm as VmAggregateCodec>::decode_component_with_context(
+        let field_limits = <GpuAdapterLimitsVm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 16,
         )?;
         Ok(Self {
@@ -6052,96 +6065,94 @@ impl VmAggregateCodec for GpuAdapterInfoAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuAdapterInfo")
+            .begin_named_aggregate_builder("gpu::GpuAdapterInfo")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.vendor, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.driver, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.driver_version,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.driver_info, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuAdapterType as VmAggregateCodec>::encode_with_context(self.adapter_type, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.vendor_id, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.vendor_id, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.device_id, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.device_id, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.pci_bus_id, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.subgroup_min_size, context)?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.subgroup_max_size, context)?;
         value_builder
-            .write_component(12, component_value)
+            .write_field(12, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.transient_saves_memory, context)?;
         value_builder
-            .write_component(13, component_value)
+            .write_field(13, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_fallback, context)?;
         value_builder
-            .write_component(14, component_value)
+            .write_field(14, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmSlice<GpuFeatureId> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmSlice<GpuFeatureId> as VmAggregateCodec>::encode_with_context(
             self.features,
             context,
         )?;
         value_builder
-            .write_component(15, component_value)
+            .write_field(15, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuAdapterLimitsVm as VmAggregateCodec>::encode_with_context(self.limits, context)?;
         value_builder
-            .write_component(16, component_value)
+            .write_field(16, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6466,8 +6477,8 @@ impl VmAggregateCodec for GpuAdapterLimits {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 52 {
+        let field_count = value_ref.field_count();
+        if field_count != 52 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 52 fields",
@@ -6475,109 +6486,109 @@ impl VmAggregateCodec for GpuAdapterLimits {
             .boxed());
         }
         let field_max_bind_groups =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_max_bindings_per_bind_group =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_max_push_constant_bytes =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_max_texture_dimension1_d =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_max_texture_dimension2_d =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_max_texture_dimension3_d =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_max_texture_array_layers =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_max_color_attachments =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_max_color_attachment_bytes_per_sample =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_max_sampled_textures_per_shader_stage =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         let field_max_samplers_per_shader_stage =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         let field_max_storage_buffers_per_shader_stage =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 11)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 11)?;
         let field_max_storage_textures_per_shader_stage =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 12)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 12)?;
         let field_max_uniform_buffers_per_shader_stage =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 13)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 13)?;
         let field_max_binding_array_elements_per_shader_stage =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 14)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 14)?;
         let field_max_binding_array_sampler_elements_per_shader_stage =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 15)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 15)?;
         let field_max_dynamic_uniform_buffers_per_pipeline_layout =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 16)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 16)?;
         let field_max_dynamic_storage_buffers_per_pipeline_layout =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 17)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 17)?;
         let field_max_uniform_buffer_binding_size =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 18)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 18)?;
         let field_max_storage_buffer_binding_size =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 19)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 19)?;
         let field_min_storage_buffer_offset_alignment =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 20)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 20)?;
         let field_min_uniform_buffer_offset_alignment =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 21)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 21)?;
         let field_max_vertex_buffers =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 22)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 22)?;
         let field_max_vertex_attributes =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 23)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 23)?;
         let field_max_vertex_buffer_array_stride =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 24)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 24)?;
         let field_max_buffer_size =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 25)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 25)?;
         let field_max_inter_stage_shader_components =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 26)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 26)?;
         let field_max_inter_stage_shader_variables =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 27)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 27)?;
         let field_max_compute_workgroup_storage_size =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 28)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 28)?;
         let field_max_compute_invocations_per_workgroup =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 29)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 29)?;
         let field_max_compute_workgroup_size_x =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 30)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 30)?;
         let field_max_compute_workgroup_size_y =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 31)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 31)?;
         let field_max_compute_workgroup_size_z =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 32)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 32)?;
         let field_max_compute_workgroups_per_dimension =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 33)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 33)?;
         let field_max_immediate_size =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 34)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 34)?;
         let field_max_non_sampler_bindings =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 35)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 35)?;
         let field_max_task_mesh_workgroup_total_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 36)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 36)?;
         let field_max_task_mesh_workgroups_per_dimension =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 37)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 37)?;
         let field_max_task_invocations_per_workgroup =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 38)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 38)?;
         let field_max_task_invocations_per_dimension =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 39)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 39)?;
         let field_max_mesh_invocations_per_workgroup =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 40)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 40)?;
         let field_max_mesh_invocations_per_dimension =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 41)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 41)?;
         let field_max_task_payload_size =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 42)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 42)?;
         let field_max_mesh_output_vertices =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 43)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 43)?;
         let field_max_mesh_output_primitives =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 44)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 44)?;
         let field_max_mesh_output_layers =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 45)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 45)?;
         let field_max_mesh_multiview_view_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 46)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 46)?;
         let field_max_blas_primitive_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 47)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 47)?;
         let field_max_blas_geometry_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 48)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 48)?;
         let field_max_tlas_instance_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 49)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 49)?;
         let field_max_acceleration_structures_per_shader_stage =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 50)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 50)?;
         let field_max_multiview_view_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 51)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 51)?;
         Ok(Self {
             max_bind_groups: field_max_bind_groups,
             max_bindings_per_bind_group: field_max_bindings_per_bind_group,
@@ -6644,333 +6655,333 @@ impl VmAggregateCodec for GpuAdapterLimits {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuAdapterLimits")
+            .begin_named_aggregate_builder("gpu::GpuAdapterLimits")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_bind_groups, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_bindings_per_bind_group,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_push_constant_bytes, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_texture_dimension1_d, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_texture_dimension2_d, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_texture_dimension3_d, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_texture_array_layers, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_color_attachments, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_color_attachment_bytes_per_sample,
             context,
         )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_sampled_textures_per_shader_stage,
             context,
         )?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_samplers_per_shader_stage,
             context,
         )?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_storage_buffers_per_shader_stage,
             context,
         )?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_storage_textures_per_shader_stage,
             context,
         )?;
         value_builder
-            .write_component(12, component_value)
+            .write_field(12, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_uniform_buffers_per_shader_stage,
             context,
         )?;
         value_builder
-            .write_component(13, component_value)
+            .write_field(13, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_binding_array_elements_per_shader_stage,
             context,
         )?;
         value_builder
-            .write_component(14, component_value)
+            .write_field(14, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_binding_array_sampler_elements_per_shader_stage,
             context,
         )?;
         value_builder
-            .write_component(15, component_value)
+            .write_field(15, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_dynamic_uniform_buffers_per_pipeline_layout,
             context,
         )?;
         value_builder
-            .write_component(16, component_value)
+            .write_field(16, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_dynamic_storage_buffers_per_pipeline_layout,
             context,
         )?;
         value_builder
-            .write_component(17, component_value)
+            .write_field(17, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u64 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(
             self.max_uniform_buffer_binding_size,
             context,
         )?;
         value_builder
-            .write_component(18, component_value)
+            .write_field(18, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u64 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(
             self.max_storage_buffer_binding_size,
             context,
         )?;
         value_builder
-            .write_component(19, component_value)
+            .write_field(19, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.min_storage_buffer_offset_alignment,
             context,
         )?;
         value_builder
-            .write_component(20, component_value)
+            .write_field(20, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.min_uniform_buffer_offset_alignment,
             context,
         )?;
         value_builder
-            .write_component(21, component_value)
+            .write_field(21, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_vertex_buffers, context)?;
         value_builder
-            .write_component(22, component_value)
+            .write_field(22, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_vertex_attributes, context)?;
         value_builder
-            .write_component(23, component_value)
+            .write_field(23, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_vertex_buffer_array_stride,
             context,
         )?;
         value_builder
-            .write_component(24, component_value)
+            .write_field(24, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.max_buffer_size, context)?;
         value_builder
-            .write_component(25, component_value)
+            .write_field(25, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_inter_stage_shader_components,
             context,
         )?;
         value_builder
-            .write_component(26, component_value)
+            .write_field(26, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_inter_stage_shader_variables,
             context,
         )?;
         value_builder
-            .write_component(27, component_value)
+            .write_field(27, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_compute_workgroup_storage_size,
             context,
         )?;
         value_builder
-            .write_component(28, component_value)
+            .write_field(28, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_compute_invocations_per_workgroup,
             context,
         )?;
         value_builder
-            .write_component(29, component_value)
+            .write_field(29, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_compute_workgroup_size_x,
             context,
         )?;
         value_builder
-            .write_component(30, component_value)
+            .write_field(30, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_compute_workgroup_size_y,
             context,
         )?;
         value_builder
-            .write_component(31, component_value)
+            .write_field(31, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_compute_workgroup_size_z,
             context,
         )?;
         value_builder
-            .write_component(32, component_value)
+            .write_field(32, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_compute_workgroups_per_dimension,
             context,
         )?;
         value_builder
-            .write_component(33, component_value)
+            .write_field(33, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_immediate_size, context)?;
         value_builder
-            .write_component(34, component_value)
+            .write_field(34, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_non_sampler_bindings, context)?;
         value_builder
-            .write_component(35, component_value)
+            .write_field(35, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_task_mesh_workgroup_total_count,
             context,
         )?;
         value_builder
-            .write_component(36, component_value)
+            .write_field(36, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_task_mesh_workgroups_per_dimension,
             context,
         )?;
         value_builder
-            .write_component(37, component_value)
+            .write_field(37, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_task_invocations_per_workgroup,
             context,
         )?;
         value_builder
-            .write_component(38, component_value)
+            .write_field(38, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_task_invocations_per_dimension,
             context,
         )?;
         value_builder
-            .write_component(39, component_value)
+            .write_field(39, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_mesh_invocations_per_workgroup,
             context,
         )?;
         value_builder
-            .write_component(40, component_value)
+            .write_field(40, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_mesh_invocations_per_dimension,
             context,
         )?;
         value_builder
-            .write_component(41, component_value)
+            .write_field(41, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_task_payload_size, context)?;
         value_builder
-            .write_component(42, component_value)
+            .write_field(42, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_mesh_output_vertices, context)?;
         value_builder
-            .write_component(43, component_value)
+            .write_field(43, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_mesh_output_primitives,
             context,
         )?;
         value_builder
-            .write_component(44, component_value)
+            .write_field(44, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_mesh_output_layers, context)?;
         value_builder
-            .write_component(45, component_value)
+            .write_field(45, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_mesh_multiview_view_count,
             context,
         )?;
         value_builder
-            .write_component(46, component_value)
+            .write_field(46, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_blas_primitive_count, context)?;
         value_builder
-            .write_component(47, component_value)
+            .write_field(47, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_blas_geometry_count, context)?;
         value_builder
-            .write_component(48, component_value)
+            .write_field(48, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_tlas_instance_count, context)?;
         value_builder
-            .write_component(49, component_value)
+            .write_field(49, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.max_acceleration_structures_per_shader_stage,
             context,
         )?;
         value_builder
-            .write_component(50, component_value)
+            .write_field(50, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_multiview_view_count, context)?;
         value_builder
-            .write_component(51, component_value)
+            .write_field(51, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7044,8 +7055,8 @@ impl VmAggregateCodec for GpuAdapterRequest {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -7053,16 +7064,19 @@ impl VmAggregateCodec for GpuAdapterRequest {
             .boxed());
         }
         let field_backend =
-            <GpuBackend as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <GpuBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_power_preference =
-            <GpuPowerPreference as VmAggregateCodec>::decode_component_with_context(
+            <GpuPowerPreference as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_force_fallback_adapter =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
-        let field_compatible_surface = <Option<resource::GpuSurfaceHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_compatible_surface =
+            <Option<resource::GpuSurfaceHandle> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 3,
+            )?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             backend: field_backend,
             power_preference: field_power_preference,
@@ -7077,36 +7091,36 @@ impl VmAggregateCodec for GpuAdapterRequest {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuAdapterRequest")
+            .begin_named_aggregate_builder("gpu::GpuAdapterRequest")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuPowerPreference as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuPowerPreference as VmAggregateCodec>::encode_with_context(
             self.power_preference,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.force_fallback_adapter, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::GpuSurfaceHandle> as VmAggregateCodec>::encode_with_context(
                 self.compatible_surface,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7199,25 +7213,25 @@ impl VmAggregateCodec for GpuBindGroupBufferResourceAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_buffer =
-            <resource::GpuBufferHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::GpuBufferHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_offset =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_size =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             kind: field_kind,
             buffer: field_buffer,
@@ -7231,27 +7245,27 @@ impl VmAggregateCodec for GpuBindGroupBufferResourceAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBindGroupBufferResource")
+            .begin_named_aggregate_builder("gpu::GpuBindGroupBufferResource")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <resource::GpuBufferHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <resource::GpuBufferHandle as VmAggregateCodec>::encode_with_context(
             self.buffer,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u64 as VmAggregateCodec>::encode_with_context(self.offset, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.offset, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u64 as VmAggregateCodec>::encode_with_context(self.size, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.size, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7377,8 +7391,8 @@ impl VmAggregateCodec for GpuBindGroupEntryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -7386,13 +7400,11 @@ impl VmAggregateCodec for GpuBindGroupEntryAbi<VmAbi> {
             .boxed());
         }
         let field_binding =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_binding_array_element =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_resource =
-            <GpuBindGroupResourceVm as VmAggregateCodec>::decode_component_with_context(
+            <GpuBindGroupResourceVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -7407,26 +7419,25 @@ impl VmAggregateCodec for GpuBindGroupEntryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBindGroupEntry")
+            .begin_named_aggregate_builder("gpu::GpuBindGroupEntry")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.binding, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.binding, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
             self.binding_array_element,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuBindGroupResourceVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuBindGroupResourceVm as VmAggregateCodec>::encode_with_context(
             self.resource,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7552,18 +7563,21 @@ impl VmAggregateCodec for GpuBindGroupExternalTextureResourceAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_external_texture = <resource::GpuExternalTextureHandle as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_external_texture =
+            <resource::GpuExternalTextureHandle as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 1,
+            )?;
         Ok(Self {
             kind: field_kind,
             external_texture: field_external_texture,
@@ -7575,20 +7589,20 @@ impl VmAggregateCodec for GpuBindGroupExternalTextureResourceAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBindGroupExternalTextureResource")
+            .begin_named_aggregate_builder("gpu::GpuBindGroupExternalTextureResource")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <resource::GpuExternalTextureHandle as VmAggregateCodec>::encode_with_context(
                 self.external_texture,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7712,25 +7726,25 @@ impl VmAggregateCodec for GpuBindGroupLayoutBufferResourceAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_binding_type =
-            <GpuBufferBindingType as VmAggregateCodec>::decode_component_with_context(
+            <GpuBufferBindingType as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_has_dynamic_offset =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_min_binding_size =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             kind: field_kind,
             binding_type: field_binding_type,
@@ -7744,29 +7758,29 @@ impl VmAggregateCodec for GpuBindGroupLayoutBufferResourceAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBindGroupLayoutBufferResource")
+            .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutBufferResource")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuBufferBindingType as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuBufferBindingType as VmAggregateCodec>::encode_with_context(
             self.binding_type,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.has_dynamic_offset, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.min_binding_size, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7910,8 +7924,8 @@ impl VmAggregateCodec for GpuBindGroupLayoutEntryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -7919,17 +7933,15 @@ impl VmAggregateCodec for GpuBindGroupLayoutEntryAbi<VmAbi> {
             .boxed());
         }
         let field_binding =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_visibility =
-            <GpuShaderVisibilityMask as VmAggregateCodec>::decode_component_with_context(
+            <GpuShaderVisibilityMask as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_binding_array_count =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_resource =
-            <GpuBindGroupLayoutResourceVm as VmAggregateCodec>::decode_component_with_context(
+            <GpuBindGroupLayoutResourceVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -7945,34 +7957,32 @@ impl VmAggregateCodec for GpuBindGroupLayoutEntryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBindGroupLayoutEntry")
+            .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutEntry")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.binding, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.binding, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuShaderVisibilityMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuShaderVisibilityMask as VmAggregateCodec>::encode_with_context(
             self.visibility,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
             self.binding_array_count,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <GpuBindGroupLayoutResourceVm as VmAggregateCodec>::encode_with_context(
-                self.resource,
-                context,
-            )?;
+        let field_value = <GpuBindGroupLayoutResourceVm as VmAggregateCodec>::encode_with_context(
+            self.resource,
+            context,
+        )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8124,15 +8134,15 @@ impl VmAggregateCodec for GpuBindGroupLayoutExternalTextureResourceAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         Ok(Self { kind: field_kind })
@@ -8143,12 +8153,12 @@ impl VmAggregateCodec for GpuBindGroupLayoutExternalTextureResourceAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBindGroupLayoutExternalTextureResource")
+            .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutExternalTextureResource")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8249,19 +8259,19 @@ impl VmAggregateCodec for GpuBindGroupLayoutOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             label: field_label,
             flags: field_flags,
@@ -8273,16 +8283,16 @@ impl VmAggregateCodec for GpuBindGroupLayoutOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBindGroupLayoutOptions")
+            .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8395,27 +8405,27 @@ impl VmAggregateCodec for GpuBindGroupLayoutSampledTextureResourceAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_texture_sample_type =
-            <GpuTextureSampleType as VmAggregateCodec>::decode_component_with_context(
+            <GpuTextureSampleType as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_texture_view_dimension =
-            <GpuTextureViewDimension as VmAggregateCodec>::decode_component_with_context(
+            <GpuTextureViewDimension as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_multisampled =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             kind: field_kind,
             texture_sample_type: field_texture_sample_type,
@@ -8429,31 +8439,31 @@ impl VmAggregateCodec for GpuBindGroupLayoutSampledTextureResourceAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBindGroupLayoutSampledTextureResource")
+            .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutSampledTextureResource")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuTextureSampleType as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuTextureSampleType as VmAggregateCodec>::encode_with_context(
             self.texture_sample_type,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuTextureViewDimension as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuTextureViewDimension as VmAggregateCodec>::encode_with_context(
             self.texture_view_dimension,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.multisampled, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8596,19 +8606,19 @@ impl VmAggregateCodec for GpuBindGroupLayoutSamplerResourceAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_sampler_binding_type =
-            <GpuSamplerBindingType as VmAggregateCodec>::decode_component_with_context(
+            <GpuSamplerBindingType as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -8622,19 +8632,19 @@ impl VmAggregateCodec for GpuBindGroupLayoutSamplerResourceAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBindGroupLayoutSamplerResource")
+            .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutSamplerResource")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuSamplerBindingType as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuSamplerBindingType as VmAggregateCodec>::encode_with_context(
             self.sampler_binding_type,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8758,27 +8768,27 @@ impl VmAggregateCodec for GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_storage_texture_access =
-            <GpuStorageTextureAccess as VmAggregateCodec>::decode_component_with_context(
+            <GpuStorageTextureAccess as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_storage_texture_format =
-            <GpuTextureFormat as VmAggregateCodec>::decode_component_with_context(
+            <GpuTextureFormat as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_texture_view_dimension =
-            <GpuTextureViewDimension as VmAggregateCodec>::decode_component_with_context(
+            <GpuTextureViewDimension as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -8794,33 +8804,33 @@ impl VmAggregateCodec for GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBindGroupLayoutStorageTextureResource")
+            .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutStorageTextureResource")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuStorageTextureAccess as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuStorageTextureAccess as VmAggregateCodec>::encode_with_context(
             self.storage_texture_access,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuTextureFormat as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuTextureFormat as VmAggregateCodec>::encode_with_context(
             self.storage_texture_format,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuTextureViewDimension as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuTextureViewDimension as VmAggregateCodec>::encode_with_context(
             self.texture_view_dimension,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8976,19 +8986,19 @@ impl VmAggregateCodec for GpuBindGroupOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             label: field_label,
             flags: field_flags,
@@ -9000,16 +9010,16 @@ impl VmAggregateCodec for GpuBindGroupOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBindGroupOptions")
+            .begin_named_aggregate_builder("gpu::GpuBindGroupOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9116,19 +9126,19 @@ impl VmAggregateCodec for GpuBindGroupSamplerResourceAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_sampler =
-            <resource::GpuSamplerHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::GpuSamplerHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -9142,20 +9152,19 @@ impl VmAggregateCodec for GpuBindGroupSamplerResourceAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBindGroupSamplerResource")
+            .begin_named_aggregate_builder("gpu::GpuBindGroupSamplerResource")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <resource::GpuSamplerHandle as VmAggregateCodec>::encode_with_context(
-                self.sampler,
-                context,
-            )?;
+        let field_value = <resource::GpuSamplerHandle as VmAggregateCodec>::encode_with_context(
+            self.sampler,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9270,19 +9279,19 @@ impl VmAggregateCodec for GpuBindGroupTextureResourceAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_texture =
-            <resource::GpuTextureViewHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::GpuTextureViewHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -9296,20 +9305,20 @@ impl VmAggregateCodec for GpuBindGroupTextureResourceAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBindGroupTextureResource")
+            .begin_named_aggregate_builder("gpu::GpuBindGroupTextureResource")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <resource::GpuTextureViewHandle as VmAggregateCodec>::encode_with_context(
                 self.texture,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9408,24 +9417,21 @@ impl VmAggregateCodec for GpuBlendComponent {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_src_factor = <GpuBlendFactor as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
+        let field_src_factor =
+            <GpuBlendFactor as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_dst_factor =
+            <GpuBlendFactor as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_operation = <GpuBlendOperation as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
         )?;
-        let field_dst_factor = <GpuBlendFactor as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
-        let field_operation =
-            <GpuBlendOperation as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
         Ok(Self {
             src_factor: field_src_factor,
             dst_factor: field_dst_factor,
@@ -9438,22 +9444,22 @@ impl VmAggregateCodec for GpuBlendComponent {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBlendComponent")
+            .begin_named_aggregate_builder("gpu::GpuBlendComponent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuBlendFactor as VmAggregateCodec>::encode_with_context(self.src_factor, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuBlendFactor as VmAggregateCodec>::encode_with_context(self.dst_factor, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuBlendOperation as VmAggregateCodec>::encode_with_context(self.operation, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9521,18 +9527,18 @@ impl VmAggregateCodec for GpuBlendState {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_color = <GpuBlendComponentVm as VmAggregateCodec>::decode_component_with_context(
+        let field_color = <GpuBlendComponentVm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_alpha = <GpuBlendComponentVm as VmAggregateCodec>::decode_component_with_context(
+        let field_alpha = <GpuBlendComponentVm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         Ok(Self {
@@ -9546,17 +9552,17 @@ impl VmAggregateCodec for GpuBlendState {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBlendState")
+            .begin_named_aggregate_builder("gpu::GpuBlendState")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuBlendComponentVm as VmAggregateCodec>::encode_with_context(self.color, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuBlendComponentVm as VmAggregateCodec>::encode_with_context(self.alpha, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9624,8 +9630,8 @@ impl VmAggregateCodec for GpuBufferCopy {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -9633,13 +9639,12 @@ impl VmAggregateCodec for GpuBufferCopy {
             .boxed());
         }
         let field_buffer =
-            <resource::GpuBufferHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::GpuBufferHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_layout =
-            <GpuBufferCopyLayoutVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_layout = <GpuBufferCopyLayoutVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         Ok(Self {
             buffer: field_buffer,
             layout: field_layout,
@@ -9651,19 +9656,19 @@ impl VmAggregateCodec for GpuBufferCopy {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBufferCopy")
+            .begin_named_aggregate_builder("gpu::GpuBufferCopy")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <resource::GpuBufferHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <resource::GpuBufferHandle as VmAggregateCodec>::encode_with_context(
             self.buffer,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuBufferCopyLayoutVm as VmAggregateCodec>::encode_with_context(self.layout, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9733,8 +9738,8 @@ impl VmAggregateCodec for GpuBufferCopyLayout {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -9742,11 +9747,11 @@ impl VmAggregateCodec for GpuBufferCopyLayout {
             .boxed());
         }
         let field_offset =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_bytes_per_row =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_rows_per_image =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             offset: field_offset,
             bytes_per_row: field_bytes_per_row,
@@ -9759,21 +9764,21 @@ impl VmAggregateCodec for GpuBufferCopyLayout {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBufferCopyLayout")
+            .begin_named_aggregate_builder("gpu::GpuBufferCopyLayout")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u64 as VmAggregateCodec>::encode_with_context(self.offset, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.offset, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.bytes_per_row, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.rows_per_image, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9843,8 +9848,8 @@ impl VmAggregateCodec for GpuBufferInfo {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -9852,14 +9857,13 @@ impl VmAggregateCodec for GpuBufferInfo {
             .boxed());
         }
         let field_size =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
-        let field_usage = <GpuBufferUsageMask as VmAggregateCodec>::decode_component_with_context(
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_usage = <GpuBufferUsageMask as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_map_state =
-            <GpuBufferMapState as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_map_state = <GpuBufferMapState as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         Ok(Self {
             size: field_size,
             usage: field_usage,
@@ -9872,21 +9876,21 @@ impl VmAggregateCodec for GpuBufferInfo {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBufferInfo")
+            .begin_named_aggregate_builder("gpu::GpuBufferInfo")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u64 as VmAggregateCodec>::encode_with_context(self.size, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.size, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuBufferUsageMask as VmAggregateCodec>::encode_with_context(self.usage, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuBufferMapState as VmAggregateCodec>::encode_with_context(self.map_state, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9981,26 +9985,26 @@ impl VmAggregateCodec for GpuBufferOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_size =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_usage = <GpuBufferUsageMask as VmAggregateCodec>::decode_component_with_context(
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_usage = <GpuBufferUsageMask as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         let field_mapped_at_creation =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             label: field_label,
             size: field_size,
@@ -10015,30 +10019,30 @@ impl VmAggregateCodec for GpuBufferOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBufferOptions")
+            .begin_named_aggregate_builder("gpu::GpuBufferOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u64 as VmAggregateCodec>::encode_with_context(self.size, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.size, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuBufferUsageMask as VmAggregateCodec>::encode_with_context(self.usage, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.mapped_at_creation, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10150,8 +10154,8 @@ impl VmAggregateCodec for GpuBufferTransition {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -10159,10 +10163,10 @@ impl VmAggregateCodec for GpuBufferTransition {
             .boxed());
         }
         let field_buffer =
-            <resource::GpuBufferHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::GpuBufferHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_state = <GpuBufferUseMask as VmAggregateCodec>::decode_component_with_context(
+        let field_state = <GpuBufferUseMask as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         Ok(Self {
@@ -10176,19 +10180,19 @@ impl VmAggregateCodec for GpuBufferTransition {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuBufferTransition")
+            .begin_named_aggregate_builder("gpu::GpuBufferTransition")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <resource::GpuBufferHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <resource::GpuBufferHandle as VmAggregateCodec>::encode_with_context(
             self.buffer,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuBufferUseMask as VmAggregateCodec>::encode_with_context(self.state, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10277,8 +10281,8 @@ impl VmAggregateCodec for GpuCapturedErrorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -10286,12 +10290,11 @@ impl VmAggregateCodec for GpuCapturedErrorAbi<VmAbi> {
             .boxed());
         }
         let field_message =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_backend_code = <Option<i32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
+        let field_backend_code =
+            <Option<i32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             message: field_message,
             backend_code: field_backend_code,
@@ -10303,19 +10306,19 @@ impl VmAggregateCodec for GpuCapturedErrorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuCapturedError")
+            .begin_named_aggregate_builder("gpu::GpuCapturedError")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.message,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<i32> as VmAggregateCodec>::encode_with_context(self.backend_code, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10412,22 +10415,18 @@ impl VmAggregateCodec for GpuColor {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_r =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
-        let field_g =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_b =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
-        let field_a =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_r = <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_g = <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_b = <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_a = <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             r: field_r,
             g: field_g,
@@ -10441,23 +10440,23 @@ impl VmAggregateCodec for GpuColor {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuColor")
+            .begin_named_aggregate_builder("gpu::GpuColor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.r, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.r, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.g, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.g, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.b, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.b, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.a, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.a, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10527,25 +10526,23 @@ impl VmAggregateCodec for GpuColorTargetState {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_format = <GpuTextureFormat as VmAggregateCodec>::decode_component_with_context(
+        let field_format = <GpuTextureFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_blend =
-            <Option<GpuBlendStateVm> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
-        let field_write_mask =
-            <GpuColorWriteMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_blend = <Option<GpuBlendStateVm> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_write_mask = <GpuColorWriteMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         Ok(Self {
             format: field_format,
             blend: field_blend,
@@ -10558,23 +10555,23 @@ impl VmAggregateCodec for GpuColorTargetState {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuColorTargetState")
+            .begin_named_aggregate_builder("gpu::GpuColorTargetState")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuTextureFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<GpuBlendStateVm> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<GpuBlendStateVm> as VmAggregateCodec>::encode_with_context(
             self.blend, context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuColorWriteMask as VmAggregateCodec>::encode_with_context(self.write_mask, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10661,15 +10658,15 @@ impl VmAggregateCodec for GpuCommandBufferOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         Ok(Self { label: field_label })
@@ -10680,12 +10677,12 @@ impl VmAggregateCodec for GpuCommandBufferOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuCommandBufferOptions")
+            .begin_named_aggregate_builder("gpu::GpuCommandBufferOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10786,19 +10783,19 @@ impl VmAggregateCodec for GpuCommandEncoderOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             label: field_label,
             flags: field_flags,
@@ -10810,16 +10807,16 @@ impl VmAggregateCodec for GpuCommandEncoderOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuCommandEncoderOptions")
+            .begin_named_aggregate_builder("gpu::GpuCommandEncoderOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10924,8 +10921,8 @@ impl VmAggregateCodec for GpuCompilationInfoAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
@@ -10933,7 +10930,7 @@ impl VmAggregateCodec for GpuCompilationInfoAbi<VmAbi> {
             .boxed());
         }
         let field_messages =
-            <VmSlice<GpuCompilationMessageVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<GpuCompilationMessageVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         Ok(Self {
@@ -10946,15 +10943,15 @@ impl VmAggregateCodec for GpuCompilationInfoAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuCompilationInfo")
+            .begin_named_aggregate_builder("gpu::GpuCompilationInfo")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<GpuCompilationMessageVm> as VmAggregateCodec>::encode_with_context(
                 self.messages,
                 context,
             )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11074,8 +11071,8 @@ impl VmAggregateCodec for GpuCompilationMessageAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 6 {
+        let field_count = value_ref.field_count();
+        if field_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
@@ -11083,20 +11080,20 @@ impl VmAggregateCodec for GpuCompilationMessageAbi<VmAbi> {
             .boxed());
         }
         let field_kind =
-            <GpuCompilationMessageKind as VmAggregateCodec>::decode_component_with_context(
+            <GpuCompilationMessageKind as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_message = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_message = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         let field_line =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_column =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_offset =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_length =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         Ok(Self {
             kind: field_kind,
             message: field_message,
@@ -11112,34 +11109,34 @@ impl VmAggregateCodec for GpuCompilationMessageAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuCompilationMessage")
+            .begin_named_aggregate_builder("gpu::GpuCompilationMessage")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuCompilationMessageKind as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuCompilationMessageKind as VmAggregateCodec>::encode_with_context(
             self.kind, context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.message, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.line, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.line, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.column, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.column, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.offset, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.offset, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11272,23 +11269,23 @@ impl VmAggregateCodec for GpuComputePassOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_timestamp_writes =
-            <Option<GpuPassTimestampWritesVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuPassTimestampWritesVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             label: field_label,
             timestamp_writes: field_timestamp_writes,
@@ -11301,24 +11298,24 @@ impl VmAggregateCodec for GpuComputePassOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuComputePassOptions")
+            .begin_named_aggregate_builder("gpu::GpuComputePassOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<GpuPassTimestampWritesVm> as VmAggregateCodec>::encode_with_context(
                 self.timestamp_writes,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11448,23 +11445,23 @@ impl VmAggregateCodec for GpuComputePipelineOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_layout = <Option<resource::GpuPipelineLayoutHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_compute = <GpuComputeStateVm as VmAggregateCodec>::decode_component_with_context(
+        let field_layout = <Option<resource::GpuPipelineLayoutHandle> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_compute = <GpuComputeStateVm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             label: field_label,
             layout: field_layout,
@@ -11478,29 +11475,29 @@ impl VmAggregateCodec for GpuComputePipelineOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuComputePipelineOptions")
+            .begin_named_aggregate_builder("gpu::GpuComputePipelineOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::GpuPipelineLayoutHandle> as VmAggregateCodec>::encode_with_context(
                 self.layout,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuComputeStateVm as VmAggregateCodec>::encode_with_context(self.compute, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11634,8 +11631,8 @@ impl VmAggregateCodec for GpuComputeStateAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -11643,15 +11640,15 @@ impl VmAggregateCodec for GpuComputeStateAbi<VmAbi> {
             .boxed());
         }
         let field_module =
-            <resource::GpuShaderHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::GpuShaderHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_entry =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_constants =
-            <VmSlice<GpuPipelineConstantVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<GpuPipelineConstantVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -11666,28 +11663,28 @@ impl VmAggregateCodec for GpuComputeStateAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuComputeState")
+            .begin_named_aggregate_builder("gpu::GpuComputeState")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <resource::GpuShaderHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <resource::GpuShaderHandle as VmAggregateCodec>::encode_with_context(
             self.module,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.entry, context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<GpuPipelineConstantVm> as VmAggregateCodec>::encode_with_context(
                 self.constants,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11811,41 +11808,41 @@ impl VmAggregateCodec for GpuDepthStencilState {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 10 {
+        let field_count = value_ref.field_count();
+        if field_count != 10 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 10 fields",
             ))
             .boxed());
         }
-        let field_format = <GpuTextureFormat as VmAggregateCodec>::decode_component_with_context(
+        let field_format = <GpuTextureFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_depth_write_enabled =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_depth_compare =
-            <GpuCompareFunction as VmAggregateCodec>::decode_component_with_context(
+            <GpuCompareFunction as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_stencil_front =
-            <GpuStencilFaceStateVm as VmAggregateCodec>::decode_component_with_context(
+            <GpuStencilFaceStateVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_stencil_back =
-            <GpuStencilFaceStateVm as VmAggregateCodec>::decode_component_with_context(
+            <GpuStencilFaceStateVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         let field_stencil_read_mask =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_stencil_write_mask =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_depth_bias =
-            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <i32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_depth_bias_slope_scale =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_depth_bias_clamp =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         Ok(Self {
             format: field_format,
             depth_write_enabled: field_depth_write_enabled,
@@ -11865,63 +11862,62 @@ impl VmAggregateCodec for GpuDepthStencilState {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuDepthStencilState")
+            .begin_named_aggregate_builder("gpu::GpuDepthStencilState")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuTextureFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.depth_write_enabled, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuCompareFunction as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuCompareFunction as VmAggregateCodec>::encode_with_context(
             self.depth_compare,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuStencilFaceStateVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuStencilFaceStateVm as VmAggregateCodec>::encode_with_context(
             self.stencil_front,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuStencilFaceStateVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuStencilFaceStateVm as VmAggregateCodec>::encode_with_context(
             self.stencil_back,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.stencil_read_mask, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.stencil_write_mask, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <i32 as VmAggregateCodec>::encode_with_context(self.depth_bias, context)?;
+        let field_value = <i32 as VmAggregateCodec>::encode_with_context(self.depth_bias, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <f64 as VmAggregateCodec>::encode_with_context(self.depth_bias_slope_scale, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <f64 as VmAggregateCodec>::encode_with_context(self.depth_bias_clamp, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12020,8 +12016,8 @@ impl VmAggregateCodec for GpuDeviceInfoAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
@@ -12029,23 +12025,23 @@ impl VmAggregateCodec for GpuDeviceInfoAbi<VmAbi> {
             .boxed());
         }
         let field_backend =
-            <GpuBackend as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <GpuBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_enabled_features =
-            <VmSlice<GpuFeatureId> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<GpuFeatureId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_effective_limits =
-            <GpuAdapterLimitsVm as VmAggregateCodec>::decode_component_with_context(
+            <GpuAdapterLimitsVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_queue_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_has_timeline_sync =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_has_timestamp_queries =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_has_push_constants =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         Ok(Self {
             backend: field_backend,
             enabled_features: field_enabled_features,
@@ -12062,46 +12058,46 @@ impl VmAggregateCodec for GpuDeviceInfoAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuDeviceInfo")
+            .begin_named_aggregate_builder("gpu::GpuDeviceInfo")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmSlice<GpuFeatureId> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmSlice<GpuFeatureId> as VmAggregateCodec>::encode_with_context(
             self.enabled_features,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuAdapterLimitsVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuAdapterLimitsVm as VmAggregateCodec>::encode_with_context(
             self.effective_limits,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.queue_count, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.has_timeline_sync, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.has_timestamp_queries, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.has_push_constants, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12300,45 +12296,43 @@ impl VmAggregateCodec for GpuDeviceOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 10 {
+        let field_count = value_ref.field_count();
+        if field_count != 10 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 10 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_required_features =
-            <VmSlice<GpuFeatureId> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<GpuFeatureId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_required_limits =
-            <GpuAdapterLimitsVm as VmAggregateCodec>::decode_component_with_context(
+            <GpuAdapterLimitsVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
-        let field_memory_hint = <GpuMemoryHint as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
+        let field_memory_hint =
+            <GpuMemoryHint as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_manual_memory_hint =
-            <Option<GpuManualMemoryHintVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuManualMemoryHintVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         let field_allow_experimental_features =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
-        let field_trace_mode = <GpuTraceMode as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 6,
-        )?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
+        let field_trace_mode =
+            <GpuTraceMode as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_trace_directory =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         let field_backend =
-            <GpuBackend as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <GpuBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         Ok(Self {
             label: field_label,
             required_features: field_required_features,
@@ -12358,67 +12352,66 @@ impl VmAggregateCodec for GpuDeviceOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuDeviceOptions")
+            .begin_named_aggregate_builder("gpu::GpuDeviceOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmSlice<GpuFeatureId> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmSlice<GpuFeatureId> as VmAggregateCodec>::encode_with_context(
             self.required_features,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuAdapterLimitsVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuAdapterLimitsVm as VmAggregateCodec>::encode_with_context(
             self.required_limits,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuMemoryHint as VmAggregateCodec>::encode_with_context(self.memory_hint, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<GpuManualMemoryHintVm> as VmAggregateCodec>::encode_with_context(
-                self.manual_memory_hint,
-                context,
-            )?;
+        let field_value = <Option<GpuManualMemoryHintVm> as VmAggregateCodec>::encode_with_context(
+            self.manual_memory_hint,
+            context,
+        )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.allow_experimental_features,
             context,
         )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuTraceMode as VmAggregateCodec>::encode_with_context(self.trace_mode, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.trace_directory,
             context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12637,8 +12630,8 @@ impl VmAggregateCodec for GpuDeviceStatusAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -12646,16 +12639,15 @@ impl VmAggregateCodec for GpuDeviceStatusAbi<VmAbi> {
             .boxed());
         }
         let field_healthy =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_loss_reason =
-            <Option<GpuDeviceLossReason> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuDeviceLossReason> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_backend_code = <Option<i32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
+        let field_backend_code =
+            <Option<i32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_message =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -12671,32 +12663,30 @@ impl VmAggregateCodec for GpuDeviceStatusAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuDeviceStatus")
+            .begin_named_aggregate_builder("gpu::GpuDeviceStatus")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.healthy, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.healthy, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<GpuDeviceLossReason> as VmAggregateCodec>::encode_with_context(
-                self.loss_reason,
-                context,
-            )?;
+        let field_value = <Option<GpuDeviceLossReason> as VmAggregateCodec>::encode_with_context(
+            self.loss_reason,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<i32> as VmAggregateCodec>::encode_with_context(self.backend_code, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.message,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12815,8 +12805,8 @@ impl VmAggregateCodec for GpuExtent3D {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -12824,11 +12814,11 @@ impl VmAggregateCodec for GpuExtent3D {
             .boxed());
         }
         let field_width =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_height =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_depth_or_array_layers =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             width: field_width,
             height: field_height,
@@ -12841,20 +12831,20 @@ impl VmAggregateCodec for GpuExtent3D {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuExtent3D")
+            .begin_named_aggregate_builder("gpu::GpuExtent3D")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.depth_or_array_layers, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12961,45 +12951,43 @@ impl VmAggregateCodec for GpuExternalTextureOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 11 {
+        let field_count = value_ref.field_count();
+        if field_count != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 11 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_width =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_height =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_format =
-            <GpuExternalTextureFormat as VmAggregateCodec>::decode_component_with_context(
+            <GpuExternalTextureFormat as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_yuv_conversion_matrix =
-            <VmArray<f32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 4,
-            )?;
+            <VmArray<f32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_gamut_conversion_matrix =
-            <VmArray<f32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 5,
+            <VmArray<f32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
+        let field_source_transfer_function =
+            <GpuExternalTextureTransferFunctionVm as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 6,
             )?;
-        let field_source_transfer_function = <GpuExternalTextureTransferFunctionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
-        let field_destination_transfer_function = <GpuExternalTextureTransferFunctionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+        let field_destination_transfer_function =
+            <GpuExternalTextureTransferFunctionVm as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 7,
+            )?;
         let field_sample_transform =
-            <VmArray<f32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 8,
-            )?;
+            <VmArray<f32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_load_transform =
-            <VmArray<f32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 9,
-            )?;
+            <VmArray<f32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         Ok(Self {
             label: field_label,
             width: field_width,
@@ -13020,73 +13008,73 @@ impl VmAggregateCodec for GpuExternalTextureOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuExternalTextureOptions")
+            .begin_named_aggregate_builder("gpu::GpuExternalTextureOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuExternalTextureFormat as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuExternalTextureFormat as VmAggregateCodec>::encode_with_context(
             self.format,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmArray<f32> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmArray<f32> as VmAggregateCodec>::encode_with_context(
             self.yuv_conversion_matrix,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmArray<f32> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmArray<f32> as VmAggregateCodec>::encode_with_context(
             self.gamut_conversion_matrix,
             context,
         )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuExternalTextureTransferFunctionVm as VmAggregateCodec>::encode_with_context(
                 self.source_transfer_function,
                 context,
             )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuExternalTextureTransferFunctionVm as VmAggregateCodec>::encode_with_context(
                 self.destination_transfer_function,
                 context,
             )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmArray<f32> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmArray<f32> as VmAggregateCodec>::encode_with_context(
             self.sample_transform,
             context,
         )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<f32> as VmAggregateCodec>::encode_with_context(self.load_transform, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13305,22 +13293,18 @@ impl VmAggregateCodec for GpuExternalTextureTransferFunction {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_a =
-            <f32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
-        let field_b =
-            <f32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_g =
-            <f32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
-        let field_k =
-            <f32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_a = <f32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_b = <f32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_g = <f32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_k = <f32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             a: field_a,
             b: field_b,
@@ -13334,23 +13318,23 @@ impl VmAggregateCodec for GpuExternalTextureTransferFunction {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuExternalTextureTransferFunction")
+            .begin_named_aggregate_builder("gpu::GpuExternalTextureTransferFunction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f32 as VmAggregateCodec>::encode_with_context(self.a, context)?;
+        let field_value = <f32 as VmAggregateCodec>::encode_with_context(self.a, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f32 as VmAggregateCodec>::encode_with_context(self.b, context)?;
+        let field_value = <f32 as VmAggregateCodec>::encode_with_context(self.b, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f32 as VmAggregateCodec>::encode_with_context(self.g, context)?;
+        let field_value = <f32 as VmAggregateCodec>::encode_with_context(self.g, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f32 as VmAggregateCodec>::encode_with_context(self.k, context)?;
+        let field_value = <f32 as VmAggregateCodec>::encode_with_context(self.k, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13420,21 +13404,20 @@ impl VmAggregateCodec for GpuFenceOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_mode = <GpuFenceMode as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
+        let field_mode =
+            <GpuFenceMode as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_initial_value =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             mode: field_mode,
             initial_value: field_initial_value,
@@ -13447,21 +13430,21 @@ impl VmAggregateCodec for GpuFenceOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuFenceOptions")
+            .begin_named_aggregate_builder("gpu::GpuFenceOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuFenceMode as VmAggregateCodec>::encode_with_context(self.mode, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.initial_value, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13554,8 +13537,8 @@ impl VmAggregateCodec for GpuFragmentStateAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -13563,19 +13546,19 @@ impl VmAggregateCodec for GpuFragmentStateAbi<VmAbi> {
             .boxed());
         }
         let field_module =
-            <resource::GpuShaderHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::GpuShaderHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_entry =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_constants =
-            <VmSlice<GpuPipelineConstantVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<GpuPipelineConstantVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_targets =
-            <VmSlice<GpuColorTargetStateVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<GpuColorTargetStateVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -13591,36 +13574,36 @@ impl VmAggregateCodec for GpuFragmentStateAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuFragmentState")
+            .begin_named_aggregate_builder("gpu::GpuFragmentState")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <resource::GpuShaderHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <resource::GpuShaderHandle as VmAggregateCodec>::encode_with_context(
             self.module,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.entry, context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<GpuPipelineConstantVm> as VmAggregateCodec>::encode_with_context(
                 self.constants,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<GpuColorTargetStateVm> as VmAggregateCodec>::encode_with_context(
                 self.targets,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13745,8 +13728,8 @@ impl VmAggregateCodec for GpuManualMemoryHint {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -13754,9 +13737,9 @@ impl VmAggregateCodec for GpuManualMemoryHint {
             .boxed());
         }
         let field_min_suballocated_device_memory_block_size =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_max_suballocated_device_memory_block_size =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             min_suballocated_device_memory_block_size:
                 field_min_suballocated_device_memory_block_size,
@@ -13770,21 +13753,21 @@ impl VmAggregateCodec for GpuManualMemoryHint {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuManualMemoryHint")
+            .begin_named_aggregate_builder("gpu::GpuManualMemoryHint")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u64 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(
             self.min_suballocated_device_memory_block_size,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u64 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(
             self.max_suballocated_device_memory_block_size,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13854,8 +13837,8 @@ impl VmAggregateCodec for GpuMappedBufferRange {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -13863,11 +13846,11 @@ impl VmAggregateCodec for GpuMappedBufferRange {
             .boxed());
         }
         let field_address =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_length =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_coherent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             address: field_address,
             length: field_length,
@@ -13880,21 +13863,19 @@ impl VmAggregateCodec for GpuMappedBufferRange {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuMappedBufferRange")
+            .begin_named_aggregate_builder("gpu::GpuMappedBufferRange")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.address, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.address, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u64 as VmAggregateCodec>::encode_with_context(self.length, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.length, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.coherent, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.coherent, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13964,8 +13945,8 @@ impl VmAggregateCodec for GpuMultisampleState {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -13973,11 +13954,11 @@ impl VmAggregateCodec for GpuMultisampleState {
             .boxed());
         }
         let field_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_mask =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_alpha_to_coverage_enabled =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             count: field_count,
             mask: field_mask,
@@ -13990,22 +13971,22 @@ impl VmAggregateCodec for GpuMultisampleState {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuMultisampleState")
+            .begin_named_aggregate_builder("gpu::GpuMultisampleState")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.count, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.count, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u64 as VmAggregateCodec>::encode_with_context(self.mask, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.mask, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.alpha_to_coverage_enabled,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14092,15 +14073,15 @@ impl VmAggregateCodec for GpuOcclusionQueryTypeAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         Ok(Self { kind: field_kind })
@@ -14111,12 +14092,12 @@ impl VmAggregateCodec for GpuOcclusionQueryTypeAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuOcclusionQueryType")
+            .begin_named_aggregate_builder("gpu::GpuOcclusionQueryType")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14198,8 +14179,8 @@ impl VmAggregateCodec for GpuPassTimestampWrites {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -14207,17 +14188,13 @@ impl VmAggregateCodec for GpuPassTimestampWrites {
             .boxed());
         }
         let field_query_set =
-            <resource::GpuQuerySetHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::GpuQuerySetHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_beginning_of_pass_write_index =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_end_of_pass_write_index =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             query_set: field_query_set,
             beginning_of_pass_write_index: field_beginning_of_pass_write_index,
@@ -14230,29 +14207,28 @@ impl VmAggregateCodec for GpuPassTimestampWrites {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuPassTimestampWrites")
+            .begin_named_aggregate_builder("gpu::GpuPassTimestampWrites")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <resource::GpuQuerySetHandle as VmAggregateCodec>::encode_with_context(
-                self.query_set,
-                context,
-            )?;
+        let field_value = <resource::GpuQuerySetHandle as VmAggregateCodec>::encode_with_context(
+            self.query_set,
+            context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
             self.beginning_of_pass_write_index,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
             self.end_of_pass_write_index,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14341,19 +14317,19 @@ impl VmAggregateCodec for GpuPipelineConstantAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_key = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_key = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_value =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             key: field_key,
             value: field_value,
@@ -14365,16 +14341,16 @@ impl VmAggregateCodec for GpuPipelineConstantAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuPipelineConstant")
+            .begin_named_aggregate_builder("gpu::GpuPipelineConstant")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.key, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.value, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.value, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14485,22 +14461,22 @@ impl VmAggregateCodec for GpuPipelineLayoutOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_bind_group_layouts = <VmSlice<resource::GpuBindGroupLayoutHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_bind_group_layouts = <VmSlice<resource::GpuBindGroupLayoutHandle> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_immediate_size =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             label: field_label,
             bind_group_layouts: field_bind_group_layouts,
@@ -14514,29 +14490,29 @@ impl VmAggregateCodec for GpuPipelineLayoutOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuPipelineLayoutOptions")
+            .begin_named_aggregate_builder("gpu::GpuPipelineLayoutOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<resource::GpuBindGroupLayoutHandle> as VmAggregateCodec>::encode_with_context(
                 self.bind_group_layouts,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.immediate_size, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14671,19 +14647,19 @@ impl VmAggregateCodec for GpuPipelineStatisticsQueryTypeAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_pipeline_statistics_mask =
-            <GpuPipelineStatisticsMask as VmAggregateCodec>::decode_component_with_context(
+            <GpuPipelineStatisticsMask as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -14697,19 +14673,19 @@ impl VmAggregateCodec for GpuPipelineStatisticsQueryTypeAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuPipelineStatisticsQueryType")
+            .begin_named_aggregate_builder("gpu::GpuPipelineStatisticsQueryType")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuPipelineStatisticsMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuPipelineStatisticsMask as VmAggregateCodec>::encode_with_context(
             self.pipeline_statistics_mask,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14812,8 +14788,8 @@ impl VmAggregateCodec for GpuPresentationOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -14821,17 +14797,13 @@ impl VmAggregateCodec for GpuPresentationOptions {
             .boxed());
         }
         let field_surface_frame_id =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_begin_frame_id =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_desired_presentation_timestamp_ns =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             surface_frame_id: field_surface_frame_id,
             begin_frame_id: field_begin_frame_id,
@@ -14845,28 +14817,28 @@ impl VmAggregateCodec for GpuPresentationOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuPresentationOptions")
+            .begin_named_aggregate_builder("gpu::GpuPresentationOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.surface_frame_id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.begin_frame_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.desired_presentation_timestamp_ns,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14944,36 +14916,31 @@ impl VmAggregateCodec for GpuPrimitiveState {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_topology =
-            <GpuPrimitiveTopology as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
+        let field_topology = <GpuPrimitiveTopology as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
         let field_strip_index_format =
-            <Option<GpuIndexFormat> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuIndexFormat> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_front_face = <GpuFrontFace as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
-        let field_cull_mode = <GpuCullMode as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
+        let field_front_face =
+            <GpuFrontFace as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_cull_mode =
+            <GpuCullMode as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_unclipped_depth =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_polygon_mode =
-            <GpuPolygonMode as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 5,
-            )?;
+            <GpuPolygonMode as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_conservative =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         Ok(Self {
             topology: field_topology,
             strip_index_format: field_strip_index_format,
@@ -14990,46 +14957,46 @@ impl VmAggregateCodec for GpuPrimitiveState {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuPrimitiveState")
+            .begin_named_aggregate_builder("gpu::GpuPrimitiveState")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuPrimitiveTopology as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuPrimitiveTopology as VmAggregateCodec>::encode_with_context(
             self.topology,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<GpuIndexFormat> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<GpuIndexFormat> as VmAggregateCodec>::encode_with_context(
             self.strip_index_format,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuFrontFace as VmAggregateCodec>::encode_with_context(self.front_face, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuCullMode as VmAggregateCodec>::encode_with_context(self.cull_mode, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.unclipped_depth, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuPolygonMode as VmAggregateCodec>::encode_with_context(self.polygon_mode, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.conservative, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15118,20 +15085,19 @@ impl VmAggregateCodec for GpuQuerySetInfoAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_query_type =
-            <GpuQuerySetTypeVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
+        let field_query_type = <GpuQuerySetTypeVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
         let field_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             query_type: field_query_type,
             count: field_count,
@@ -15143,16 +15109,16 @@ impl VmAggregateCodec for GpuQuerySetInfoAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuQuerySetInfo")
+            .begin_named_aggregate_builder("gpu::GpuQuerySetInfo")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuQuerySetTypeVm as VmAggregateCodec>::encode_with_context(self.query_type, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.count, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.count, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15265,25 +15231,24 @@ impl VmAggregateCodec for GpuQuerySetOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_query_type =
-            <GpuQuerySetTypeVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_query_type = <GpuQuerySetTypeVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             label: field_label,
             query_type: field_query_type,
@@ -15297,25 +15262,25 @@ impl VmAggregateCodec for GpuQuerySetOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuQuerySetOptions")
+            .begin_named_aggregate_builder("gpu::GpuQuerySetOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuQuerySetTypeVm as VmAggregateCodec>::encode_with_context(self.query_type, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.count, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.count, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15446,33 +15411,33 @@ impl VmAggregateCodec for GpuRenderBundleEncoderOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_color_formats =
-            <VmSlice<GpuTextureFormat> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<GpuTextureFormat> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_depth_stencil_format =
-            <Option<GpuTextureFormat> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuTextureFormat> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_depth_read_only =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_stencil_read_only =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_sample_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         Ok(Self {
             label: field_label,
             color_formats: field_color_formats,
@@ -15489,45 +15454,45 @@ impl VmAggregateCodec for GpuRenderBundleEncoderOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuRenderBundleEncoderOptions")
+            .begin_named_aggregate_builder("gpu::GpuRenderBundleEncoderOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmSlice<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmSlice<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
             self.color_formats,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
             self.depth_stencil_format,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.depth_read_only, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.stencil_read_only, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.sample_count, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15689,15 +15654,15 @@ impl VmAggregateCodec for GpuRenderBundleOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         Ok(Self { label: field_label })
@@ -15708,12 +15673,12 @@ impl VmAggregateCodec for GpuRenderBundleOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuRenderBundleOptions")
+            .begin_named_aggregate_builder("gpu::GpuRenderBundleOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15799,8 +15764,8 @@ impl VmAggregateCodec for GpuRenderPassColorAttachment {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -15808,16 +15773,16 @@ impl VmAggregateCodec for GpuRenderPassColorAttachment {
             .boxed());
         }
         let field_view =
-            <resource::GpuTextureViewHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::GpuTextureViewHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_resolve_target = <Option<resource::GpuTextureViewHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_resolve_target = <Option<resource::GpuTextureViewHandle> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_load_op =
-            <GpuLoadOp as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <GpuLoadOp as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_store_op =
-            <GpuStoreOp as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <GpuStoreOp as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_clear_value =
-            <GpuColorVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <GpuColorVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             view: field_view,
             resolve_target: field_resolve_target,
@@ -15832,37 +15797,37 @@ impl VmAggregateCodec for GpuRenderPassColorAttachment {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuRenderPassColorAttachment")
+            .begin_named_aggregate_builder("gpu::GpuRenderPassColorAttachment")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <resource::GpuTextureViewHandle as VmAggregateCodec>::encode_with_context(
                 self.view, context,
             )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::GpuTextureViewHandle> as VmAggregateCodec>::encode_with_context(
                 self.resolve_target,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuLoadOp as VmAggregateCodec>::encode_with_context(self.load_op, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuStoreOp as VmAggregateCodec>::encode_with_context(self.store_op, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuColorVm as VmAggregateCodec>::encode_with_context(self.clear_value, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15944,8 +15909,8 @@ impl VmAggregateCodec for GpuRenderPassDepthStencilAttachment {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 9 {
+        let field_count = value_ref.field_count();
+        if field_count != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 9 fields",
@@ -15953,35 +15918,33 @@ impl VmAggregateCodec for GpuRenderPassDepthStencilAttachment {
             .boxed());
         }
         let field_view =
-            <resource::GpuTextureViewHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::GpuTextureViewHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_depth_load_op =
-            <Option<GpuLoadOp> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuLoadOp> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_depth_store_op =
-            <Option<GpuStoreOp> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuStoreOp> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
-        let field_clear_depth = <Option<f64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
+        let field_clear_depth =
+            <Option<f64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_depth_read_only =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_stencil_load_op =
-            <Option<GpuLoadOp> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuLoadOp> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         let field_stencil_store_op =
-            <Option<GpuStoreOp> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuStoreOp> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
-        let field_clear_stencil = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 7,
-        )?;
+        let field_clear_stencil =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_stencil_read_only =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         Ok(Self {
             view: field_view,
             depth_load_op: field_depth_load_op,
@@ -16000,62 +15963,62 @@ impl VmAggregateCodec for GpuRenderPassDepthStencilAttachment {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuRenderPassDepthStencilAttachment")
+            .begin_named_aggregate_builder("gpu::GpuRenderPassDepthStencilAttachment")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <resource::GpuTextureViewHandle as VmAggregateCodec>::encode_with_context(
                 self.view, context,
             )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<GpuLoadOp> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<GpuLoadOp> as VmAggregateCodec>::encode_with_context(
             self.depth_load_op,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<GpuStoreOp> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<GpuStoreOp> as VmAggregateCodec>::encode_with_context(
             self.depth_store_op,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<f64> as VmAggregateCodec>::encode_with_context(self.clear_depth, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.depth_read_only, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<GpuLoadOp> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<GpuLoadOp> as VmAggregateCodec>::encode_with_context(
             self.stencil_load_op,
             context,
         )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<GpuStoreOp> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<GpuStoreOp> as VmAggregateCodec>::encode_with_context(
             self.stencil_store_op,
             context,
         )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.clear_stencil, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.stencil_read_only, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -16150,24 +16113,27 @@ impl VmAggregateCodec for GpuRenderPassOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_color_attachments = <VmSlice<GpuRenderPassColorAttachmentVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_depth_stencil = <Option<GpuRenderPassDepthStencilAttachmentVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_color_attachments = <VmSlice<GpuRenderPassColorAttachmentVm> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_depth_stencil = <Option<GpuRenderPassDepthStencilAttachmentVm> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_timestamp_writes =
-            <Option<GpuPassTimestampWritesVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuPassTimestampWritesVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
-        let field_occlusion_query_set = <Option<resource::GpuQuerySetHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_occlusion_query_set =
+            <Option<resource::GpuQuerySetHandle> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 4,
+            )?;
         Ok(Self {
             label: field_label,
             color_attachments: field_color_attachments,
@@ -16182,40 +16148,40 @@ impl VmAggregateCodec for GpuRenderPassOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuRenderPassOptions")
+            .begin_named_aggregate_builder("gpu::GpuRenderPassOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<GpuRenderPassColorAttachmentVm> as VmAggregateCodec>::encode_with_context(
                 self.color_attachments,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<GpuRenderPassDepthStencilAttachmentVm> as VmAggregateCodec>::encode_with_context(self.depth_stencil, context)?;
+        let field_value = <Option<GpuRenderPassDepthStencilAttachmentVm> as VmAggregateCodec>::encode_with_context(self.depth_stencil, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<GpuPassTimestampWritesVm> as VmAggregateCodec>::encode_with_context(
                 self.timestamp_writes,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::GpuQuerySetHandle> as VmAggregateCodec>::encode_with_context(
                 self.occlusion_query_set,
                 context,
             )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -16407,34 +16373,32 @@ impl VmAggregateCodec for GpuRenderPipelineOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_layout = <Option<resource::GpuPipelineLayoutHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_vertex = <GpuVertexStateVm as VmAggregateCodec>::decode_component_with_context(
+        let field_layout = <Option<resource::GpuPipelineLayoutHandle> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_vertex = <GpuVertexStateVm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         let field_fragment =
-            <Option<GpuFragmentStateVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuFragmentStateVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
-        let field_render = <GpuRenderStateVm as VmAggregateCodec>::decode_component_with_context(
+        let field_render = <GpuRenderStateVm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 4,
         )?;
         let field_multiview_mask =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 5,
-            )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         Ok(Self {
             label: field_label,
             layout: field_layout,
@@ -16451,47 +16415,46 @@ impl VmAggregateCodec for GpuRenderPipelineOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuRenderPipelineOptions")
+            .begin_named_aggregate_builder("gpu::GpuRenderPipelineOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::GpuPipelineLayoutHandle> as VmAggregateCodec>::encode_with_context(
                 self.layout,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuVertexStateVm as VmAggregateCodec>::encode_with_context(self.vertex, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<GpuFragmentStateVm> as VmAggregateCodec>::encode_with_context(
-                self.fragment,
-                context,
-            )?;
+        let field_value = <Option<GpuFragmentStateVm> as VmAggregateCodec>::encode_with_context(
+            self.fragment,
+            context,
+        )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuRenderStateVm as VmAggregateCodec>::encode_with_context(self.render, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.multiview_mask, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -16638,24 +16601,23 @@ impl VmAggregateCodec for GpuRenderState {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_primitive =
-            <GpuPrimitiveStateVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
+        let field_primitive = <GpuPrimitiveStateVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
         let field_depth_stencil =
-            <Option<GpuDepthStencilStateVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuDepthStencilStateVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_multisample =
-            <GpuMultisampleStateVm as VmAggregateCodec>::decode_component_with_context(
+            <GpuMultisampleStateVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -16670,29 +16632,29 @@ impl VmAggregateCodec for GpuRenderState {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuRenderState")
+            .begin_named_aggregate_builder("gpu::GpuRenderState")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuPrimitiveStateVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuPrimitiveStateVm as VmAggregateCodec>::encode_with_context(
             self.primitive,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<GpuDepthStencilStateVm> as VmAggregateCodec>::encode_with_context(
                 self.depth_stencil,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuMultisampleStateVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuMultisampleStateVm as VmAggregateCodec>::encode_with_context(
             self.multisample,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -16803,52 +16765,47 @@ impl VmAggregateCodec for GpuSamplerOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 13 {
+        let field_count = value_ref.field_count();
+        if field_count != 13 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 13 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_min_filter = <GpuFilterMode as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
-        let field_mag_filter = <GpuFilterMode as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
+        let field_min_filter =
+            <GpuFilterMode as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_mag_filter =
+            <GpuFilterMode as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_mip_filter =
-            <GpuMipmapFilterMode as VmAggregateCodec>::decode_component_with_context(
+            <GpuMipmapFilterMode as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
-        let field_address_u = <GpuAddressMode as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 4,
-        )?;
-        let field_address_v = <GpuAddressMode as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 5,
-        )?;
-        let field_address_w = <GpuAddressMode as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 6,
-        )?;
+        let field_address_u =
+            <GpuAddressMode as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
+        let field_address_v =
+            <GpuAddressMode as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
+        let field_address_w =
+            <GpuAddressMode as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_lod_min_clamp =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_lod_max_clamp =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_compare =
-            <Option<GpuCompareFunction> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuCompareFunction> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 9,
             )?;
         let field_max_anisotropy =
-            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+            <u16 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         let field_border_color =
-            <Option<GpuSamplerBorderColor> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuSamplerBorderColor> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 11,
             )?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 12)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 12)?;
         Ok(Self {
             label: field_label,
             min_filter: field_min_filter,
@@ -16871,79 +16828,77 @@ impl VmAggregateCodec for GpuSamplerOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuSamplerOptions")
+            .begin_named_aggregate_builder("gpu::GpuSamplerOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuFilterMode as VmAggregateCodec>::encode_with_context(self.min_filter, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuFilterMode as VmAggregateCodec>::encode_with_context(self.mag_filter, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuMipmapFilterMode as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuMipmapFilterMode as VmAggregateCodec>::encode_with_context(
             self.mip_filter,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuAddressMode as VmAggregateCodec>::encode_with_context(self.address_u, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuAddressMode as VmAggregateCodec>::encode_with_context(self.address_v, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuAddressMode as VmAggregateCodec>::encode_with_context(self.address_w, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <f64 as VmAggregateCodec>::encode_with_context(self.lod_min_clamp, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <f64 as VmAggregateCodec>::encode_with_context(self.lod_max_clamp, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<GpuCompareFunction> as VmAggregateCodec>::encode_with_context(
-                self.compare,
-                context,
-            )?;
+        let field_value = <Option<GpuCompareFunction> as VmAggregateCodec>::encode_with_context(
+            self.compare,
+            context,
+        )?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u16 as VmAggregateCodec>::encode_with_context(self.max_anisotropy, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<GpuSamplerBorderColor> as VmAggregateCodec>::encode_with_context(
-                self.border_color,
-                context,
-            )?;
+        let field_value = <Option<GpuSamplerBorderColor> as VmAggregateCodec>::encode_with_context(
+            self.border_color,
+            context,
+        )?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(12, component_value)
+            .write_field(12, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17146,28 +17101,28 @@ impl VmAggregateCodec for GpuShaderOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_format = <GpuShaderFormat as VmAggregateCodec>::decode_component_with_context(
+        let field_format = <GpuShaderFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         let field_num_workgroups =
-            <Option<VmArray<u32>> as VmAggregateCodec>::decode_component_with_context(
+            <Option<VmArray<u32>> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_runtime_checks =
-            <Option<GpuShaderRuntimeChecksVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuShaderRuntimeChecksVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         Ok(Self {
@@ -17184,36 +17139,36 @@ impl VmAggregateCodec for GpuShaderOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuShaderOptions")
+            .begin_named_aggregate_builder("gpu::GpuShaderOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuShaderFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<VmArray<u32>> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<VmArray<u32>> as VmAggregateCodec>::encode_with_context(
             self.num_workgroups,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<GpuShaderRuntimeChecksVm> as VmAggregateCodec>::encode_with_context(
                 self.runtime_checks,
                 context,
             )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17345,8 +17300,8 @@ impl VmAggregateCodec for GpuShaderRuntimeChecks {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -17354,15 +17309,15 @@ impl VmAggregateCodec for GpuShaderRuntimeChecks {
             .boxed());
         }
         let field_bounds_checks =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_force_loop_bounding =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_ray_query_initialization_tracking =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_task_shader_dispatch_tracking =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_mesh_shader_primitive_indices_clamp =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             bounds_checks: field_bounds_checks,
             force_loop_bounding: field_force_loop_bounding,
@@ -17377,38 +17332,38 @@ impl VmAggregateCodec for GpuShaderRuntimeChecks {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuShaderRuntimeChecks")
+            .begin_named_aggregate_builder("gpu::GpuShaderRuntimeChecks")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.bounds_checks, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.force_loop_bounding, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.ray_query_initialization_tracking,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.task_shader_dispatch_tracking,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.mesh_shader_primitive_indices_clamp,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17480,30 +17435,27 @@ impl VmAggregateCodec for GpuStencilFaceState {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_compare =
-            <GpuCompareFunction as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_fail_op =
-            <GpuStencilOperation as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_compare = <GpuCompareFunction as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_fail_op = <GpuStencilOperation as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_depth_fail_op =
-            <GpuStencilOperation as VmAggregateCodec>::decode_component_with_context(
+            <GpuStencilOperation as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
-        let field_pass_op =
-            <GpuStencilOperation as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
+        let field_pass_op = <GpuStencilOperation as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
+        )?;
         Ok(Self {
             compare: field_compare,
             fail_op: field_fail_op,
@@ -17517,29 +17469,29 @@ impl VmAggregateCodec for GpuStencilFaceState {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuStencilFaceState")
+            .begin_named_aggregate_builder("gpu::GpuStencilFaceState")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuCompareFunction as VmAggregateCodec>::encode_with_context(self.compare, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuStencilOperation as VmAggregateCodec>::encode_with_context(self.fail_op, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuStencilOperation as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuStencilOperation as VmAggregateCodec>::encode_with_context(
             self.depth_fail_op,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuStencilOperation as VmAggregateCodec>::encode_with_context(self.pass_op, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17605,8 +17557,8 @@ impl VmAggregateCodec for GpuSubmitOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
@@ -17614,7 +17566,7 @@ impl VmAggregateCodec for GpuSubmitOptions {
             .boxed());
         }
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         Ok(Self { flags: field_flags })
     }
 
@@ -17623,11 +17575,11 @@ impl VmAggregateCodec for GpuSubmitOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuSubmitOptions")
+            .begin_named_aggregate_builder("gpu::GpuSubmitOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17730,47 +17682,45 @@ impl VmAggregateCodec for GpuSurfaceCapabilitiesAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 9 {
+        let field_count = value_ref.field_count();
+        if field_count != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 9 fields",
             ))
             .boxed());
         }
-        let field_usages =
-            <GpuTextureUsageMask as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
+        let field_usages = <GpuTextureUsageMask as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
         let field_formats =
-            <VmSlice<GpuTextureFormat> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<GpuTextureFormat> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_present_modes =
-            <VmSlice<GpuPresentMode> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<GpuPresentMode> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_alpha_modes =
-            <VmSlice<GpuCompositeAlphaMode> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<GpuCompositeAlphaMode> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
-        let field_color_spaces = <VmSlice<display::DisplayColorSpace> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_color_spaces =
+            <VmSlice<display::DisplayColorSpace> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 4,
+            )?;
         let field_hdr_modes =
-            <VmSlice<display::DisplayHdrMode> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<display::DisplayHdrMode> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         let field_timing_capability_mask =
-            <GpuSurfaceTimingCapabilityFlags as VmAggregateCodec>::decode_component_with_context(
+            <GpuSurfaceTimingCapabilityFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
         let field_min_desired_maximum_frame_latency =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 7,
-            )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_max_desired_maximum_frame_latency =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 8,
-            )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         Ok(Self {
             usages: field_usages,
             formats: field_formats,
@@ -17789,72 +17739,72 @@ impl VmAggregateCodec for GpuSurfaceCapabilitiesAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuSurfaceCapabilities")
+            .begin_named_aggregate_builder("gpu::GpuSurfaceCapabilities")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuTextureUsageMask as VmAggregateCodec>::encode_with_context(self.usages, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmSlice<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmSlice<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
             self.formats,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmSlice<GpuPresentMode> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmSlice<GpuPresentMode> as VmAggregateCodec>::encode_with_context(
             self.present_modes,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<GpuCompositeAlphaMode> as VmAggregateCodec>::encode_with_context(
                 self.alpha_modes,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<display::DisplayColorSpace> as VmAggregateCodec>::encode_with_context(
                 self.color_spaces,
                 context,
             )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<display::DisplayHdrMode> as VmAggregateCodec>::encode_with_context(
                 self.hdr_modes,
                 context,
             )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuSurfaceTimingCapabilityFlags as VmAggregateCodec>::encode_with_context(
                 self.timing_capability_mask,
                 context,
             )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
             self.min_desired_maximum_frame_latency,
             context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
             self.max_desired_maximum_frame_latency,
             context,
         )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18113,49 +18063,50 @@ impl VmAggregateCodec for GpuSurfaceConfigurationAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 12 {
+        let field_count = value_ref.field_count();
+        if field_count != 12 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 12 fields",
             ))
             .boxed());
         }
-        let field_usage = <GpuTextureUsageMask as VmAggregateCodec>::decode_component_with_context(
+        let field_usage = <GpuTextureUsageMask as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_view_formats =
-            <VmSlice<GpuTextureFormat> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<GpuTextureFormat> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_width =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_height =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
-        let field_format = <GpuTextureFormat as VmAggregateCodec>::decode_component_with_context(
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
+        let field_format = <GpuTextureFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 4,
         )?;
         let field_present_mode =
-            <GpuPresentMode as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 5,
-            )?;
+            <GpuPresentMode as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_alpha_mode =
-            <GpuCompositeAlphaMode as VmAggregateCodec>::decode_component_with_context(
+            <GpuCompositeAlphaMode as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
-        let field_color_space = <Option<display::DisplayColorSpace> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+        let field_color_space =
+            <Option<display::DisplayColorSpace> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 7,
+            )?;
         let field_hdr_mode =
-            <Option<display::DisplayHdrMode> as VmAggregateCodec>::decode_component_with_context(
+            <Option<display::DisplayHdrMode> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 8,
             )?;
         let field_hdr_metadata =
-            <Option<GpuSurfaceHdrMetadataVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuSurfaceHdrMetadataVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 9,
             )?;
         let field_desired_maximum_frame_latency =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 11)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 11)?;
         Ok(Self {
             usage: field_usage,
             view_formats: field_view_formats,
@@ -18177,79 +18128,79 @@ impl VmAggregateCodec for GpuSurfaceConfigurationAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuSurfaceConfiguration")
+            .begin_named_aggregate_builder("gpu::GpuSurfaceConfiguration")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuTextureUsageMask as VmAggregateCodec>::encode_with_context(self.usage, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmSlice<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmSlice<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
             self.view_formats,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuTextureFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuPresentMode as VmAggregateCodec>::encode_with_context(self.present_mode, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuCompositeAlphaMode as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuCompositeAlphaMode as VmAggregateCodec>::encode_with_context(
             self.alpha_mode,
             context,
         )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<display::DisplayColorSpace> as VmAggregateCodec>::encode_with_context(
                 self.color_space,
                 context,
             )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<display::DisplayHdrMode> as VmAggregateCodec>::encode_with_context(
                 self.hdr_mode,
                 context,
             )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<GpuSurfaceHdrMetadataVm> as VmAggregateCodec>::encode_with_context(
                 self.hdr_metadata,
                 context,
             )?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.desired_maximum_frame_latency,
             context,
         )?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18471,8 +18422,8 @@ impl VmAggregateCodec for GpuSurfaceFrame {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -18480,14 +18431,15 @@ impl VmAggregateCodec for GpuSurfaceFrame {
             .boxed());
         }
         let field_status =
-            <GpuSurfaceAcquireStatus as VmAggregateCodec>::decode_component_with_context(
+            <GpuSurfaceAcquireStatus as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_texture = <Option<resource::GpuTextureHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_surface_frame_id =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
+        let field_texture =
+            <Option<resource::GpuTextureHandle> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 1,
             )?;
+        let field_surface_frame_id =
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             status: field_status,
             texture: field_texture,
@@ -18500,27 +18452,27 @@ impl VmAggregateCodec for GpuSurfaceFrame {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuSurfaceFrame")
+            .begin_named_aggregate_builder("gpu::GpuSurfaceFrame")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuSurfaceAcquireStatus as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuSurfaceAcquireStatus as VmAggregateCodec>::encode_with_context(
             self.status,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::GpuTextureHandle> as VmAggregateCodec>::encode_with_context(
                 self.texture,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.surface_frame_id, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18592,8 +18544,8 @@ impl VmAggregateCodec for GpuSurfaceHdrMetadata {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -18601,13 +18553,13 @@ impl VmAggregateCodec for GpuSurfaceHdrMetadata {
             .boxed());
         }
         let field_max_content_light_level_nits =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_max_frame_average_light_level_nits =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_max_mastering_luminance_nits =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_min_mastering_luminance_nits =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             max_content_light_level_nits: field_max_content_light_level_nits,
             max_frame_average_light_level_nits: field_max_frame_average_light_level_nits,
@@ -18621,35 +18573,35 @@ impl VmAggregateCodec for GpuSurfaceHdrMetadata {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuSurfaceHdrMetadata")
+            .begin_named_aggregate_builder("gpu::GpuSurfaceHdrMetadata")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(
             self.max_content_light_level_nits,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(
             self.max_frame_average_light_level_nits,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(
             self.max_mastering_luminance_nits,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(
             self.min_mastering_luminance_nits,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18736,8 +18688,8 @@ impl VmAggregateCodec for GpuSurfacePresentationEvent {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 11 {
+        let field_count = value_ref.field_count();
+        if field_count != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 11 fields",
@@ -18745,41 +18697,30 @@ impl VmAggregateCodec for GpuSurfacePresentationEvent {
             .boxed());
         }
         let field_surface =
-            <resource::GpuSurfaceHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::GpuSurfaceHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_surface_frame_id =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_begin_frame_id =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_result =
-            <GpuPresentationResult as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_result = <GpuPresentationResult as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
+        )?;
         let field_desired_presentation_timestamp_ns =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 4,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_presented_at_ns =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 5,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_refresh_interval_ns =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 6,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_compositor_latency_ns =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 7,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_reported_at_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_sequence =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         let field_dropped_count =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         Ok(Self {
             surface: field_surface,
             surface_frame_id: field_surface_frame_id,
@@ -18800,71 +18741,69 @@ impl VmAggregateCodec for GpuSurfacePresentationEvent {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuSurfacePresentationEvent")
+            .begin_named_aggregate_builder("gpu::GpuSurfacePresentationEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <resource::GpuSurfaceHandle as VmAggregateCodec>::encode_with_context(
-                self.surface,
-                context,
-            )?;
+        let field_value = <resource::GpuSurfaceHandle as VmAggregateCodec>::encode_with_context(
+            self.surface,
+            context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.surface_frame_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.begin_frame_id, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuPresentationResult as VmAggregateCodec>::encode_with_context(self.result, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.desired_presentation_timestamp_ns,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.presented_at_ns, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.refresh_interval_ns,
             context,
         )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.compositor_latency_ns,
             context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.reported_at_ns, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.dropped_count, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18932,8 +18871,8 @@ impl VmAggregateCodec for GpuSurfacePresentationOpenOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -18941,9 +18880,9 @@ impl VmAggregateCodec for GpuSurfacePresentationOpenOptions {
             .boxed());
         }
         let field_queue_capacity =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_overflow_policy =
-            <GpuPresentationOverflowPolicy as VmAggregateCodec>::decode_component_with_context(
+            <GpuPresentationOverflowPolicy as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -18957,20 +18896,19 @@ impl VmAggregateCodec for GpuSurfacePresentationOpenOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuSurfacePresentationOpenOptions")
+            .begin_named_aggregate_builder("gpu::GpuSurfacePresentationOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.queue_capacity, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <GpuPresentationOverflowPolicy as VmAggregateCodec>::encode_with_context(
-                self.overflow_policy,
-                context,
-            )?;
+        let field_value = <GpuPresentationOverflowPolicy as VmAggregateCodec>::encode_with_context(
+            self.overflow_policy,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -19052,44 +18990,43 @@ impl VmAggregateCodec for GpuSurfaceStatusInfo {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 9 {
+        let field_count = value_ref.field_count();
+        if field_count != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 9 fields",
             ))
             .boxed());
         }
-        let field_status = <GpuSurfaceStatus as VmAggregateCodec>::decode_component_with_context(
+        let field_status = <GpuSurfaceStatus as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_width = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
-        let field_height = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
+        let field_width =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_height =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_format =
-            <Option<GpuTextureFormat> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuTextureFormat> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_present_mode =
-            <Option<GpuPresentMode> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuPresentMode> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         let field_alpha_mode =
-            <Option<GpuCompositeAlphaMode> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuCompositeAlphaMode> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
-        let field_color_space = <Option<display::DisplayColorSpace> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+        let field_color_space =
+            <Option<display::DisplayColorSpace> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 6,
+            )?;
         let field_hdr_mode =
-            <Option<display::DisplayHdrMode> as VmAggregateCodec>::decode_component_with_context(
+            <Option<display::DisplayHdrMode> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         let field_desired_maximum_frame_latency =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 8,
-            )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         Ok(Self {
             status: field_status,
             width: field_width,
@@ -19108,67 +19045,66 @@ impl VmAggregateCodec for GpuSurfaceStatusInfo {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuSurfaceStatusInfo")
+            .begin_named_aggregate_builder("gpu::GpuSurfaceStatusInfo")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuSurfaceStatus as VmAggregateCodec>::encode_with_context(self.status, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.width, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.height, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
             self.format,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<GpuPresentMode> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<GpuPresentMode> as VmAggregateCodec>::encode_with_context(
             self.present_mode,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<GpuCompositeAlphaMode> as VmAggregateCodec>::encode_with_context(
-                self.alpha_mode,
-                context,
-            )?;
+        let field_value = <Option<GpuCompositeAlphaMode> as VmAggregateCodec>::encode_with_context(
+            self.alpha_mode,
+            context,
+        )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<display::DisplayColorSpace> as VmAggregateCodec>::encode_with_context(
                 self.color_space,
                 context,
             )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<display::DisplayHdrMode> as VmAggregateCodec>::encode_with_context(
                 self.hdr_mode,
                 context,
             )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
             self.desired_maximum_frame_latency,
             context,
         )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -19244,8 +19180,8 @@ impl VmAggregateCodec for GpuTextureCopy {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 6 {
+        let field_count = value_ref.field_count();
+        if field_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
@@ -19253,18 +19189,18 @@ impl VmAggregateCodec for GpuTextureCopy {
             .boxed());
         }
         let field_texture =
-            <resource::GpuTextureHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::GpuTextureHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_mip_level =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_origin_x =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_origin_y =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_origin_z =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
-        let field_aspect = <GpuTextureAspect as VmAggregateCodec>::decode_component_with_context(
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
+        let field_aspect = <GpuTextureAspect as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 5,
         )?;
         Ok(Self {
@@ -19282,40 +19218,35 @@ impl VmAggregateCodec for GpuTextureCopy {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuTextureCopy")
+            .begin_named_aggregate_builder("gpu::GpuTextureCopy")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <resource::GpuTextureHandle as VmAggregateCodec>::encode_with_context(
-                self.texture,
-                context,
-            )?;
+        let field_value = <resource::GpuTextureHandle as VmAggregateCodec>::encode_with_context(
+            self.texture,
+            context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.mip_level, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.mip_level, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.origin_x, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.origin_x, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.origin_y, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.origin_y, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.origin_z, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.origin_z, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuTextureAspect as VmAggregateCodec>::encode_with_context(self.aspect, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -19395,8 +19326,8 @@ impl VmAggregateCodec for GpuTextureInfo {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 8 {
+        let field_count = value_ref.field_count();
+        if field_count != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 8 fields",
@@ -19404,25 +19335,24 @@ impl VmAggregateCodec for GpuTextureInfo {
             .boxed());
         }
         let field_width =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_height =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_depth_or_layers =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_mip_levels =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_samples =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
-        let field_format = <GpuTextureFormat as VmAggregateCodec>::decode_component_with_context(
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
+        let field_format = <GpuTextureFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 5,
         )?;
-        let field_usage = <GpuTextureUsageMask as VmAggregateCodec>::decode_component_with_context(
+        let field_usage = <GpuTextureUsageMask as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 6,
         )?;
-        let field_dimension =
-            <GpuTextureDimension as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 7,
-            )?;
+        let field_dimension = <GpuTextureDimension as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 7,
+        )?;
         Ok(Self {
             width: field_width,
             height: field_height,
@@ -19440,47 +19370,45 @@ impl VmAggregateCodec for GpuTextureInfo {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuTextureInfo")
+            .begin_named_aggregate_builder("gpu::GpuTextureInfo")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.depth_or_layers, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.mip_levels, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.mip_levels, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.samples, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.samples, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuTextureFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuTextureUsageMask as VmAggregateCodec>::encode_with_context(self.usage, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuTextureDimension as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuTextureDimension as VmAggregateCodec>::encode_with_context(
             self.dimension,
             context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -19587,43 +19515,42 @@ impl VmAggregateCodec for GpuTextureOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 11 {
+        let field_count = value_ref.field_count();
+        if field_count != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 11 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_width =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_height =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_depth_or_layers =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_mip_levels =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_samples =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
-        let field_format = <GpuTextureFormat as VmAggregateCodec>::decode_component_with_context(
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
+        let field_format = <GpuTextureFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 6,
         )?;
-        let field_dimension =
-            <GpuTextureDimension as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 7,
-            )?;
-        let field_usage = <GpuTextureUsageMask as VmAggregateCodec>::decode_component_with_context(
+        let field_dimension = <GpuTextureDimension as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 7,
+        )?;
+        let field_usage = <GpuTextureUsageMask as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 8,
         )?;
         let field_view_formats =
-            <VmSlice<GpuTextureFormat> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<GpuTextureFormat> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 9,
             )?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         Ok(Self {
             label: field_label,
             width: field_width,
@@ -19644,63 +19571,61 @@ impl VmAggregateCodec for GpuTextureOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuTextureOptions")
+            .begin_named_aggregate_builder("gpu::GpuTextureOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.depth_or_layers, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.mip_levels, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.mip_levels, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.samples, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.samples, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuTextureFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <GpuTextureDimension as VmAggregateCodec>::encode_with_context(
+        let field_value = <GpuTextureDimension as VmAggregateCodec>::encode_with_context(
             self.dimension,
             context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuTextureUsageMask as VmAggregateCodec>::encode_with_context(self.usage, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmSlice<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmSlice<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
             self.view_formats,
             context,
         )?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -19860,8 +19785,8 @@ impl VmAggregateCodec for GpuTextureSubresourceRange {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -19869,13 +19794,13 @@ impl VmAggregateCodec for GpuTextureSubresourceRange {
             .boxed());
         }
         let field_base_mip_level =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_mip_level_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_base_array_layer =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_array_layer_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             base_mip_level: field_base_mip_level,
             mip_level_count: field_mip_level_count,
@@ -19889,27 +19814,27 @@ impl VmAggregateCodec for GpuTextureSubresourceRange {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuTextureSubresourceRange")
+            .begin_named_aggregate_builder("gpu::GpuTextureSubresourceRange")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.base_mip_level, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.mip_level_count, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.base_array_layer, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.array_layer_count, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -19979,8 +19904,8 @@ impl VmAggregateCodec for GpuTextureTransition {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -19988,11 +19913,14 @@ impl VmAggregateCodec for GpuTextureTransition {
             .boxed());
         }
         let field_texture =
-            <resource::GpuTextureHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::GpuTextureHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_subresources = <Option<GpuTextureSubresourceRangeVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_state = <GpuTextureUseMask as VmAggregateCodec>::decode_component_with_context(
+        let field_subresources =
+            <Option<GpuTextureSubresourceRangeVm> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 1,
+            )?;
+        let field_state = <GpuTextureUseMask as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         Ok(Self {
@@ -20007,28 +19935,27 @@ impl VmAggregateCodec for GpuTextureTransition {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuTextureTransition")
+            .begin_named_aggregate_builder("gpu::GpuTextureTransition")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <resource::GpuTextureHandle as VmAggregateCodec>::encode_with_context(
-                self.texture,
-                context,
-            )?;
+        let field_value = <resource::GpuTextureHandle as VmAggregateCodec>::encode_with_context(
+            self.texture,
+            context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<GpuTextureSubresourceRangeVm> as VmAggregateCodec>::encode_with_context(
                 self.subresources,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuTextureUseMask as VmAggregateCodec>::encode_with_context(self.state, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -20133,46 +20060,42 @@ impl VmAggregateCodec for GpuTextureViewOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 10 {
+        let field_count = value_ref.field_count();
+        if field_count != 10 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 10 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_format =
-            <Option<GpuTextureFormat> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuTextureFormat> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_usage =
-            <Option<GpuTextureUsageMask> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuTextureUsageMask> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_dimension =
-            <Option<GpuTextureViewDimension> as VmAggregateCodec>::decode_component_with_context(
+            <Option<GpuTextureViewDimension> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_base_mip_level =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_mip_level_count =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 5,
-            )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_base_array_layer =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_array_layer_count =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 7,
-            )?;
-        let field_aspect = <GpuTextureAspect as VmAggregateCodec>::decode_component_with_context(
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
+        let field_aspect = <GpuTextureAspect as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 8,
         )?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         Ok(Self {
             label: field_label,
             format: field_format,
@@ -20192,65 +20115,64 @@ impl VmAggregateCodec for GpuTextureViewOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuTextureViewOptions")
+            .begin_named_aggregate_builder("gpu::GpuTextureViewOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
             self.format,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<GpuTextureUsageMask> as VmAggregateCodec>::encode_with_context(
-                self.usage, context,
-            )?;
+        let field_value = <Option<GpuTextureUsageMask> as VmAggregateCodec>::encode_with_context(
+            self.usage, context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<GpuTextureViewDimension> as VmAggregateCodec>::encode_with_context(
                 self.dimension,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.base_mip_level, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.mip_level_count, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.base_array_layer, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
             self.array_layer_count,
             context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuTextureAspect as VmAggregateCodec>::encode_with_context(self.aspect, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -20445,15 +20367,15 @@ impl VmAggregateCodec for GpuTimestampQueryTypeAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         Ok(Self { kind: field_kind })
@@ -20464,12 +20386,12 @@ impl VmAggregateCodec for GpuTimestampQueryTypeAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuTimestampQueryType")
+            .begin_named_aggregate_builder("gpu::GpuTimestampQueryType")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -20551,21 +20473,21 @@ impl VmAggregateCodec for GpuVertexAttribute {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_format = <GpuVertexFormat as VmAggregateCodec>::decode_component_with_context(
+        let field_format = <GpuVertexFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_offset =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_shader_location =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             format: field_format,
             offset: field_offset,
@@ -20578,21 +20500,21 @@ impl VmAggregateCodec for GpuVertexAttribute {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuVertexAttribute")
+            .begin_named_aggregate_builder("gpu::GpuVertexAttribute")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuVertexFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u64 as VmAggregateCodec>::encode_with_context(self.offset, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.offset, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.shader_location, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -20685,8 +20607,8 @@ impl VmAggregateCodec for GpuVertexBufferLayoutAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -20694,15 +20616,14 @@ impl VmAggregateCodec for GpuVertexBufferLayoutAbi<VmAbi> {
             .boxed());
         }
         let field_slot =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_array_stride =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_step_mode =
-            <GpuVertexStepMode as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_step_mode = <GpuVertexStepMode as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         let field_attributes =
-            <VmSlice<GpuVertexAttributeVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<GpuVertexAttributeVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -20718,29 +20639,28 @@ impl VmAggregateCodec for GpuVertexBufferLayoutAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuVertexBufferLayout")
+            .begin_named_aggregate_builder("gpu::GpuVertexBufferLayout")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.slot, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.slot, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.array_stride, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <GpuVertexStepMode as VmAggregateCodec>::encode_with_context(self.step_mode, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <VmSlice<GpuVertexAttributeVm> as VmAggregateCodec>::encode_with_context(
-                self.attributes,
-                context,
-            )?;
+        let field_value = <VmSlice<GpuVertexAttributeVm> as VmAggregateCodec>::encode_with_context(
+            self.attributes,
+            context,
+        )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -20876,8 +20796,8 @@ impl VmAggregateCodec for GpuVertexStateAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -20885,19 +20805,19 @@ impl VmAggregateCodec for GpuVertexStateAbi<VmAbi> {
             .boxed());
         }
         let field_module =
-            <resource::GpuShaderHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::GpuShaderHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_entry =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_constants =
-            <VmSlice<GpuPipelineConstantVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<GpuPipelineConstantVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_buffers =
-            <VmSlice<GpuVertexBufferLayoutVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<GpuVertexBufferLayoutVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -20913,36 +20833,36 @@ impl VmAggregateCodec for GpuVertexStateAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("gpu::GpuVertexState")
+            .begin_named_aggregate_builder("gpu::GpuVertexState")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <resource::GpuShaderHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <resource::GpuShaderHandle as VmAggregateCodec>::encode_with_context(
             self.module,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.entry, context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<GpuPipelineConstantVm> as VmAggregateCodec>::encode_with_context(
                 self.constants,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<GpuVertexBufferLayoutVm> as VmAggregateCodec>::encode_with_context(
                 self.buffers,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -22457,95 +22377,95 @@ pub const GPU_VERTEX_FORMAT_UNORM8X4: GpuVertexFormat = GpuVertexFormat(6u32);
 /// 8-bit BGRA normalized vertex format.
 pub const GPU_VERTEX_FORMAT_UNORM8X4_BGRA: GpuVertexFormat = GpuVertexFormat(32u32);
 
-/// Register VM storage schemas for gpu.
-pub(crate) fn register_gpu_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
-    isolate.register_named_storage_type("gpu::GpuAdapterFormatCapabilities", 3)?;
-    isolate.register_named_storage_type("gpu::GpuAdapterInfo", 17)?;
-    isolate.register_named_storage_type("gpu::GpuAdapterLimits", 52)?;
-    isolate.register_named_storage_type("gpu::GpuAdapterRequest", 5)?;
-    isolate.register_named_storage_type("gpu::GpuBindGroupBufferResource", 4)?;
-    isolate.register_named_storage_type("gpu::GpuBindGroupEntry", 3)?;
-    isolate.register_named_storage_type("gpu::GpuBindGroupExternalTextureResource", 2)?;
-    isolate.register_named_storage_type("gpu::GpuBindGroupLayoutBufferResource", 4)?;
-    isolate.register_named_storage_type("gpu::GpuBindGroupLayoutEntry", 4)?;
-    isolate.register_named_storage_type("gpu::GpuBindGroupLayoutExternalTextureResource", 1)?;
-    isolate.register_named_storage_type("gpu::GpuBindGroupLayoutOptions", 2)?;
-    isolate.register_named_storage_type("gpu::GpuBindGroupLayoutSampledTextureResource", 4)?;
-    isolate.register_named_storage_type("gpu::GpuBindGroupLayoutSamplerResource", 2)?;
-    isolate.register_named_storage_type("gpu::GpuBindGroupLayoutStorageTextureResource", 4)?;
-    isolate.register_named_storage_type("gpu::GpuBindGroupOptions", 2)?;
-    isolate.register_named_storage_type("gpu::GpuBindGroupSamplerResource", 2)?;
-    isolate.register_named_storage_type("gpu::GpuBindGroupTextureResource", 2)?;
-    isolate.register_named_storage_type("gpu::GpuBlendComponent", 3)?;
-    isolate.register_named_storage_type("gpu::GpuBlendState", 2)?;
-    isolate.register_named_storage_type("gpu::GpuBufferCopy", 2)?;
-    isolate.register_named_storage_type("gpu::GpuBufferCopyLayout", 3)?;
-    isolate.register_named_storage_type("gpu::GpuBufferInfo", 3)?;
-    isolate.register_named_storage_type("gpu::GpuBufferOptions", 5)?;
-    isolate.register_named_storage_type("gpu::GpuBufferTransition", 2)?;
-    isolate.register_named_storage_type("gpu::GpuCapturedError", 2)?;
-    isolate.register_named_storage_type("gpu::GpuColor", 4)?;
-    isolate.register_named_storage_type("gpu::GpuColorTargetState", 3)?;
-    isolate.register_named_storage_type("gpu::GpuCommandBufferOptions", 1)?;
-    isolate.register_named_storage_type("gpu::GpuCommandEncoderOptions", 2)?;
-    isolate.register_named_storage_type("gpu::GpuCompilationInfo", 1)?;
-    isolate.register_named_storage_type("gpu::GpuCompilationMessage", 6)?;
-    isolate.register_named_storage_type("gpu::GpuComputePassOptions", 3)?;
-    isolate.register_named_storage_type("gpu::GpuComputePipelineOptions", 4)?;
-    isolate.register_named_storage_type("gpu::GpuComputeState", 3)?;
-    isolate.register_named_storage_type("gpu::GpuDepthStencilState", 10)?;
-    isolate.register_named_storage_type("gpu::GpuDeviceInfo", 7)?;
-    isolate.register_named_storage_type("gpu::GpuDeviceOptions", 10)?;
-    isolate.register_named_storage_type("gpu::GpuDeviceStatus", 4)?;
-    isolate.register_named_storage_type("gpu::GpuExtent3D", 3)?;
-    isolate.register_named_storage_type("gpu::GpuExternalTextureOptions", 11)?;
-    isolate.register_named_storage_type("gpu::GpuExternalTextureTransferFunction", 4)?;
-    isolate.register_named_storage_type("gpu::GpuFenceOptions", 3)?;
-    isolate.register_named_storage_type("gpu::GpuFragmentState", 4)?;
-    isolate.register_named_storage_type("gpu::GpuManualMemoryHint", 2)?;
-    isolate.register_named_storage_type("gpu::GpuMappedBufferRange", 3)?;
-    isolate.register_named_storage_type("gpu::GpuMultisampleState", 3)?;
-    isolate.register_named_storage_type("gpu::GpuOcclusionQueryType", 1)?;
-    isolate.register_named_storage_type("gpu::GpuPassTimestampWrites", 3)?;
-    isolate.register_named_storage_type("gpu::GpuPipelineConstant", 2)?;
-    isolate.register_named_storage_type("gpu::GpuPipelineLayoutOptions", 4)?;
-    isolate.register_named_storage_type("gpu::GpuPipelineStatisticsQueryType", 2)?;
-    isolate.register_named_storage_type("gpu::GpuPresentationOptions", 4)?;
-    isolate.register_named_storage_type("gpu::GpuPrimitiveState", 7)?;
-    isolate.register_named_storage_type("gpu::GpuQuerySetInfo", 2)?;
-    isolate.register_named_storage_type("gpu::GpuQuerySetOptions", 4)?;
-    isolate.register_named_storage_type("gpu::GpuRenderBundleEncoderOptions", 7)?;
-    isolate.register_named_storage_type("gpu::GpuRenderBundleOptions", 1)?;
-    isolate.register_named_storage_type("gpu::GpuRenderPassColorAttachment", 5)?;
-    isolate.register_named_storage_type("gpu::GpuRenderPassDepthStencilAttachment", 9)?;
-    isolate.register_named_storage_type("gpu::GpuRenderPassOptions", 5)?;
-    isolate.register_named_storage_type("gpu::GpuRenderPipelineOptions", 7)?;
-    isolate.register_named_storage_type("gpu::GpuRenderState", 3)?;
-    isolate.register_named_storage_type("gpu::GpuSamplerOptions", 13)?;
-    isolate.register_named_storage_type("gpu::GpuShaderOptions", 5)?;
-    isolate.register_named_storage_type("gpu::GpuShaderRuntimeChecks", 5)?;
-    isolate.register_named_storage_type("gpu::GpuStencilFaceState", 4)?;
-    isolate.register_named_storage_type("gpu::GpuSubmitOptions", 1)?;
-    isolate.register_named_storage_type("gpu::GpuSurfaceCapabilities", 9)?;
-    isolate.register_named_storage_type("gpu::GpuSurfaceConfiguration", 12)?;
-    isolate.register_named_storage_type("gpu::GpuSurfaceFrame", 3)?;
-    isolate.register_named_storage_type("gpu::GpuSurfaceHdrMetadata", 4)?;
-    isolate.register_named_storage_type("gpu::GpuSurfacePresentationEvent", 11)?;
-    isolate.register_named_storage_type("gpu::GpuSurfacePresentationOpenOptions", 2)?;
-    isolate.register_named_storage_type("gpu::GpuSurfaceStatusInfo", 9)?;
-    isolate.register_named_storage_type("gpu::GpuTextureCopy", 6)?;
-    isolate.register_named_storage_type("gpu::GpuTextureInfo", 8)?;
-    isolate.register_named_storage_type("gpu::GpuTextureOptions", 11)?;
-    isolate.register_named_storage_type("gpu::GpuTextureSubresourceRange", 4)?;
-    isolate.register_named_storage_type("gpu::GpuTextureTransition", 3)?;
-    isolate.register_named_storage_type("gpu::GpuTextureViewOptions", 10)?;
-    isolate.register_named_storage_type("gpu::GpuTimestampQueryType", 1)?;
-    isolate.register_named_storage_type("gpu::GpuVertexAttribute", 3)?;
-    isolate.register_named_storage_type("gpu::GpuVertexBufferLayout", 4)?;
-    isolate.register_named_storage_type("gpu::GpuVertexState", 4)?;
-    isolate.register_named_storage_type("gpu::GpuBindGroupLayoutResource", 2)?;
-    isolate.register_named_storage_type("gpu::GpuBindGroupResource", 2)?;
-    isolate.register_named_storage_type("gpu::GpuQuerySetType", 2)?;
+/// Register VM aggregate schemas for gpu.
+pub(crate) fn register_gpu_vm_aggregate_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_aggregate_type("gpu::GpuAdapterFormatCapabilities", 3)?;
+    isolate.register_named_aggregate_type("gpu::GpuAdapterInfo", 17)?;
+    isolate.register_named_aggregate_type("gpu::GpuAdapterLimits", 52)?;
+    isolate.register_named_aggregate_type("gpu::GpuAdapterRequest", 5)?;
+    isolate.register_named_aggregate_type("gpu::GpuBindGroupBufferResource", 4)?;
+    isolate.register_named_aggregate_type("gpu::GpuBindGroupEntry", 3)?;
+    isolate.register_named_aggregate_type("gpu::GpuBindGroupExternalTextureResource", 2)?;
+    isolate.register_named_aggregate_type("gpu::GpuBindGroupLayoutBufferResource", 4)?;
+    isolate.register_named_aggregate_type("gpu::GpuBindGroupLayoutEntry", 4)?;
+    isolate.register_named_aggregate_type("gpu::GpuBindGroupLayoutExternalTextureResource", 1)?;
+    isolate.register_named_aggregate_type("gpu::GpuBindGroupLayoutOptions", 2)?;
+    isolate.register_named_aggregate_type("gpu::GpuBindGroupLayoutSampledTextureResource", 4)?;
+    isolate.register_named_aggregate_type("gpu::GpuBindGroupLayoutSamplerResource", 2)?;
+    isolate.register_named_aggregate_type("gpu::GpuBindGroupLayoutStorageTextureResource", 4)?;
+    isolate.register_named_aggregate_type("gpu::GpuBindGroupOptions", 2)?;
+    isolate.register_named_aggregate_type("gpu::GpuBindGroupSamplerResource", 2)?;
+    isolate.register_named_aggregate_type("gpu::GpuBindGroupTextureResource", 2)?;
+    isolate.register_named_aggregate_type("gpu::GpuBlendComponent", 3)?;
+    isolate.register_named_aggregate_type("gpu::GpuBlendState", 2)?;
+    isolate.register_named_aggregate_type("gpu::GpuBufferCopy", 2)?;
+    isolate.register_named_aggregate_type("gpu::GpuBufferCopyLayout", 3)?;
+    isolate.register_named_aggregate_type("gpu::GpuBufferInfo", 3)?;
+    isolate.register_named_aggregate_type("gpu::GpuBufferOptions", 5)?;
+    isolate.register_named_aggregate_type("gpu::GpuBufferTransition", 2)?;
+    isolate.register_named_aggregate_type("gpu::GpuCapturedError", 2)?;
+    isolate.register_named_aggregate_type("gpu::GpuColor", 4)?;
+    isolate.register_named_aggregate_type("gpu::GpuColorTargetState", 3)?;
+    isolate.register_named_aggregate_type("gpu::GpuCommandBufferOptions", 1)?;
+    isolate.register_named_aggregate_type("gpu::GpuCommandEncoderOptions", 2)?;
+    isolate.register_named_aggregate_type("gpu::GpuCompilationInfo", 1)?;
+    isolate.register_named_aggregate_type("gpu::GpuCompilationMessage", 6)?;
+    isolate.register_named_aggregate_type("gpu::GpuComputePassOptions", 3)?;
+    isolate.register_named_aggregate_type("gpu::GpuComputePipelineOptions", 4)?;
+    isolate.register_named_aggregate_type("gpu::GpuComputeState", 3)?;
+    isolate.register_named_aggregate_type("gpu::GpuDepthStencilState", 10)?;
+    isolate.register_named_aggregate_type("gpu::GpuDeviceInfo", 7)?;
+    isolate.register_named_aggregate_type("gpu::GpuDeviceOptions", 10)?;
+    isolate.register_named_aggregate_type("gpu::GpuDeviceStatus", 4)?;
+    isolate.register_named_aggregate_type("gpu::GpuExtent3D", 3)?;
+    isolate.register_named_aggregate_type("gpu::GpuExternalTextureOptions", 11)?;
+    isolate.register_named_aggregate_type("gpu::GpuExternalTextureTransferFunction", 4)?;
+    isolate.register_named_aggregate_type("gpu::GpuFenceOptions", 3)?;
+    isolate.register_named_aggregate_type("gpu::GpuFragmentState", 4)?;
+    isolate.register_named_aggregate_type("gpu::GpuManualMemoryHint", 2)?;
+    isolate.register_named_aggregate_type("gpu::GpuMappedBufferRange", 3)?;
+    isolate.register_named_aggregate_type("gpu::GpuMultisampleState", 3)?;
+    isolate.register_named_aggregate_type("gpu::GpuOcclusionQueryType", 1)?;
+    isolate.register_named_aggregate_type("gpu::GpuPassTimestampWrites", 3)?;
+    isolate.register_named_aggregate_type("gpu::GpuPipelineConstant", 2)?;
+    isolate.register_named_aggregate_type("gpu::GpuPipelineLayoutOptions", 4)?;
+    isolate.register_named_aggregate_type("gpu::GpuPipelineStatisticsQueryType", 2)?;
+    isolate.register_named_aggregate_type("gpu::GpuPresentationOptions", 4)?;
+    isolate.register_named_aggregate_type("gpu::GpuPrimitiveState", 7)?;
+    isolate.register_named_aggregate_type("gpu::GpuQuerySetInfo", 2)?;
+    isolate.register_named_aggregate_type("gpu::GpuQuerySetOptions", 4)?;
+    isolate.register_named_aggregate_type("gpu::GpuRenderBundleEncoderOptions", 7)?;
+    isolate.register_named_aggregate_type("gpu::GpuRenderBundleOptions", 1)?;
+    isolate.register_named_aggregate_type("gpu::GpuRenderPassColorAttachment", 5)?;
+    isolate.register_named_aggregate_type("gpu::GpuRenderPassDepthStencilAttachment", 9)?;
+    isolate.register_named_aggregate_type("gpu::GpuRenderPassOptions", 5)?;
+    isolate.register_named_aggregate_type("gpu::GpuRenderPipelineOptions", 7)?;
+    isolate.register_named_aggregate_type("gpu::GpuRenderState", 3)?;
+    isolate.register_named_aggregate_type("gpu::GpuSamplerOptions", 13)?;
+    isolate.register_named_aggregate_type("gpu::GpuShaderOptions", 5)?;
+    isolate.register_named_aggregate_type("gpu::GpuShaderRuntimeChecks", 5)?;
+    isolate.register_named_aggregate_type("gpu::GpuStencilFaceState", 4)?;
+    isolate.register_named_aggregate_type("gpu::GpuSubmitOptions", 1)?;
+    isolate.register_named_aggregate_type("gpu::GpuSurfaceCapabilities", 9)?;
+    isolate.register_named_aggregate_type("gpu::GpuSurfaceConfiguration", 12)?;
+    isolate.register_named_aggregate_type("gpu::GpuSurfaceFrame", 3)?;
+    isolate.register_named_aggregate_type("gpu::GpuSurfaceHdrMetadata", 4)?;
+    isolate.register_named_aggregate_type("gpu::GpuSurfacePresentationEvent", 11)?;
+    isolate.register_named_aggregate_type("gpu::GpuSurfacePresentationOpenOptions", 2)?;
+    isolate.register_named_aggregate_type("gpu::GpuSurfaceStatusInfo", 9)?;
+    isolate.register_named_aggregate_type("gpu::GpuTextureCopy", 6)?;
+    isolate.register_named_aggregate_type("gpu::GpuTextureInfo", 8)?;
+    isolate.register_named_aggregate_type("gpu::GpuTextureOptions", 11)?;
+    isolate.register_named_aggregate_type("gpu::GpuTextureSubresourceRange", 4)?;
+    isolate.register_named_aggregate_type("gpu::GpuTextureTransition", 3)?;
+    isolate.register_named_aggregate_type("gpu::GpuTextureViewOptions", 10)?;
+    isolate.register_named_aggregate_type("gpu::GpuTimestampQueryType", 1)?;
+    isolate.register_named_aggregate_type("gpu::GpuVertexAttribute", 3)?;
+    isolate.register_named_aggregate_type("gpu::GpuVertexBufferLayout", 4)?;
+    isolate.register_named_aggregate_type("gpu::GpuVertexState", 4)?;
+    isolate.register_named_aggregate_type("gpu::GpuBindGroupLayoutResource", 2)?;
+    isolate.register_named_aggregate_type("gpu::GpuBindGroupResource", 2)?;
+    isolate.register_named_aggregate_type("gpu::GpuQuerySetType", 2)?;
 
     Ok(())
 }

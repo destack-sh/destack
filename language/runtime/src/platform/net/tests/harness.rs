@@ -416,7 +416,7 @@ impl<'call> NetHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context required for vm nested byte-slice value");
-                let raw_values = value.raw_values(&context.read())?;
+                let raw_values = value.values(&context.read())?;
                 let mut buffers = Vec::with_capacity(raw_values.len());
                 for raw in raw_values {
                     let buffer = VmSlice::<u8>::from_value(

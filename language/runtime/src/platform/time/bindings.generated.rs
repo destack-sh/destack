@@ -147,19 +147,19 @@ fn encode_destack_time_clock_metadata_result(
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.resolution_ns, 64));
             let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_monotonic));
             let mut value_builder = context
-                .begin_named_storage_value_builder("time::ClockMetadata")
+                .begin_named_aggregate_builder("time::ClockMetadata")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -3393,7 +3393,7 @@ pub(crate) fn install_time_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) -> vm::Result<()> {
-    super::abi_generated::register_time_vm_storage_types(isolate)?;
+    super::abi_generated::register_time_vm_aggregate_types(isolate)?;
     register_time_vm_bindings(registry, isolate);
 
     Ok(())

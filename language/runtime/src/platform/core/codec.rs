@@ -302,7 +302,7 @@ pub(crate) fn bytes_array_array_to_vm(
         .boxed()
     })?;
     let data = context
-        .allocate_raw_value_slots(len)
+        .allocate_heap_value_slots(len)
         .map_err(Box::<RuntimeError>::from)?;
 
     // encode each byte array directly into raw VM storage
@@ -310,12 +310,12 @@ pub(crate) fn bytes_array_array_to_vm(
         let value = VmArray::from_bytes(&mut context, unsafe { value.as_slice()? })?;
         let value = value.encode_with_context(&mut context)?;
         context
-            .write_raw_value(data, index, value)
+            .write_heap_value(data, index, value)
             .map_err(Box::<RuntimeError>::from)?;
     }
 
     Ok(VmArray {
-        data,
+        data: vm::Value::heap_reference(data),
         len: len_u32,
         capacity: len_u32,
         _marker: std::marker::PhantomData,
@@ -366,7 +366,6 @@ where
         let mut write = context.write();
         builder.push(&mut write, value)?;
     }
-
     builder.finish()
 }
 
@@ -420,7 +419,7 @@ pub(crate) fn string_array_to_vm(
         .boxed()
     })?;
     let data = context
-        .allocate_raw_value_slots(len)
+        .allocate_heap_value_slots(len)
         .map_err(Box::<RuntimeError>::from)?;
 
     // encode each string directly into raw VM storage
@@ -430,12 +429,12 @@ pub(crate) fn string_array_to_vm(
             .map_err(Box::<RuntimeError>::from)?;
         let handle = handle.value();
         context
-            .write_raw_value(data, index, handle)
+            .write_heap_value(data, index, handle)
             .map_err(Box::<RuntimeError>::from)?;
     }
 
     Ok(VmArray {
-        data,
+        data: vm::Value::heap_reference(data),
         len: len_u32,
         capacity: len_u32,
         _marker: std::marker::PhantomData,
@@ -458,7 +457,7 @@ pub(crate) fn string_slice_to_vm(
         .boxed()
     })?;
     let data = context
-        .allocate_raw_value_slots(len)
+        .allocate_heap_value_slots(len)
         .map_err(Box::<RuntimeError>::from)?;
 
     // encode each string directly into raw VM storage
@@ -468,12 +467,12 @@ pub(crate) fn string_slice_to_vm(
             .map_err(Box::<RuntimeError>::from)?;
         let handle = handle.value();
         context
-            .write_raw_value(data, index, handle)
+            .write_heap_value(data, index, handle)
             .map_err(Box::<RuntimeError>::from)?;
     }
 
     Ok(VmSlice {
-        data,
+        data: vm::Value::heap_reference(data),
         len: len_u32,
         _marker: std::marker::PhantomData,
     })
@@ -624,7 +623,7 @@ pub(crate) fn decode_vm_byte_slices(
     field: &'static str,
 ) -> RuntimeResult<Vec<VmSlice<u8>>> {
     let context = context.read();
-    let values = buffers.raw_values(&context)?;
+    let values = buffers.values(&context)?;
     let mut decoded = Vec::with_capacity(values.len());
 
     // decode each slice handle

@@ -518,7 +518,7 @@ pub(crate) fn install_resource_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) -> vm::Result<()> {
-    super::abi_generated::register_resource_vm_storage_types(isolate)?;
+    super::abi_generated::register_resource_vm_aggregate_types(isolate)?;
     register_resource_vm_bindings(registry, isolate);
 
     Ok(())

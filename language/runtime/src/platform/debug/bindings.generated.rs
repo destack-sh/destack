@@ -216,13 +216,13 @@ fn encode_destack_debug_inspector_endpoint_result(
             let field_1: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.process_id as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("debug::InspectorEndpoint")
+                .begin_named_aggregate_builder("debug::InspectorEndpoint")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -2099,7 +2099,7 @@ pub(crate) fn install_debug_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) -> vm::Result<()> {
-    super::abi_generated::register_debug_vm_storage_types(isolate)?;
+    super::abi_generated::register_debug_vm_aggregate_types(isolate)?;
     register_debug_vm_bindings(registry, isolate);
 
     Ok(())

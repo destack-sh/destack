@@ -309,19 +309,10 @@ impl RuntimeDescriptorCodec {
             ))
             .boxed()
         })?;
-        let shared_page_count =
-            u32::try_from(worker.heap_image.raw_page_count()).map_err(|_| {
-                RuntimeError::from(PlatformError::invalid_argument_value(
-                    "sharedPageCount",
-                    "shared heap page count exceeds uint32",
-                ))
-                .boxed()
-            })?;
 
         Ok(HeapDescriptor {
             heap_bytes: worker.heap_image.local_allocated_bytes()?,
             page_count,
-            shared_page_count,
             gc_cycles: worker.heap_image.gc_state().completed_cycles,
         })
     }
@@ -333,7 +324,7 @@ impl RuntimeDescriptorCodec {
         match &worker.engine_image {
             EngineImage::Vm(image) => {
                 let call_stack_depth =
-                    u32::try_from(image.interpreter.call_stack.len()).map_err(|_| {
+                    u32::try_from(image.interpreter.stack.len()).map_err(|_| {
                         RuntimeError::from(PlatformError::invalid_argument_value(
                             "callStackDepth",
                             "engine call stack depth exceeds uint32",
@@ -342,13 +333,13 @@ impl RuntimeDescriptorCodec {
                     })?;
                 let value_slots = image
                     .interpreter
-                    .call_stack
+                    .stack
                     .iter()
                     .map(|frame| frame.value_count)
                     .sum::<usize>();
                 let local_slots = image
                     .interpreter
-                    .call_stack
+                    .stack
                     .iter()
                     .map(|frame| frame.local_count)
                     .sum::<usize>();

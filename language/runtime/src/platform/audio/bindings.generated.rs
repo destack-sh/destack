@@ -352,43 +352,43 @@ fn encode_destack_audio_clock_stream_result(
                 Ok(vm::Value::int(value.device_quality as i32 as i64, 32));
             let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.monotonic_ns, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("audio::AudioClockSnapshot")
+                .begin_named_aggregate_builder("audio::AudioClockSnapshot")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -579,97 +579,97 @@ fn encode_destack_audio_device_descriptor_result(
             let field_29: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.share_mode_mask as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("audio::AudioDeviceDescriptor")
+                .begin_named_aggregate_builder("audio::AudioDeviceDescriptor")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(14, field_14?)
+                .write_field(14, field_14?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(15, field_15?)
+                .write_field(15, field_15?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(16, field_16?)
+                .write_field(16, field_16?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(17, field_17?)
+                .write_field(17, field_17?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(18, field_18?)
+                .write_field(18, field_18?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(19, field_19?)
+                .write_field(19, field_19?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(20, field_20?)
+                .write_field(20, field_20?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(21, field_21?)
+                .write_field(21, field_21?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(22, field_22?)
+                .write_field(22, field_22?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(23, field_23?)
+                .write_field(23, field_23?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(24, field_24?)
+                .write_field(24, field_24?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(25, field_25?)
+                .write_field(25, field_25?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(26, field_26?)
+                .write_field(26, field_26?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(27, field_27?)
+                .write_field(27, field_27?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(28, field_28?)
+                .write_field(28, field_28?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(29, field_29?)
+                .write_field(29, field_29?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -878,25 +878,25 @@ fn encode_destack_audio_event_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -905,27 +905,27 @@ fn encode_destack_audio_event_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioBackendDisconnectedEvent")
+                        .begin_named_aggregate_builder("audio::AudioBackendDisconnectedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -947,25 +947,25 @@ fn encode_destack_audio_event_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -974,27 +974,27 @@ fn encode_destack_audio_event_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioBackendResetEvent")
+                        .begin_named_aggregate_builder("audio::AudioBackendResetEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1016,25 +1016,25 @@ fn encode_destack_audio_event_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1043,27 +1043,27 @@ fn encode_destack_audio_event_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioDefaultCaptureChangedEvent")
+                        .begin_named_aggregate_builder("audio::AudioDefaultCaptureChangedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1085,25 +1085,25 @@ fn encode_destack_audio_event_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1112,29 +1112,27 @@ fn encode_destack_audio_event_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "audio::AudioDefaultLoopbackChangedEvent",
-                        )
+                        .begin_named_aggregate_builder("audio::AudioDefaultLoopbackChangedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1156,25 +1154,25 @@ fn encode_destack_audio_event_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1183,29 +1181,27 @@ fn encode_destack_audio_event_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "audio::AudioDefaultPlaybackChangedEvent",
-                        )
+                        .begin_named_aggregate_builder("audio::AudioDefaultPlaybackChangedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1227,25 +1223,25 @@ fn encode_destack_audio_event_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1254,27 +1250,27 @@ fn encode_destack_audio_event_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioDeviceAddedEvent")
+                        .begin_named_aggregate_builder("audio::AudioDeviceAddedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1296,25 +1292,25 @@ fn encode_destack_audio_event_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1323,27 +1319,27 @@ fn encode_destack_audio_event_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioDeviceFormatChangedEvent")
+                        .begin_named_aggregate_builder("audio::AudioDeviceFormatChangedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1365,25 +1361,25 @@ fn encode_destack_audio_event_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1392,27 +1388,27 @@ fn encode_destack_audio_event_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioDeviceRemovedEvent")
+                        .begin_named_aggregate_builder("audio::AudioDeviceRemovedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1434,25 +1430,25 @@ fn encode_destack_audio_event_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1461,27 +1457,27 @@ fn encode_destack_audio_event_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioDeviceReroutedEvent")
+                        .begin_named_aggregate_builder("audio::AudioDeviceReroutedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1503,25 +1499,25 @@ fn encode_destack_audio_event_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1530,27 +1526,27 @@ fn encode_destack_audio_event_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioInterruptionBeganEvent")
+                        .begin_named_aggregate_builder("audio::AudioInterruptionBeganEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1572,25 +1568,25 @@ fn encode_destack_audio_event_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1599,27 +1595,27 @@ fn encode_destack_audio_event_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioInterruptionEndedEvent")
+                        .begin_named_aggregate_builder("audio::AudioInterruptionEndedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1641,25 +1637,25 @@ fn encode_destack_audio_event_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1674,33 +1670,33 @@ fn encode_destack_audio_event_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioStreamDeviceChangedEvent")
+                        .begin_named_aggregate_builder("audio::AudioStreamDeviceChangedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1722,25 +1718,25 @@ fn encode_destack_audio_event_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1751,30 +1747,30 @@ fn encode_destack_audio_event_read_result(
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.status_flags.0 as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioStreamStateChangedEvent")
+                        .begin_named_aggregate_builder("audio::AudioStreamStateChangedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1796,25 +1792,25 @@ fn encode_destack_audio_event_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1831,36 +1827,36 @@ fn encode_destack_audio_event_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioStreamXRunEvent")
+                        .begin_named_aggregate_builder("audio::AudioStreamXRunEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(5, field_5?)
+                        .write_field(5, field_5?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1937,25 +1933,25 @@ fn encode_destack_audio_event_try_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1964,27 +1960,27 @@ fn encode_destack_audio_event_try_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioBackendDisconnectedEvent")
+                        .begin_named_aggregate_builder("audio::AudioBackendDisconnectedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2006,25 +2002,25 @@ fn encode_destack_audio_event_try_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2033,27 +2029,27 @@ fn encode_destack_audio_event_try_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioBackendResetEvent")
+                        .begin_named_aggregate_builder("audio::AudioBackendResetEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2075,25 +2071,25 @@ fn encode_destack_audio_event_try_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2102,27 +2098,27 @@ fn encode_destack_audio_event_try_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioDefaultCaptureChangedEvent")
+                        .begin_named_aggregate_builder("audio::AudioDefaultCaptureChangedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2144,25 +2140,25 @@ fn encode_destack_audio_event_try_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2171,29 +2167,27 @@ fn encode_destack_audio_event_try_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "audio::AudioDefaultLoopbackChangedEvent",
-                        )
+                        .begin_named_aggregate_builder("audio::AudioDefaultLoopbackChangedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2215,25 +2209,25 @@ fn encode_destack_audio_event_try_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2242,29 +2236,27 @@ fn encode_destack_audio_event_try_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "audio::AudioDefaultPlaybackChangedEvent",
-                        )
+                        .begin_named_aggregate_builder("audio::AudioDefaultPlaybackChangedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2286,25 +2278,25 @@ fn encode_destack_audio_event_try_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2313,27 +2305,27 @@ fn encode_destack_audio_event_try_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioDeviceAddedEvent")
+                        .begin_named_aggregate_builder("audio::AudioDeviceAddedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2355,25 +2347,25 @@ fn encode_destack_audio_event_try_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2382,27 +2374,27 @@ fn encode_destack_audio_event_try_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioDeviceFormatChangedEvent")
+                        .begin_named_aggregate_builder("audio::AudioDeviceFormatChangedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2424,25 +2416,25 @@ fn encode_destack_audio_event_try_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2451,27 +2443,27 @@ fn encode_destack_audio_event_try_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioDeviceRemovedEvent")
+                        .begin_named_aggregate_builder("audio::AudioDeviceRemovedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2493,25 +2485,25 @@ fn encode_destack_audio_event_try_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2520,27 +2512,27 @@ fn encode_destack_audio_event_try_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioDeviceReroutedEvent")
+                        .begin_named_aggregate_builder("audio::AudioDeviceReroutedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2562,25 +2554,25 @@ fn encode_destack_audio_event_try_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2589,27 +2581,27 @@ fn encode_destack_audio_event_try_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioInterruptionBeganEvent")
+                        .begin_named_aggregate_builder("audio::AudioInterruptionBeganEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2631,25 +2623,25 @@ fn encode_destack_audio_event_try_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2658,27 +2650,27 @@ fn encode_destack_audio_event_try_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioInterruptionEndedEvent")
+                        .begin_named_aggregate_builder("audio::AudioInterruptionEndedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2700,25 +2692,25 @@ fn encode_destack_audio_event_try_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2733,33 +2725,33 @@ fn encode_destack_audio_event_try_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioStreamDeviceChangedEvent")
+                        .begin_named_aggregate_builder("audio::AudioStreamDeviceChangedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2781,25 +2773,25 @@ fn encode_destack_audio_event_try_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2810,30 +2802,30 @@ fn encode_destack_audio_event_try_read_result(
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.status_flags.0 as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioStreamStateChangedEvent")
+                        .begin_named_aggregate_builder("audio::AudioStreamStateChangedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2855,25 +2847,25 @@ fn encode_destack_audio_event_try_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.flags as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+                            .begin_named_aggregate_builder("audio::AudioEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2890,36 +2882,36 @@ fn encode_destack_audio_event_try_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("audio::AudioStreamXRunEvent")
+                        .begin_named_aggregate_builder("audio::AudioStreamXRunEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(5, field_5?)
+                        .write_field(5, field_5?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3008,22 +3000,22 @@ fn encode_destack_audio_stream_availability_result(
                 Ok(vm::Value::uint(value.max_transfer_frames as u64, 32));
             let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("audio::AudioStreamAvailability")
+                .begin_named_aggregate_builder("audio::AudioStreamAvailability")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -3114,76 +3106,76 @@ fn encode_destack_audio_stream_descriptor_result(
             let field_22: RuntimeResult<vm::Value> =
                 Ok(vm::Value::bool(value.supports_hardware_timestamps));
             let mut value_builder = context
-                .begin_named_storage_value_builder("audio::AudioStreamDescriptor")
+                .begin_named_aggregate_builder("audio::AudioStreamDescriptor")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(14, field_14?)
+                .write_field(14, field_14?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(15, field_15?)
+                .write_field(15, field_15?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(16, field_16?)
+                .write_field(16, field_16?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(17, field_17?)
+                .write_field(17, field_17?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(18, field_18?)
+                .write_field(18, field_18?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(19, field_19?)
+                .write_field(19, field_19?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(20, field_20?)
+                .write_field(20, field_20?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(21, field_21?)
+                .write_field(21, field_21?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(22, field_22?)
+                .write_field(22, field_22?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -3503,49 +3495,49 @@ fn encode_destack_audio_stream_state_result(
             let field_13: RuntimeResult<vm::Value> =
                 Ok(vm::Value::float64(value.callback_cpu_load));
             let mut value_builder = context
-                .begin_named_storage_value_builder("audio::AudioStreamState")
+                .begin_named_aggregate_builder("audio::AudioStreamState")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -3673,76 +3665,76 @@ fn encode_destack_audio_stream_support_result(
                     value.descriptor.supports_hardware_timestamps,
                 ));
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioStreamDescriptor")
+                    .begin_named_aggregate_builder("audio::AudioStreamDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(3, field_3?)
+                    .write_field(3, field_3?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(4, field_4?)
+                    .write_field(4, field_4?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(5, field_5?)
+                    .write_field(5, field_5?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(6, field_6?)
+                    .write_field(6, field_6?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(7, field_7?)
+                    .write_field(7, field_7?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(8, field_8?)
+                    .write_field(8, field_8?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(9, field_9?)
+                    .write_field(9, field_9?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(10, field_10?)
+                    .write_field(10, field_10?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(11, field_11?)
+                    .write_field(11, field_11?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(12, field_12?)
+                    .write_field(12, field_12?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(13, field_13?)
+                    .write_field(13, field_13?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(14, field_14?)
+                    .write_field(14, field_14?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(15, field_15?)
+                    .write_field(15, field_15?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(16, field_16?)
+                    .write_field(16, field_16?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(17, field_17?)
+                    .write_field(17, field_17?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(18, field_18?)
+                    .write_field(18, field_18?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(19, field_19?)
+                    .write_field(19, field_19?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(20, field_20?)
+                    .write_field(20, field_20?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(21, field_21?)
+                    .write_field(21, field_21?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(22, field_22?)
+                    .write_field(22, field_22?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
@@ -3751,19 +3743,19 @@ fn encode_destack_audio_stream_support_result(
             let field_3: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.unsatisfied_requirements.0 as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("audio::AudioStreamSupport")
+                .begin_named_aggregate_builder("audio::AudioStreamSupport")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -3816,34 +3808,34 @@ fn encode_destack_audio_stream_timing_result(
             let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.drift_ppm));
             let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.callback_cpu_load));
             let mut value_builder = context
-                .begin_named_storage_value_builder("audio::AudioStreamTiming")
+                .begin_named_aggregate_builder("audio::AudioStreamTiming")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -12472,7 +12464,7 @@ fn destack_audio_backend_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<AudioBackendDescriptorVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -13155,7 +13147,7 @@ fn destack_audio_device_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<AudioDeviceDescriptorVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -14622,7 +14614,7 @@ fn destack_audio_event_read_batch_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<AudioEventVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = <AudioEventVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
@@ -16600,7 +16592,7 @@ fn destack_audio_event_try_read_batch_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<AudioEventVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = <AudioEventVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
@@ -20221,7 +20213,7 @@ pub(crate) fn install_audio_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) -> vm::Result<()> {
-    super::abi_generated::register_audio_vm_storage_types(isolate)?;
+    super::abi_generated::register_audio_vm_aggregate_types(isolate)?;
     register_audio_vm_bindings(registry, isolate);
 
     Ok(())

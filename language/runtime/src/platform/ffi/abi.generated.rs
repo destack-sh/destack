@@ -72,7 +72,7 @@ impl VmAbiCodec for FfiPointer {
     }
 }
 
-/// Register VM storage schemas for ffi.
-pub(crate) fn register_ffi_vm_storage_types(_isolate: &mut vm::Isolate) -> vm::Result<()> {
+/// Register VM aggregate schemas for ffi.
+pub(crate) fn register_ffi_vm_aggregate_types(_isolate: &mut vm::Isolate) -> vm::Result<()> {
     Ok(())
 }

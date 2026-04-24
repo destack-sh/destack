@@ -127,7 +127,7 @@ fn process_stdio_slice_from_vm(
         return Ok(binding.store_slice(Vec::new()));
     }
 
-    let values = stdio.raw_values(&context.read())?;
+    let values = stdio.values(&context.read())?;
     let mut native_values = Vec::with_capacity(values.len());
     for value in values {
         let value =
@@ -147,7 +147,7 @@ fn process_fd_action_slice_from_vm(
         return Ok(binding.store_slice(Vec::new()));
     }
 
-    let values = actions.raw_values(&context.read())?;
+    let values = actions.values(&context.read())?;
     let mut native_values = Vec::with_capacity(values.len());
     for value in values {
         let value =

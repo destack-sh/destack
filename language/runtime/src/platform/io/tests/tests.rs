@@ -15,8 +15,7 @@ use crate::platform::fs::core as core_fs;
 use crate::platform::io::{
     CompletionEvent, CompletionEventVm, CompletionOperation, CompletionOperationKind,
     DescriptorControlCommand, DescriptorControlFlags, DescriptorRequest, DescriptorRequestVm,
-    EventToken, PollBackend, PollEvent, PollEventVm, PollInterest, UringParameters,
-    UringParametersVm,
+    EventToken, PollBackend, PollEvent, PollEventVm, UringParameters, UringParametersVm,
 };
 #[cfg(target_os = "linux")]
 use crate::platform::resource::UringHandle;
@@ -271,69 +270,7 @@ fn decode_vm_poll_events(
     context: &mut vm::ExternalCallContext<'_>,
     value: VmArray<PollEventVm>,
 ) -> RuntimeResult<Vec<PollEvent>> {
-    // read vm array payload
-    let values = value.raw_values(&context.read())?;
-    let mut events = Vec::with_capacity(values.len());
-
-    for value in values {
-        // decode aggregate fields
-        let slots = context
-            .decode_component_values(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "event",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-
-        let (key, key_width) = slots[0].as_uint_with_width().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type("event.key", "uint64")).boxed()
-        })?;
-        if key_width != 64 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "event.key",
-                "uint64",
-            ))
-            .boxed());
-        }
-
-        let (ready, ready_width) = slots[1].as_uint_with_width().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type(
-                "event.ready",
-                "uint32",
-            ))
-            .boxed()
-        })?;
-        if ready_width != 32 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "event.ready",
-                "uint32",
-            ))
-            .boxed());
-        }
-
-        let (data, data_width) = slots[2].as_int_with_width().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type("event.data", "int32")).boxed()
-        })?;
-        if data_width != 32 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "event.data",
-                "int32",
-            ))
-            .boxed());
-        }
-
-        // normalize decoded event
-        events.push(PollEvent {
-            key,
-            ready: PollInterest(ready as u32),
-            data: data as i32,
-        });
-    }
-
-    Ok(events)
+    value.read_values(&context.read())
 }
 
 /// Decode one VM completion event array payload.
@@ -341,73 +278,7 @@ fn decode_vm_completion_events(
     context: &mut vm::ExternalCallContext<'_>,
     value: VmArray<CompletionEventVm>,
 ) -> RuntimeResult<Vec<CompletionEvent>> {
-    // read vm array payload
-    let values = value.raw_values(&context.read())?;
-    let mut events = Vec::with_capacity(values.len());
-
-    for value in values {
-        // decode aggregate fields
-        let slots = context
-            .decode_component_values(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "event",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-
-        let (key, key_width) = slots[0].as_uint_with_width().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type("event.key", "uint64")).boxed()
-        })?;
-        if key_width != 64 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "event.key",
-                "uint64",
-            ))
-            .boxed());
-        }
-
-        let (result, result_width) = slots[1].as_int_with_width().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type(
-                "event.result",
-                "int64",
-            ))
-            .boxed()
-        })?;
-        if result_width != 64 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "event.result",
-                "int64",
-            ))
-            .boxed());
-        }
-
-        let (flags, flags_width) = slots[2].as_uint_with_width().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type(
-                "event.flags",
-                "uint32",
-            ))
-            .boxed()
-        })?;
-        if flags_width != 32 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "event.flags",
-                "uint32",
-            ))
-            .boxed());
-        }
-
-        // normalize decoded event
-        events.push(CompletionEvent {
-            key,
-            result,
-            flags: flags as u32,
-        });
-    }
-
-    Ok(events)
+    value.read_values(&context.read())
 }
 
 /// Native io harness.

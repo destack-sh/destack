@@ -17,14 +17,14 @@ use crate::platform::fs::{
 };
 use crate::platform::resource::{ListenerHandle, ResourceKind, SocketHandle};
 use crate::platform::{
-    NativeArray, PlatformError, VmArray, VmSlice, VmValueCodec, net as platform_net,
+    NativeArray, PlatformError, VmAggregateCodec, VmArray, VmSlice, net as platform_net,
 };
 use crate::runtime::{BindingCallContext, Worker};
 #[cfg(windows)]
 pub(crate) use crate::tests::platform::assert_not_supported_result;
 pub(crate) use crate::tests::platform::{
     assert_platform_error_code_with_privileged_policy,
-    assert_platform_error_codes_with_privileged_policy, vm_test_raw_values, vm_test_string,
+    assert_platform_error_codes_with_privileged_policy, vm_test_string, vm_test_values,
 };
 use crate::tests::runtime::TestRuntime;
 use platform_net::{
@@ -392,7 +392,7 @@ fn vm_slice_of_slices(
         .map(|slice| slice.to_value(&mut context.write()))
         .collect::<RuntimeResult<Vec<_>>>()
         .expect("vm test slice values should encode");
-    let data = vm_test_raw_values(context, values);
+    let data = vm_test_values(context, values);
     VmSlice {
         data,
         len: slices.len() as u32,
@@ -435,7 +435,7 @@ fn socket_addresses_vm(
     context: &mut vm::ExternalCallContext<'_>,
     addresses: VmArray<SocketAddressVm>,
 ) -> RuntimeResult<Vec<(String, u16, SocketFamily)>> {
-    let values = addresses.raw_values(&context.read())?;
+    let values = addresses.values(&context.read())?;
     let mut decoded = Vec::with_capacity(values.len());
     for value in values {
         let address = socket_address_vm_from_value(context, value)?;
@@ -492,26 +492,14 @@ fn reverse_lookup_records_vm(
     context: &mut vm::ExternalCallContext<'_>,
     values: VmArray<platform_net::ReverseLookupNameVm>,
 ) -> RuntimeResult<Vec<(String, String)>> {
-    let values = values.raw_values(&context.read())?;
+    let values = values.read_values(&context.read())?;
     let mut decoded = Vec::with_capacity(values.len());
     for value in values {
-        let slots = context
-            .decode_component_values(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "names",
-                "expected reverse lookup name aggregate with 2 fields",
-            ))
-            .boxed());
-        }
-        let host = vm::StringHandle::new(slots[0]);
         let host = context
-            .string_ref(host)
+            .string_ref(value.host)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        let service = vm::StringHandle::new(slots[1]);
         let service = context
-            .string_ref(service)
+            .string_ref(value.service)
             .map_err(|error| RuntimeError::from(error).boxed())?;
         decoded.push((host.as_str().to_string(), service.as_str().to_string()));
     }
@@ -943,29 +931,7 @@ fn socket_address_vm_from_value(
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
 ) -> RuntimeResult<SocketAddressVm> {
-    // decode aggregate fields
-    let slots = context
-        .decode_component_values(value)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-    if slots.len() != 3 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "address",
-            "expected SocketAddress aggregate with 3 fields",
-        ))
-        .boxed());
-    }
-
-    // decode family, length, and bytes
-    let family = <u16 as VmValueCodec>::decode(slots[0])?;
-    let length = <u32 as VmValueCodec>::decode(slots[1])?;
-    let bytes =
-        VmArray::<u8>::from_value(&context.read(), slots[2], "address.bytes", "VmArray<u8>")?;
-
-    Ok(SocketAddressVm {
-        family,
-        length,
-        bytes,
-    })
+    SocketAddressVm::decode_with_context(&context.read(), value)
 }
 
 fn path_ref_vm(context: &mut vm::ExternalCallContext<'_>, path: &std::path::Path) -> OsPathVm {

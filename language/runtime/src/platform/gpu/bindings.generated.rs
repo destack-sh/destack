@@ -356,16 +356,16 @@ fn encode_destack_gpu_adapter_format_capabilities_result(
                 Ok(vm::Value::uint(value.allowed_usages.0 as u64, 32));
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags.0 as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("gpu::GpuAdapterFormatCapabilities")
+                .begin_named_aggregate_builder("gpu::GpuAdapterFormatCapabilities")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -728,219 +728,219 @@ fn encode_destack_gpu_adapter_info_result(
                     32,
                 ));
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("gpu::GpuAdapterLimits")
+                    .begin_named_aggregate_builder("gpu::GpuAdapterLimits")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(3, field_3?)
+                    .write_field(3, field_3?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(4, field_4?)
+                    .write_field(4, field_4?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(5, field_5?)
+                    .write_field(5, field_5?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(6, field_6?)
+                    .write_field(6, field_6?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(7, field_7?)
+                    .write_field(7, field_7?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(8, field_8?)
+                    .write_field(8, field_8?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(9, field_9?)
+                    .write_field(9, field_9?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(10, field_10?)
+                    .write_field(10, field_10?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(11, field_11?)
+                    .write_field(11, field_11?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(12, field_12?)
+                    .write_field(12, field_12?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(13, field_13?)
+                    .write_field(13, field_13?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(14, field_14?)
+                    .write_field(14, field_14?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(15, field_15?)
+                    .write_field(15, field_15?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(16, field_16?)
+                    .write_field(16, field_16?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(17, field_17?)
+                    .write_field(17, field_17?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(18, field_18?)
+                    .write_field(18, field_18?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(19, field_19?)
+                    .write_field(19, field_19?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(20, field_20?)
+                    .write_field(20, field_20?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(21, field_21?)
+                    .write_field(21, field_21?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(22, field_22?)
+                    .write_field(22, field_22?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(23, field_23?)
+                    .write_field(23, field_23?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(24, field_24?)
+                    .write_field(24, field_24?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(25, field_25?)
+                    .write_field(25, field_25?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(26, field_26?)
+                    .write_field(26, field_26?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(27, field_27?)
+                    .write_field(27, field_27?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(28, field_28?)
+                    .write_field(28, field_28?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(29, field_29?)
+                    .write_field(29, field_29?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(30, field_30?)
+                    .write_field(30, field_30?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(31, field_31?)
+                    .write_field(31, field_31?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(32, field_32?)
+                    .write_field(32, field_32?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(33, field_33?)
+                    .write_field(33, field_33?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(34, field_34?)
+                    .write_field(34, field_34?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(35, field_35?)
+                    .write_field(35, field_35?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(36, field_36?)
+                    .write_field(36, field_36?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(37, field_37?)
+                    .write_field(37, field_37?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(38, field_38?)
+                    .write_field(38, field_38?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(39, field_39?)
+                    .write_field(39, field_39?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(40, field_40?)
+                    .write_field(40, field_40?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(41, field_41?)
+                    .write_field(41, field_41?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(42, field_42?)
+                    .write_field(42, field_42?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(43, field_43?)
+                    .write_field(43, field_43?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(44, field_44?)
+                    .write_field(44, field_44?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(45, field_45?)
+                    .write_field(45, field_45?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(46, field_46?)
+                    .write_field(46, field_46?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(47, field_47?)
+                    .write_field(47, field_47?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(48, field_48?)
+                    .write_field(48, field_48?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(49, field_49?)
+                    .write_field(49, field_49?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(50, field_50?)
+                    .write_field(50, field_50?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(51, field_51?)
+                    .write_field(51, field_51?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("gpu::GpuAdapterInfo")
+                .begin_named_aggregate_builder("gpu::GpuAdapterInfo")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(14, field_14?)
+                .write_field(14, field_14?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(15, field_15?)
+                .write_field(15, field_15?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(16, field_16?)
+                .write_field(16, field_16?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -1133,163 +1133,163 @@ fn encode_destack_gpu_adapter_limits_result(
             let field_51: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.max_multiview_view_count as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("gpu::GpuAdapterLimits")
+                .begin_named_aggregate_builder("gpu::GpuAdapterLimits")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(14, field_14?)
+                .write_field(14, field_14?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(15, field_15?)
+                .write_field(15, field_15?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(16, field_16?)
+                .write_field(16, field_16?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(17, field_17?)
+                .write_field(17, field_17?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(18, field_18?)
+                .write_field(18, field_18?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(19, field_19?)
+                .write_field(19, field_19?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(20, field_20?)
+                .write_field(20, field_20?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(21, field_21?)
+                .write_field(21, field_21?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(22, field_22?)
+                .write_field(22, field_22?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(23, field_23?)
+                .write_field(23, field_23?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(24, field_24?)
+                .write_field(24, field_24?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(25, field_25?)
+                .write_field(25, field_25?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(26, field_26?)
+                .write_field(26, field_26?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(27, field_27?)
+                .write_field(27, field_27?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(28, field_28?)
+                .write_field(28, field_28?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(29, field_29?)
+                .write_field(29, field_29?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(30, field_30?)
+                .write_field(30, field_30?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(31, field_31?)
+                .write_field(31, field_31?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(32, field_32?)
+                .write_field(32, field_32?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(33, field_33?)
+                .write_field(33, field_33?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(34, field_34?)
+                .write_field(34, field_34?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(35, field_35?)
+                .write_field(35, field_35?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(36, field_36?)
+                .write_field(36, field_36?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(37, field_37?)
+                .write_field(37, field_37?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(38, field_38?)
+                .write_field(38, field_38?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(39, field_39?)
+                .write_field(39, field_39?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(40, field_40?)
+                .write_field(40, field_40?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(41, field_41?)
+                .write_field(41, field_41?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(42, field_42?)
+                .write_field(42, field_42?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(43, field_43?)
+                .write_field(43, field_43?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(44, field_44?)
+                .write_field(44, field_44?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(45, field_45?)
+                .write_field(45, field_45?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(46, field_46?)
+                .write_field(46, field_46?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(47, field_47?)
+                .write_field(47, field_47?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(48, field_48?)
+                .write_field(48, field_48?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(49, field_49?)
+                .write_field(49, field_49?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(50, field_50?)
+                .write_field(50, field_50?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(51, field_51?)
+                .write_field(51, field_51?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -4171,163 +4171,163 @@ fn encode_destack_gpu_device_info_result(
                     32,
                 ));
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("gpu::GpuAdapterLimits")
+                    .begin_named_aggregate_builder("gpu::GpuAdapterLimits")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(3, field_3?)
+                    .write_field(3, field_3?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(4, field_4?)
+                    .write_field(4, field_4?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(5, field_5?)
+                    .write_field(5, field_5?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(6, field_6?)
+                    .write_field(6, field_6?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(7, field_7?)
+                    .write_field(7, field_7?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(8, field_8?)
+                    .write_field(8, field_8?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(9, field_9?)
+                    .write_field(9, field_9?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(10, field_10?)
+                    .write_field(10, field_10?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(11, field_11?)
+                    .write_field(11, field_11?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(12, field_12?)
+                    .write_field(12, field_12?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(13, field_13?)
+                    .write_field(13, field_13?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(14, field_14?)
+                    .write_field(14, field_14?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(15, field_15?)
+                    .write_field(15, field_15?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(16, field_16?)
+                    .write_field(16, field_16?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(17, field_17?)
+                    .write_field(17, field_17?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(18, field_18?)
+                    .write_field(18, field_18?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(19, field_19?)
+                    .write_field(19, field_19?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(20, field_20?)
+                    .write_field(20, field_20?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(21, field_21?)
+                    .write_field(21, field_21?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(22, field_22?)
+                    .write_field(22, field_22?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(23, field_23?)
+                    .write_field(23, field_23?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(24, field_24?)
+                    .write_field(24, field_24?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(25, field_25?)
+                    .write_field(25, field_25?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(26, field_26?)
+                    .write_field(26, field_26?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(27, field_27?)
+                    .write_field(27, field_27?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(28, field_28?)
+                    .write_field(28, field_28?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(29, field_29?)
+                    .write_field(29, field_29?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(30, field_30?)
+                    .write_field(30, field_30?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(31, field_31?)
+                    .write_field(31, field_31?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(32, field_32?)
+                    .write_field(32, field_32?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(33, field_33?)
+                    .write_field(33, field_33?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(34, field_34?)
+                    .write_field(34, field_34?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(35, field_35?)
+                    .write_field(35, field_35?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(36, field_36?)
+                    .write_field(36, field_36?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(37, field_37?)
+                    .write_field(37, field_37?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(38, field_38?)
+                    .write_field(38, field_38?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(39, field_39?)
+                    .write_field(39, field_39?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(40, field_40?)
+                    .write_field(40, field_40?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(41, field_41?)
+                    .write_field(41, field_41?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(42, field_42?)
+                    .write_field(42, field_42?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(43, field_43?)
+                    .write_field(43, field_43?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(44, field_44?)
+                    .write_field(44, field_44?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(45, field_45?)
+                    .write_field(45, field_45?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(46, field_46?)
+                    .write_field(46, field_46?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(47, field_47?)
+                    .write_field(47, field_47?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(48, field_48?)
+                    .write_field(48, field_48?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(49, field_49?)
+                    .write_field(49, field_49?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(50, field_50?)
+                    .write_field(50, field_50?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(51, field_51?)
+                    .write_field(51, field_51?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
@@ -4338,28 +4338,28 @@ fn encode_destack_gpu_device_info_result(
                 Ok(vm::Value::bool(value.has_timestamp_queries));
             let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_push_constants));
             let mut value_builder = context
-                .begin_named_storage_value_builder("gpu::GpuDeviceInfo")
+                .begin_named_aggregate_builder("gpu::GpuDeviceInfo")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -4552,163 +4552,163 @@ fn encode_destack_gpu_device_limits_result(
             let field_51: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.max_multiview_view_count as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("gpu::GpuAdapterLimits")
+                .begin_named_aggregate_builder("gpu::GpuAdapterLimits")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(14, field_14?)
+                .write_field(14, field_14?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(15, field_15?)
+                .write_field(15, field_15?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(16, field_16?)
+                .write_field(16, field_16?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(17, field_17?)
+                .write_field(17, field_17?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(18, field_18?)
+                .write_field(18, field_18?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(19, field_19?)
+                .write_field(19, field_19?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(20, field_20?)
+                .write_field(20, field_20?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(21, field_21?)
+                .write_field(21, field_21?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(22, field_22?)
+                .write_field(22, field_22?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(23, field_23?)
+                .write_field(23, field_23?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(24, field_24?)
+                .write_field(24, field_24?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(25, field_25?)
+                .write_field(25, field_25?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(26, field_26?)
+                .write_field(26, field_26?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(27, field_27?)
+                .write_field(27, field_27?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(28, field_28?)
+                .write_field(28, field_28?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(29, field_29?)
+                .write_field(29, field_29?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(30, field_30?)
+                .write_field(30, field_30?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(31, field_31?)
+                .write_field(31, field_31?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(32, field_32?)
+                .write_field(32, field_32?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(33, field_33?)
+                .write_field(33, field_33?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(34, field_34?)
+                .write_field(34, field_34?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(35, field_35?)
+                .write_field(35, field_35?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(36, field_36?)
+                .write_field(36, field_36?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(37, field_37?)
+                .write_field(37, field_37?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(38, field_38?)
+                .write_field(38, field_38?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(39, field_39?)
+                .write_field(39, field_39?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(40, field_40?)
+                .write_field(40, field_40?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(41, field_41?)
+                .write_field(41, field_41?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(42, field_42?)
+                .write_field(42, field_42?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(43, field_43?)
+                .write_field(43, field_43?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(44, field_44?)
+                .write_field(44, field_44?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(45, field_45?)
+                .write_field(45, field_45?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(46, field_46?)
+                .write_field(46, field_46?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(47, field_47?)
+                .write_field(47, field_47?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(48, field_48?)
+                .write_field(48, field_48?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(49, field_49?)
+                .write_field(49, field_49?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(50, field_50?)
+                .write_field(50, field_50?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(51, field_51?)
+                .write_field(51, field_51?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -4805,13 +4805,13 @@ fn encode_destack_gpu_device_pop_error_scope_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("gpu::GpuCapturedError")
+                .begin_named_aggregate_builder("gpu::GpuCapturedError")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -4914,19 +4914,19 @@ fn encode_destack_gpu_device_status_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("gpu::GpuDeviceStatus")
+                .begin_named_aggregate_builder("gpu::GpuDeviceStatus")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5069,10 +5069,10 @@ fn encode_destack_gpu_pipeline_shader_compilation_info_result(
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = value.messages.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("gpu::GpuCompilationInfo")
+                .begin_named_aggregate_builder("gpu::GpuCompilationInfo")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5172,16 +5172,16 @@ fn encode_destack_gpu_present_surface_acquire_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("gpu::GpuSurfaceFrame")
+                .begin_named_aggregate_builder("gpu::GpuSurfaceFrame")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5233,34 +5233,34 @@ fn encode_destack_gpu_present_surface_capabilities_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("gpu::GpuSurfaceCapabilities")
+                .begin_named_aggregate_builder("gpu::GpuSurfaceCapabilities")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5496,40 +5496,40 @@ fn encode_destack_gpu_present_surface_presentation_read_result(
             let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
             let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.dropped_count, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("gpu::GpuSurfacePresentationEvent")
+                .begin_named_aggregate_builder("gpu::GpuSurfacePresentationEvent")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5623,40 +5623,40 @@ fn encode_destack_gpu_present_surface_presentation_try_read_result(
             let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
             let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.dropped_count, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("gpu::GpuSurfacePresentationEvent")
+                .begin_named_aggregate_builder("gpu::GpuSurfacePresentationEvent")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5752,34 +5752,34 @@ fn encode_destack_gpu_present_surface_status_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("gpu::GpuSurfaceStatusInfo")
+                .begin_named_aggregate_builder("gpu::GpuSurfaceStatusInfo")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5886,16 +5886,16 @@ fn encode_destack_gpu_resource_buffer_info_result(
             let field_2: RuntimeResult<vm::Value> =
                 Ok(vm::Value::int(value.map_state as i32 as i64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("gpu::GpuBufferInfo")
+                .begin_named_aggregate_builder("gpu::GpuBufferInfo")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5945,16 +5945,16 @@ fn encode_destack_gpu_resource_buffer_map_result(
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length, 64));
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.coherent));
             let mut value_builder = context
-                .begin_named_storage_value_builder("gpu::GpuMappedBufferRange")
+                .begin_named_aggregate_builder("gpu::GpuMappedBufferRange")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -6245,31 +6245,31 @@ fn encode_destack_gpu_resource_texture_info_result(
             let field_7: RuntimeResult<vm::Value> =
                 Ok(vm::Value::int(value.dimension as i32 as i64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("gpu::GpuTextureInfo")
+                .begin_named_aggregate_builder("gpu::GpuTextureInfo")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -6743,21 +6743,21 @@ fn encode_destack_gpu_sync_query_set_info_result(
                     let payload_value = {
                         let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("gpu::GpuOcclusionQueryType")
+                            .begin_named_aggregate_builder("gpu::GpuOcclusionQueryType")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }?;
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("gpu::GpuQuerySetType")
+                        .begin_named_aggregate_builder("gpu::GpuQuerySetType")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, tag_value)
+                        .write_field(0, tag_value)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, payload_value)
+                        .write_field(1, payload_value)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -6768,26 +6768,24 @@ fn encode_destack_gpu_sync_query_set_info_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.pipeline_statistics_mask.0, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "gpu::GpuPipelineStatisticsQueryType",
-                            )
+                            .begin_named_aggregate_builder("gpu::GpuPipelineStatisticsQueryType")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }?;
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("gpu::GpuQuerySetType")
+                        .begin_named_aggregate_builder("gpu::GpuQuerySetType")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, tag_value)
+                        .write_field(0, tag_value)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, payload_value)
+                        .write_field(1, payload_value)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -6796,34 +6794,34 @@ fn encode_destack_gpu_sync_query_set_info_result(
                     let payload_value = {
                         let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("gpu::GpuTimestampQueryType")
+                            .begin_named_aggregate_builder("gpu::GpuTimestampQueryType")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }?;
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("gpu::GpuQuerySetType")
+                        .begin_named_aggregate_builder("gpu::GpuQuerySetType")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, tag_value)
+                        .write_field(0, tag_value)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, payload_value)
+                        .write_field(1, payload_value)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
             };
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.count as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("gpu::GpuQuerySetInfo")
+                .begin_named_aggregate_builder("gpu::GpuQuerySetInfo")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -22467,7 +22465,7 @@ fn destack_gpu_adapter_features_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<GpuFeatureId> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item_raw = decode_int32(
@@ -22797,7 +22795,7 @@ fn destack_gpu_adapter_info_vm_replay(
                 let result_recorded_subgroup_max_size = result_value.subgroup_max_size;
                 let result_recorded_transient_saves_memory = result_value.transient_saves_memory;
                 let result_recorded_is_fallback = result_value.is_fallback;
-                let result_recorded_features_raw = result_value.features.raw_values(context)?;
+                let result_recorded_features_raw = result_value.features.values(context)?;
                 let mut result_recorded_features =
                     Vec::with_capacity(result_recorded_features_raw.len());
                 for result_recorded_features_item_value in result_recorded_features_raw {
@@ -23776,7 +23774,7 @@ fn destack_gpu_adapter_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<GpuAdapterInfoVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = <GpuAdapterInfoVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
@@ -23816,7 +23814,7 @@ fn destack_gpu_adapter_list_vm_replay(
                     let result_recorded_item_recorded_subgroup_max_size = result_recorded_item.subgroup_max_size;
                     let result_recorded_item_recorded_transient_saves_memory = result_recorded_item.transient_saves_memory;
                     let result_recorded_item_recorded_is_fallback = result_recorded_item.is_fallback;
-                    let result_recorded_item_recorded_features_raw = result_recorded_item.features.raw_values(context)?;
+                    let result_recorded_item_recorded_features_raw = result_recorded_item.features.values(context)?;
                     let mut result_recorded_item_recorded_features = Vec::with_capacity(result_recorded_item_recorded_features_raw.len());
                     for result_recorded_item_recorded_features_item_value in result_recorded_item_recorded_features_raw {
                         let result_recorded_item_recorded_features_item_raw = decode_int32(result_recorded_item_recorded_features_item_value, "result_recorded_item_recorded_features_item_raw", "item")?;
@@ -28247,7 +28245,7 @@ fn destack_gpu_device_features_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<GpuFeatureId> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item_raw = decode_int32(
@@ -28457,7 +28455,7 @@ fn destack_gpu_device_info_vm_replay(
             if let Ok(value) = result {
                 let result_value: GpuDeviceInfoVm = value.clone();
                 let result_recorded_backend = result_value.backend;
-                let result_recorded_enabled_features_raw = result_value.enabled_features.raw_values(context)?;
+                let result_recorded_enabled_features_raw = result_value.enabled_features.values(context)?;
                 let mut result_recorded_enabled_features = Vec::with_capacity(result_recorded_enabled_features_raw.len());
                 for result_recorded_enabled_features_item_value in result_recorded_enabled_features_raw {
                     let result_recorded_enabled_features_item_raw = decode_int32(result_recorded_enabled_features_item_value, "result_recorded_enabled_features_item_raw", "item")?;
@@ -29786,7 +29784,7 @@ fn destack_gpu_pipeline_shader_compilation_info_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: GpuCompilationInfoVm = value.clone();
-                let result_recorded_messages_raw = result_value.messages.raw_values(context)?;
+                let result_recorded_messages_raw = result_value.messages.values(context)?;
                 let mut result_recorded_messages =
                     Vec::with_capacity(result_recorded_messages_raw.len());
                 for result_recorded_messages_item_value in result_recorded_messages_raw {
@@ -35320,7 +35318,7 @@ pub(crate) fn install_gpu_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) -> vm::Result<()> {
-    super::abi_generated::register_gpu_vm_storage_types(isolate)?;
+    super::abi_generated::register_gpu_vm_aggregate_types(isolate)?;
     register_gpu_vm_bindings(registry, isolate);
 
     Ok(())
