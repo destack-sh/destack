@@ -1,24 +1,69 @@
 use super::super::declaration::expression_is_in_statement_position;
 use crate::DestackFormatContext;
 use destack_ast::{
-    Declaration, Expression, FunctionKind, IfCondition, IfKind, LocalNodeId, NodeType,
+    AssignPattern, BinaryOperator, Declaration, Expression, FunctionKind, IfCondition, IfKind,
+    LocalNodeId, NodeType,
 };
 use destack_source::Span;
 
-/// Return whether one parent slot behaves like a type-relation left slot.
-fn expression_is_type_relation_left_slot(
+/// Return whether one expression is a class extends expression.
+fn is_class_extends(
+    context: &DestackFormatContext<'_>,
+    parent_id: u32,
+    parent_type: NodeType,
+    parent_child_id: LocalNodeId<Expression>,
+) -> bool {
+    if parent_type != NodeType::Declaration {
+        return false;
+    }
+
+    let declaration_id = LocalNodeId::<Declaration>::new(parent_id);
+    let Declaration::Class(class) = context.tree.get(declaration_id) else {
+        return false;
+    };
+
+    class
+        .extends_expression
+        .is_some_and(|expression_id| expression_id == parent_child_id)
+}
+
+/// Return whether one class extends expression needs parentheses.
+fn class_extends_expression_needs_parentheses(expression: &Expression) -> bool {
+    matches!(
+        expression,
+        Expression::ObjectExpression { .. }
+            | Expression::New { .. }
+            | Expression::Unary { .. }
+            | Expression::Await { .. }
+            | Expression::AwaitMaybe { .. }
+            | Expression::Binary { .. }
+            | Expression::Is { .. }
+            | Expression::InstanceOf { .. }
+            | Expression::If {
+                kind: IfKind::Ternary,
+                ..
+            }
+            | Expression::As { .. }
+            | Expression::Satisfies { .. }
+            | Expression::Must { .. }
+    )
+}
+
+/// Return whether one parent requires type-cast-like parentheses for a child.
+fn type_cast_like_needs_parentheses(
     parent_expression: &Expression,
-    parent_slot_expression_id: LocalNodeId<Expression>,
+    parent_child_id: LocalNodeId<Expression>,
 ) -> bool {
     match parent_expression {
         // template tag
-        Expression::TaggedTemplateExpression { tag, .. } => *tag == parent_slot_expression_id,
+        Expression::TaggedTemplateExpression { tag, .. } => *tag == parent_child_id,
 
         // unary-like rhs
         Expression::Unary { right, .. }
         | Expression::Delete { value: right }
         | Expression::Await { expression: right }
-        | Expression::AwaitMaybe { expression: right } => *right == parent_slot_expression_id,
+        | Expression::AwaitMaybe { expression: right }
+        | Expression::Must { left: right, .. } => *right == parent_child_id,
 
         // member or call lhs
         Expression::Member { left, .. }
@@ -27,57 +72,37 @@ fn expression_is_type_relation_left_slot(
         | Expression::Call { left, .. }
         | Expression::New { left, .. }
         | Expression::Instantiation { left, .. }
-        | Expression::Maybe { left, .. }
-        | Expression::Must { left, .. } => *left == parent_slot_expression_id,
+        | Expression::Maybe { left, .. } => *left == parent_child_id,
 
         _ => false,
     }
 }
 
-/// Return whether one `as` or `satisfies` expression needs parentheses in its parent.
-fn expression_as_or_satisfies_needs_parentheses_in_parent(
-    parent_expression: &Expression,
-    parent_slot_expression_id: LocalNodeId<Expression>,
-) -> bool {
-    match parent_expression {
-        // ternary branches
-        Expression::If {
-            kind: IfKind::Ternary,
-            ..
-        } => true,
-
-        // binary-like expressions
-        Expression::Binary { .. } | Expression::Is { .. } | Expression::InstanceOf { .. } => true,
-
-        _ => expression_is_type_relation_left_slot(parent_expression, parent_slot_expression_id),
-    }
-}
-
-/// Return the effective expression parent and the outermost child in that parent slot.
-fn effective_expression_parent_slot(
+/// Return the effective expression parent and outermost child in that parent.
+fn effective_expression_parent(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> Option<(u32, NodeType, LocalNodeId<Expression>)> {
     let mut current_id = node_id;
-    let mut parent_slot_expression_id = node_id;
+    let mut parent_child_id = node_id;
 
     loop {
         let (parent_id, parent_type) = context.parent(current_id)?;
 
         if parent_type != NodeType::Expression {
-            return Some((parent_id, parent_type, parent_slot_expression_id));
+            return Some((parent_id, parent_type, parent_child_id));
         }
 
         let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
 
         match context.tree.get(parent_expression_id) {
-            // explicit parens stay transparent for parent slot lookup
+            // explicit parens stay transparent for parent lookup
             Expression::Parenthesized { expression } if *expression == current_id => {
-                parent_slot_expression_id = parent_expression_id;
+                parent_child_id = parent_expression_id;
                 current_id = parent_expression_id;
             }
 
-            _ => return Some((parent_id, parent_type, parent_slot_expression_id)),
+            _ => return Some((parent_id, parent_type, parent_child_id)),
         }
     }
 }
@@ -93,7 +118,15 @@ fn expression_is_statement_sensitive_identifier(
 
     matches!(
         context.strings.get(*name),
-        "await" | "interface" | "type" | "using" | "yield"
+        "await"
+            | "component"
+            | "hook"
+            | "interface"
+            | "let"
+            | "module"
+            | "type"
+            | "using"
+            | "yield"
     )
 }
 
@@ -157,17 +190,17 @@ fn expression_is_type_relation_left_chain_in_statement_position(
     }
 }
 
-/// Return whether one expression sits in a call-like callee or tag slot.
-fn expression_is_call_like_parent_slot(
+/// Return whether one expression sits in a call-like callee or tag.
+fn expression_is_call_like_callee(
     context: &DestackFormatContext<'_>,
     parent_expression_id: LocalNodeId<Expression>,
-    parent_slot_expression_id: LocalNodeId<Expression>,
+    parent_child_id: LocalNodeId<Expression>,
 ) -> bool {
     match context.tree.get(parent_expression_id) {
         Expression::Call { left, .. }
         | Expression::New { left, .. }
-        | Expression::Instantiation { left, .. } => *left == parent_slot_expression_id,
-        Expression::TaggedTemplateExpression { tag, .. } => *tag == parent_slot_expression_id,
+        | Expression::Instantiation { left, .. } => *left == parent_child_id,
+        Expression::TaggedTemplateExpression { tag, .. } => *tag == parent_child_id,
         _ => false,
     }
 }
@@ -186,6 +219,53 @@ fn expression_is_class_or_function_declaration(
         Declaration::Function(function) => function.signature.kind == FunctionKind::Lambda,
         _ => false,
     }
+}
+
+/// Return whether one expression is a lambda declaration.
+fn expression_is_lambda_declaration(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::Declaration(declaration_id) = context.tree.get(node_id) else {
+        return false;
+    };
+
+    matches!(
+        context.tree.get(*declaration_id),
+        Declaration::Function(function) if function.signature.kind == FunctionKind::Lambda
+    )
+}
+
+/// Return whether one assignment expression needs parentheses in statement position.
+fn expression_assignment_needs_parentheses_in_statement_position(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    left: LocalNodeId<AssignPattern>,
+) -> bool {
+    if expression_is_lambda_body_position(context, node_id) {
+        return true;
+    }
+
+    matches!(context.tree.get(left), AssignPattern::Object { .. })
+}
+
+/// Return whether one named class declaration is in declaration statement position.
+fn expression_is_named_class_declaration_statement(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    if !expression_is_in_statement_position(context, node_id) {
+        return false;
+    }
+
+    let Expression::Declaration(declaration_id) = context.tree.get(node_id) else {
+        return false;
+    };
+
+    matches!(
+        context.tree.get(*declaration_id),
+        Declaration::Class(class) if class.name.is_some()
+    )
 }
 
 /// Return whether one expression is the body of one lambda declaration.
@@ -211,6 +291,242 @@ fn expression_is_lambda_body_position(
             .is_some_and(|body_expression_id| body_expression_id == node_id)
 }
 
+/// Return whether one decorated class expression is used as class extends.
+fn decorated_class_extends_needs_parentheses(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    parent_id: u32,
+    parent_type: NodeType,
+    parent_child_id: LocalNodeId<Expression>,
+) -> bool {
+    if parent_type != NodeType::Declaration {
+        return false;
+    }
+
+    let Expression::Declaration(class_declaration_id) = context.tree.get(node_id) else {
+        return false;
+    };
+
+    let declaration_id = LocalNodeId::<Declaration>::new(parent_id);
+    let Declaration::Class(_) = context.tree.get(declaration_id) else {
+        return false;
+    };
+
+    let declaration_has_decorators = !context.annotation_ids(*class_declaration_id).is_empty();
+    if !declaration_has_decorators {
+        return false;
+    }
+
+    is_class_extends(context, parent_id, parent_type, parent_child_id)
+}
+
+/// Return whether one lambda expression needs parentheses in its parent.
+fn expression_lambda_needs_parentheses_in_parent(
+    context: &DestackFormatContext<'_>,
+    parent_expression_id: LocalNodeId<Expression>,
+    parent_expression: &Expression,
+    parent_child_id: LocalNodeId<Expression>,
+) -> bool {
+    if matches!(
+        parent_expression,
+        Expression::As { .. }
+            | Expression::Satisfies { .. }
+            | Expression::Unary { .. }
+            | Expression::Await { .. }
+            | Expression::AwaitMaybe { .. }
+            | Expression::Binary { .. }
+            | Expression::Is { .. }
+            | Expression::InstanceOf { .. }
+    ) {
+        return true;
+    }
+
+    if matches!(
+        parent_expression,
+        Expression::If {
+            kind: IfKind::Ternary,
+            condition,
+            ..
+        } if matches!(
+            condition,
+            IfCondition::Expression { condition } if *condition == parent_child_id
+        )
+    ) {
+        return true;
+    }
+
+    type_cast_like_needs_parentheses(parent_expression, parent_child_id)
+        || expression_is_call_like_callee(context, parent_expression_id, parent_child_id)
+}
+
+/// Return whether one `as` or `satisfies` expression needs parentheses in its parent.
+fn expression_as_or_satisfies_needs_parentheses_in_parent(
+    context: &DestackFormatContext<'_>,
+    parent_id: u32,
+    parent_type: NodeType,
+    parent_expression: &Expression,
+    parent_child_id: LocalNodeId<Expression>,
+) -> bool {
+    if parent_type != NodeType::Expression {
+        return is_class_extends(context, parent_id, parent_type, parent_child_id);
+    }
+
+    match parent_expression {
+        // ternary branches
+        Expression::If {
+            kind: IfKind::Ternary,
+            ..
+        } => true,
+
+        // binary-like expressions
+        Expression::Binary { .. } | Expression::Is { .. } | Expression::InstanceOf { .. } => true,
+
+        // default
+        _ => type_cast_like_needs_parentheses(parent_expression, parent_child_id),
+    }
+}
+
+/// Return whether one await-like expression needs parentheses in its parent.
+fn expression_await_like_needs_parentheses_in_parent(
+    context: &DestackFormatContext<'_>,
+    parent_id: u32,
+    parent_type: NodeType,
+    parent_expression: &Expression,
+    parent_child_id: LocalNodeId<Expression>,
+) -> bool {
+    if parent_type != NodeType::Expression {
+        return is_class_extends(context, parent_id, parent_type, parent_child_id);
+    }
+
+    if matches!(
+        parent_expression,
+        Expression::Unary { .. }
+            | Expression::Delete { .. }
+            | Expression::As { .. }
+            | Expression::Satisfies { .. }
+            | Expression::Binary { .. }
+            | Expression::Is { .. }
+            | Expression::InstanceOf { .. }
+    ) {
+        return true;
+    }
+
+    if matches!(
+        parent_expression,
+        Expression::If {
+            kind: IfKind::Ternary,
+            condition,
+            ..
+        } if matches!(
+            condition,
+            IfCondition::Expression { condition } if *condition == parent_child_id
+        )
+    ) {
+        return true;
+    }
+
+    type_cast_like_needs_parentheses(parent_expression, parent_child_id)
+}
+
+/// Return whether one binary-like expression needs parentheses in its parent.
+fn expression_binary_like_needs_parentheses_in_parent(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    parent_id: u32,
+    parent_type: NodeType,
+    parent_expression: &Expression,
+    parent_child_id: LocalNodeId<Expression>,
+) -> bool {
+    if parent_type != NodeType::Expression {
+        return is_class_extends(context, parent_id, parent_type, parent_child_id);
+    }
+
+    // coalesce needs grouping inside conditionals
+    if matches!(
+        context.tree.get(node_id),
+        Expression::Binary {
+            operator: BinaryOperator::Coalesce,
+            ..
+        }
+    ) && matches!(
+        parent_expression,
+        Expression::If {
+            kind: IfKind::Ternary,
+            ..
+        }
+    ) {
+        return true;
+    }
+
+    type_cast_like_needs_parentheses(parent_expression, parent_child_id)
+}
+
+/// Return whether one expression is a binary-like expression.
+fn expression_is_binary_like(expression: &Expression) -> bool {
+    matches!(
+        expression,
+        Expression::Binary { .. } | Expression::Is { .. } | Expression::InstanceOf { .. }
+    )
+}
+
+/// Return whether one expression is the direct callee of a `new` expression.
+fn expression_is_new_callee(
+    parent_expression: &Expression,
+    parent_child_id: LocalNodeId<Expression>,
+) -> bool {
+    matches!(parent_expression, Expression::New { left, .. } if *left == parent_child_id)
+}
+
+/// Return whether one member-chain callee carries a call or optional marker.
+fn member_chain_callee_needs_parentheses(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let mut current_id = node_id;
+
+    loop {
+        match context.tree.get(current_id) {
+            Expression::Call { .. } => return true,
+            Expression::Maybe { .. } => return true,
+
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Must { left, .. } => {
+                current_id = *left;
+            }
+
+            Expression::TaggedTemplateExpression { tag, .. } => {
+                current_id = *tag;
+            }
+
+            _ => return false,
+        }
+    }
+}
+
+/// Return whether one expression needs parentheses as a `new` callee.
+fn expression_new_callee_needs_parentheses(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    parent_expression: &Expression,
+    parent_child_id: LocalNodeId<Expression>,
+) -> bool {
+    if !expression_is_new_callee(parent_expression, parent_child_id) {
+        return false;
+    }
+
+    match context.tree.get(node_id) {
+        Expression::Call { .. } | Expression::Maybe { .. } => true,
+        Expression::Member { .. }
+        | Expression::PrivateMember { .. }
+        | Expression::Index { .. }
+        | Expression::TaggedTemplateExpression { .. }
+        | Expression::Must { .. } => member_chain_callee_needs_parentheses(context, node_id),
+        _ => false,
+    }
+}
+
 /// Return whether one expression needs derived parentheses in its parent.
 pub(crate) fn expression_needs_parentheses_in_parent(
     context: &DestackFormatContext<'_>,
@@ -226,24 +542,55 @@ pub(crate) fn expression_needs_parentheses_in_parent(
         return true;
     }
 
-    let Some((parent_id, parent_type, parent_slot_expression_id)) =
-        effective_expression_parent_slot(context, node_id)
+    let Some((parent_id, parent_type, parent_child_id)) =
+        effective_expression_parent(context, node_id)
     else {
         return false;
     };
 
     // statement position
     if parent_type != NodeType::Expression {
+        let is_class_extends = is_class_extends(context, parent_id, parent_type, parent_child_id);
+        if is_class_extends && class_extends_expression_needs_parentheses(context.tree.get(node_id))
+        {
+            return true;
+        }
+
         return match context.tree.get(node_id) {
-            Expression::Assign { .. } => true,
+            Expression::As { .. } | Expression::Satisfies { .. } => {
+                parent_type == NodeType::AssignPattern || is_class_extends
+            }
+            Expression::Assign { left, .. } => {
+                if expression_is_in_statement_position(context, node_id) {
+                    return expression_assignment_needs_parentheses_in_statement_position(
+                        context, node_id, *left,
+                    );
+                }
+
+                true
+            }
             Expression::ObjectExpression { .. } => {
                 expression_is_in_statement_position(context, node_id)
+                    || expression_is_type_relation_left_chain_in_statement_position(
+                        context, node_id,
+                    )
                     || expression_is_lambda_body_position(context, node_id)
             }
             Expression::Declaration(_)
                 if expression_is_class_or_function_declaration(context, node_id) =>
             {
+                if expression_is_named_class_declaration_statement(context, node_id) {
+                    return false;
+                }
+
                 expression_is_in_statement_position(context, node_id)
+                    || decorated_class_extends_needs_parentheses(
+                        context,
+                        node_id,
+                        parent_id,
+                        parent_type,
+                        parent_child_id,
+                    )
             }
             _ => false,
         };
@@ -252,42 +599,45 @@ pub(crate) fn expression_needs_parentheses_in_parent(
     let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
     let parent_expression = context.tree.get(parent_expression_id);
 
-    // assignment expressions need a shell unless they are already in assignment position
+    // `new` callees parenthesize calls and optional or call-derived member chains
+    if expression_new_callee_needs_parentheses(context, node_id, parent_expression, parent_child_id)
+    {
+        return true;
+    }
+
+    // assignment expressions need parentheses unless they are already in assignment position
     if let Expression::Assign { .. } = context.tree.get(node_id) {
         return match parent_expression {
             Expression::Assign { .. } => false,
-            Expression::Index { left, .. } => *left == parent_slot_expression_id,
+            Expression::Index { .. } => true,
             _ => true,
         };
     }
 
-    // class and function expressions need a shell when used as callee or tag
+    // class and function expressions need parentheses when used as callee or tag
     if expression_is_class_or_function_declaration(context, node_id) {
-        return expression_is_call_like_parent_slot(
-            context,
-            parent_expression_id,
-            parent_slot_expression_id,
-        ) || matches!(
-            parent_expression,
-            Expression::TaggedTemplateExpression { .. }
-        );
+        if expression_is_lambda_declaration(context, node_id) {
+            return expression_lambda_needs_parentheses_in_parent(
+                context,
+                parent_expression_id,
+                parent_expression,
+                parent_child_id,
+            );
+        }
+
+        return type_cast_like_needs_parentheses(parent_expression, parent_child_id)
+            || expression_is_call_like_callee(context, parent_expression_id, parent_child_id);
     }
 
-    // object expressions in ternary branches need a shell
+    // object expressions need parentheses in ambiguous statement positions
     if matches!(
         context.tree.get(node_id),
         Expression::ObjectExpression { .. }
     ) {
-        return matches!(
-            parent_expression,
-            Expression::If {
-                kind: IfKind::Ternary,
-                ..
-            }
-        );
+        return expression_is_type_relation_left_chain_in_statement_position(context, node_id);
     }
 
-    // ternary conditions need a shell when nested inside another ternary condition
+    // ternary conditions need parentheses when nested inside another ternary condition
     if matches!(
         context.tree.get(node_id),
         Expression::If {
@@ -303,20 +653,52 @@ pub(crate) fn expression_needs_parentheses_in_parent(
                 ..
             } if matches!(
                 condition,
-                IfCondition::Expression { condition } if *condition == parent_slot_expression_id
+                IfCondition::Expression { condition } if *condition == parent_child_id
             )
         );
     }
 
-    // `as` and `satisfies` need a shell in tighter or ambiguous parent positions
+    // `as` and `satisfies` need parentheses in tighter or ambiguous parent positions
     if matches!(
         context.tree.get(node_id),
         Expression::As { .. } | Expression::Satisfies { .. }
     ) {
         return expression_as_or_satisfies_needs_parentheses_in_parent(
+            context,
+            parent_id,
+            parent_type,
             parent_expression,
-            parent_slot_expression_id,
+            parent_child_id,
         );
+    }
+
+    // await-like expressions need parentheses in lower-precedence or type-relation parents
+    if matches!(
+        context.tree.get(node_id),
+        Expression::Await { .. } | Expression::AwaitMaybe { .. }
+    ) {
+        return expression_await_like_needs_parentheses_in_parent(
+            context,
+            parent_id,
+            parent_type,
+            parent_expression,
+            parent_child_id,
+        );
+    }
+
+    // binary-like expressions need parentheses in tighter expression positions
+    let expression = context.tree.get(node_id);
+    if expression_is_binary_like(expression) {
+        if expression_binary_like_needs_parentheses_in_parent(
+            context,
+            node_id,
+            parent_id,
+            parent_type,
+            parent_expression,
+            parent_child_id,
+        ) {
+            return true;
+        }
     }
 
     false
@@ -328,14 +710,54 @@ pub(crate) fn parenthesized_expression_needs_preserved_wrapper(
     node_id: LocalNodeId<Expression>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    // statement position owns its shell directly
+    // object expressions need statement-start disambiguation
+    if expression_is_in_statement_position(context, node_id)
+        && matches!(
+            context.tree.get(expression_id),
+            Expression::ObjectExpression { .. }
+        )
+    {
+        return true;
+    }
+
+    // statement position owns its parentheses directly
     if expression_is_in_statement_position(context, node_id) {
         return false;
     }
 
-    // inner expressions that already need a shell must not gain another one
+    // inner expressions that already need parentheses must not gain another pair
     if expression_needs_parentheses_in_parent(context, expression_id) {
         return false;
+    }
+
+    // class and function wrappers in postfix-like parents should defer to the inner expression
+    if expression_is_class_or_function_declaration(context, expression_id) {
+        let Some((parent_id, parent_type, parent_child_id)) =
+            effective_expression_parent(context, node_id)
+        else {
+            return false;
+        };
+
+        if decorated_class_extends_needs_parentheses(
+            context,
+            expression_id,
+            parent_id,
+            parent_type,
+            parent_child_id,
+        ) {
+            return true;
+        }
+
+        if parent_type == NodeType::Expression {
+            let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+            let parent_expression = context.tree.get(parent_expression_id);
+
+            if type_cast_like_needs_parentheses(parent_expression, parent_child_id)
+                || expression_is_call_like_callee(context, parent_expression_id, parent_child_id)
+            {
+                return false;
+            }
+        }
     }
 
     // wrapper span

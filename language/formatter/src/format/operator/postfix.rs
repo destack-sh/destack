@@ -1,10 +1,9 @@
+use crate::format::expression::write_expression_without_derived_parentheses;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
-    Declaration, Expression, LocalNodeId, NodeTree, NodeType, OperatorPrecedence, ScalarLiteral,
-};
+use destack_ast::{Expression, LocalNodeId, NodeTree, NodeType, OperatorPrecedence, ScalarLiteral};
 use destack_fir::format::{Buffer, FormatResult};
-use destack_fir::prelude::token;
-use destack_fir::write;
+use destack_fir::prelude::{format_with, group, soft_block_indent, token};
+use destack_fir::{format_args, write};
 
 use super::binary::expression_precedence;
 
@@ -18,15 +17,6 @@ pub(crate) fn needs_parens_in_postfix_position(
         tree.get(expr_id),
         Expression::ObjectExpression { .. } | Expression::TreeExpression { .. }
     ) {
-        return true;
-    }
-
-    if let Expression::Declaration(declaration_id) = tree.get(expr_id)
-        && matches!(
-            tree.get(*declaration_id),
-            Declaration::Function { .. } | Declaration::Class { .. }
-        )
-    {
         return true;
     }
 
@@ -51,7 +41,16 @@ pub(crate) fn write_postfix_base_expression<'ast>(
     let needs_parentheses = needs_parens_in_postfix_position(f.context().tree, expression_id)
         || needs_integer_member_parentheses;
     if needs_parentheses {
-        write!(f, [token("("), expression_id, token(")")])?;
+        write!(
+            f,
+            [group(&format_args![
+                token("("),
+                soft_block_indent(&format_with(|f| {
+                    write_expression_without_derived_parentheses(f, expression_id)
+                })),
+                token(")")
+            ])]
+        )?;
     } else {
         write!(f, [expression_id])?;
     }

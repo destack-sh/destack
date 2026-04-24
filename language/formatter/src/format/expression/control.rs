@@ -111,8 +111,10 @@ fn format_statement_body_expression_with_semicolon<'ast>(
     let expression = f.context().tree.get(expression_id);
     let is_ignored = node_has_ignore_directive(f.context(), expression_id);
     let expression_span = f.context().span(expression_id);
+    let token_start = f.context().expression_token_start(expression_id);
+    let token_start_span = Span::new(expression_span.file, token_start, token_start);
 
-    write!(f, [format_leading_comments(expression_span)])?;
+    write!(f, [format_leading_comments(token_start_span)])?;
 
     write!(f, [prefix_annotations(f.context(), expression_id)])?;
     format_expression(f, expression_id, expression, is_ignored)?;
@@ -124,7 +126,7 @@ fn format_statement_body_expression_with_semicolon<'ast>(
     let if_chain_handles_annotations = matches!(
         expression,
         Expression::If {
-            kind: destack_ast::IfKind::If,
+            kind: IfKind::If,
             ..
         }
     );

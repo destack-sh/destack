@@ -349,7 +349,7 @@ pub(crate) fn is_numeric_index(
     )
 }
 
-/// Return an expression end anchor used for chain trivia checks.
+/// Return an expression end anchor used for trivia checks.
 pub(crate) fn expression_trivia_anchor_end(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
@@ -372,7 +372,9 @@ pub(crate) fn expression_trivia_anchor_end(
             .tree
             .get_main_span(expression_id)
             .map_or(span.end, |path_span| path_span.end),
-        _ => span.end,
+        _ => context
+            .last_non_trivia_token_in_span(span)
+            .map_or(span.end, |token| token.span.end),
     }
 }
 
@@ -606,11 +608,6 @@ fn maybe_position_for_left(
     };
 
     Some(*position)
-}
-
-/// Check whether the expression is part of a member/call/maybe/index chain.
-pub(crate) fn is_expression_chain(tree: &NodeTree, node_id: LocalNodeId<Expression>) -> bool {
-    chain_node_left_id(tree, node_id).is_some_and(|left_id| is_chain_expression(tree.get(left_id)))
 }
 
 /// Return whether the normalized chain contains at least one call-like operation.

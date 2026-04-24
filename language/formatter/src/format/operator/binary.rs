@@ -2,10 +2,10 @@ use crate::format::annotation::{format_trailing_comments, prefix_annotations};
 use crate::format::expression::write_expression_without_prefix_annotations;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    BinaryOperator, Expression, IfCondition, IfKind, LocalNodeId, MatchKind, Member, NodeType,
-    OperatorPrecedence, Property, TokenType, UnaryOperator,
+    Argument, BinaryOperator, Expression, IfCondition, IfKind, LocalNodeId, MatchKind, Member,
+    NodeType, OperatorPrecedence, Property, TokenType, UnaryOperator,
 };
-use destack_fir::format::{Buffer, Format, FormatResult};
+use destack_fir::format::{Buffer, Format, FormatResult, Formatter as FirFormatter};
 use destack_fir::prelude::{
     block_indent, format_with, group, hard_line_break, indent, soft_block_indent,
     soft_line_break_or_space, soft_line_indent_or_space, space, token,
@@ -498,7 +498,33 @@ impl BinaryLikeExpression {
         }
     }
 
-    /// Return whether the parent already owns the indentation shell.
+    /// Return whether one ternary parent already owns indentation.
+    fn ternary_parent_owns_indentation(
+        context: &DestackFormatContext<'_>,
+        ternary_expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let Some((parent_id, parent_type)) = context.parent(ternary_expression_id) else {
+            return true;
+        };
+        if parent_type != NodeType::Expression {
+            return true;
+        }
+
+        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+
+        !matches!(
+            context.tree.get(parent_expression_id),
+            Expression::Return { .. }
+                | Expression::Throw { .. }
+                | Expression::Call { .. }
+                | Expression::New { .. }
+                | Expression::Import { .. }
+                | Expression::ImportMeta
+                | Expression::NewTarget
+        )
+    }
+
+    /// Return whether the parent already owns indentation.
     fn should_not_indent_if_parent_indents(self, context: &DestackFormatContext<'_>) -> bool {
         let Some((parent_id, parent_type)) = context.parent(self.node_id) else {
             return false;
@@ -519,17 +545,22 @@ impl BinaryLikeExpression {
                 left, arguments, ..
             } => {
                 *left == self.node_id
-                    || (arguments.len() == 1 && arguments.iter().copied().any(|argument_id| {
-                        matches!(
-                            context.tree.get(argument_id),
-                            destack_ast::Argument::Positional { value } if *value == self.node_id
-                        )
-                    })
+                    || (arguments.len() == 1
+                        && arguments.iter().copied().any(|argument_id| {
+                            matches!(
+                                context.tree.get(argument_id),
+                                Argument::Positional { value } if *value == self.node_id
+                            )
+                        })
                         && matches!(
                             context.tree.get(*left),
                             Expression::Identifier { name } if context.strings.get(*name) == "Boolean"
                         ))
             }
+            Expression::If {
+                kind: IfKind::Ternary,
+                ..
+            } => Self::ternary_parent_owns_indentation(context, parent_id),
             _ => false,
         }
     }
@@ -569,10 +600,7 @@ impl BinarySide {
 }
 
 impl<'a> Format<DestackFormatContext<'a>> for BinarySide {
-    fn format(
-        &self,
-        f: &mut destack_fir::format::Formatter<'_, DestackFormatContext<'a>>,
-    ) -> FormatResult<()> {
+    fn format(&self, f: &mut FirFormatter<'_, DestackFormatContext<'a>>) -> FormatResult<()> {
         match self {
             // left side
             Self::Left { parent } => format_binary_operand_with_grouping_parentheses(
@@ -681,7 +709,7 @@ impl<'a> Format<DestackFormatContext<'a>> for BinarySide {
                     || right_is_same_kind
                     || (*inside_condition && is_logical_binary_operator(operator)));
 
-                // grouped operator shell
+                // grouped operator layout
                 if should_group {
                     return write!(f, [group(&operator_and_right).should_expand(should_break)]);
                 }
@@ -749,7 +777,7 @@ fn split_into_left_and_right_sides(
     });
 }
 
-/// Return whether this binary root is already owned by an outer indentation shell.
+/// Return whether this binary root is already owned by an outer indentation layout.
 fn binary_parent_inlines_flattened_layout(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,

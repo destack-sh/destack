@@ -14,6 +14,7 @@ use destack_ast::{
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
+use destack_workspace::TrailingComma;
 
 impl<'ast> Format<DestackFormatContext<'ast>> for Mutability {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
@@ -93,13 +94,12 @@ fn format_pattern_field_list<'ast>(
 
     let allow_trailing_separator =
         !pattern_fields_disallow_trailing_separator(f.context().tree, fields);
-    let trailing_separator = if !allow_trailing_separator
-        || f.context().options.trailing_comma == destack_workspace::TrailingComma::None
-    {
-        TrailingSeparator::Omit
-    } else {
-        TrailingSeparator::Allowed
-    };
+    let trailing_separator =
+        if !allow_trailing_separator || f.context().options.trailing_comma == TrailingComma::None {
+            TrailingSeparator::Omit
+        } else {
+            TrailingSeparator::Allowed
+        };
 
     write!(
         f,
@@ -142,13 +142,12 @@ fn format_assign_pattern_field_list<'ast>(
 
     let allow_trailing_separator =
         !assign_pattern_fields_disallow_trailing_separator(f.context().tree, fields);
-    let trailing_separator = if !allow_trailing_separator
-        || f.context().options.trailing_comma == destack_workspace::TrailingComma::None
-    {
-        TrailingSeparator::Omit
-    } else {
-        TrailingSeparator::Allowed
-    };
+    let trailing_separator =
+        if !allow_trailing_separator || f.context().options.trailing_comma == TrailingComma::None {
+            TrailingSeparator::Omit
+        } else {
+            TrailingSeparator::Allowed
+        };
 
     write!(
         f,
@@ -410,7 +409,7 @@ fn object_pattern_layout(
         return ObjectPatternLayout::Group { expand: true };
     }
 
-    // assignment-like shell
+    // assignment-like layout
     if object_pattern_is_in_assignment_like(context, node_id) {
         return ObjectPatternLayout::Inline;
     }
@@ -441,13 +440,12 @@ fn format_object_pattern_like<'ast>(
     // separator policy
     let allow_trailing_separator =
         !pattern_fields_disallow_trailing_separator(f.context().tree, render_fields.as_ref());
-    let trailing_separator = if !allow_trailing_separator
-        || f.context().options.trailing_comma == destack_workspace::TrailingComma::None
-    {
-        TrailingSeparator::Omit
-    } else {
-        TrailingSeparator::Allowed
-    };
+    let trailing_separator =
+        if !allow_trailing_separator || f.context().options.trailing_comma == TrailingComma::None {
+            TrailingSeparator::Omit
+        } else {
+            TrailingSeparator::Allowed
+        };
 
     // field writers
     let format_fields = format_with(|f: &mut DestackFormatter<'ast, '_>| {
@@ -473,7 +471,7 @@ fn format_object_pattern_like<'ast>(
         Ok(())
     });
 
-    // shell
+    // layout
     write!(f, [token("{")])?;
 
     match layout {
@@ -652,13 +650,12 @@ fn format_object_assign_pattern_like<'ast>(
     // separator policy
     let allow_trailing_separator =
         !assign_pattern_fields_disallow_trailing_separator(f.context().tree, fields);
-    let trailing_separator = if !allow_trailing_separator
-        || f.context().options.trailing_comma == destack_workspace::TrailingComma::None
-    {
-        TrailingSeparator::Omit
-    } else {
-        TrailingSeparator::Allowed
-    };
+    let trailing_separator =
+        if !allow_trailing_separator || f.context().options.trailing_comma == TrailingComma::None {
+            TrailingSeparator::Omit
+        } else {
+            TrailingSeparator::Allowed
+        };
 
     // field writers
     let format_fields = format_with(|f: &mut DestackFormatter<'ast, '_>| {
@@ -679,7 +676,7 @@ fn format_object_assign_pattern_like<'ast>(
         Ok(())
     });
 
-    // shell
+    // layout
     write!(f, [token("{")])?;
 
     match layout {

@@ -1,14 +1,14 @@
 use crate::format::chain::transparent_inner_expression;
 use crate::format::tree::child::tree_expression_contains_callback_break;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Argument, Expression, LocalNodeId};
+use destack_ast::{Argument, Expression, LocalNodeId, NodeTree};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::token;
 use destack_fir::write;
 
 /// Get the value expression for any tree attribute argument variant.
 pub(crate) fn tree_attribute_value_id(
-    tree: &destack_ast::NodeTree,
+    tree: &NodeTree,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<LocalNodeId<Expression>> {
     match tree.get(argument_id) {

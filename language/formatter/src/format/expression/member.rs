@@ -4,11 +4,13 @@ use crate::format::chain::{member_property_start, transparent_inner_expression};
 use crate::format::operator::{assign_pattern_target_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Comment, Expression, GenericArgument, LocalNodeId, NodeType, PostfixPosition, TypeExpression,
+    Comment, Expression, GenericArgument, LocalNodeId, NodeType, PostfixPosition, ScalarLiteral,
+    TypeExpression,
 };
 use destack_core::StringId;
 use destack_fir::format::{
-    Buffer, FormatError, FormatNode, FormatNodes, FormatResult, FormatTag, RemoveSoftLinesBuffer,
+    Buffer, Format, FormatError, FormatNode, FormatNodes, FormatResult, FormatTag,
+    RemoveSoftLinesBuffer,
 };
 use destack_fir::prelude::{
     align, dedent_to_root, format_with, group, indent, line_suffix_boundary, soft_block_indent,
@@ -36,24 +38,15 @@ fn format_type_template_interpolation_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
-    let expression_span = f.context().span(expression_id);
-
-    let leading_comments = {
-        let comments = f.context().comments();
-        comments.comments_before(expression_span.start).to_vec()
-    };
-    if !leading_comments.is_empty() {
-        write!(f, [FormatLeadingComments::Comments(&leading_comments)])?;
-    }
+    let span = f.context().span(expression_id);
+    let trailing_comments = f
+        .context()
+        .comments()
+        .comments_before_character(span.start, b'}')
+        .to_vec();
 
     write!(f, [expression_id])?;
 
-    let trailing_comments = {
-        let comments = f.context().comments();
-        comments
-            .comments_before_character(expression_span.start, b'}')
-            .to_vec()
-    };
     if !trailing_comments.is_empty() {
         write!(f, [FormatTrailingComments::Comments(&trailing_comments)])?;
     }
@@ -112,6 +105,32 @@ fn format_member_receiver<'ast>(
     receiver_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     write_postfix_base_expression(f, receiver_id)
+}
+
+/// Return one receiver after absorbing an optional-chain marker into the member operator.
+fn optional_member_receiver(
+    context: &DestackFormatContext<'_>,
+    receiver_id: LocalNodeId<Expression>,
+) -> (LocalNodeId<Expression>, Option<PostfixPosition>) {
+    let Expression::Maybe { left, position } = context.tree.get(receiver_id) else {
+        return (receiver_id, None);
+    };
+
+    (*left, Some(*position))
+}
+
+/// Write one static member operator.
+fn write_static_member_operator<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    optional_position: Option<PostfixPosition>,
+) -> FormatResult<()> {
+    match optional_position {
+        None => write!(f, [token(".")])?,
+        Some(PostfixPosition::Direct) => write!(f, [token("?.")])?,
+        Some(PostfixPosition::Indirect) => write!(f, [token("."), token("?"), token(".")])?,
+    }
+
+    Ok(())
 }
 
 /// Return separator comments between one postfix receiver and its continuation.
@@ -272,10 +291,12 @@ fn static_member_layout(
 /// Write one static member continuation.
 fn write_static_member_continuation<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    optional_position: Option<PostfixPosition>,
     name: Option<StringId>,
     generic_arguments: &[LocalNodeId<GenericArgument>],
 ) -> FormatResult<()> {
-    write!(f, [token("."), name])?;
+    write_static_member_operator(f, optional_position)?;
+    write!(f, [name])?;
 
     if !generic_arguments.is_empty() {
         format_generic_argument_list(f, generic_arguments)?;
@@ -307,6 +328,7 @@ fn write_static_member_expression<'ast>(
     name: Option<StringId>,
     generic_arguments: &[LocalNodeId<GenericArgument>],
 ) -> FormatResult<()> {
+    let (receiver_id, optional_position) = optional_member_receiver(f.context(), receiver_id);
     let separator_comments = postfix_separator_comments(f.context(), node_id);
     let property_start =
         member_property_start(f.context(), node_id).unwrap_or(f.context().span(node_id).start);
@@ -318,7 +340,7 @@ fn write_static_member_expression<'ast>(
                 write!(f, [FormatTrailingComments::Comments(&separator_comments)])?;
             }
 
-            write_static_member_continuation(f, name, generic_arguments)
+            write_static_member_continuation(f, optional_position, name, generic_arguments)
         }
         StaticMemberLayout::BreakAfterObject => {
             format_member_receiver(f, receiver_id)?;
@@ -345,7 +367,12 @@ fn write_static_member_expression<'ast>(
 
                         Ok(())
                     }),
-                    format_with(|f| write_static_member_continuation(f, name, generic_arguments))
+                    format_with(|f| write_static_member_continuation(
+                        f,
+                        optional_position,
+                        name,
+                        generic_arguments
+                    ))
                 ]))]
             )
         }
@@ -477,7 +504,7 @@ pub(crate) fn format_type_template_literal<'ast>(
 
 /// Write one template interpolation with source-derived indentation.
 fn write_template_interpolation_with_indentation<'ast>(
-    content: &impl destack_fir::format::Format<DestackFormatContext<'ast>>,
+    content: &impl Format<DestackFormatContext<'ast>>,
     indentation: TemplateInterpolationIndentation,
     f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {
@@ -515,9 +542,26 @@ fn write_template_interpolation_with_indentation<'ast>(
 /// Format an index expression without considering chaining.
 pub(crate) fn write_index_access<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
     index_id: LocalNodeId<Expression>,
     should_parenthesize: bool,
 ) -> FormatResult<()> {
+    let is_numeric_index = matches!(
+        f.context().tree.get(index_id),
+        Expression::ScalarLiteral(
+            ScalarLiteral::Integer(_) | ScalarLiteral::Bigint(_) | ScalarLiteral::Float(_)
+        )
+    );
+
+    let has_comment_before_close = f
+        .context()
+        .comments()
+        .has_comment_before(f.context().span(node_id).end);
+    if is_numeric_index && !should_parenthesize && !has_comment_before_close {
+        write!(f, [token("["), index_id, token("]")])?;
+        return Ok(());
+    }
+
     let format_index_access = format_with(|f| {
         write!(f, [token("[")])?;
         if should_parenthesize {
@@ -566,7 +610,7 @@ pub(crate) fn format_index_expression<'ast>(
                 f.context().tree.get(inner_index_id),
                 Expression::Assign { .. }
             );
-            write_index_access(f, *index, should_parenthesize)?;
+            write_index_access(f, node_id, *index, should_parenthesize)?;
         } else {
             write!(f, [token("[]")])?;
         }

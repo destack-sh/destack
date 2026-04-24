@@ -22,6 +22,7 @@ use destack_fir::prelude::{
 };
 use destack_fir::{format_args, write};
 use destack_source::Span;
+use destack_workspace::TrailingComma;
 
 /// One preserved explicit parenthesized wrapper layout.
 enum ParenthesizedExpressionLayout {
@@ -162,10 +163,8 @@ pub(crate) fn format_primary_array_expression<'ast>(
 
         if has_newline_in_source || has_sparse_annotations {
             let trailing_separator = match f.context().options.trailing_comma {
-                destack_workspace::TrailingComma::None => TrailingSeparator::Omit,
-                destack_workspace::TrailingComma::Es5 | destack_workspace::TrailingComma::All => {
-                    TrailingSeparator::Allowed
-                }
+                TrailingComma::None => TrailingSeparator::Omit,
+                TrailingComma::Es5 | TrailingComma::All => TrailingSeparator::Allowed,
             };
             write!(
                 f,
@@ -238,10 +237,8 @@ pub(crate) fn format_primary_array_expression<'ast>(
         format_fill_array(f, elements_ids)?;
     } else {
         let trailing_separator = match f.context().options.trailing_comma {
-            destack_workspace::TrailingComma::None => TrailingSeparator::Omit,
-            destack_workspace::TrailingComma::Es5 | destack_workspace::TrailingComma::All => {
-                TrailingSeparator::Allowed
-            }
+            TrailingComma::None => TrailingSeparator::Omit,
+            TrailingComma::Es5 | TrailingComma::All => TrailingSeparator::Allowed,
         };
         write!(
             f,
@@ -439,7 +436,7 @@ pub(crate) fn format_primary_expression<'ast>(
             format_template_literal(value, tree.get_span(node_id), f)?;
         }
 
-        // type shell
+        // type expression
         Expression::Type { value } => {
             write!(f, [value])?;
         }

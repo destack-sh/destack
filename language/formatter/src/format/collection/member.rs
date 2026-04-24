@@ -2,10 +2,9 @@ use super::property::{
     format_field_like, format_method_like, format_node_with_directive, key_requires_quote_group,
 };
 use crate::format::annotation::{
-    decorator_prefix_annotations, infix_or_postfix_annotations,
-    prefix_annotations_without_decorators,
+    decorator_prefix_annotations, infix_or_postfix_annotations, prefix_comments_before_decorators,
 };
-use crate::format::collection::format_block_nodes_with_ignore_ranges;
+use crate::format::collection::format_block_nodes_with_ignore_ranges_after;
 use crate::format::declaration::signature::{
     default_generic_parameter_trailing_separator, format_where_clause_with_break,
     write_generic_parameter_list,
@@ -14,18 +13,56 @@ use crate::format::declaration::write_statement_terminator_after_anchor;
 use crate::format::file::{node_has_ignore_directive, write_ignored_node};
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{
-    Ambientness, Declaration, Keyword, LocalNodeId, Member, TypeExpression, Visibility,
+    Ambientness, Declaration, Keyword, LocalNodeId, Member, NodeType, TypeExpression, Visibility,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{space, token};
 use destack_fir::write;
+use destack_source::Span;
+use destack_workspace::QuoteProperty;
 
-/// Format a block of members with empty-annotation and ignore-range handling.
+/// Return the initial comment range before the first class member.
+fn member_block_initial_gap(
+    f: &DestackFormatter<'_, '_>,
+    members: &[LocalNodeId<Member>],
+) -> Option<(u32, u32)> {
+    let first_member_id = members.first().copied()?;
+    let first_member_span = f.context().span(first_member_id);
+    let first_member_prefix_start = f
+        .context()
+        .annotation_ids(first_member_id)
+        .iter()
+        .copied()
+        .map(|annotation_id| f.context().annotation_span(annotation_id).start)
+        .next()
+        .unwrap_or_else(|| f.context().node_token_start(first_member_id));
+    let first_member_start_span = Span::new(
+        first_member_span.file,
+        first_member_prefix_start,
+        first_member_prefix_start,
+    );
+    let open_brace_token = f
+        .context()
+        .previous_non_trivia_token_before_span(first_member_start_span)?;
+    let gap_start = f
+        .context()
+        .previous_non_trivia_token_before_span(open_brace_token.span)
+        .filter(|token| token.span.file == first_member_span.file)
+        .map_or(open_brace_token.span.end, |token| token.span.end);
+
+    Some((gap_start, first_member_prefix_start))
+}
+
+/// Format a block of members with empty annotations and ignored ranges.
 pub(crate) fn format_block_of_members<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     members: &[LocalNodeId<Member>],
 ) -> FormatResult<()> {
-    format_block_nodes_with_ignore_ranges(f, members, |f, member_id| write!(f, [member_id]))
+    let initial_gap = member_block_initial_gap(f, members);
+
+    format_block_nodes_with_ignore_ranges_after(f, members, initial_gap, |f, member_id| {
+        write!(f, [member_id])
+    })
 }
 
 /// Return whether one class member should force quoted keys.
@@ -34,7 +71,7 @@ fn class_member_should_force_quote_keys<'ast>(
     f: &DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Member>,
 ) -> bool {
-    if f.context().options.quote_props != destack_workspace::QuoteProperty::Consistent {
+    if f.context().options.quote_props != QuoteProperty::Consistent {
         return false;
     }
 
@@ -45,7 +82,7 @@ fn class_member_should_force_quote_keys<'ast>(
     let Some((parent_id, parent_type)) = f.context().parent(node_id) else {
         return false;
     };
-    if parent_type != destack_ast::NodeType::Declaration {
+    if parent_type != NodeType::Declaration {
         return false;
     }
 
@@ -198,10 +235,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
 
         let is_ignored = node_has_ignore_directive(f.context(), node_id);
         if is_ignored {
-            write!(
-                f,
-                [prefix_annotations_without_decorators(f.context(), node_id)]
-            )?;
+            write!(f, [prefix_comments_before_decorators(f.context(), node_id)])?;
             write!(f, [decorator_prefix_annotations(f.context(), node_id)])?;
             write_ignored_node(f, node_id)?;
             write!(f, [infix_or_postfix_annotations(f.context(), node_id)])?;
