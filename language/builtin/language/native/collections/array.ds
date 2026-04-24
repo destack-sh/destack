@@ -1,7 +1,7 @@
 /// A growable contiguous array.
 export struct Array<T> {
-    /// The initialized storage view.
-    storage: Slice<T>;
+    /// The backing storage view.
+    data: Slice<T>;
     /// The allocated capacity in elements.
     capacity: usize;
 }
@@ -15,32 +15,40 @@ export type FixedArray<T, comptime N: number> = T[N as comptime];
 extension<T> of Array<T> implements Index<number, T>, IndexSet<number, T>, Iterable<T> {
     /// Get the length of the array.
     get length(): number {
-        this.storage.length
+        this.data.length
     }
 
     /// Check if the array is empty.
     get isEmpty(): boolean {
-        this.storage.isEmpty
+        this.data.isEmpty
     }
 
     /// Get the element at the index with bounds checks.
     index(i: number): T {
-        this.storage.index(i)
+        if i < 0 || i >= this.length {
+            undefined!
+        }
+
+        this.unsafeGet(i as usize)
     }
 
     /// Set the element at the index with bounds checks.
     indexSet(i: number, value: T): void {
-        this.storage.indexSet(i, value)
+        if i < 0 || i >= this.length {
+            undefined!
+        }
+
+        this.unsafeSet(i as usize, value)
     }
 
     /// Get element at index (unchecked).
     unsafeGet(i: usize): T {
-        this.storage.unsafeGet(i)
+        this.data.unsafeGet(i)
     }
 
     /// Set element at index (unchecked).
     unsafeSet(i: usize, value: T): void {
-        this.storage.indexSet(i as number, value)
+        this.data.indexSet(i as number, value)
     }
 
     /// Push an element to the end.
@@ -50,7 +58,7 @@ extension<T> of Array<T> implements Index<number, T>, IndexSet<number, T>, Itera
 
     /// Pop an element from the end.
     pop(): T | undefined {
-        if (this.storage.isEmpty) {
+        if this.isEmpty {
             return undefined;
         }
 
@@ -60,12 +68,20 @@ extension<T> of Array<T> implements Index<number, T>, IndexSet<number, T>, Itera
 
     /// Get the first element.
     first(): T | undefined {
-        this.storage.first()
+        if this.isEmpty {
+            return undefined;
+        }
+
+        this.unsafeGet(0)
     }
 
     /// Get the last element.
     last(): T | undefined {
-        this.storage.last()
+        if this.isEmpty {
+            return undefined;
+        }
+
+        this.unsafeGet(this.data.length as usize - 1)
     }
 
     /// Clear all elements.
