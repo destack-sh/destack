@@ -12,8 +12,9 @@ global value: int32, readonly = 42int32
 
 function read(): int32 {
 b0:
-    v0: int32 = global.const value
-    return v0
+    v0: ref<int32, raw, readonly> = global.address value
+    v1: int32 = load v0
+    return v1
 }"#;
     run_mir_expect(mir, "read", &[], Value::int32(42));
 }
@@ -26,7 +27,7 @@ global counter: int32 = 0int32
 
 function increment(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(global)> = global.address counter
+    v0: ref<int32, raw, space(local)> = global.address counter
     v1: int32 = load v0
     v2: int32 = 1int32
     v3: int32 = int.add v1, v2
@@ -45,7 +46,7 @@ global CONST: int32, readonly = 42int32
 
 function badWrite(): void {
 b0:
-    v0: ref<int32, raw, readonly, addressSpace(global)> = global.address CONST
+    v0: ref<int32, raw, readonly, space(local)> = global.address CONST
     v1: int32 = 99int32
     store v0, v1
     return
@@ -63,7 +64,7 @@ global counter: int32 = 0int32
 
 function inc(): void {
 b0:
-    v0: ref<int32, raw, addressSpace(global)> = global.address counter
+    v0: ref<int32, raw, space(local)> = global.address counter
     v1: int32 = load v0
     v2: int32 = 1int32
     v3: int32 = int.add v1, v2
@@ -72,7 +73,7 @@ b0:
 }
 function get(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(global)> = global.address counter
+    v0: ref<int32, raw, space(local)> = global.address counter
     v1: int32 = load v0
     return v1
 }
@@ -95,7 +96,7 @@ global data: int32 = zeroInit
 
 function read(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(global)> = global.address data
+    v0: ref<int32, raw, space(local)> = global.address data
     v1: int32 = load v0
     return v1
 }"#;
@@ -110,7 +111,7 @@ global data: float64 = zeroInit
 
 function read(): float64 {
 b0:
-    v0: ref<float64, raw, addressSpace(global)> = global.address data
+    v0: ref<float64, raw, space(local)> = global.address data
     v1: float64 = load v0
     return v1
 }"#;
@@ -125,7 +126,7 @@ global flag: boolean = zeroInit
 
 function read(): boolean {
 b0:
-    v0: ref<boolean, raw, addressSpace(global)> = global.address flag
+    v0: ref<boolean, raw, space(local)> = global.address flag
     v1: boolean = load v0
     return v1
 }"#;
@@ -140,9 +141,10 @@ global pair: (int32, int32), readonly = {10int32, 20int32}
 
 function getSecond(): int32 {
 b0:
-    v0: (int32, int32) = global.const pair
-    v1: int32 = field.get v0, 1
-    return v1
+    v0: ref<(int32, int32), raw, readonly> = global.address pair
+    v1: (int32, int32) = load v0
+    v2: int32 = field.get v1, 1
+    return v2
 }"#;
     run_mir_expect(mir, "getSecond", &[], Value::int32(20));
 }
@@ -151,14 +153,15 @@ b0:
 #[test]
 fn test_global_string_bytes() {
     let mir = r#"
-global message: uint8[4], readonly = "boom"
+global message: uint8[4], readonly = b"boom"
 
 function readSecond(): uint8 {
 b0:
-    v0: uint8[4] = global.const message
-    v1: uint64 = 1uint64
-    v2: uint8 = element.get v0, v1
-    return v2
+    v0: ref<uint8[4], raw, readonly> = global.address message
+    v1: uint8[4] = load v0
+    v2: uint64 = 1uint64
+    v3: uint8 = element.get v1, v2
+    return v3
 }"#;
     run_mir_expect(mir, "readSecond", &[], Value::uint8(b'o'));
 }
@@ -173,13 +176,15 @@ global third: int32 = 30int32
 
 function sum(): int32 {
 b0:
-    v0: int32 = global.const first
-    v1: int32 = global.const second
-    v2: ref<int32, raw, addressSpace(global)> = global.address third
+    v0: ref<int32, raw, readonly> = global.address first
+    v1: int32 = load v0
+    v2: ref<int32, raw, readonly> = global.address second
     v3: int32 = load v2
-    v4: int32 = int.add v0, v1
-    v5: int32 = int.add v4, v3
-    return v5
+    v4: ref<int32, raw, space(local)> = global.address third
+    v5: int32 = load v4
+    v6: int32 = int.add v1, v3
+    v7: int32 = int.add v6, v5
+    return v7
 }"#;
     run_mir_expect(mir, "sum", &[], Value::int32(60));
 }
@@ -192,7 +197,7 @@ global value: int32 = 0int32
 
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, addressSpace(global)> = global.address value
+    v0: ref<int32, raw, space(local)> = global.address value
     v1: int32 = 10int32
     store v0, v1
     v2: int32 = 20int32
@@ -213,8 +218,9 @@ global neg: int32, readonly = -42int32
 
 function read(): int32 {
 b0:
-    v0: int32 = global.const neg
-    return v0
+    v0: ref<int32, raw, readonly> = global.address neg
+    v1: int32 = load v0
+    return v1
 }"#;
     run_mir_expect(mir, "read", &[], Value::int32(-42));
 }
@@ -228,8 +234,9 @@ global pi: float64, readonly = 3.14159float64
 
 function read(): float64 {
 b0:
-    v0: float64 = global.const pi
-    return v0
+    v0: ref<float64, raw, readonly> = global.address pi
+    v1: float64 = load v0
+    return v1
 }"#;
     let output = run_mir_ok(mir, "read", &[]);
     let f = assert_materialized_plain(&output.value)
@@ -246,7 +253,7 @@ global flag: boolean = true
 
 function toggle(): boolean {
 b0:
-    v0: ref<boolean, raw, addressSpace(global)> = global.address flag
+    v0: ref<boolean, raw, space(local)> = global.address flag
     v1: boolean = load v0
     v2: boolean = int.not v1
     store v0, v2

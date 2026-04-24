@@ -8,7 +8,7 @@ use crate::tests::{
     create_empty_test_heap, create_empty_test_shared_heap, create_isolate, run_mir, run_mir_expect,
     run_mir_ok,
 };
-use crate::{Isolate, IsolateOptions, Value};
+use crate::{Isolate, IsolateId, IsolateOptions, Value};
 
 /// Branch instruction takes the true path when condition is true.
 #[test]
@@ -228,8 +228,9 @@ b0(v0: (int32) -> int32, v1: int32):
         .expect("double not found");
 
     // create isolate and run
-    let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
-        .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
+    let mut isolate =
+        Isolate::build_with_options(IsolateId::new(1), tree, strings, IsolateOptions::test())
+            .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
     let mut heap = create_empty_test_heap();
     let mut shared = create_empty_test_shared_heap();
 
@@ -262,8 +263,9 @@ b0(v0: (int32) -> int32, v1: int32):
     let (tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
         .validate()
         .expect("failed to parse MIR");
-    let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
-        .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
+    let mut isolate =
+        Isolate::build_with_options(IsolateId::new(1), tree, strings, IsolateOptions::test())
+            .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
     let mut heap = create_empty_test_heap();
     let mut shared = create_empty_test_shared_heap();
 

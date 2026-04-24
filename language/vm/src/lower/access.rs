@@ -2,11 +2,9 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 
-use crate::executable::layout::{Layout, repr_type};
-use crate::executable::value::ValueKind;
-use crate::executable::{ElementAccess, FieldAccess, TypedAccess, UNKNOWN_ARRAY_LENGTH};
+use crate::module::{ElementAccess, FieldAccess, Layout, TypedAccess, ValueKind, repr_type};
 
-/// Build one field access descriptor from one compiled layout.
+/// Build one field access from one compiled layout.
 pub(super) fn field_access_for_pointee(
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     pointee_type: mir::LocalNodeId<mir::Type>,
@@ -27,7 +25,7 @@ pub(super) fn field_access_for_pointee(
     })
 }
 
-/// Build one element access descriptor from one compiled layout.
+/// Build one element access from one compiled layout.
 pub(super) fn element_access_for_pointee(
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     pointee_type: mir::LocalNodeId<mir::Type>,
@@ -47,7 +45,7 @@ pub(super) fn element_access_for_pointee(
     })
 }
 
-/// Build one typed pointee access descriptor from one compiled layout.
+/// Build one typed pointee access from one compiled layout.
 pub(super) fn typed_access_for_pointee(
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     pointee_type: mir::LocalNodeId<mir::Type>,
@@ -63,7 +61,7 @@ pub(super) fn typed_access_for_pointee(
     })
 }
 
-/// Build one tensor element descriptor from one compiled element layout.
+/// Build one tensor element access from one compiled element layout.
 pub(super) fn tensor_element_access(
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     element_type: mir::LocalNodeId<mir::Type>,
@@ -96,9 +94,7 @@ pub(super) fn tensor_element_type_for_view_type(
     let ty = repr_type(tree, ty);
 
     match tree.get(ty) {
-        mir::Type::Tensor { element, .. } | mir::Type::TensorReference { element, .. } => {
-            element.ty()
-        }
+        mir::Type::Tensor { element, .. } | mir::Type::TensorView { element, .. } => element.ty(),
         _ => None,
     }
 }
@@ -107,25 +103,13 @@ pub(super) fn tensor_element_type_for_view_type(
 pub(super) fn field_count_from_kind(tree: &mir::NodeTree, kind: ValueKind) -> Option<u32> {
     match kind {
         ValueKind::Composite { ty } => match tree.get(ty) {
-            mir::Type::Struct {
-                fields,
-                copyability: _,
-            } => u32::try_from(fields.len()).ok(),
-            mir::Type::Tuple {
-                elements,
-                copyability: _,
-            } => u32::try_from(elements.len()).ok(),
+            mir::Type::Struct { fields, copy: _ } => u32::try_from(fields.len()).ok(),
+            mir::Type::Tuple { elements, copy: _ } => u32::try_from(elements.len()).ok(),
             _ => None,
         },
         ValueKind::Pointer { pointee, .. } => match tree.get(pointee) {
-            mir::Type::Struct {
-                fields,
-                copyability: _,
-            } => u32::try_from(fields.len()).ok(),
-            mir::Type::Tuple {
-                elements,
-                copyability: _,
-            } => u32::try_from(elements.len()).ok(),
+            mir::Type::Struct { fields, copy: _ } => u32::try_from(fields.len()).ok(),
+            mir::Type::Tuple { elements, copy: _ } => u32::try_from(elements.len()).ok(),
             _ => None,
         },
         _ => None,
@@ -135,13 +119,7 @@ pub(super) fn field_count_from_kind(tree: &mir::NodeTree, kind: ValueKind) -> Op
 /// Resolve the element length for an array kind.
 pub(super) fn array_length_from_kind(tree: &mir::NodeTree, kind: ValueKind) -> Option<u64> {
     match kind {
-        ValueKind::Array { length, .. } => {
-            if length == UNKNOWN_ARRAY_LENGTH {
-                None
-            } else {
-                Some(length)
-            }
-        }
+        ValueKind::Array { length, .. } => Some(length),
         ValueKind::Composite { ty } => match tree.get(ty) {
             mir::Type::Array { length, .. } => Some(*length),
             _ => None,

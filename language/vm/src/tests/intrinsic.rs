@@ -615,8 +615,8 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
 #[test]
 fn test_intrinsic_write_barrier_shared_managed() {
     let mir = r#"
-function test(v0: ref<int32, managed, readonly, addressSpace(shared)>, v1: uint64, v2: uint64): boolean {
-b0(v0: ref<int32, managed, readonly, addressSpace(shared)>, v1: uint64, v2: uint64):
+function test(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64): boolean {
+b0(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64):
     intrinsic.writeBarrier(v0, v1, v2)
     v3: boolean = true
     return v3

@@ -1,10 +1,9 @@
 use destack_mir as mir;
 
-use destack_heap::ReferenceMeta;
+use crate::ReferenceMeta;
 
-use crate::executable::layout::repr_type;
-use crate::executable::value::{
-    PointerStorage, ValueKind, kind_from_type, pointer_storage_from_reference,
+use crate::module::{
+    PointerClass, ValueKind, kind_from_type, pointer_class_from_reference, repr_type,
 };
 
 /// One dense map from SSA value id to inferred lowered kind.
@@ -188,15 +187,15 @@ pub(super) fn reference_meta_for_type(
     }
 }
 
-/// Resolve one managed pointee type from a pointer value when available.
-pub(super) fn managed_pointee_type_for_value_kind(
+/// Resolve one heap pointee type from a pointer value when available.
+pub(super) fn heap_pointee_type_for_value_kind(
     value_kind_map: &ValueKindMap,
     value: mir::Value,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
     match value_kind_map.get(value) {
         Some(ValueKind::Pointer {
             pointee,
-            storage: PointerStorage::Managed,
+            pointer_class: PointerClass::Heap | PointerClass::SharedHeap,
             ..
         }) => Some(pointee),
         _ => None,
@@ -211,15 +210,20 @@ pub(super) fn raw_pointee_type_for_value_kind(
     match value_kind_map.get(value) {
         Some(ValueKind::Pointer {
             pointee,
-            storage: PointerStorage::Raw | PointerStorage::Stack,
+            pointer_class:
+                PointerClass::Raw
+                | PointerClass::SharedRaw
+                | PointerClass::Stack
+                | PointerClass::Frame
+                | PointerClass::Global,
             ..
         }) => Some(pointee),
         _ => None,
     }
 }
 
-/// Resolve one managed pointee type from a value type when available.
-pub(super) fn managed_pointee_type_for_value(
+/// Resolve one heap pointee type from a value type when available.
+pub(super) fn heap_pointee_type_for_value(
     tree: &mir::NodeTree,
     value_types: &[mir::LocalNodeId<mir::Type>],
     value: mir::Value,
@@ -228,12 +232,12 @@ pub(super) fn managed_pointee_type_for_value(
 
     match tree.get(ty) {
         mir::Type::Reference {
-            kind: mir::ReferenceKind::Managed,
+            kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
             pointee,
             ..
         } => pointee.ty(),
-        mir::Type::TensorReference {
-            kind: mir::ReferenceKind::Managed,
+        mir::Type::TensorView {
+            kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
             element,
             ..
         } => element.ty(),
@@ -256,20 +260,20 @@ pub(super) fn raw_pointee_type_for_value(
             pointee,
             ..
         } if matches!(
-            pointer_storage_from_reference(*address_space, *kind),
-            PointerStorage::Raw | PointerStorage::Stack
+            pointer_class_from_reference(address_space.clone(), *kind),
+            PointerClass::Raw | PointerClass::Stack | PointerClass::Frame
         ) =>
         {
             pointee.ty()
         }
-        mir::Type::TensorReference {
+        mir::Type::TensorView {
             kind,
             address_space,
             element,
             ..
         } if matches!(
-            pointer_storage_from_reference(*address_space, *kind),
-            PointerStorage::Raw | PointerStorage::Stack
+            pointer_class_from_reference(address_space.clone(), *kind),
+            PointerClass::Raw | PointerClass::Stack | PointerClass::Frame
         ) =>
         {
             element.ty()
@@ -285,20 +289,20 @@ fn kind_for_block_parameter(kind: ValueKind) -> ValueKind {
             pointee, reference, ..
         } => ValueKind::Pointer {
             pointee,
-            storage: PointerStorage::Unknown,
+            pointer_class: PointerClass::Unknown,
             reference,
         },
         _ => kind,
     }
 }
 
-/// Merge pointer storage classes when propagating block parameter kinds.
-fn merge_pointer_storage(existing: PointerStorage, incoming: PointerStorage) -> PointerStorage {
+/// Merge pointer classes when propagating block parameter kinds.
+fn merge_pointer_class(existing: PointerClass, incoming: PointerClass) -> PointerClass {
     match (existing, incoming) {
-        (PointerStorage::Unknown, other) => other,
-        (other, PointerStorage::Unknown) => other,
+        (PointerClass::Unknown, other) => other,
+        (other, PointerClass::Unknown) => other,
         (left, right) if left == right => left,
-        _ => PointerStorage::Unknown,
+        _ => PointerClass::Unknown,
     }
 }
 
@@ -308,16 +312,16 @@ fn merge_block_parameter_kind(existing: ValueKind, incoming: ValueKind) -> Value
         (
             ValueKind::Pointer {
                 pointee,
-                storage,
+                pointer_class,
                 reference,
             },
             ValueKind::Pointer {
-                storage: incoming_storage,
+                pointer_class: incoming_pointer_class,
                 ..
             },
         ) => ValueKind::Pointer {
             pointee,
-            storage: merge_pointer_storage(storage, incoming_storage),
+            pointer_class: merge_pointer_class(pointer_class, incoming_pointer_class),
             reference,
         },
         (ValueKind::Unknown, other) => other,
@@ -615,7 +619,29 @@ fn infer_instruction_kind(
             }
         }
         mir::Instruction::Unary { argument, .. } => value_kind_map.get(argument.value()?),
-        mir::Instruction::Cast { to_type, .. } => Some(kind_from_type(tree, to_type.ty()?)),
+        mir::Instruction::Cast {
+            argument, to_type, ..
+        } => {
+            let to_type = to_type.ty()?;
+            let result_kind = kind_from_type(tree, to_type);
+            let argument_kind = value_kind_map.get(argument.value()?);
+
+            match (result_kind, argument_kind) {
+                (
+                    ValueKind::Pointer {
+                        pointee,
+                        pointer_class: PointerClass::Unknown,
+                        reference,
+                    },
+                    Some(ValueKind::Pointer { pointer_class, .. }),
+                ) => Some(ValueKind::Pointer {
+                    pointee,
+                    pointer_class,
+                    reference,
+                }),
+                (result_kind, _) => Some(result_kind),
+            }
+        }
         mir::Instruction::Select { then_value, .. } => value_kind_map.get(then_value.value()?),
         mir::Instruction::Call {
             destination,
@@ -639,7 +665,7 @@ fn infer_instruction_kind(
             let destination = (*destination)?.value()?;
             let _ = destination;
             let signature = call.signature.ty()?;
-            let mir::Type::FunctionPointer { result, .. } = tree.get(signature) else {
+            let mir::Type::FunctionSignature { result, .. } = tree.get(signature) else {
                 return None;
             };
 
@@ -651,18 +677,19 @@ fn infer_instruction_kind(
         }
         mir::Instruction::LocalAddr { result_type, .. } => {
             let mut kind = kind_from_type(tree, result_type.ty()?);
-            let ValueKind::Pointer { storage, .. } = &mut kind else {
+            let ValueKind::Pointer { pointer_class, .. } = &mut kind else {
                 return None;
             };
-            *storage = PointerStorage::Local;
+            *pointer_class = PointerClass::Frame;
             Some(kind)
         }
         mir::Instruction::GlobalAddr { result_type, .. } => {
-            Some(kind_from_type(tree, result_type.ty()?))
-        }
-        mir::Instruction::GlobalConst { global, .. } => {
-            let global = tree.get(global.global()?);
-            Some(kind_from_type(tree, global.ty.ty()?))
+            let mut kind = kind_from_type(tree, result_type.ty()?);
+            let ValueKind::Pointer { pointer_class, .. } = &mut kind else {
+                return None;
+            };
+            *pointer_class = PointerClass::Global;
+            Some(kind)
         }
         mir::Instruction::FunctionAddr { function, .. } => {
             let function = tree.get(function.function()?);
@@ -670,12 +697,12 @@ fn infer_instruction_kind(
                 result: function.return_type.ty()?,
             })
         }
-        mir::Instruction::FunctionBind { destination, .. } => {
+        mir::Instruction::CallableBind { destination, .. } => {
             let destination = destination.value()?;
             let ty = value_type_for_value(destination, value_types)?;
             Some(kind_from_type(tree, ty))
         }
-        mir::Instruction::FunctionEnvironment { destination } => {
+        mir::Instruction::CallableEnvironment { destination } => {
             value_kind_map.get(destination.value()?)
         }
         mir::Instruction::Load { result_type, .. } => Some(kind_from_type(tree, result_type.ty()?)),
@@ -708,6 +735,11 @@ fn infer_instruction_kind(
         mir::Instruction::Struct { ty, .. }
         | mir::Instruction::Tuple { ty, .. }
         | mir::Instruction::Array { ty, .. } => Some(kind_from_type(tree, ty.ty()?)),
+        mir::Instruction::TensorExtract { destination, .. } => {
+            let destination = destination.value()?;
+            let ty = value_type_for_value(destination, value_types)?;
+            Some(kind_from_type(tree, ty))
+        }
         mir::Instruction::VectorSplat { .. }
         | mir::Instruction::VectorExtract { .. }
         | mir::Instruction::VectorInsert { .. }
@@ -716,6 +748,7 @@ fn infer_instruction_kind(
         | mir::Instruction::VectorReduce { .. }
         | mir::Instruction::VectorCompare { .. }
         | mir::Instruction::VectorConvert { .. }
+        | mir::Instruction::TensorSplat { .. }
         | mir::Instruction::TensorLoad { .. }
         | mir::Instruction::TensorStore { .. }
         | mir::Instruction::TensorFill { .. }
@@ -736,8 +769,8 @@ fn infer_instruction_kind(
         | mir::Instruction::TensorCompare { .. }
         | mir::Instruction::TensorSelect { .. }
         | mir::Instruction::TensorConvert { .. } => None,
-        mir::Instruction::ManagedAlloc { result_type, .. }
-        | mir::Instruction::ManagedAllocArray { result_type, .. }
+        mir::Instruction::New { result_type, .. }
+        | mir::Instruction::NewSlice { result_type, .. }
         | mir::Instruction::RawAlloc { result_type, .. }
         | mir::Instruction::StackAlloc { result_type, .. }
         | mir::Instruction::AtomicLoad { result_type, .. } => {
@@ -762,8 +795,9 @@ fn infer_instruction_kind(
         | mir::Instruction::RawFree { .. }
         | mir::Instruction::Dispose { .. }
         | mir::Instruction::AsyncDispose { .. }
+        | mir::Instruction::Pin { .. }
+        | mir::Instruction::Unpin { .. }
         | mir::Instruction::Drop { .. }
-        | mir::Instruction::AsyncDrop { .. }
         | mir::Instruction::Assume { .. } => None,
     }
 }
@@ -843,18 +877,12 @@ fn kind_from_field(tree: &mir::NodeTree, kind: ValueKind, index: u32) -> Option<
     };
 
     match tree.get(ty) {
-        mir::Type::Struct {
-            fields,
-            copyability: _,
-        } => {
+        mir::Type::Struct { fields, copy: _ } => {
             let field = fields.get(index as usize)?;
             let field = tree.get(*field);
             Some(kind_from_type(tree, field.ty.ty()?))
         }
-        mir::Type::Tuple {
-            elements,
-            copyability: _,
-        } => {
+        mir::Type::Tuple { elements, copy: _ } => {
             let field = elements.get(index as usize)?;
             Some(kind_from_type(tree, field.ty()?))
         }
@@ -874,13 +902,13 @@ fn kind_from_element(tree: &mir::NodeTree, kind: ValueKind) -> Option<ValueKind>
     }
 }
 
-/// Rebuild one address-producing result kind from the source storage class.
+/// Rebuild one address-producing result kind from the source pointer class.
 fn pointer_result_kind_from_source(
     tree: &mir::NodeTree,
     result_type: mir::LocalNodeId<mir::Type>,
     source_kind: ValueKind,
 ) -> Option<ValueKind> {
-    let ValueKind::Pointer { storage, .. } = source_kind else {
+    let ValueKind::Pointer { pointer_class, .. } = source_kind else {
         return Some(kind_from_type(tree, result_type));
     };
 
@@ -893,7 +921,7 @@ fn pointer_result_kind_from_source(
 
     Some(ValueKind::Pointer {
         pointee,
-        storage,
+        pointer_class,
         reference,
     })
 }

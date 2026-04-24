@@ -9,7 +9,7 @@ use destack_mir::{LayoutTable, Storage};
 use destack_source::FileId;
 
 use crate::diagnostic::{Error, RuntimeResult};
-use crate::{Continuation, Isolate, IsolateOptions, RunOutcome, RunOutput, Value};
+use crate::{Continuation, Isolate, IsolateId, IsolateOptions, RunOutcome, RunOutput, Value};
 
 /// The isolate and authoritative heap used by one test runtime.
 pub(crate) struct TestIsolate {
@@ -72,8 +72,9 @@ impl TestIsolate {
             .validate()
             .expect("failed to parse MIR");
 
-        let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
-            .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
+        let mut isolate =
+            Isolate::build_with_options(IsolateId::new(1), tree, strings, IsolateOptions::test())
+                .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
         let layouts = Arc::new(isolate.layout_table().clone());
         let mut heap = create_test_heap(layouts.clone());
         let mut shared = create_test_shared_heap(layouts);
@@ -119,7 +120,7 @@ impl TestIsolate {
         self.with_heaps(|vm, heap, shared| {
             vm.with_runtime_context(heap, shared, Default::default(), |context| {
                 context
-                    .materialize_storage_value(ty, values)
+                    .materialize_heap_value(ty, values)
                     .unwrap_or_else(|error| {
                         panic!("failed to materialize typed composite: {error}")
                     })
@@ -227,8 +228,9 @@ pub(crate) fn create_isolate_with_storage(mir_text: &str, storage: Storage) -> T
     // keep the helper honest: parse must produce the requested layout directly
     assert_eq!(tree.metadata.layout.storage, storage);
 
-    let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
-        .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
+    let mut isolate =
+        Isolate::build_with_options(IsolateId::new(1), tree, strings, IsolateOptions::test())
+            .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
     let layouts = Arc::new(isolate.layout_table().clone());
     let mut heap = create_test_heap(layouts.clone());
     let mut shared = create_test_shared_heap(layouts);
@@ -357,9 +359,8 @@ pub(crate) fn assert_materialized_plain(value: &MaterializedValue) -> Value {
         MaterializedValue::SharedRawPointer(pointer) => Value::shared_raw_pointer(*pointer),
 
         MaterializedValue::Undefined
-        | MaterializedValue::Aggregate { .. }
         | MaterializedValue::FrameAddress(_)
-        | MaterializedValue::GlobalAddress(_)
+        | MaterializedValue::StaticAddress(_)
         | MaterializedValue::Function(_) => {
             panic!("expected plain materialized value, got {value:?}")
         }
@@ -439,7 +440,7 @@ b0(v0: ref<Box, managed, readonly>):
 
 /// Stored function values preserve their function pointer payload through nominal storage.
 #[test]
-fn test_execute_stored_function_value_roundtrip() {
+fn test_execute_stored_callable_roundtrip() {
     let mir_text = r#"
 type Fn = () -> int32;
 type Holder {
@@ -479,14 +480,14 @@ type Greeter {
     itab: usize;
 }
 type GreeterImpl {
-    vtable: ref<void, raw, readonly, addressSpace(global)>;
+    vtable: ref<void, raw, readonly, space(local)>;
     value: int32;
 }
 type Greeter#object {
     greet: () => int32;
 }
 
-global GreeterImpl#vtable: ref?<void, raw, readonly, addressSpace(global)>[3], readonly = zeroInit
+global GreeterImpl#vtable: ref?<void, raw, readonly, space(local)>[3], readonly = zeroInit
 
 extern function Greeter.greet(Greeter#object): int32
 
@@ -512,8 +513,8 @@ b0:
 function GreeterImpl.constructor(v0: int32): ref<GreeterImpl, managed, readonly> {
 b0(v0: int32):
     v1: ref<GreeterImpl, managed, readonly> = new GreeterImpl
-    v2: ref<ref?<void, raw, readonly, addressSpace(global)>[3], raw, readonly, addressSpace(global)> = global.address GreeterImpl#vtable
-    v3: ref<void, raw, readonly, addressSpace(global)> = cast.bit v2 -> ref<void, raw, readonly, addressSpace(global)>
+    v2: ref<ref?<void, raw, readonly, space(local)>[3], raw, readonly, space(local)> = global.address GreeterImpl#vtable
+    v3: ref<void, raw, readonly, space(local)> = cast.bit v2 -> ref<void, raw, readonly, space(local)>
     v4: int32 = 0int32
     v5: GreeterImpl = struct GreeterImpl (v3, v4)
     store v1, v5

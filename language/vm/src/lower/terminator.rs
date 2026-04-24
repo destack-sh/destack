@@ -1,21 +1,17 @@
-use std::collections::HashMap;
-
 use destack_mir as mir;
 
-use destack_heap::Value;
+use crate::Value;
 
-use crate::executable::{Instruction, InstructionData, InstructionOperation, pack_optional_value};
+use crate::module::{Immediate, Instruction, Opcode, pack_optional_value};
 use crate::{Error, Result};
 
-use super::kind::{managed_pointee_type_for_value, managed_pointee_type_for_value_kind};
+use super::kind::{heap_pointee_type_for_value, heap_pointee_type_for_value_kind};
 use super::lower::BlockLowerer;
-use super::operation::{
-    select_branch_operation, select_compare_branch_const_operation,
-    select_compare_branch_operation, select_switch_operation, select_switch_table_operation,
-    swap_compare_operator,
+use super::opcode::{
+    select_branch_opcode, select_compare_branch_const_opcode, select_compare_branch_opcode,
+    select_switch_opcode, select_switch_table_opcode, swap_compare_operator,
 };
 use super::pool::Pool;
-use super::tree::ValueDecomposition;
 
 impl<'a> BlockLowerer<'a> {
     /// Try to fuse compare + branch into a single instruction.
@@ -123,10 +119,10 @@ impl<'a> BlockLowerer<'a> {
         let else_copies = pool.copy_range(else_parameters, &else_arguments);
 
         if let Some(right_const) = const_value {
-            let operation = select_compare_branch_const_operation(operator);
+            let opcode = select_compare_branch_const_opcode(operator);
             return Some(Instruction {
-                operation,
-                data: InstructionData::CompareAndBranchConst {
+                opcode,
+                immediate: Immediate::CompareAndBranchConst {
                     left: left_value,
                     right_const,
                     operator,
@@ -138,10 +134,10 @@ impl<'a> BlockLowerer<'a> {
             });
         }
 
-        let operation = select_compare_branch_operation(operator);
+        let opcode = select_compare_branch_opcode(operator);
         Some(Instruction {
-            operation,
-            data: InstructionData::CompareAndBranch {
+            opcode,
+            immediate: Immediate::CompareAndBranch {
                 left,
                 right,
                 operator,
@@ -157,7 +153,6 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_terminator(
         &self,
         term: &mir::Terminator,
-        decomposition_by_value: &HashMap<mir::Value, ValueDecomposition>,
         pool: &mut Pool,
     ) -> Result<Instruction> {
         Ok(match term {
@@ -167,8 +162,8 @@ impl<'a> BlockLowerer<'a> {
                 });
             }
             mir::Terminator::Return { value } => Instruction {
-                operation: InstructionOperation::Return,
-                data: InstructionData::Return {
+                opcode: Opcode::Return,
+                immediate: Immediate::Return {
                     value: pack_optional_value(
                         (*value)
                             .map(|value| {
@@ -205,17 +200,11 @@ impl<'a> BlockLowerer<'a> {
                     .get(target_index)
                     .map(|params| params.as_slice())
                     .unwrap_or_default();
-                let value_tree_by_param = self.block_parameter_map.tree_by_block.get(&target_block);
-                let copies = pool.edge_copy_plan(
-                    target_parameters,
-                    &arguments,
-                    value_tree_by_param,
-                    decomposition_by_value,
-                )?;
+                let copies = pool.edge_copy_plan(target_parameters, &arguments);
 
                 Instruction {
-                    operation: InstructionOperation::Jump,
-                    data: InstructionData::Jump {
+                    opcode: Opcode::Jump,
+                    immediate: Immediate::Jump {
                         target: target_index as u32,
                         copies,
                     },
@@ -278,30 +267,12 @@ impl<'a> BlockLowerer<'a> {
                     .get(else_index)
                     .map(|params| params.as_slice())
                     .unwrap_or_default();
-                let then_value_tree = self
-                    .block_parameter_map
-                    .tree_by_block
-                    .get(&then_target_block);
-                let else_value_tree = self
-                    .block_parameter_map
-                    .tree_by_block
-                    .get(&else_target_block);
-                let then_copies = pool.edge_copy_plan(
-                    then_parameters,
-                    &then_arguments,
-                    then_value_tree,
-                    decomposition_by_value,
-                )?;
-                let else_copies = pool.edge_copy_plan(
-                    else_parameters,
-                    &else_arguments,
-                    else_value_tree,
-                    decomposition_by_value,
-                )?;
+                let then_copies = pool.edge_copy_plan(then_parameters, &then_arguments);
+                let else_copies = pool.edge_copy_plan(else_parameters, &else_arguments);
 
                 Instruction {
-                    operation: select_branch_operation(self.value_kind_map(), condition),
-                    data: InstructionData::Branch {
+                    opcode: select_branch_opcode(self.value_kind_map(), condition),
+                    immediate: Immediate::Branch {
                         condition,
                         then_target: then_index as u32,
                         then_copies,
@@ -362,24 +333,12 @@ impl<'a> BlockLowerer<'a> {
                     .get(failure_index)
                     .map(|params| params.as_slice())
                     .unwrap_or_default();
-                let success_value_tree = self.block_parameter_map.tree_by_block.get(&success_block);
-                let failure_value_tree = self.block_parameter_map.tree_by_block.get(&failure_block);
-                let success_copies = pool.edge_copy_plan(
-                    success_parameters,
-                    &success_arguments,
-                    success_value_tree,
-                    decomposition_by_value,
-                )?;
-                let failure_copies = pool.edge_copy_plan(
-                    failure_parameters,
-                    &failure_arguments,
-                    failure_value_tree,
-                    decomposition_by_value,
-                )?;
+                let success_copies = pool.edge_copy_plan(success_parameters, &success_arguments);
+                let failure_copies = pool.edge_copy_plan(failure_parameters, &failure_arguments);
 
                 Instruction {
-                    operation: InstructionOperation::Check,
-                    data: InstructionData::Check {
+                    opcode: Opcode::Check,
+                    immediate: Immediate::Check {
                         constraint: constraint.clone(),
                         then_target: success_index as u32,
                         then_copies: success_copies,
@@ -420,13 +379,7 @@ impl<'a> BlockLowerer<'a> {
                     .get(default_index)
                     .map(|params| params.as_slice())
                     .unwrap_or_default();
-                let default_value_tree = self.block_parameter_map.tree_by_block.get(&default_block);
-                let default_copies = pool.edge_copy_plan(
-                    default_parameters,
-                    &default_arguments,
-                    default_value_tree,
-                    decomposition_by_value,
-                )?;
+                let default_copies = pool.edge_copy_plan(default_parameters, &default_arguments);
 
                 if let Some((min_value, table_range)) = pool.switch_table_range(
                     &self.block_index_by_id,
@@ -434,12 +387,10 @@ impl<'a> BlockLowerer<'a> {
                     cases,
                     default_index as u32,
                     default_copies,
-                    self.block_parameter_map,
-                    decomposition_by_value,
                 )? {
                     Instruction {
-                        operation: select_switch_table_operation(self.value_kind_map(), value),
-                        data: InstructionData::SwitchTable {
+                        opcode: select_switch_table_opcode(self.value_kind_map(), value),
+                        immediate: Immediate::SwitchTable {
                             value,
                             min: min_value,
                             table: table_range,
@@ -452,12 +403,10 @@ impl<'a> BlockLowerer<'a> {
                         &self.block_index_by_id,
                         &self.block_parameter,
                         cases,
-                        self.block_parameter_map,
-                        decomposition_by_value,
                     )?;
                     Instruction {
-                        operation: select_switch_operation(self.value_kind_map(), value),
-                        data: InstructionData::Switch {
+                        opcode: select_switch_opcode(self.value_kind_map(), value),
+                        immediate: Immediate::Switch {
                             value,
                             cases,
                             default_target: default_index as u32,
@@ -468,8 +417,8 @@ impl<'a> BlockLowerer<'a> {
             }
 
             mir::Terminator::Trap { kind, payload } => Instruction {
-                operation: InstructionOperation::Trap,
-                data: InstructionData::Trap {
+                opcode: Opcode::Trap,
+                immediate: Immediate::Trap {
                     kind: *kind,
                     payload: pack_optional_value(
                         (*payload)
@@ -484,8 +433,8 @@ impl<'a> BlockLowerer<'a> {
             },
 
             mir::Terminator::Unreachable => Instruction {
-                operation: InstructionOperation::Unreachable,
-                data: InstructionData::Unreachable,
+                opcode: Opcode::Unreachable,
+                immediate: Immediate::Unreachable,
             },
 
             mir::Terminator::Yield { value, .. } => {
@@ -504,17 +453,18 @@ impl<'a> BlockLowerer<'a> {
                     })?;
 
                 Instruction {
-                    operation: InstructionOperation::Yield,
-                    data: InstructionData::Yield {
+                    opcode: Opcode::Yield,
+                    immediate: Immediate::Yield {
                         value,
+                        source: value,
                         resume_point,
                     },
                 }
             }
 
             mir::Terminator::Throw { value } => Instruction {
-                operation: InstructionOperation::Throw,
-                data: InstructionData::Throw {
+                opcode: Opcode::Throw,
+                immediate: Immediate::Throw {
                     value: pack_optional_value(Some((*value).value().ok_or_else(|| {
                         Error::ConcreteMirRequired {
                             context: "throw value".to_string(),
@@ -542,8 +492,8 @@ impl<'a> BlockLowerer<'a> {
                     })?;
 
                 Instruction {
-                    operation: InstructionOperation::CallBranch,
-                    data: InstructionData::CallBranch {
+                    opcode: Opcode::CallBranch,
+                    immediate: Immediate::CallBranch {
                         function: function.id,
                         target: self.call_target(function)?,
                         arguments: args,
@@ -572,8 +522,8 @@ impl<'a> BlockLowerer<'a> {
                     })?;
 
                 Instruction {
-                    operation: InstructionOperation::CallIndirectBranch,
-                    data: InstructionData::CallIndirectBranch {
+                    opcode: Opcode::CallIndirectBranch,
+                    immediate: Immediate::CallIndirectBranch {
                         callee,
                         arguments,
                         normal_resume_point,
@@ -606,10 +556,10 @@ impl<'a> BlockLowerer<'a> {
                     })?;
 
                 Instruction {
-                    operation: InstructionOperation::CallVirtualBranch,
-                    data: InstructionData::CallVirtualBranch {
+                    opcode: Opcode::CallVirtualBranch,
+                    immediate: Immediate::CallVirtualBranch {
                         receiver,
-                        managed_pointee: managed_pointee_type_for_value(
+                        heap_pointee: heap_pointee_type_for_value(
                             self.tree,
                             self.value_type(),
                             receiver,
@@ -646,10 +596,10 @@ impl<'a> BlockLowerer<'a> {
                     })?;
 
                 Instruction {
-                    operation: InstructionOperation::CallInterfaceBranch,
-                    data: InstructionData::CallInterfaceBranch {
+                    opcode: Opcode::CallInterfaceBranch,
+                    immediate: Immediate::CallInterfaceBranch {
                         receiver,
-                        managed_pointee: managed_pointee_type_for_value(
+                        heap_pointee: heap_pointee_type_for_value(
                             self.tree,
                             self.value_type(),
                             receiver,
@@ -673,8 +623,8 @@ impl<'a> BlockLowerer<'a> {
                     let args =
                         pool.argument_reference_range(&call.arguments, "tail call argument")?;
                     Instruction {
-                        operation: InstructionOperation::TailCallSelf,
-                        data: InstructionData::TailCallSelf {
+                        opcode: Opcode::TailCallSelf,
+                        immediate: Immediate::TailCallSelf {
                             entry: self.entry_block,
                             arguments: args,
                         },
@@ -696,8 +646,8 @@ impl<'a> BlockLowerer<'a> {
                     let target = self.call_target(function)?;
 
                     Instruction {
-                        operation: InstructionOperation::TailCall,
-                        data: InstructionData::TailCall {
+                        opcode: Opcode::TailCall,
+                        immediate: Immediate::TailCall {
                             function: function.id,
                             target,
                             copies,
@@ -715,8 +665,8 @@ impl<'a> BlockLowerer<'a> {
                 let args =
                     pool.argument_reference_range(&call.arguments, "tail indirect argument")?;
                 Instruction {
-                    operation: InstructionOperation::TailCallIndirect,
-                    data: InstructionData::TailCallIndirect {
+                    opcode: Opcode::TailCallIndirect,
+                    immediate: Immediate::TailCallIndirect {
                         callee,
                         arguments: args,
                     },
@@ -737,10 +687,10 @@ impl<'a> BlockLowerer<'a> {
                 let args =
                     pool.argument_reference_range(&call.arguments, "tail virtual argument")?;
                 Instruction {
-                    operation: InstructionOperation::TailCallVirtual,
-                    data: InstructionData::TailCallVirtual {
+                    opcode: Opcode::TailCallVirtual,
+                    immediate: Immediate::TailCallVirtual {
                         receiver,
-                        managed_pointee: managed_pointee_type_for_value_kind(
+                        heap_pointee: heap_pointee_type_for_value_kind(
                             self.value_kind_map(),
                             receiver,
                         ),
@@ -764,10 +714,10 @@ impl<'a> BlockLowerer<'a> {
                 let args =
                     pool.argument_reference_range(&call.arguments, "tail interface argument")?;
                 Instruction {
-                    operation: InstructionOperation::TailCallInterface,
-                    data: InstructionData::TailCallInterface {
+                    opcode: Opcode::TailCallInterface,
+                    immediate: Immediate::TailCallInterface {
                         receiver,
-                        managed_pointee: managed_pointee_type_for_value_kind(
+                        heap_pointee: heap_pointee_type_for_value_kind(
                             self.value_kind_map(),
                             receiver,
                         ),

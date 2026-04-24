@@ -320,7 +320,7 @@ fn test_yield_preserves_stack_alloc_in_current_frame() {
     let mir = r#"
 function yieldStackLocal(): int32 {
 b0:
-    v0: ref<int32, raw, readonly, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, readonly, space(stack)> = stack.alloc int32
     v1: int32 = 1int32
     yield v1, b1
 b1(v2: int32):
@@ -346,7 +346,7 @@ fn test_yield_allows_retired_stack_alloc_in_current_frame() {
     let mir = r#"
 function yieldRetiredStackLocal(): int32 {
 b0:
-    v0: ref<int32, raw, readonly, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, readonly, space(stack)> = stack.alloc int32
     drop v0
     v1: int32 = 1int32
     yield v1, b1
@@ -377,7 +377,7 @@ b1(v1: int32):
 }
 function outerWithStackLocal(v0: int32): int32 {
 b0(v0: int32):
-    v1: ref<int32, raw, readonly, addressSpace(stack)> = stack.alloc int32
+    v1: ref<int32, raw, readonly, space(stack)> = stack.alloc int32
     v2: int32 = call yieldInner(v0): (int32) -> int32
     return v2
 }"#;
@@ -405,7 +405,7 @@ function yieldFramePointer(): int32 {
 b0:
     v0: int32 = 1int32
     local.set local0, v0
-    v1: ref<int32, borrowed, addressSpace(frame)> = local.address local0
+    v1: ref<int32, borrowed, space(frame)> = local.address local0
     v2: int32 = 2int32
     yield v2, b1
 b1(v3: int32):
@@ -544,7 +544,7 @@ b1(v3: Pair, v4: int32):
 
     // collect garbage while continuation is suspended
     let stats = isolate.collect_garbage_with_continuations(std::slice::from_ref(&continuation));
-    assert_eq!(stats.live_allocations, 1);
+    assert_eq!(stats.live_allocations, 2);
 
     // resume and complete the coroutine
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(7)));
@@ -597,5 +597,5 @@ b1(v3: Pair, v4: int32):
         .collect_full(&mut heap_roots)
         .expect("heap should collect");
 
-    assert_eq!(stats.live_allocations, 1);
+    assert_eq!(stats.live_allocations, 0);
 }

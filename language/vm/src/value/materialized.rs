@@ -7,12 +7,10 @@ use super::{Value, ValueTag};
 pub enum DematerializeValueError {
     /// The materialized value is undefined.
     Undefined,
-    /// The materialized value is one aggregate payload.
-    Aggregate,
     /// The materialized value is one frame address.
     FrameAddress,
-    /// The materialized value is one global address.
-    GlobalAddress,
+    /// The materialized value is one static address.
+    StaticAddress,
     /// The materialized value is one function handle.
     Function,
 }
@@ -23,14 +21,11 @@ impl std::fmt::Display for DematerializeValueError {
             DematerializeValueError::Undefined => {
                 write!(f, "undefined value cannot be dematerialized")
             }
-            DematerializeValueError::Aggregate => {
-                write!(f, "aggregate value cannot be dematerialized")
-            }
             DematerializeValueError::FrameAddress => {
                 write!(f, "frame address cannot be dematerialized")
             }
-            DematerializeValueError::GlobalAddress => {
-                write!(f, "global address cannot be dematerialized")
+            DematerializeValueError::StaticAddress => {
+                write!(f, "static address cannot be dematerialized")
             }
             DematerializeValueError::Function => {
                 write!(f, "function handle cannot be dematerialized")
@@ -104,9 +99,8 @@ impl TryFrom<&MaterializedValue> for Value {
             MaterializedValue::RawPointer(pointer) => Ok(Value::raw_pointer(*pointer)),
             MaterializedValue::SharedRawPointer(pointer) => Ok(Value::shared_raw_pointer(*pointer)),
             MaterializedValue::Undefined => Err(DematerializeValueError::Undefined),
-            MaterializedValue::Aggregate { .. } => Err(DematerializeValueError::Aggregate),
             MaterializedValue::FrameAddress(_) => Err(DematerializeValueError::FrameAddress),
-            MaterializedValue::GlobalAddress(_) => Err(DematerializeValueError::GlobalAddress),
+            MaterializedValue::StaticAddress(_) => Err(DematerializeValueError::StaticAddress),
             MaterializedValue::Function(_) => Err(DematerializeValueError::Function),
         }
     }

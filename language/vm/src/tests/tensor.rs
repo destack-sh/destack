@@ -59,8 +59,8 @@ fn test_tensor_load_store() {
     let mir = r#"
 function tensorLoadStore(): int32 {
 b0:
-    v0: ref<int32[4], raw, addressSpace(stack)> = stack.alloc int32[4]
-    v1: tensorView<int32, raw, addressSpace(stack), (2, 2)> = cast.bit v0 -> tensorView<int32, raw, addressSpace(stack), (2, 2)>
+    v0: ref<int32[4], raw, space(stack)> = stack.alloc int32[4]
+    v1: tensorView<int32, raw, space(stack), (2, 2)> = cast.bit v0 -> tensorView<int32, raw, space(stack), (2, 2)>
     v2: int32 = 42int32
     v3: int32 = 1int32
     v4: int32 = 0int32
@@ -77,10 +77,10 @@ fn test_tensor_fill_copy() {
     let mir = r#"
 function tensorFillCopy(): int32 {
 b0:
-    v0: ref<int32[4], raw, addressSpace(stack)> = stack.alloc int32[4]
-    v1: ref<int32[4], raw, addressSpace(stack)> = stack.alloc int32[4]
-    v2: tensorView<int32, raw, addressSpace(stack), (2, 2)> = cast.bit v0 -> tensorView<int32, raw, addressSpace(stack), (2, 2)>
-    v3: tensorView<int32, raw, addressSpace(stack), (2, 2)> = cast.bit v1 -> tensorView<int32, raw, addressSpace(stack), (2, 2)>
+    v0: ref<int32[4], raw, space(stack)> = stack.alloc int32[4]
+    v1: ref<int32[4], raw, space(stack)> = stack.alloc int32[4]
+    v2: tensorView<int32, raw, space(stack), (2, 2)> = cast.bit v0 -> tensorView<int32, raw, space(stack), (2, 2)>
+    v3: tensorView<int32, raw, space(stack), (2, 2)> = cast.bit v1 -> tensorView<int32, raw, space(stack), (2, 2)>
     v4: int32 = 5int32
     tensor.fill v2, v4
     tensor.copy v3, v2
@@ -464,8 +464,8 @@ fn test_tensor_view() {
     let mir = r#"
 function tensorViewValue(): int32 {
 b0:
-    v0: ref<int32[4], raw, addressSpace(stack)> = stack.alloc int32[4]
-    v1: tensorView<int32, raw, addressSpace(stack), (2, 2)> = cast.bit v0 -> tensorView<int32, raw, addressSpace(stack), (2, 2)>
+    v0: ref<int32[4], raw, space(stack)> = stack.alloc int32[4]
+    v1: tensorView<int32, raw, space(stack), (2, 2)> = cast.bit v0 -> tensorView<int32, raw, space(stack), (2, 2)>
     v2: int32 = 0int32
     v3: int32 = 1int32
     v4: int32 = 2int32
@@ -474,7 +474,7 @@ b0:
     tensor.store v1, [v2, v3], v4
     tensor.store v1, [v3, v2], v5
     tensor.store v1, [v3, v3], v4
-    v6: tensorView<int32, raw, addressSpace(stack), (2, 1)> = tensor.view v1, offsets(v2, v3), sizes(v4, v3), strides(v3, v3)
+    v6: tensorView<int32, raw, space(stack), (2, 1)> = tensor.view v1, offsets(v2, v3), sizes(v4, v3), strides(v3, v3)
     v7: int32 = tensor.load v6, [v2, v2]
     return v7
 }"#;

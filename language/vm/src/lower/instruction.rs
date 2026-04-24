@@ -1,28 +1,24 @@
 use destack_mir as mir;
 
-use destack_heap::{
-    ManagedReference, RawPointer, SharedManagedReference, SharedRawPointer, StorageLayoutId, Value,
-};
+use crate::{ReferenceAddressSpace, Value};
+use destack_heap::{HeapReference, RawPointer, SharedHeapReference, SharedRawPointer};
 
-use crate::executable::value::ValueKind;
-use crate::executable::{
-    ConstValue, Instruction, InstructionData, InstructionOperation, pack_optional_value,
-};
+use crate::module::{ConstValue, Immediate, Instruction, Opcode, ValueKind, pack_optional_value};
 use crate::{Error, Result};
 
 use super::access::*;
 use super::kind::{
-    managed_pointee_type_for_value, managed_pointee_type_for_value_kind,
-    raw_pointee_type_for_value, raw_pointee_type_for_value_kind, reference_meta_for_type,
-    reference_meta_for_value, value_type_for_value as lookup_value_type_for_value,
+    heap_pointee_type_for_value, heap_pointee_type_for_value_kind, raw_pointee_type_for_value,
+    raw_pointee_type_for_value_kind, reference_meta_for_type, reference_meta_for_value,
+    value_type_for_value as lookup_value_type_for_value,
 };
 use super::lower::BlockLowerer;
-use super::operation::{
-    select_binary_operation, select_element_addr_operation, select_element_get_operation,
-    select_element_load_operation, select_element_store_operation, select_field_addr_operation,
-    select_field_get_operation, select_field_load_operation, select_field_store_operation,
-    select_load_operation, select_specialized_const_int_operation,
-    select_specialized_int_operation, select_store_operation, select_unary_operation,
+use super::opcode::{
+    select_binary_opcode, select_element_addr_opcode, select_element_get_opcode,
+    select_element_load_opcode, select_element_store_opcode, select_field_addr_opcode,
+    select_field_get_opcode, select_field_load_opcode, select_field_store_opcode,
+    select_load_opcode, select_specialized_const_int_opcode, select_specialized_int_opcode,
+    select_store_opcode, select_unary_opcode,
 };
 use super::pool::Pool;
 
@@ -58,9 +54,9 @@ impl<'a> BlockLowerer<'a> {
 
                 let field_count = self.field_count_for_value(aggregate);
 
-                // precompute the field access descriptor when the pointee is known
+                // precompute the field access when the pointee is known
                 let pointee_type =
-                    managed_pointee_type_for_value_kind(self.value_kind_map(), aggregate).or_else(
+                    heap_pointee_type_for_value_kind(self.value_kind_map(), aggregate).or_else(
                         || raw_pointee_type_for_value_kind(self.value_kind_map(), aggregate),
                     );
                 let field = pointee_type.and_then(|pointee_type| {
@@ -74,11 +70,8 @@ impl<'a> BlockLowerer<'a> {
                         ..
                     } if pointer.value()? == destination => Some((
                         Instruction {
-                            operation: select_field_load_operation(
-                                self.value_kind_map(),
-                                aggregate,
-                            ),
-                            data: InstructionData::FieldLoad {
+                            opcode: select_field_load_opcode(self.value_kind_map(), aggregate),
+                            immediate: Immediate::FieldLoad {
                                 dest: load_dest.value()?,
                                 composite: aggregate,
                                 index: *index,
@@ -93,13 +86,8 @@ impl<'a> BlockLowerer<'a> {
                     {
                         Some((
                             Instruction {
-                                operation: select_field_store_operation(
-                                    self.value_kind_map(),
-                                    aggregate,
-                                    field_count,
-                                    *index,
-                                ),
-                                data: InstructionData::FieldStore {
+                                opcode: select_field_store_opcode(self.value_kind_map(), aggregate),
+                                immediate: Immediate::FieldStore {
                                     composite: aggregate,
                                     index: *index,
                                     value: value.value()?,
@@ -132,10 +120,9 @@ impl<'a> BlockLowerer<'a> {
 
                 let array_length = self.array_length_for_value(array);
 
-                // precompute the element access descriptor when the pointee is known
-                let pointee_type =
-                    managed_pointee_type_for_value_kind(self.value_kind_map(), array)
-                        .or_else(|| raw_pointee_type_for_value_kind(self.value_kind_map(), array));
+                // precompute the element access when the pointee is known
+                let pointee_type = heap_pointee_type_for_value_kind(self.value_kind_map(), array)
+                    .or_else(|| raw_pointee_type_for_value_kind(self.value_kind_map(), array));
                 let element = pointee_type.and_then(|pointee_type| {
                     element_access_for_pointee(self.layouts(), pointee_type)
                 });
@@ -147,8 +134,8 @@ impl<'a> BlockLowerer<'a> {
                         ..
                     } if pointer.value()? == destination => Some((
                         Instruction {
-                            operation: select_element_load_operation(self.value_kind_map(), array),
-                            data: InstructionData::ElementLoad {
+                            opcode: select_element_load_opcode(self.value_kind_map(), array),
+                            immediate: Immediate::ElementLoad {
                                 dest: load_dest.value()?,
                                 array,
                                 index: index.value()?,
@@ -163,11 +150,8 @@ impl<'a> BlockLowerer<'a> {
                     {
                         Some((
                             Instruction {
-                                operation: select_element_store_operation(
-                                    self.value_kind_map(),
-                                    array,
-                                ),
-                                data: InstructionData::ElementStore {
+                                opcode: select_element_store_opcode(self.value_kind_map(), array),
+                                immediate: Immediate::ElementStore {
                                     array,
                                     index: index.value()?,
                                     value: value.value()?,
@@ -206,8 +190,8 @@ impl<'a> BlockLowerer<'a> {
                         ..
                     } if pointer.value()? == destination => Some((
                         Instruction {
-                            operation: InstructionOperation::GlobalLoad,
-                            data: InstructionData::GlobalLoad {
+                            opcode: Opcode::GlobalLoad,
+                            immediate: Immediate::GlobalLoad {
                                 dest: load_dest.value()?,
                                 global: global.id,
                             },
@@ -219,8 +203,8 @@ impl<'a> BlockLowerer<'a> {
                     {
                         Some((
                             Instruction {
-                                operation: InstructionOperation::GlobalStore,
-                                data: InstructionData::GlobalStore {
+                                opcode: Opcode::GlobalStore,
+                                immediate: Immediate::GlobalStore {
                                     global: global.id,
                                     value: value.value()?,
                                     reference,
@@ -277,7 +261,7 @@ impl<'a> BlockLowerer<'a> {
         }
 
         // skip comparisons: they may be fused with branches, which expect both
-        // operands to be materialized values
+        // materialize values before scalar specialization
         if operator.is_comparison() {
             return None;
         }
@@ -291,11 +275,11 @@ impl<'a> BlockLowerer<'a> {
         let kind = self.value_kind_map().get(left);
         if let Some(ValueKind::Int { signed, .. }) = kind {
             // try to get a specialized const handler
-            if let Some(operation) = select_specialized_const_int_operation(*operator, signed) {
+            if let Some(opcode) = select_specialized_const_int_opcode(*operator, signed) {
                 return Some((
                     Instruction {
-                        operation,
-                        data: InstructionData::BinaryConstRightSpecialized {
+                        opcode,
+                        immediate: Immediate::BinaryConstRightSpecialized {
                             dest: bin_dest,
                             left,
                             right_const: const_value,
@@ -309,8 +293,8 @@ impl<'a> BlockLowerer<'a> {
         // fall back to generic binary with const right
         Some((
             Instruction {
-                operation: InstructionOperation::BinaryConstRight,
-                data: InstructionData::BinaryConstRight {
+                opcode: Opcode::BinaryConstRight,
+                immediate: Immediate::BinaryConstRight {
                     dest: bin_dest,
                     op: *operator,
                     left,
@@ -344,25 +328,21 @@ impl<'a> BlockLowerer<'a> {
                     let reference =
                         reference_meta_for_type(self.tree, self.value_type_for_value(destination)?);
                     let value = match reference.kind() {
-                        Some(mir::ReferenceKind::Managed)
+                        Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Owned)
                             if matches!(
                                 reference.address_space(),
-                                destack_heap::ReferenceAddressSpace::Shared
+                                ReferenceAddressSpace::Shared
                             ) =>
                         {
-                            Value::shared_managed_reference_with_meta(
-                                SharedManagedReference::NULL,
+                            Value::shared_heap_reference_with_meta(
+                                SharedHeapReference::NULL,
                                 reference,
                             )
                         }
-                        Some(mir::ReferenceKind::Managed) => {
-                            Value::managed_reference_with_meta(ManagedReference::NULL, reference)
+                        Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Owned) => {
+                            Value::heap_reference_with_meta(HeapReference::NULL, reference)
                         }
-                        _ if matches!(
-                            reference.address_space(),
-                            destack_heap::ReferenceAddressSpace::Shared
-                        ) =>
-                        {
+                        _ if matches!(reference.address_space(), ReferenceAddressSpace::Shared) => {
                             Value::shared_raw_pointer_with_meta(SharedRawPointer::NULL, reference)
                         }
                         _ => Value::raw_pointer_with_meta(RawPointer::NULL, reference),
@@ -372,8 +352,8 @@ impl<'a> BlockLowerer<'a> {
                     ConstValue::Value(Value::from(value))
                 };
                 Instruction {
-                    operation: InstructionOperation::Const,
-                    data: InstructionData::Const {
+                    opcode: Opcode::Const,
+                    immediate: Immediate::Const {
                         dest: destination,
                         value: const_value,
                     },
@@ -405,8 +385,8 @@ impl<'a> BlockLowerer<'a> {
                 ) {
                     let result_type = self.value_type_for_value(destination)?;
                     return Ok(Instruction {
-                        operation: InstructionOperation::BinaryElementwise,
-                        data: InstructionData::BinaryElementwise {
+                        opcode: Opcode::BinaryElementwise,
+                        immediate: Immediate::BinaryElementwise {
                             dest: destination,
                             op: *operator,
                             left,
@@ -418,11 +398,11 @@ impl<'a> BlockLowerer<'a> {
 
                 let kind = self.value_kind_map().get(left);
                 if let Some(ValueKind::Int { signed, .. }) = kind
-                    && let Some(operation) = select_specialized_int_operation(*operator, signed)
+                    && let Some(opcode) = select_specialized_int_opcode(*operator, signed)
                 {
                     return Ok(Instruction {
-                        operation,
-                        data: InstructionData::BinarySpecialized {
+                        opcode,
+                        immediate: Immediate::BinarySpecialized {
                             dest: destination,
                             left,
                             right,
@@ -431,8 +411,8 @@ impl<'a> BlockLowerer<'a> {
                 }
 
                 Instruction {
-                    operation: select_binary_operation(self.value_kind_map(), left, *operator),
-                    data: InstructionData::Binary {
+                    opcode: select_binary_opcode(self.value_kind_map(), left, *operator),
+                    immediate: Immediate::Binary {
                         dest: destination,
                         op: *operator,
                         left,
@@ -464,8 +444,8 @@ impl<'a> BlockLowerer<'a> {
                 ) {
                     let result_type = self.value_type_for_value(destination)?;
                     return Ok(Instruction {
-                        operation: InstructionOperation::UnaryElementwise,
-                        data: InstructionData::UnaryElementwise {
+                        opcode: Opcode::UnaryElementwise,
+                        immediate: Immediate::UnaryElementwise {
                             dest: destination,
                             op: *operator,
                             arg: argument,
@@ -475,8 +455,8 @@ impl<'a> BlockLowerer<'a> {
                 }
 
                 Instruction {
-                    operation: select_unary_operation(self.value_kind_map(), argument, *operator),
-                    data: InstructionData::Unary {
+                    opcode: select_unary_opcode(self.value_kind_map(), argument, *operator),
+                    immediate: Immediate::Unary {
                         dest: destination,
                         op: *operator,
                         arg: argument,
@@ -506,8 +486,8 @@ impl<'a> BlockLowerer<'a> {
                 })?;
 
                 Instruction {
-                    operation: InstructionOperation::Cast,
-                    data: InstructionData::Cast {
+                    opcode: Opcode::Cast,
+                    immediate: Immediate::Cast {
                         dest: destination,
                         op: *operator,
                         arg: argument,
@@ -547,8 +527,8 @@ impl<'a> BlockLowerer<'a> {
                         })?;
 
                 Instruction {
-                    operation: InstructionOperation::Select,
-                    data: InstructionData::Select {
+                    opcode: Opcode::Select,
+                    immediate: Immediate::Select {
                         dest: destination,
                         condition,
                         then_value,
@@ -586,8 +566,8 @@ impl<'a> BlockLowerer<'a> {
                 let target = self.call_target(function)?;
 
                 Instruction {
-                    operation: InstructionOperation::Call,
-                    data: InstructionData::Call {
+                    opcode: Opcode::Call,
+                    immediate: Immediate::Call {
                         dest: pack_optional_value(
                             (*destination)
                                 .map(|value| {
@@ -620,8 +600,8 @@ impl<'a> BlockLowerer<'a> {
                         context: "virtual call receiver".to_string(),
                     })?;
                 Instruction {
-                    operation: InstructionOperation::CallVirtual,
-                    data: InstructionData::CallVirtual {
+                    opcode: Opcode::CallVirtual,
+                    immediate: Immediate::CallVirtual {
                         dest: pack_optional_value(
                             (*destination)
                                 .map(|value| {
@@ -632,7 +612,7 @@ impl<'a> BlockLowerer<'a> {
                                 .transpose()?,
                         ),
                         receiver,
-                        managed_pointee: managed_pointee_type_for_value(
+                        heap_pointee: heap_pointee_type_for_value(
                             self.tree,
                             self.value_type(),
                             receiver,
@@ -658,8 +638,8 @@ impl<'a> BlockLowerer<'a> {
                         context: "interface call receiver".to_string(),
                     })?;
                 Instruction {
-                    operation: InstructionOperation::CallInterface,
-                    data: InstructionData::CallInterface {
+                    opcode: Opcode::CallInterface,
+                    immediate: Immediate::CallInterface {
                         dest: pack_optional_value(
                             (*destination)
                                 .map(|value| {
@@ -670,7 +650,7 @@ impl<'a> BlockLowerer<'a> {
                                 .transpose()?,
                         ),
                         receiver,
-                        managed_pointee: managed_pointee_type_for_value(
+                        heap_pointee: heap_pointee_type_for_value(
                             self.tree,
                             self.value_type(),
                             receiver,
@@ -697,8 +677,8 @@ impl<'a> BlockLowerer<'a> {
                         context: "indirect call callee".to_string(),
                     })?;
                 Instruction {
-                    operation: InstructionOperation::CallIndirect,
-                    data: InstructionData::CallIndirect {
+                    opcode: Opcode::CallIndirect,
+                    immediate: Immediate::CallIndirect {
                         dest: pack_optional_value(
                             (*destination)
                                 .map(|value| {
@@ -726,8 +706,8 @@ impl<'a> BlockLowerer<'a> {
                 })?;
                 let local_index = self.local_index(local)?;
                 Instruction {
-                    operation: InstructionOperation::LocalGet,
-                    data: InstructionData::LocalGet {
+                    opcode: Opcode::LocalGet,
+                    immediate: Immediate::LocalGet {
                         dest: destination,
                         local: local_index,
                     },
@@ -748,8 +728,8 @@ impl<'a> BlockLowerer<'a> {
                 })?;
                 let local_index = self.local_index(local)?;
                 Instruction {
-                    operation: InstructionOperation::LocalAddr,
-                    data: InstructionData::LocalAddr {
+                    opcode: Opcode::LocalAddr,
+                    immediate: Immediate::LocalAddr {
                         dest: destination,
                         local: local_index,
                         reference: reference_meta_for_value(self.value_kind_map(), destination),
@@ -766,8 +746,8 @@ impl<'a> BlockLowerer<'a> {
                 })?;
                 let local_index = self.local_index(local)?;
                 Instruction {
-                    operation: InstructionOperation::LocalSet,
-                    data: InstructionData::LocalSet {
+                    opcode: Opcode::LocalSet,
+                    immediate: Immediate::LocalSet {
                         local: local_index,
                         value,
                     },
@@ -792,36 +772,11 @@ impl<'a> BlockLowerer<'a> {
                     })?;
 
                 Instruction {
-                    operation: InstructionOperation::GlobalAddr,
-                    data: InstructionData::GlobalAddr {
+                    opcode: Opcode::GlobalAddr,
+                    immediate: Immediate::GlobalAddr {
                         dest: destination,
                         global: global.id,
                         reference: reference_meta_for_value(self.value_kind_map(), destination),
-                    },
-                }
-            }
-
-            mir::Instruction::GlobalConst {
-                destination,
-                global,
-            } => {
-                let destination =
-                    (*destination)
-                        .value()
-                        .ok_or_else(|| Error::ConcreteMirRequired {
-                            context: "global const destination".to_string(),
-                        })?;
-                let global = (*global)
-                    .global()
-                    .ok_or_else(|| Error::ConcreteMirRequired {
-                        context: "global const global".to_string(),
-                    })?;
-
-                Instruction {
-                    operation: InstructionOperation::GlobalConst,
-                    data: InstructionData::GlobalConst {
-                        dest: destination,
-                        global: global.id,
                     },
                 }
             }
@@ -844,14 +799,14 @@ impl<'a> BlockLowerer<'a> {
                         })?;
 
                 Instruction {
-                    operation: InstructionOperation::FunctionAddr,
-                    data: InstructionData::FunctionAddr {
+                    opcode: Opcode::FunctionAddr,
+                    immediate: Immediate::FunctionAddr {
                         dest: destination,
                         function: function.id,
                     },
                 }
             }
-            mir::Instruction::FunctionBind {
+            mir::Instruction::CallableBind {
                 destination,
                 function,
                 environment,
@@ -860,41 +815,41 @@ impl<'a> BlockLowerer<'a> {
                     (*destination)
                         .value()
                         .ok_or_else(|| Error::ConcreteMirRequired {
-                            context: "function bind destination".to_string(),
+                            context: "callable bind destination".to_string(),
                         })?;
                 let function =
                     (*function)
                         .function()
                         .ok_or_else(|| Error::ConcreteMirRequired {
-                            context: "function bind callee".to_string(),
+                            context: "callable bind callee".to_string(),
                         })?;
                 let environment =
                     (*environment)
                         .value()
                         .ok_or_else(|| Error::ConcreteMirRequired {
-                            context: "function bind environment".to_string(),
+                            context: "callable bind environment".to_string(),
                         })?;
 
                 Instruction {
-                    operation: InstructionOperation::FunctionBind,
-                    data: InstructionData::FunctionBind {
+                    opcode: Opcode::CallableBind,
+                    immediate: Immediate::CallableBind {
                         dest: destination,
                         function: function.id,
                         environment,
                     },
                 }
             }
-            mir::Instruction::FunctionEnvironment { destination } => {
+            mir::Instruction::CallableEnvironment { destination } => {
                 let destination =
                     (*destination)
                         .value()
                         .ok_or_else(|| Error::ConcreteMirRequired {
-                            context: "function environment destination".to_string(),
+                            context: "callable environment destination".to_string(),
                         })?;
 
                 Instruction {
-                    operation: InstructionOperation::FunctionEnvironment,
-                    data: InstructionData::FunctionEnvironment { dest: destination },
+                    opcode: Opcode::CallableEnvironment,
+                    immediate: Immediate::CallableEnvironment { dest: destination },
                 }
             }
             mir::Instruction::Load {
@@ -915,15 +870,15 @@ impl<'a> BlockLowerer<'a> {
                     })?;
 
                 Instruction {
-                    operation: select_load_operation(self.value_kind_map(), pointer),
-                    data: {
+                    opcode: select_load_opcode(self.value_kind_map(), pointer),
+                    immediate: {
                         let pointee_type =
-                            managed_pointee_type_for_value_kind(self.value_kind_map(), pointer)
+                            heap_pointee_type_for_value_kind(self.value_kind_map(), pointer)
                                 .or_else(|| {
                                     raw_pointee_type_for_value_kind(self.value_kind_map(), pointer)
                                 })
                                 .or_else(|| {
-                                    managed_pointee_type_for_value(
+                                    heap_pointee_type_for_value(
                                         self.tree,
                                         self.value_type(),
                                         pointer,
@@ -940,7 +895,7 @@ impl<'a> BlockLowerer<'a> {
                             typed_access_for_pointee(self.layouts(), pointee_type)
                         });
 
-                        InstructionData::Load {
+                        Immediate::Load {
                             dest: destination,
                             pointer,
                             access,
@@ -960,15 +915,15 @@ impl<'a> BlockLowerer<'a> {
                 })?;
 
                 Instruction {
-                    operation: select_store_operation(self.value_kind_map(), pointer),
-                    data: {
+                    opcode: select_store_opcode(self.value_kind_map(), pointer),
+                    immediate: {
                         let pointee_type =
-                            managed_pointee_type_for_value_kind(self.value_kind_map(), pointer)
+                            heap_pointee_type_for_value_kind(self.value_kind_map(), pointer)
                                 .or_else(|| {
                                     raw_pointee_type_for_value_kind(self.value_kind_map(), pointer)
                                 })
                                 .or_else(|| {
-                                    managed_pointee_type_for_value(
+                                    heap_pointee_type_for_value(
                                         self.tree,
                                         self.value_type(),
                                         pointer,
@@ -985,7 +940,7 @@ impl<'a> BlockLowerer<'a> {
                             typed_access_for_pointee(self.layouts(), pointee_type)
                         });
 
-                        InstructionData::Store {
+                        Immediate::Store {
                             pointer,
                             value,
                             reference: reference_meta_for_value(self.value_kind_map(), pointer),
@@ -1001,8 +956,8 @@ impl<'a> BlockLowerer<'a> {
                 })?;
 
                 Instruction {
-                    operation: InstructionOperation::Dispose,
-                    data: InstructionData::Dispose { value },
+                    opcode: Opcode::Dispose,
+                    immediate: Immediate::Dispose { value },
                 }
             }
 
@@ -1012,8 +967,30 @@ impl<'a> BlockLowerer<'a> {
                 })?;
 
                 Instruction {
-                    operation: InstructionOperation::AsyncDispose,
-                    data: InstructionData::AsyncDispose { value },
+                    opcode: Opcode::AsyncDispose,
+                    immediate: Immediate::AsyncDispose { value },
+                }
+            }
+
+            mir::Instruction::Pin { value } => {
+                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "pin value".to_string(),
+                })?;
+
+                Instruction {
+                    opcode: Opcode::Pin,
+                    immediate: Immediate::Pin { value },
+                }
+            }
+
+            mir::Instruction::Unpin { value } => {
+                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "unpin value".to_string(),
+                })?;
+
+                Instruction {
+                    opcode: Opcode::Unpin,
+                    immediate: Immediate::Unpin { value },
                 }
             }
 
@@ -1023,25 +1000,14 @@ impl<'a> BlockLowerer<'a> {
                 })?;
 
                 Instruction {
-                    operation: InstructionOperation::Drop,
-                    data: InstructionData::Drop { value },
-                }
-            }
-
-            mir::Instruction::AsyncDrop { value } => {
-                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
-                    context: "async drop value".to_string(),
-                })?;
-
-                Instruction {
-                    operation: InstructionOperation::AsyncDrop,
-                    data: InstructionData::AsyncDrop { value },
+                    opcode: Opcode::Drop,
+                    immediate: Immediate::Drop { value },
                 }
             }
 
             mir::Instruction::Assume { condition: _ } => Instruction {
-                operation: InstructionOperation::Assume,
-                data: InstructionData::Assume,
+                opcode: Opcode::Assume,
+                immediate: Immediate::Assume,
             },
 
             mir::Instruction::FieldGet {
@@ -1061,42 +1027,26 @@ impl<'a> BlockLowerer<'a> {
                         context: "field get aggregate".to_string(),
                     })?;
                 let field_count = self.field_count_for_value(aggregate);
-                let operation = select_field_get_operation(
-                    self.value_kind_map(),
-                    aggregate,
-                    field_count,
-                    *index,
-                );
-
-                let pointee_type =
-                    managed_pointee_type_for_value_kind(self.value_kind_map(), aggregate)
-                        .or_else(|| {
-                            raw_pointee_type_for_value_kind(self.value_kind_map(), aggregate)
-                        })
-                        .or_else(|| {
-                            managed_pointee_type_for_value(self.tree, self.value_type(), aggregate)
-                        })
-                        .or_else(|| {
-                            raw_pointee_type_for_value(self.tree, self.value_type(), aggregate)
-                        });
-                let field = pointee_type.and_then(|pointee_type| {
-                    field_access_for_pointee(self.layouts(), pointee_type, *index)
+                let opcode = select_field_get_opcode(self.value_kind_map(), aggregate);
+                let aggregate_type = self.value_type_for_value(aggregate).ok();
+                let field = aggregate_type.and_then(|aggregate_type| {
+                    field_access_for_pointee(self.layouts(), aggregate_type, *index)
                 });
 
-                match operation {
-                    InstructionOperation::FieldGet | InstructionOperation::FieldGetInline => {
-                        Instruction {
-                            operation,
-                            data: InstructionData::FieldGet {
-                                dest: destination,
-                                composite: aggregate,
-                                index: *index,
-                            },
-                        }
-                    }
+                match opcode {
+                    Opcode::FieldGet => Instruction {
+                        opcode,
+                        immediate: Immediate::FieldGet {
+                            dest: destination,
+                            composite: aggregate,
+                            index: *index,
+                            field_count,
+                            field,
+                        },
+                    },
                     _ => Instruction {
-                        operation,
-                        data: InstructionData::FieldLoad {
+                        opcode,
+                        immediate: Immediate::FieldLoad {
                             dest: destination,
                             composite: aggregate,
                             index: *index,
@@ -1126,10 +1076,10 @@ impl<'a> BlockLowerer<'a> {
                     })?;
 
                 Instruction {
-                    operation: select_field_addr_operation(self.value_kind_map(), aggregate),
-                    data: {
+                    opcode: select_field_addr_opcode(self.value_kind_map(), aggregate),
+                    immediate: {
                         let pointee_type =
-                            managed_pointee_type_for_value_kind(self.value_kind_map(), aggregate)
+                            heap_pointee_type_for_value_kind(self.value_kind_map(), aggregate)
                                 .or_else(|| {
                                     raw_pointee_type_for_value_kind(
                                         self.value_kind_map(),
@@ -1137,7 +1087,7 @@ impl<'a> BlockLowerer<'a> {
                                     )
                                 })
                                 .or_else(|| {
-                                    managed_pointee_type_for_value(
+                                    heap_pointee_type_for_value(
                                         self.tree,
                                         self.value_type(),
                                         aggregate,
@@ -1154,7 +1104,7 @@ impl<'a> BlockLowerer<'a> {
                             field_access_for_pointee(self.layouts(), pointee_type, *index)
                         });
 
-                        InstructionData::FieldAddr {
+                        Immediate::FieldAddr {
                             dest: destination,
                             composite: aggregate,
                             index: *index,
@@ -1188,12 +1138,18 @@ impl<'a> BlockLowerer<'a> {
                 })?;
 
                 Instruction {
-                    operation: InstructionOperation::FieldSet,
-                    data: InstructionData::FieldSet {
+                    opcode: Opcode::FieldSet,
+                    immediate: Immediate::FieldSet {
                         dest: destination,
                         composite: aggregate,
                         index: *index,
                         value,
+                        field_count: self.field_count_for_value(aggregate),
+                        field: self.value_type_for_value(aggregate).ok().and_then(
+                            |aggregate_type| {
+                                field_access_for_pointee(self.layouts(), aggregate_type, *index)
+                            },
+                        ),
                     },
                 }
             }
@@ -1212,36 +1168,28 @@ impl<'a> BlockLowerer<'a> {
                 let array = (*array).value().ok_or_else(|| Error::ConcreteMirRequired {
                     context: "element get array".to_string(),
                 })?;
-                let operation = select_element_get_operation(self.value_kind_map(), array);
+                let opcode = select_element_get_opcode(self.value_kind_map(), array);
                 let array_length = self.array_length_for_value(array);
+                let array_type = self.value_type_for_value(array).ok();
+                let element = array_type
+                    .and_then(|array_type| element_access_for_pointee(self.layouts(), array_type));
 
-                let pointee_type =
-                    managed_pointee_type_for_value_kind(self.value_kind_map(), array)
-                        .or_else(|| raw_pointee_type_for_value_kind(self.value_kind_map(), array))
-                        .or_else(|| {
-                            managed_pointee_type_for_value(self.tree, self.value_type(), array)
-                        })
-                        .or_else(|| {
-                            raw_pointee_type_for_value(self.tree, self.value_type(), array)
-                        });
-                let element = pointee_type.and_then(|pointee_type| {
-                    element_access_for_pointee(self.layouts(), pointee_type)
-                });
-
-                match operation {
-                    InstructionOperation::ElementGet => Instruction {
-                        operation,
-                        data: InstructionData::ElementGet {
+                match opcode {
+                    Opcode::ElementGet => Instruction {
+                        opcode,
+                        immediate: Immediate::ElementGet {
                             dest: destination,
                             array,
                             index: (*index).value().ok_or_else(|| Error::ConcreteMirRequired {
                                 context: "element get index".to_string(),
                             })?,
+                            array_length,
+                            element,
                         },
                     },
                     _ => Instruction {
-                        operation,
-                        data: InstructionData::ElementLoad {
+                        opcode,
+                        immediate: Immediate::ElementLoad {
                             dest: destination,
                             array,
                             index: (*index).value().ok_or_else(|| Error::ConcreteMirRequired {
@@ -1271,19 +1219,15 @@ impl<'a> BlockLowerer<'a> {
                 })?;
 
                 Instruction {
-                    operation: select_element_addr_operation(self.value_kind_map(), array),
-                    data: {
+                    opcode: select_element_addr_opcode(self.value_kind_map(), array),
+                    immediate: {
                         let pointee_type =
-                            managed_pointee_type_for_value_kind(self.value_kind_map(), array)
+                            heap_pointee_type_for_value_kind(self.value_kind_map(), array)
                                 .or_else(|| {
                                     raw_pointee_type_for_value_kind(self.value_kind_map(), array)
                                 })
                                 .or_else(|| {
-                                    managed_pointee_type_for_value(
-                                        self.tree,
-                                        self.value_type(),
-                                        array,
-                                    )
+                                    heap_pointee_type_for_value(self.tree, self.value_type(), array)
                                 })
                                 .or_else(|| {
                                     raw_pointee_type_for_value(self.tree, self.value_type(), array)
@@ -1292,7 +1236,7 @@ impl<'a> BlockLowerer<'a> {
                             element_access_for_pointee(self.layouts(), pointee_type)
                         });
 
-                        InstructionData::ElementAddr {
+                        Immediate::ElementAddr {
                             dest: destination,
                             array,
                             index: (*index).value().ok_or_else(|| Error::ConcreteMirRequired {
@@ -1326,14 +1270,21 @@ impl<'a> BlockLowerer<'a> {
                 })?;
 
                 Instruction {
-                    operation: InstructionOperation::ElementSet,
-                    data: InstructionData::ElementSet {
+                    opcode: Opcode::ElementSet,
+                    immediate: Immediate::ElementSet {
                         dest: destination,
                         array,
                         index: (*index).value().ok_or_else(|| Error::ConcreteMirRequired {
                             context: "element set index".to_string(),
                         })?,
                         value,
+                        array_length: self.array_length_for_value(array),
+                        element: self
+                            .value_type_for_value(array)
+                            .ok()
+                            .and_then(|array_type| {
+                                element_access_for_pointee(self.layouts(), array_type)
+                            }),
                     },
                 }
             }
@@ -1354,8 +1305,8 @@ impl<'a> BlockLowerer<'a> {
                     "struct field argument",
                 )?;
                 Instruction {
-                    operation: InstructionOperation::Composite,
-                    data: InstructionData::Composite {
+                    opcode: Opcode::Composite,
+                    immediate: Immediate::Composite {
                         dest: destination,
                         elements: args,
                     },
@@ -1378,8 +1329,8 @@ impl<'a> BlockLowerer<'a> {
                     "tuple element argument",
                 )?;
                 Instruction {
-                    operation: InstructionOperation::Composite,
-                    data: InstructionData::Composite {
+                    opcode: Opcode::Composite,
+                    immediate: Immediate::Composite {
                         dest: destination,
                         elements: args,
                     },
@@ -1402,8 +1353,8 @@ impl<'a> BlockLowerer<'a> {
                     "array element argument",
                 )?;
                 Instruction {
-                    operation: InstructionOperation::Composite,
-                    data: InstructionData::Composite {
+                    opcode: Opcode::Composite,
+                    immediate: Immediate::Composite {
                         dest: destination,
                         elements: args,
                     },
@@ -1422,8 +1373,8 @@ impl<'a> BlockLowerer<'a> {
                 })?;
 
                 Instruction {
-                    operation: InstructionOperation::VectorSplat,
-                    data: InstructionData::VectorSplat {
+                    opcode: Opcode::VectorSplat,
+                    immediate: Immediate::VectorSplat {
                         dest: destination,
                         value,
                     },
@@ -1451,8 +1402,8 @@ impl<'a> BlockLowerer<'a> {
                 })?;
 
                 Instruction {
-                    operation: InstructionOperation::VectorExtract,
-                    data: InstructionData::VectorExtract {
+                    opcode: Opcode::VectorExtract,
+                    immediate: Immediate::VectorExtract {
                         dest: destination,
                         vector,
                         index,
@@ -1485,8 +1436,8 @@ impl<'a> BlockLowerer<'a> {
                 })?;
 
                 Instruction {
-                    operation: InstructionOperation::VectorInsert,
-                    data: InstructionData::VectorInsert {
+                    opcode: Opcode::VectorInsert,
+                    immediate: Immediate::VectorInsert {
                         dest: destination,
                         vector,
                         index,
@@ -1515,8 +1466,8 @@ impl<'a> BlockLowerer<'a> {
                 })?;
 
                 Instruction {
-                    operation: InstructionOperation::VectorShuffle,
-                    data: InstructionData::VectorShuffle {
+                    opcode: Opcode::VectorShuffle,
+                    immediate: Immediate::VectorShuffle {
                         dest: destination,
                         left,
                         right,
@@ -1553,8 +1504,8 @@ impl<'a> BlockLowerer<'a> {
                         })?;
 
                 Instruction {
-                    operation: InstructionOperation::VectorSelect,
-                    data: InstructionData::VectorSelect {
+                    opcode: Opcode::VectorSelect,
+                    immediate: Immediate::VectorSelect {
                         dest: destination,
                         mask,
                         then_value,
@@ -1581,8 +1532,8 @@ impl<'a> BlockLowerer<'a> {
                     })?;
 
                 Instruction {
-                    operation: InstructionOperation::VectorReduce,
-                    data: InstructionData::VectorReduce {
+                    opcode: Opcode::VectorReduce,
+                    immediate: Immediate::VectorReduce {
                         dest: destination,
                         operator: *operator,
                         vector,
@@ -1610,8 +1561,8 @@ impl<'a> BlockLowerer<'a> {
                 })?;
 
                 Instruction {
-                    operation: InstructionOperation::VectorCompare,
-                    data: InstructionData::VectorCompare {
+                    opcode: Opcode::VectorCompare,
+                    immediate: Immediate::VectorCompare {
                         dest: destination,
                         operator: *operator,
                         left,
@@ -1639,13 +1590,35 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(vector)?;
                 Instruction {
-                    operation: InstructionOperation::VectorConvert,
-                    data: InstructionData::VectorConvert {
+                    opcode: Opcode::VectorConvert,
+                    immediate: Immediate::VectorConvert {
                         dest: destination,
                         mode: *mode,
                         vector,
                         source_type,
                         dest_type,
+                    },
+                }
+            }
+
+            mir::Instruction::TensorSplat { destination, value } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor splat destination".to_string(),
+                        })?;
+                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    context: "tensor splat value".to_string(),
+                })?;
+                let tensor_type = self.value_type_for_value(destination)?;
+
+                Instruction {
+                    opcode: Opcode::TensorSplat,
+                    immediate: Immediate::TensorSplat {
+                        dest: destination,
+                        value,
+                        tensor_type,
                     },
                 }
             }
@@ -1672,13 +1645,45 @@ impl<'a> BlockLowerer<'a> {
                 let element = tensor_element_type_for_view_type(self.tree, view_type)
                     .and_then(|element_type| tensor_element_access(self.layouts(), element_type));
                 Instruction {
-                    operation: InstructionOperation::TensorLoad,
-                    data: InstructionData::TensorLoad {
+                    opcode: Opcode::TensorLoad,
+                    immediate: Immediate::TensorLoad {
                         dest: destination,
                         view,
                         indices: args,
                         view_type,
                         element,
+                    },
+                }
+            }
+
+            mir::Instruction::TensorExtract {
+                destination,
+                tensor,
+                indices,
+            } => {
+                let destination =
+                    (*destination)
+                        .value()
+                        .ok_or_else(|| Error::ConcreteMirRequired {
+                            context: "tensor extract destination".to_string(),
+                        })?;
+                let tensor = (*tensor)
+                    .value()
+                    .ok_or_else(|| Error::ConcreteMirRequired {
+                        context: "tensor extract source".to_string(),
+                    })?;
+                let tensor_type = self.value_type_for_value(tensor)?;
+                let args = pool.argument_reference_range(
+                    self.tree.get_arguments(*indices),
+                    "tensor extract index",
+                )?;
+                Instruction {
+                    opcode: Opcode::TensorExtract,
+                    immediate: Immediate::TensorExtract {
+                        dest: destination,
+                        tensor,
+                        indices: args,
+                        tensor_type,
                     },
                 }
             }
@@ -1702,8 +1707,8 @@ impl<'a> BlockLowerer<'a> {
                 let element = tensor_element_type_for_view_type(self.tree, view_type)
                     .and_then(|element_type| tensor_element_access(self.layouts(), element_type));
                 Instruction {
-                    operation: InstructionOperation::TensorStore,
-                    data: InstructionData::TensorStore {
+                    opcode: Opcode::TensorStore,
+                    immediate: Immediate::TensorStore {
                         view,
                         indices: args,
                         value,
@@ -1724,8 +1729,8 @@ impl<'a> BlockLowerer<'a> {
                 let element = tensor_element_type_for_view_type(self.tree, view_type)
                     .and_then(|element_type| tensor_element_access(self.layouts(), element_type));
                 Instruction {
-                    operation: InstructionOperation::TensorFill,
-                    data: InstructionData::TensorFill {
+                    opcode: Opcode::TensorFill,
+                    immediate: Immediate::TensorFill {
                         view,
                         value,
                         view_type,
@@ -1752,8 +1757,8 @@ impl<'a> BlockLowerer<'a> {
                 let source_element = tensor_element_type_for_view_type(self.tree, source_type)
                     .and_then(|element_type| tensor_element_access(self.layouts(), element_type));
                 Instruction {
-                    operation: InstructionOperation::TensorCopy,
-                    data: InstructionData::TensorCopy {
+                    opcode: Opcode::TensorCopy,
+                    immediate: Immediate::TensorCopy {
                         target,
                         source,
                         target_type,
@@ -1786,8 +1791,8 @@ impl<'a> BlockLowerer<'a> {
                     "tensor reshape shape",
                 )?;
                 Instruction {
-                    operation: InstructionOperation::TensorReshape,
-                    data: InstructionData::TensorReshape {
+                    opcode: Opcode::TensorReshape,
+                    immediate: Immediate::TensorReshape {
                         dest: destination,
                         tensor,
                         shape: args,
@@ -1815,8 +1820,8 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
                 Instruction {
-                    operation: InstructionOperation::TensorBroadcast,
-                    data: InstructionData::TensorBroadcast {
+                    opcode: Opcode::TensorBroadcast,
+                    immediate: Immediate::TensorBroadcast {
                         dest: destination,
                         tensor,
                         dimensions: dimensions.clone(),
@@ -1845,8 +1850,8 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
                 Instruction {
-                    operation: InstructionOperation::TensorTranspose,
-                    data: InstructionData::TensorTranspose {
+                    opcode: Opcode::TensorTranspose,
+                    immediate: Immediate::TensorTranspose {
                         dest: destination,
                         tensor,
                         permutation: permutation.clone(),
@@ -1882,8 +1887,8 @@ impl<'a> BlockLowerer<'a> {
                     "tensor slice argument",
                 )?;
                 Instruction {
-                    operation: InstructionOperation::TensorSlice,
-                    data: InstructionData::TensorSlice {
+                    opcode: Opcode::TensorSlice,
+                    immediate: Immediate::TensorSlice {
                         dest: destination,
                         tensor,
                         arguments: args,
@@ -1926,8 +1931,8 @@ impl<'a> BlockLowerer<'a> {
                     "tensor pad argument",
                 )?;
                 Instruction {
-                    operation: InstructionOperation::TensorPad,
-                    data: InstructionData::TensorPad {
+                    opcode: Opcode::TensorPad,
+                    immediate: Immediate::TensorPad {
                         dest: destination,
                         tensor,
                         arguments: args,
@@ -1966,8 +1971,8 @@ impl<'a> BlockLowerer<'a> {
                 }
 
                 Instruction {
-                    operation: InstructionOperation::TensorConcat,
-                    data: InstructionData::TensorConcat {
+                    opcode: Opcode::TensorConcat,
+                    immediate: Immediate::TensorConcat {
                         dest: destination,
                         tensors: args,
                         tensor_types: tensor_type,
@@ -2003,8 +2008,8 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
                 Instruction {
-                    operation: InstructionOperation::TensorReduce,
-                    data: InstructionData::TensorReduce {
+                    opcode: Opcode::TensorReduce,
+                    immediate: Immediate::TensorReduce {
                         dest: destination,
                         operator: *operator,
                         tensor,
@@ -2038,8 +2043,8 @@ impl<'a> BlockLowerer<'a> {
                 let left_type = self.value_type_for_value(left)?;
                 let right_type = self.value_type_for_value(right)?;
                 Instruction {
-                    operation: InstructionOperation::TensorDot,
-                    data: InstructionData::TensorDot {
+                    opcode: Opcode::TensorDot,
+                    immediate: Immediate::TensorDot {
                         dest: destination,
                         left,
                         right,
@@ -2078,8 +2083,8 @@ impl<'a> BlockLowerer<'a> {
                 let input_type = self.value_type_for_value(input)?;
                 let kernel_type = self.value_type_for_value(kernel)?;
                 Instruction {
-                    operation: InstructionOperation::TensorConvolution,
-                    data: InstructionData::TensorConvolution {
+                    opcode: Opcode::TensorConvolution,
+                    immediate: Immediate::TensorConvolution {
                         dest: destination,
                         input,
                         kernel,
@@ -2121,8 +2126,8 @@ impl<'a> BlockLowerer<'a> {
                 let operand_type = self.value_type_for_value(operand)?;
                 let indices_type = self.value_type_for_value(indices)?;
                 Instruction {
-                    operation: InstructionOperation::TensorGather,
-                    data: InstructionData::TensorGather {
+                    opcode: Opcode::TensorGather,
+                    immediate: Immediate::TensorGather {
                         dest: destination,
                         operand,
                         indices,
@@ -2169,8 +2174,8 @@ impl<'a> BlockLowerer<'a> {
                 let indices_type = self.value_type_for_value(indices)?;
                 let updates_type = self.value_type_for_value(updates)?;
                 Instruction {
-                    operation: InstructionOperation::TensorScatter,
-                    data: InstructionData::TensorScatter {
+                    opcode: Opcode::TensorScatter,
+                    immediate: Immediate::TensorScatter {
                         dest: destination,
                         operand,
                         indices,
@@ -2207,8 +2212,8 @@ impl<'a> BlockLowerer<'a> {
                 let left_type = self.value_type_for_value(left)?;
                 let right_type = self.value_type_for_value(right)?;
                 Instruction {
-                    operation: InstructionOperation::TensorCompare,
-                    data: InstructionData::TensorCompare {
+                    opcode: Opcode::TensorCompare,
+                    immediate: Immediate::TensorCompare {
                         dest: destination,
                         operator: *operator,
                         left,
@@ -2248,8 +2253,8 @@ impl<'a> BlockLowerer<'a> {
                         })?;
                 let dest_type = self.value_type_for_value(destination)?;
                 Instruction {
-                    operation: InstructionOperation::TensorSelect,
-                    data: InstructionData::TensorSelect {
+                    opcode: Opcode::TensorSelect,
+                    immediate: Immediate::TensorSelect {
                         dest: destination,
                         mask,
                         then_value,
@@ -2278,8 +2283,8 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
                 Instruction {
-                    operation: InstructionOperation::TensorConvert,
-                    data: InstructionData::TensorConvert {
+                    opcode: Opcode::TensorConvert,
+                    immediate: Immediate::TensorConvert {
                         dest: destination,
                         mode: *mode,
                         tensor,
@@ -2293,8 +2298,8 @@ impl<'a> BlockLowerer<'a> {
                 destination,
                 tensor,
             } => Instruction {
-                operation: InstructionOperation::TensorCast,
-                data: InstructionData::TensorCast {
+                opcode: Opcode::TensorCast,
+                immediate: Immediate::TensorCast {
                     dest: (*destination)
                         .value()
                         .ok_or_else(|| Error::ConcreteMirRequired {
@@ -2334,8 +2339,8 @@ impl<'a> BlockLowerer<'a> {
                 let element = tensor_element_type_for_view_type(self.tree, source_type)
                     .and_then(|element_type| tensor_element_access(self.layouts(), element_type));
                 Instruction {
-                    operation: InstructionOperation::TensorView,
-                    data: InstructionData::TensorView {
+                    opcode: Opcode::TensorView,
+                    immediate: Immediate::TensorView {
                         dest: destination,
                         view,
                         arguments: args,
@@ -2349,74 +2354,57 @@ impl<'a> BlockLowerer<'a> {
                 }
             }
 
-            mir::Instruction::ManagedAlloc {
+            mir::Instruction::New {
                 destination,
                 layout,
                 ..
             } => Instruction {
-                operation: InstructionOperation::ManagedAlloc,
-                data: InstructionData::ManagedAlloc {
+                opcode: Opcode::New,
+                immediate: Immediate::New {
                     dest: (*destination)
                         .value()
                         .ok_or_else(|| Error::ConcreteMirRequired {
-                            context: "managed alloc destination".to_string(),
+                            context: "new destination".to_string(),
                         })?,
                     reference: reference_meta_for_value(
                         self.value_kind_map(),
                         (*destination)
                             .value()
                             .ok_or_else(|| Error::ConcreteMirRequired {
-                                context: "managed alloc destination".to_string(),
+                                context: "new destination".to_string(),
                             })?,
                     ),
                     storage_type: (*layout).ty().ok_or_else(|| Error::ConcreteMirRequired {
-                        context: "managed alloc layout".to_string(),
+                        context: "new layout".to_string(),
                     })?,
-                    layout_id: self
-                        .tree
-                        .type_layout_id((*layout).ty().ok_or_else(|| {
-                            Error::ConcreteMirRequired {
-                                context: "managed alloc layout".to_string(),
-                            }
-                        })?)
-                        .map(StorageLayoutId::from_layout),
-                    byte_len: self.layout_byte_len((*layout).ty().ok_or_else(|| {
+                    layout_id: self.tree.type_layout_id((*layout).ty().ok_or_else(|| {
                         Error::ConcreteMirRequired {
-                            context: "managed alloc layout".to_string(),
+                            context: "new layout".to_string(),
                         }
-                    })?)?,
+                    })?),
                 },
             },
 
-            mir::Instruction::ManagedAllocArray {
+            mir::Instruction::NewSlice {
                 destination,
-                element,
+                element: _,
                 length,
+                result_type,
                 ..
             } => Instruction {
-                operation: InstructionOperation::ManagedAllocArray,
-                data: InstructionData::ManagedAllocArray {
+                opcode: Opcode::NewSlice,
+                immediate: Immediate::NewSlice {
                     dest: (*destination)
                         .value()
                         .ok_or_else(|| Error::ConcreteMirRequired {
-                            context: "managed alloc array destination".to_string(),
+                            context: "new.slice destination".to_string(),
                         })?,
                     length: (*length)
                         .value()
                         .ok_or_else(|| Error::ConcreteMirRequired {
-                            context: "managed alloc array length".to_string(),
+                            context: "new.slice length".to_string(),
                         })?,
-                    reference: reference_meta_for_value(
-                        self.value_kind_map(),
-                        (*destination)
-                            .value()
-                            .ok_or_else(|| Error::ConcreteMirRequired {
-                                context: "managed alloc array destination".to_string(),
-                            })?,
-                    ),
-                    element_type: (*element).ty().ok_or_else(|| Error::ConcreteMirRequired {
-                        context: "managed alloc array element".to_string(),
-                    })?,
+                    slice_type: self.slice_type_for_new_slice(*result_type)?,
                 },
             },
 
@@ -2425,8 +2413,8 @@ impl<'a> BlockLowerer<'a> {
                 layout,
                 ..
             } => Instruction {
-                operation: InstructionOperation::RawAlloc,
-                data: InstructionData::RawAlloc {
+                opcode: Opcode::RawAlloc,
+                immediate: Immediate::RawAlloc {
                     dest: (*destination)
                         .value()
                         .ok_or_else(|| Error::ConcreteMirRequired {
@@ -2449,8 +2437,8 @@ impl<'a> BlockLowerer<'a> {
             },
 
             mir::Instruction::RawFree { pointer } => Instruction {
-                operation: InstructionOperation::RawFree,
-                data: InstructionData::RawFree {
+                opcode: Opcode::RawFree,
+                immediate: Immediate::RawFree {
                     pointer: (*pointer)
                         .value()
                         .ok_or_else(|| Error::ConcreteMirRequired {
@@ -2464,8 +2452,8 @@ impl<'a> BlockLowerer<'a> {
                 layout,
                 ..
             } => Instruction {
-                operation: InstructionOperation::StackAlloc,
-                data: InstructionData::StackAlloc {
+                opcode: Opcode::StackAlloc,
+                immediate: Immediate::StackAlloc {
                     dest: (*destination)
                         .value()
                         .ok_or_else(|| Error::ConcreteMirRequired {
@@ -2495,8 +2483,8 @@ impl<'a> BlockLowerer<'a> {
                     "intrinsic argument",
                 )?;
                 Instruction {
-                    operation: InstructionOperation::Intrinsic,
-                    data: InstructionData::Intrinsic {
+                    opcode: Opcode::Intrinsic,
+                    immediate: Immediate::Intrinsic {
                         dest: pack_optional_value(
                             (*destination)
                                 .map(|value| {
@@ -2517,8 +2505,8 @@ impl<'a> BlockLowerer<'a> {
                 pointer,
                 ..
             } => Instruction {
-                operation: InstructionOperation::AtomicLoad,
-                data: InstructionData::AtomicLoad {
+                opcode: Opcode::AtomicLoad,
+                immediate: Immediate::AtomicLoad {
                     dest: (*destination)
                         .value()
                         .ok_or_else(|| Error::ConcreteMirRequired {
@@ -2542,8 +2530,8 @@ impl<'a> BlockLowerer<'a> {
             },
 
             mir::Instruction::AtomicStore { pointer, value, .. } => Instruction {
-                operation: InstructionOperation::AtomicStore,
-                data: InstructionData::AtomicStore {
+                opcode: Opcode::AtomicStore,
+                immediate: Immediate::AtomicStore {
                     pointer: (*pointer)
                         .value()
                         .ok_or_else(|| Error::ConcreteMirRequired {
@@ -2571,8 +2559,8 @@ impl<'a> BlockLowerer<'a> {
                 new_value,
                 ..
             } => Instruction {
-                operation: InstructionOperation::AtomicCompareExchange,
-                data: InstructionData::AtomicCompareExchange {
+                opcode: Opcode::AtomicCompareExchange,
+                immediate: Immediate::AtomicCompareExchange {
                     dest: (*destination)
                         .value()
                         .ok_or_else(|| Error::ConcreteMirRequired {
@@ -2612,8 +2600,8 @@ impl<'a> BlockLowerer<'a> {
                 value,
                 ..
             } => Instruction {
-                operation: InstructionOperation::AtomicRmw,
-                data: InstructionData::AtomicRmw {
+                opcode: Opcode::AtomicRmw,
+                immediate: Immediate::AtomicRmw {
                     dest: (*destination)
                         .value()
                         .ok_or_else(|| Error::ConcreteMirRequired {
@@ -2641,13 +2629,13 @@ impl<'a> BlockLowerer<'a> {
             },
 
             mir::Instruction::AtomicFence { .. } => Instruction {
-                operation: InstructionOperation::AtomicFence,
-                data: InstructionData::AtomicFence,
+                opcode: Opcode::AtomicFence,
+                immediate: Immediate::AtomicFence,
             },
 
             mir::Instruction::Barrier { .. } => Instruction {
-                operation: InstructionOperation::Barrier,
-                data: InstructionData::Barrier,
+                opcode: Opcode::Barrier,
+                immediate: Immediate::Barrier,
             },
         })
     }
@@ -2682,5 +2670,23 @@ impl<'a> BlockLowerer<'a> {
             .ok_or_else(|| Error::InvariantViolation {
                 context: format!("missing lowered layout for type: {layout:?}"),
             })
+    }
+
+    /// Return the slice type for one new.slice result.
+    fn slice_type_for_new_slice(
+        &self,
+        result_type: mir::TypeReference,
+    ) -> Result<mir::LocalNodeId<mir::Type>> {
+        let result_type = result_type.ty().ok_or_else(|| Error::ConcreteMirRequired {
+            context: "new.slice result type".to_string(),
+        })?;
+
+        let mir::Type::Slice { .. } = self.tree.get(result_type) else {
+            return Err(Error::InvariantViolation {
+                context: "new.slice result type must be a slice".to_string(),
+            });
+        };
+
+        Ok(result_type)
     }
 }

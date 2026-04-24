@@ -2,12 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use destack_mir as mir;
 
-use crate::executable::CallTarget;
-use crate::executable::layout::Layout;
+use crate::module::{CallTarget, Layout};
 use crate::{Error, Result};
 
 use super::kind::ValueKindMap;
-use super::tree::BlockParameterMap;
 
 /// One lowered block traversal order.
 pub(super) struct BlockOrder {
@@ -190,6 +188,4 @@ pub(super) struct FunctionContext<'a> {
     pub(super) local_index_by_id: HashMap<mir::LocalNodeId<mir::Local>, u32>,
     /// The lowered SSA value use count by SSA value id.
     pub(super) value_use_count: Vec<u32>,
-    /// The block parameter decomposition metadata.
-    pub(super) block_parameter_map: &'a BlockParameterMap,
 }
