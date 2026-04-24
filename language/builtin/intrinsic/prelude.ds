@@ -12,7 +12,6 @@ export {
     type Raw,
     type Owned,
     type Shared,
-    type InSpace,
     type BaseOf,
     type OwnershipOf,
     type SpaceOf,

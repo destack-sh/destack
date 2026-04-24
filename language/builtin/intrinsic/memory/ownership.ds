@@ -1,11 +1,11 @@
 /// Region marker for borrowed validity.
-export newtype Region = unknown;
+export type Region = unknown;
 
 /// Space tag kind for qualified storage (e.g., "local", "shared").
-export newtype Space = string;
+export type Space = string;
 
 /// Ownership or access kind for qualified storage.
-export newtype Ownership = "managed" | "owned" | "borrowed" | "raw";
+export type Ownership = "managed" | "owned" | "borrowed" | "raw";
 
 /// Canonical qualified storage form.
 export newtype Form<
