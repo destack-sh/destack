@@ -142,7 +142,11 @@ impl Compiler {
     }
 
     /// Resolve profile-level skip-lib-check state for one anchored diagnostic.
-    fn profile_skip_lib_check_for_anchor(&self, anchor: &DiagnosticAnchor) -> bool {
+    fn profile_skip_lib_check_for_anchor(
+        &self,
+        revision: Revision,
+        anchor: &DiagnosticAnchor,
+    ) -> bool {
         // skip when the diagnostic is not anchored to a profile scoped dir node
         let DiagnosticAnchor::DirNode(anchored) = anchor else {
             return false;
@@ -153,8 +157,8 @@ impl Compiler {
             return false;
         };
 
-        // resolve skip-lib-check from the active profile key
-        let profile = self.profile(profile_id);
+        // resolve skip-lib-check from the diagnostic revision
+        let profile = self.profile_for_revision(revision, profile_id);
         profile.key.skip_lib_check
     }
 
@@ -166,7 +170,7 @@ impl Compiler {
         module_id: ModuleId,
     ) -> bool {
         // allow profile-level suppression first
-        if self.profile_skip_lib_check_for_anchor(anchor) {
+        if self.profile_skip_lib_check_for_anchor(revision, anchor) {
             return true;
         }
 

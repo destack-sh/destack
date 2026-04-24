@@ -206,7 +206,7 @@ impl<'a> ScriptLinker<'a> {
 
         Err(LinkError::Internal {
             package: self.package_id,
-            message: "FUGU #Incomplete".to_string(),
+            message: "FUGU #Incomplete: ScriptLinker.render_runtime_document".to_string(),
         })
     }
 }

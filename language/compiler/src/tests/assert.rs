@@ -105,11 +105,11 @@ macro_rules! assert_expression_path {
 /// Examples:
 /// ```
 /// assert_type!(types, type_id, Type::Unknown);
-/// assert_type!(types, type_id, Type::Tuple { elements, copyability: _ } => {
+/// assert_type!(types, type_id, Type::Tuple { elements, copy: _ } => {
 ///     assert_eq!(elements.len(), 2);
 /// });
 /// // Or with an already-resolved type:
-/// assert_type!(*ty_ref, Type::Tuple { elements, copyability: _ } => { ... });
+/// assert_type!(*ty_ref, Type::Tuple { elements, copy: _ } => { ... });
 /// ```
 #[macro_export]
 macro_rules! assert_type {
@@ -123,7 +123,7 @@ macro_rules! assert_type {
         }
     }};
     // `types.get_type(id)` matches a pattern, then run a block with the bindings.
-    // e.g., `assert_type!(types, type_id, Type::Tuple { elements, copyability: _ } => { /* ... */ });`
+    // e.g., `assert_type!(types, type_id, Type::Tuple { elements, copy: _ } => { /* ... */ });`
     ($types:expr, $id:expr, $pat:pat_param => $body:block) => {{
         #[allow(unreachable_patterns)]
         match $types.get_type($id) {
@@ -132,7 +132,7 @@ macro_rules! assert_type {
         }
     }};
     // Already-resolved type matches a pattern, run a block.
-    // e.g., `assert_type!(*ty_ref, Type::Tuple { elements, copyability: _ } => { /* ... */ });`
+    // e.g., `assert_type!(*ty_ref, Type::Tuple { elements, copy: _ } => { /* ... */ });`
     ($ty:expr, $pat:pat_param => $body:block) => {{
         #[allow(unreachable_patterns)]
         match $ty {
