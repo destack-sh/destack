@@ -1,10 +1,9 @@
 use std::collections::HashMap;
-use std::mem::size_of;
 
 use destack_mir as mir;
 use serde::{Deserialize, Serialize};
 
-use destack_heap::Value;
+use crate::Value;
 
 /// Storage for global variables.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -35,6 +34,11 @@ impl GlobalStorage {
         self.values.values()
     }
 
+    /// Return an iterator over mutable global values.
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut Value> {
+        self.values.values_mut()
+    }
+
     /// Get the number of globals.
     pub fn len(&self) -> usize {
         self.values.len()
@@ -43,12 +47,5 @@ impl GlobalStorage {
     /// Check if empty.
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
-    }
-
-    /// Return the owned bytes for this global storage.
-    pub fn owned_bytes(&self) -> usize {
-        size_of::<Self>()
-            + self.values.capacity()
-                * (size_of::<mir::LocalNodeId<mir::Global>>() + size_of::<Value>())
     }
 }

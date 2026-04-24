@@ -14,15 +14,6 @@ use destack_mir::parse::{ParseOptions, Parser};
 use destack_mir::{LayoutTable, ReferenceMap, Storage};
 use destack_source::FileId;
 
-/// Return the aggregate payload bytes for one materialized value.
-fn aggregate_bytes(value: &MaterializedValue) -> &[u8] {
-    let MaterializedValue::Aggregate { bytes, .. } = value else {
-        panic!("expected aggregate value, got {value:?}");
-    };
-
-    bytes
-}
-
 /// Decode one native-width heap reference from materialized bytes.
 fn decode_heap_reference(bytes: &[u8], offset: usize) -> HeapReference {
     let mut raw = [0u8; 8];
@@ -78,8 +69,8 @@ b0:
 fn test_store_shared_invalid_address_space() {
     // define a shared address space store
     let mir = r#"
-function storeShared(v0: ref<int32, raw, addressSpace(shared)>): void {
-b0(v0: ref<int32, raw, addressSpace(shared)>):
+function storeShared(v0: ref<int32, raw, space(shared)>): void {
+b0(v0: ref<int32, raw, space(shared)>):
     v1: int32 = 1int32
     store v0, v1
     return
@@ -98,8 +89,8 @@ b0(v0: ref<int32, raw, addressSpace(shared)>):
 fn test_store_invalid_address_space() {
     // define a stack address space store
     let mir = r#"
-function storeStack(v0: ref<int32, raw, addressSpace(stack)>): void {
-b0(v0: ref<int32, raw, addressSpace(stack)>):
+function storeStack(v0: ref<int32, raw, space(stack)>): void {
+b0(v0: ref<int32, raw, space(stack)>):
     v1: int32 = 1int32
     store v0, v1
     return
@@ -291,15 +282,21 @@ b0:
     let output = isolate
         .run_function_by_name("allocArray", &[])
         .expect("execution failed");
-    let bytes = aggregate_bytes(&output.value);
-    let data = Value::heap_reference(decode_heap_reference(bytes, 0));
-    let len = decode_usize_value(bytes, HeapReference::BYTE_LEN);
+    let MaterializedValue::HeapReference(slice) = output.value else {
+        panic!("expected heap slice value, got {:?}", output.value);
+    };
+    let bytes = isolate
+        .heap
+        .read_heap_bytes(slice)
+        .expect("slice payload should be live");
+    let data = Value::heap_reference(decode_heap_reference(&bytes, 0));
+    let len = decode_usize_value(&bytes, HeapReference::BYTE_LEN);
 
     assert!(data.is_heap_reference());
     assert_eq!(len.as_uint(), Some(10));
     assert_eq!(len.as_uint_with_width(), Some((10, usize::BITS as u8)));
 
-    assert_eq!(output.heap_allocation_count, 1);
+    assert_eq!(output.heap_allocation_count, 2);
 }
 
 /// Extract field reads a field from a tuple value.
@@ -660,8 +657,14 @@ b0:
     let output = isolate
         .run_function_by_name("allocArray", &[])
         .expect("execution failed");
-    let bytes = aggregate_bytes(&output.value);
-    let reference = decode_heap_reference(bytes, 0);
+    let MaterializedValue::HeapReference(slice) = output.value else {
+        panic!("expected heap slice value, got {:?}", output.value);
+    };
+    let bytes = isolate
+        .heap
+        .read_heap_bytes(slice)
+        .expect("slice payload should be live");
+    let reference = decode_heap_reference(&bytes, 0);
 
     // pointer-shaped heap refs should use pointer-sized repeated elements
     assert_eq!(isolate.heap.heap_byte_len(reference), Ok(16));
@@ -836,7 +839,7 @@ fn test_stack_allocate() {
     let mir = r#"
 function stackAlloc(): int32 {
 b0:
-    v0: ref<int32, raw, readonly, addressSpace(stack)> = stack.alloc int32
+    v0: ref<int32, raw, readonly, space(stack)> = stack.alloc int32
     v1: int32 = 99int32
     store v0, v1
     v2: int32 = load v0
@@ -851,9 +854,9 @@ fn test_stack_allocate_struct() {
     let mir = r#"
 function stackStruct(): int32 {
 b0:
-    v0: ref<(int32, int32), raw, readonly, addressSpace(stack)> = stack.alloc (int32, int32)
+    v0: ref<(int32, int32), raw, readonly, space(stack)> = stack.alloc (int32, int32)
     v1: int32 = 10int32
-    v2: ref<int32, borrowed, readonly, addressSpace(stack)> = field.address v0, 0
+    v2: ref<int32, borrowed, readonly, space(stack)> = field.address v0, 0
     store v2, v1
     v3: int32 = load v2
     return v3
@@ -875,8 +878,8 @@ b0:
     v0: ref<int32, managed, readonly> = new int32
     v1: int32 = 77int32
     store v0, v1
-    v2: ref<Packed, raw, readonly, addressSpace(stack)> = stack.alloc Packed
-    v3: ref<ref<int32, managed, readonly>, borrowed, readonly, addressSpace(stack)> = field.address v2, 1
+    v2: ref<Packed, raw, readonly, space(stack)> = stack.alloc Packed
+    v3: ref<ref<int32, managed, readonly>, borrowed, readonly, space(stack)> = field.address v2, 1
     store v3, v0
     v4: ref<int32, managed, readonly> = load v3
     v5: int32 = load v4

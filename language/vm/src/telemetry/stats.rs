@@ -1,4 +1,4 @@
-use destack_engine::ExecutionStats;
+use destack_engine::RunStats;
 use serde::{Deserialize, Serialize};
 
 /// Statistics collected during interpreter execution.
@@ -94,7 +94,7 @@ impl Statistics {
     }
 }
 
-impl From<Statistics> for destack_engine::ExecutionStats {
+impl From<Statistics> for RunStats {
     fn from(stats: Statistics) -> Self {
         Self {
             mir_instructions_executed: stats.mir_instructions_executed,
@@ -109,7 +109,7 @@ impl From<Statistics> for destack_engine::ExecutionStats {
     }
 }
 
-impl From<&Statistics> for destack_engine::ExecutionStats {
+impl From<&Statistics> for RunStats {
     fn from(stats: &Statistics) -> Self {
         Self {
             mir_instructions_executed: stats.mir_instructions_executed,
@@ -124,8 +124,8 @@ impl From<&Statistics> for destack_engine::ExecutionStats {
     }
 }
 
-impl From<ExecutionStats> for Statistics {
-    fn from(stats: ExecutionStats) -> Self {
+impl From<RunStats> for Statistics {
+    fn from(stats: RunStats) -> Self {
         Self {
             mir_instructions_executed: stats.mir_instructions_executed,
             lowered_instructions_executed: stats.lowered_instructions_executed,

@@ -30,7 +30,7 @@ pub enum RuntimePolicy {
     /// Allow all runtime features.
     #[default]
     Full,
-    /// Disallow managed heap allocation and managed references.
+    /// Disallow heap allocation and heap references.
     NoManaged,
     /// Disallow all runtime features.
     NoRuntime,
@@ -105,9 +105,9 @@ pub struct LimitOptions {
     /// The maximum call stack depth before a stack overflow error.
     /// Default is 1024.
     pub max_stack_depth: usize,
-    /// The maximum number of managed allocations before allocation fails.
+    /// The maximum number of heap allocations before allocation fails.
     /// Default is 100_000, roughly 10MB depending on allocation shape.
-    pub max_managed_allocations: usize,
+    pub max_heap_allocations: usize,
     /// The maximum number of raw allocations before allocation fails.
     /// Default is 100_000, roughly 10MB depending on allocation shape.
     pub max_raw_allocations: usize,
@@ -121,7 +121,7 @@ impl Default for LimitOptions {
         // use default runtime limits
         Self {
             max_stack_depth: 1024,
-            max_managed_allocations: 100_000,
+            max_heap_allocations: 100_000,
             max_raw_allocations: 100_000,
             max_instructions: Some(10_000_000),
         }

@@ -1,12 +1,9 @@
 mod external;
 mod globals;
 mod isolate;
-mod schema;
-mod string;
+mod root;
 
 pub use external::*;
 pub use globals::*;
 pub use isolate::*;
-pub(crate) use schema::*;
-pub(crate) use string::StringInterner;
-pub use string::{StringHandle, StringRef};
+pub use root::*;

@@ -3,15 +3,13 @@ use std::ops::Deref;
 
 use destack_mir as mir;
 
-use crate::executable::layout::Layout;
-use crate::executable::{Block, CallTarget, Function};
+use crate::module::{Block, CallTarget, Function, Layout};
 use crate::{Error, Result};
 
 use super::block::{BlockOrder, FunctionContext};
-use super::decompose::DecompositionLowerer;
 use super::kind::{KindMapBuilder, ValueKindMap};
 use super::pool::{Pool, lookup_call_target};
-use super::tree::{BlockParameterMap, LoweredValueSlot};
+use super::tree::ValueSlot;
 
 /// One whole-function lowering session.
 struct FunctionLowerer<'a> {
@@ -37,8 +35,7 @@ impl<'a> FunctionLowerer<'a> {
         >,
         call_targets: &'a HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &'a HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-        value_slots: &'a [LoweredValueSlot],
-        block_parameter_map: &'a BlockParameterMap,
+        value_slots: &'a [ValueSlot],
     ) -> Result<Option<Self>> {
         let func = tree.get(func_id);
 
@@ -73,7 +70,6 @@ impl<'a> FunctionLowerer<'a> {
             block_parameter,
             local_index_by_id,
             value_use_count,
-            block_parameter_map,
         };
 
         Ok(Some(Self {
@@ -84,7 +80,7 @@ impl<'a> FunctionLowerer<'a> {
         }))
     }
 
-    /// Lower the function into executable form.
+    /// Lower the function into module form.
     fn lower(mut self) -> Result<Function> {
         let parameter_value = self
             .func
@@ -127,7 +123,7 @@ impl<'a> FunctionLowerer<'a> {
         })
     }
 
-    /// Lower one MIR block into executable form.
+    /// Lower one MIR block into module form.
     fn lower_block(&mut self, mir_block: mir::LocalNodeId<mir::Block>) -> Result<Block> {
         let lowerer = BlockLowerer {
             function: &self.context,
@@ -182,7 +178,7 @@ impl<'a> FunctionLowerer<'a> {
 }
 
 /// Lower a MIR function into the interpreter function form.
-pub(in crate::executable) fn lower_function(
+pub(crate) fn lower_function(
     tree: &mir::NodeTree,
     func_id: mir::LocalNodeId<mir::Function>,
     frame_layout: destack_engine::FrameLayoutId,
@@ -193,8 +189,7 @@ pub(in crate::executable) fn lower_function(
     >,
     call_targets: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    value_slots: &[LoweredValueSlot],
-    block_parameter_map: &BlockParameterMap,
+    value_slots: &[ValueSlot],
 ) -> Result<Option<Function>> {
     let lowerer = FunctionLowerer::new(
         tree,
@@ -205,7 +200,6 @@ pub(in crate::executable) fn lower_function(
         call_targets,
         layouts,
         value_slots,
-        block_parameter_map,
     )?;
 
     lowerer.map(FunctionLowerer::lower).transpose()
@@ -232,32 +226,17 @@ impl<'a> BlockLowerer<'a> {
         self.mir_block
     }
 
-    /// Lower the block into executable form.
+    /// Lower the block into module form.
     fn lower(self, pool: &mut Pool) -> Result<Block> {
         let mut instructions = Vec::with_capacity(self.block.instructions.len() + 1);
         let mut mir_instruction_offsets = Vec::with_capacity(self.block.instructions.len() + 2);
         mir_instruction_offsets.push(0);
-        let function = self.function;
-        let mut decomposition = DecompositionLowerer::new(
-            function.tree,
-            function.value_type.as_slice(),
-            function.block_parameter_map,
-        );
-        decomposition.seed_block(self.mir_block);
 
         // convert regular instructions
         let mut inst_index = 0usize;
         while inst_index < self.block.instructions.len() {
             let inst_id = self.block.instructions[inst_index];
             let inst = self.tree.get(inst_id);
-
-            if decomposition.lower_instruction(inst, pool, &mut instructions) {
-                inst_index += 1;
-                mir_instruction_offsets.push(instructions.len() as u32);
-                continue;
-            }
-
-            decomposition.flush(&mut instructions, pool);
 
             if let Some((instruction, skip)) = self
                 .try_fuse_addr_access(inst, self.block.instructions.get(inst_index + 1).copied())
@@ -285,88 +264,10 @@ impl<'a> BlockLowerer<'a> {
 
         let terminator = self.tree.get(self.block.terminator);
 
-        let allow_compare_branch_fusion =
-            decomposition.is_empty()
-                && match terminator {
-                    mir::Terminator::Branch {
-                        then_target,
-                        else_target,
-                        ..
-                    } => {
-                        let then_target = (then_target.block).block().ok_or_else(|| {
-                            Error::ConcreteMirRequired {
-                                context: "branch then target".to_string(),
-                            }
-                        })?;
-                        let else_target = (else_target.block).block().ok_or_else(|| {
-                            Error::ConcreteMirRequired {
-                                context: "branch else target".to_string(),
-                            }
-                        })?;
-                        !self
-                            .block_parameter_map
-                            .tree_by_block
-                            .contains_key(&then_target)
-                            && !self
-                                .block_parameter_map
-                                .tree_by_block
-                                .contains_key(&else_target)
-                    }
-                    mir::Terminator::Check {
-                        success, failure, ..
-                    } => {
-                        let success =
-                            (success.block)
-                                .block()
-                                .ok_or_else(|| Error::ConcreteMirRequired {
-                                    context: "check success target".to_string(),
-                                })?;
-                        let failure =
-                            (failure.block)
-                                .block()
-                                .ok_or_else(|| Error::ConcreteMirRequired {
-                                    context: "check failure target".to_string(),
-                                })?;
-                        !self
-                            .block_parameter_map
-                            .tree_by_block
-                            .contains_key(&success)
-                            && !self
-                                .block_parameter_map
-                                .tree_by_block
-                                .contains_key(&failure)
-                    }
-                    _ => true,
-                };
-
-        if allow_compare_branch_fusion
-            && let Some(fused) = self.try_fuse_compare_branch(self.block, &mut instructions, pool)
-        {
+        if let Some(fused) = self.try_fuse_compare_branch(self.block, &mut instructions, pool) {
             instructions.push(fused);
         } else {
-            let requires_materialized_boundary = matches!(
-                terminator,
-                mir::Terminator::Return { .. }
-                    | mir::Terminator::Throw { .. }
-                    | mir::Terminator::Trap { .. }
-                    | mir::Terminator::Unreachable
-                    | mir::Terminator::Yield { .. }
-                    | mir::Terminator::Invoke { .. }
-                    | mir::Terminator::InvokeIndirect { .. }
-                    | mir::Terminator::InvokeVirtual { .. }
-                    | mir::Terminator::InvokeInterface { .. }
-                    | mir::Terminator::TailCall { .. }
-                    | mir::Terminator::TailCallIndirect { .. }
-                    | mir::Terminator::TailCallVirtual { .. }
-                    | mir::Terminator::TailCallInterface { .. }
-            );
-
-            if requires_materialized_boundary {
-                decomposition.flush(&mut instructions, pool);
-            }
-
-            let lowered_terminator =
-                self.lower_terminator(terminator, decomposition.map(), pool)?;
+            let lowered_terminator = self.lower_terminator(terminator, pool)?;
             instructions.push(lowered_terminator);
         }
 

@@ -12,8 +12,8 @@ pub enum ReferenceAddressSpace {
     Stack,
     /// Frame-slot storage inside one activation.
     Frame,
-    /// Global or module-static memory.
-    Global,
+    /// Static image memory.
+    Static,
     /// Named backend-specific storage space.
     Named,
 }
@@ -26,7 +26,7 @@ impl ReferenceAddressSpace {
             mir::AddressSpace::Shared => ReferenceAddressSpace::Shared,
             mir::AddressSpace::Stack => ReferenceAddressSpace::Stack,
             mir::AddressSpace::Frame => ReferenceAddressSpace::Frame,
-            mir::AddressSpace::Global => ReferenceAddressSpace::Global,
+            mir::AddressSpace::Static => ReferenceAddressSpace::Static,
             mir::AddressSpace::Named(_) => ReferenceAddressSpace::Named,
         }
     }
@@ -36,7 +36,7 @@ impl ReferenceAddressSpace {
         match bits {
             0 => ReferenceAddressSpace::Local,
             1 => ReferenceAddressSpace::Stack,
-            2 => ReferenceAddressSpace::Global,
+            2 => ReferenceAddressSpace::Static,
             3 => ReferenceAddressSpace::Shared,
             4 => ReferenceAddressSpace::Frame,
             _ => ReferenceAddressSpace::Named,
@@ -48,7 +48,7 @@ impl ReferenceAddressSpace {
         match self {
             ReferenceAddressSpace::Local => 0,
             ReferenceAddressSpace::Stack => 1,
-            ReferenceAddressSpace::Global => 2,
+            ReferenceAddressSpace::Static => 2,
             ReferenceAddressSpace::Shared => 3,
             ReferenceAddressSpace::Frame => 4,
             ReferenceAddressSpace::Named => 5,
@@ -63,7 +63,7 @@ impl ReferenceAddressSpace {
                 | ReferenceAddressSpace::Shared
                 | ReferenceAddressSpace::Stack
                 | ReferenceAddressSpace::Frame
-                | ReferenceAddressSpace::Global
+                | ReferenceAddressSpace::Static
         )
     }
 
@@ -74,7 +74,7 @@ impl ReferenceAddressSpace {
             ReferenceAddressSpace::Shared => "shared",
             ReferenceAddressSpace::Stack => "stack",
             ReferenceAddressSpace::Frame => "frame",
-            ReferenceAddressSpace::Global => "global",
+            ReferenceAddressSpace::Static => "static",
             ReferenceAddressSpace::Named => "named",
         }
     }
